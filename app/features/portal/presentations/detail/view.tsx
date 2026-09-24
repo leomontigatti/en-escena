@@ -46,6 +46,8 @@ const noFeedbackMessage = "Este juez no dejó devolución.";
 const disqualifiedEvaluationMessage =
   "Esta presentación fue descalificada: no tiene puntaje ni premio. Las devoluciones del jurado están abajo.";
 
+const noScoresMessage = "Esta presentación no tiene puntajes para mostrar.";
+
 export function PortalPresentationEvaluationView({
   loaderData,
 }: {
@@ -83,16 +85,43 @@ export function PortalPresentationEvaluationView({
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {loaderData.judges.map((judge) => (
-          <JudgeCard
-            key={judge.judgeId}
-            criteria={loaderData.criteria}
-            judge={judge}
-          />
-        ))}
-      </div>
+      <JudgeCards
+        criteria={loaderData.criteria}
+        disqualified={loaderData.disqualified}
+        judges={loaderData.judges}
+      />
     </PortalListPage>
+  );
+}
+
+/**
+ * A card per judge — and a notice instead when there is no card to lay out.
+ * Every judge the loader dropped, annulled or never scored, leaves nothing
+ * behind, so a published presentation can reach the page with an empty panel;
+ * the academy is told that rather than shown a blank page. A disqualified one
+ * says it in its own alert above, so it stays silent here.
+ */
+function JudgeCards({
+  criteria,
+  disqualified,
+  judges,
+}: {
+  criteria: SheetCriterion[];
+  disqualified: boolean;
+  judges: PortalEvaluationJudge[];
+}) {
+  if (judges.length === 0) {
+    return disqualified ? null : (
+      <p className="text-sm text-muted-foreground">{noScoresMessage}</p>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {judges.map((judge) => (
+        <JudgeCard key={judge.judgeId} criteria={criteria} judge={judge} />
+      ))}
+    </div>
   );
 }
 

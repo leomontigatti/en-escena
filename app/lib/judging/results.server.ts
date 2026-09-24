@@ -1,18 +1,17 @@
 import {
   and,
   eq,
-  exists,
   inArray,
   isNotNull,
   isNull,
-  or,
   sql,
   type SQL,
 } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events, judgeAssignments, presentations, scores } from "@/db/schema";
+import { events, presentations } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
+import { isPresentationEvaluated } from "@/lib/presentations/evaluation-lock.server";
 
 /**
  * Who owns the publication of an event's results: a snapshot of what the panel
@@ -34,20 +33,6 @@ export type ResultsPublication = {
   publishedCount: number;
 };
 
-/** "Evaluated" as the panel means it: disqualified, or holding any score row. */
-function isEvaluated() {
-  return or(
-    isNotNull(presentations.disqualifiedAt),
-    exists(
-      db
-        .select({ one: sql`1` })
-        .from(judgeAssignments)
-        .innerJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
-        .where(eq(judgeAssignments.presentationId, presentations.id)),
-    ),
-  );
-}
-
 /**
  * Both `Mostrar resultados` and `Actualizar resultados`: the event is stamped
  * and so is every evaluated presentation that is not stamped yet, in one
@@ -55,6 +40,10 @@ function isEvaluated() {
  *
  * There is no precondition — not even one evaluated presentation, and not the
  * active event: publishing an empty event succeeds and reads as zero.
+ *
+ * What counts as evaluated is not decided here: the condition belongs to the
+ * evaluation-lock seam, which owns that fact for the whole app, and is used as
+ * a predicate so the `UPDATE` keeps its shape and what it locks.
  */
 export async function publishResults(eventId: string): Promise<number> {
   return await db.transaction(async (tx) => {
@@ -72,7 +61,7 @@ export async function publishResults(eventId: string): Promise<number> {
         and(
           eq(presentations.eventId, eventId),
           isNull(presentations.resultPublishedAt),
-          isEvaluated(),
+          isPresentationEvaluated(),
         ),
       );
 
@@ -122,7 +111,7 @@ export async function readResultsPublication(
     countPresentations(
       db,
       eventId,
-      and(isNull(presentations.resultPublishedAt), isEvaluated()),
+      and(isNull(presentations.resultPublishedAt), isPresentationEvaluated()),
     ),
   ]);
 

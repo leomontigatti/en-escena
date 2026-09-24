@@ -97,6 +97,29 @@ describe("PortalPresentationEvaluationView", () => {
     expect(markup).not.toContain("/ 100");
   });
 
+  test("says there is nothing to show when no judge survived the filter", () => {
+    const markup = renderView({ average: null, judges: [], medal: null });
+
+    expect(markup).toContain(
+      "Esta presentación no tiene puntajes para mostrar.",
+    );
+    expect(markup).not.toContain("Devolución");
+  });
+
+  test("leaves the notice out of a disqualified presentation with no judges", () => {
+    // The disqualification alert already says what happened; a second notice
+    // under it would only repeat it.
+    const markup = renderView({
+      average: null,
+      disqualified: true,
+      judges: [],
+      medal: null,
+    });
+
+    expect(markup).toContain("no tiene puntaje ni premio");
+    expect(markup).not.toContain("no tiene puntajes para mostrar");
+  });
+
   test("shows neither medal nor average when nothing counted", () => {
     const markup = renderView({
       average: null,

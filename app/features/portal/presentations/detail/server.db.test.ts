@@ -175,6 +175,35 @@ describe("an academy's evaluation detail", () => {
     ]);
   });
 
+  test("answers with no judges and no average when every score is annulled", async () => {
+    const { fixture, presentation } = await seedPublishedEvaluation();
+    const annulled = await fixture.assignJudge(presentation.presentationId);
+    const silent = await fixture.assignJudge(presentation.presentationId);
+
+    await nameJudge(annulled.judgeId, "Ana Juez");
+    await nameJudge(silent.judgeId, "Beto Juez");
+    await db.insert(scores).values({
+      annulled: true,
+      feedbackAudioStorageKey: "takes/a.webm",
+      judgeAssignmentId: annulled.judgeAssignmentId,
+      value: "80.0",
+    });
+    // Annulling every score does not take the presentation out of the
+    // snapshot: an annulled score row still counts as evaluated, so it is
+    // published with nothing left to show.
+    await publishResults(fixture.event.id);
+
+    const loaderData = await loadEvaluation(
+      fixture,
+      presentation.choreographyId,
+    );
+
+    expect(loaderData.judges).toEqual([]);
+    expect(loaderData.average).toBeNull();
+    expect(loaderData.medal).toBeNull();
+    expect(loaderData.disqualified).toBe(false);
+  });
+
   test("reads a correction made after publishing", async () => {
     const { fixture, presentation } = await seedPublishedEvaluation();
     const judge = await fixture.assignJudge(presentation.presentationId);

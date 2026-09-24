@@ -4,6 +4,8 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { events, presentations, scores } from "@/db/schema";
 
+import { hasEvaluatedPresentation } from "../presentations/evaluation-lock.server";
+
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 import { seedJudgingFixture } from "./judging.test-support";
@@ -125,6 +127,62 @@ describe("publishing an event's results", () => {
     expect(await readPublishedStamp(second.presentationId)).toBeInstanceOf(
       Date,
     );
+  });
+});
+
+/**
+ * Publishing and the choreography lock ask the same question of the same rows,
+ * and the predicate they ask it with lives in one place
+ * (`isPresentationEvaluated`). These two cases are the ones a second copy would
+ * have drifted on: a score that no longer counts still counts as evaluated, and
+ * a disqualification counts with no score at all.
+ */
+describe("publishing and the evaluation lock", () => {
+  test("agree on a presentation whose only score is annulled", async () => {
+    const fixture = await seedJudgingFixture();
+    const annulled = await addScoredPresentation(fixture, {
+      annulled: true,
+      name: "Anulada",
+      orderNumber: 1,
+    });
+
+    expect(await publishResults(fixture.event.id)).toBe(1);
+    expect(await readPublishedStamp(annulled.presentationId)).toBeInstanceOf(
+      Date,
+    );
+    expect(await hasEvaluatedPresentation(annulled.choreographyId)).toBe(true);
+  });
+
+  test("agree on a disqualified presentation with no scores", async () => {
+    const fixture = await seedJudgingFixture();
+    const disqualified = await fixture.addPresentation({
+      name: "Descalificada",
+      orderNumber: 1,
+    });
+    await db
+      .update(presentations)
+      .set({ disqualifiedAt: new Date() })
+      .where(eq(presentations.id, disqualified.presentationId));
+
+    expect(await publishResults(fixture.event.id)).toBe(1);
+    expect(
+      await readPublishedStamp(disqualified.presentationId),
+    ).toBeInstanceOf(Date);
+    expect(await hasEvaluatedPresentation(disqualified.choreographyId)).toBe(
+      true,
+    );
+  });
+
+  test("agree that a presentation nobody touched is not evaluated", async () => {
+    const fixture = await seedJudgingFixture();
+    const pending = await fixture.addPresentation({
+      name: "Sin evaluar",
+      orderNumber: 1,
+    });
+
+    expect(await publishResults(fixture.event.id)).toBe(0);
+    expect(await readPublishedStamp(pending.presentationId)).toBeNull();
+    expect(await hasEvaluatedPresentation(pending.choreographyId)).toBe(false);
   });
 });
 

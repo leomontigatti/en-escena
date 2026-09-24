@@ -255,6 +255,7 @@ const resultsJudgingRequirements = [
   "`Ocultar resultados`",
   "reaches the academy immediately, with no need to publish again",
   "behind its login and only for its own published presentations",
+  "says that it has no scores to show",
 ];
 
 const resultsGlossaryRequirements = [

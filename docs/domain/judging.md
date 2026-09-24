@@ -41,6 +41,7 @@ Rules for presentations, judging, program, results, scores and feedback.
 - Administration and audit read, while results are published, how many presentations the academies see, when they were published, and how many are evaluated and still waiting to be added. Only administration can publish, update or hide.
 - An academy reads its results in the portal, behind its login and only for its own published presentations: the medal, the average and, per judge, the judge's name, their score, the sheet breakdown when there is one, and their `Devolución`. Nothing about results appears before administration publishes, and a presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found".
 - Hidden from the academy are annulled scores and judges who never scored, which are left out entirely. A disqualified presentation shows as `Descalificada`, with no medal, no average and no scores, and keeps every judge's `Devolución`.
+- A published presentation whose every score was annulled has nothing left to show. It still opens for the academy and says that it has no scores to show, with no medal and no average: an annulled score keeps the presentation evaluated, so it stays inside the snapshot, and the academy is told so rather than shown an empty page.
 
 ## Scores And Feedback
 
