@@ -208,6 +208,9 @@ export async function handlePresentationListAction(
  * answer with what they reached and not with what was asked for: an already
  * assigned pair is skipped and a judge nobody in the selection has is a
  * removal of nothing, so the counts name presentations actually touched.
+ *
+ * A removal also reports the scored pairs it refused to take apart, and comes
+ * back an error when that is everything it was asked about.
  */
 async function runJudgeAssignment(
   intent: typeof assignJudgesIntent | typeof removeJudgesIntent,
@@ -238,17 +241,23 @@ async function runJudgeAssignment(
 
   const result =
     intent === assignJudgesIntent
-      ? await assignJudges({ choreographyIds, judgeIds })
+      ? { ...(await assignJudges({ choreographyIds, judgeIds })), keptCount: 0 }
       : await removeJudges({ choreographyIds, judgeIds });
+  const message = formatJudgeAssignmentMessage({
+    intent,
+    judgeCount: result.judgeCount,
+    keptCount: result.keptCount,
+    presentationCount: result.presentationCount,
+  });
 
-  return {
-    message: formatJudgeAssignmentMessage({
-      intent,
-      judgeCount: result.judgeCount,
-      presentationCount: result.presentationCount,
-    }),
-    status: "success" as const,
-  };
+  // A removal that reached nothing because every chosen pair already has a
+  // score is a refusal, not a quiet success: the message is all the
+  // administrator gets, so it has to arrive in the tone of one.
+  if (result.keptCount > 0 && result.judgeCount === 0) {
+    return data({ message, status: "error" as const }, { status: 409 });
+  }
+
+  return { message, status: "success" as const };
 }
 
 /**

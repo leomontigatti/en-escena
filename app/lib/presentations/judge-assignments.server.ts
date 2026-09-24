@@ -1,7 +1,7 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { judgeAssignments, presentations, user } from "@/db/schema";
+import { judgeAssignments, presentations, scores, user } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 
 /**
@@ -20,6 +20,14 @@ export type AssignableJudge = {
 export type JudgeAssignmentResult = {
   judgeCount: number;
   presentationCount: number;
+};
+
+/**
+ * What a removal answers. "Kept" has no meaning for an assignment — nothing
+ * refuses one — so only this half of the seam carries the count.
+ */
+export type JudgeRemovalResult = JudgeAssignmentResult & {
+  keptCount: number;
 };
 
 /**
@@ -134,14 +142,20 @@ export async function assignJudges(input: {
 
 /**
  * Takes every chosen judge off every chosen presentation that has them. It is
- * the single removal seam: the judging effort adds its guard here — an
- * assignment is removable only while its score is unconfirmed and empty — and
- * every caller inherits it.
+ * the single removal seam, and it carries the judging guard: a pair whose judge
+ * has already saved a score is kept, because removing the assignment would
+ * orphan the score the whole panel's average is built from.
+ *
+ * A bulk removal does not fail on one such pair. It removes everything else and
+ * answers with how many it kept, so the administrator learns what was left
+ * behind in the same notification as the success — and a single removal, which
+ * is a selection of one, comes back having removed nothing, which is the
+ * refusal.
  */
 export async function removeJudges(input: {
   choreographyIds: string[];
   judgeIds: string[];
-}): Promise<JudgeAssignmentResult> {
+}): Promise<JudgeRemovalResult> {
   return await db.transaction(async (tx) => {
     const presentationIds = await findPresentationIds(
       tx,
@@ -149,17 +163,38 @@ export async function removeJudges(input: {
     );
 
     if (input.judgeIds.length === 0 || presentationIds.length === 0) {
-      return { judgeCount: 0, presentationCount: 0 };
+      return { judgeCount: 0, keptCount: 0, presentationCount: 0 };
     }
 
-    const removed = await tx
-      .delete(judgeAssignments)
+    // The chosen pairs, each told apart by whether its judge has saved a score.
+    // The score is read here rather than left to the foreign key's `restrict`,
+    // so one scored pair refuses itself instead of failing the whole removal.
+    const chosen = await tx
+      .select({
+        id: judgeAssignments.id,
+        scored: isNotNull(scores.id),
+      })
+      .from(judgeAssignments)
+      .leftJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
       .where(
         and(
           inArray(judgeAssignments.presentationId, presentationIds),
           inArray(judgeAssignments.userId, input.judgeIds),
         ),
-      )
+      );
+
+    const removableIds = chosen
+      .filter((row) => !row.scored)
+      .map((row) => row.id);
+    const keptCount = chosen.length - removableIds.length;
+
+    if (removableIds.length === 0) {
+      return { judgeCount: 0, keptCount, presentationCount: 0 };
+    }
+
+    const removed = await tx
+      .delete(judgeAssignments)
+      .where(inArray(judgeAssignments.id, removableIds))
       .returning({
         presentationId: judgeAssignments.presentationId,
         userId: judgeAssignments.userId,
@@ -167,6 +202,7 @@ export async function removeJudges(input: {
 
     return {
       judgeCount: new Set(removed.map((row) => row.userId)).size,
+      keptCount,
       presentationCount: new Set(removed.map((row) => row.presentationId)).size,
     };
   });

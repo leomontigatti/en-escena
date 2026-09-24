@@ -119,13 +119,31 @@ export function selectRemovableJudges(
  * What each dialog says when it closes. It names what was reached rather than
  * what was asked for: an already assigned pair is skipped and a judge nobody
  * had is a removal of nothing, so both counts are of rows actually touched.
+ *
+ * A removal also reports what it refused to touch. A pair that already has a
+ * score cannot be taken apart without orphaning the score, so removal keeps it
+ * and says so here — beside the success when the rest went, and alone when
+ * there was no rest, which is what a single scored assignment looks like.
  */
 export function formatJudgeAssignmentMessage(input: {
   intent: typeof assignJudgesIntent | typeof removeJudgesIntent;
   judgeCount: number;
+  /** Scored pairs the removal kept; a removal that kept none, or an assignment. */
+  keptCount?: number;
   presentationCount: number;
 }) {
   const isAssigning = input.intent === assignJudgesIntent;
+  const keptCount = input.keptCount ?? 0;
+
+  if (!isAssigning && keptCount > 0 && input.judgeCount === 0) {
+    const kept =
+      keptCount === 1
+        ? "1 asignación ya tiene puntaje"
+        : `${keptCount} asignaciones ya tienen puntaje`;
+
+    return `No se quitó nada: ${kept}.`;
+  }
+
   // The verb agrees with the judges and the preposition with the direction:
   // a judge is assigned *to* a presentation and taken *off* one.
   const verb = isAssigning
@@ -142,5 +160,16 @@ export function formatJudgeAssignmentMessage(input: {
       ? "1 presentación"
       : `${input.presentationCount} presentaciones`;
 
-  return `${verb} ${judges} ${isAssigning ? "a" : "de"} ${presentations}.`;
+  const reached = `${verb} ${judges} ${isAssigning ? "a" : "de"} ${presentations}.`;
+
+  if (keptCount === 0) {
+    return reached;
+  }
+
+  const kept =
+    keptCount === 1
+      ? "Se mantuvo 1 asignación que ya tiene puntaje."
+      : `Se mantuvieron ${keptCount} asignaciones que ya tienen puntaje.`;
+
+  return `${reached} ${kept}`;
 }

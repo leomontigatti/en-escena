@@ -115,3 +115,49 @@ describe("formatJudgeAssignmentMessage", () => {
     ).toBe("Se quitó 1 juez de 1 presentación.");
   });
 });
+
+describe("formatJudgeAssignmentMessage with kept assignments", () => {
+  test("names the scored assignments it kept beside what it removed", () => {
+    expect(
+      formatJudgeAssignmentMessage({
+        intent: removeJudgesIntent,
+        judgeCount: 2,
+        keptCount: 1,
+        presentationCount: 3,
+      }),
+    ).toBe(
+      "Se quitaron 2 jueces de 3 presentaciones. Se mantuvo 1 asignación que ya tiene puntaje.",
+    );
+
+    expect(
+      formatJudgeAssignmentMessage({
+        intent: removeJudgesIntent,
+        judgeCount: 1,
+        keptCount: 2,
+        presentationCount: 1,
+      }),
+    ).toBe(
+      "Se quitó 1 juez de 1 presentación. Se mantuvieron 2 asignaciones que ya tienen puntaje.",
+    );
+  });
+
+  test("says only why when every chosen pair already has a score", () => {
+    expect(
+      formatJudgeAssignmentMessage({
+        intent: removeJudgesIntent,
+        judgeCount: 0,
+        keptCount: 1,
+        presentationCount: 0,
+      }),
+    ).toBe("No se quitó nada: 1 asignación ya tiene puntaje.");
+
+    expect(
+      formatJudgeAssignmentMessage({
+        intent: removeJudgesIntent,
+        judgeCount: 0,
+        keptCount: 3,
+        presentationCount: 0,
+      }),
+    ).toBe("No se quitó nada: 3 asignaciones ya tienen puntaje.");
+  });
+});

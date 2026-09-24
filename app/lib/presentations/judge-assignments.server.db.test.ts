@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { judgeAssignments, presentations, user } from "@/db/schema";
+import { judgeAssignments, presentations, scores, user } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -116,6 +116,27 @@ async function seedEvent() {
   return { academy, addChoreography, catalog, event };
 }
 
+/** Puts a saved score on one judge's assignment, which is what locks the pair. */
+async function scoreAssignment(choreographyId: string, judgeId: string) {
+  const [assignment] = await db
+    .select({ id: judgeAssignments.id })
+    .from(judgeAssignments)
+    .innerJoin(
+      presentations,
+      eq(judgeAssignments.presentationId, presentations.id),
+    )
+    .where(
+      and(
+        eq(presentations.choreographyId, choreographyId),
+        eq(judgeAssignments.userId, judgeId),
+      ),
+    );
+
+  await db
+    .insert(scores)
+    .values({ judgeAssignmentId: assignment.id, value: "90" });
+}
+
 async function readAssignmentPairs(choreographyId: string) {
   const rows = await db
     .select({ userId: judgeAssignments.userId })
@@ -224,10 +245,62 @@ describe("removeJudges", () => {
       judgeIds: [judge.id],
     });
 
-    expect(result).toEqual({ judgeCount: 1, presentationCount: 2 });
+    expect(result).toEqual({
+      judgeCount: 1,
+      keptCount: 0,
+      presentationCount: 2,
+    });
     expect(await readAssignmentPairs(first.id)).toEqual([other.id]);
     expect(await readAssignmentPairs(second.id)).toEqual([other.id]);
     expect(await readAssignmentPairs(third.id)).toEqual([judge.id]);
+  });
+
+  test("refuses the one pair that already has a score", async () => {
+    const { addChoreography } = await seedEvent();
+    const scored = await addChoreography({ name: "Una", orderNumber: 1 });
+    const judge = await createUser({ name: "Ana Juez", role: "judge" });
+
+    await assignJudges({ choreographyIds: [scored.id], judgeIds: [judge.id] });
+    await scoreAssignment(scored.id, judge.id);
+
+    const result = await removeJudges({
+      choreographyIds: [scored.id],
+      judgeIds: [judge.id],
+    });
+
+    expect(result).toEqual({
+      judgeCount: 0,
+      keptCount: 1,
+      presentationCount: 0,
+    });
+    expect(await readAssignmentPairs(scored.id)).toEqual([judge.id]);
+  });
+
+  test("removes the unscored pairs of a selection and keeps the scored ones", async () => {
+    const { addChoreography } = await seedEvent();
+    const scored = await addChoreography({ name: "Una", orderNumber: 1 });
+    const unscored = await addChoreography({ name: "Otra", orderNumber: 2 });
+    const judge = await createUser({ name: "Ana Juez", role: "judge" });
+    const other = await createUser({ name: "Bruno Juez", role: "judge" });
+
+    await assignJudges({
+      choreographyIds: [scored.id, unscored.id],
+      judgeIds: [judge.id, other.id],
+    });
+    await scoreAssignment(scored.id, judge.id);
+
+    const result = await removeJudges({
+      choreographyIds: [scored.id, unscored.id],
+      judgeIds: [judge.id, other.id],
+    });
+
+    expect(result).toEqual({
+      judgeCount: 2,
+      keptCount: 1,
+      presentationCount: 2,
+    });
+    expect(await readAssignmentPairs(scored.id)).toEqual([judge.id]);
+    expect(await readAssignmentPairs(unscored.id)).toEqual([]);
   });
 });
 
