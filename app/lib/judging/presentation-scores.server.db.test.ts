@@ -86,7 +86,7 @@ describe("a presentation's scores, as administration reads them", () => {
     });
 
     expect(view?.average).toBe(85);
-    expect(view?.medal).toBe("plata");
+    expect(view?.medal).toBe("silver");
     expect(view?.disqualified).toBe(false);
   });
 

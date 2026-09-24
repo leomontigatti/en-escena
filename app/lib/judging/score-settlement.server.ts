@@ -1,20 +1,23 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   choreographies,
   judgeAssignments,
   presentations,
-  scoreCriterionValues,
   scores,
-  submodalityCriteria,
 } from "@/db/schema";
 import {
   formatScoreValue,
   parseScoreValue,
   singleScoreMaximum,
 } from "@/lib/judging/score-value";
-import { validateSheetValues } from "@/lib/judging/sheet-total";
+import {
+  validateSheetValues,
+  type SheetCriterion,
+} from "@/lib/judging/sheet-total";
+import { writeSheetValues } from "@/lib/judging/sheet-values.server";
+import { readSubmodalityCriteria } from "@/lib/judging/submodality-criteria.server";
 
 /**
  * What administration does to a panel's work after the fact: correct a score,
@@ -78,13 +81,6 @@ export async function editScore(
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-type ScoreCriterion = {
-  id: string;
-  kind: "adds" | "deducts";
-  maximum: number;
-  name: string;
-};
-
 async function editSingleValue(
   tx: Transaction,
   input: EditScoreInput,
@@ -111,7 +107,7 @@ async function editSingleValue(
 async function editSheet(
   tx: Transaction,
   input: EditScoreInput,
-  criteria: readonly ScoreCriterion[],
+  criteria: readonly SheetCriterion[],
 ): Promise<ScoreSettlementResult> {
   const validated = validateSheetValues(criteria, input.criteriaValues ?? {});
 
@@ -128,17 +124,7 @@ async function editSheet(
     .set({ updatedAt: new Date(), value: formatScoreValue(validated.total) })
     .where(eq(scores.id, input.scoreId));
 
-  await tx
-    .delete(scoreCriterionValues)
-    .where(eq(scoreCriterionValues.scoreId, input.scoreId));
-
-  await tx.insert(scoreCriterionValues).values(
-    validated.values.map((line) => ({
-      criterionId: line.criterionId,
-      scoreId: input.scoreId,
-      value: formatScoreValue(line.value),
-    })),
-  );
+  await writeSheetValues(tx, input.scoreId, validated.values);
 
   return { ok: true };
 }
@@ -151,7 +137,7 @@ async function editSheet(
 async function readScoreCriteria(
   tx: Transaction,
   target: ScoreSettlementTarget,
-): Promise<ScoreCriterion[] | null> {
+): Promise<SheetCriterion[] | null> {
   const [found] = await tx
     .select({ submodalityId: choreographies.submodalityId })
     .from(scores)
@@ -179,20 +165,7 @@ async function readScoreCriteria(
     return null;
   }
 
-  if (found.submodalityId === null) {
-    return [];
-  }
-
-  return await tx
-    .select({
-      id: submodalityCriteria.id,
-      kind: submodalityCriteria.kind,
-      maximum: submodalityCriteria.maximum,
-      name: submodalityCriteria.name,
-    })
-    .from(submodalityCriteria)
-    .where(eq(submodalityCriteria.submodalityId, found.submodalityId))
-    .orderBy(asc(submodalityCriteria.position));
+  return await readSubmodalityCriteria(tx, found.submodalityId);
 }
 
 /**

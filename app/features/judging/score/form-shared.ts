@@ -124,6 +124,27 @@ export function initialJudgeSheetValues(
 /** Each filled line rides as its own field, named for the criterion it answers. */
 export const sheetCriterionFieldPrefix = "criterio.";
 
+/**
+ * The sheet's lines out of a posted body, named for the criterion each answers.
+ * It lives beside the prefix that wrote them because both writes read it — the
+ * judge's own save and administration's edit go through the same validation by
+ * design, so the wire format has one reader and cannot diverge in one of them.
+ */
+export function readSheetValues(formData: FormData): Record<string, string> {
+  const values: Record<string, string> = {};
+
+  for (const [key, value] of formData.entries()) {
+    if (
+      key.startsWith(sheetCriterionFieldPrefix) &&
+      typeof value === "string"
+    ) {
+      values[key.slice(sheetCriterionFieldPrefix.length)] = value;
+    }
+  }
+
+  return values;
+}
+
 export function buildJudgeSheetSubmission({
   audio,
   presentationId,

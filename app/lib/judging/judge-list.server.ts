@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -10,15 +10,15 @@ import {
   schedules,
   scores,
   submodalities,
-  submodalityCriteria,
 } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
-import type { CriterionKind } from "@/lib/judging/criteria";
 import {
   deriveJudgeScoreStatus,
   type JudgeScoreStatus,
 } from "@/lib/judging/judge-status";
 import { judgingDate } from "@/lib/judging/judging-day";
+import type { SheetCriterion } from "@/lib/judging/sheet-total";
+import { readCriteriaBySubmodality } from "@/lib/judging/submodality-criteria.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
   type FeedbackAudioStorage,
@@ -37,12 +37,8 @@ import {
  * own score is read only to derive their status, and stays here.
  */
 
-export type JudgeSheetCriterion = {
-  id: string;
-  kind: CriterionKind;
-  maximum: number;
-  name: string;
-};
+/** One line of the sheet, exactly as the total and the validation read it. */
+export type JudgeSheetCriterion = SheetCriterion;
 
 export type JudgePresentationRow = {
   /** Empty when the submodality is scored with a single 0-100 value. */
@@ -105,7 +101,7 @@ export async function readJudgePresentations(
     )
     .orderBy(asc(presentations.orderNumber));
 
-  const criteriaBySubmodality = await readCriteria(
+  const criteriaBySubmodality = await readCriteriaBySubmodality(
     executor,
     rows.map((row) => row.submodalityId),
   );
@@ -145,44 +141,4 @@ export async function readJudgePresentations(
       submodalityName: row.submodalityName,
     })),
   );
-}
-
-async function readCriteria(
-  executor: Executor,
-  submodalityIds: (string | null)[],
-): Promise<Map<string, JudgeSheetCriterion[]>> {
-  const ids = [
-    ...new Set(submodalityIds.filter((id): id is string => id !== null)),
-  ];
-  const bySubmodality = new Map<string, JudgeSheetCriterion[]>();
-
-  if (ids.length === 0) {
-    return bySubmodality;
-  }
-
-  const rows = await executor
-    .select({
-      id: submodalityCriteria.id,
-      kind: submodalityCriteria.kind,
-      maximum: submodalityCriteria.maximum,
-      name: submodalityCriteria.name,
-      submodalityId: submodalityCriteria.submodalityId,
-    })
-    .from(submodalityCriteria)
-    .where(inArray(submodalityCriteria.submodalityId, ids))
-    .orderBy(asc(submodalityCriteria.position));
-
-  for (const row of rows) {
-    const sheet = bySubmodality.get(row.submodalityId) ?? [];
-
-    sheet.push({
-      id: row.id,
-      kind: row.kind,
-      maximum: row.maximum,
-      name: row.name,
-    });
-    bySubmodality.set(row.submodalityId, sheet);
-  }
-
-  return bySubmodality;
 }

@@ -13,7 +13,7 @@ describe("a judge's own status on a presentation", () => {
         hasFeedbackAudio: true,
         value: "90.0",
       }),
-    ).toBe("descalificada");
+    ).toBe("disqualified");
   });
 
   test("is `Pendiente` without a score and without a value", () => {
@@ -23,14 +23,14 @@ describe("a judge's own status on a presentation", () => {
         hasFeedbackAudio: false,
         value: null,
       }),
-    ).toBe("pendiente");
+    ).toBe("pending");
     expect(
       deriveJudgeScoreStatus({
         disqualified: false,
         hasFeedbackAudio: true,
         value: null,
       }),
-    ).toBe("pendiente");
+    ).toBe("pending");
   });
 
   test("tells a complete score from one without a `Devolución`", () => {
@@ -40,20 +40,20 @@ describe("a judge's own status on a presentation", () => {
         hasFeedbackAudio: true,
         value: "80.5",
       }),
-    ).toBe("completa");
+    ).toBe("complete");
     expect(
       deriveJudgeScoreStatus({
         disqualified: false,
         hasFeedbackAudio: false,
         value: "80.5",
       }),
-    ).toBe("sinDevolucion");
+    ).toBe("noFeedback");
   });
 
   test("names each status as the judge reads it", () => {
-    expect(judgeScoreStatusLabels.pendiente).toBe("Pendiente");
-    expect(judgeScoreStatusLabels.completa).toBe("Completa");
-    expect(judgeScoreStatusLabels.sinDevolucion).toBe("Sin devolución");
-    expect(judgeScoreStatusLabels.descalificada).toBe("Descalificada");
+    expect(judgeScoreStatusLabels.pending).toBe("Pendiente");
+    expect(judgeScoreStatusLabels.complete).toBe("Completa");
+    expect(judgeScoreStatusLabels.noFeedback).toBe("Sin devolución");
+    expect(judgeScoreStatusLabels.disqualified).toBe("Descalificada");
   });
 });

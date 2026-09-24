@@ -1,5 +1,6 @@
 import { Pause, Play, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -20,6 +21,8 @@ import {
 import { MediaRow, MediaTime, Waveform } from "./feedback-waveform";
 
 export const deleteFeedbackAudioTitle = "¿Eliminar la grabación?";
+
+export const playbackErrorMessage = "No se pudo reproducir la devolución.";
 
 /**
  * Decodes the take once, for its waveform and its duration. The duration comes
@@ -57,6 +60,8 @@ function useDecodedAudio(audioUrl: string) {
       .catch(() => {
         // Undecodable audio still plays; it just shows a flat line.
       })
+      // Closing the decoding context carries nothing back: it only rejects on a
+      // context that is already closed, which is the state this asks for anyway.
       .finally(() => void audioContext.close());
 
     return () => {
@@ -119,7 +124,9 @@ export function FeedbackPlayback({
     }
 
     if (audio.paused) {
-      void audio.play();
+      // `play()` rejects on an autoplay-policy block or a decode failure, and
+      // the judge tapped `Escuchar` and would otherwise see nothing happen.
+      audio.play().catch(() => toast.error(playbackErrorMessage));
     } else {
       audio.pause();
     }

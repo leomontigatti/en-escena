@@ -309,7 +309,7 @@ Derived, informational flag on a row of the `choreographyParticipationList`: nev
 _Avoid_: error, validation, lock
 
 **`participationStatus`** — ui: "Estado de participación"
-State derived from a choreography's presentation at the event, and the presentation's evaluation status for the whole panel: `descalificada` is disqualified, `evaluada` is evaluated —disqualified, or carrying any `score` row— and not disqualified, and `pendiente` is everything else, a choreography with no presentation included. `PresentationEvaluationStatus` is the identifier the code reads it under. The `choreographyParticipationList` shows `Evaluada` and `Descalificada` as badges, each replacing that row's `presentationWarning` badge, and shows no badge for `pendiente`. It answers for the panel, never for one judge: that is the `judgeScoreStatus`.
+State derived from a choreography's presentation at the event, and the presentation's evaluation status for the whole panel: `disqualified` is disqualified, `evaluated` is evaluated —disqualified, or carrying any `score` row— and not disqualified, and `pending` is everything else, a choreography with no presentation included. `PresentationEvaluationStatus` is the identifier the code reads it under, with English members and the Spanish in its labels map. The `choreographyParticipationList` shows `Evaluada` and `Descalificada` as badges, each replacing that row's `presentationWarning` badge, and shows no badge for `pending`. It answers for the panel, never for one judge: that is the `judgeScoreStatus`.
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, `judgeScoreStatus`
 
 **`judgingDay`** — ui: "Jornada"
@@ -353,7 +353,7 @@ Award rule within an event.
 _Avoid_: `award`, `ranking`
 
 **`score`** — ui: "Puntaje"
-What one judge gave one `presentation`, one row per `judgeAssignment`, **created on that judge's first save** and never on assignment. Its value runs from 0 to 100 in steps of 0.5, and is null only for a judge who saved just a `feedbackAudio` on a disqualified presentation. On a `scoreSheet` the value is the sheet's computed total, recomputed on every save and every administrative edit, so an average never re-derives a sheet. A judge corrects their own until the `judgingDay` closes; administration edits any of them at any time, with no window, no reason asked and no trace kept, and never creates one for a judge who has none.
+What one judge gave one `presentation`, one row per `judgeAssignment`, **created on that judge's first save** and never on assignment. Its value runs from 0 to 100 in steps of 0.5, and is null only for a judge who saved just a `feedbackAudio` on a disqualified presentation. On a `scoreSheet` the value is the sheet's computed total, recomputed on every save and every administrative edit, so an average never re-derives a sheet. A judge corrects their own until the `judgingDay` closes; administration edits any of them at any time, with no window, no reason asked and no trace kept, and never creates one for a judge who has none. Every score, sheet total and average the app shows is written with a decimal point, on every surface —the judge's screens, administration, the academy portal and the results print—: a deliberate exception to es-AR formatting that covers scores only, money and dates unchanged.
 _Avoid_: `presentation`, price, `payment`, confirmed score, draft score
 
 **`submodalityCriterion`** — ui: "Criterio"
@@ -369,11 +369,11 @@ Administrative exclusion of a `score` from the average that neither deletes it n
 _Avoid_: `disqualification`, assignment deletion, score deletion
 
 **`medal`** — ui: "Medalla"
-The recognition a `presentation` earns, read off its average —the mean of its non-annulled score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial`, 60 to below 80 `Medalla de bronce`, 80 to below 90 `Medalla de plata`, 90 or more `Medalla de oro`. It carries no position, no tie and no competitive grouping: two presentations that average the same take the same medal. A disqualified presentation has no average and no medal.
+The recognition a `presentation` earns, read off its average —the mean of its non-annulled score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same medal. A disqualified presentation has no average and no medal.
 _Avoid_: `award`, `ranking`, position, `preliminaryRanking`
 
 **`judgeScoreStatus`** — ui: "Estado"
-How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, `Completa` with a value and a `feedbackAudio`, `Sin devolución` with a value and none —neutral in tone, not a fault— and `Descalificada` whenever the presentation is. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.
+How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, `Completa` with a value and a `feedbackAudio`, `Sin devolución` with a value and none —neutral in tone, not a fault— and `Descalificada` whenever the presentation is —`pending`, `complete`, `noFeedback` and `disqualified` in the code, which keeps the Spanish in its labels map. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.
 _Avoid_: `participationStatus`, `choreographyOperationalStatus`, score completeness
 
 **`feedbackAudio`** — ui: "Devolución"

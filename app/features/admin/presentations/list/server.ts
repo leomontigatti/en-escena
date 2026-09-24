@@ -348,7 +348,7 @@ function buildPresentationListItem(
     categoryName: row.category.name,
     choreographyNumber: row.choreographyNumber,
     evaluationStatus:
-      event.evaluationStatuses.get(row.choreographyId) ?? "pendiente",
+      event.evaluationStatuses.get(row.choreographyId) ?? "pending",
     experienceLevel: row.experienceLevel,
     financialStatus: row.financialStatus,
     groupType: row.groupType as ChoreographyGroupType,

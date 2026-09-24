@@ -6,8 +6,8 @@ import type { Executor } from "@/lib/finances/choreography-cobro-support.server"
 
 /**
  * Where a presentation stands for the panel, in the values
- * `Estado de participación` already has. `descalificada` is disqualified,
- * `evaluada` is evaluated and not disqualified, and `pendiente` is everything
+ * `Estado de participación` already has. `disqualified` is disqualified,
+ * `evaluated` is evaluated and not disqualified, and `pending` is everything
  * else — including a choreography that has no presentation at all.
  *
  * "Evaluated" is the same fact `evaluation-lock.server.ts` locks on: any score
@@ -15,12 +15,12 @@ import type { Executor } from "@/lib/finances/choreography-cobro-support.server"
  * answer in two because the administrative list shows the two apart.
  */
 export type PresentationEvaluationStatus =
-  "descalificada" | "evaluada" | "pendiente";
+  "disqualified" | "evaluated" | "pending";
 
 /**
  * The status of many choreographies at once, keyed by choreography. Only the
- * ones that are not `pendiente` are in the map: a reader that finds nothing
- * reads `pendiente`, which is what a choreography without a presentation is.
+ * ones that are not `pending` are in the map: a reader that finds nothing
+ * reads `pending`, which is what a choreography without a presentation is.
  *
  * It takes the executor for the reason `evaluation-lock.server.ts` does: a
  * caller inside a transaction must read inside it too.
@@ -54,14 +54,14 @@ export async function readPresentationEvaluationStatuses(
 
   for (const row of rows) {
     if (row.disqualifiedAt !== null) {
-      statuses.set(row.choreographyId, "descalificada");
+      statuses.set(row.choreographyId, "disqualified");
       continue;
     }
 
     // A disqualification outranks a score, and the rows of one presentation
     // arrive in no particular order, so a score never overwrites it.
     if (row.scoreId !== null && !statuses.has(row.choreographyId)) {
-      statuses.set(row.choreographyId, "evaluada");
+      statuses.set(row.choreographyId, "evaluated");
     }
   }
 

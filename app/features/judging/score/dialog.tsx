@@ -73,7 +73,7 @@ export function JudgeScoreDialog({
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
   const { setError } = form;
-  const disqualified = presentation.status === "descalificada";
+  const disqualified = presentation.status === "disqualified";
   // A judge taps in the dark with the stage in front of them, so the button has
   // to say it took the tap: without it the same score posts twice.
   const isSaving = useJudgeSavePending(presentation.presentationId);

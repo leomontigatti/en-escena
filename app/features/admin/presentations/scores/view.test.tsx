@@ -21,7 +21,7 @@ describe("PresentationScoresView", () => {
           buildJudge({ judgeName: "Ana Juez", value: "90.0" }),
           buildJudge({ judgeName: "Zulema Juez", value: "80.5" }),
         ],
-        medal: "plata",
+        medal: "silver",
       },
       { canEdit: false },
     );
@@ -198,7 +198,7 @@ function renderView(
       disqualified: false,
       experienceLevel: "amateur",
       judges: [buildJudge()],
-      medal: "oro",
+      medal: "gold",
       modalityName: "Danza clásica",
       name: "Primera",
       orderNumber: 1,

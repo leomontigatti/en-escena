@@ -107,7 +107,7 @@ describe("PresentationsListView", () => {
     const markup = renderView({
       presentations: [
         buildItem({
-          evaluationStatus: "evaluada",
+          evaluationStatus: "evaluated",
           warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
         }),
       ],
@@ -119,7 +119,7 @@ describe("PresentationsListView", () => {
 
   test("shows a disqualified row as disqualified", () => {
     const markup = renderView({
-      presentations: [buildItem({ evaluationStatus: "descalificada" })],
+      presentations: [buildItem({ evaluationStatus: "disqualified" })],
     });
 
     expect(markup).toContain("Descalificada");
@@ -154,7 +154,7 @@ describe("PresentationsListView", () => {
       renderView({
         presentations: [
           buildItem({
-            evaluationStatus: "evaluada",
+            evaluationStatus: "evaluated",
             presentationId: "presentation-9",
           }),
         ],
@@ -180,7 +180,7 @@ function buildItem(
     assignedJudgeIds: [],
     categoryName: "Infantil",
     choreographyNumber: 12,
-    evaluationStatus: "pendiente",
+    evaluationStatus: "pending",
     experienceLevel: null,
     financialStatus: "depositMet",
     groupType: "solo",

@@ -35,7 +35,7 @@ function buildRow(
     modalityName: "Jazz",
     name: `Coreografía ${overrides.presentationId}`,
     orderNumber: 1,
-    status: "pendiente",
+    status: "pending",
     submodalityName: "Lyrical",
     ...overrides,
     presentationId: overrides.presentationId,
@@ -47,7 +47,7 @@ const presentations = [
     name: "Primera",
     orderNumber: 1,
     presentationId: "a",
-    status: "sinDevolucion",
+    status: "noFeedback",
   }),
   buildRow({ name: "Segunda", orderNumber: 2, presentationId: "b" }),
   buildRow({ name: "Tercera", orderNumber: 3, presentationId: "c" }),
@@ -215,7 +215,7 @@ describe("scoring a presentation without criteria", () => {
         status: "success",
       },
       presentationId: "b",
-      rows: presentations.map((row) => ({ ...row, status: "sinDevolucion" })),
+      rows: presentations.map((row) => ({ ...row, status: "noFeedback" })),
     });
 
     expect(router.state.location.search).toBe("");
@@ -372,7 +372,7 @@ describe("disqualifying from the score dialog", () => {
   test("offers to score a disqualified presentation again, with nothing to confirm", async () => {
     const rows = presentations.map((row) =>
       row.presentationId === "b"
-        ? { ...row, status: "descalificada" as const }
+        ? { ...row, status: "disqualified" as const }
         : row,
     );
 

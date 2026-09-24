@@ -76,6 +76,8 @@ function useFeedbackTake(onRecorded: (take: RecordedTake) => void) {
       session.recorder.stop();
     }
     session.stream.getTracks().forEach((track) => track.stop());
+    // Closing the analyser's context carries nothing back: it only rejects on a
+    // context that is already closed, which is the state this asks for anyway.
     void session.audioContext.close();
     sessionRef.current = null;
   }
@@ -84,24 +86,30 @@ function useFeedbackTake(onRecorded: (take: RecordedTake) => void) {
     setError(null);
     applyTakeEvent({ type: "requested" });
 
+    // The mic permission, the recorder and the analyser fail the same way as
+    // far as the judge is concerned — the take did not start — so they are
+    // refused together, and `startRecording` never rejects.
     let stream: MediaStream;
+    let recorder: MediaRecorder;
+    let audioContext: AudioContext;
+    let analyser: AnalyserNode;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "";
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      audioContext = new AudioContext();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 1024;
+      audioContext.createMediaStreamSource(stream).connect(analyser);
     } catch {
       setError(microphoneErrorMessage);
       applyTakeEvent({ type: "failed" });
       return;
     }
 
-    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-      ? "audio/webm;codecs=opus"
-      : "";
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
     const chunks: Blob[] = [];
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 1024;
-    audioContext.createMediaStreamSource(stream).connect(analyser);
 
     recorder.ondataavailable = (event) => {
       chunks.push(event.data);
@@ -197,8 +205,39 @@ export function FeedbackRecorder({
   onDelete: () => void;
   onRecorded: (take: RecordedTake) => void;
 }) {
-  const take = useFeedbackTake(onRecorded);
+  // Every take this component records is an object URL it owns, and nothing
+  // else can free it: the field state is pure, and the stored URL it may hold
+  // instead is the server's and must never be revoked. A judge re-records on a
+  // tablet that stays open all day, so a dropped take has to be let go here.
+  const createdUrlRef = useRef<string | null>(null);
+
+  function revokeCreatedUrl() {
+    if (createdUrlRef.current) {
+      URL.revokeObjectURL(createdUrlRef.current);
+      createdUrlRef.current = null;
+    }
+  }
+
+  useEffect(
+    () => () => {
+      if (createdUrlRef.current) {
+        URL.revokeObjectURL(createdUrlRef.current);
+      }
+    },
+    [],
+  );
+
+  const take = useFeedbackTake((recorded) => {
+    revokeCreatedUrl();
+    createdUrlRef.current = recorded.url;
+    onRecorded(recorded);
+  });
   const message = take.error ?? error;
+
+  function handleDelete() {
+    revokeCreatedUrl();
+    onDelete();
+  }
 
   return (
     <FieldSet>
@@ -211,7 +250,7 @@ export function FeedbackRecorder({
         <FeedbackPlayback
           audioUrl={audioUrl}
           disabled={disabled}
-          onDelete={onDelete}
+          onDelete={handleDelete}
         />
       ) : (
         <TakeBar take={take} disabled={disabled} />
@@ -326,6 +365,7 @@ function TakeControlButton({
       size="icon"
       aria-label="Empezar a grabar"
       disabled={disabled || phase === "requesting"}
+      // `startRecording` reports its own failure on screen and never rejects.
       onClick={() => void startRecording()}
     >
       {/* Stays a dot while the mic opens: pause appears once it is live. */}

@@ -74,7 +74,7 @@ describe("the judge's list of today's presentations", () => {
       groupType: "solo",
       modalityName: fixture.catalog.modality.name,
       presentationId: presentation.presentationId,
-      status: "pendiente",
+      status: "pending",
       submodalityName: fixture.catalog.submodality.name,
     });
     expect(JSON.stringify(row)).not.toContain(fixture.academy.academy.name);
@@ -135,8 +135,8 @@ describe("the judge's list of today's presentations", () => {
     });
 
     expect(rows.map((row) => row.status)).toEqual([
-      "sinDevolucion",
-      "descalificada",
+      "noFeedback",
+      "disqualified",
     ]);
     expect(rows[0].criteria).toMatchObject([
       { kind: "adds", maximum: 60, name: "Técnica" },

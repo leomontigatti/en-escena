@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { criterionKinds, validateCriteriaMaxima } from "@/lib/judging/criteria";
+import {
+  criterionKinds,
+  duplicateCriterionNameErrors,
+  validateCriteriaMaxima,
+} from "@/lib/judging/criteria";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 const nameFormSchema = z.object({
@@ -65,33 +69,17 @@ export const submodalityCriteriaFormSchema = z
     criteria: z.array(criterionFormSchema),
   })
   .superRefine((values, context) => {
-    const firstIndexByName = new Map<string, number>();
+    const duplicates = duplicateCriterionNameErrors(
+      values.criteria.map((criterion) => criterion.name),
+    );
 
-    values.criteria.forEach((criterion, index) => {
-      const normalizedName = criterion.name.trim().toLowerCase();
-
-      if (!normalizedName) {
-        return;
-      }
-
-      const firstIndex = firstIndexByName.get(normalizedName);
-
-      if (firstIndex === undefined) {
-        firstIndexByName.set(normalizedName, index);
-        return;
-      }
-
+    for (const [index, message] of duplicates) {
       context.addIssue({
         code: "custom",
-        message: duplicateCriterionNameMessage,
-        path: ["criteria", firstIndex, "name"],
-      });
-      context.addIssue({
-        code: "custom",
-        message: duplicateCriterionNameMessage,
+        message,
         path: ["criteria", index, "name"],
       });
-    });
+    }
 
     const maximaValidation = validateCriteriaMaxima(values.criteria);
 
@@ -113,9 +101,6 @@ export const submodalityCriteriaFormSchema = z
 export type SubmodalityCriteriaFormValues = z.infer<
   typeof submodalityCriteriaFormSchema
 >;
-
-const duplicateCriterionNameMessage =
-  "Usá un nombre distinto para el criterio.";
 
 function toCriteriaFieldPath(fieldName: string) {
   return fieldName

@@ -95,3 +95,48 @@ export function validateCriteriaMaxima(
 
   return { ok: true };
 }
+
+export const duplicateCriterionNameMessage =
+  "Usá un nombre distinto para el criterio.";
+
+/**
+ * Two criteria of one submodality cannot be called the same thing, and the
+ * dialog and the save have to agree on when that is: the same comparison as the
+ * `(submodality, lower(name))` index the save writes against — trimmed,
+ * accent-insensitive and case-insensitive — so a name the dialog accepts is
+ * never one the server then refuses.
+ *
+ * Both sides of a repetition are reported, because the administrator has to see
+ * which two rows are the pair. An empty name is nobody's duplicate; it is the
+ * required-field rule's to refuse.
+ */
+export function duplicateCriterionNameErrors(
+  names: readonly string[],
+): Map<number, string> {
+  const firstIndexByName = new Map<string, number>();
+  const errors = new Map<number, string>();
+
+  names.forEach((name, index) => {
+    const normalized = name
+      .trim()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLocaleLowerCase("es");
+
+    if (!normalized) {
+      return;
+    }
+
+    const firstIndex = firstIndexByName.get(normalized);
+
+    if (firstIndex === undefined) {
+      firstIndexByName.set(normalized, index);
+      return;
+    }
+
+    errors.set(firstIndex, duplicateCriterionNameMessage);
+    errors.set(index, duplicateCriterionNameMessage);
+  });
+
+  return errors;
+}

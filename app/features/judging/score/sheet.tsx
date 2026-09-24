@@ -88,7 +88,7 @@ export function JudgeScoreSheet({
   });
   const blocker = useSheetDiscardGuard({ actionData, isDirty, isSaving });
   const isSavePending = useJudgeSavePending(presentation.presentationId);
-  const disqualified = presentation.status === "descalificada";
+  const disqualified = presentation.status === "disqualified";
 
   // A line the client accepted and the server did not — a criterion added to
   // the submodality since the page loaded, say — belongs on its own field.

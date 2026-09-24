@@ -12,7 +12,7 @@ export function findResumePresentationId(
   lastOpenedPresentationId: string | null,
 ): string | null {
   const isPending = (row: { status: JudgeScoreStatus }) =>
-    row.status === "pendiente";
+    row.status === "pending";
   const lastOpenedIndex = rows.findIndex(
     (row) => row.presentationId === lastOpenedPresentationId,
   );

@@ -259,7 +259,7 @@ function buildItem(
     assignedJudgeIds: [],
     categoryName: "Infantil",
     choreographyNumber: 1,
-    evaluationStatus: "pendiente",
+    evaluationStatus: "pending",
     experienceLevel: null,
     financialStatus: "paidInFull",
     groupType: "solo",

@@ -8,13 +8,13 @@
  * only; publishing it is PRD 2's.
  */
 
-export type Medal = "mencionEspecial" | "bronce" | "plata" | "oro";
+export type Medal = "specialMention" | "bronze" | "silver" | "gold";
 
 export const medalLabels: Record<Medal, string> = {
-  bronce: "Medalla de bronce",
-  mencionEspecial: "Mención especial",
-  oro: "Medalla de oro",
-  plata: "Medalla de plata",
+  bronze: "Medalla de bronce",
+  gold: "Medalla de oro",
+  silver: "Medalla de plata",
+  specialMention: "Mención especial",
 };
 
 export type AveragedScore = {
@@ -61,12 +61,12 @@ export function presentationAverage(
  */
 export function medalForAverage(average: number): Medal {
   if (average >= 90) {
-    return "oro";
+    return "gold";
   }
 
   if (average >= 80) {
-    return "plata";
+    return "silver";
   }
 
-  return average >= 60 ? "bronce" : "mencionEspecial";
+  return average >= 60 ? "bronze" : "specialMention";
 }

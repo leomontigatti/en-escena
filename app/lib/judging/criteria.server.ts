@@ -20,6 +20,7 @@ import type {
   EventBasesDeleteResult,
 } from "@/lib/events/bases-repository/shared.server";
 import {
+  duplicateCriterionNameErrors,
   validateCriteriaMaxima,
   type CriterionKind,
 } from "@/lib/judging/criteria";
@@ -173,33 +174,25 @@ function validateSubmodalityCriteriaInput(
   criteria: SubmodalityCriterionInput[],
 ): { ok: true } | EventBaseFailure {
   const fieldErrors: Record<string, string> = {};
-  const firstIndexByName = new Map<string, number>();
-  let duplicated = false;
 
   criteria.forEach((criterion, index) => {
-    const normalizedName = normalizeEventBaseName(criterion.name);
-
-    if (!normalizedName) {
+    if (!normalizeEventBaseName(criterion.name)) {
       fieldErrors[`criteria.${index}.name`] = requiredFieldMessage;
-      return;
     }
-
-    const firstIndex = firstIndexByName.get(normalizedName);
-
-    if (firstIndex === undefined) {
-      firstIndexByName.set(normalizedName, index);
-      return;
-    }
-
-    duplicated = true;
-    fieldErrors[`criteria.${firstIndex}.name`] = duplicateCriterionNameError;
-    fieldErrors[`criteria.${index}.name`] = duplicateCriterionNameError;
   });
+
+  const duplicates = duplicateCriterionNameErrors(
+    criteria.map((criterion) => criterion.name),
+  );
+
+  for (const [index, message] of duplicates) {
+    fieldErrors[`criteria.${index}.name`] = message;
+  }
 
   if (Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
-      code: duplicated ? "duplicate-name" : "invalid-event-bases",
+      code: duplicates.size > 0 ? "duplicate-name" : "invalid-event-bases",
       error: invalidCriteriaError,
       fieldErrors,
     };
@@ -220,5 +213,3 @@ function validateSubmodalityCriteriaInput(
 }
 
 const invalidCriteriaError = "Revisá los criterios de la submodalidad.";
-
-const duplicateCriterionNameError = "Usá un nombre distinto para el criterio.";

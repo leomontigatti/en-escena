@@ -1,13 +1,5 @@
-import { asc, eq } from "drizzle-orm";
-
 import { db } from "@/db";
-import {
-  choreographies,
-  presentations,
-  scoreCriterionValues,
-  scores,
-  submodalityCriteria,
-} from "@/db/schema";
+import { scores } from "@/db/schema";
 import {
   readJudgeWriteTarget,
   type JudgeWriteTarget,
@@ -18,6 +10,11 @@ import {
   singleScoreMaximum,
 } from "@/lib/judging/score-value";
 import { validateSheetValues } from "@/lib/judging/sheet-total";
+import {
+  writeSheetValues,
+  type SheetLine,
+} from "@/lib/judging/sheet-values.server";
+import { readPresentationCriteria } from "@/lib/judging/submodality-criteria.server";
 import type { UploadRejection } from "@/lib/storage/asset-kinds";
 import {
   type FeedbackAudioStorage,
@@ -258,7 +255,7 @@ async function writeScore(
     })
     .returning({ id: scores.id });
 
-  if (input.sheet) {
+  if (input.sheet?.values) {
     await writeSheetValues(tx, saved.id, input.sheet.values);
   }
 }
@@ -355,8 +352,6 @@ function feedbackAudioStorage(storage?: FeedbackAudioStorage) {
   return storage ?? createDefaultFeedbackAudioStorage();
 }
 
-type SheetLine = { criterionId: string; value: number };
-
 type SheetResolution =
   | {
       ok: false;
@@ -387,24 +382,7 @@ async function readSheet(
     "criteriaValues" | "presentationId" | "value"
   >,
 ): Promise<SheetResolution> {
-  const criteria = await tx
-    .select({
-      id: submodalityCriteria.id,
-      kind: submodalityCriteria.kind,
-      maximum: submodalityCriteria.maximum,
-      name: submodalityCriteria.name,
-    })
-    .from(presentations)
-    .innerJoin(
-      choreographies,
-      eq(choreographies.id, presentations.choreographyId),
-    )
-    .innerJoin(
-      submodalityCriteria,
-      eq(submodalityCriteria.submodalityId, choreographies.submodalityId),
-    )
-    .where(eq(presentations.id, input.presentationId))
-    .orderBy(asc(submodalityCriteria.position));
+  const criteria = await readPresentationCriteria(tx, input.presentationId);
 
   if (criteria.length === 0) {
     const value = parseScoreValue(input.value ?? "", singleScoreMaximum);
@@ -428,31 +406,4 @@ async function readSheet(
   }
 
   return { ok: true, total: validated.total, values: validated.values };
-}
-
-/**
- * The sheet is saved as a whole: what was stored before is cleared and the
- * validated lines are written in its place, so a criterion the submodality no
- * longer has cannot survive as a stale value under a total that ignores it.
- */
-async function writeSheetValues(
-  tx: Transaction,
-  scoreId: string,
-  values: SheetLine[] | null,
-) {
-  if (values === null) {
-    return;
-  }
-
-  await tx
-    .delete(scoreCriterionValues)
-    .where(eq(scoreCriterionValues.scoreId, scoreId));
-
-  await tx.insert(scoreCriterionValues).values(
-    values.map((line) => ({
-      criterionId: line.criterionId,
-      scoreId,
-      value: formatScoreValue(line.value),
-    })),
-  );
 }

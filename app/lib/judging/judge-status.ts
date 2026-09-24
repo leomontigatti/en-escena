@@ -6,13 +6,13 @@
  */
 
 export type JudgeScoreStatus =
-  "pendiente" | "completa" | "sinDevolucion" | "descalificada";
+  "pending" | "complete" | "noFeedback" | "disqualified";
 
 export const judgeScoreStatusLabels: Record<JudgeScoreStatus, string> = {
-  completa: "Completa",
-  descalificada: "Descalificada",
-  pendiente: "Pendiente",
-  sinDevolucion: "Sin devolución",
+  complete: "Completa",
+  disqualified: "Descalificada",
+  noFeedback: "Sin devolución",
+  pending: "Pendiente",
 };
 
 export type JudgeScoreStatusInput = {
@@ -26,14 +26,14 @@ export function deriveJudgeScoreStatus(
   input: JudgeScoreStatusInput,
 ): JudgeScoreStatus {
   if (input.disqualified) {
-    return "descalificada";
+    return "disqualified";
   }
 
   // A score row with no value is a judge who only left a `Devolución` on a
   // presentation the panel had disqualified, so there is still no score.
   if (input.value === null) {
-    return "pendiente";
+    return "pending";
   }
 
-  return input.hasFeedbackAudio ? "completa" : "sinDevolucion";
+  return input.hasFeedbackAudio ? "complete" : "noFeedback";
 }

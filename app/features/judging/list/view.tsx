@@ -43,10 +43,10 @@ const statusVariants: Record<
   JudgeScoreStatus,
   "default" | "destructive" | "outline" | "secondary"
 > = {
-  completa: "default",
-  descalificada: "destructive",
-  pendiente: "outline",
-  sinDevolucion: "secondary",
+  complete: "default",
+  disqualified: "destructive",
+  noFeedback: "secondary",
+  pending: "outline",
 };
 
 /**
@@ -67,7 +67,7 @@ export function JudgePanelView({
     loaderData.presentations,
   );
   const rows = onlyPending
-    ? loaderData.presentations.filter((row) => row.status === "pendiente")
+    ? loaderData.presentations.filter((row) => row.status === "pending")
     : loaderData.presentations;
 
   useJudgeScoreFeedback({

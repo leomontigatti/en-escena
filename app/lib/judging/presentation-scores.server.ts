@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -11,11 +11,11 @@ import {
   scoreCriterionValues,
   scores,
   submodalities,
-  submodalityCriteria,
   user,
 } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
+import { readSubmodalityCriteria } from "@/lib/judging/submodality-criteria.server";
 import {
   medalForAverage,
   presentationAverage,
@@ -107,7 +107,7 @@ export async function readPresentationScores(
 
   const [judges, criteria] = await Promise.all([
     readPanel(executor, input),
-    readCriteria(executor, presentation.submodalityId),
+    readSubmodalityCriteria(executor, presentation.submodalityId),
   ]);
   const disqualified = presentation.disqualifiedAt !== null;
   const average = presentationAverage({ disqualified, scores: judges });
@@ -208,24 +208,4 @@ async function readSheets(
   }
 
   return byScore;
-}
-
-async function readCriteria(
-  executor: Executor,
-  submodalityId: string | null,
-): Promise<JudgeSheetCriterion[]> {
-  if (submodalityId === null) {
-    return [];
-  }
-
-  return await executor
-    .select({
-      id: submodalityCriteria.id,
-      kind: submodalityCriteria.kind,
-      maximum: submodalityCriteria.maximum,
-      name: submodalityCriteria.name,
-    })
-    .from(submodalityCriteria)
-    .where(and(eq(submodalityCriteria.submodalityId, submodalityId)))
-    .orderBy(asc(submodalityCriteria.position));
 }

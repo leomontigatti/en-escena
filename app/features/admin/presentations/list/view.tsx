@@ -76,11 +76,11 @@ const warningTriage: {
  * judged, so once it has been they have nothing left to ask for.
  */
 const evaluationBadges: Record<
-  Exclude<PresentationEvaluationStatus, "pendiente">,
+  Exclude<PresentationEvaluationStatus, "pending">,
   { label: string; variant: "destructive" | "success" }
 > = {
-  descalificada: { label: "Descalificada", variant: "destructive" },
-  evaluada: { label: "Evaluada", variant: "success" },
+  disqualified: { label: "Descalificada", variant: "destructive" },
+  evaluated: { label: "Evaluada", variant: "success" },
 };
 
 /**
@@ -512,7 +512,7 @@ function PresentationStatusBadge({ row }: { row: PresentationListItem }) {
     return <Badge variant="info">Sin número</Badge>;
   }
 
-  if (row.evaluationStatus !== "pendiente") {
+  if (row.evaluationStatus !== "pending") {
     const badge = evaluationBadges[row.evaluationStatus];
 
     // No count and no tooltip: the badge is the whole answer, and what the

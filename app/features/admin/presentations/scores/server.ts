@@ -15,7 +15,7 @@ import {
   type PresentationScoresView,
 } from "@/lib/judging/presentation-scores.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
-import { sheetCriterionFieldPrefix } from "@/features/judging/score/form-shared";
+import { readSheetValues } from "@/features/judging/score/form-shared";
 import { readFormString } from "@/lib/shared/forms";
 
 /**
@@ -194,20 +194,4 @@ function answerEdit(
     message: invalidScoreMessage,
     status: "error",
   };
-}
-
-/** The sheet's lines, named for the criterion each one answers. */
-function readSheetValues(formData: FormData): Record<string, string> {
-  const values: Record<string, string> = {};
-
-  for (const [key, value] of formData.entries()) {
-    if (
-      key.startsWith(sheetCriterionFieldPrefix) &&
-      typeof value === "string"
-    ) {
-      values[key.slice(sheetCriterionFieldPrefix.length)] = value;
-    }
-  }
-
-  return values;
 }

@@ -189,7 +189,7 @@ export function formatJudgeAssignmentMessage(input: {
  * to the choreography for the rest.
  */
 export function presentationRowPath(row: PresentationListItem) {
-  if (row.evaluationStatus !== "pendiente" && row.presentationId !== null) {
+  if (row.evaluationStatus !== "pending" && row.presentationId !== null) {
     return `/administracion/presentacion/${row.presentationId}/puntajes`;
   }
 

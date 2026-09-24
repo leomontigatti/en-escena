@@ -64,22 +64,22 @@ describe("a presentation's average", () => {
 
 describe("the medal read from that average", () => {
   test.each([
-    [0, "mencionEspecial"],
-    [59.99, "mencionEspecial"],
-    [60, "bronce"],
-    [79.99, "bronce"],
-    [80, "plata"],
-    [89.99, "plata"],
-    [90, "oro"],
-    [100, "oro"],
+    [0, "specialMention"],
+    [59.99, "specialMention"],
+    [60, "bronze"],
+    [79.99, "bronze"],
+    [80, "silver"],
+    [89.99, "silver"],
+    [90, "gold"],
+    [100, "gold"],
   ])("reads %s as %s", (average, medal) => {
     expect(medalForAverage(average)).toBe(medal);
   });
 
   test("names each medal as administration reads it", () => {
-    expect(medalLabels.mencionEspecial).toBe("Mención especial");
-    expect(medalLabels.bronce).toBe("Medalla de bronce");
-    expect(medalLabels.plata).toBe("Medalla de plata");
-    expect(medalLabels.oro).toBe("Medalla de oro");
+    expect(medalLabels.specialMention).toBe("Mención especial");
+    expect(medalLabels.bronze).toBe("Medalla de bronce");
+    expect(medalLabels.silver).toBe("Medalla de plata");
+    expect(medalLabels.gold).toBe("Medalla de oro");
   });
 });

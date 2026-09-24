@@ -3,6 +3,8 @@ import { describe, expect, test } from "vitest";
 import {
   addingCriteriaTotalMessage,
   criterionMaximumMessage,
+  duplicateCriterionNameErrors,
+  duplicateCriterionNameMessage,
   parseCriterionMaximum,
   sumAddingCriteriaMaxima,
   validateCriteriaMaxima,
@@ -74,5 +76,27 @@ describe("submodality criteria maxima", () => {
       ok: false,
       fieldErrors: { "criteria.1.maximum": criterionMaximumMessage },
     });
+  });
+});
+
+describe("repeated criterion names", () => {
+  test("reports both rows of a repetition, and nothing else", () => {
+    expect([
+      ...duplicateCriterionNameErrors(["Técnica", "Puesta", "  técnica "]),
+    ]).toEqual([
+      [0, duplicateCriterionNameMessage],
+      [2, duplicateCriterionNameMessage],
+    ]);
+  });
+
+  test("reads two names apart only by what the index does", () => {
+    // The unique index is on `lower(name)` with the accents folded, so the
+    // dialog has to refuse what the save would refuse anyway.
+    expect(duplicateCriterionNameErrors(["Tecnica", "Técnica"]).size).toBe(2);
+    expect(duplicateCriterionNameErrors(["Técnica", "Puesta"]).size).toBe(0);
+  });
+
+  test("leaves an empty name to the required-field rule", () => {
+    expect(duplicateCriterionNameErrors(["", "   ", "Técnica"]).size).toBe(0);
   });
 });

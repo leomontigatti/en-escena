@@ -50,7 +50,7 @@ function buildRow(
     modalityName: "Acrobacia",
     name: `Coreografía ${overrides.presentationId}`,
     orderNumber: 1,
-    status: "pendiente",
+    status: "pending",
     submodalityName: "Acrobática",
     ...overrides,
     presentationId: overrides.presentationId,

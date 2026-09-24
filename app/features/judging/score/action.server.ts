@@ -10,7 +10,7 @@ import {
 } from "@/lib/judging/save-score.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
 import { readFormString } from "@/lib/shared/forms";
-import { sheetCriterionFieldPrefix } from "./form-shared";
+import { readSheetValues } from "./form-shared";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 
 /**
@@ -186,21 +186,6 @@ async function saveScore(
  * the submodality's criteria itself, so anything posted for a criterion it does
  * not have is simply never looked at.
  */
-function readSheetValues(formData: FormData): Record<string, string> {
-  const values: Record<string, string> = {};
-
-  for (const [key, value] of formData.entries()) {
-    if (
-      key.startsWith(sheetCriterionFieldPrefix) &&
-      typeof value === "string"
-    ) {
-      values[key.slice(sheetCriterionFieldPrefix.length)] = value;
-    }
-  }
-
-  return values;
-}
-
 /**
  * What the form asked for the stored take. Anything that is not an explicit
  * `replace` carrying bytes, or an explicit `remove`, is read as "leave it

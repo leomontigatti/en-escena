@@ -18,7 +18,7 @@ function buildItem(
     assignedJudgeIds: [],
     categoryName: "Infantil",
     choreographyNumber: 1,
-    evaluationStatus: "pendiente",
+    evaluationStatus: "pending",
     experienceLevel: null,
     financialStatus: "paidInFull",
     groupType: "solo",
@@ -170,7 +170,7 @@ describe("presentationRowPath", () => {
   test("sends a pending row to its choreography", () => {
     expect(
       presentationRowPath(
-        buildItem({ evaluationStatus: "pendiente", presentationId: "p-1" }),
+        buildItem({ evaluationStatus: "pending", presentationId: "p-1" }),
       ),
     ).toBe("/administracion/coreografias/choreography-1");
   });
@@ -178,7 +178,7 @@ describe("presentationRowPath", () => {
   test("sends an evaluated row to its scores", () => {
     expect(
       presentationRowPath(
-        buildItem({ evaluationStatus: "evaluada", presentationId: "p-1" }),
+        buildItem({ evaluationStatus: "evaluated", presentationId: "p-1" }),
       ),
     ).toBe("/administracion/presentacion/p-1/puntajes");
   });
@@ -186,7 +186,7 @@ describe("presentationRowPath", () => {
   test("sends a disqualified row to its scores", () => {
     expect(
       presentationRowPath(
-        buildItem({ evaluationStatus: "descalificada", presentationId: "p-1" }),
+        buildItem({ evaluationStatus: "disqualified", presentationId: "p-1" }),
       ),
     ).toBe("/administracion/presentacion/p-1/puntajes");
   });

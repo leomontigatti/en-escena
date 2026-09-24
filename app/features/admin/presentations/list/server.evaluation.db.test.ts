@@ -50,12 +50,12 @@ describe("the participation list's evaluation status", () => {
     expect(
       result.presentations.find((row) => row.id === scored.choreographyId),
     ).toMatchObject({
-      evaluationStatus: "evaluada",
+      evaluationStatus: "evaluated",
       presentationId: scored.presentationId,
     });
     expect(
       result.presentations.find((row) => row.id === untouched.choreographyId),
-    ).toMatchObject({ evaluationStatus: "pendiente" });
+    ).toMatchObject({ evaluationStatus: "pending" });
   });
 
   test("reads a disqualified presentation as disqualified even once it has scores", async () => {
@@ -76,7 +76,7 @@ describe("the participation list's evaluation status", () => {
     const result = await loadTheList("descalificada.presentacion@example.com");
 
     expect(result.presentations[0]).toMatchObject({
-      evaluationStatus: "descalificada",
+      evaluationStatus: "disqualified",
     });
   });
 

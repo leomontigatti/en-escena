@@ -73,7 +73,7 @@ describe("the `/juzgamiento` route", () => {
 
     expect(data.account.name).toBe("Juana Juez");
     expect(data.presentations).toMatchObject([
-      { name: "Primera", orderNumber: 1, status: "pendiente" },
+      { name: "Primera", orderNumber: 1, status: "pending" },
     ]);
   });
 });

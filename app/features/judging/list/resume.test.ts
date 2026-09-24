@@ -3,10 +3,10 @@ import { describe, expect, test } from "vitest";
 import { findResumePresentationId } from "./resume";
 
 const rows = [
-  { presentationId: "a", status: "sinDevolucion" as const },
-  { presentationId: "b", status: "pendiente" as const },
-  { presentationId: "c", status: "descalificada" as const },
-  { presentationId: "d", status: "pendiente" as const },
+  { presentationId: "a", status: "noFeedback" as const },
+  { presentationId: "b", status: "pending" as const },
+  { presentationId: "c", status: "disqualified" as const },
+  { presentationId: "d", status: "pending" as const },
 ];
 
 describe("where the judge picks the list back up", () => {
@@ -29,7 +29,7 @@ describe("where the judge picks the list back up", () => {
   test("marks nothing once every presentation is scored", () => {
     expect(
       findResumePresentationId(
-        [{ presentationId: "a", status: "completa" }],
+        [{ presentationId: "a", status: "complete" }],
         "a",
       ),
     ).toBeNull();

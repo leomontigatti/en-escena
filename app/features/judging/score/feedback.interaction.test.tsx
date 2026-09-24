@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { JudgePanelView } from "@/features/judging/list/view";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
@@ -13,8 +14,56 @@ import {
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
-import { deleteFeedbackAudioTitle } from "./feedback-playback";
+import {
+  deleteFeedbackAudioTitle,
+  playbackErrorMessage,
+} from "./feedback-playback";
 import { microphoneErrorMessage } from "./feedback-recorder";
+
+/**
+ * The browser APIs one take needs, none of which jsdom has. `stop` finishes the
+ * take synchronously, which is all the recorder's own state machine asks for.
+ */
+function installRecorderStubs() {
+  class FakeMediaRecorder {
+    static isTypeSupported = () => true;
+    mimeType = "audio/webm";
+    ondataavailable: ((event: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    state = "inactive";
+
+    start() {
+      this.state = "recording";
+    }
+
+    stop() {
+      this.state = "inactive";
+      this.ondataavailable?.({ data: new Blob(["take"]) });
+      this.onstop?.();
+    }
+  }
+
+  const stubs = {
+    AudioContext: class {
+      close = () => Promise.resolve();
+      createAnalyser = () => ({
+        fftSize: 1024,
+        getByteTimeDomainData: () => {},
+      });
+      createMediaStreamSource = () => ({ connect: () => {} });
+    },
+    MediaRecorder: FakeMediaRecorder,
+  };
+
+  for (const [name, value] of Object.entries(stubs)) {
+    vi.stubGlobal(name, value);
+  }
+
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia: () => Promise.resolve({ getTracks: () => [] }) },
+  });
+}
 
 function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
   return {
@@ -29,7 +78,7 @@ function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
     name: "Primera",
     orderNumber: 1,
     presentationId: "a",
-    status: "pendiente",
+    status: "pending",
     submodalityName: "Lyrical",
   };
 }
@@ -38,12 +87,26 @@ describe("recording a `Devolución` with the score", () => {
   const renderer = createReactDomTestRenderer();
   const submitted: FormData[] = [];
 
+  const revoked: string[] = [];
+
   beforeEach(() => {
     window.sessionStorage.clear();
     submitted.length = 0;
+    revoked.length = 0;
+    let created = 0;
+    vi.spyOn(URL, "createObjectURL").mockImplementation(
+      () => `blob:take-${++created}`,
+    );
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation((url) => {
+      revoked.push(url);
+    });
   });
 
-  afterEach(renderer.cleanup);
+  afterEach(() => {
+    renderer.cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   async function mount(feedbackAudioUrl: string | null = null) {
     const router = createMemoryRouter(
@@ -156,6 +219,63 @@ describe("recording a `Devolución` with the score", () => {
     expect(submitted.map((body) => body.get("audioIntent"))).toEqual([
       "remove",
     ]);
+  });
+
+  /** Records one take and stops it, on the stubs jsdom needs to have any. */
+  async function recordATake() {
+    await clickReactDomButton("Empezar a grabar");
+    await clickReactDomButton("Terminar grabación");
+  }
+
+  test("frees the take it recorded when the judge deletes it", async () => {
+    installRecorderStubs();
+    await mount();
+
+    await recordATake();
+
+    expect(revoked).toEqual([]);
+
+    await clickReactDomButton("Eliminar grabación");
+    await answerDeleteConfirmation("Eliminar");
+
+    expect(revoked).toEqual(["blob:take-1"]);
+  });
+
+  test("frees the take it recorded when the form goes away", async () => {
+    installRecorderStubs();
+    await mount();
+
+    await recordATake();
+    renderer.cleanup();
+
+    expect(revoked).toEqual(["blob:take-1"]);
+  });
+
+  test("never frees the stored take, which is the server's", async () => {
+    await mount("https://audio/stored");
+
+    await clickReactDomButton("Eliminar grabación");
+    await answerDeleteConfirmation("Eliminar");
+
+    expect(revoked).toEqual([]);
+  });
+
+  test("says so when the take cannot be played", async () => {
+    const errors: string[] = [];
+    vi.spyOn(toast, "error").mockImplementation((message) => {
+      errors.push(String(message));
+
+      return "";
+    });
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockRejectedValue(
+      new Error("NotAllowedError"),
+    );
+
+    await mount("https://audio/stored");
+
+    await clickReactDomButton("Escuchar");
+
+    expect(errors).toEqual([playbackErrorMessage]);
   });
 
   test("asks before closing a form whose take was deleted", async () => {
