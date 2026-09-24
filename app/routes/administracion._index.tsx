@@ -19,6 +19,7 @@ import { events as eventsTable } from "@/db/schema";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import type { EventRegistrationReadiness } from "@/lib/events/registration-readiness";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { isEventRegistrationOpen } from "@/lib/portal/event-context.server";
 
 import type { Route } from "./+types/administracion._index";
 
@@ -30,6 +31,8 @@ type ActiveEventSummary = {
 type DashboardLoaderData = {
   activeEvent: ActiveEventSummary | null;
   activeEventRegistrationReadiness: EventRegistrationReadiness | null;
+  /** Derived by the event-context owner: any `Cronograma` of the event is open. */
+  isRegistrationOpen: boolean;
 };
 
 type DashboardRouteProps = {
@@ -51,21 +54,32 @@ export async function loader({ request }: Route.LoaderArgs) {
     where: eq(eventsTable.active, true),
   });
 
+  const [activeEventRegistrationReadiness, isRegistrationOpen] =
+    await Promise.all([
+      activeEvent ? getEventRegistrationReadiness(activeEvent.id) : null,
+      isEventRegistrationOpen(activeEvent?.id ?? null),
+    ]);
+
   return {
     activeEvent: activeEvent ?? null,
-    activeEventRegistrationReadiness: activeEvent
-      ? await getEventRegistrationReadiness(activeEvent.id)
-      : null,
+    activeEventRegistrationReadiness,
+    isRegistrationOpen,
   } satisfies DashboardLoaderData;
 }
 
 export function DashboardRouteView({ loaderData }: DashboardRouteProps) {
   const activeEvent = loaderData.activeEvent;
+  const isNotReady =
+    loaderData.activeEventRegistrationReadiness?.isReady === false;
   const readinessAlertEvent =
-    activeEvent !== null &&
-    loaderData.activeEventRegistrationReadiness?.isReady === false
-      ? activeEvent
-      : null;
+    activeEvent !== null && isNotReady ? activeEvent : null;
+  /**
+   * Opening a `Cronograma` is gated on readiness, but bases changing afterwards
+   * closes nothing: this warning is the only signal that the two facts drifted
+   * apart, and closing stays a manual action in the schedule detail.
+   */
+  const warnsAboutOpenSchedules =
+    activeEvent !== null && isNotReady && loaderData.isRegistrationOpen;
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,22 +95,20 @@ export function DashboardRouteView({ loaderData }: DashboardRouteProps) {
 
       <AlertStack>
         {readinessAlertEvent ? (
-          <Alert variant="warning">
-            <TriangleAlert
-              aria-hidden="true"
-              className="self-center !translate-y-0"
-            />
-            <AlertDescription className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
-              <span className="font-medium text-foreground">
-                Falta configurar bases para el evento activo.
-              </span>
-              <span>Podés revisarlas acá</span>
-              <Link to={`/administracion/eventos/${readinessAlertEvent.id}`}>
-                {readinessAlertEvent.name}
-              </Link>
-              <span>.</span>
-            </AlertDescription>
-          </Alert>
+          <DashboardWarningAlert
+            headline="Falta configurar bases para el evento activo."
+            lead="Podés revisarlas acá"
+            linkLabel={readinessAlertEvent.name}
+            linkTo={`/administracion/eventos/${readinessAlertEvent.id}`}
+          />
+        ) : null}
+        {warnsAboutOpenSchedules ? (
+          <DashboardWarningAlert
+            headline="Hay cronogramas con las inscripciones abiertas y bases sin configurar."
+            lead="Podés cerrarlas acá"
+            linkLabel="Cronogramas"
+            linkTo="/administracion/cronogramas"
+          />
         ) : null}
       </AlertStack>
 
@@ -109,6 +121,33 @@ export function DashboardRouteView({ loaderData }: DashboardRouteProps) {
         ))}
       </nav>
     </div>
+  );
+}
+
+function DashboardWarningAlert({
+  headline,
+  lead,
+  linkLabel,
+  linkTo,
+}: {
+  headline: string;
+  lead: string;
+  linkLabel: string;
+  linkTo: string;
+}) {
+  return (
+    <Alert variant="warning">
+      <TriangleAlert
+        aria-hidden="true"
+        className="self-center !translate-y-0"
+      />
+      <AlertDescription className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
+        <span className="font-medium text-foreground">{headline}</span>
+        <span>{lead}</span>
+        <Link to={linkTo}>{linkLabel}</Link>
+        <span>.</span>
+      </AlertDescription>
+    </Alert>
   );
 }
 
