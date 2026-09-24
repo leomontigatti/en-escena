@@ -28,7 +28,7 @@ import {
   type EventMutationResult,
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
-import { isEventRegistrationOpen } from "@/lib/portal/event-context.server";
+import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import {
   notificationToasts,

@@ -28,7 +28,7 @@ import {
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
 import { getEventRegistrationReadinessForBases } from "@/lib/events/registration-readiness.server";
-import { isEventRegistrationOpen } from "@/lib/portal/event-context.server";
+import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";
 import {
   classifyRosterPersonSelection,
   getRosterPersonRejectionMessage,

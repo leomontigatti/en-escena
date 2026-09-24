@@ -66,6 +66,26 @@ export async function findOpenScheduleIds(
   return new Set(rows.map((row) => row.id));
 }
 
+/**
+ * The one implementation of "las inscripciones están abiertas" for an event:
+ * open when any of its `Cronograma`s is open, closed when none is and closed
+ * when the event has none at all. Nothing stores the event-level fact, so
+ * display and enforcement cannot drift.
+ */
+export async function isEventRegistrationOpen(
+  eventId: string | null,
+): Promise<boolean> {
+  if (!eventId) {
+    return false;
+  }
+
+  // The same query the portal resolver filters its options with, so "the event
+  // is open" and "this schedule is offered" can never answer from two reads.
+  const openScheduleIds = await findOpenScheduleIds(eventId);
+
+  return openScheduleIds.size > 0;
+}
+
 export async function openScheduleRegistration(
   scheduleId: string,
 ): Promise<ScheduleRegistrationToggleResult> {

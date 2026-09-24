@@ -19,7 +19,7 @@ import { events as eventsTable } from "@/db/schema";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import type { EventRegistrationReadiness } from "@/lib/events/registration-readiness";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
-import { isEventRegistrationOpen } from "@/lib/portal/event-context.server";
+import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";
 
 import type { Route } from "./+types/administracion._index";
 

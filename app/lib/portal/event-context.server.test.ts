@@ -33,7 +33,7 @@ describe("portal event context helpers", () => {
     vi.clearAllMocks();
   });
 
-  test("derives the inscriptions state from the schedules of the active event", async () => {
+  test("surfaces the inscriptions state of the active event, and skips the read without one", async () => {
     findEvents.mockResolvedValue([
       buildEventSummary({ id: "event_active", active: true }),
     ]);
@@ -48,9 +48,8 @@ describe("portal event context helpers", () => {
     await expect(
       getPortalActiveEventContext(new Request("http://localhost/portal")),
     ).resolves.toMatchObject({ isRegistrationOpen: false });
-  });
 
-  test("reads no schedule when there is no active event", async () => {
+    vi.clearAllMocks();
     findEvents.mockResolvedValue([]);
 
     await expect(
