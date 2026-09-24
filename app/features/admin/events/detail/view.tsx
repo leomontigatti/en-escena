@@ -487,29 +487,11 @@ function EventActions({
               event.programVisible ? "Ocultar programa" : "Mostrar programa"
             }
           />
-          {/* The menu always matches the state: nothing to update or hide until
-              results are out, and nothing to show once they are. */}
           {canPublishResults ? (
-            isPublished ? (
-              <>
-                <DropdownMenuItem
-                  onSelect={() => setResultsAction("update-results")}
-                >
-                  Actualizar resultados
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setResultsAction("hide-results")}
-                >
-                  Ocultar resultados
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <DropdownMenuItem
-                onSelect={() => setResultsAction("show-results")}
-              >
-                Mostrar resultados
-              </DropdownMenuItem>
-            )
+            <ResultsActionItems
+              isPublished={isPublished}
+              onSelect={setResultsAction}
+            />
           ) : null}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
@@ -536,6 +518,38 @@ function EventActions({
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
       />
+    </>
+  );
+}
+
+/**
+ * The menu always matches the state: nothing to update or hide until results are
+ * out, and nothing to show once they are. Each item only opens its confirmation
+ * — the publishing itself is that dialog's form.
+ */
+function ResultsActionItems({
+  isPublished,
+  onSelect,
+}: {
+  isPublished: boolean;
+  onSelect: (action: ResultsAction) => void;
+}) {
+  if (!isPublished) {
+    return (
+      <DropdownMenuItem onSelect={() => onSelect("show-results")}>
+        Mostrar resultados
+      </DropdownMenuItem>
+    );
+  }
+
+  return (
+    <>
+      <DropdownMenuItem onSelect={() => onSelect("update-results")}>
+        Actualizar resultados
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onSelect("hide-results")}>
+        Ocultar resultados
+      </DropdownMenuItem>
     </>
   );
 }

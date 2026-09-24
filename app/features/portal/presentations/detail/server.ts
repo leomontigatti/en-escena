@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies, presentations } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { experienceLevelLabel } from "@/lib/events/experience-levels";
 import type { Medal } from "@/lib/judging/medal";
 import { readPresentationScores } from "@/lib/judging/presentation-scores.server";
 import { isPresentationResultPublished } from "@/lib/judging/results.server";
@@ -142,9 +142,7 @@ function formatEvaluationDetails(input: {
   return [
     input.categoryName,
     formatGroupTypeLabel(input.groupType),
-    input.experienceLevel === null
-      ? null
-      : experienceLevelLabels[input.experienceLevel],
+    experienceLevelLabel(input.experienceLevel),
     input.modalityName,
     input.submodalityName,
   ]

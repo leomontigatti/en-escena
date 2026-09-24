@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  formatEvaluatedPresentations,
+  formatPendingEvaluations,
   formatPresentationCount,
   formatResultsPublicationMoment,
 } from "@/lib/judging/results-copy";
@@ -23,8 +25,9 @@ import { eventActionPath, type EventDetailLoaderData } from "./shared";
 /**
  * What the event says while results are out: how many the academies see and
  * since when, and — only when the panel has evaluated more — that `Actualizar
- * resultados` is what adds them. Admin and `auditor` read the same alert; only
- * the actions beside it are the `admin`'s.
+ * resultados` is what adds them. Nothing here is gated — only the actions beside
+ * it are — so whoever can open the event reads it. Today that is the `admin`
+ * alone: story 8's read-only `auditor` needs a route it can reach first.
  */
 export function ResultsPublicationAlert({
   publication,
@@ -49,8 +52,8 @@ export function ResultsPublicationAlert({
         </p>
         {pendingCount > 0 ? (
           <p>
-            Hay {pendingCount} evaluadas desde entonces: usá &quot;Actualizar
-            resultados&quot; para sumarlas.
+            Hay {formatPendingEvaluations(pendingCount)} desde entonces: usá
+            &quot;Actualizar resultados&quot; para sumarlas.
           </p>
         ) : null}
       </AlertDescription>
@@ -145,8 +148,8 @@ function getResultsDialogDescription(
     case "hide-results":
       return "Las academias dejan de ver todos los resultados. Para volver a mostrarlos se publica de nuevo lo evaluado en ese momento.";
     case "show-results":
-      return `Cada academia ve el premio, el promedio y las devoluciones de las ${formatPresentationCount(counts.evaluatedCount)} evaluadas hasta ahora. Las que se evalúen después se suman cuando actualices.`;
+      return `Cada academia ve el premio, el promedio y las devoluciones de ${formatEvaluatedPresentations(counts.evaluatedCount)} hasta ahora. Las que se evalúen después se suman cuando actualices.`;
     case "update-results":
-      return `Se publican las ${formatPresentationCount(counts.evaluatedCount)} evaluadas hasta ahora, ${counts.pendingCount} más que la última vez.`;
+      return `Se publican ${formatEvaluatedPresentations(counts.evaluatedCount)} hasta ahora, ${counts.pendingCount} más que la última vez.`;
   }
 }

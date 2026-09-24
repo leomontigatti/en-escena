@@ -13,7 +13,7 @@ import {
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { experienceLevelLabel } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { isPresentationEligible } from "@/lib/presentations/ordering";
 import {
@@ -126,10 +126,7 @@ export async function readAcademyPresentations(
       isBelowDeposit:
         (financialStatuses.get(row.choreographyId) ?? "depositPending") ===
         "depositPending",
-      levelLabel:
-        row.experienceLevel === null
-          ? null
-          : experienceLevelLabels[row.experienceLevel],
+      levelLabel: experienceLevelLabel(row.experienceLevel),
       modalityName: row.modalityName,
       name: row.name,
       orderNumber: row.orderNumber,

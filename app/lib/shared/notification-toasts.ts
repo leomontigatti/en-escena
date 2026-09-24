@@ -1,4 +1,3 @@
-import { formatPresentationCount } from "@/lib/judging/results-copy";
 import { type ToastMessage } from "@/lib/shared/toasts";
 
 type NotificationToast = ToastMessage & {
@@ -43,7 +42,6 @@ export const notificationToastIds = {
   "comprobante-recuperado": "route-notification:comprobante-recuperado",
   "programa-visible": "route-notification:programa-visible",
   "programa-oculto": "route-notification:programa-oculto",
-  "resultados-publicados": "route-notification:resultados-publicados",
   "resultados-ocultos": "route-notification:resultados-ocultos",
   "categoria-guardada": "route-notification:categoria-guardada",
   "categoria-eliminada": "route-notification:categoria-eliminada",
@@ -59,14 +57,9 @@ export const notificationToastIds = {
   "usuario-interno-reactivado": "route-notification:usuario-interno-reactivado",
 } as const;
 
-/**
- * `resultados-publicados` is out because its message names how many results
- * went out, so it is built per submission by `publishedResultsToast` rather
- * than fixed here.
- */
 type NotificationToastKey = Exclude<
   keyof typeof notificationToastIds,
-  "event-form-error" | "user-form-error" | "resultados-publicados"
+  "event-form-error" | "user-form-error"
 >;
 
 export const notificationToasts = {
@@ -303,21 +296,6 @@ export const notificationToasts = {
 } as const satisfies Record<NotificationToastKey, NotificationToast>;
 
 export type NotificationKey = keyof typeof notificationToasts;
-
-/**
- * What `Mostrar resultados` and `Actualizar resultados` toast: the same
- * notification either way, naming how many presentations the academies see
- * afterwards — a publication is a snapshot, not a delta.
- */
-export function publishedResultsToast(
-  publishedCount: number,
-): NotificationToast {
-  return {
-    id: notificationToastIds["resultados-publicados"],
-    message: `Se publicaron los resultados de ${formatPresentationCount(publishedCount)}.`,
-    variant: "success",
-  };
-}
 
 export function getNotificationToast(
   notification: string,

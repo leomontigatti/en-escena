@@ -31,9 +31,9 @@ import { getEventRegistrationReadiness } from "@/lib/events/registration-readine
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import {
   notificationToasts,
-  publishedResultsToast,
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
+import { publishedResultsMessage } from "@/lib/judging/results-copy";
 import {
   hideResults,
   publishResults,
@@ -81,8 +81,9 @@ export async function loadEventDetail(
 
   return {
     // Who may publish travels with the data rather than being read again in the
-    // view: the actions are the `admin`'s, and the alert beside them is for
-    // whoever reads the event.
+    // view. `requireAdminPanelUser` already admits nobody else, so this reads
+    // `true` for every caller that gets this far; it is the seam story 8's
+    // read-only `auditor` view would flip once that role can open an event.
     canPublishResults: user.role === "admin",
     documents,
     event,
@@ -143,7 +144,7 @@ export async function updateAdministrativeEvent(
     case "publish-results":
       return {
         status: "success" as const,
-        message: publishedResultsToast(await publishResults(eventId)).message,
+        message: publishedResultsMessage(await publishResults(eventId)),
       };
 
     case "hide-results": {

@@ -556,6 +556,27 @@ describe("EventDetailView results publication", () => {
     ).toBe("publish-results");
   });
 
+  test("agrees with a count of one, in the alert and in the confirmation", async () => {
+    await renderResults({
+      pendingCount: 1,
+      publishedAt: new Date("2026-03-14T23:30:00Z"),
+      publishedCount: 0,
+    });
+
+    expect(document.body.textContent).toContain(
+      'Hay 1 evaluada desde entonces: usá "Actualizar resultados" para sumarlas.',
+    );
+
+    await openActionsMenu();
+    await clickMenuItem("Actualizar resultados");
+
+    expect(
+      document.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain(
+      "Se publican la presentación evaluada hasta ahora, 1 más que la última vez.",
+    );
+  });
+
   test("confirms updating the results with how many more go out", async () => {
     await renderResults({
       pendingCount: 2,

@@ -53,6 +53,28 @@ describe("PortalPresentationEvaluationView", () => {
     expect(markup).toContain('data-slot="separator"');
   });
 
+  test("leaves out the sheet divider when there is nothing to deduct", () => {
+    const addingOnly = criteria.filter(
+      (criterion) => criterion.kind === "adds",
+    );
+    const bothKinds = renderView({
+      criteria,
+      judges: [
+        buildJudge({ criteriaValues: { caidas: "2.0", tecnica: "90.0" } }),
+      ],
+    });
+    const markup = renderView({
+      criteria: addingOnly,
+      judges: [buildJudge({ criteriaValues: { tecnica: "90.0" } })],
+    });
+
+    expect(markup).toContain("Técnica");
+    expect(markup).not.toContain("Caídas");
+    // Only the one before `Devolución` is left: the sheet's own divider says a
+    // deduction follows, and here none does.
+    expect(countSeparators(markup)).toBe(countSeparators(bothKinds) - 1);
+  });
+
   test("says so when a judge left no feedback", () => {
     const markup = renderView({ judges: [buildJudge()] });
 
@@ -87,6 +109,10 @@ describe("PortalPresentationEvaluationView", () => {
     expect(markup).toContain("Devolución");
   });
 });
+
+function countSeparators(markup: string) {
+  return markup.split('data-slot="separator"').length - 1;
+}
 
 function buildJudge(
   overrides: Partial<PortalEvaluationJudge> = {},

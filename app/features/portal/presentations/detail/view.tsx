@@ -154,7 +154,9 @@ function JudgeCard({
 /**
  * The sheet as the judge filled it: what the dance earned, then what it lost.
  * The divider is what says a deduction is a penalty rather than a share, so no
- * line has to be labelled as subtracting.
+ * line has to be labelled as subtracting — which is also why it only appears
+ * when there is something on both sides of it. A sheet of nothing but adding
+ * criteria would otherwise end on a rule under an empty list.
  */
 function SheetBreakdown({
   criteria,
@@ -163,17 +165,20 @@ function SheetBreakdown({
   criteria: SheetCriterion[];
   values: Record<string, string>;
 }) {
+  const adding = criteria.filter((criterion) => criterion.kind === "adds");
+  const deductions = criteria.filter(
+    (criterion) => criterion.kind === "deducts",
+  );
+
   return (
     <div className="flex flex-col gap-3">
-      <CriteriaValues
-        criteria={criteria.filter((criterion) => criterion.kind === "adds")}
-        values={values}
-      />
-      <Separator />
-      <CriteriaValues
-        criteria={criteria.filter((criterion) => criterion.kind === "deducts")}
-        values={values}
-      />
+      {adding.length > 0 ? (
+        <CriteriaValues criteria={adding} values={values} />
+      ) : null}
+      {adding.length > 0 && deductions.length > 0 ? <Separator /> : null}
+      {deductions.length > 0 ? (
+        <CriteriaValues criteria={deductions} values={values} />
+      ) : null}
     </div>
   );
 }
