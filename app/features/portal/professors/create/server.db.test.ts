@@ -267,6 +267,33 @@ describe("handleCreateProfessorAction", () => {
     expect(await findAcademyProfessors(owner.academyId)).toHaveLength(1);
   });
 
+  test("warns when the matching name contains an s", async () => {
+    const owner = await createOwner("profesores.create.sname@example.com");
+    const [existing] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Rosa",
+        lastName: "Bustos",
+      })
+      .returning();
+
+    const result = await handleCreateProfessorAction({
+      academyId: owner.academyId,
+      formData: createFormData({
+        firstName: "rosa",
+        lastName: "bustos",
+        documentType: "",
+        documentNumber: "",
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: "warning",
+      warning: { matches: [{ id: existing.id, label: "Rosa Bustos" }] },
+    });
+  });
+
   test("creates the professor once the match is acknowledged", async () => {
     const owner = await createOwner(
       "profesores.create.acknowledged@example.com",

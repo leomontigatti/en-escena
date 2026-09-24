@@ -217,6 +217,35 @@ describe("handleCreateDancerAction", () => {
     expect(await findAcademyDancers(owner.academyId)).toHaveLength(1);
   });
 
+  test("warns when the matching name contains an s", async () => {
+    const owner = await createOwner("bailarines.create.sname@example.com");
+    const [existing] = await db
+      .insert(dancers)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Rosa",
+        lastName: "Bustos",
+        birthDate: "2015-05-04",
+      })
+      .returning();
+
+    const result = await handleCreateDancerAction({
+      academyId: owner.academyId,
+      formData: createFormData({
+        firstName: "rosa",
+        lastName: "bustos",
+        birthDate: "2015-05-04",
+        documentType: "",
+        documentNumber: "",
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: "warning",
+      warning: { matches: [{ id: existing.id, label: "Rosa Bustos" }] },
+    });
+  });
+
   test("does not warn when the birth date differs", async () => {
     const owner = await createOwner("bailarines.create.otherbirth@example.com");
     await db.insert(dancers).values({
@@ -305,10 +334,22 @@ describe("handleCreateDancerAction", () => {
       formData,
     });
 
-    expect(result).toMatchObject({
-      status: "warning",
-      warning: { matches: [{ id: second.id }] },
-    });
+    // Every match the user will have seen, the acknowledged one included, so
+    // the next submit covers the whole set instead of alternating between them.
+    expect(result.status).toBe("warning");
+    const matchIds =
+      result.status === "warning"
+        ? result.warning.matches.map((match) => match.id)
+        : [];
+    expect([...matchIds].sort()).toEqual([first.id, second.id].sort());
+
+    for (const matchId of matchIds) {
+      formData.append(acknowledgedDuplicateIdsField, matchId);
+    }
+
+    expect(
+      await handleCreateDancerAction({ academyId: owner.academyId, formData }),
+    ).toMatchObject({ status: "success" });
   });
 
   test("returns the document refusal rather than the name warning", async () => {

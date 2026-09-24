@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { professors } from "@/db/schema";
 import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import type { RosterScope } from "@/lib/roster/roster-scope";
 
 const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 
@@ -131,7 +132,6 @@ const professorDocumentNumberUniqueIndex =
   "professor_academy_document_number_unique";
 
 /** Whose academy the reader is looking at: their own, or any, from the panel. */
-export type ProfessorDocumentScope = "portal" | "admin";
 
 export type ProfessorDocumentConflict = {
   /**
@@ -168,7 +168,7 @@ export async function findProfessorDocumentConflict(input: {
   academyId: string;
   professorId?: string;
   documentNumber: string;
-  scope: ProfessorDocumentScope;
+  scope: RosterScope;
 }): Promise<ProfessorDocumentConflict | null> {
   const duplicate = await findDuplicateProfessorDocument(input);
 
@@ -194,7 +194,7 @@ export async function writeProfessorGuardingDocument<T>(input: {
   academyId: string;
   professorId?: string;
   documentNumber: string | null;
-  scope: ProfessorDocumentScope;
+  scope: RosterScope;
   write: () => Promise<T>;
 }): Promise<
   { ok: true; result: T } | { ok: false; conflict: ProfessorDocumentConflict }
@@ -231,7 +231,7 @@ export async function writeProfessorGuardingDocument<T>(input: {
 
 function professorDocumentConflictMessage(options: {
   archived: boolean;
-  scope: ProfessorDocumentScope;
+  scope: RosterScope;
 }) {
   const person = options.archived ? "un Profesor archivado" : "un Profesor";
   const academy = options.scope === "portal" ? "tu academia" : "la academia";

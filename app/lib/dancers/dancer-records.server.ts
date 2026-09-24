@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { isUniqueViolation } from "@/lib/shared/error-properties.server";
+import type { RosterScope } from "@/lib/roster/roster-scope";
 
 const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 
@@ -147,7 +148,6 @@ export function normalizeDancerDocumentPair(
 const dancerDocumentNumberUniqueIndex = "dancer_academy_document_number_unique";
 
 /** Whose academy the reader is looking at: their own, or any, from the panel. */
-export type DancerDocumentScope = "portal" | "admin";
 
 export type DancerDocumentConflict = {
   /**
@@ -183,7 +183,7 @@ export async function findDancerDocumentConflict(input: {
   academyId: string;
   dancerId?: string;
   documentNumber: string;
-  scope: DancerDocumentScope;
+  scope: RosterScope;
 }): Promise<DancerDocumentConflict | null> {
   const duplicate = await findDuplicateDancerDocument(input);
 
@@ -209,7 +209,7 @@ export async function writeDancerGuardingDocument<T>(input: {
   academyId: string;
   dancerId?: string;
   documentNumber: string | null;
-  scope: DancerDocumentScope;
+  scope: RosterScope;
   write: () => Promise<T>;
 }): Promise<
   { ok: true; result: T } | { ok: false; conflict: DancerDocumentConflict }
@@ -246,7 +246,7 @@ export async function writeDancerGuardingDocument<T>(input: {
 
 function dancerDocumentConflictMessage(options: {
   archived: boolean;
-  scope: DancerDocumentScope;
+  scope: RosterScope;
 }) {
   const person = options.archived ? "un Bailarín archivado" : "un Bailarín";
   const academy = options.scope === "portal" ? "tu academia" : "la academia";

@@ -11,8 +11,8 @@ type DuplicateWarningPromptProps = {
 
 /**
  * The form side of the duplicate warning: the records the server found, and a
- * submit that repeats the same values carrying their ids. The server skips only
- * those ids, so a match that appeared meanwhile warns again.
+ * submit that repeats the same values carrying their ids. The server warns
+ * again when a match those ids do not cover appeared meanwhile.
  */
 export function DuplicateWarningPrompt({
   children,

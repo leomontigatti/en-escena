@@ -10,6 +10,7 @@ import {
   seminarInscriptions,
   user,
 } from "@/db/schema";
+import { formatSpanishList } from "@/lib/shared/text-normalization";
 
 export type DeleteAcademyResult =
   | { ok: true; academy: { id: string; name: string } }
@@ -111,7 +112,7 @@ export async function deleteEmptyAcademy(
     if (held.length > 0) {
       return {
         ok: false,
-        message: `No se puede eliminar la academia: tiene ${formatList(held)}.`,
+        message: `No se puede eliminar la academia: tiene ${formatSpanishList(held)}.`,
       };
     }
 
@@ -133,15 +134,4 @@ function pluralize(total: number, singular: string, plural: string) {
   }
 
   return `${total} ${total === 1 ? singular : plural}`;
-}
-
-/**
- * `a`, `b` y `c` — the Spanish enumeration the refusal reads as a sentence.
- */
-function formatList(items: string[]) {
-  if (items.length === 1) {
-    return items[0];
-  }
-
-  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }

@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -13,15 +13,13 @@ import type {
   AcademyNameMatch,
   AcademyNameWarning,
 } from "@/lib/academies/academy-name-duplicates";
-import { filterUnacknowledgedMatches } from "@/lib/shared/duplicate-warning";
+import { matchesToWarnAbout } from "@/lib/shared/duplicate-warning";
 import {
   isUniqueViolation,
   readErrorProperty,
 } from "@/lib/shared/error-properties.server";
-import {
-  normalizeForComparison,
-  toTitleCase,
-} from "@/lib/shared/text-normalization";
+import { toTitleCase } from "@/lib/shared/text-normalization";
+import { normalizedTextEquals } from "@/lib/shared/text-normalization.server";
 
 const ACADEMY_ONBOARDING_CONFLICT_ERROR =
   "No pudimos completar el alta de la academia porque este acceso ya está asociado a otro usuario. Volvé a ingresar o contactanos.";
@@ -75,15 +73,15 @@ export async function completeAcademyOnboarding(input: {
   }
 
   const name = toTitleCase(input.academyName);
-  const unacknowledgedMatches = filterUnacknowledgedMatches(
+  const matchesToShow = matchesToWarnAbout(
     await findAcademiesNamed(name),
     input.acknowledgedDuplicateIds,
   );
 
-  if (unacknowledgedMatches.length > 0) {
+  if (matchesToShow.length > 0) {
     const warning: AcademyNameWarning = {
       kind: "academy-name",
-      matches: unacknowledgedMatches,
+      matches: matchesToShow,
     };
 
     return { ok: false as const, warning };
@@ -134,12 +132,7 @@ async function findAcademiesNamed(name: string): Promise<AcademyNameMatch[]> {
       name: academies.name,
     })
     .from(academies)
-    .where(
-      eq(
-        sql`lower(regexp_replace(btrim(${academies.name}), '\\s+', ' ', 'g'))`,
-        normalizeForComparison(name),
-      ),
-    )
+    .where(normalizedTextEquals(academies.name, name))
     .orderBy(academies.createdAt);
 }
 

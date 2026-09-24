@@ -1,12 +1,12 @@
-import { and, eq, ne, sql, type SQL } from "drizzle-orm";
-import type { PgColumn } from "drizzle-orm/pg-core";
+import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
-import { filterUnacknowledgedMatches } from "@/lib/shared/duplicate-warning";
+import { matchesToWarnAbout } from "@/lib/shared/duplicate-warning";
+import { normalizedTextEquals } from "@/lib/shared/text-normalization.server";
+import type { RosterScope } from "@/lib/roster/roster-scope";
 import type {
   RosterNameMatch,
-  RosterNameScope,
   RosterNameWarning,
 } from "@/lib/roster/roster-name-duplicates";
 
@@ -24,7 +24,7 @@ export async function findDancerNameWarning(input: {
   dancerId?: string;
   firstName: string;
   lastName: string;
-  scope: RosterNameScope;
+  scope: RosterScope;
 }): Promise<RosterNameWarning | null> {
   const rows = await db.query.dancers.findMany({
     columns: { id: true, firstName: true, lastName: true },
@@ -32,8 +32,8 @@ export async function findDancerNameWarning(input: {
       eq(dancers.academyId, input.academyId),
       input.dancerId ? ne(dancers.id, input.dancerId) : undefined,
       eq(dancers.birthDate, input.birthDate),
-      normalizedNameEquals(dancers.firstName, input.firstName),
-      normalizedNameEquals(dancers.lastName, input.lastName),
+      normalizedTextEquals(dancers.firstName, input.firstName),
+      normalizedTextEquals(dancers.lastName, input.lastName),
     ),
   });
 
@@ -52,15 +52,15 @@ export async function findProfessorNameWarning(input: {
   lastName: string;
   /** Absent while creating: there is no row to exclude yet. */
   professorId?: string;
-  scope: RosterNameScope;
+  scope: RosterScope;
 }): Promise<RosterNameWarning | null> {
   const rows = await db.query.professors.findMany({
     columns: { id: true, firstName: true, lastName: true },
     where: and(
       eq(professors.academyId, input.academyId),
       input.professorId ? ne(professors.id, input.professorId) : undefined,
-      normalizedNameEquals(professors.firstName, input.firstName),
-      normalizedNameEquals(professors.lastName, input.lastName),
+      normalizedTextEquals(professors.firstName, input.firstName),
+      normalizedTextEquals(professors.lastName, input.lastName),
     ),
   });
 
@@ -76,28 +76,20 @@ function toWarning(input: {
   acknowledgedDuplicateIds: readonly string[];
   kind: RosterNameWarning["kind"];
   rows: { firstName: string; id: string; lastName: string }[];
-  scope: RosterNameScope;
+  scope: RosterScope;
 }): RosterNameWarning | null {
   const matches: RosterNameMatch[] = input.rows.map((row) => ({
     id: row.id,
     label: `${row.firstName} ${row.lastName}`,
   }));
-  const unacknowledged = filterUnacknowledgedMatches(
+  const toWarnAbout = matchesToWarnAbout(
     matches,
     input.acknowledgedDuplicateIds,
   );
 
-  if (unacknowledged.length === 0) {
+  if (toWarnAbout.length === 0) {
     return null;
   }
 
-  return { kind: input.kind, matches: unacknowledged, scope: input.scope };
-}
-
-function normalizedNameEquals(column: PgColumn, value: string): SQL {
-  return sql`lower(regexp_replace(btrim(${column}), '\s+', ' ', 'g')) = ${collapseWhitespace(value).toLowerCase()}`;
-}
-
-function collapseWhitespace(value: string) {
-  return value.trim().replace(/\s+/g, " ");
+  return { kind: input.kind, matches: toWarnAbout, scope: input.scope };
 }

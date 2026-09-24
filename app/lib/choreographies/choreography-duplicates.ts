@@ -1,4 +1,5 @@
 import type { DuplicateWarning } from "@/lib/shared/duplicate-warning";
+import { formatSpanishList } from "@/lib/shared/text-normalization";
 
 /** Everything the wizard needs to name a piece the academy already registered. */
 export type ChoreographyCastMatch = {
@@ -25,13 +26,5 @@ export function getDuplicateChoreographyMessage(
     (match) => `«${match.name}» (N.º ${match.choreographyNumber})`,
   );
 
-  return `Ya registraste ${formatMatchList(labels)} con los mismos bailarines en este evento.`;
-}
-
-function formatMatchList(labels: readonly string[]) {
-  if (labels.length <= 1) {
-    return labels.join("");
-  }
-
-  return `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
+  return `Ya registraste ${formatSpanishList(labels)} con los mismos bailarines en este evento.`;
 }

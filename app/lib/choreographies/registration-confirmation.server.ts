@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -14,7 +14,8 @@ import {
   type ChoreographyCastMatch,
   type ChoreographyCastWarning,
 } from "@/lib/choreographies/choreography-duplicates";
-import { filterUnacknowledgedMatches } from "@/lib/shared/duplicate-warning";
+import { matchesToWarnAbout } from "@/lib/shared/duplicate-warning";
+import { normalizedTextEquals } from "@/lib/shared/text-normalization.server";
 import {
   choreographyNameMaxLength,
   collapseChoreographyNameWhitespace,
@@ -206,7 +207,7 @@ export async function createChoreographyRegistration(
       // Inside the transaction and before the number is taken: a warning must
       // leave the event's counter where it was, so a piece the academy decides
       // not to register does not burn a number.
-      const castMatches = filterUnacknowledgedMatches(
+      const castMatches = matchesToWarnAbout(
         await findSameCastChoreographies({
           tx,
           academyId: input.academyId,
@@ -553,7 +554,7 @@ async function findSameCastChoreographies(input: {
         eq(choreographies.academyId, input.academyId),
         eq(choreographies.eventId, input.eventId),
         isNull(choreographies.withdrawnAt),
-        sql`lower(${choreographies.name}) = lower(${input.name})`,
+        normalizedTextEquals(choreographies.name, input.name),
       ),
     );
 

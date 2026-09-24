@@ -1,3 +1,4 @@
+import type { RosterScope } from "@/lib/roster/roster-scope";
 import type { DuplicateWarning } from "@/lib/shared/duplicate-warning";
 
 /**
@@ -12,13 +13,10 @@ export type RosterNameMatch = {
 
 export type RosterNameWarningKind = "dancer-name" | "professor-name";
 
-/** Whose academy the reader is looking at: their own, or any, from the panel. */
-export type RosterNameScope = "portal" | "admin";
-
 export type RosterNameWarning = DuplicateWarning<
   RosterNameWarningKind,
   RosterNameMatch
-> & { scope: RosterNameScope };
+> & { scope: RosterScope };
 
 /**
  * What an action answers with when it found a person of the same name: the

@@ -115,11 +115,14 @@ carries it (PRD #1090):
   `AccessNotice` above the actions, one hidden `acknowledgedDuplicateIds` input per
   match, and the continue button. A multi-step form (the choreography wizard) adds
   the same field to the form data it rebuilds.
-- The re-submit **re-runs the check** and skips only the acknowledged ids
-  (`readAcknowledgedDuplicateIds`, `filterUnacknowledgedMatches`). A match that
-  appeared between the two submits was never shown to the user, so it warns again.
-  The server is the only party that sees both surfaces and concurrent writes, which
-  is why the acknowledgement travels to it rather than being resolved client-side.
+- The re-submit **re-runs the check** (`readAcknowledgedDuplicateIds`,
+  `matchesToWarnAbout`). A match that appeared between the two submits was never
+  shown to the user, so it warns again — and that second answer carries **every**
+  match, the acknowledged ones included, so the next submit covers the whole set.
+  Answering with the new match alone would drop the acknowledgement of the others,
+  and two matches appearing in turn would warn about each other forever. The server
+  is the only party that sees both surfaces and concurrent writes, which is why the
+  acknowledgement travels to it rather than being resolved client-side.
 - **Nothing is stored** about an acknowledgement: saving the same values again warns
   again.
 - **A refusal always wins.** The warning runs after validation and after the hard

@@ -280,9 +280,15 @@ describe("academy onboarding route", () => {
       ),
     ).resolves.toMatchObject({
       status: "warning",
+      // Both matches, the acknowledged one included, so the next submit covers
+      // the whole set instead of alternating between the two.
       warning: {
         kind: "academy-name",
         matches: [
+          {
+            id: "academia-existente",
+            name: "Academia Existente",
+          },
           {
             createdAt: new Date("2026-09-23T12:00:00.000Z"),
             id: "academia-reciente",
