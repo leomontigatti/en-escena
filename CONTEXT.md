@@ -309,11 +309,19 @@ Derived, informational flag on a row of the `choreographyParticipationList`: nev
 _Avoid_: error, validation, lock
 
 **`participationStatus`** — ui: "Estado de participación"
-State derived from a choreography's presentation at the event.
-_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
+State derived from a choreography's presentation at the event, and the presentation's evaluation status for the whole panel: `descalificada` is disqualified, `evaluada` is evaluated —disqualified, or carrying any `score` row— and not disqualified, and `pendiente` is everything else, a choreography with no presentation included. `PresentationEvaluationStatus` is the identifier the code reads it under. The `choreographyParticipationList` shows `Evaluada` and `Descalificada` as badges, each replacing that row's `presentationWarning` badge, and shows no badge for `pendiente`. It answers for the panel, never for one judge: that is the `judgeScoreStatus`.
+_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, `judgeScoreStatus`
+
+**`judgingDay`** — ui: "Jornada"
+The day the judges are working on: the business date of three hours before now, so a show that runs past midnight keeps its date until 03:00 the next morning, when it closes for good. A `presentation` is open for its judges exactly while its choreography's schedule date is that day — before it there is nothing to score, after it every judge write is refused. It is computed on read from the current instant, with no stored flag and no job, and it binds the judge's list and the judge's editing window with one rule. Administration is not bound by it.
+_Avoid_: `schedule`, event date, score window, deadline flag
+
+**`disqualification`** — ui: "Descalificación"
+A `presentation` closed for the whole panel and taken out of the results, held as its `disqualifiedAt` timestamp. Any assigned judge sets it while the `judgingDay` is open and any assigned judge clears it, with no confirmation and no reason; administration does both from the scores view at any time. Who did it is not stored, and the scores saved before it are kept, so reinstating brings them back untouched. A judge may still record a `feedbackAudio` on it, stored with no value.
+_Avoid_: `scoreAnnulment`, absence, `withdrawnChoreography`, `participationStatus`
 
 **`judgeAssignment`** — ui: "Asignación de juez"
-Relation between one judge and one `presentation` they must evaluate, unique per pair. Assigned and removed in bulk from the `choreographyParticipationList`; it survives a reordering, and the judge's suspension or change of role.
+Relation between one judge and one `presentation` they must evaluate, unique per pair. Assigned and removed in bulk from the `choreographyParticipationList`; it survives a reordering, and the judge's suspension or change of role. Removing it is refused once that judge has a `score` for that presentation, and a bulk removal removes the rest and reports how many it kept.
 _Avoid_: `presentation`, `score`
 
 **`ranking`** — ui: "Ranking"
@@ -345,19 +353,31 @@ Award rule within an event.
 _Avoid_: `award`, `ranking`
 
 **`score`** — ui: "Puntaje"
-Evaluation assigned by a judge to a presentation.
-_Avoid_: `presentation`, price, `payment`
+What one judge gave one `presentation`, one row per `judgeAssignment`, **created on that judge's first save** and never on assignment. Its value runs from 0 to 100 in steps of 0.5, and is null only for a judge who saved just a `feedbackAudio` on a disqualified presentation. On a `scoreSheet` the value is the sheet's computed total, recomputed on every save and every administrative edit, so an average never re-derives a sheet. A judge corrects their own until the `judgingDay` closes; administration edits any of them at any time, with no window, no reason asked and no trace kept, and never creates one for a judge who has none.
+_Avoid_: `presentation`, price, `payment`, confirmed score, draft score
 
-**`scoreCorrection`** — ui: "Corrección de puntaje"
-Administrative change to an already confirmed score.
-_Avoid_: draft score, `presentation`
+**`submodalityCriterion`** — ui: "Criterio"
+One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality` and unique by name within it. The adding maxima total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them as a whole from the modality page, and they lock as soon as any presentation of that submodality has a `score`.
+_Avoid_: `award`, `awardType`, weight, percentage
+
+**`scoreSheet`** — ui: "Planilla"
+How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
+_Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
 **`scoreAnnulment`** — ui: "Anulación de puntaje"
-Explicit administrative action on a confirmed score that excludes it from the competitive average without removing its traceability.
-_Avoid_: `scoreCorrection`, assignment deletion
+Administrative exclusion of a `score` from the average that neither deletes it nor changes it, held as the `annulled` flag and reversed with the same toggle. An annulled score keeps its value, stays visible to administration and is not shown to the academy in published results.
+_Avoid_: `disqualification`, assignment deletion, score deletion
+
+**`medal`** — ui: "Medalla"
+The recognition a `presentation` earns, read off its average —the mean of its non-annulled score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial`, 60 to below 80 `Medalla de bronce`, 80 to below 90 `Medalla de plata`, 90 or more `Medalla de oro`. It carries no position, no tie and no competitive grouping: two presentations that average the same take the same medal. A disqualified presentation has no average and no medal.
+_Avoid_: `award`, `ranking`, position, `preliminaryRanking`
+
+**`judgeScoreStatus`** — ui: "Estado"
+How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, `Completa` with a value and a `feedbackAudio`, `Sin devolución` with a value and none —neutral in tone, not a fault— and `Descalificada` whenever the presentation is. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.
+_Avoid_: `participationStatus`, `choreographyOperationalStatus`, score completeness
 
 **`feedbackAudio`** — ui: "Devolución"
-Optional audio file associated with the evaluation or disqualification made by a judge. **Specified, not built**: nothing in `app/` carries this identifier — judging owns the concept in `docs/domain/judging.md`, and the column, the upload and the reader are all still to come. **`Devolución` is reserved for it regardless**: a returned amount of money is a **`refund`** (`Reembolso`), never a `devolución`. The reservation is what keeps the name free for the surface that will need it.
+The optional private audio a judge records for the academy, one per `score`, saved by the same save that carries the score and replaced or removed by it. It is allowed on a disqualified presentation, where it is stored with no value, so the academy still hears why. It is `audio/webm` from the browser recorder, capped at three minutes, kept in its own private bucket and served by signed URL (`app/lib/storage/feedback-audio.server.ts`, `app/lib/storage/asset-kinds.ts`). **`Devolución` is reserved for it**: a returned amount of money is a **`refund`** (`Reembolso`), never a `devolución`.
 _Avoid_: numeric score, `presentation`, refund, money returned
 
 **`payment`** — ui: "Pago"
@@ -369,7 +389,7 @@ What an academy needs in order to pay an event: the bank identifiers of the acco
 _Avoid_: `payment`, bank settings, global account, `eventBases`
 
 **`refund`** — ui: "Reembolso"
-Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it `Devolución`: that term is reserved for **`feedbackAudio`**, itself specified and not built.
+Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
@@ -412,7 +432,7 @@ Money an academy has handed over in an event and that is not committed: `paid �
 _Avoid_: `owedBalanceAmount`, total paid, `academyAccountBalance` (retired)
 
 **`paymentAvailableAmount`** — ui: "Disponible"
-The `availableBalanceAmount` of a **single payment**: its amount minus what its own allocations commit, floored at zero. It reads as "how much of this payment is still free to draw", never as "this payment is unresolved" — the money arrived in full either way, which is why it is not called "Pendiente": that word already means an amount that cannot be computed for want of a price, and `Seña pendiente` means an unmet threshold. It carries **no provenance**: the pool draws oldest-first and unwinds newest-first, so money returned may land on a different payment than it left, and a row's figure can move without that payment being touched. Summed over an event it is the same money `availableBalanceAmount` counts per academy.
+The `availableBalanceAmount` of a **single payment**: its amount minus what its own allocations commit, floored at zero. It reads as "how much of this payment is still free to draw", never as "this payment is unresolved" — the money arrived in full either way, which is why it is not called "Pendiente": that word already means an amount that cannot be computed for want of a price, and `Seña pendiente` means an unmet threshold. Two other `Pendiente`s exist and neither is this one: the `judgeScoreStatus` `Pendiente`, which is one judge who has not scored a presentation yet, and the `participationStatus` `pendiente`, which is a presentation the panel has not evaluated. A screen that shows any of the three says which it means. It carries **no provenance**: the pool draws oldest-first and unwinds newest-first, so money returned may land on a different payment than it left, and a row's figure can move without that payment being touched. Summed over an event it is the same money `availableBalanceAmount` counts per academy.
 _Avoid_: Pendiente, `owedBalanceAmount`, unpaid payment, `availableBalanceAmount` (that one is the academy's)
 
 **`owedBalanceAmount`** — ui: "Saldo adeudado"
