@@ -9,8 +9,8 @@ import { implementPrSchema, type ImplementPrOutput } from "./output.mjs";
 
 export const lateCompletionNote =
   "This run finished after its wall-clock budget, so its replies could not be " +
-  "recovered. Its commits are pushed; the threads it addressed are still open " +
-  "and need checking against them.";
+  "recovered. Any commits it made are pushed; the threads are still open and " +
+  "need checking against the branch.";
 
 const outputBlockPattern = /<output>([\s\S]*?)<\/output>/g;
 
