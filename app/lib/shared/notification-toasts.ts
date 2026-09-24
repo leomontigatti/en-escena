@@ -48,6 +48,7 @@ export const notificationToastIds = {
   "categoria-eliminada": "route-notification:categoria-eliminada",
   "modalidad-guardada": "route-notification:modalidad-guardada",
   "modalidad-eliminada": "route-notification:modalidad-eliminada",
+  "criterios-guardados": "route-notification:criterios-guardados",
   "usuario-interno-creado": "route-notification:usuario-interno-creado",
   "usuario-interno-actualizado":
     "route-notification:usuario-interno-actualizado",
@@ -261,6 +262,11 @@ export const notificationToasts = {
   "modalidad-guardada": {
     id: notificationToastIds["modalidad-guardada"],
     message: "Modalidad guardada.",
+    variant: "success",
+  },
+  "criterios-guardados": {
+    id: notificationToastIds["criterios-guardados"],
+    message: "Criterios guardados.",
     variant: "success",
   },
   "modalidad-eliminada": {

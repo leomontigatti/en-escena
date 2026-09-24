@@ -1,5 +1,7 @@
 import { modalityFormSchema } from "@/features/admin/modalities/view-shared";
 import { readIndexedFormEntries } from "@/lib/admin/events/bases-action/input.server";
+import { replaceSubmodalityCriteria } from "@/lib/judging/criteria.server";
+import { criterionKinds, type CriterionKind } from "@/lib/judging/criteria";
 import type {
   ActionErrorScope,
   EventBasesActionBaseInput,
@@ -8,6 +10,7 @@ import type {
   ModalityActionValues,
   NameActionValues,
   NameActionValuesWithId,
+  SubmodalityCriteriaActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
 import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
 import {
@@ -39,9 +42,18 @@ import {
 const modalityBasePath = "/administracion/modalidades";
 const modalitySavedNotification = "modalidad-guardada";
 const modalityDeletedNotification = "modalidad-eliminada";
+const criteriaSavedNotification = "criterios-guardados";
 const submodalityFieldNames = ["id", "name"] as const;
+const criterionFieldNames = ["kind", "maximum", "name"] as const;
+
+type CriterionActionInput = {
+  kind: CriterionKind;
+  maximum: string;
+  name: string;
+};
 
 type ModalityActionInput = EventBasesActionBaseInput & {
+  criteria: CriterionActionInput[];
   modalityId: string;
   name: string;
   submodalities: NameActionValuesWithId[];
@@ -64,6 +76,7 @@ function readModalityActionInput(
 ): ModalityActionInput {
   return {
     ...baseInput,
+    criteria: readCriteriaInput(formData),
     modalityId: String(formData.get("modalityId") ?? ""),
     name: String(formData.get("name") ?? ""),
     submodalities: readSubmodalitiesInput(formData),
@@ -95,6 +108,53 @@ function readSubmodalitiesInput(formData: FormData) {
   });
 }
 
+/**
+ * Reads the criteria dialog's field array. The kind arrives from a select whose
+ * options are the two kinds, so anything else is a tampered submission and
+ * falls back to `adds`, where the "must total 100" rule catches it.
+ */
+function readCriteriaInput(formData: FormData) {
+  return readIndexedFormEntries({
+    formData,
+    prefix: "criteria",
+    fieldNames: criterionFieldNames,
+    createEntry: (): CriterionActionInput => ({
+      kind: "adds",
+      maximum: "",
+      name: "",
+    }),
+    setField: (entry, fieldName, value) => {
+      if (fieldName === "kind") {
+        entry.kind = toCriterionKind(value);
+      }
+
+      if (fieldName === "maximum") {
+        entry.maximum = value;
+      }
+
+      if (fieldName === "name") {
+        entry.name = value;
+      }
+    },
+  });
+}
+
+function toCriterionKind(value: string): CriterionKind {
+  return criterionKinds.find((kind) => kind === value) ?? "adds";
+}
+
+function readCriteriaActionValues(
+  input: ModalityActionInput,
+): SubmodalityCriteriaActionValues {
+  return {
+    criteria: input.criteria.map((criterion) => ({
+      kind: criterion.kind,
+      maximum: criterion.maximum,
+      name: criterion.name,
+    })),
+  };
+}
+
 function handlesModalityIntent(intent: string) {
   return (
     intent === "create-modality" ||
@@ -102,7 +162,8 @@ function handlesModalityIntent(intent: string) {
     intent === "delete-modality" ||
     intent === "create-submodality" ||
     intent === "update-submodality" ||
-    intent === "delete-submodality"
+    intent === "delete-submodality" ||
+    intent === "save-submodality-criteria"
   );
 }
 
@@ -135,6 +196,7 @@ function buildModalityActionErrorScope(
     case "create-submodality":
       return buildParentRecordActionScope(input.intent, input.modalityId);
     case "update-submodality":
+    case "save-submodality-criteria":
       return {
         intent: input.intent,
         recordId: input.id || undefined,
@@ -149,6 +211,10 @@ function readModalitySubmittedValues(
   input: ModalityActionInput,
   formData: FormData,
 ): EventBasesActionValues | undefined {
+  if (input.intent === "save-submodality-criteria") {
+    return readCriteriaActionValues(input);
+  }
+
   if (isModalityFormMutation(input)) {
     return readModalityActionValues(formData);
   }
@@ -214,6 +280,8 @@ async function runModalityIntent(
       });
     case "delete-submodality":
       return deleteSubmodality(input.id);
+    case "save-submodality-criteria":
+      return replaceSubmodalityCriteria(input.id, { criteria: input.criteria });
     default:
       return invalidEventBasesActionResult();
   }
@@ -241,6 +309,13 @@ function buildModalityRedirectUrl(
     return withEventBasesFlashNotification(
       buildDetailPath(modalityBasePath, result.record.id, null),
       modalitySavedNotification,
+    );
+  }
+
+  if (input.intent === "save-submodality-criteria") {
+    return withEventBasesFlashNotification(
+      currentUrl.pathname,
+      criteriaSavedNotification,
     );
   }
 

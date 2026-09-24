@@ -17,6 +17,10 @@ import {
   type ParticipationRow,
 } from "@/lib/presentations/participation.server";
 import {
+  readPresentationEvaluationStatuses,
+  type PresentationEvaluationStatus,
+} from "@/lib/judging/evaluation-status.server";
+import {
   derivePresentationWarnings,
   type PresentationWarning,
 } from "@/lib/presentations/warnings";
@@ -100,12 +104,17 @@ async function loadPresentationList(input: {
   // on one page at a time, so the page's rows are all it can ever need — but
   // the read is one query either way, and scoping it to the page would have to
   // wait for the page to be resolved.
-  const [assignableJudges, assigned] = await Promise.all([
+  const [assignableJudges, assigned, evaluationStatuses] = await Promise.all([
     readAssignableJudges(),
     readAssignedJudges(rows.map((row) => row.choreographyId)),
+    readPresentationEvaluationStatuses(rows.map((row) => row.choreographyId)),
   ]);
   const items = rows.map((row) =>
-    buildPresentationListItem(row, warnings, assigned.byChoreography),
+    buildPresentationListItem(row, {
+      assignedJudgeIds: assigned.byChoreography,
+      evaluationStatuses,
+      warnings,
+    }),
   );
   const days = [...new Set(items.map((item) => item.scheduledDate))].sort();
   const filters = {
@@ -208,6 +217,9 @@ export async function handlePresentationListAction(
  * answer with what they reached and not with what was asked for: an already
  * assigned pair is skipped and a judge nobody in the selection has is a
  * removal of nothing, so the counts name presentations actually touched.
+ *
+ * A removal also reports the scored pairs it refused to take apart, and comes
+ * back an error when that is everything it was asked about.
  */
 async function runJudgeAssignment(
   intent: typeof assignJudgesIntent | typeof removeJudgesIntent,
@@ -238,17 +250,23 @@ async function runJudgeAssignment(
 
   const result =
     intent === assignJudgesIntent
-      ? await assignJudges({ choreographyIds, judgeIds })
+      ? { ...(await assignJudges({ choreographyIds, judgeIds })), keptCount: 0 }
       : await removeJudges({ choreographyIds, judgeIds });
+  const message = formatJudgeAssignmentMessage({
+    intent,
+    judgeCount: result.judgeCount,
+    keptCount: result.keptCount,
+    presentationCount: result.presentationCount,
+  });
 
-  return {
-    message: formatJudgeAssignmentMessage({
-      intent,
-      judgeCount: result.judgeCount,
-      presentationCount: result.presentationCount,
-    }),
-    status: "success" as const,
-  };
+  // A removal that reached nothing because every chosen pair already has a
+  // score is a refusal, not a quiet success: the message is all the
+  // administrator gets, so it has to arrive in the tone of one.
+  if (result.keptCount > 0 && result.judgeCount === 0) {
+    return data({ message, status: "error" as const }, { status: 409 });
+  }
+
+  return { message, status: "success" as const };
 }
 
 /**
@@ -318,23 +336,30 @@ function readPresentationFilters(
 
 function buildPresentationListItem(
   row: ParticipationRow,
-  warnings: Map<string, PresentationWarning[]>,
-  assignedJudgeIds: Map<string, string[]>,
+  event: {
+    assignedJudgeIds: Map<string, string[]>;
+    evaluationStatuses: Map<string, PresentationEvaluationStatus>;
+    warnings: Map<string, PresentationWarning[]>;
+  },
 ): PresentationListItem {
   return {
     academyName: row.academyName,
-    assignedJudgeIds: assignedJudgeIds.get(row.choreographyId) ?? [],
+    assignedJudgeIds: event.assignedJudgeIds.get(row.choreographyId) ?? [],
     categoryName: row.category.name,
     choreographyNumber: row.choreographyNumber,
+    evaluationStatus:
+      event.evaluationStatuses.get(row.choreographyId) ?? "pending",
+    experienceLevel: row.experienceLevel,
     financialStatus: row.financialStatus,
     groupType: row.groupType as ChoreographyGroupType,
     id: row.choreographyId,
     modalityName: row.modalityName,
     name: row.name,
     orderNumber: row.orderNumber,
+    presentationId: row.presentationId,
     scheduledDate: row.schedule.scheduledDate,
     submodalityName: row.submodalityName,
-    warnings: warnings.get(row.choreographyId) ?? [],
+    warnings: event.warnings.get(row.choreographyId) ?? [],
   };
 }
 

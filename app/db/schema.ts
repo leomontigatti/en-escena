@@ -7,3 +7,4 @@ export * from "./schema/choreographies";
 export * from "./schema/finances";
 export * from "./schema/comprobantes";
 export * from "./schema/presentations";
+export * from "./schema/judging";

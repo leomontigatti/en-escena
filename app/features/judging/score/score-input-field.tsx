@@ -1,0 +1,140 @@
+import { useId, type ReactNode } from "react";
+import {
+  Controller,
+  type Control,
+  type FieldPath,
+  type FieldValues,
+} from "react-hook-form";
+
+import { SharedFieldLayout } from "@/components/shared/field-layout";
+import { Input } from "@/components/ui/input";
+
+type ScoreInputFieldProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+> = {
+  autoFocus?: boolean;
+  /** Layout only, for the surfaces that show the field inside a table cell. */
+  className?: string;
+  control: Control<TFieldValues>;
+  /**
+   * What a save refused the value for, which the form's own rule cannot know.
+   * The form's own message wins while the field is being typed into.
+   */
+  error?: string;
+  id?: string;
+  /** Shown above the field, and `sr-only` where a column header already says it. */
+  label: string;
+  labelAdornment?: ReactNode;
+  labelClassName?: string;
+  /** What the fixed suffix after the typed value reads: `/ 100` on a single score. */
+  maximum: number;
+  name: TName;
+};
+
+/**
+ * The one field a judge taps in the dark. It takes digits and a single point —
+ * the tablet's numeric keypad types a point and nothing else, and the score is
+ * the deliberate exception to es-AR formatting — and carries its maximum right
+ * after the value, so "90.5" is always read against what it is out of.
+ *
+ * Administration's own corrections go through the same field, so a score is
+ * typed and read the same way on both sides of the panel.
+ */
+export function ScoreInputField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+>({
+  autoFocus,
+  className,
+  control,
+  error,
+  id: providedId,
+  label,
+  labelAdornment,
+  labelClassName,
+  maximum,
+  name,
+}: ScoreInputFieldProps<TFieldValues, TName>) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
+
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <SharedFieldLayout
+          className={className}
+          error={fieldState.error?.message ?? error}
+          id={id}
+          label={label}
+          labelAdornment={labelAdornment}
+          labelClassName={labelClassName}
+        >
+          {({ describedBy, isInvalid }) => (
+            <div className="relative">
+              <Input
+                {...field}
+                autoFocus={autoFocus}
+                aria-describedby={describedBy || undefined}
+                aria-invalid={isInvalid ? true : undefined}
+                className="text-lg"
+                id={id}
+                inputMode="decimal"
+                onChange={(event) => {
+                  event.currentTarget.value = toScoreInputValue(
+                    event.currentTarget.value,
+                  );
+                  field.onChange(event);
+                }}
+                pattern="[0-9.]*"
+                type="text"
+              />
+              <ScoreInputSuffix maximum={maximum} value={field.value} />
+            </div>
+          )}
+        </SharedFieldLayout>
+      )}
+    />
+  );
+}
+
+/**
+ * Digits and at most one point, in the order they were typed. A second point is
+ * dropped rather than moved: the judge is looking at the stage, not the field,
+ * and a value that rearranges itself under the thumb is worse than one that
+ * ignores a stray tap.
+ */
+function toScoreInputValue(value: string) {
+  const [whole, ...rest] = value.replace(/[^\d.]/g, "").split(".");
+
+  return rest.length === 0 ? whole : `${whole}.${rest.join("")}`;
+}
+
+/**
+ * The maximum sits right after the typed value and moves with it, laid over the
+ * control on top of an invisible copy of that value — the same trick the integer
+ * field uses, so no measurement is needed.
+ *
+ * It is there before anything is typed, too: the suffix is what tells the judge
+ * what this field is out of, and a sheet's lines are out of different maxima, so
+ * the empty state is exactly when it has the most to say.
+ */
+function ScoreInputSuffix({
+  maximum,
+  value,
+}: {
+  maximum: number;
+  value?: string;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 left-2.5 flex max-w-[calc(100%-1.25rem)] items-center overflow-hidden whitespace-pre text-lg"
+    >
+      <span className="invisible">{value ?? ""}</span>
+      <span className="text-muted-foreground">{` / ${maximum}`}</span>
+    </span>
+  );
+}

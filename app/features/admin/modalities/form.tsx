@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash } from "lucide-react";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { ListChecks, Plus, Trash } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
@@ -26,7 +26,12 @@ import {
 } from "@/lib/shared/forms";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
-import { basePath, type EventSubmodalityRow } from "./shared";
+import { SubmodalityCriteriaDialog } from "./criteria-dialog";
+import {
+  basePath,
+  type EventSubmodalityCriterionRow,
+  type EventSubmodalityRow,
+} from "./shared";
 import { modalityFormSchema, type ModalityFormValues } from "./view-shared";
 
 type ModalityFormController = UseFormReturn<ModalityFormValues>;
@@ -71,11 +76,13 @@ function useEventModalityForm({
 }
 
 function ModalityForm({
+  criteriaSetup,
   form,
   formId,
   id,
   intent,
 }: {
+  criteriaSetup?: SubmodalityCriteriaSetup;
   form: ModalityFormController;
   formId: string;
   id?: string;
@@ -95,7 +102,10 @@ function ModalityForm({
       {id ? <input type="hidden" name="id" value={id} /> : null}
       <input type="hidden" name="submodalitiesMode" value="replace" />
       <NameField form={form} id="modality-name" />
-      <SubmodalitiesInlineFieldArray form={form} />
+      <SubmodalitiesInlineFieldArray
+        criteriaSetup={criteriaSetup}
+        form={form}
+      />
     </form>
   );
 }
@@ -129,9 +139,23 @@ function ModalityFormPanel({ children }: { children: ReactNode }) {
   return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
 }
 
+/**
+ * What the criteria dialog needs from the page: the modality the rows belong to,
+ * the event's criteria and which submodalities are locked. It is optional so the
+ * create form, whose submodalities have no id yet, renders without it.
+ */
+type SubmodalityCriteriaSetup = {
+  criteria: EventSubmodalityCriterionRow[];
+  lockedSubmodalityIds: string[];
+  modalityId: string;
+  submodalities: EventSubmodalityRow[];
+};
+
 function SubmodalitiesInlineFieldArray({
+  criteriaSetup,
   form,
 }: {
+  criteriaSetup?: SubmodalityCriteriaSetup;
   form: ModalityFormController;
 }) {
   const { append, fields, remove } = useFieldArray({
@@ -167,6 +191,7 @@ function SubmodalitiesInlineFieldArray({
             {fields.map((field, index) => (
               <li key={field.fieldId}>
                 <SubmodalityInlineFields
+                  criteriaSetup={criteriaSetup}
                   field={field}
                   form={form}
                   index={index}
@@ -182,11 +207,13 @@ function SubmodalitiesInlineFieldArray({
 }
 
 function SubmodalityInlineFields({
+  criteriaSetup,
   field,
   form,
   index,
   onRemove,
 }: {
+  criteriaSetup?: SubmodalityCriteriaSetup;
   field: { id?: string };
   form: ModalityFormController;
   index: number;
@@ -196,7 +223,7 @@ function SubmodalityInlineFields({
   const nameFieldName = `submodalities.${index}.name` as const;
 
   return (
-    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_2rem] sm:items-start">
+    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_2rem_2rem] sm:items-start">
       {field.id ? (
         <input type="hidden" name={idFieldName} value={field.id} />
       ) : null}
@@ -207,6 +234,12 @@ function SubmodalityInlineFields({
         label="Submodalidad"
         labelClassName="sr-only"
       />
+      {field.id && criteriaSetup ? (
+        <SubmodalityCriteriaAction
+          criteriaSetup={criteriaSetup}
+          submodalityId={field.id}
+        />
+      ) : null}
       <Button
         type="button"
         variant="destructive"
@@ -217,6 +250,47 @@ function SubmodalityInlineFields({
         <Trash aria-hidden="true" />
       </Button>
     </FieldGroup>
+  );
+}
+
+function SubmodalityCriteriaAction({
+  criteriaSetup,
+  submodalityId,
+}: {
+  criteriaSetup: SubmodalityCriteriaSetup;
+  submodalityId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const submodality = criteriaSetup.submodalities.find(
+    (record) => record.id === submodalityId,
+  );
+
+  if (!submodality) {
+    return null;
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        aria-label={`Criterios de ${submodality.name}`}
+        onClick={() => setOpen(true)}
+      >
+        <ListChecks aria-hidden="true" />
+      </Button>
+      <SubmodalityCriteriaDialog
+        criteria={criteriaSetup.criteria.filter(
+          (criterion) => criterion.submodalityId === submodalityId,
+        )}
+        locked={criteriaSetup.lockedSubmodalityIds.includes(submodalityId)}
+        modalityId={criteriaSetup.modalityId}
+        onOpenChange={setOpen}
+        open={open}
+        submodality={submodality}
+      />
+    </>
   );
 }
 

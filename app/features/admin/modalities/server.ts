@@ -3,6 +3,10 @@ import { redirect } from "react-router";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
+  findScoreLockedSubmodalityIds,
+  listSubmodalityCriteria,
+} from "@/lib/judging/criteria.server";
+import {
   listModalities,
   listSubmodalities,
 } from "@/lib/modalities/repository.server";
@@ -28,18 +32,25 @@ async function loadEventModalitiesData(request: Request) {
       selectedEventId,
       modalities: [],
       submodalities: [],
+      submodalityCriteria: [],
+      lockedSubmodalityIds: [],
     };
   }
 
-  const [modalities, submodalities] = await Promise.all([
-    listModalities(selectedEventId),
-    listSubmodalities(selectedEventId),
-  ]);
+  const [modalities, submodalities, submodalityCriteria, lockedSubmodalityIds] =
+    await Promise.all([
+      listModalities(selectedEventId),
+      listSubmodalities(selectedEventId),
+      listSubmodalityCriteria(selectedEventId),
+      findScoreLockedSubmodalityIds(selectedEventId),
+    ]);
 
   return {
     selectedEventId,
     modalities,
     submodalities,
+    submodalityCriteria,
+    lockedSubmodalityIds: [...lockedSubmodalityIds],
   };
 }
 

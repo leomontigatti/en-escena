@@ -51,7 +51,9 @@ describe("private route headers", () => {
     [
       "juzgamiento",
       renderPrivateRoute(
-        <JuzgamientoRouteView loaderData={{ account: judgeAccount }} />,
+        <JuzgamientoRouteView
+          loaderData={{ account: judgeAccount, presentations: [] }}
+        />,
       ),
       "Usuario: juana.juez",
       true,

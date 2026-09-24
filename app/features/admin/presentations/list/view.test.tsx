@@ -103,6 +103,68 @@ describe("PresentationsListView", () => {
     expect(markup).not.toContain('aria-label="Seleccionar fila"');
   });
 
+  test("replaces the warning badge with the evaluation once the panel judged the row", () => {
+    const markup = renderView({
+      presentations: [
+        buildItem({
+          evaluationStatus: "evaluated",
+          warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
+        }),
+      ],
+    });
+
+    expect(markup).toContain("Evaluada");
+    expect(markup).not.toContain("Seña pendiente");
+  });
+
+  test("shows a disqualified row as disqualified", () => {
+    const markup = renderView({
+      presentations: [buildItem({ evaluationStatus: "disqualified" })],
+    });
+
+    expect(markup).toContain("Descalificada");
+  });
+
+  test("keeps the warning badge of a row the panel has not judged", () => {
+    const markup = renderView({
+      presentations: [
+        buildItem({
+          warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
+        }),
+      ],
+    });
+
+    expect(markup).toContain("Seña pendiente");
+    expect(markup).not.toContain("Evaluada");
+  });
+
+  test("shows the level of a row, and an em dash when it has none", () => {
+    expect(
+      renderView({
+        presentations: [buildItem({ experienceLevel: "pre_elite" })],
+      }),
+    ).toContain("Pre Elite");
+    expect(
+      renderView({ presentations: [buildItem({ experienceLevel: null })] }),
+    ).toContain("—");
+  });
+
+  test("leads a judged row's name to its scores and the rest to the choreography", () => {
+    expect(
+      renderView({
+        presentations: [
+          buildItem({
+            evaluationStatus: "evaluated",
+            presentationId: "presentation-9",
+          }),
+        ],
+      }),
+    ).toContain('href="/administracion/presentacion/presentation-9/puntajes"');
+    expect(renderView()).toContain(
+      'href="/administracion/coreografias/choreography-1"',
+    );
+  });
+
   test("keeps the actions menu out of an auditor's header", () => {
     const markup = renderView({ canOrder: false });
 
@@ -118,12 +180,15 @@ function buildItem(
     assignedJudgeIds: [],
     categoryName: "Infantil",
     choreographyNumber: 12,
+    evaluationStatus: "pending",
+    experienceLevel: null,
     financialStatus: "depositMet",
     groupType: "solo",
     id: "choreography-1",
     modalityName: "Jazz",
     name: "Pieza",
     orderNumber: 1,
+    presentationId: "presentation-1",
     scheduledDate: "2026-05-01",
     submodalityName: null,
     warnings: [],

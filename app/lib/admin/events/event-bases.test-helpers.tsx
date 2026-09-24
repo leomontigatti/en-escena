@@ -13,6 +13,7 @@ import { handleEventModalityAction } from "@/features/admin/modalities/action.se
 import { EventModalityCreateView } from "@/features/admin/modalities/create/view";
 import { EventModalityDetailView } from "@/features/admin/modalities/detail/view";
 import { EventModalitiesListView } from "@/features/admin/modalities/list/view";
+import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
 import { handleEventPriceAction } from "@/features/admin/prices/action.server";
 import { EventPriceCreateView } from "@/features/admin/prices/create/view";
 import { EventPriceDetailView } from "@/features/admin/prices/detail/view";
@@ -71,6 +72,8 @@ export type EventBasesLoaderData = {
   requiredDepositPercentage: number | null;
   modalities: ModalityRow[];
   submodalities: SubmodalityRow[];
+  submodalityCriteria: EventModalitiesLoaderData["submodalityCriteria"];
+  lockedSubmodalityIds: string[];
   categories: CategoryRow[];
   schedules: ScheduleListItem[];
   prices: PriceListItem[];
@@ -384,6 +387,8 @@ export async function loader({ request }: { request: Request }) {
   return {
     selectedEventId,
     requiredDepositPercentage: selectedEvent?.requiredDepositPercentage ?? null,
+    submodalityCriteria: [],
+    lockedSubmodalityIds: [],
     ...eventBases,
   } satisfies EventBasesLoaderData;
 }

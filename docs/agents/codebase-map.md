@@ -274,14 +274,20 @@ portal and the public program at `/programa`.
 
 ## Judging And Results
 
-Use for judge panel access, presentations, scores, disqualifications, ranking,
-program and results visibility.
+Use for judge panel access, presentations, scores, criteria, `Devolución`,
+disqualifications, ranking, program and results visibility.
 
 - Domain: `docs/domain/judging.md`, `docs/domain/events.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
-- Routes: `app/routes/juzgamiento.tsx`, `app/routes/auditoria.tsx`
-- Current state: shell routes and access guards exist; most judging domain rules are documented ahead of deeper implementation.
-- Tests: `app/lib/auth/internal-navigation.server.db.test.ts`, `app/lib/auth/internal-navigation.server.test.ts`, `app/lib/auth/private-header.render.test.tsx`
+- Routes: `app/routes/juzgamiento.tsx`, `app/routes/auditoria.tsx`, `app/routes/administracion.presentacion.tsx`, `app/routes/administracion.presentacion_.$presentationId.puntajes.tsx`
+- Judging rules (pure, shared by form and server): `app/lib/judging/judging-day.ts` (the judging day and the 03:00 close), `app/lib/judging/score-value.ts`, `app/lib/judging/sheet-total.ts`, `app/lib/judging/criteria.ts`, `app/lib/judging/medal.ts`, `app/lib/judging/judge-status.ts`
+- Judging persistence: `app/lib/judging/judge-list.server.ts`, `app/lib/judging/save-score.server.ts`, `app/lib/judging/disqualification.server.ts`, `app/lib/judging/score-settlement.server.ts` (administration's edit, annul and settle), `app/lib/judging/presentation-scores.server.ts`, `app/lib/judging/criteria.server.ts`, `app/lib/judging/evaluation-status.server.ts`, `app/lib/judging/judge-write.server.ts`, `app/lib/judging/submodality-criteria.server.ts` (the one reader of a submodality's sheet), `app/lib/judging/sheet-values.server.ts` (the one read and the one write of a stored sheet)
+- Judge surface: `app/features/judging/list/`, `app/features/judging/score/` (dialog, sheet, recorder and playback)
+- Admin surface: `app/features/admin/presentations/list/`, `app/features/admin/presentations/scores/`, `app/features/admin/modalities/criteria-dialog.tsx`
+- Evaluation locks read one fact —disqualified, or any score row— through `app/lib/presentations/evaluation-lock.server.ts`.
+- `Devolución` storage: `app/lib/storage/feedback-audio.server.ts`, policy in `app/lib/storage/asset-kinds.ts`.
+- Current state: scoring is built (criteria, judge panel, `Devolución`, disqualification, administrative scores); ranking, results publishing and the academy's results view are not.
+- Tests: `app/lib/judging/save-score.server.db.test.ts`, `app/lib/judging/score-settlement.server.db.test.ts`, `app/lib/judging/judge-list.server.db.test.ts`, `app/features/judging/score/dialog.interaction.test.tsx`, `app/features/admin/presentations/scores/server.db.test.ts`, `app/lib/auth/internal-navigation.server.db.test.ts`, `app/lib/auth/private-header.render.test.tsx`
 
 ## Cross-Cutting Validation
 

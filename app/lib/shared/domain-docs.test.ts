@@ -184,6 +184,65 @@ const accessPermissionRequirements = [
   "Server guards",
 ];
 
+// The scoring half of the judging rules, rewritten in #1183 to match what was
+// built. Pinned literally because the rules a judge and an administrator are
+// held to are the part of this document that must never drift quietly.
+const judgingScoringRequirements = [
+  "created on the judge's first save",
+  "in steps of 0.5",
+  "`Criterio`",
+  "adding maxima total exactly 100",
+  "locked once any presentation of that submodality has a score",
+  "additions minus the deductions, clamped to 0 and 100",
+  "`Jornada`",
+  "business date of three hours before",
+  "03:00",
+  "A presentation is **evaluated** when it is disqualified or when any score row exists for it",
+  "Any assigned judge reinstates",
+  "rounded to two decimals",
+  "| below 60        | `Mención especial`  |",
+  "| 60 to below 80  | `Medalla de bronce` |",
+  "| 80 to below 90  | `Medalla de plata`  |",
+  "| 90 or more      | `Medalla de oro`    |",
+  "`Pendiente`, `Completa`, `Sin devolución` and `Descalificada`",
+  "Removing a judge assignment is refused once that judge has a score row",
+];
+
+// What the rewrite dropped. Scoped to everything before `Ranking And Results`,
+// which PRD 2 owns and which legitimately still rounds to two decimals.
+const retiredJudgingRules = [
+  "Corrección de puntaje",
+  "up to two decimals",
+  "even if value stays empty",
+  "unconfirmed",
+  "explicit reason and traceability",
+];
+
+const judgingGlossaryRequirements = [
+  '**`submodalityCriterion`** — ui: "Criterio"',
+  '**`scoreSheet`** — ui: "Planilla"',
+  '**`judgingDay`** — ui: "Jornada"',
+  '**`medal`** — ui: "Medalla"',
+  '**`disqualification`** — ui: "Descalificación"',
+  '**`judgeScoreStatus`** — ui: "Estado"',
+  "`Pendiente`",
+  "`Completa`",
+  "`Sin devolución`",
+  "`Descalificada`",
+  'which "Pendiente"',
+];
+
+const judgingCodebaseMapRequirements = [
+  "`app/lib/judging/judging-day.ts`",
+  "`app/lib/judging/save-score.server.ts`",
+  "`app/lib/judging/score-settlement.server.ts`",
+  "`app/lib/judging/evaluation-status.server.ts`",
+  "`app/features/judging/list/`",
+  "`app/features/judging/score/`",
+  "`app/features/admin/presentations/scores/`",
+  "`app/routes/administracion.presentacion_.$presentationId.puntajes.tsx`",
+];
+
 describe("domain documentation", () => {
   test("keeps active event context in the domain glossary", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
@@ -352,6 +411,70 @@ describe("domain documentation", () => {
     for (const requirement of accessPermissionRequirements) {
       expect(rules).toContain(requirement);
     }
+  });
+
+  test("states the scoring rules the judging effort built", async () => {
+    const rules = await readFile("docs/domain/judging.md", "utf8");
+
+    for (const requirement of judgingScoringRequirements) {
+      expect(rules, requirement).toContain(requirement);
+    }
+  });
+
+  test("drops the judging rules the scoring effort replaced", async () => {
+    const rules = await readFile("docs/domain/judging.md", "utf8");
+    const beforeRanking = rules.slice(
+      0,
+      rules.indexOf("## Ranking And Results"),
+    );
+
+    expect(beforeRanking.length).toBeGreaterThan(0);
+
+    for (const retired of retiredJudgingRules) {
+      expect(beforeRanking, retired).not.toContain(retired);
+    }
+  });
+
+  test("keeps the ranking rules for the results effort to rewrite", async () => {
+    const rules = await readFile("docs/domain/judging.md", "utf8");
+
+    expect(rules).toContain(
+      "Competitive average is rounded to two decimals and that rounded value orders positions.",
+    );
+    expect(rules).toContain("Ties are real competition ties, e.g. 1, 1, 3.");
+  });
+
+  test("names the judging vocabulary the scoring effort built", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+
+    for (const requirement of judgingGlossaryRequirements) {
+      expect(glossary, requirement).toContain(requirement);
+    }
+
+    expect(glossary).not.toContain("scoreCorrection");
+    expect(glossary).not.toContain("Corrección de puntaje");
+  });
+
+  test("marks the `Devolución` as built in the glossary", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+    const entry = glossary.slice(
+      glossary.indexOf('**`feedbackAudio`** — ui: "Devolución"'),
+    );
+
+    expect(entry.slice(0, 1200)).not.toContain("Specified, not built");
+    expect(glossary).toContain("app/lib/storage/feedback-audio.server.ts");
+  });
+
+  test("refreshes the judging section of the codebase map", async () => {
+    const map = await readFile("docs/agents/codebase-map.md", "utf8");
+
+    for (const requirement of judgingCodebaseMapRequirements) {
+      expect(map, requirement).toContain(requirement);
+    }
+
+    expect(map).not.toContain(
+      "shell routes and access guards exist; most judging domain rules are documented ahead of deeper implementation",
+    );
   });
 
   // Two-way sync rather than a hardcoded count: a new ADR that never reaches
