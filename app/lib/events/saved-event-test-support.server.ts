@@ -32,8 +32,6 @@ async function createSavedEventWithDefaults(
   const { active, programVisible, ...eventOverrides } = overrides;
   const result = await createEvent({
     name: defaultName,
-    registrationStartsAt: testEventDate("2026-03-01T12:00:00Z"),
-    registrationEndsAt: testEventDate("2026-04-30T12:00:00Z"),
     startsAt: testEventDate("2026-05-01T12:00:00Z"),
     endsAt: testEventDate("2026-05-03T12:00:00Z"),
     ...eventOverrides,

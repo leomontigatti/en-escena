@@ -87,6 +87,50 @@ describe("EventDetailView delete", () => {
   }
 });
 
+describe("EventDetailView header", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(() => {
+    renderer.cleanup();
+    useNavigationMock.mockReset();
+  });
+
+  test("states the derived inscriptions state of the event", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderHeader({ isRegistrationOpen: false });
+
+    expect(document.body.textContent).toContain("Inscripciones cerradas");
+    expect(document.body.textContent).not.toContain("Inscripciones abiertas");
+
+    renderer.cleanup();
+
+    await renderHeader({ isRegistrationOpen: true });
+
+    expect(document.body.textContent).toContain("Inscripciones abiertas");
+    expect(document.body.textContent).not.toContain("Inscripciones cerradas");
+  });
+
+  async function renderHeader(overrides: Partial<EventDetailLoaderData>) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/eventos/event_1",
+          action: async () => null,
+          element: (
+            <EventDetailView
+              loaderData={{ ...buildLoaderData(), ...overrides }}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/administracion/eventos/event_1"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+});
+
 describe("EventDetailView form", () => {
   const renderer = createReactDomTestRenderer();
 
@@ -121,7 +165,9 @@ describe("EventDetailView form", () => {
     const submitted = Array.from(new FormData(getEventForm()).keys());
 
     expect(submitted).toContain("name");
-    expect(submitted).toContain("registrationStartsAt");
+    expect(submitted).toContain("startsAt");
+    expect(submitted).toContain("endsAt");
+    expect(submitted).not.toContain("registrationStartsAt");
     expect(submitted).toContain(eventDocumentKeptField("professor_contract"));
   });
 
@@ -437,8 +483,6 @@ function buildLoaderData(): EventDetailLoaderData {
       programVisible: false,
       resultsPublishedAt: null,
       requiredDepositPercentage: 30,
-      registrationStartsAt: new Date("2026-01-01T00:00:00Z"),
-      registrationEndsAt: new Date("2026-02-01T00:00:00Z"),
       startsAt: new Date("2026-03-01T00:00:00Z"),
       endsAt: new Date("2026-03-02T00:00:00Z"),
       registrationReady: true,
@@ -453,6 +497,7 @@ function buildLoaderData(): EventDetailLoaderData {
       paymentInstructionsText: null,
       createdAt: new Date("2026-01-01T00:00:00Z"),
     },
+    isRegistrationOpen: false,
     registrationReadiness: {
       eventId: "event_1",
       isReady: true,

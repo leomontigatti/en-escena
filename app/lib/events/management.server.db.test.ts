@@ -60,28 +60,12 @@ describe("event management", () => {
       "requiredDepositPercentage",
     ],
     [
-      "registration start at registration end",
-      eventInput({
-        registrationStartsAt: date("2026-03-10T12:00:00Z"),
-        registrationEndsAt: date("2026-03-10T12:00:00Z"),
-      }),
-      "registrationStartsAt",
-    ],
-    [
       "event start after event end",
       eventInput({
         startsAt: date("2026-05-03T12:00:00Z"),
         endsAt: date("2026-05-02T12:00:00Z"),
       }),
       "startsAt",
-    ],
-    [
-      "registration end after event end",
-      eventInput({
-        registrationEndsAt: date("2026-05-04T12:00:00Z"),
-        endsAt: date("2026-05-03T12:00:00Z"),
-      }),
-      "registrationEndsAt",
     ],
   ] as const)("rejects invalid event data: %s", async (_case, input, field) => {
     const result = await createEvent(input);
@@ -99,8 +83,6 @@ describe("event management", () => {
   test("allows registration to start or end after the event starts", async () => {
     const result = await createEvent(
       eventInput({
-        registrationStartsAt: date("2026-05-02T12:00:00Z"),
-        registrationEndsAt: date("2026-05-03T12:00:00Z"),
         startsAt: date("2026-05-01T12:00:00Z"),
         endsAt: date("2026-05-04T12:00:00Z"),
       }),
@@ -118,8 +100,6 @@ describe("event management", () => {
         eventInput({
           name: "Regional corregido",
           requiredDepositPercentage: event.requiredDepositPercentage,
-          registrationStartsAt: event.registrationStartsAt,
-          registrationEndsAt: event.registrationEndsAt,
           startsAt: event.startsAt,
           endsAt: event.endsAt,
         }),
@@ -138,8 +118,6 @@ describe("event management", () => {
         eventInput({
           name: "Regional corregido",
           requiredDepositPercentage: 45,
-          registrationStartsAt: event.registrationStartsAt,
-          registrationEndsAt: event.registrationEndsAt,
           startsAt: event.startsAt,
           endsAt: event.endsAt,
         }),
@@ -204,7 +182,7 @@ describe("event management", () => {
     });
 
     // Readiness is about the `Bases del evento`; missing instructions never
-    // block the `Período de inscripción`.
+    // block `Abrir inscripciones` on a `Cronograma`.
     test("changes neither readiness nor its missing items", async () => {
       const event = await createSavedEvent("Regional 2026");
       const before = await getEventRegistrationReadiness(event.id);
@@ -244,8 +222,6 @@ describe("event management", () => {
       return eventInput({
         name: event.name,
         requiredDepositPercentage: event.requiredDepositPercentage,
-        registrationStartsAt: event.registrationStartsAt,
-        registrationEndsAt: event.registrationEndsAt,
         startsAt: event.startsAt,
         endsAt: event.endsAt,
         ...overrides,
@@ -492,8 +468,6 @@ function eventInput(
 
 function eventDates() {
   return {
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
     startsAt: date("2026-05-01T12:00:00Z"),
     endsAt: date("2026-05-03T12:00:00Z"),
   };

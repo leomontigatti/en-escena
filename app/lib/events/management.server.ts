@@ -45,8 +45,6 @@ type DeleteEventResult = { ok: true } | EventMutationFailure;
 
 export type CreateEventInput = {
   name: string;
-  registrationStartsAt: Date;
-  registrationEndsAt: Date;
   startsAt: Date;
   endsAt: Date;
   requiredDepositPercentage?: number;
@@ -98,8 +96,6 @@ export async function createEvent(
     .insert(events)
     .values({
       name: input.name.trim(),
-      registrationStartsAt: input.registrationStartsAt,
-      registrationEndsAt: input.registrationEndsAt,
       startsAt: input.startsAt,
       endsAt: input.endsAt,
       requiredDepositPercentage:
@@ -197,8 +193,6 @@ export async function updateEvent(
     .update(events)
     .set({
       name: input.name.trim(),
-      registrationStartsAt: input.registrationStartsAt,
-      registrationEndsAt: input.registrationEndsAt,
       startsAt: input.startsAt,
       endsAt: input.endsAt,
       requiredDepositPercentage:
@@ -319,19 +313,9 @@ function validateEventInput(input: CreateEventInput) {
       invalidRequiredDepositPercentageMessage;
   }
 
-  if (input.registrationStartsAt >= input.registrationEndsAt) {
-    fieldErrors.registrationStartsAt =
-      "El inicio de inscripción debe ser anterior al cierre.";
-  }
-
   if (input.startsAt > input.endsAt) {
     fieldErrors.startsAt =
       "El inicio del Evento no puede ser posterior al cierre.";
-  }
-
-  if (input.registrationEndsAt > input.endsAt) {
-    fieldErrors.registrationEndsAt =
-      "El cierre de inscripción no puede ser posterior al cierre del Evento.";
   }
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -400,9 +384,6 @@ function hasStructuralEventChanges(
 
   return (
     event.requiredDepositPercentage !== requiredDepositPercentage ||
-    event.registrationStartsAt.getTime() !==
-      input.registrationStartsAt.getTime() ||
-    event.registrationEndsAt.getTime() !== input.registrationEndsAt.getTime() ||
     event.startsAt.getTime() !== input.startsAt.getTime() ||
     event.endsAt.getTime() !== input.endsAt.getTime()
   );

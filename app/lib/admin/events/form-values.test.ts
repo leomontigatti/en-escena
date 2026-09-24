@@ -6,7 +6,6 @@ import {
   paymentInstructionsMessages,
   parseEventFormValues,
   readEventFormValues,
-  registrationAfterEventStartMessage,
   type EventRow,
 } from "@/lib/admin/events/form-values";
 
@@ -14,8 +13,6 @@ function eventValues(overrides: Record<string, string> = {}) {
   return {
     ...defaultEventFormValues(),
     name: "En Escena 2027",
-    registrationStartsAt: "2027-04-01",
-    registrationEndsAt: "2027-04-20",
     startsAt: "2027-05-01",
     endsAt: "2027-05-03",
     requiredDepositPercentage: "30",
@@ -24,31 +21,36 @@ function eventValues(overrides: Record<string, string> = {}) {
 }
 
 describe("parseEventFormValues", () => {
-  test("accepts inscriptions that open before the event", () => {
-    expect(parseEventFormValues(eventValues()).ok).toBe(true);
-  });
+  test("parses the event's own two dates", () => {
+    const result = parseEventFormValues(eventValues());
 
-  // The same schema backs `zodResolver`, so this is also what the field shows
-  // before the form is ever submitted.
-  test("refuses inscriptions that open after the event starts", () => {
-    const result = parseEventFormValues(
-      eventValues({ registrationStartsAt: "2027-05-02" }),
-    );
-
-    expect(result).toEqual({
-      ok: false,
-      fieldErrors: {
-        registrationStartsAt: registrationAfterEventStartMessage,
-      },
+    expect(result).toMatchObject({
+      ok: true,
+      input: { startsAt: expect.any(Date), endsAt: expect.any(Date) },
     });
   });
 
-  test("accepts inscriptions that open the day the event starts", () => {
-    const result = parseEventFormValues(
-      eventValues({ registrationStartsAt: "2027-05-01" }),
-    );
+  // Inscriptions are opened and closed per `Cronograma`: the form neither
+  // offers the dates, nor reads them off a submission that still posts them,
+  // nor has a rule left to refuse them by.
+  test("carries no registration window", () => {
+    const formData = new FormData();
 
-    expect(result.ok).toBe(true);
+    formData.set("name", "En Escena 2027");
+    formData.set("startsAt", "2027-05-01");
+    formData.set("endsAt", "2027-05-03");
+    formData.set("registrationStartsAt", "2027-05-02");
+    formData.set("registrationEndsAt", "2027-06-02");
+
+    expect(defaultEventFormValues()).not.toHaveProperty("registrationStartsAt");
+    expect(defaultEventFormValues()).not.toHaveProperty("registrationEndsAt");
+    expect(readEventFormValues(formData)).not.toHaveProperty(
+      "registrationStartsAt",
+    );
+    expect(readEventFormValues(formData)).not.toHaveProperty(
+      "registrationEndsAt",
+    );
+    expect(parseEventFormValues(readEventFormValues(formData)).ok).toBe(true);
   });
 });
 
@@ -312,8 +314,6 @@ function storedEvent(overrides: Partial<EventRow> = {}): EventRow {
     programVisible: false,
     resultsPublishedAt: null,
     requiredDepositPercentage: 30,
-    registrationStartsAt: new Date("2027-04-01T03:00:00Z"),
-    registrationEndsAt: new Date("2027-04-20T03:00:00Z"),
     startsAt: new Date("2027-05-01T03:00:00Z"),
     endsAt: new Date("2027-05-03T03:00:00Z"),
     registrationReady: false,

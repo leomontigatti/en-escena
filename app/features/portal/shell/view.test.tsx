@@ -15,6 +15,7 @@ describe("portal route view", () => {
     const markup = renderPortal({
       eventContext: {
         activeEvent: eventSummary({ name: "Regional 2026" }),
+        isRegistrationOpen: true,
       },
     });
 
@@ -50,6 +51,7 @@ describe("portal route view", () => {
     const markup = renderPortal({
       eventContext: {
         activeEvent: null,
+        isRegistrationOpen: false,
       },
     });
 
@@ -61,18 +63,37 @@ describe("portal route view", () => {
       id: "event_active",
       name: "Regional 2026",
       active: true,
-      registrationStartsAt: date("2026-01-01T12:00:00Z"),
-      registrationEndsAt: date("2026-12-31T12:00:00Z"),
     });
 
     const markup = renderPortal({
       eventContext: {
         activeEvent: selectedEvent,
+        isRegistrationOpen: true,
       },
     });
 
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Coreografías");
+  });
+
+  test("states in the shell whether the inscriptions are open", () => {
+    const openMarkup = renderPortal({
+      eventContext: {
+        activeEvent: eventSummary(),
+        isRegistrationOpen: true,
+      },
+    });
+
+    expect(openMarkup).not.toContain("Las inscripciones están cerradas.");
+
+    const closedMarkup = renderPortal({
+      eventContext: {
+        activeEvent: eventSummary(),
+        isRegistrationOpen: false,
+      },
+    });
+
+    expect(closedMarkup).toContain("Las inscripciones están cerradas.");
   });
 
   test("renders shared portal surfaces with shadcn components and semantic tokens", () => {
@@ -177,8 +198,6 @@ function eventSummary(
     id: "event_1",
     name: "Regional 2026",
     active: true,
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
     startsAt: date("2026-05-01T12:00:00Z"),
     endsAt: date("2026-05-03T12:00:00Z"),
     ...overrides,

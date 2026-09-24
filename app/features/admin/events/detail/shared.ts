@@ -73,6 +73,8 @@ export type EventDetailLoaderData = {
   canPublishResults: boolean;
   documents: EventDocumentSummaries;
   event: EventRow;
+  /** Derived from the event's schedules by the portal event-context owner. */
+  isRegistrationOpen: boolean;
   registrationReadiness: EventRegistrationReadiness;
   resultsPublication: ResultsPublication;
 };

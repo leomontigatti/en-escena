@@ -239,6 +239,20 @@
       "when": 1790275382225,
       "tag": "0033_roster_document_number_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790283721350,
+      "tag": "0034_add_schedule_registration_open",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790283723215,
+      "tag": "0035_drop_event_registration_window",
+      "breakpoints": true
     }
   ]
 }

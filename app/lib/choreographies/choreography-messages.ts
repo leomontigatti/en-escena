@@ -44,6 +44,28 @@ export function getNoCompatibleCategoryRegistrationMessage(input: {
 }
 
 /**
+ * The portal rejection when every `Cronograma` that could take the choreography
+ * has its inscriptions closed. The academy did not pick a schedule —the
+ * resolver picks it— so the sentence names the path that led there instead:
+ * the category its dancers resolved, the modality it chose and the group type
+ * its roster derives. Another path of the same event may well be open, and
+ * saying which one is closed is what keeps that from reading as a bug.
+ */
+export function getClosedRegistrationPathMessage(input: {
+  categoryName: string | null;
+  modalityName: string | null;
+  groupType: GroupType;
+}) {
+  const path = [
+    input.categoryName,
+    input.modalityName,
+    groupTypeLabels[input.groupType] ?? input.groupType,
+  ].filter((name) => name !== null);
+
+  return `Las inscripciones para ${path.join(", ")} están cerradas.`;
+}
+
+/**
  * The roster rejection when the edited roster resolves to no category. Unlike
  * registration, the administrator did not choose a modality here — the only
  * lever is the roster — so the sentence names just that.

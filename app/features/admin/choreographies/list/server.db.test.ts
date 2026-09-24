@@ -362,8 +362,6 @@ async function createScheduledChoreography(input: {
 async function createSavedEvent() {
   const result = await createEvent({
     name: "Nacional 2026",
-    registrationStartsAt: new Date("2026-08-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-09-15T12:00:00Z"),
     startsAt: new Date("2026-10-01T12:00:00Z"),
     endsAt: new Date("2026-10-10T12:00:00Z"),
   });

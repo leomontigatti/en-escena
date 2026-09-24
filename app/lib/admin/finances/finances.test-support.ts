@@ -30,8 +30,6 @@ export async function createSavedEvent(
 ) {
   const result = await createEvent({
     name: "En Escena 2026",
-    registrationStartsAt: choreographyDate("2026-03-01T12:00:00Z"),
-    registrationEndsAt: choreographyDate("2026-04-30T12:00:00Z"),
     startsAt: choreographyDate("2026-05-01T12:00:00Z"),
     endsAt: choreographyDate("2026-05-03T12:00:00Z"),
     ...overrides,
@@ -49,8 +47,6 @@ export async function createSavedEvent(
 export async function createInactiveEvent(name: string) {
   const result = await createEvent({
     name,
-    registrationStartsAt: choreographyDate("2025-03-01T12:00:00Z"),
-    registrationEndsAt: choreographyDate("2025-04-30T12:00:00Z"),
     startsAt: choreographyDate("2025-05-01T12:00:00Z"),
     endsAt: choreographyDate("2025-05-03T12:00:00Z"),
   });

@@ -16,6 +16,7 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -93,12 +94,21 @@ export function EventDetailView({
       description="Editá fechas, visibilidad y estado operativo del evento."
       requireSelectedEvent={false}
       headerAction={
-        <EventActions
-          canPublishResults={loaderData.canPublishResults}
-          event={loaderData.event}
-          initialDeleteDialogOpen={initialDeleteDialogOpen}
-          resultsPublication={loaderData.resultsPublication}
-        />
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={loaderData.isRegistrationOpen ? "success" : "secondary"}
+          >
+            {loaderData.isRegistrationOpen
+              ? "Inscripciones abiertas"
+              : "Inscripciones cerradas"}
+          </Badge>
+          <EventActions
+            canPublishResults={loaderData.canPublishResults}
+            event={loaderData.event}
+            initialDeleteDialogOpen={initialDeleteDialogOpen}
+            resultsPublication={loaderData.resultsPublication}
+          />
+        </div>
       }
     >
       <EditEventPanel

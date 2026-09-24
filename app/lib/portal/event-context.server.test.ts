@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 const findEvents = vi.hoisted(() => vi.fn());
+const findOpenSchedules = vi.hoisted(() => vi.fn());
 const getEventRegistrationReadiness = vi.hoisted(() => vi.fn());
 
 vi.mock("@/db", () => ({
@@ -8,6 +9,9 @@ vi.mock("@/db", () => ({
     query: {
       events: {
         findMany: findEvents,
+      },
+      schedules: {
+        findMany: findOpenSchedules,
       },
     },
   },
@@ -27,6 +31,32 @@ import {
 describe("portal event context helpers", () => {
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  test("surfaces the inscriptions state of the active event, and skips the read without one", async () => {
+    findEvents.mockResolvedValue([
+      buildEventSummary({ id: "event_active", active: true }),
+    ]);
+    findOpenSchedules.mockResolvedValue([{ id: "schedule_open" }]);
+
+    await expect(
+      getPortalShellEventContext(new Request("http://localhost/portal")),
+    ).resolves.toMatchObject({ isRegistrationOpen: true });
+
+    findOpenSchedules.mockResolvedValue([]);
+
+    await expect(
+      getPortalActiveEventContext(new Request("http://localhost/portal")),
+    ).resolves.toMatchObject({ isRegistrationOpen: false });
+
+    vi.clearAllMocks();
+    findEvents.mockResolvedValue([]);
+
+    await expect(
+      getPortalShellEventContext(new Request("http://localhost/portal")),
+    ).resolves.toEqual({ activeEvent: null, isRegistrationOpen: false });
+
+    expect(findOpenSchedules).not.toHaveBeenCalled();
   });
 
   test("keeps shell and child summary contexts on the active-event summary path without readiness work", async () => {
@@ -106,8 +136,6 @@ function buildEventSummary(overrides: Partial<EventSummaryFixture> = {}) {
     id: "event_1",
     name: "Regional 2026",
     active: false,
-    registrationStartsAt: new Date("2026-01-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-12-31T12:00:00Z"),
     startsAt: new Date("2026-02-01T12:00:00Z"),
     endsAt: new Date("2026-02-03T12:00:00Z"),
     ...overrides,
@@ -118,8 +146,6 @@ type EventSummaryFixture = {
   id: string;
   name: string;
   active: boolean;
-  registrationStartsAt: Date;
-  registrationEndsAt: Date;
   startsAt: Date;
   endsAt: Date;
 };

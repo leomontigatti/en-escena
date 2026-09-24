@@ -271,6 +271,29 @@ export function formatDate(value: string) {
   return scheduleDateFormatter.format(new Date(`${value}T00:00:00Z`));
 }
 
+/**
+ * The day and the hour of a schedule read as one fact, the way the schedules
+ * list shows them: the instant the schedule happens, not a date column and an
+ * hour column the reader has to put back together. The stored time may carry
+ * seconds nobody asked for.
+ */
+export function formatScheduleDateTimeLabel(schedule: {
+  scheduledDate: string;
+  startTime: string;
+}) {
+  return `${formatDate(schedule.scheduledDate)}, ${schedule.startTime.slice(0, 5)}`;
+}
+
+/**
+ * What the `Inscripciones` badge of a schedule reads. Plural, as the
+ * vocabulary says it everywhere else.
+ */
+export function formatScheduleRegistrationStateLabel(
+  registrationOpen: boolean,
+) {
+  return registrationOpen ? "Abiertas" : "Cerradas";
+}
+
 export function isPositiveIntegerString(value: string) {
   const parsedValue = Number(value);
 

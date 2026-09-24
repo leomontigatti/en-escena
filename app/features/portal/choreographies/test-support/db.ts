@@ -65,8 +65,6 @@ export async function createEventRecord(
       active: false,
       programVisible: false,
       requiredDepositPercentage: 30,
-      registrationStartsAt: date("2026-03-01T12:00:00Z"),
-      registrationEndsAt: date("2026-04-30T12:00:00Z"),
       startsAt: date("2026-05-01T12:00:00Z"),
       endsAt: date("2026-05-03T12:00:00Z"),
       ...overrides,

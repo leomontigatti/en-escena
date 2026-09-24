@@ -342,6 +342,7 @@ function buildLoaderData(): EventBasesLoaderData {
   return {
     selectedEventId: "event_1",
     requiredDepositPercentage: 30,
+    registrationOpenBlockers: [],
     submodalityCriteria: [],
     lockedSubmodalityIds: [],
     modalities: [
@@ -384,6 +385,7 @@ function buildLoaderData(): EventBasesLoaderData {
         scheduledDate: "2026-05-02",
         startTime: "09:00",
         totalCapacity: 20,
+        registrationOpen: false,
         createdAt,
         modalities: [{ id: "modality_1", name: "Jazz" }],
         modalityIds: ["modality_1"],

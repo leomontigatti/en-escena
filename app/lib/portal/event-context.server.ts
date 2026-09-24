@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";
 import { toPaymentInstructions } from "@/lib/finances/payment-instructions";
 import type {
   PortalActiveEventContext,
@@ -13,8 +14,11 @@ import type {
 export async function getPortalShellEventContext(
   _request: Request,
 ): Promise<PortalShellEventContext> {
+  const activeEvent = await findPortalActiveEventSummary();
+
   return {
-    activeEvent: await findPortalActiveEventSummary(),
+    activeEvent,
+    isRegistrationOpen: await isEventRegistrationOpen(activeEvent?.id ?? null),
   };
 }
 
@@ -70,7 +74,6 @@ export async function getPortalActiveEventContext(
   const events = await listPortalEventSummaries();
   const activeEvent = events.find((event) => event.active) ?? null;
   const selectedEvent = activeEvent;
-  const now = new Date();
 
   return {
     selectedEvent,
@@ -78,7 +81,9 @@ export async function getPortalActiveEventContext(
     hasActiveEvent: activeEvent !== null,
     hasEvents: events.length > 0,
     isReadOnly: selectedEvent ? !selectedEvent.active : true,
-    isRegistrationOpen: isRegistrationWindowOpen(selectedEvent, now),
+    isRegistrationOpen: await isEventRegistrationOpen(
+      selectedEvent?.id ?? null,
+    ),
   };
 }
 
@@ -101,14 +106,12 @@ async function findPortalActiveEventSummary() {
   return events.find((event) => event.active) ?? null;
 }
 
-/** The summary's seven fields out of a row that carries more of them. */
+/** The summary's five fields out of a row that carries more of them. */
 function toPortalEventSummary(event: PortalEventSummary): PortalEventSummary {
   return {
     id: event.id,
     name: event.name,
     active: event.active,
-    registrationStartsAt: event.registrationStartsAt,
-    registrationEndsAt: event.registrationEndsAt,
     startsAt: event.startsAt,
     endsAt: event.endsAt,
   };
@@ -118,8 +121,6 @@ const portalEventSummaryColumns = {
   id: true,
   name: true,
   active: true,
-  registrationStartsAt: true,
-  registrationEndsAt: true,
   startsAt: true,
   endsAt: true,
 } as const;
@@ -129,12 +130,4 @@ async function listPortalEventSummaries(): Promise<PortalEventSummary[]> {
     columns: portalEventSummaryColumns,
     orderBy: (table, { desc }) => [desc(table.startsAt), desc(table.createdAt)],
   });
-}
-
-function isRegistrationWindowOpen(event: PortalEventSummary | null, now: Date) {
-  if (!event) {
-    return false;
-  }
-
-  return event.registrationStartsAt <= now && now <= event.registrationEndsAt;
 }

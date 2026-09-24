@@ -4,6 +4,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { buildDetailPath } from "@/lib/shared/navigation";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/shared/utils";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 
@@ -12,7 +13,8 @@ import { basePath } from "./shared";
 import {
   buildScheduleFacetedFilters,
   formatAvailablePlacesSuffix,
-  formatDate,
+  formatScheduleDateTimeLabel,
+  formatScheduleRegistrationStateLabel,
 } from "./view-shared";
 
 export function ScheduleList({
@@ -46,19 +48,28 @@ export function ScheduleList({
         schedule.modalities.map((modality) => modality.name).join(" "),
     },
     {
-      id: "scheduledDate",
+      // One instant, one column: the day and the hour were two columns of the
+      // same fact, and sorting the first without the second put a 20:00 before
+      // a 10:00 of the same day.
+      id: "scheduledAt",
       header: "Fecha",
-      cell: (schedule) => formatDate(schedule.scheduledDate),
-      className: "text-muted-foreground",
+      cell: (schedule) => formatScheduleDateTimeLabel(schedule),
+      className: "text-muted-foreground whitespace-nowrap",
       sortValue: (schedule) =>
         `${schedule.scheduledDate} ${schedule.startTime}`,
     },
     {
-      id: "startTime",
-      header: "Hora",
-      cell: (schedule) => schedule.startTime,
-      className: "text-muted-foreground",
-      sortValue: (schedule) => schedule.startTime,
+      // Read-only: the switch is an action of the schedule detail, and this is
+      // the column that saves opening every schedule to find out.
+      id: "registration",
+      header: "Inscripciones",
+      cell: (schedule) => (
+        <Badge variant={schedule.registrationOpen ? "success" : "secondary"}>
+          {formatScheduleRegistrationStateLabel(schedule.registrationOpen)}
+        </Badge>
+      ),
+      filterValue: (schedule) =>
+        formatScheduleRegistrationStateLabel(schedule.registrationOpen),
     },
     {
       id: "capacity",
@@ -82,7 +93,7 @@ export function ScheduleList({
       textFilterColumnId="name"
       facetedFilters={buildScheduleFacetedFilters(schedules)}
       emptyMessage="No hay cronogramas que coincidan con la búsqueda."
-      initialSort={{ columnId: "scheduledDate", direction: "asc" }}
+      initialSort={{ columnId: "scheduledAt", direction: "asc" }}
     />
   );
 }

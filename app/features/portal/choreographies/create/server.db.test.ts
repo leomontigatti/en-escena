@@ -25,8 +25,6 @@ async function createCreateChoreographyScenario(input: {
   });
   const event = await createSavedEvent({
     name: input.eventName,
-    registrationStartsAt: date("2026-06-01T12:00:00Z"),
-    registrationEndsAt: date("2026-06-30T12:00:00Z"),
     startsAt: date("2026-07-01T12:00:00Z"),
     endsAt: date("2026-07-03T12:00:00Z"),
   });

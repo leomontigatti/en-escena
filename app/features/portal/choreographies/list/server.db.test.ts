@@ -21,6 +21,7 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
+import { openScheduleRegistration } from "@/lib/schedules/registration-open.server";
 import {
   expectCreated,
   fixedExperienceLevel,
@@ -86,8 +87,6 @@ describe("handlePortalChoreographiesListAction", () => {
     });
     const activeEvent = await createSavedEvent({
       name: "Regional 2026",
-      registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
       startsAt: date("2026-07-01T12:00:00Z"),
       endsAt: date("2026-07-03T12:00:00Z"),
     });
@@ -153,8 +152,6 @@ describe("handlePortalChoreographiesListAction", () => {
     });
     const activeEvent = await createSavedEvent({
       name: "Regional 2026",
-      registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-06-30T12:00:00Z"),
       startsAt: date("2026-07-01T12:00:00Z"),
       endsAt: date("2026-07-03T12:00:00Z"),
     });
@@ -659,14 +656,9 @@ async function createRegistrationScenario(session: {
   email: string;
 }) {
   const ownerSession = await createAcademySession(session);
-  // Registration window anchored to the run. Creating a choreography requires
-  // registration to be OPEN, so an absolute window is a time bomb: this test
-  // passed until its hardcoded `2026-07-30T12:00:00Z` elapsed mid-day, and
-  // failed on every run after it.
+  // Event dates anchored to the run, so the fixture never ages out.
   const event = await createSavedEvent({
     name: "Regional 2026",
-    registrationStartsAt: daysFromNow(-1),
-    registrationEndsAt: daysFromNow(1),
     startsAt: daysFromNow(2),
     endsAt: daysFromNow(4),
   });
@@ -724,6 +716,11 @@ async function createRegistrationScenario(session: {
       scheduleId: block.id,
     }),
   );
+  // A `Cronograma` is born closed, and the portal only registers into an open
+  // one. Opening needs the bases above in place, so it comes last.
+  await expect(openScheduleRegistration(block.id)).resolves.toMatchObject({
+    ok: true,
+  });
   const [dancer] = await db
     .insert(dancers)
     .values({
@@ -804,8 +801,6 @@ async function createEventRecord(
       active: false,
       programVisible: false,
       requiredDepositPercentage: 30,
-      registrationStartsAt: date("2026-03-01T12:00:00Z"),
-      registrationEndsAt: date("2026-04-30T12:00:00Z"),
       startsAt: date("2026-05-01T12:00:00Z"),
       endsAt: date("2026-05-03T12:00:00Z"),
       ...overrides,

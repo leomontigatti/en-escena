@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { scheduleCapacities } from "@/db/schema";
+import { events, scheduleCapacities } from "@/db/schema";
+import { createOpenEventCatalog } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createModality } from "@/lib/modalities/repository.server";
 import {
   createSchedule,
@@ -678,6 +681,89 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
       findSavedScheduleByName("Domingo Tarde"),
     ).resolves.toBeUndefined();
   });
+
+  // The switch stays on the schedule detail —the flash redirect goes back to
+  // the very path it was posted from— and says one line; the reasons to refuse
+  // it live in the alert the detail renders, never in the toast.
+  test("opens and closes the inscriptions of a `Cronograma` from its detail", async () => {
+    const { event, catalog } = await createOpenEventCatalog({
+      active: true,
+      endsAt: new Date("2099-05-03T12:00:00.000Z"),
+    });
+    const scheduleId = catalog.schedule.id;
+    const detailPath = `/administracion/cronogramas/${scheduleId}`;
+
+    await getEventRegistrationReadiness(event.id);
+
+    const openRequest = await createRegistrationSwitchRequest({
+      email: "admin.abre.inscripciones@example.com",
+      eventId: event.id,
+      intent: "open-schedule-registration",
+      scheduleId,
+    });
+
+    await expectFlashRedirect(
+      await expectThrownResponse(action(routeArgs(openRequest.request)), 302),
+      detailPath,
+      notificationToasts["inscripciones-abiertas"],
+    );
+    await expect(findSavedScheduleById(scheduleId)).resolves.toMatchObject({
+      registrationOpen: true,
+    });
+    // Availability is not configuration: the readiness cache is still the one
+    // calculated above.
+    await expect(
+      db.query.events.findFirst({
+        columns: { registrationReadinessDirty: true },
+        where: eq(events.id, event.id),
+      }),
+    ).resolves.toMatchObject({ registrationReadinessDirty: false });
+
+    const closeRequest = await createRegistrationSwitchRequest({
+      email: "admin.cierra.inscripciones@example.com",
+      eventId: event.id,
+      intent: "close-schedule-registration",
+      scheduleId,
+    });
+
+    await expectFlashRedirect(
+      await expectThrownResponse(action(routeArgs(closeRequest.request)), 302),
+      detailPath,
+      notificationToasts["inscripciones-cerradas"],
+    );
+    await expect(findSavedScheduleById(scheduleId)).resolves.toMatchObject({
+      registrationOpen: false,
+    });
+  });
+
+  test("refuses to open the inscriptions of a `Cronograma` of an unready event", async () => {
+    const { event, modalityIds } = await createEventScheduleAdminFixture();
+    const schedule = await expectCreated(
+      createSchedule(event.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 24,
+        modalityIds,
+      }),
+    );
+    const openRequest = await createRegistrationSwitchRequest({
+      email: "admin.abre.inscripciones.sin-bases@example.com",
+      eventId: event.id,
+      intent: "open-schedule-registration",
+      scheduleId: schedule.id,
+    });
+
+    await expect(action(routeArgs(openRequest.request))).resolves.toMatchObject(
+      {
+        status: "error",
+        message: "No se pueden abrir las inscripciones de este cronograma.",
+      },
+    );
+    await expect(findSavedScheduleById(schedule.id)).resolves.toMatchObject({
+      registrationOpen: false,
+    });
+  });
 });
 
 async function createScheduleForCapacityAdminFixture() {
@@ -705,6 +791,24 @@ async function createScheduleForCapacityAdminFixture() {
     event,
     schedule,
   };
+}
+
+async function createRegistrationSwitchRequest(input: {
+  email: string;
+  eventId: string;
+  intent: "open-schedule-registration" | "close-schedule-registration";
+  scheduleId: string;
+}) {
+  const body = new FormData();
+  body.set("intent", input.intent);
+  body.set("id", input.scheduleId);
+
+  return createSignedInRequest({
+    body,
+    email: input.email,
+    role: "admin",
+    requestUrl: `http://localhost/administracion/cronogramas/${input.scheduleId}?evento=${input.eventId}`,
+  });
 }
 
 async function createPersistedScheduleCapacity(

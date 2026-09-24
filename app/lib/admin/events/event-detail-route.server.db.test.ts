@@ -62,8 +62,6 @@ describe("`/administracion/eventos/:eventId` route", () => {
       body: formData({
         intent: "update",
         name: "Regional actualizado",
-        registrationStartsAt: "2027-03-01",
-        registrationEndsAt: "2027-05-02",
         startsAt: "2027-05-01",
         endsAt: "2027-05-03",
         requiredDepositPercentage: "45",
@@ -98,21 +96,17 @@ describe("`/administracion/eventos/:eventId` route", () => {
       body: formData({
         intent: "update",
         name: "Regional 2026",
-        registrationStartsAt: "2027-03-01",
-        registrationEndsAt: "2027-05-04",
-        startsAt: "2027-05-01",
-        endsAt: "2027-05-03",
+        startsAt: "2027-05-03",
+        endsAt: "2027-05-01",
         requiredDepositPercentage: "30",
       }),
     });
 
     await expect(action(routeArgs(request, event.id))).resolves.toMatchObject({
       status: "error",
-      message:
-        "El cierre de inscripción no puede ser posterior al cierre del Evento.",
+      message: "El inicio del Evento no puede ser posterior al cierre.",
       fieldErrors: {
-        registrationEndsAt:
-          "El cierre de inscripción no puede ser posterior al cierre del Evento.",
+        startsAt: "El inicio del Evento no puede ser posterior al cierre.",
       },
     });
   });

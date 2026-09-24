@@ -1,4 +1,8 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
+
+import { db } from "@/db";
+import { schedules } from "@/db/schema";
 
 import {
   createCategory,
@@ -730,6 +734,68 @@ describe("`Bases del evento` repository", () => {
       error:
         "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
     });
+  });
+  // The switch is the administrator's and nobody else's: the repository never
+  // sets it, so a new schedule is born closed and an edit of anything else
+  // leaves it exactly where it was. Opening it is #1157's action.
+  test("creates schedules closed and leaves the switch alone on every edit", async () => {
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
+
+    const closed = await expectCreated(
+      createSchedule(event.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    const withEntries = await expectCreated(
+      createScheduleWithEntries(event.id, {
+        name: "Función 2",
+        scheduledDate: "2026-05-02",
+        startTime: "11:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [],
+        scheduleCapacities: [],
+      }),
+    );
+
+    expect(closed).toMatchObject({ registrationOpen: false });
+    expect(withEntries).toMatchObject({ registrationOpen: false });
+
+    // Opened the only way there is for now, so that the edits below have
+    // something to preserve.
+    await db
+      .update(schedules)
+      .set({ registrationOpen: true })
+      .where(eq(schedules.id, closed.id));
+
+    await expect(
+      updateSchedule(closed.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 30,
+        modalityIds: [jazz.id, urbanas.id],
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { registrationOpen: true } });
+    await expect(
+      updateScheduleWithEntries(closed.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 30,
+        modalityIds: [jazz.id, urbanas.id],
+        categoryIds: [],
+        scheduleCapacities: [],
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { registrationOpen: true } });
+    await expect(listSchedules(event.id)).resolves.toMatchObject([
+      expect.objectContaining({ id: closed.id, registrationOpen: true }),
+      expect.objectContaining({ id: withEntries.id, registrationOpen: false }),
+    ]);
   });
 });
 

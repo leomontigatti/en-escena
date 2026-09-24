@@ -9,14 +9,17 @@ import {
   isOldEnoughAtEventStart,
   isYoungEnoughAtEventStart,
 } from "@/lib/dancers/birth-date";
-import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
-import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
+import {
+  getClosedRegistrationPathMessage,
+  invalidExperienceLevelMessage,
+} from "@/lib/choreographies/choreography-messages";
+import {
+  resolveOfferedScheduleOptions,
+  type ScheduleResolution,
+} from "@/lib/choreographies/registration-schedule-options.server";
 import {
   getEventBases,
   resolveEventBasesScheduleOptions,
-  type CompatibleScheduleCapacity,
-  type CompatibleScheduleCapacityResolution,
   type EventBases,
 } from "@/lib/events/bases.server";
 import {
@@ -25,6 +28,7 @@ import {
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
 import { getEventRegistrationReadinessForBases } from "@/lib/events/registration-readiness.server";
+import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";
 import {
   classifyRosterPersonSelection,
   getRosterPersonRejectionMessage,
@@ -55,18 +59,6 @@ type RegistrationBaseResolutionInput = Omit<
 type ExperienceLevelOption = {
   id: ExperienceLevel;
   name: string;
-};
-
-type ScheduleOptionSummary = Pick<
-  CompatibleScheduleCapacity,
-  | "id"
-  | "scheduleId"
-  | "scheduleCapacityId"
-  | "capacity"
-  | "groupType"
-  | "usesGlobalCapacity"
-> & {
-  schedule: CompatibleScheduleCapacity["schedule"];
 };
 
 type DancerAgeSummary = {
@@ -111,35 +103,6 @@ type ExperienceLevelResolution =
   | {
       required: false;
       options: ExperienceLevelOption[];
-    };
-
-/**
- * Only the options the portal offers as a list carry occupancy: with a single
- * compatible capacity there is no select to choose from, and the label of the
- * already assigned schedule does not say how many places are left.
- */
-type ScheduleCapacityChoice = ScheduleOptionSummary & {
-  isFull: boolean;
-  label: string;
-};
-
-type ScheduleResolution =
-  | {
-      status: "none";
-      canConfirm: false;
-      error: string;
-      options: [];
-    }
-  | {
-      status: "auto";
-      canConfirm: true;
-      scheduleCapacityId: string;
-      options: [ScheduleOptionSummary];
-    }
-  | {
-      status: "multiple";
-      canConfirm: true;
-      options: ScheduleCapacityChoice[];
     };
 
 export type ChoreographyRegistrationOperationResolution = {
@@ -202,11 +165,8 @@ export async function resolveChoreographyRegistrationOperation(
     );
   }
 
-  if (!isRegistrationWindowOpen(event, new Date())) {
-    return failure(
-      "registration-closed",
-      "La inscripción del evento activo no está abierta en este momento.",
-    );
+  if (!(await isEventRegistrationOpen(event.id))) {
+    return failure("registration-closed", "Las inscripciones están cerradas.");
   }
 
   const eventBases = await getEventBases(event.id);
@@ -233,6 +193,9 @@ export async function resolveChoreographyRegistrationOperationForResolvedDancers
     eventBases,
     eventId: input.eventId,
     modalityId: input.modalityId,
+    // Administration re-resolves a choreography it already owns: its own switch
+    // never refuses it, so the closed schedules stay on offer here.
+    onlyOpenSchedules: false,
     skipReadinessCheck: true,
     submodalityId: input.submodalityId,
     dancers: input.dancers,
@@ -302,6 +265,7 @@ async function resolveRegistrationBases(
     eventBases: input.eventBases,
     eventId: input.event.id,
     modalityId: input.modalityId,
+    onlyOpenSchedules: true,
     skipReadinessCheck: false,
     submodalityId: input.submodalityId,
     dancers: resolvedDancers.dancers,
@@ -312,6 +276,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
   eventBases: EventBases;
   eventId: string;
   modalityId: string;
+  onlyOpenSchedules: boolean;
   skipReadinessCheck: boolean;
   submodalityId: string | null;
   dancers: ResolvedRegistrationDancer[];
@@ -353,46 +318,10 @@ async function resolveRegistrationFromResolvedDancers(input: {
     return submodalityValidation.failure;
   }
 
-  const uniqueDancerIds = new Set(input.dancers.map((dancer) => dancer.id));
+  const dancerFailure = validateResolvedDancers(input.dancers);
 
-  if (
-    input.dancers.length === 0 ||
-    uniqueDancerIds.size !== input.dancers.length
-  ) {
-    return failure(
-      "invalid-dancers",
-      "Elegí uno o más bailarines válidos para resolver la coreografía.",
-    );
-  }
-
-  const underageDancers = input.dancers.filter(
-    (dancer) => !isOldEnoughAtEventStart(dancer.ageAtEventStart),
-  );
-
-  if (underageDancers.length > 0) {
-    return failure(
-      "dancer-under-minimum-age",
-      getUnderageDancersMessage(
-        underageDancers.map(
-          (dancer) => `${dancer.firstName} ${dancer.lastName}`,
-        ),
-      ),
-    );
-  }
-
-  const overageDancers = input.dancers.filter(
-    (dancer) => !isYoungEnoughAtEventStart(dancer.ageAtEventStart),
-  );
-
-  if (overageDancers.length > 0) {
-    return failure(
-      "dancer-over-maximum-age",
-      getOverageDancersMessage(
-        overageDancers.map(
-          (dancer) => `${dancer.firstName} ${dancer.lastName}`,
-        ),
-      ),
-    );
+  if (dancerFailure) {
+    return dancerFailure;
   }
 
   const classification = resolveChoreographyClassificationForResolvedDancers({
@@ -407,7 +336,25 @@ async function resolveRegistrationFromResolvedDancers(input: {
     groupType: classification.groupType,
     categoryId: getResolvedCategoryId(classification.category),
   });
-  const schedule = await mapScheduleResolution(compatibleScheduleCapacities);
+  const schedule = await resolveOfferedScheduleOptions({
+    eventId: input.eventId,
+    onlyOpen: input.onlyOpenSchedules,
+    compatibleScheduleCapacities,
+  });
+
+  if (!schedule) {
+    return failure(
+      "registration-closed",
+      getClosedRegistrationPathMessage({
+        categoryName:
+          classification.category.status === "resolved"
+            ? classification.category.name
+            : null,
+        modalityName: modality.name,
+        groupType: classification.groupType,
+      }),
+    );
+  }
 
   return {
     ok: true,
@@ -721,65 +668,6 @@ function isAgeWithinCategory(
   return category.minAge <= age && age <= category.maxAge;
 }
 
-async function mapScheduleResolution(
-  scheduleResolution: CompatibleScheduleCapacityResolution,
-): Promise<ScheduleResolution> {
-  if (scheduleResolution.status === "none") {
-    return {
-      status: "none",
-      canConfirm: false,
-      error: scheduleResolution.error,
-      options: [],
-    };
-  }
-
-  if (scheduleResolution.status === "auto") {
-    return {
-      status: "auto",
-      canConfirm: true,
-      scheduleCapacityId: scheduleResolution.scheduleCapacity.id,
-      options: [toScheduleOptionSummary(scheduleResolution.scheduleCapacity)],
-    };
-  }
-
-  return {
-    status: "multiple",
-    canConfirm: true,
-    // The same options with occupancy that administration sees: the label is built
-    // by the shared builder so the two surfaces do not diverge.
-    options: await withScheduleCapacityOccupancy({
-      options: scheduleResolution.options.map((option) => ({
-        ...toScheduleOptionSummary(option),
-        label: formatScheduleDateTime(option.schedule),
-      })),
-    }),
-  };
-}
-
-function toScheduleOptionSummary(
-  option: CompatibleScheduleCapacity,
-): ScheduleOptionSummary {
-  return {
-    id: option.id,
-    scheduleId: option.scheduleId,
-    scheduleCapacityId: option.scheduleCapacityId,
-    capacity: option.capacity,
-    groupType: option.groupType,
-    usesGlobalCapacity: option.usesGlobalCapacity,
-    schedule: option.schedule,
-  };
-}
-
-function isRegistrationWindowOpen(
-  event: Pick<
-    typeof events.$inferSelect,
-    "registrationStartsAt" | "registrationEndsAt"
-  >,
-  now: Date,
-) {
-  return event.registrationStartsAt <= now && now <= event.registrationEndsAt;
-}
-
 export function getEventLocalDateParts(date: Date) {
   return getLocalDateParts(date, EVENT_TIME_ZONE);
 }
@@ -810,6 +698,53 @@ export function getAgeAtDate(birthDate: string, date: LocalDateParts) {
     (date.month === birthMonth && date.day >= birthDay);
 
   return date.year - birthYear - (hasHadBirthday ? 0 : 1);
+}
+
+/**
+ * What a roster has to hold before a category can be read off it: people, each
+ * of them once, and every one of them old enough and young enough for the
+ * event. The three are one gate because they answer the same question —whether
+ * these dancers can register at all— and no caller needs them apart.
+ */
+function validateResolvedDancers(
+  dancers: ResolvedRegistrationDancer[],
+): OperationFailure | null {
+  const uniqueDancerIds = new Set(dancers.map((dancer) => dancer.id));
+
+  if (dancers.length === 0 || uniqueDancerIds.size !== dancers.length) {
+    return failure(
+      "invalid-dancers",
+      "Elegí uno o más bailarines válidos para resolver la coreografía.",
+    );
+  }
+
+  const underageDancers = dancers.filter(
+    (dancer) => !isOldEnoughAtEventStart(dancer.ageAtEventStart),
+  );
+
+  if (underageDancers.length > 0) {
+    return failure(
+      "dancer-under-minimum-age",
+      getUnderageDancersMessage(underageDancers.map(getDancerFullName)),
+    );
+  }
+
+  const overageDancers = dancers.filter(
+    (dancer) => !isYoungEnoughAtEventStart(dancer.ageAtEventStart),
+  );
+
+  if (overageDancers.length > 0) {
+    return failure(
+      "dancer-over-maximum-age",
+      getOverageDancersMessage(overageDancers.map(getDancerFullName)),
+    );
+  }
+
+  return null;
+}
+
+function getDancerFullName(dancer: ResolvedRegistrationDancer) {
+  return `${dancer.firstName} ${dancer.lastName}`;
 }
 
 function failure(

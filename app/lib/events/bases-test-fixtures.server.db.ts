@@ -28,8 +28,6 @@ type SavedEventFixtureOptions = {
 };
 
 type SavedEventFixtureDates = {
-  registrationStartsAt: Date;
-  registrationEndsAt: Date;
   startsAt: Date;
   endsAt: Date;
 };
@@ -67,8 +65,6 @@ let createdEventOffset = 0;
 
 export function createEventFixtureDates(year: number): SavedEventFixtureDates {
   return {
-    registrationStartsAt: new Date(Date.UTC(year, 2, 1, 12, 0, 0)),
-    registrationEndsAt: new Date(Date.UTC(year, 3, 30, 12, 0, 0)),
     startsAt: new Date(Date.UTC(year, 4, 1, 12, 0, 0)),
     endsAt: new Date(Date.UTC(year, 4, 3, 12, 0, 0)),
   };

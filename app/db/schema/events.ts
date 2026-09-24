@@ -43,14 +43,6 @@ export const events = createTable(
     requiredDepositPercentage: integer("required_deposit_percentage")
       .notNull()
       .default(30),
-    registrationStartsAt: timestamp("registration_starts_at", {
-      mode: "date",
-      withTimezone: true,
-    }).notNull(),
-    registrationEndsAt: timestamp("registration_ends_at", {
-      mode: "date",
-      withTimezone: true,
-    }).notNull(),
     startsAt: timestamp("starts_at", {
       mode: "date",
       withTimezone: true,
@@ -238,6 +230,11 @@ export const schedules = createTable(
     scheduledDate: text("scheduled_date").notNull(),
     startTime: text("start_time").notNull(),
     totalCapacity: integer("total_capacity").notNull(),
+    // Whether the schedule takes registrations right now. A manual switch an
+    // administrator flips from the schedule detail — never a window, never a
+    // derived value: a schedule that filled up closes while its siblings stay
+    // open. A new schedule starts closed. See CONTEXT.md `registrationOpen`.
+    registrationOpen: boolean("registration_open").notNull().default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

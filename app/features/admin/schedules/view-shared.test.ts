@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { getScheduleCategoryOptions } from "./view-shared";
+import {
+  formatScheduleDateTimeLabel,
+  formatScheduleRegistrationStateLabel,
+  getScheduleCategoryOptions,
+} from "./view-shared";
 
 const categories = [
   {
@@ -55,5 +59,36 @@ describe("getScheduleCategoryOptions", () => {
         (option) => option.label,
       ),
     ).toEqual(["Baby · 4–6 · solo, dúo", "Infantil I · 7–9 · solo, dúo, trío"]);
+  });
+});
+
+describe("formatScheduleDateTimeLabel", () => {
+  // The list reads one instant per row, so the day and the hour are one text
+  // instead of two columns the reader has to put back together.
+  test("reads the day and the hour as a single label", () => {
+    expect(
+      formatScheduleDateTimeLabel({
+        scheduledDate: "2026-10-21",
+        startTime: "12:30",
+      }),
+    ).toBe("21 de octubre de 2026, 12:30");
+  });
+
+  // The column stores seconds the reader never asked for.
+  test("drops the seconds of the stored time", () => {
+    expect(
+      formatScheduleDateTimeLabel({
+        scheduledDate: "2026-10-21",
+        startTime: "12:30:00",
+      }),
+    ).toBe("21 de octubre de 2026, 12:30");
+  });
+});
+
+describe("formatScheduleRegistrationStateLabel", () => {
+  // Plural, as every surface of the vocabulary says it.
+  test("names the two states of a schedule's inscriptions", () => {
+    expect(formatScheduleRegistrationStateLabel(true)).toBe("Abiertas");
+    expect(formatScheduleRegistrationStateLabel(false)).toBe("Cerradas");
   });
 });
