@@ -6,7 +6,10 @@ import {
   createChoreographySchema,
   getCreateChoreographySteps,
   getFirstPostResolutionStepIndex,
+  buildCreateChoreographyFormData,
   getSubmissionError,
+  getSubmissionWarning,
+  type CreateActionData,
   type RegistrationResolution,
   resolvePortalRegistrationCategory,
 } from "@/features/portal/choreographies/create/flow";
@@ -248,7 +251,90 @@ describe("getSubmissionError", () => {
   test("reports no error while there is no submission yet", () => {
     expect(getSubmissionError(undefined)).toBeNull();
   });
+
+  test("leaves the duplicate refusal to the warning, so it is not shown as an error", () => {
+    expect(getSubmissionError(duplicateChoreographyActionData())).toBeNull();
+  });
 });
+
+describe("getSubmissionWarning", () => {
+  test("names the piece the academy already registered and the ids to acknowledge", () => {
+    expect(getSubmissionWarning(duplicateChoreographyActionData())).toEqual({
+      matchIds: ["choreography_1"],
+      message:
+        "Ya registraste «Luna Llena» (N.º 7) con los mismos bailarines en este evento.",
+    });
+  });
+
+  test("reports no warning for any other refusal", () => {
+    expect(
+      getSubmissionWarning({
+        intent: CREATE_CHOREOGRAPHY_INTENT,
+        result: {
+          ok: false,
+          code: "invalid-name",
+          error: "Ese nombre ya está en uso.",
+        },
+      }),
+    ).toBeNull();
+    expect(getSubmissionWarning(undefined)).toBeNull();
+  });
+});
+
+describe("buildCreateChoreographyFormData", () => {
+  test("carries the acknowledged duplicate ids on the second submit", () => {
+    const formData = buildCreateChoreographyFormData({
+      acknowledgedDuplicateIds: ["choreography_1"],
+      eventId: "event_1",
+      name: "Luna Llena",
+      modalityId: "modality_1",
+      submodalityId: "",
+      canChooseSubmodality: false,
+      dancerIds: ["dancer_1"],
+      professorIds: ["professor_1"],
+      experienceLevelId: "",
+      scheduleCapacityId: "capacity_1",
+    });
+
+    expect(formData.getAll("acknowledgedDuplicateIds")).toEqual([
+      "choreography_1",
+    ]);
+  });
+
+  test("sends no acknowledgement on the first submit", () => {
+    const formData = buildCreateChoreographyFormData({
+      eventId: "event_1",
+      name: "Luna Llena",
+      modalityId: "modality_1",
+      submodalityId: "",
+      canChooseSubmodality: false,
+      dancerIds: ["dancer_1"],
+      professorIds: ["professor_1"],
+      experienceLevelId: "",
+      scheduleCapacityId: "capacity_1",
+    });
+
+    expect(formData.getAll("acknowledgedDuplicateIds")).toEqual([]);
+  });
+});
+
+function duplicateChoreographyActionData(): CreateActionData {
+  return {
+    intent: CREATE_CHOREOGRAPHY_INTENT,
+    result: {
+      ok: false as const,
+      code: "duplicate-choreography" as const,
+      error:
+        "Ya registraste «Luna Llena» (N.º 7) con los mismos bailarines en este evento.",
+      warning: {
+        kind: "choreography-cast" as const,
+        matches: [
+          { id: "choreography_1", choreographyNumber: 7, name: "Luna Llena" },
+        ],
+      },
+    },
+  };
+}
 
 describe("resolvePortalRegistrationCategory", () => {
   test("refuses a resolution with no compatible category, naming the modality and the group type", () => {
