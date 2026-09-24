@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -43,10 +43,17 @@ export type AdminScoreResult =
   | { ok: false; reason: AdminScoreRefusal }
   | { ok: true };
 
-export type EditScoreInput = {
+/**
+ * Every write names the presentation as well as the score. The page is one
+ * presentation's panel, so a score that belongs to another one is a request the
+ * page could not have made, and refusing it here keeps the seam honest rather
+ * than trusting an id that arrived in a form.
+ */
+export type AdminScoreTarget = { presentationId: string; scoreId: string };
+
+export type EditScoreInput = AdminScoreTarget & {
   /** The sheet by criterion; read only when the submodality has criteria. */
   criteriaValues?: Record<string, string>;
-  scoreId: string;
   /** The single 0-100 score; ignored by a submodality judged on a sheet. */
   value?: string;
 };
@@ -55,7 +62,7 @@ export async function editScore(
   input: EditScoreInput,
 ): Promise<AdminScoreResult> {
   return await db.transaction(async (tx) => {
-    const criteria = await readScoreCriteria(tx, input.scoreId);
+    const criteria = await readScoreCriteria(tx, input);
 
     if (criteria === null) {
       return { ok: false, reason: "not-found" };
@@ -143,7 +150,7 @@ async function editSheet(
  */
 async function readScoreCriteria(
   tx: Transaction,
-  scoreId: string,
+  target: AdminScoreTarget,
 ): Promise<ScoreCriterion[] | null> {
   const [found] = await tx
     .select({ submodalityId: choreographies.submodalityId })
@@ -160,7 +167,12 @@ async function readScoreCriteria(
       choreographies,
       eq(choreographies.id, presentations.choreographyId),
     )
-    .where(eq(scores.id, scoreId))
+    .where(
+      and(
+        eq(scores.id, target.scoreId),
+        eq(judgeAssignments.presentationId, target.presentationId),
+      ),
+    )
     .for("update", { of: scores });
 
   if (!found) {
@@ -189,14 +201,24 @@ async function readScoreCriteria(
  * an annulment is a decision about what counts, not a deletion dressed up as
  * one.
  */
-export async function annulScore(input: {
-  annulled: boolean;
-  scoreId: string;
-}): Promise<AdminScoreResult> {
+export async function annulScore(
+  input: AdminScoreTarget & { annulled: boolean },
+): Promise<AdminScoreResult> {
   const updated = await db
     .update(scores)
     .set({ annulled: input.annulled, updatedAt: new Date() })
-    .where(eq(scores.id, input.scoreId))
+    .where(
+      and(
+        eq(scores.id, input.scoreId),
+        inArray(
+          scores.judgeAssignmentId,
+          db
+            .select({ id: judgeAssignments.id })
+            .from(judgeAssignments)
+            .where(eq(judgeAssignments.presentationId, input.presentationId)),
+        ),
+      ),
+    )
     .returning({ id: scores.id });
 
   return updated.length === 0

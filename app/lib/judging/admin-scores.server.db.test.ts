@@ -40,25 +40,37 @@ async function readScore(scoreId: string) {
 
 describe("editing a score as administration", () => {
   test("stores a new single value with no reason asked", async () => {
-    const { score } = await seedScoredPresentation({ submodalityId: null });
+    const { presentation, score } = await seedScoredPresentation({
+      submodalityId: null,
+    });
 
-    const result = await editScore({ scoreId: score.id, value: "88.5" });
+    const result = await editScore({
+      presentationId: presentation.presentationId,
+      scoreId: score.id,
+      value: "88.5",
+    });
 
     expect(result).toEqual({ ok: true });
     expect((await readScore(score.id)).value).toBe("88.5");
   });
 
   test("refuses a value the judge's own save would refuse", async () => {
-    const { score } = await seedScoredPresentation({ submodalityId: null });
+    const { presentation, score } = await seedScoredPresentation({
+      submodalityId: null,
+    });
 
-    const result = await editScore({ scoreId: score.id, value: "88.3" });
+    const result = await editScore({
+      presentationId: presentation.presentationId,
+      scoreId: score.id,
+      value: "88.3",
+    });
 
     expect(result).toEqual({ ok: false, reason: "invalid-value" });
     expect((await readScore(score.id)).value).toBe("70.0");
   });
 
   test("recomputes the score's value from an edited sheet", async () => {
-    const { fixture, score } = await seedScoredPresentation();
+    const { fixture, presentation, score } = await seedScoredPresentation();
     const technique = await fixture.addCriterion({
       maximum: 100,
       name: "Técnica",
@@ -72,6 +84,7 @@ describe("editing a score as administration", () => {
 
     const result = await editScore({
       criteriaValues: { [technique.id]: "90", [penalty.id]: "5.5" },
+      presentationId: presentation.presentationId,
       scoreId: score.id,
     });
 
@@ -86,7 +99,7 @@ describe("editing a score as administration", () => {
   });
 
   test("returns a field error per criterion the sheet cannot save", async () => {
-    const { fixture, score } = await seedScoredPresentation();
+    const { fixture, presentation, score } = await seedScoredPresentation();
     const technique = await fixture.addCriterion({
       maximum: 100,
       name: "Técnica",
@@ -94,6 +107,7 @@ describe("editing a score as administration", () => {
 
     const result = await editScore({
       criteriaValues: { [technique.id]: "101" },
+      presentationId: presentation.presentationId,
       scoreId: score.id,
     });
 
@@ -107,6 +121,7 @@ describe("editing a score as administration", () => {
   test("refuses a score that does not exist, so no judge is given one", async () => {
     await expect(
       editScore({
+        presentationId: "00000000-0000-0000-0000-000000000000",
         scoreId: "00000000-0000-0000-0000-000000000000",
         value: "90",
       }),
@@ -125,7 +140,13 @@ describe("annulling a score as administration", () => {
       .insert(scores)
       .values({ judgeAssignmentId: other.judgeAssignmentId, value: "90.0" });
 
-    expect(await annulScore({ annulled: true, scoreId: score.id })).toEqual({
+    expect(
+      await annulScore({
+        annulled: true,
+        presentationId: presentation.presentationId,
+        scoreId: score.id,
+      }),
+    ).toEqual({
       ok: true,
     });
     expect((await readScore(score.id)).value).toBe("70.0");
@@ -139,8 +160,16 @@ describe("annulling a score as administration", () => {
       submodalityId: null,
     });
 
-    await annulScore({ annulled: true, scoreId: score.id });
-    await annulScore({ annulled: false, scoreId: score.id });
+    await annulScore({
+      annulled: true,
+      presentationId: presentation.presentationId,
+      scoreId: score.id,
+    });
+    await annulScore({
+      annulled: false,
+      presentationId: presentation.presentationId,
+      scoreId: score.id,
+    });
 
     await expect(
       readPresentationScores({ presentationId: presentation.presentationId }),
@@ -151,6 +180,7 @@ describe("annulling a score as administration", () => {
     await expect(
       annulScore({
         annulled: true,
+        presentationId: "00000000-0000-0000-0000-000000000000",
         scoreId: "00000000-0000-0000-0000-000000000000",
       }),
     ).resolves.toEqual({ ok: false, reason: "not-found" });
