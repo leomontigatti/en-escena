@@ -96,4 +96,7 @@ export type DancerMutationResult =
       message: string;
       fieldErrors: DancerFieldErrors;
       values: DancerUpdateInput;
+      // The dancer already holding the document number, so the form can link
+      // to them when the match is an archived one.
+      duplicateDocumentDancerId?: string;
     };

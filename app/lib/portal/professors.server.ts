@@ -3,7 +3,8 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { professors } from "@/db/schema";
 import {
-  findDuplicateProfessorDocument,
+  findProfessorDocumentConflict,
+  writeProfessorGuardingDocument,
   normalizeProfessorDocumentPair,
   normalizeProfessorNames as normalizeProfessorNamesShared,
 } from "@/lib/portal/professor-records.server";
@@ -47,6 +48,9 @@ export type UpdateProfessorResult =
       message: string;
       fieldErrors: Partial<Record<UpdateProfessorField, string>>;
       values: UpdateProfessorInput;
+      // The professor already holding the document number, so the form can
+      // link to them when the match is an archived one.
+      duplicateDocumentProfessorId?: string;
     };
 
 const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
@@ -194,45 +198,65 @@ export async function updateAcademyProfessor(
     };
   }
 
-  if (
-    normalizedDocument.documentType !== null &&
-    normalizedDocument.documentNumber !== null
-  ) {
-    const duplicateProfessor = await findDuplicateProfessorDocument({
-      academyId,
-      professorId,
-      documentType: normalizedDocument.documentType,
-      documentNumber: normalizedDocument.documentNumber,
-    });
+  const documentConflict =
+    normalizedDocument.documentNumber === null
+      ? null
+      : await findProfessorDocumentConflict({
+          academyId,
+          professorId,
+          documentNumber: normalizedDocument.documentNumber,
+          scope: "portal",
+        });
 
-    if (duplicateProfessor) {
-      return {
-        ok: false,
-        message: reviewProfessorFieldsMessage,
-        fieldErrors: {
-          documentNumber:
-            "Ya existe un Profesor con ese documento en tu academia.",
-        },
-        values,
-      };
-    }
+  if (documentConflict) {
+    return {
+      ok: false,
+      message: reviewProfessorFieldsMessage,
+      fieldErrors: { documentNumber: documentConflict.message },
+      values,
+      duplicateDocumentProfessorId: documentConflict.professorId,
+    };
   }
 
-  const [professor] = await db
-    .update(professors)
-    .set({
-      firstName,
-      lastName,
-      documentType: normalizedDocument.documentType,
-      documentNumber: normalizedDocument.documentNumber,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(eq(professors.id, professorId), eq(professors.academyId, academyId)),
-    )
-    .returning();
+  // The index can still refuse the number between the pre-check and the write.
+  const guarded = await writeProfessorGuardingDocument({
+    academyId,
+    professorId,
+    documentNumber: normalizedDocument.documentNumber,
+    scope: "portal",
+    write: async () => {
+      const [professor] = await db
+        .update(professors)
+        .set({
+          firstName,
+          lastName,
+          documentType: normalizedDocument.documentType,
+          documentNumber: normalizedDocument.documentNumber,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(professors.id, professorId),
+            eq(professors.academyId, academyId),
+          ),
+        )
+        .returning();
 
-  return { ok: true, professor };
+      return professor;
+    },
+  });
+
+  if (!guarded.ok) {
+    return {
+      ok: false,
+      message: reviewProfessorFieldsMessage,
+      fieldErrors: { documentNumber: guarded.conflict.message },
+      values,
+      duplicateDocumentProfessorId: guarded.conflict.professorId,
+    };
+  }
+
+  return { ok: true, professor: guarded.result };
 }
 
 function toProfessorListItem(

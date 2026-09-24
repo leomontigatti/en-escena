@@ -3,6 +3,7 @@ import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
+import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
 const spanishParticles = new Set(["de", "del", "la", "las", "los", "y"]);
 
@@ -143,21 +144,109 @@ export function normalizeDancerDocumentPair(
   };
 }
 
-export async function findDuplicateDancerDocument(input: {
+const dancerDocumentNumberUniqueIndex = "dancer_academy_document_number_unique";
+
+/** Whose academy the reader is looking at: their own, or any, from the panel. */
+export type DancerDocumentScope = "portal" | "admin";
+
+export type DancerDocumentConflict = {
+  /** The dancer already holding the number, so the form can link to them. */
+  dancerId: string;
+  message: string;
+};
+
+/**
+ * The number alone is the key within an academy, whatever type it was loaded
+ * under, and an archived dancer still holds theirs (PRD #1090).
+ */
+async function findDuplicateDancerDocument(input: {
   academyId: string;
   dancerId: string;
-  documentType: DancerDocumentType;
   documentNumber: string;
 }) {
   return await db.query.dancers.findFirst({
-    columns: { id: true },
+    columns: { id: true, active: true },
     where: and(
       eq(dancers.academyId, input.academyId),
       ne(dancers.id, input.dancerId),
-      eq(dancers.documentType, input.documentType),
       eq(dancers.documentNumber, input.documentNumber),
     ),
   });
+}
+
+export async function findDancerDocumentConflict(input: {
+  academyId: string;
+  dancerId: string;
+  documentNumber: string;
+  scope: DancerDocumentScope;
+}): Promise<DancerDocumentConflict | null> {
+  const duplicate = await findDuplicateDancerDocument(input);
+
+  if (!duplicate) {
+    return null;
+  }
+
+  return {
+    dancerId: duplicate.id,
+    message: dancerDocumentConflictMessage({
+      archived: !duplicate.active,
+      scope: input.scope,
+    }),
+  };
+}
+
+/**
+ * Runs a write that the unique index can refuse and maps that refusal to the
+ * same field error the pre-check produces, so two saves landing at the same
+ * instant never end in a server error.
+ */
+export async function writeDancerGuardingDocument<T>(input: {
+  academyId: string;
+  dancerId: string;
+  documentNumber: string | null;
+  scope: DancerDocumentScope;
+  write: () => Promise<T>;
+}): Promise<
+  { ok: true; result: T } | { ok: false; conflict: DancerDocumentConflict }
+> {
+  try {
+    return { ok: true, result: await input.write() };
+  } catch (error) {
+    if (
+      input.documentNumber === null ||
+      !isUniqueViolation(error, dancerDocumentNumberUniqueIndex)
+    ) {
+      throw error;
+    }
+
+    const conflict = await findDancerDocumentConflict({
+      academyId: input.academyId,
+      dancerId: input.dancerId,
+      documentNumber: input.documentNumber,
+      scope: input.scope,
+    });
+
+    return {
+      ok: false,
+      conflict: conflict ?? {
+        dancerId: input.dancerId,
+        message: dancerDocumentConflictMessage({
+          archived: false,
+          scope: input.scope,
+        }),
+      },
+    };
+  }
+}
+
+function dancerDocumentConflictMessage(options: {
+  archived: boolean;
+  scope: DancerDocumentScope;
+}) {
+  const person = options.archived ? "un Bailarín archivado" : "un Bailarín";
+  const academy = options.scope === "portal" ? "tu academia" : "la academia";
+
+  return `Ya existe ${person} con ese documento en ${academy}.`;
 }
 
 function normalizeSpanishTitleCase(
