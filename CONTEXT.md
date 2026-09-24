@@ -52,6 +52,10 @@ _Avoid_: time block, loose time slot, full agenda
 Distribution of choreography capacity within a schedule, tied to a single group type.
 _Avoid_: `schedule`, time block
 
+**`registrationOpen`** — ui: "Inscripciones abiertas"
+Whether a `schedule` takes registrations right now, reading `Inscripciones cerradas` while it does not. A manual switch an administrator opens and closes on one `schedule` at a time; a new `schedule` is born closed, and the event's registrations are open when any of its schedules is.
+_Avoid_: `registrationPeriod`, registration window, `active`
+
 **`academy`** — ui: "Academia"
 Participating entity that can register for events and load professors, dancers and choreographies.
 _Avoid_: `user`, `professor`, `escuela`, `delegación`

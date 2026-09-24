@@ -231,6 +231,11 @@ export const schedules = createTable(
     scheduledDate: text("scheduled_date").notNull(),
     startTime: text("start_time").notNull(),
     totalCapacity: integer("total_capacity").notNull(),
+    // Whether the schedule takes registrations right now. A manual switch an
+    // administrator flips from the schedule detail — never a window, never a
+    // derived value: a schedule that filled up closes while its siblings stay
+    // open. A new schedule starts closed. See CONTEXT.md `registrationOpen`.
+    registrationOpen: boolean("registration_open").notNull().default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

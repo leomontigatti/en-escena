@@ -382,6 +382,7 @@ function buildLoaderData(): EventBasesLoaderData {
         scheduledDate: "2026-05-02",
         startTime: "09:00",
         totalCapacity: 20,
+        registrationOpen: false,
         createdAt,
         modalities: [{ id: "modality_1", name: "Jazz" }],
         modalityIds: ["modality_1"],
