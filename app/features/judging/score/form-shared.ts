@@ -3,7 +3,11 @@ import { z } from "zod";
 
 import type { FeedbackAudioFieldSubmission } from "@/lib/judging/feedback-audio-field";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
-import { parseScoreValue, scoreValueMessage } from "@/lib/judging/score-value";
+import {
+  formatScoreFieldValue,
+  parseScoreValue,
+  scoreValueMessage,
+} from "@/lib/judging/score-value";
 import { isRouteFormPending } from "@/lib/shared/forms";
 
 /**
@@ -103,26 +107,40 @@ export function buildJudgeSheetFormSchema(
 export type JudgeSheetFormValues = { values: Record<string, string> };
 
 /**
- * An adding criterion starts empty and a deduction starts at 0. A stray tap
+ * What the sheet opens on. A line the judge already saved opens on their own
+ * number, because correcting it is what reopening a scored presentation is for;
+ * a line they have not is empty when it adds and 0 when it deducts. A stray tap
  * must never store a real 0 for something the judge meant to score, while a
  * deduction of 0 is the ordinary case and asking for it every time would be
  * three more taps per presentation.
+ *
+ * These are also what "dirty" is measured against, so a sheet reopened and
+ * closed untouched is clean and never asks about discarding anything.
  */
 export function initialJudgeSheetValues(
   criteria: readonly JudgeSheetCriterion[],
+  stored: Record<string, string> = {},
 ): JudgeSheetFormValues {
   return {
     values: Object.fromEntries(
       criteria.map((criterion) => [
         criterion.id,
-        criterion.kind === "deducts" ? "0" : "",
+        criterion.id in stored
+          ? formatScoreFieldValue(stored[criterion.id])
+          : criterion.kind === "deducts"
+            ? "0"
+            : "",
       ]),
     ),
   };
 }
 
-/** Each filled line rides as its own field, named for the criterion it answers. */
-export const sheetCriterionFieldPrefix = "criterio.";
+/**
+ * Each filled line rides as its own field, named for the criterion it answers.
+ * It is not exported: the two builders below are the only writers of it and
+ * `readSheetValues` the only reader, so the wire format has no other spelling.
+ */
+const sheetCriterionFieldPrefix = "criterio.";
 
 /**
  * The sheet's lines out of a posted body, named for the criterion each answers.
@@ -165,6 +183,29 @@ export function buildJudgeSheetSubmission({
 
   if (audio.intent === "replace") {
     body.set("audio", audio.blob, feedbackAudioFileName);
+  }
+
+  return body;
+}
+
+/**
+ * What administration's edit of a whole sheet posts. Its criterion fields are
+ * named exactly as the judge's own save names them, so {@link readSheetValues}
+ * stays the one reader of both and the two writes cannot drift apart.
+ */
+export function buildSheetEditSubmission({
+  scoreId,
+  values,
+}: {
+  scoreId: string;
+  values: JudgeSheetFormValues;
+}) {
+  const body = new FormData();
+  body.set("intent", "edit-score");
+  body.set("scoreId", scoreId);
+
+  for (const [criterionId, value] of Object.entries(values.values)) {
+    body.set(`${sheetCriterionFieldPrefix}${criterionId}`, value);
   }
 
   return body;

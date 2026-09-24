@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import {
   Controller,
   type Control,
@@ -14,9 +14,19 @@ type ScoreInputFieldProps<
   TName extends FieldPath<TFieldValues>,
 > = {
   autoFocus?: boolean;
+  /** Layout only, for the surfaces that show the field inside a table cell. */
+  className?: string;
   control: Control<TFieldValues>;
+  /**
+   * What a save refused the value for, which the form's own rule cannot know.
+   * The form's own message wins while the field is being typed into.
+   */
+  error?: string;
   id?: string;
+  /** Shown above the field, and `sr-only` where a column header already says it. */
   label: string;
+  labelAdornment?: ReactNode;
+  labelClassName?: string;
   /** What the fixed suffix after the typed value reads: `/ 100` on a single score. */
   maximum: number;
   name: TName;
@@ -27,15 +37,22 @@ type ScoreInputFieldProps<
  * the tablet's numeric keypad types a point and nothing else, and the score is
  * the deliberate exception to es-AR formatting — and carries its maximum right
  * after the value, so "90.5" is always read against what it is out of.
+ *
+ * Administration's own corrections go through the same field, so a score is
+ * typed and read the same way on both sides of the panel.
  */
 export function ScoreInputField<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
 >({
   autoFocus,
+  className,
   control,
+  error,
   id: providedId,
   label,
+  labelAdornment,
+  labelClassName,
   maximum,
   name,
 }: ScoreInputFieldProps<TFieldValues, TName>) {
@@ -48,9 +65,12 @@ export function ScoreInputField<
       name={name}
       render={({ field, fieldState }) => (
         <SharedFieldLayout
-          error={fieldState.error?.message}
+          className={className}
+          error={fieldState.error?.message ?? error}
           id={id}
           label={label}
+          labelAdornment={labelAdornment}
+          labelClassName={labelClassName}
         >
           {({ describedBy, isInvalid }) => (
             <div className="relative">

@@ -16,7 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FieldGroup, FieldSet } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldSet,
+  FieldTitle,
+} from "@/components/ui/field";
 import {
   addingCriteriaTotal,
   addingCriteriaTotalMessage,
@@ -27,7 +33,6 @@ import {
   useOptionalFormAction,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
-import { cn } from "@/lib/shared/utils";
 
 import type {
   EventSubmodalityCriterionRow,
@@ -166,7 +171,9 @@ export function SubmodalityCriteriaDialog({
 /**
  * The counter and its label, red together: the label names what is being
  * counted, so leaving it black while the number turns red would read as if the
- * number were the only thing at fault.
+ * number were the only thing at fault. The `Field` is what makes them red — it
+ * carries the invalid state its own error message hangs off, exactly as a field
+ * with an input does.
  */
 function AddingTotalCounter({
   invalid,
@@ -176,26 +183,15 @@ function AddingTotalCounter({
   total: number;
 }) {
   return (
-    <div className="flex flex-col gap-1">
+    <Field data-adding-total data-invalid={invalid ? "true" : undefined}>
       <div className="flex items-center justify-between gap-2">
-        <span
-          className={cn("text-sm font-medium", invalid && "text-destructive")}
-          data-invalid={invalid ? "true" : undefined}
-        >
-          Suman
-        </span>
-        <span
-          role="status"
-          className={cn("text-sm font-medium", invalid && "text-destructive")}
-          data-invalid={invalid ? "true" : undefined}
-        >
+        <FieldTitle>Suman</FieldTitle>
+        <span className="text-sm font-medium" role="status">
           {`${total} / ${addingCriteriaTotal}`}
         </span>
       </div>
-      {invalid ? (
-        <p className="text-destructive text-sm">{addingCriteriaTotalMessage}</p>
-      ) : null}
-    </div>
+      <FieldError>{invalid ? addingCriteriaTotalMessage : null}</FieldError>
+    </Field>
   );
 }
 

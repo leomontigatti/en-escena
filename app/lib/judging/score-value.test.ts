@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  formatScoreFieldValue,
   parseScoreValue,
   scoreValueMessage,
   singleScoreMaximum,
@@ -38,5 +39,19 @@ describe("a score value", () => {
     expect(scoreValueMessage(20)).toBe(
       "Ingresá un valor de 0 a 20, de 0.5 en 0.5.",
     );
+  });
+});
+
+describe("the score a field shows back", () => {
+  test("drops the decimal the column keeps and nobody typed", () => {
+    expect(formatScoreFieldValue("90.0")).toBe("90");
+    expect(formatScoreFieldValue("90.5")).toBe("90.5");
+    expect(formatScoreFieldValue("0.0")).toBe("0");
+  });
+
+  test("leaves a field with nothing stored behind it empty", () => {
+    expect(formatScoreFieldValue(null)).toBe("");
+    expect(formatScoreFieldValue(undefined)).toBe("");
+    expect(formatScoreFieldValue("")).toBe("");
   });
 });

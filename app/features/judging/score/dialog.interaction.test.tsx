@@ -28,6 +28,7 @@ function buildRow(
     categoryAdmitsExperienceLevels: true,
     categoryName: "Juvenil",
     criteria: [],
+    criteriaValues: {},
     experienceLevel: "amateur",
     feedbackAudioUrl: null,
     groupType: "solo",
@@ -37,6 +38,7 @@ function buildRow(
     orderNumber: 1,
     status: "pending",
     submodalityName: "Lyrical",
+    value: null,
     ...overrides,
     presentationId: overrides.presentationId,
   };
@@ -128,6 +130,38 @@ describe("scoring a presentation without criteria", () => {
 
     expect(document.body.textContent).toContain("Segunda");
     expect(scoreInput()).not.toBeNull();
+  });
+
+  test("opens a scored presentation on the number the judge gave", async () => {
+    await mount({
+      presentationId: "b",
+      rows: [
+        buildRow({
+          presentationId: "b",
+          status: "noFeedback",
+          value: "90.5",
+        }),
+      ],
+    });
+
+    expect(scoreInput()?.value).toBe("90.5");
+  });
+
+  test("closes a reopened score untouched without asking to discard it", async () => {
+    await mount({
+      presentationId: "b",
+      rows: [
+        buildRow({ presentationId: "b", status: "complete", value: "90.0" }),
+      ],
+    });
+
+    // The column keeps a decimal the judge never typed, so the field shows the
+    // number they did, and nothing in there counts as a change.
+    expect(scoreInput()?.value).toBe("90");
+
+    await clickReactDomButton("Cancelar");
+
+    expect(document.body.textContent).not.toContain(discardChangesTitle);
   });
 
   test("errors on an empty score only once the judge saves", async () => {

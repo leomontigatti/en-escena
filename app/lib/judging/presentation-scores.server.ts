@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -8,13 +8,13 @@ import {
   judgeAssignments,
   modalities,
   presentations,
-  scoreCriterionValues,
   scores,
   submodalities,
   user,
 } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
+import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
 import { readSubmodalityCriteria } from "@/lib/judging/submodality-criteria.server";
 import {
   medalForAverage,
@@ -151,7 +151,7 @@ async function readPanel(
     .where(eq(judgeAssignments.presentationId, input.presentationId))
     .orderBy(asc(user.name));
 
-  const sheets = await readSheets(
+  const sheets = await readSheetValuesByScore(
     executor,
     rows.map((row) => row.scoreId),
   );
@@ -178,34 +178,4 @@ async function readPanel(
       value: row.value,
     })),
   );
-}
-
-async function readSheets(
-  executor: Executor,
-  scoreIds: (string | null)[],
-): Promise<Map<string, Record<string, string>>> {
-  const ids = [...new Set(scoreIds.filter((id): id is string => id !== null))];
-  const byScore = new Map<string, Record<string, string>>();
-
-  if (ids.length === 0) {
-    return byScore;
-  }
-
-  const rows = await executor
-    .select({
-      criterionId: scoreCriterionValues.criterionId,
-      scoreId: scoreCriterionValues.scoreId,
-      value: scoreCriterionValues.value,
-    })
-    .from(scoreCriterionValues)
-    .where(inArray(scoreCriterionValues.scoreId, ids));
-
-  for (const row of rows) {
-    const sheet = byScore.get(row.scoreId) ?? {};
-
-    sheet[row.criterionId] = row.value;
-    byScore.set(row.scoreId, sheet);
-  }
-
-  return byScore;
 }

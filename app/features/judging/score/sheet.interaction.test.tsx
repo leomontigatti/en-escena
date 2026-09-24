@@ -43,6 +43,7 @@ function buildRow(
     categoryAdmitsExperienceLevels: true,
     categoryName: "Juvenil",
     criteria: [],
+    criteriaValues: {},
     experienceLevel: "amateur",
     feedbackAudioUrl: null,
     groupType: "solo",
@@ -52,6 +53,7 @@ function buildRow(
     orderNumber: 1,
     status: "pending",
     submodalityName: "Acrobática",
+    value: null,
     ...overrides,
     presentationId: overrides.presentationId,
   };
@@ -150,6 +152,72 @@ describe("scoring a submodality with criteria", () => {
     expect(criterionInput("penalizacion")?.value).toBe("0");
     // The list is gone: the sheet is the page, not something over it.
     expect(document.body.textContent).not.toContain("Solo pendientes");
+  });
+
+  test("reopens a saved sheet on the judge's own lines, and leaves it clean", async () => {
+    const router = await mount({
+      presentationId: "a",
+      rows: [
+        buildRow({
+          criteria,
+          criteriaValues: {
+            interpretacion: "30.0",
+            penalizacion: "2.5",
+            tecnica: "50.5",
+          },
+          name: "Primera",
+          presentationId: "a",
+          status: "complete",
+          value: "78.0",
+        }),
+      ],
+    });
+
+    expect(criterionInput("tecnica")?.value).toBe("50.5");
+    expect(criterionInput("interpretacion")?.value).toBe("30");
+    expect(criterionInput("penalizacion")?.value).toBe("2.5");
+    expect(total()).toBe("78 / 100");
+
+    // Nothing was touched, so there is nothing to lose and nothing to ask.
+    await clickReactDomButton("Volver");
+
+    expect(document.body.textContent).not.toContain(discardChangesTitle);
+    expect(router.state.location.search).toBe("");
+  });
+
+  test("saves a reopened sheet without retyping a line, so only the take changes", async () => {
+    await mount({
+      presentationId: "a",
+      rows: [
+        buildRow({
+          criteria,
+          criteriaValues: {
+            interpretacion: "30.0",
+            penalizacion: "0.0",
+            tecnica: "50.0",
+          },
+          name: "Primera",
+          presentationId: "a",
+          status: "complete",
+          value: "80.0",
+        }),
+      ],
+    });
+
+    await updateReactDomForm(() => {
+      saveButton()?.click();
+    });
+
+    expect(submitted.map((body) => Object.fromEntries(body))).toEqual([
+      {
+        audioIntent: "keep",
+        "criterio.interpretacion": "30",
+        "criterio.penalizacion": "0",
+        "criterio.tecnica": "50",
+        intent: "save-score",
+        presentationId: "a",
+      },
+    ]);
   });
 
   test("adds up what is typed, taking the deductions off and ignoring a half-typed value", async () => {

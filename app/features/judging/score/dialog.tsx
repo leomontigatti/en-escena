@@ -24,7 +24,10 @@ import {
   type FeedbackAudioFieldEvent,
 } from "@/lib/judging/feedback-audio-field";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
-import { singleScoreMaximum } from "@/lib/judging/score-value";
+import {
+  formatScoreFieldValue,
+  singleScoreMaximum,
+} from "@/lib/judging/score-value";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
@@ -57,7 +60,10 @@ export function JudgeScoreDialog({
   presentation,
 }: JudgeScoreDialogProps) {
   const form = useForm<JudgeScoreFormValues>({
-    defaultValues: { value: "" },
+    // The score the judge already gave, so reopening a scored presentation is a
+    // correction rather than a blind retype — and so that closing it again
+    // untouched is clean and asks nothing.
+    defaultValues: { value: formatScoreFieldValue(presentation.value) },
     resolver: zodResolver(judgeScoreFormSchema),
   });
   const [audio, setAudio] = useState(() =>

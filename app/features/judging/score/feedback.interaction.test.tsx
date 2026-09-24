@@ -70,6 +70,7 @@ function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
     categoryAdmitsExperienceLevels: true,
     categoryName: "Juvenil",
     criteria: [],
+    criteriaValues: {},
     experienceLevel: "amateur",
     feedbackAudioUrl,
     groupType: "solo",
@@ -80,6 +81,7 @@ function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
     presentationId: "a",
     status: "pending",
     submodalityName: "Lyrical",
+    value: null,
   };
 }
 

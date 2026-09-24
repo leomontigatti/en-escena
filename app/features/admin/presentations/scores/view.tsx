@@ -1,3 +1,5 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { Form, useNavigation, useSubmit } from "react-router";
 
 import {
@@ -6,7 +8,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FieldGroup } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -19,13 +21,23 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeedbackPlayback } from "@/features/judging/score/feedback-playback";
+import {
+  buildJudgeSheetFormSchema,
+  buildSheetEditSubmission,
+  judgeScoreFormSchema,
+  type JudgeScoreFormValues,
+  type JudgeSheetFormValues,
+} from "@/features/judging/score/form-shared";
+import { ScoreInputField } from "@/features/judging/score/score-input-field";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { medalLabels } from "@/lib/judging/medal";
 import type { PresentationJudgeScore } from "@/lib/judging/presentation-scores.server";
-import { singleScoreMaximum } from "@/lib/judging/score-value";
+import {
+  formatScoreFieldValue,
+  singleScoreMaximum,
+} from "@/lib/judging/score-value";
 import { isRouteFormPending } from "@/lib/shared/forms";
-import { sheetCriterionFieldPrefix } from "@/features/judging/score/form-shared";
 
 import type {
   PresentationScoresActionData,
@@ -192,7 +204,6 @@ function SingleScoresCard({
                 {canEdit && judge.scoreId ? (
                   <SingleScoreForm
                     error={fieldErrors[judge.scoreId]}
-                    maximum={singleScoreMaximum}
                     scoreId={judge.scoreId}
                     value={judge.value}
                   />
@@ -334,46 +345,58 @@ function SheetsCard({
  * decisions, so a correction to one judge's number must never carry another's
  * along with it — and an administrator who edits two rows and saves one has
  * changed exactly what they saved.
+ *
+ * It is the judge's own field, validated by the judge's own rule before it is
+ * posted: a correction that the save would refuse is refused here, next to the
+ * number, rather than after a round trip.
  */
 function SingleScoreForm({
   error,
-  maximum,
   scoreId,
   value,
 }: {
   error?: string;
-  maximum: number;
   scoreId: string;
   value: string | null;
 }) {
+  const form = useForm<JudgeScoreFormValues>({
+    defaultValues: { value: formatScoreFieldValue(value) },
+    resolver: zodResolver(judgeScoreFormSchema),
+  });
+  const submit = useSubmit();
   const isSubmitting = isRouteFormPending(useNavigation(), {
     fields: { scoreId },
     intent: "edit-score",
   });
-
   return (
-    <Form className="flex flex-col gap-1" method="post">
-      <input name="intent" type="hidden" value="edit-score" />
-      <input name="scoreId" type="hidden" value={scoreId} />
-      <div className="flex items-center gap-2">
-        <Input
-          aria-invalid={error ? true : undefined}
-          aria-label="Puntaje"
-          className="w-24 tabular-nums"
-          defaultValue={value === null ? "" : formatScoreText(value)}
-          inputMode="decimal"
-          key={value}
-          name="value"
-          pattern="[0-9.]*"
-          type="text"
-        />
-        <span className="text-sm text-muted-foreground">/ {maximum}</span>
-        <Button disabled={isSubmitting} size="sm" type="submit">
-          Guardar
-        </Button>
-      </div>
-      <FieldError error={error} />
-    </Form>
+    <form
+      className="flex items-start gap-2"
+      method="post"
+      onSubmit={form.handleSubmit((values) => {
+        void submit(
+          { intent: "edit-score", scoreId, value: values.value },
+          { method: "post" },
+        );
+      })}
+    >
+      <ScoreInputField
+        className="max-w-36"
+        control={form.control}
+        // What the save refused belongs on the field, beside the number that was
+        // typed; the form's own message takes over as soon as it is retyped.
+        error={error}
+        id={`puntaje-${scoreId}`}
+        label="Puntaje"
+        // The column this field sits in is already headed `Puntaje`, so the
+        // label is bound to the input and read out rather than repeated.
+        labelClassName="sr-only"
+        maximum={singleScoreMaximum}
+        name="value"
+      />
+      <Button disabled={isSubmitting} size="sm" type="submit">
+        Guardar
+      </Button>
+    </form>
   );
 }
 
@@ -381,6 +404,11 @@ function SingleScoreForm({
  * The whole sheet is one save, because its criterion values and the total they
  * add up to are one decision: a line saved without the rest would leave a total
  * that no longer matches what is under it.
+ *
+ * Each line is the judge's own field under its own visible label, so the sheet
+ * an administrator corrects reads as the sheet the judge filled. The total stays
+ * the stored one — the server recomputes it from what is saved — so it is never
+ * a number the page made up while a field was half typed.
  */
 function SheetForm({
   criteria,
@@ -393,77 +421,65 @@ function SheetForm({
   judge: PresentationJudgeScore;
   scoreId: string;
 }) {
+  const form = useForm<JudgeSheetFormValues>({
+    // Exactly what the judge stored, and empty where they stored nothing:
+    // administration corrects the panel's work and never invents it.
+    defaultValues: {
+      values: Object.fromEntries(
+        criteria.map((criterion) => [
+          criterion.id,
+          formatScoreFieldValue(judge.criteriaValues[criterion.id]),
+        ]),
+      ),
+    },
+    resolver: zodResolver(buildJudgeSheetFormSchema(criteria)),
+  });
+  const submit = useSubmit();
   const isSubmitting = isRouteFormPending(useNavigation(), {
     fields: { scoreId },
     intent: "edit-score",
   });
-
   return (
-    <Form className="flex flex-col gap-4" method="post">
-      <input name="intent" type="hidden" value="edit-score" />
-      <input name="scoreId" type="hidden" value={scoreId} />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Criterio</TableHead>
-            <TableHead>Puntaje</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {criteria.map((criterion) => (
-            <TableRow key={criterion.id}>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {criterion.name}
-                  {criterion.kind === "deducts" ? (
-                    <Badge variant="outline">Resta</Badge>
-                  ) : null}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      aria-invalid={
-                        fieldErrors[criterion.id] ? true : undefined
-                      }
-                      aria-label={criterion.name}
-                      className="w-24 tabular-nums"
-                      defaultValue={formatCriterionText(
-                        judge.criteriaValues[criterion.id],
-                      )}
-                      inputMode="decimal"
-                      name={`${sheetCriterionFieldPrefix}${criterion.id}`}
-                      pattern="[0-9.]*"
-                      type="text"
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      / {criterion.maximum}
-                    </span>
-                  </div>
-                  <FieldError error={fieldErrors[criterion.id]} />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          <TableRow>
-            <TableCell className="font-medium">Total</TableCell>
-            <TableCell>
-              <div className="flex items-center gap-2">
-                <ScoreValue value={judge.value} />
-                <span className="text-sm text-muted-foreground">{`/ ${singleScoreMaximum}`}</span>
-              </div>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+    <form
+      className="flex flex-col gap-4"
+      method="post"
+      onSubmit={form.handleSubmit((values) => {
+        void submit(buildSheetEditSubmission({ scoreId, values }), {
+          method: "post",
+        });
+      })}
+    >
+      <FieldGroup>
+        {criteria.map((criterion) => (
+          <ScoreInputField
+            className="max-w-sm"
+            control={form.control}
+            error={fieldErrors[criterion.id]}
+            id={`criterio-${scoreId}-${criterion.id}`}
+            key={criterion.id}
+            label={criterion.name}
+            labelAdornment={
+              criterion.kind === "deducts" ? (
+                <Badge variant="outline">Resta</Badge>
+              ) : undefined
+            }
+            maximum={criterion.maximum}
+            name={`values.${criterion.id}`}
+          />
+        ))}
+      </FieldGroup>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Total</span>
+        <ScoreValue value={judge.value} />
+        <span className="text-sm text-muted-foreground">{`/ ${singleScoreMaximum}`}</span>
+      </div>
       <div className="flex items-center gap-4">
         <Button disabled={isSubmitting} type="submit">
           Guardar
         </Button>
         <AnnulSwitch annulled={judge.annulled} scoreId={scoreId} />
       </div>
-    </Form>
+    </form>
   );
 }
 
@@ -508,14 +524,6 @@ function AnnulSwitch({
   );
 }
 
-function FieldError({ error }: { error?: string }) {
-  return error ? (
-    <p className="text-sm text-destructive" role="alert">
-      {error}
-    </p>
-  ) : null;
-}
-
 function ScoreValue({ value }: { value: string | null }) {
   return value === null ? (
     <span className="text-sm text-muted-foreground">{noValueText}</span>
@@ -538,11 +546,6 @@ function FeedbackCell({ audioUrl }: { audioUrl: string | null }) {
  */
 function formatScoreText(value: string) {
   return String(Number.parseFloat(value));
-}
-
-/** An empty field is a criterion the judge never filled, not a zero. */
-function formatCriterionText(value: string | undefined) {
-  return value === undefined ? "" : formatScoreText(value);
 }
 
 function describePresentation(

@@ -49,3 +49,16 @@ export function parseScoreValue(
 export function formatScoreValue(value: number): string {
   return value.toFixed(1);
 }
+
+/**
+ * The score as a field shows it back to whoever typed it. The column keeps one
+ * decimal that nobody entered — `90.0` is the number 90 written twice over — and
+ * a field that has nothing stored behind it is empty rather than zero.
+ */
+export function formatScoreFieldValue(
+  value: string | null | undefined,
+): string {
+  return value === null || value === undefined || value === ""
+    ? ""
+    : String(Number.parseFloat(value));
+}

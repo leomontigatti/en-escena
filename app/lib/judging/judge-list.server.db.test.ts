@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { presentations, scores } from "@/db/schema";
+import { presentations, scoreCriterionValues, scores } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 import { readJudgePresentations } from "@/lib/judging/judge-list.server";
@@ -142,6 +142,68 @@ describe("the judge's list of today's presentations", () => {
       { kind: "adds", maximum: 60, name: "Técnica" },
       { kind: "deducts", maximum: 10, name: "Caídas" },
     ]);
+  });
+
+  test("carries the judge's own score and sheet, and nobody else's", async () => {
+    const fixture = await seedJudgingFixture();
+    const technique = await fixture.addCriterion({
+      maximum: 60,
+      name: "Técnica",
+      position: 0,
+    });
+    const falls = await fixture.addCriterion({
+      kind: "deducts",
+      maximum: 10,
+      name: "Caídas",
+      position: 1,
+    });
+    const presentation = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const judge = await fixture.assignJudge(presentation.presentationId);
+    const colleague = await fixture.assignJudge(presentation.presentationId);
+
+    const [own] = await db
+      .insert(scores)
+      .values({ judgeAssignmentId: judge.judgeAssignmentId, value: "55.5" })
+      .returning();
+    const [theirs] = await db
+      .insert(scores)
+      .values({ judgeAssignmentId: colleague.judgeAssignmentId, value: "12.0" })
+      .returning();
+
+    await db.insert(scoreCriterionValues).values([
+      { criterionId: technique.id, scoreId: own.id, value: "58.0" },
+      { criterionId: falls.id, scoreId: own.id, value: "2.5" },
+      { criterionId: technique.id, scoreId: theirs.id, value: "12.0" },
+    ]);
+
+    const [row] = await readJudgePresentations({
+      judgeId: judge.judgeId,
+      now: showNight,
+    });
+
+    expect(row.value).toBe("55.5");
+    expect(row.criteriaValues).toEqual({
+      [falls.id]: "2.5",
+      [technique.id]: "58.0",
+    });
+    expect(JSON.stringify(row)).not.toContain("12.0");
+  });
+
+  test("carries no score for a presentation the judge has not saved", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const { judgeId } = await fixture.assignJudge(presentation.presentationId);
+
+    const [row] = await readJudgePresentations({ judgeId, now: showNight });
+
+    expect(row.value).toBeNull();
+    expect(row.criteriaValues).toEqual({});
   });
 
   test("is empty once the judging day has closed", async () => {

@@ -53,7 +53,7 @@ describe("SubmodalityCriteriaDialog", () => {
       "Sin criterios, se puntúa con un único valor de 0 a 100",
     );
     expect(getCounter().textContent).toBe("0 / 100");
-    expect(getCounter().dataset.invalid).toBeUndefined();
+    expect(getTotalField().dataset.invalid).toBeUndefined();
   });
 
   test("counts the adding maxima against 100 and leaves the deductions out", async () => {
@@ -69,7 +69,7 @@ describe("SubmodalityCriteriaDialog", () => {
     ]);
 
     expect(getCounter().textContent).toBe("100 / 100");
-    expect(getCounter().dataset.invalid).toBeUndefined();
+    expect(getTotalField().dataset.invalid).toBeUndefined();
     expect(document.body.textContent).not.toContain(
       "El total de los criterios que suman debe ser igual a 100.",
     );
@@ -81,8 +81,8 @@ describe("SubmodalityCriteriaDialog", () => {
     ]);
 
     expect(getCounter().textContent).toBe("70 / 100");
-    expect(getCounter().dataset.invalid).toBe("true");
-    expect(getCounterLabel().dataset.invalid).toBe("true");
+    expect(getTotalField().dataset.invalid).toBe("true");
+    expect(getTotalField().textContent).toContain("Suman");
     expect(document.body.textContent).toContain(
       "El total de los criterios que suman debe ser igual a 100.",
     );
@@ -98,7 +98,7 @@ describe("SubmodalityCriteriaDialog", () => {
     });
 
     expect(getCounter().textContent).toBe("100 / 100");
-    expect(getCounter().dataset.invalid).toBeUndefined();
+    expect(getTotalField().dataset.invalid).toBeUndefined();
   });
 
   test("errors a maximum that is not a whole number from 1 only on submit", async () => {
@@ -141,7 +141,7 @@ describe("SubmodalityCriteriaDialog", () => {
     await clickReactDomButton("Agregar criterio");
 
     expect(getCounter().textContent).toBe("0 / 100");
-    expect(getCounter().dataset.invalid).toBe("true");
+    expect(getTotalField().dataset.invalid).toBe("true");
   });
 });
 
@@ -175,16 +175,18 @@ function getCounter() {
   return counter;
 }
 
-function getCounterLabel() {
-  const label = Array.from(document.querySelectorAll<HTMLElement>("span")).find(
-    (candidate) => candidate.textContent === "Suman",
-  );
+/**
+ * The field the label, the counter and the message share, and which carries the
+ * invalid state all three read their colour from.
+ */
+function getTotalField() {
+  const field = document.querySelector<HTMLElement>("[data-adding-total]");
 
-  if (!label) {
-    throw new Error("Expected the `Suman` label to be rendered.");
+  if (!field) {
+    throw new Error("Expected the adding total field to be rendered.");
   }
 
-  return label;
+  return field;
 }
 
 function getMaximumInput(index: number) {

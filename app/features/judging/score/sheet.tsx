@@ -72,7 +72,10 @@ export function JudgeScoreSheet({
   const { criteria } = presentation;
   const fieldErrors = actionData?.fieldErrors;
   const form = useForm<JudgeSheetFormValues>({
-    defaultValues: initialJudgeSheetValues(criteria),
+    defaultValues: initialJudgeSheetValues(
+      criteria,
+      presentation.criteriaValues,
+    ),
     resolver: zodResolver(buildJudgeSheetFormSchema(criteria)),
   });
   const [audio, setAudio] = useState(() =>

@@ -107,8 +107,8 @@ describe("PresentationScoresView", () => {
       judges: [buildJudge({ scoreId: "score-9", value: "90.0" })],
     });
 
-    expect(markup).toContain('name="scoreId" value="score-9"');
-    expect(markup).toContain('name="intent" value="edit-score"');
+    expect(markup).toContain('id="puntaje-score-9"');
+    expect(markup).toContain('value="90"');
     expect(markup).toContain("Guardar");
     expect(markup).toContain("Anular");
   });
@@ -127,7 +127,7 @@ describe("PresentationScoresView", () => {
     });
 
     expect(markup).toContain("Sin puntaje");
-    expect(markup).not.toContain('name="intent" value="edit-score"');
+    expect(markup).not.toContain('id="puntaje-');
   });
 
   test("lets an administrator settle the disqualification either way", () => {
@@ -150,17 +150,23 @@ describe("PresentationScoresView", () => {
     expect(markup).toContain("Ingresá un valor de 0 a 100.");
   });
 
-  test("gives an administrator a field per criterion on a sheet", () => {
+  test("gives an administrator a field per criterion on a sheet, under its own label", () => {
     const markup = renderView({
       criteria: [
         { id: "technique", kind: "adds", maximum: 100, name: "Técnica" },
       ],
       judges: [
-        buildJudge({ criteriaValues: { technique: "90.5" }, value: "90.5" }),
+        buildJudge({
+          criteriaValues: { technique: "90.5" },
+          scoreId: "score-9",
+          value: "90.5",
+        }),
       ],
     });
 
-    expect(markup).toContain('name="criterio.technique"');
+    expect(markup).toContain('id="criterio-score-9-technique"');
+    expect(markup).toContain('for="criterio-score-9-technique"');
+    expect(markup).toContain('value="90.5"');
   });
 });
 

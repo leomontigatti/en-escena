@@ -19,6 +19,7 @@ function buildRow(
     categoryAdmitsExperienceLevels: true,
     categoryName: "Juvenil",
     criteria: [],
+    criteriaValues: {},
     experienceLevel: "amateur",
     feedbackAudioUrl: null,
     groupType: "solo",
@@ -28,6 +29,7 @@ function buildRow(
     orderNumber: 1,
     status: "pending",
     submodalityName: "Lyrical",
+    value: null,
     ...overrides,
     presentationId: overrides.presentationId,
   };
