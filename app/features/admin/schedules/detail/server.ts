@@ -7,6 +7,11 @@ export async function loadEventScheduleDetail(request: Request) {
 
 export async function updateAdministrativeEventSchedule(request: Request) {
   return handleEventScheduleAction(request, {
-    allowedIntents: ["update-schedule", "delete-schedule"],
+    allowedIntents: [
+      "update-schedule",
+      "delete-schedule",
+      "open-schedule-registration",
+      "close-schedule-registration",
+    ],
   });
 }

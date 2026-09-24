@@ -37,7 +37,13 @@ type EventBasesActionHandler<
     formData: FormData,
   ) => ActionData["values"];
   run: (input: TInput) => Promise<EventBasesActionResult>;
-  invalidateRegistrationReadiness?: boolean;
+  /**
+   * Whether this intent changed the `Bases del evento` the readiness is
+   * calculated from. Defaults to yes, which is what every editing intent is;
+   * an intent that only moves availability —the schedule's inscriptions
+   * switch— answers no, so toggling it never dirties the cache.
+   */
+  invalidatesRegistrationReadiness?: (input: TInput) => boolean;
 };
 
 async function runEventBasesActionWithHandler<
@@ -177,7 +183,7 @@ async function runEventBasesIntentWithReadinessInvalidation<
   const result = await handler.run(input);
 
   if (result.ok) {
-    if (handler.invalidateRegistrationReadiness === false) {
+    if (handler.invalidatesRegistrationReadiness?.(input) === false) {
       return result;
     }
 

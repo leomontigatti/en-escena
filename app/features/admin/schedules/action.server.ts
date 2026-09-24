@@ -8,7 +8,9 @@ type EventScheduleIntent =
   | "delete-schedule"
   | "create-schedule-capacity"
   | "update-schedule-capacity"
-  | "delete-schedule-capacity";
+  | "delete-schedule-capacity"
+  | "open-schedule-registration"
+  | "close-schedule-registration";
 
 type HandleEventScheduleActionOptions = {
   allowedIntents?: EventScheduleIntent[];

@@ -30,6 +30,8 @@ export const notificationToastIds = {
   "evento-eliminado": "route-notification:evento-eliminado",
   "cronograma-guardado": "route-notification:cronograma-guardado",
   "cronograma-eliminado": "route-notification:cronograma-eliminado",
+  "inscripciones-abiertas": "route-notification:inscripciones-abiertas",
+  "inscripciones-cerradas": "route-notification:inscripciones-cerradas",
   "seminario-creado": "route-notification:seminario-creado",
   "seminario-guardado": "route-notification:seminario-guardado",
   "seminario-eliminado": "route-notification:seminario-eliminado",
@@ -171,6 +173,16 @@ export const notificationToasts = {
   "cronograma-eliminado": {
     id: notificationToastIds["cronograma-eliminado"],
     message: "Cronograma eliminado.",
+    variant: "success",
+  },
+  "inscripciones-abiertas": {
+    id: notificationToastIds["inscripciones-abiertas"],
+    message: "Inscripciones abiertas.",
+    variant: "success",
+  },
+  "inscripciones-cerradas": {
+    id: notificationToastIds["inscripciones-cerradas"],
+    message: "Inscripciones cerradas.",
     variant: "success",
   },
   "seminario-creado": {

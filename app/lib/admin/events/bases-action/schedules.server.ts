@@ -9,6 +9,7 @@ import type {
   ScheduleActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
 import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
+import type { NotificationKey } from "@/lib/shared/notification-toasts";
 import {
   buildDefaultActionErrorScope,
   buildParentRecordActionScope,
@@ -34,6 +35,10 @@ import {
   updateScheduleWithEntries,
 } from "@/lib/schedules/repository.server";
 import {
+  closeScheduleRegistration,
+  openScheduleRegistration,
+} from "@/lib/schedules/registration-open.server";
+import {
   buildDetailPath,
   buildListPath,
   isDetailPath,
@@ -44,6 +49,8 @@ const scheduleSavedNotification = "cronograma-guardado";
 const scheduleDeletedNotification = "cronograma-eliminado";
 const scheduleCapacitySavedNotification = "cupo-cronograma-guardado";
 const scheduleCapacityDeletedNotification = "cupo-cronograma-eliminado";
+const scheduleRegistrationOpenedNotification = "inscripciones-abiertas";
+const scheduleRegistrationClosedNotification = "inscripciones-cerradas";
 const scheduleDeleteConfirmationMessage =
   "Confirmá el borrado del cronograma antes de continuar.";
 const scheduleCapacityFieldNames = ["id", "groupType", "capacity"] as const;
@@ -71,7 +78,20 @@ export const scheduleActionHandler: EventBasesActionHandler<ScheduleActionInput>
     getRequiredFieldErrors: getScheduleRequiredFieldErrors,
     readSubmittedValues: readScheduleSubmittedValues,
     run: runScheduleIntent,
+    invalidatesRegistrationReadiness: isScheduleBasesIntent,
   };
+
+/**
+ * The inscriptions switch is the one schedule intent that changes no
+ * `Bases del evento`: readiness measures configuration, not availability, so
+ * opening or closing a `Cronograma` leaves its cached calculation alone.
+ */
+function isScheduleBasesIntent(input: ScheduleActionInput) {
+  return (
+    input.intent !== "open-schedule-registration" &&
+    input.intent !== "close-schedule-registration"
+  );
+}
 
 function readScheduleActionInput(
   baseInput: EventBasesActionBaseInput,
@@ -121,15 +141,19 @@ function readScheduleCapacityInputList(formData: FormData) {
   });
 }
 
+const scheduleIntents = new Set([
+  "create-schedule",
+  "update-schedule",
+  "delete-schedule",
+  "create-schedule-capacity",
+  "update-schedule-capacity",
+  "delete-schedule-capacity",
+  "open-schedule-registration",
+  "close-schedule-registration",
+]);
+
 function handlesScheduleIntent(intent: string) {
-  return (
-    intent === "create-schedule" ||
-    intent === "update-schedule" ||
-    intent === "delete-schedule" ||
-    intent === "create-schedule-capacity" ||
-    intent === "update-schedule-capacity" ||
-    intent === "delete-schedule-capacity"
-  );
+  return scheduleIntents.has(intent);
 }
 
 function getScheduleConfirmationError(
@@ -206,6 +230,12 @@ function readScheduleSubmittedValues(
 async function runScheduleIntent(
   input: ScheduleActionInput,
 ): Promise<EventBasesActionResult> {
+  const registrationSwitch = runScheduleRegistrationSwitchIntent(input);
+
+  if (registrationSwitch) {
+    return registrationSwitch;
+  }
+
   switch (input.intent) {
     case "create-schedule": {
       const validationError = revalidateScheduleForm(input);
@@ -240,51 +270,61 @@ async function runScheduleIntent(
   }
 }
 
+function runScheduleRegistrationSwitchIntent(input: ScheduleActionInput) {
+  if (input.intent === "open-schedule-registration") {
+    return openScheduleRegistration(input.id);
+  }
+
+  if (input.intent === "close-schedule-registration") {
+    return closeScheduleRegistration(input.id);
+  }
+
+  return null;
+}
+
+/**
+ * The intents that rebuild the page they were posted from. They all say their
+ * line through the flash cookie on a redirect back to the same path, which is
+ * what "staying" means for an event bases action (docs/agents/form-feedback.md).
+ */
+const scheduleStayingNotifications: Record<string, NotificationKey> = {
+  "update-schedule": scheduleSavedNotification,
+  "create-schedule-capacity": scheduleCapacitySavedNotification,
+  "update-schedule-capacity": scheduleCapacitySavedNotification,
+  "delete-schedule-capacity": scheduleCapacityDeletedNotification,
+  "open-schedule-registration": scheduleRegistrationOpenedNotification,
+  "close-schedule-registration": scheduleRegistrationClosedNotification,
+};
+
 function buildScheduleRedirectUrl(
   requestUrl: string,
   input: ScheduleActionInput,
   result: EventBasesActionResult,
 ) {
-  const currentUrl = new URL(requestUrl);
-  const currentPath = currentUrl.pathname;
+  const currentPath = new URL(requestUrl).pathname;
+  const stayingNotification = scheduleStayingNotifications[input.intent];
 
-  switch (input.intent) {
-    case "delete-schedule":
-      return withEventBasesFlashNotification(
-        buildListPath(scheduleBasePath, null),
-        scheduleDeletedNotification,
-      );
-    case "delete-schedule-capacity":
-      return withEventBasesFlashNotification(
-        currentPath,
-        scheduleCapacityDeletedNotification,
-      );
-    case "create-schedule":
-      if (result.ok && hasEventBaseRecord(result)) {
-        return withEventBasesFlashNotification(
-          buildDetailPath(scheduleBasePath, result.record.id, null),
-          scheduleSavedNotification,
-        );
-      }
-
-      return withEventBasesFlashNotification(
-        currentPath,
-        scheduleSavedNotification,
-      );
-    case "update-schedule":
-      return withEventBasesFlashNotification(
-        currentPath,
-        scheduleSavedNotification,
-      );
-    case "create-schedule-capacity":
-    case "update-schedule-capacity":
-      return withEventBasesFlashNotification(
-        currentPath,
-        scheduleCapacitySavedNotification,
-      );
-    default:
-      return plainEventBasesRedirect(currentPath);
+  if (stayingNotification) {
+    return withEventBasesFlashNotification(currentPath, stayingNotification);
   }
+
+  if (input.intent === "delete-schedule") {
+    return withEventBasesFlashNotification(
+      buildListPath(scheduleBasePath, null),
+      scheduleDeletedNotification,
+    );
+  }
+
+  if (input.intent !== "create-schedule") {
+    return plainEventBasesRedirect(currentPath);
+  }
+
+  return withEventBasesFlashNotification(
+    result.ok && hasEventBaseRecord(result)
+      ? buildDetailPath(scheduleBasePath, result.record.id, null)
+      : currentPath,
+    scheduleSavedNotification,
+  );
 }
 
 function readScheduleCapacityActionValues(
