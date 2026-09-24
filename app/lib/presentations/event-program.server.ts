@@ -12,6 +12,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
+import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
@@ -107,6 +108,7 @@ export async function readEventProgram(
         categoryName: categories.name,
         choreographyId: choreographies.id,
         choreographyNumber: choreographies.choreographyNumber,
+        experienceLevel: choreographies.experienceLevelId,
         groupType: choreographies.groupType,
         modalityName: modalities.name,
         name: choreographies.name,
@@ -166,6 +168,10 @@ export async function readEventProgram(
       // The public program carries no money: a row below its deposit is listed
       // like any other, with no badge and no gap in the numbering.
       isBelowDeposit: false,
+      levelLabel:
+        row.experienceLevel === null
+          ? null
+          : experienceLevelLabels[row.experienceLevel],
       modalityName: row.modalityName,
       name: row.name,
       orderNumber: row.orderNumber,

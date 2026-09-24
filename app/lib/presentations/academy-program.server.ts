@@ -13,6 +13,7 @@ import {
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
+import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { isPresentationEligible } from "@/lib/presentations/ordering";
 import {
@@ -38,6 +39,8 @@ export type AcademyPresentationRow = {
   groupType: ChoreographyGroupType;
   /** Numbered and below its deposit: it keeps the number the academy was told. */
   isBelowDeposit: boolean;
+  /** The label of the level the choreography competes at, or `null`. */
+  levelLabel: string | null;
   modalityName: string;
   name: string;
   /** `null` while the choreography has no presentation yet. */
@@ -62,6 +65,7 @@ export async function readAcademyPresentations(
         categoryName: categories.name,
         choreographyId: choreographies.id,
         choreographyNumber: choreographies.choreographyNumber,
+        experienceLevel: choreographies.experienceLevelId,
         groupType: choreographies.groupType,
         modalityName: modalities.name,
         name: choreographies.name,
@@ -122,6 +126,10 @@ export async function readAcademyPresentations(
       isBelowDeposit:
         (financialStatuses.get(row.choreographyId) ?? "depositPending") ===
         "depositPending",
+      levelLabel:
+        row.experienceLevel === null
+          ? null
+          : experienceLevelLabels[row.experienceLevel],
       modalityName: row.modalityName,
       name: row.name,
       orderNumber: row.orderNumber,
