@@ -123,11 +123,7 @@ export function JudgePanelView({
         <JudgeScoreDialog
           fieldErrors={actionData?.fieldErrors}
           key={openPresentation.presentationId}
-          onOpenChange={(open) => {
-            if (!open) {
-              setOpenPresentationId(null);
-            }
-          }}
+          onClose={() => setOpenPresentationId(null)}
           presentation={openPresentation}
         />
       ) : null}

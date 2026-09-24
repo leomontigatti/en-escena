@@ -2,6 +2,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
+import {
+  DiscardChangesDialog,
+  useDiscardGuard,
+} from "@/components/shared/discard-guard";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,7 +29,7 @@ import { ScoreInputField } from "./score-input-field";
 
 type JudgeScoreDialogProps = {
   fieldErrors?: Record<string, string>;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   presentation: JudgePresentationRow;
 };
 
@@ -33,16 +37,25 @@ type JudgeScoreDialogProps = {
  * Where a presentation without criteria is scored: one field, one button, and
  * nothing else to read between two dances. It never closes on an outside tap —
  * in a dark theatre that tap is an accident, and behind it is a score nobody
- * would get back.
+ * would get back — and every other way out asks first when there is a score in
+ * there to lose.
  */
 export function JudgeScoreDialog({
   fieldErrors,
-  onOpenChange,
+  onClose,
   presentation,
 }: JudgeScoreDialogProps) {
   const form = useForm<JudgeScoreFormValues>({
     defaultValues: { value: "" },
     resolver: zodResolver(judgeScoreFormSchema),
+  });
+  const { discardDialogProps, requestClose } = useDiscardGuard({
+    // The `Devolución` is not recorded here yet, so the fields are all there is
+    // to lose. When it lands it feeds this flag, and the guard covers a take
+    // recorded over untouched fields without changing.
+    isAudioDirty: false,
+    isFormDirty: form.formState.isDirty,
+    onClose,
   });
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
@@ -58,54 +71,64 @@ export function JudgeScoreDialog({
   }, [fieldErrors, setError]);
 
   return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent
-        onInteractOutside={(event) => event.preventDefault()}
-        className="sm:max-w-md"
+    <>
+      <Dialog
+        open
+        onOpenChange={(open) => {
+          if (!open) {
+            requestClose();
+          }
+        }}
       >
-        <DialogHeader>
-          <DialogTitle>{presentation.name}</DialogTitle>
-          <DialogDescription>
-            {formatPrimaryAndSecondaryValue(
-              `${presentation.orderNumber}. ${presentation.categoryName}`,
-              presentation.submodalityName ?? presentation.modalityName,
-            )}
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          id="judge-score-form"
-          method="post"
-          className="flex w-full flex-col gap-4"
-          onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
+        <DialogContent
+          onInteractOutside={(event) => event.preventDefault()}
+          className="sm:max-w-md"
         >
-          <input type="hidden" name="intent" value="save-score" />
-          <input
-            type="hidden"
-            name="presentationId"
-            value={presentation.presentationId}
-          />
-          <ScoreInputField
-            autoFocus
-            control={form.control}
-            id="judge-score-value"
-            label="Puntaje"
-            maximum={singleScoreMaximum}
-            name="value"
-          />
-        </form>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
+          <DialogHeader>
+            <DialogTitle>{presentation.name}</DialogTitle>
+            <DialogDescription>
+              {formatPrimaryAndSecondaryValue(
+                `${presentation.orderNumber}. ${presentation.categoryName}`,
+                presentation.submodalityName ?? presentation.modalityName,
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            id="judge-score-form"
+            method="post"
+            className="flex w-full flex-col gap-4"
+            onSubmit={createValidatedRouteSubmitHandler(
+              form,
+              submit,
+              formAction,
+            )}
           >
-            Cancelar
-          </Button>
-          <Button type="submit" form="judge-score-form">
-            Guardar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <input type="hidden" name="intent" value="save-score" />
+            <input
+              type="hidden"
+              name="presentationId"
+              value={presentation.presentationId}
+            />
+            <ScoreInputField
+              autoFocus
+              control={form.control}
+              id="judge-score-value"
+              label="Puntaje"
+              maximum={singleScoreMaximum}
+              name="value"
+            />
+          </form>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={requestClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" form="judge-score-form">
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <DiscardChangesDialog {...discardDialogProps} />
+    </>
   );
 }

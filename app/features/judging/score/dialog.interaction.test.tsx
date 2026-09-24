@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { JudgePanelView } from "@/features/judging/list/view";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
+import { discardChangesTitle } from "@/lib/shared/discard-guard";
 import {
+  clickReactDomButton,
   createReactDomTestRenderer,
   setInputValue,
   updateReactDomForm,
@@ -199,5 +201,76 @@ describe("scoring a presentation without criteria", () => {
 
     expect(router.state.location.search).toBe("");
     expect(scoreInput()).toBeNull();
+  });
+
+  test("never closes on a tap outside the dialog", async () => {
+    const router = await mount({ presentationId: "b" });
+
+    await updateReactDomForm(() => {
+      document.body.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true }),
+      );
+      document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(router.state.location.search).toBe("?presentacion=b");
+    expect(scoreInput()).not.toBeNull();
+  });
+
+  test("closes a clean form without asking", async () => {
+    const router = await mount({ presentationId: "b" });
+
+    await clickReactDomButton("Cancelar");
+
+    expect(document.body.textContent).not.toContain(discardChangesTitle);
+    expect(router.state.location.search).toBe("");
+    expect(scoreInput()).toBeNull();
+  });
+
+  test("asks before throwing away a score that was typed", async () => {
+    const router = await mount({ presentationId: "b" });
+    const input = scoreInput();
+
+    await updateReactDomForm(() => {
+      if (input) {
+        setInputValue(input, "90.5");
+      }
+    });
+
+    await clickReactDomButton("Cancelar");
+
+    expect(document.body.textContent).toContain(discardChangesTitle);
+    expect(router.state.location.search).toBe("?presentacion=b");
+
+    await clickReactDomButton("Seguir editando");
+
+    expect(document.body.textContent).not.toContain(discardChangesTitle);
+    expect(scoreInput()?.value).toBe("90.5");
+
+    await clickReactDomButton("Cancelar");
+    await clickReactDomButton("Descartar");
+
+    expect(router.state.location.search).toBe("");
+    expect(scoreInput()).toBeNull();
+  });
+
+  test("asks when Esc closes a dirty form", async () => {
+    const router = await mount({ presentationId: "b" });
+    const input = scoreInput();
+
+    await updateReactDomForm(() => {
+      if (input) {
+        setInputValue(input, "90.5");
+      }
+    });
+
+    await updateReactDomForm(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+
+    expect(document.body.textContent).toContain(discardChangesTitle);
+    expect(router.state.location.search).toBe("?presentacion=b");
   });
 });
