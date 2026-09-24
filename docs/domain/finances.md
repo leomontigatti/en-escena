@@ -463,8 +463,8 @@ and is not a `payment`.
   change while the event runs, with payments recorded, and the change is an
   overwrite with no history and no notice to academies. Clearing every field
   is a plain save.
-- **Registration readiness ignores them.** Missing instructions never block the
-  `Período de inscripción`.
+- **Registration readiness ignores them.** Missing instructions never block
+  `Abrir inscripciones` on a `Cronograma`.
 - **Where they show**: the payments page of the `Portal de academias`, as an
   info note between the page subtitle and the payment list or its empty state,
   in the `Evento activo` only, with a copy control on the `CBU/CVU` and the

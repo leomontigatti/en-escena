@@ -184,7 +184,7 @@ describe("event management", () => {
     });
 
     // Readiness is about the `Bases del evento`; missing instructions never
-    // block the `Período de inscripción`.
+    // block `Abrir inscripciones` on a `Cronograma`.
     test("changes neither readiness nor its missing items", async () => {
       const event = await createSavedEvent("Regional 2026");
       const before = await getEventRegistrationReadiness(event.id);

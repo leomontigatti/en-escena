@@ -56,7 +56,7 @@ _Avoid_: `schedule`, time block
 Whether a `schedule` takes registrations right now, reading `Inscripciones cerradas` while it does not. A manual switch an administrator opens and closes on one `schedule` at a time; a new `schedule` is born closed, and the event's registrations are open when any of its schedules is.
 The actions that move it, on the `schedule` detail, are `Abrir inscripciones` and `Cerrar inscripciones`; opening is refused while the event's registration readiness fails or the event already ended, and closing never fails.
 The schedules list reads the same fact as a read-only column headed `Inscripciones`, badged `Abiertas` or `Cerradas`: shortened because the header already names it.
-_Avoid_: `registrationPeriod`, registration window, `active`
+_Avoid_: `registrationPeriod` (retired), registration window, `active`
 
 **`academy`** — ui: "Academia"
 Participating entity that can register for events and load professors, dancers and choreographies.
@@ -207,16 +207,12 @@ Choreography taken out of the event whose row survives, with every inscription i
 _Avoid_: choreography without active inscriptions (retired), deleted choreography, unpaid choreography, fourth financial status, cancelled choreography
 
 **`choreographyRegistration`** — ui: "Registro de coreografía"
-Academy portal flow to create a choreography in the active event during the registration period.
+Academy portal flow to create a choreography in the active event while some `schedule` of it has `Inscripciones abiertas`.
 _Avoid_: choreography draft, `presentation`
 
 **`choreographyModification`** — ui: "Modificación de coreografía"
 Academy portal flow to change the permitted data of an already registered choreography, without turning exceptional structural corrections into free-form editing.
 _Avoid_: `choreographyRegistration`, administrative correction
-
-**`registrationPeriod`** — ui: "Período de inscripción"
-Time window of the event during which academies can register choreographies from the portal.
-_Avoid_: `eventStatus`, active
 
 **`lockedChoreographyData`** — ui: "Datos bloqueados de coreografía"
 Data of a choreography the academy cannot change when the event rules or its financial/competitive state lock them.

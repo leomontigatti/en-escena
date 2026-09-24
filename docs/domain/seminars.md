@@ -170,8 +170,8 @@ How a seminar inscription is priced from those rows:
   deletable. Dancer verification and age do not gate a seminar.
 - Unique per seminar and person. The same person may hold an inscription in any
   number of seminars; overlapping times are not checked.
-- Registration is open **until the seminar starts**, independent of the event's
-  `Período de inscripción`. Once started, the academy can neither add nor delete;
+- Registration is open **until the seminar starts**, independent of whether any
+  `Cronograma` of the event has `Inscripciones abiertas`. Once started, the academy can neither add nor delete;
   the rows stay listed as read-only history while the event is active, and leave
   the portal when it is not, as choreographies do.
 - **Removal goes through one chooser on both sides**
