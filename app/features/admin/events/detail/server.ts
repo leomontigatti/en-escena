@@ -33,6 +33,12 @@ import {
   notificationToasts,
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
+import { publishedResultsMessage } from "@/lib/judging/results-copy";
+import {
+  hideResults,
+  publishResults,
+  readResultsPublication,
+} from "@/lib/judging/results.server";
 import {
   eventDocumentFileField,
   eventDocumentKeptField,
@@ -49,7 +55,6 @@ type EventRouteNotification = Extract<
   | "evento-guardado"
   | "programa-visible"
   | "programa-oculto"
-  | "resultados-visibles"
   | "resultados-ocultos"
 >;
 
@@ -57,25 +62,33 @@ export async function loadEventDetail(
   request: Request,
   eventId: string | undefined,
 ) {
-  await requireAdminPanelUser(request);
+  const user = await requireAdminPanelUser(request);
 
   if (!eventId) {
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const [event, registrationReadiness, documents] = await Promise.all([
-    loadEvent(eventId),
-    getEventRegistrationReadiness(eventId),
-    loadEventDocumentSummaries({
-      eventId,
-      storage: createDefaultEventDocumentStorage(),
-    }),
-  ]);
+  const [event, registrationReadiness, documents, resultsPublication] =
+    await Promise.all([
+      loadEvent(eventId),
+      getEventRegistrationReadiness(eventId),
+      loadEventDocumentSummaries({
+        eventId,
+        storage: createDefaultEventDocumentStorage(),
+      }),
+      readResultsPublication(eventId),
+    ]);
 
   return {
+    // Who may publish travels with the data rather than being read again in the
+    // view. `requireAdminPanelUser` already admits nobody else, so this reads
+    // `true` for every caller that gets this far; it is the seam story 8's
+    // read-only `auditor` view would flip once that role can open an event.
+    canPublishResults: user.role === "admin",
     documents,
     event,
     registrationReadiness,
+    resultsPublication,
   } satisfies EventDetailLoaderData;
 }
 
@@ -125,16 +138,19 @@ export async function updateAdministrativeEvent(
       );
     }
 
-    case "set-results-visibility": {
-      const resultsVisible = formData.get("value") === "true";
+    // One intent for `Mostrar resultados` and `Actualizar resultados` alike:
+    // both publish whatever is evaluated at that moment, and the menu label is
+    // the only difference between them.
+    case "publish-results":
+      return {
+        status: "success" as const,
+        message: publishedResultsMessage(await publishResults(eventId)),
+      };
 
-      return updateVisibility(
-        eventId,
-        {
-          resultsVisible,
-        },
-        resultsVisible ? "resultados-visibles" : "resultados-ocultos",
-      );
+    case "hide-results": {
+      await hideResults(eventId);
+
+      return actionSuccess("resultados-ocultos");
     }
 
     default:

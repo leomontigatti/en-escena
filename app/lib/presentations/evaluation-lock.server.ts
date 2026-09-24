@@ -1,4 +1,13 @@
-import { and, eq, inArray, isNotNull, or } from "drizzle-orm";
+import {
+  and,
+  eq,
+  exists,
+  inArray,
+  isNotNull,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 
 import { db } from "@/db";
 import { judgeAssignments, presentations, scores } from "@/db/schema";
@@ -49,23 +58,41 @@ export async function findEvaluatedChoreographyIds(
     return new Set();
   }
 
-  // One left join rather than two queries: the two halves of "evaluated" live
-  // on different tables, and a presentation with several judges would otherwise
-  // be counted once per assignment.
+  // Distinct on purpose: a choreography can hold a presentation in more than
+  // one event, and the answer is about the choreography.
   const rows = await executor
     .selectDistinct({ choreographyId: presentations.choreographyId })
     .from(presentations)
-    .leftJoin(
-      judgeAssignments,
-      eq(judgeAssignments.presentationId, presentations.id),
-    )
-    .leftJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
     .where(
       and(
         inArray(presentations.choreographyId, choreographyIds),
-        or(isNotNull(presentations.disqualifiedAt), isNotNull(scores.id)),
+        isPresentationEvaluated(),
       ),
     );
 
   return new Set(rows.map((row) => row.choreographyId));
+}
+
+/**
+ * The same fact as a SQL condition over `presentations`, for a reader that has
+ * the rows in hand rather than a list of choreography ids — publishing an
+ * event's results stamps every evaluated presentation in one `UPDATE`, and must
+ * not restate the predicate to do it. This module owns the definition; see
+ * `publishResults` in `app/lib/judging/results.server.ts`.
+ *
+ * The score half is an `EXISTS` rather than a join so the condition can be
+ * dropped into any statement that already has `presentations` in scope, an
+ * `UPDATE` among them, without changing what that statement returns or locks.
+ */
+export function isPresentationEvaluated(): SQL | undefined {
+  return or(
+    isNotNull(presentations.disqualifiedAt),
+    exists(
+      db
+        .select({ one: sql`1` })
+        .from(judgeAssignments)
+        .innerJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
+        .where(eq(judgeAssignments.presentationId, presentations.id)),
+    ),
+  );
 }

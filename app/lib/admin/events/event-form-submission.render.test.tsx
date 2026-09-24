@@ -184,7 +184,13 @@ function buildDetailLoaderData(): Parameters<
   typeof EventDetailRouteView
 >[0]["loaderData"] {
   return {
+    canPublishResults: true,
     documents: eventDocumentSummaries(),
+    resultsPublication: {
+      pendingCount: 0,
+      publishedAt: null,
+      publishedCount: 0,
+    },
     event: {
       id: "evento_1",
       name: "Evento 2026",
@@ -195,7 +201,7 @@ function buildDetailLoaderData(): Parameters<
       active: false,
       requiredDepositPercentage: 30,
       programVisible: false,
-      resultsVisible: false,
+      resultsPublishedAt: null,
       registrationReady: false,
       registrationReadinessMissingItems: [],
       registrationReadinessDirty: true,

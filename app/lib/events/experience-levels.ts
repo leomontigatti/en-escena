@@ -40,11 +40,23 @@ const experienceLevelOptions = Object.entries(experienceLevelLabels).map(
   }),
 );
 
+/**
+ * The label a level is read by wherever it is shown — the two program loaders
+ * and the academy's evaluation detail all ask here rather than indexing the map
+ * themselves. `null` for a category that declares no level, and `null` too for
+ * a value the map does not know, which the `Record<string, string>` index would
+ * otherwise hand back as an `undefined` typed `string`.
+ */
+function experienceLevelLabel(level: string | null): string | null {
+  return level === null ? null : (experienceLevelLabels[level] ?? null);
+}
+
 function isExperienceLevel(value: string): value is ExperienceLevel {
   return experienceLevelValues.includes(value as ExperienceLevel);
 }
 
 export {
+  experienceLevelLabel,
   experienceLevelLabels,
   experienceLevelOptions,
   experienceLevelOrder,

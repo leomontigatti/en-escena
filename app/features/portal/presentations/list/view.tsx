@@ -23,6 +23,13 @@ export function PortalPresentationsListView({
     (row) => row.isBelowDeposit,
   ).length;
   const emptyState = selectEmptyState(loaderData);
+  // A published row's name opens what the judges said about it; every other one
+  // keeps opening the choreography. The list itself gains no results column.
+  const publishedIds = new Set(
+    loaderData.rows
+      .filter((row) => row.isResultPublished)
+      .map((row) => row.choreographyId),
+  );
 
   return (
     <PortalListPage
@@ -84,8 +91,11 @@ export function PortalPresentationsListView({
           <ProgramList
             rows={loaderData.rows}
             showAcademy={false}
+            showLevel
             choreographyPath={(row) =>
-              `/portal/coreografias/${row.choreographyId}`
+              publishedIds.has(row.choreographyId)
+                ? `/portal/presentaciones/${row.choreographyId}`
+                : `/portal/coreografias/${row.choreographyId}`
             }
           />
         </>
