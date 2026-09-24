@@ -93,5 +93,7 @@ function buildLoaderData(): EventModalitiesLoaderData {
       },
     ],
     submodalities: [],
+    submodalityCriteria: [],
+    lockedSubmodalityIds: [],
   };
 }

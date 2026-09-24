@@ -1,12 +1,13 @@
 import { z } from "zod";
 
+import { criterionKinds, validateCriteriaMaxima } from "@/lib/judging/criteria";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
-export const nameFormSchema = z.object({
+const nameFormSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
 });
 
-export const submodalityFormSchema = z.object({
+const submodalityFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1, requiredFieldMessage),
 });
@@ -46,3 +47,80 @@ export const modalityFormSchema = nameFormSchema
   });
 
 export type ModalityFormValues = z.infer<typeof modalityFormSchema>;
+
+const criterionFormSchema = z.object({
+  kind: z.enum(criterionKinds),
+  maximum: z.string(),
+  name: z.string().trim().min(1, requiredFieldMessage),
+});
+
+/**
+ * The criteria dialog's schema. The sheet rule itself lives in
+ * `app/lib/judging/criteria.ts`, which the save asks too, so the dialog and the
+ * server refuse the same lists; all that happens here is turning its field names
+ * back into form paths.
+ */
+export const submodalityCriteriaFormSchema = z
+  .object({
+    criteria: z.array(criterionFormSchema),
+  })
+  .superRefine((values, context) => {
+    const firstIndexByName = new Map<string, number>();
+
+    values.criteria.forEach((criterion, index) => {
+      const normalizedName = criterion.name.trim().toLowerCase();
+
+      if (!normalizedName) {
+        return;
+      }
+
+      const firstIndex = firstIndexByName.get(normalizedName);
+
+      if (firstIndex === undefined) {
+        firstIndexByName.set(normalizedName, index);
+        return;
+      }
+
+      context.addIssue({
+        code: "custom",
+        message: duplicateCriterionNameMessage,
+        path: ["criteria", firstIndex, "name"],
+      });
+      context.addIssue({
+        code: "custom",
+        message: duplicateCriterionNameMessage,
+        path: ["criteria", index, "name"],
+      });
+    });
+
+    const maximaValidation = validateCriteriaMaxima(values.criteria);
+
+    if (maximaValidation.ok) {
+      return;
+    }
+
+    for (const [fieldName, message] of Object.entries(
+      maximaValidation.fieldErrors,
+    )) {
+      context.addIssue({
+        code: "custom",
+        message,
+        path: toCriteriaFieldPath(fieldName),
+      });
+    }
+  });
+
+export type SubmodalityCriteriaFormValues = z.infer<
+  typeof submodalityCriteriaFormSchema
+>;
+
+const duplicateCriterionNameMessage =
+  "Usá un nombre distinto para el criterio.";
+
+function toCriteriaFieldPath(fieldName: string) {
+  return fieldName
+    .split(".")
+    .map((segment) =>
+      /^\d+$/.test(segment) ? Number.parseInt(segment, 10) : segment,
+    );
+}

@@ -7,6 +7,10 @@ export async function loadEventModalityDetail(request: Request) {
 
 export async function updateAdministrativeEventModality(request: Request) {
   return handleEventModalityAction(request, {
-    allowedIntents: ["update-modality", "delete-modality"],
+    allowedIntents: [
+      "update-modality",
+      "delete-modality",
+      "save-submodality-criteria",
+    ],
   });
 }

@@ -8,7 +8,8 @@ type EventModalityIntent =
   | "delete-modality"
   | "create-submodality"
   | "update-submodality"
-  | "delete-submodality";
+  | "delete-submodality"
+  | "save-submodality-criteria";
 
 type HandleEventModalityActionOptions = {
   allowedIntents?: EventModalityIntent[];
