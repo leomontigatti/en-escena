@@ -1,0 +1,2 @@
+ALTER TABLE "en_escena_event" ADD COLUMN "results_published_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "en_escena_presentation" ADD COLUMN "result_published_at" timestamp with time zone;

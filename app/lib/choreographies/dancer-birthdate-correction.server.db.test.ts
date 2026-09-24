@@ -408,7 +408,6 @@ async function createCorrectionCatalog(input: {
       name: input.eventName,
       active: true,
       programVisible: false,
-      resultsVisible: false,
       requiredDepositPercentage: 30,
       registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
       registrationEndsAt: new Date("2026-04-30T12:00:00Z"),

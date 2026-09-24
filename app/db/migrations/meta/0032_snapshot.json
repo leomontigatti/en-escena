@@ -1,6 +1,6 @@
 {
-  "id": "7b2da5a7-6ff1-4ede-84b2-9be359a19e66",
-  "prevId": "0d120801-e7e7-443b-88ea-95613981b687",
+  "id": "d793ca66-3bb6-4414-b8e6-9d9ef8929b2b",
+  "prevId": "7b2da5a7-6ff1-4ede-84b2-9be359a19e66",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1258,13 +1258,6 @@
         },
         "program_visible": {
           "name": "program_visible",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "results_visible": {
-          "name": "results_visible",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

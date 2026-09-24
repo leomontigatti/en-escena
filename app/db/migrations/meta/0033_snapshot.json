@@ -1,6 +1,6 @@
 {
-  "id": "7b2da5a7-6ff1-4ede-84b2-9be359a19e66",
-  "prevId": "0d120801-e7e7-443b-88ea-95613981b687",
+  "id": "80cb2077-f194-4f56-bf1a-523e502ea08d",
+  "prevId": "d793ca66-3bb6-4414-b8e6-9d9ef8929b2b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -701,17 +701,11 @@
           "method": "btree",
           "with": {}
         },
-        "dancer_academy_document_unique": {
-          "name": "dancer_academy_document_unique",
+        "dancer_academy_document_number_unique": {
+          "name": "dancer_academy_document_number_unique",
           "columns": [
             {
               "expression": "academy_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "document_type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -724,7 +718,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"en_escena_dancer\".\"document_type\" is not null and \"en_escena_dancer\".\"document_number\" is not null",
+          "where": "\"en_escena_dancer\".\"document_number\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -826,17 +820,11 @@
           "method": "btree",
           "with": {}
         },
-        "professor_academy_document_unique": {
-          "name": "professor_academy_document_unique",
+        "professor_academy_document_number_unique": {
+          "name": "professor_academy_document_number_unique",
           "columns": [
             {
               "expression": "academy_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "document_type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -849,7 +837,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"en_escena_professor\".\"document_type\" is not null and \"en_escena_professor\".\"document_number\" is not null",
+          "where": "\"en_escena_professor\".\"document_number\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1258,13 +1246,6 @@
         },
         "program_visible": {
           "name": "program_visible",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "results_visible": {
-          "name": "results_visible",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

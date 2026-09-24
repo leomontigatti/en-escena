@@ -118,6 +118,8 @@ export async function createAcademyUser(input: {
 
   return {
     academy,
+    /** The signed-in cookie, for a test that reaches a portal loader. */
+    cookie: signIn.request.headers.get("cookie") ?? "",
     user: {
       id: signIn.userId,
     },

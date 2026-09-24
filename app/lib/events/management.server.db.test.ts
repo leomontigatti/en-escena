@@ -30,7 +30,6 @@ describe("event management", () => {
         name: "Regional 2026",
         active: false,
         programVisible: false,
-        resultsVisible: false,
         requiredDepositPercentage: 30,
       },
     });
@@ -40,7 +39,6 @@ describe("event management", () => {
     expect(savedEvent).toMatchObject({
       active: false,
       programVisible: false,
-      resultsVisible: false,
       requiredDepositPercentage: 30,
     });
   });
@@ -316,10 +314,7 @@ describe("event management", () => {
   test("deactivation leaves event data and visibility flags intact", async () => {
     const event = await createSavedEvent("Regional 2026");
     await activateEvent(event.id);
-    await setEventVisibility(event.id, {
-      programVisible: true,
-      resultsVisible: true,
-    });
+    await setEventVisibility(event.id, { programVisible: true });
 
     const result = await deactivateEvent(event.id);
 
@@ -328,27 +323,26 @@ describe("event management", () => {
       event: {
         active: false,
         programVisible: true,
-        resultsVisible: true,
         requiredDepositPercentage: 30,
       },
     });
   });
 
-  test("updates program and results visibility independently of active status", async () => {
+  test("updates program visibility independently of active status", async () => {
     const event = await createSavedEvent("Regional 2026");
 
     await expect(
       setEventVisibility(event.id, { programVisible: true }),
     ).resolves.toMatchObject({
       ok: true,
-      event: { active: false, programVisible: true, resultsVisible: false },
+      event: { active: false, programVisible: true },
     });
 
     await expect(
-      setEventVisibility(event.id, { resultsVisible: true }),
+      setEventVisibility(event.id, { programVisible: false }),
     ).resolves.toMatchObject({
       ok: true,
-      event: { active: false, programVisible: true, resultsVisible: true },
+      event: { active: false, programVisible: false },
     });
   });
 

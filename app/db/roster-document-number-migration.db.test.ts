@@ -15,7 +15,7 @@ import {
   migrationsFolder,
 } from "./migrations.test-support";
 
-const documentNumberMigrationTag = "0031_roster_document_number_unique";
+const documentNumberMigrationTag = "0033_roster_document_number_unique";
 
 /**
  * The guard against an already-duplicated pair runs INSIDE the migration that
