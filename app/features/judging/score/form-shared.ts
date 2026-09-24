@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { FeedbackAudioFieldSubmission } from "@/lib/judging/feedback-audio-field";
+import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { parseScoreValue, scoreValueMessage } from "@/lib/judging/score-value";
 
 /**
@@ -39,6 +40,81 @@ export function buildJudgeScoreSubmission({
   body.set("presentationId", presentationId);
   body.set("value", values.value);
   body.set("audioIntent", audio.intent);
+
+  if (audio.intent === "replace") {
+    body.set("audio", audio.blob, feedbackAudioFileName);
+  }
+
+  return body;
+}
+
+/**
+ * The sheet's fields, built from the submodality's own criteria: each one is
+ * read against its own maximum, so the message a judge gets names the number
+ * they were typing against. Nested under `values` so the whole sheet is one
+ * object the live total can watch.
+ */
+export function buildJudgeSheetFormSchema(
+  criteria: readonly JudgeSheetCriterion[],
+) {
+  return z.object({
+    values: z.object(
+      Object.fromEntries(
+        criteria.map((criterion) => [
+          criterion.id,
+          z
+            .string()
+            .refine(
+              (value) => parseScoreValue(value, criterion.maximum) !== null,
+              scoreValueMessage(criterion.maximum),
+            ),
+        ]),
+      ),
+    ),
+  });
+}
+
+export type JudgeSheetFormValues = { values: Record<string, string> };
+
+/**
+ * An adding criterion starts empty and a deduction starts at 0. A stray tap
+ * must never store a real 0 for something the judge meant to score, while a
+ * deduction of 0 is the ordinary case and asking for it every time would be
+ * three more taps per presentation.
+ */
+export function initialJudgeSheetValues(
+  criteria: readonly JudgeSheetCriterion[],
+): JudgeSheetFormValues {
+  return {
+    values: Object.fromEntries(
+      criteria.map((criterion) => [
+        criterion.id,
+        criterion.kind === "deducts" ? "0" : "",
+      ]),
+    ),
+  };
+}
+
+/** Each filled line rides as its own field, named for the criterion it answers. */
+export const sheetCriterionFieldPrefix = "criterio.";
+
+export function buildJudgeSheetSubmission({
+  audio,
+  presentationId,
+  values,
+}: {
+  audio: FeedbackAudioFieldSubmission;
+  presentationId: string;
+  values: JudgeSheetFormValues;
+}) {
+  const body = new FormData();
+  body.set("intent", "save-score");
+  body.set("presentationId", presentationId);
+  body.set("audioIntent", audio.intent);
+
+  for (const [criterionId, value] of Object.entries(values.values)) {
+    body.set(`${sheetCriterionFieldPrefix}${criterionId}`, value);
+  }
 
   if (audio.intent === "replace") {
     body.set("audio", audio.blob, feedbackAudioFileName);

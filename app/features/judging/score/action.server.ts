@@ -5,6 +5,7 @@ import {
 } from "@/lib/judging/save-score.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
 import { readFormString } from "@/lib/shared/forms";
+import { sheetCriterionFieldPrefix } from "./form-shared";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 
 /**
@@ -48,6 +49,7 @@ export async function handleJudgePanelAction(
   const value = readFormString(formData, "value");
   const result = await saveJudgeScore({
     audio: readFeedbackAudioSubmission(formData),
+    criteriaValues: readSheetValues(formData),
     judgeId: judge.id,
     presentationId,
     value,
@@ -70,6 +72,15 @@ export async function handleJudgePanelAction(
     };
   }
 
+  if (result.reason === "invalid-sheet") {
+    return {
+      fieldErrors: result.fieldErrors,
+      message: invalidScoreMessage,
+      status: "error",
+      values: { presentationId },
+    };
+  }
+
   if (result.reason === "closed") {
     return {
       message: closedJudgingDayMessage,
@@ -84,6 +95,26 @@ export async function handleJudgePanelAction(
     status: "error",
     values: { presentationId, value },
   };
+}
+
+/**
+ * The sheet's lines, named for the criterion each one answers. The save reads
+ * the submodality's criteria itself, so anything posted for a criterion it does
+ * not have is simply never looked at.
+ */
+function readSheetValues(formData: FormData): Record<string, string> {
+  const values: Record<string, string> = {};
+
+  for (const [key, value] of formData.entries()) {
+    if (
+      key.startsWith(sheetCriterionFieldPrefix) &&
+      typeof value === "string"
+    ) {
+      values[key.slice(sheetCriterionFieldPrefix.length)] = value;
+    }
+  }
+
+  return values;
 }
 
 /**

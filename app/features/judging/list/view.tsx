@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { JudgePanelActionData } from "@/features/judging/score/action.server";
 import { JudgeScoreDialog } from "@/features/judging/score/dialog";
+import { JudgeScoreSheet } from "@/features/judging/score/sheet";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import {
@@ -81,6 +82,21 @@ export function JudgePanelView({
       ?.querySelector("[data-resume-marker]")
       ?.scrollIntoView({ block: "center" });
   }, [resumePresentationId, onlyPending]);
+
+  // A sheet takes the whole page rather than sitting over the list: it is
+  // longer than a dialog can hold, and the judge filling it has no use for the
+  // rest of the day behind it.
+  if (openPresentation && openPresentation.criteria.length > 0) {
+    return (
+      <JudgeScoreSheet
+        account={loaderData.account}
+        fieldErrors={actionData?.fieldErrors}
+        key={openPresentation.presentationId}
+        onClose={() => setOpenPresentationId(null)}
+        presentation={openPresentation}
+      />
+    );
+  }
 
   return (
     <AccessPage width="xl">
