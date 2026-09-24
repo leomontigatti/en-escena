@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
+
 import type {
   DancerFieldErrors,
   DancerUpdateInput,
@@ -67,6 +69,9 @@ export type DancerActionError = {
   message: string;
   fieldErrors: DancerFieldErrors;
   values?: DancerUpdateInput;
+  // The dancer already holding the document number, so the form can link to
+  // them when the match is an archived one.
+  duplicateDocumentDancerId?: string;
 };
 
 export type DancerDialogIntent =
@@ -214,12 +219,34 @@ export function buildDancerActionError(
   message: string,
   fieldErrors: DancerActionError["fieldErrors"],
   values?: DancerActionError["values"],
+  duplicateDocumentDancerId?: string,
 ): DancerActionError {
   return {
     status: "error",
     message,
     fieldErrors,
     values,
+    duplicateDocumentDancerId,
+  };
+}
+
+/**
+ * The document refusal the panel dancer action can answer with, read for the
+ * field it belongs to.
+ */
+export function getDancerDocumentConflict(
+  actionData?: DancerActionError,
+): RosterDocumentConflict {
+  if (!actionData) {
+    return {};
+  }
+
+  const matchId = actionData.duplicateDocumentDancerId;
+
+  return {
+    matchHref: matchId ? `/administracion/bailarines/${matchId}` : undefined,
+    matchLabel: "Ver la ficha del bailarín con ese documento",
+    message: actionData.fieldErrors.documentNumber,
   };
 }
 

@@ -48,6 +48,7 @@ export function DancerDetailRouteView({
   const dancer = loaderData.dancer;
   const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
   const editForm = useDancerEditForm({
+    actionData: errorData,
     eventStartDate: loaderData.activeEventStartDate,
     values: getDancerEditValues({ actionData: errorData, dancer }),
   });

@@ -138,6 +138,7 @@ export async function handleProfessorDetailAction(input: {
       result.message,
       result.fieldErrors,
       result.values,
+      result.duplicateDocumentProfessorId,
     );
   }
 

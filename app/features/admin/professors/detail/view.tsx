@@ -54,7 +54,10 @@ export function ProfessorDetailRouteView({
     actionData: errorData,
     professor,
   });
-  const editForm = useProfessorEditForm({ values: editValues });
+  const editForm = useProfessorEditForm({
+    actionData: errorData,
+    values: editValues,
+  });
   const [dialogIntent, setDialogIntent] =
     useState<ProfessorDialogIntent | null>(
       getInitialDialogIntent(errorData, isConsequential),

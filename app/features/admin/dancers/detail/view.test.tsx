@@ -40,6 +40,37 @@ describe("DancerDetailRouteView", () => {
     expect(markup).toContain("Guardar");
     expect(markup).not.toContain(">Editar<");
   });
+
+  // The refusal itself lands on the field through an effect, which server
+  // rendering never runs; the link to the match is what this markup shows.
+  test("links to the dancer already holding the document", () => {
+    const markup = renderDetailView({
+      loaderData: createLoaderData({ isEditing: true }),
+      actionData: {
+        status: "error",
+        message: "Revisá los datos del Bailarín.",
+        fieldErrors: {
+          documentNumber:
+            "Ya existe un Bailarín archivado con ese documento en la academia.",
+        },
+        values: {
+          firstName: "Julia",
+          lastName: "Detalle",
+          birthDate: "2012-07-12",
+          documentType: "dni",
+          documentNumber: "30111222",
+          documentFrontImageStorageKey: "",
+          documentBackImageStorageKey: "",
+        },
+        duplicateDocumentDancerId: "dancer-archivado-1",
+      },
+    });
+
+    expect(markup).toContain(
+      'href="/administracion/bailarines/dancer-archivado-1"',
+    );
+    expect(markup).toContain("Ver la ficha del bailarín con ese documento");
+  });
 });
 
 function renderDetailView(input: Partial<DetailRouteViewProps> = {}) {

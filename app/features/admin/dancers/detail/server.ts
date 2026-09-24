@@ -169,6 +169,7 @@ export async function handleDancerDetailAction(input: {
       result.message,
       result.fieldErrors,
       result.values,
+      result.duplicateDocumentDancerId,
     );
   }
 
