@@ -483,6 +483,11 @@ function PortalActiveEventSummary({
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>
+      {eventContext.isRegistrationOpen ? null : (
+        <SidebarMenuItem className="px-2 text-xs text-muted-foreground">
+          Las inscripciones están cerradas.
+        </SidebarMenuItem>
+      )}
     </SidebarMenu>
   );
 }

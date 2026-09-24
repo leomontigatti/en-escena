@@ -1,4 +1,7 @@
+import { and, eq } from "drizzle-orm";
+
 import { db } from "@/db";
+import { schedules } from "@/db/schema";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { toPaymentInstructions } from "@/lib/finances/payment-instructions";
 import type {
@@ -13,9 +16,36 @@ import type {
 export async function getPortalShellEventContext(
   _request: Request,
 ): Promise<PortalShellEventContext> {
+  const activeEvent = await findPortalActiveEventSummary();
+
   return {
-    activeEvent: await findPortalActiveEventSummary(),
+    activeEvent,
+    isRegistrationOpen: await isEventRegistrationOpen(activeEvent?.id ?? null),
   };
+}
+
+/**
+ * The one implementation of "las inscripciones están abiertas" for an event:
+ * open when any of its `Cronograma`s is open, closed when none is and closed
+ * when the event has none at all. Nothing stores the event-level fact, so
+ * display and enforcement cannot drift.
+ */
+export async function isEventRegistrationOpen(
+  eventId: string | null,
+): Promise<boolean> {
+  if (!eventId) {
+    return false;
+  }
+
+  const openSchedule = await db.query.schedules.findFirst({
+    columns: { id: true },
+    where: and(
+      eq(schedules.eventId, eventId),
+      eq(schedules.registrationOpen, true),
+    ),
+  });
+
+  return openSchedule !== undefined;
 }
 
 export async function getPortalActiveEventSummaryContext(
@@ -70,7 +100,6 @@ export async function getPortalActiveEventContext(
   const events = await listPortalEventSummaries();
   const activeEvent = events.find((event) => event.active) ?? null;
   const selectedEvent = activeEvent;
-  const now = new Date();
 
   return {
     selectedEvent,
@@ -78,7 +107,9 @@ export async function getPortalActiveEventContext(
     hasActiveEvent: activeEvent !== null,
     hasEvents: events.length > 0,
     isReadOnly: selectedEvent ? !selectedEvent.active : true,
-    isRegistrationOpen: isRegistrationWindowOpen(selectedEvent, now),
+    isRegistrationOpen: await isEventRegistrationOpen(
+      selectedEvent?.id ?? null,
+    ),
   };
 }
 
@@ -129,12 +160,4 @@ async function listPortalEventSummaries(): Promise<PortalEventSummary[]> {
     columns: portalEventSummaryColumns,
     orderBy: (table, { desc }) => [desc(table.startsAt), desc(table.createdAt)],
   });
-}
-
-function isRegistrationWindowOpen(event: PortalEventSummary | null, now: Date) {
-  if (!event) {
-    return false;
-  }
-
-  return event.registrationStartsAt <= now && now <= event.registrationEndsAt;
 }

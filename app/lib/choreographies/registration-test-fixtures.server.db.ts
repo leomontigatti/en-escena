@@ -59,6 +59,13 @@ export async function createOpenEventCatalog(
   });
   const catalog = await createEventCatalog(event.id);
 
+  // "Open" is now the schedule's own switch: an event whose every `Cronograma`
+  // is closed refuses every portal registration.
+  await db
+    .update(schedules)
+    .set({ registrationOpen: true })
+    .where(eq(schedules.eventId, event.id));
+
   return {
     event,
     catalog,

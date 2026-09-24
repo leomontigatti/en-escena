@@ -218,6 +218,7 @@ function renderPortal(email: string) {
     },
     eventContext: {
       activeEvent: null,
+      isRegistrationOpen: false,
     },
   };
   return renderPrivateRoute(

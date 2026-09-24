@@ -25,6 +25,7 @@ import {
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
 import { getEventRegistrationReadinessForBases } from "@/lib/events/registration-readiness.server";
+import { isEventRegistrationOpen } from "@/lib/portal/event-context.server";
 import {
   classifyRosterPersonSelection,
   getRosterPersonRejectionMessage,
@@ -202,11 +203,8 @@ export async function resolveChoreographyRegistrationOperation(
     );
   }
 
-  if (!isRegistrationWindowOpen(event, new Date())) {
-    return failure(
-      "registration-closed",
-      "La inscripción del evento activo no está abierta en este momento.",
-    );
+  if (!(await isEventRegistrationOpen(event.id))) {
+    return failure("registration-closed", "Las inscripciones están cerradas.");
   }
 
   const eventBases = await getEventBases(event.id);
@@ -768,16 +766,6 @@ function toScheduleOptionSummary(
     usesGlobalCapacity: option.usesGlobalCapacity,
     schedule: option.schedule,
   };
-}
-
-function isRegistrationWindowOpen(
-  event: Pick<
-    typeof events.$inferSelect,
-    "registrationStartsAt" | "registrationEndsAt"
-  >,
-  now: Date,
-) {
-  return event.registrationStartsAt <= now && now <= event.registrationEndsAt;
 }
 
 export function getEventLocalDateParts(date: Date) {

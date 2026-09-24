@@ -216,17 +216,16 @@ describe("choreography registration resolution", () => {
     });
   });
 
-  test("validates active event, registration window, and readiness before resolving the operation", async () => {
+  test("validates active event, open inscriptions, and readiness before resolving the operation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Estado",
       email: "registro.coreografia.estado@example.com",
     });
     const inactiveEvent = await createEventRecord({ active: false });
     const inactiveCatalog = await createEventCatalog(inactiveEvent.id);
-    const closedEvent = await createEventRecord({
-      active: true,
-      registrationEndsAt: date("2000-04-30T12:00:00Z"),
-    });
+    // Every `Cronograma` of this event keeps its inscriptions closed, which is
+    // the only thing that closes the event's own.
+    const closedEvent = await createEventRecord({ active: true });
     const closedCatalog = await createEventCatalog(closedEvent.id);
     const dancer = await createDancer(owner.academyId);
 
@@ -254,6 +253,7 @@ describe("choreography registration resolution", () => {
     ).resolves.toMatchObject({
       ok: false,
       code: "registration-closed",
+      error: "Las inscripciones están cerradas.",
     });
 
     await db
@@ -272,6 +272,16 @@ describe("choreography registration resolution", () => {
         name: `Jazz incompleto ${notReadyEvent.id}`,
       })
       .returning();
+
+    // Its inscriptions are open, so readiness is what refuses the operation.
+    await db.insert(schedules).values({
+      eventId: notReadyEvent.id,
+      name: `Bloque incompleto ${notReadyEvent.id}`,
+      scheduledDate: "2026-05-01",
+      startTime: "10:00",
+      totalCapacity: 10,
+      registrationOpen: true,
+    });
 
     await expect(
       resolveChoreographyRegistrationOperation({

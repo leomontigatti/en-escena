@@ -15,7 +15,13 @@ export type PortalActiveEventSummaryContext = {
   activeEvent: PortalEventSummary | null;
 };
 
-export type PortalShellEventContext = PortalActiveEventSummaryContext;
+/**
+ * The shell's own context: the active event plus the derived "las inscripciones
+ * están abiertas" fact, which the sidebar states on every portal page.
+ */
+export type PortalShellEventContext = PortalActiveEventSummaryContext & {
+  isRegistrationOpen: boolean;
+};
 
 /**
  * The active event plus its `Instrucciones de pago`, for the one portal page

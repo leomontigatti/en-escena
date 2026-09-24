@@ -44,7 +44,7 @@ export function getPortalChoreographyCreationAvailability(input: {
   if (!input.eventContext.isRegistrationOpen) {
     blockers.push({
       code: "registration-closed",
-      message: "El período de inscripción no está abierto.",
+      message: "Las inscripciones están cerradas.",
     });
   }
 

@@ -15,6 +15,7 @@ describe("portal route view", () => {
     const markup = renderPortal({
       eventContext: {
         activeEvent: eventSummary({ name: "Regional 2026" }),
+        isRegistrationOpen: true,
       },
     });
 
@@ -50,6 +51,7 @@ describe("portal route view", () => {
     const markup = renderPortal({
       eventContext: {
         activeEvent: null,
+        isRegistrationOpen: false,
       },
     });
 
@@ -68,11 +70,32 @@ describe("portal route view", () => {
     const markup = renderPortal({
       eventContext: {
         activeEvent: selectedEvent,
+        isRegistrationOpen: true,
       },
     });
 
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Coreografías");
+  });
+
+  test("states in the shell whether the inscriptions are open", () => {
+    const openMarkup = renderPortal({
+      eventContext: {
+        activeEvent: eventSummary(),
+        isRegistrationOpen: true,
+      },
+    });
+
+    expect(openMarkup).not.toContain("Las inscripciones están cerradas.");
+
+    const closedMarkup = renderPortal({
+      eventContext: {
+        activeEvent: eventSummary(),
+        isRegistrationOpen: false,
+      },
+    });
+
+    expect(closedMarkup).toContain("Las inscripciones están cerradas.");
   });
 
   test("renders shared portal surfaces with shadcn components and semantic tokens", () => {
