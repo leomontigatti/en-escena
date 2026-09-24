@@ -26,7 +26,12 @@ on:
     types: [labeled]
 
 concurrency:
-  group: agent-implement-prd-issue-${{ github.event.issue.number }}
+  # Every `labeled` event on the issue starts this workflow, and the job gates on
+  # `agent:implement` only after concurrency is evaluated. An issue created with its
+  # triage labels fires one event per label; if the no-ops joined the per-issue
+  # group, GitHub would keep only the newest pending run and cancel the real one
+  # (#1136, the issue-side half of #383). A no-op takes a unique per-run group.
+  group: ${{ github.event.label.name == 'agent:implement' && format('agent-implement-prd-issue-{0}', github.event.issue.number) || format('agent-implement-prd-noop-{0}', github.run_id) }}
   cancel-in-progress: false
 
 permissions:
