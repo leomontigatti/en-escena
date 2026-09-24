@@ -223,6 +223,19 @@ function useJudgeScoreFeedback({
       return;
     }
 
+    // Closing or reopening a presentation leaves the judge looking at it: the
+    // panel is still deciding, and moving them on would take the form they are
+    // talking about out from under them.
+    if (actionData.intent !== "save-score") {
+      showToastMessage({
+        id: judgeScoreToastId,
+        message: actionData.message,
+        variant: "success",
+      });
+
+      return;
+    }
+
     const nextPresentationId = findResumePresentationId(
       presentations,
       openPresentationId,

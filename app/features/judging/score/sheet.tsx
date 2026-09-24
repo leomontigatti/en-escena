@@ -34,6 +34,7 @@ import { hasUnsavedChanges } from "@/lib/shared/discard-guard";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
+import { DisqualificationAction, DisqualifiedNotice } from "./disqualification";
 import { FeedbackRecorder } from "./feedback-recorder";
 import {
   buildJudgeSheetFormSchema,
@@ -80,6 +81,7 @@ export function JudgeScoreSheet({
     isFormDirty: form.formState.isDirty,
   });
   const blocker = useSheetDiscardGuard({ isDirty, isSaving });
+  const disqualified = presentation.status === "descalificada";
 
   // A line the client accepted and the server did not — a criterion added to
   // the submodality since the page loaded, say — belongs on its own field.
@@ -95,6 +97,24 @@ export function JudgeScoreSheet({
 
   function applyAudioEvent(event: FeedbackAudioFieldEvent) {
     setAudio((current) => reduceFeedbackAudioField(current, event));
+  }
+
+  function save(values: JudgeSheetFormValues) {
+    // The save navigates, and it is the one way out of the sheet that must
+    // never be asked about.
+    isSaving.current = true;
+    void submit(
+      buildJudgeSheetSubmission({
+        audio: feedbackAudioFieldSubmission(audio),
+        presentationId: presentation.presentationId,
+        values,
+      }),
+      {
+        action: formAction,
+        encType: "multipart/form-data",
+        method: "post",
+      },
+    );
   }
 
   return (
@@ -117,38 +137,38 @@ export function JudgeScoreSheet({
           </CardAction>
         </CardHeader>
         <CardContent>
+          {disqualified ? (
+            <div className="mb-4">
+              <DisqualifiedNotice />
+            </div>
+          ) : null}
           <form
             id="judge-sheet-form"
             method="post"
             className="flex w-full flex-col gap-4"
-            onSubmit={form.handleSubmit((values) => {
-              // The save navigates, and it is the one way out of the sheet
-              // that must never be asked about.
-              isSaving.current = true;
-              void submit(
-                buildJudgeSheetSubmission({
-                  audio: feedbackAudioFieldSubmission(audio),
-                  presentationId: presentation.presentationId,
-                  values,
-                }),
-                {
-                  action: formAction,
-                  encType: "multipart/form-data",
-                  method: "post",
-                },
-              );
-            })}
+            // A disqualified presentation takes nothing but the take, so the
+            // sheet is not there to be filled or validated.
+            onSubmit={
+              disqualified
+                ? (event) => {
+                    event.preventDefault();
+                    save({ values: {} });
+                  }
+                : form.handleSubmit(save)
+            }
           >
-            {criteria.map((criterion) => (
-              <ScoreInputField
-                control={form.control}
-                id={`criterio-${criterion.id}`}
-                key={criterion.id}
-                label={criterion.name}
-                maximum={criterion.maximum}
-                name={`values.${criterion.id}`}
-              />
-            ))}
+            {disqualified
+              ? null
+              : criteria.map((criterion) => (
+                  <ScoreInputField
+                    control={form.control}
+                    id={`criterio-${criterion.id}`}
+                    key={criterion.id}
+                    label={criterion.name}
+                    maximum={criterion.maximum}
+                    name={`values.${criterion.id}`}
+                  />
+                ))}
             <FeedbackRecorder
               audioUrl={feedbackAudioFieldUrl(audio)}
               error={fieldErrors?.audio}
@@ -157,13 +177,24 @@ export function JudgeScoreSheet({
             />
           </form>
         </CardContent>
-        <CardFooter className="justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Volver
-          </Button>
-          <Button type="submit" form="judge-sheet-form">
-            Guardar
-          </Button>
+        <CardFooter className="justify-between gap-2">
+          <DisqualificationAction
+            disqualified={disqualified}
+            // The post is a navigation the page's own guard would otherwise
+            // stop, and there is nothing in the form it can lose.
+            onSubmitting={() => {
+              isSaving.current = true;
+            }}
+            presentationId={presentation.presentationId}
+          />
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Volver
+            </Button>
+            <Button type="submit" form="judge-sheet-form">
+              Guardar
+            </Button>
+          </div>
         </CardFooter>
       </Card>
 

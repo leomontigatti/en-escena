@@ -15,6 +15,11 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import type { JudgePanelActionData } from "./action.server";
+import {
+  disqualifiedNoticeMessage,
+  disqualifyLabel,
+  reinstateLabel,
+} from "./disqualification";
 
 function buildRow(
   overrides: Partial<JudgePresentationRow> & { presentationId: string },
@@ -190,7 +195,11 @@ describe("scoring a presentation without criteria", () => {
 
   test("opens the next pending presentation once the score is saved", async () => {
     const router = await mount({
-      actionData: { message: "Guardaste el puntaje.", status: "success" },
+      actionData: {
+        intent: "save-score",
+        message: "Guardaste el puntaje.",
+        status: "success",
+      },
       presentationId: "b",
     });
 
@@ -200,7 +209,11 @@ describe("scoring a presentation without criteria", () => {
 
   test("closes the form when the judge has nothing left to score", async () => {
     const router = await mount({
-      actionData: { message: "Guardaste el puntaje.", status: "success" },
+      actionData: {
+        intent: "save-score",
+        message: "Guardaste el puntaje.",
+        status: "success",
+      },
       presentationId: "b",
       rows: presentations.map((row) => ({ ...row, status: "sinDevolucion" })),
     });
@@ -279,4 +292,114 @@ describe("scoring a presentation without criteria", () => {
     expect(document.body.textContent).toContain(discardChangesTitle);
     expect(router.state.location.search).toBe("?presentacion=b");
   });
+});
+
+describe("disqualifying from the score dialog", () => {
+  const renderer = createReactDomTestRenderer();
+
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  afterEach(renderer.cleanup);
+
+  const submitted: FormData[] = [];
+
+  beforeEach(() => {
+    submitted.length = 0;
+  });
+
+  async function mount(rows: JudgePresentationRow[], presentationId: string) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/juzgamiento",
+          action: async ({ request }) => {
+            submitted.push(await request.formData());
+
+            return {
+              intent: "disqualify",
+              message: "Descalificaste la presentación.",
+              status: "success",
+            };
+          },
+          element: (
+            <JudgePanelView
+              loaderData={{
+                account: {
+                  name: "Ana Juez",
+                  roleLabel: "Jurado",
+                  username: "ana.juez",
+                },
+                presentations: rows,
+              }}
+            />
+          ),
+        },
+      ],
+      { initialEntries: [`/juzgamiento?presentacion=${presentationId}`] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    return router;
+  }
+
+  test("asks before closing the presentation for the whole panel", async () => {
+    await mount(presentations, "b");
+
+    await clickReactDomButton(disqualifyLabel);
+
+    expect(document.body.textContent).toContain(
+      "¿Descalificar la presentación?",
+    );
+    expect(submitted).toEqual([]);
+  });
+
+  test("posts the disqualify intent once the judge confirms", async () => {
+    await mount(presentations, "b");
+
+    await clickReactDomButton(disqualifyLabel);
+    await updateReactDomForm(() => {
+      confirmButton()?.click();
+    });
+
+    expect(submitted.map((body) => Object.fromEntries(body))).toEqual([
+      { intent: "disqualify", presentationId: "b" },
+    ]);
+  });
+
+  test("offers to score a disqualified presentation again, with nothing to confirm", async () => {
+    const rows = presentations.map((row) =>
+      row.presentationId === "b"
+        ? { ...row, status: "descalificada" as const }
+        : row,
+    );
+
+    await mount(rows, "b");
+
+    expect(document.body.textContent).toContain(disqualifiedNoticeMessage);
+    expect(scoreInput()).toBeNull();
+
+    await updateReactDomForm(async () => {
+      await clickReactDomButton(reinstateLabel);
+    });
+
+    expect(submitted.map((body) => Object.fromEntries(body))).toEqual([
+      { intent: "reinstate", presentationId: "b" },
+    ]);
+  });
+
+  function scoreInput() {
+    return document.querySelector<HTMLInputElement>("#judge-score-value");
+  }
+
+  /** The `Descalificar` inside the confirmation, not the one that opened it. */
+  function confirmButton() {
+    return [
+      ...(document
+        .querySelector("[role='alertdialog']")
+        ?.querySelectorAll("button") ?? []),
+    ].find((button) => button.textContent?.trim() === disqualifyLabel);
+  }
 });

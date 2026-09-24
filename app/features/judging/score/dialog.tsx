@@ -28,6 +28,7 @@ import { singleScoreMaximum } from "@/lib/judging/score-value";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
+import { DisqualificationAction, DisqualifiedNotice } from "./disqualification";
 import { FeedbackRecorder } from "./feedback-recorder";
 import {
   buildJudgeScoreSubmission,
@@ -71,6 +72,7 @@ export function JudgeScoreDialog({
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
   const { setError } = form;
+  const disqualified = presentation.status === "descalificada";
 
   // A value the client accepted and the server did not — a race against the
   // criteria of a submodality, a rule the form has not been taught — belongs on
@@ -83,6 +85,21 @@ export function JudgeScoreDialog({
 
   function applyAudioEvent(event: FeedbackAudioFieldEvent) {
     setAudio((current) => reduceFeedbackAudioField(current, event));
+  }
+
+  function save(values: JudgeScoreFormValues) {
+    void submit(
+      buildJudgeScoreSubmission({
+        audio: feedbackAudioFieldSubmission(audio),
+        presentationId: presentation.presentationId,
+        values,
+      }),
+      {
+        action: formAction,
+        encType: "multipart/form-data",
+        method: "post",
+      },
+    );
   }
 
   return (
@@ -112,29 +129,29 @@ export function JudgeScoreDialog({
             id="judge-score-form"
             method="post"
             className="flex w-full flex-col gap-4"
-            onSubmit={form.handleSubmit((values) => {
-              void submit(
-                buildJudgeScoreSubmission({
-                  audio: feedbackAudioFieldSubmission(audio),
-                  presentationId: presentation.presentationId,
-                  values,
-                }),
-                {
-                  action: formAction,
-                  encType: "multipart/form-data",
-                  method: "post",
-                },
-              );
-            })}
+            // A disqualified presentation takes nothing but the take, so the
+            // score field is not there to be validated.
+            onSubmit={
+              disqualified
+                ? (event) => {
+                    event.preventDefault();
+                    save({ value: "" });
+                  }
+                : form.handleSubmit(save)
+            }
           >
-            <ScoreInputField
-              autoFocus
-              control={form.control}
-              id="judge-score-value"
-              label="Puntaje"
-              maximum={singleScoreMaximum}
-              name="value"
-            />
+            {disqualified ? (
+              <DisqualifiedNotice />
+            ) : (
+              <ScoreInputField
+                autoFocus
+                control={form.control}
+                id="judge-score-value"
+                label="Puntaje"
+                maximum={singleScoreMaximum}
+                name="value"
+              />
+            )}
             <FeedbackRecorder
               audioUrl={feedbackAudioFieldUrl(audio)}
               error={fieldErrors?.audio}
@@ -142,13 +159,19 @@ export function JudgeScoreDialog({
               onRecorded={(take) => applyAudioEvent({ take, type: "recorded" })}
             />
           </form>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={requestClose}>
-              Cancelar
-            </Button>
-            <Button type="submit" form="judge-score-form">
-              Guardar
-            </Button>
+          <DialogFooter className="sm:justify-between">
+            <DisqualificationAction
+              disqualified={disqualified}
+              presentationId={presentation.presentationId}
+            />
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={requestClose}>
+                Cancelar
+              </Button>
+              <Button type="submit" form="judge-score-form">
+                Guardar
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

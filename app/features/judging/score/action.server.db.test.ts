@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { schedules, scores, user } from "@/db/schema";
+import { presentations, schedules, scores, user } from "@/db/schema";
 import {
   createAccessRequestCookie,
   createAccessUser,
@@ -75,6 +75,15 @@ async function seedOpenPresentation() {
     .where(eq(schedules.id, fixture.catalog.schedule.id));
 
   return { fixture, presentation };
+}
+
+async function readDisqualifiedAt(presentationId: string) {
+  const [row] = await db
+    .select({ disqualifiedAt: presentations.disqualifiedAt })
+    .from(presentations)
+    .where(eq(presentations.id, presentationId));
+
+  return row.disqualifiedAt;
 }
 
 describe("the `/juzgamiento` action", () => {
@@ -211,4 +220,87 @@ describe("the `/juzgamiento` action", () => {
         .where(eq(scores.judgeAssignmentId, assignment.judgeAssignmentId)),
     ).toEqual([]);
   });
+});
+
+describe("the `/juzgamiento` action's disqualification intents", () => {
+  test("disqualifies the presentation for the whole panel", async () => {
+    const judge = await signIn("judge", "Juana Juez");
+    const { fixture, presentation } = await seedOpenPresentation();
+
+    await fixture.assignJudge(presentation.presentationId, judge.userId);
+
+    const result = await action(
+      scoreRequest(judge.cookie, {
+        intent: "disqualify",
+        presentationId: presentation.presentationId,
+      }),
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    expect(
+      await readDisqualifiedAt(presentation.presentationId),
+    ).not.toBeNull();
+  });
+
+  test("reinstates the presentation with no confirmation to ask for", async () => {
+    const judge = await signIn("judge", "Juana Juez");
+    const { fixture, presentation } = await seedOpenPresentation();
+
+    await fixture.assignJudge(presentation.presentationId, judge.userId);
+    await db
+      .update(presentations)
+      .set({ disqualifiedAt: new Date() })
+      .where(eq(presentations.id, presentation.presentationId));
+
+    const result = await action(
+      scoreRequest(judge.cookie, {
+        intent: "reinstate",
+        presentationId: presentation.presentationId,
+      }),
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    expect(await readDisqualifiedAt(presentation.presentationId)).toBeNull();
+  });
+
+  test.each(["disqualify", "reinstate"])(
+    "refuses a judge who is not assigned to the presentation with `%s`",
+    async (intent) => {
+      const judge = await signIn("judge", "Juana Juez");
+      const { presentation } = await seedOpenPresentation();
+
+      await expectThrownResponse(
+        action(
+          scoreRequest(judge.cookie, {
+            intent,
+            presentationId: presentation.presentationId,
+          }),
+        ),
+        403,
+      );
+    },
+  );
+
+  test.each(["disqualify", "reinstate"])(
+    "answers with an error once the judging day has closed for `%s`",
+    async (intent) => {
+      const judge = await signIn("judge", "Juana Juez");
+      const { fixture, presentation } = await seedOpenPresentation();
+
+      await fixture.assignJudge(presentation.presentationId, judge.userId);
+      await db
+        .update(schedules)
+        .set({ scheduledDate: "2020-01-01" })
+        .where(eq(schedules.id, fixture.catalog.schedule.id));
+
+      const result = await action(
+        scoreRequest(judge.cookie, {
+          intent,
+          presentationId: presentation.presentationId,
+        }),
+      );
+
+      expect(result).toMatchObject({ status: "error" });
+    },
+  );
 });

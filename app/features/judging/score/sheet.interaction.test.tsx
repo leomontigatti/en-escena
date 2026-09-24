@@ -207,7 +207,11 @@ describe("scoring a submodality with criteria", () => {
 
   test("lets the save's own navigation through to the next presentation", async () => {
     const router = await mount({
-      actionData: { message: "Guardaste el puntaje.", status: "success" },
+      actionData: {
+        intent: "save-score",
+        message: "Guardaste el puntaje.",
+        status: "success",
+      },
       presentationId: "a",
     });
 

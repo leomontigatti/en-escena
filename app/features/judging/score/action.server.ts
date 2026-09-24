@@ -1,5 +1,10 @@
 import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
 import {
+  disqualifyPresentation,
+  reinstatePresentation,
+  type DisqualificationResult,
+} from "@/lib/judging/disqualification.server";
+import {
   type FeedbackAudioSubmission,
   saveJudgeScore,
 } from "@/lib/judging/save-score.server";
@@ -22,10 +27,17 @@ import { formatUploadRejection } from "@/lib/storage/asset-kinds";
  *
  * The `Devolución` is posted as multipart with the score, because the judge's
  * one "Guardar" saves both.
+ *
+ * Disqualifying and reinstating answer the same way, and carry the intent back
+ * with them: only a saved score moves the judge on to the next presentation,
+ * while closing or reopening one leaves them looking at it.
  */
+
+export type JudgePanelIntent = "disqualify" | "reinstate" | "save-score";
 
 export type JudgePanelActionData = {
   fieldErrors?: Record<string, string>;
+  intent: JudgePanelIntent;
   message: string;
   status: "success" | "error";
   values?: Record<string, string>;
@@ -40,23 +52,91 @@ const invalidFeedbackAudioMessage = "No se pudo guardar la devolución.";
 const closedJudgingDayMessage =
   "La jornada ya cerró, no se pueden guardar puntajes.";
 
+const disqualifiedSaveMessage =
+  "La presentación está descalificada, se guardó solo la devolución.";
+
+const disqualifiedMessage = "Descalificaste la presentación.";
+
+const reinstatedMessage = "La presentación vuelve a calificarse.";
+
+const closedDisqualificationMessage =
+  "La jornada ya cerró, no se puede cambiar la descalificación.";
+
 export async function handleJudgePanelAction(
   request: Request,
 ): Promise<JudgePanelActionData> {
   const judge = await requireJudgePanelUser(request);
   const formData = await request.formData();
   const presentationId = readFormString(formData, "presentationId");
+  const intent = readFormString(formData, "intent");
+
+  if (intent === "disqualify") {
+    return answerDisqualification(
+      "disqualify",
+      disqualifiedMessage,
+      await disqualifyPresentation({ judgeId: judge.id, presentationId }),
+    );
+  }
+
+  if (intent === "reinstate") {
+    return answerDisqualification(
+      "reinstate",
+      reinstatedMessage,
+      await reinstatePresentation({ judgeId: judge.id, presentationId }),
+    );
+  }
+
+  return await saveScore(judge.id, formData, presentationId);
+}
+
+/**
+ * Both intents answer alike: a judge who is not on the panel for this
+ * presentation is a 403, and a day that closed is a toast over the form they
+ * are still looking at.
+ */
+function answerDisqualification(
+  intent: JudgePanelIntent,
+  message: string,
+  result: DisqualificationResult,
+): JudgePanelActionData {
+  if (result.ok) {
+    return { intent, message, status: "success" };
+  }
+
+  if (result.reason === "not-assigned") {
+    throw new Response("Forbidden", { status: 403 });
+  }
+
+  return {
+    intent,
+    message: closedDisqualificationMessage,
+    status: "error",
+  };
+}
+
+async function saveScore(
+  judgeId: string,
+  formData: FormData,
+  presentationId: string,
+): Promise<JudgePanelActionData> {
   const value = readFormString(formData, "value");
   const result = await saveJudgeScore({
     audio: readFeedbackAudioSubmission(formData),
     criteriaValues: readSheetValues(formData),
-    judgeId: judge.id,
+    judgeId,
     presentationId,
     value,
   });
+  const intent = "save-score" as const;
 
   if (result.ok) {
-    return { message: savedScoreMessage, status: "success" };
+    return {
+      intent,
+      message: result.disqualified
+        ? disqualifiedSaveMessage
+        : savedScoreMessage,
+      status: "success",
+    };
   }
 
   if (result.reason === "not-assigned") {
@@ -66,6 +146,7 @@ export async function handleJudgePanelAction(
   if (result.reason === "invalid-audio") {
     return {
       fieldErrors: { audio: formatUploadRejection(result.rejection) },
+      intent,
       message: invalidFeedbackAudioMessage,
       status: "error",
       values: { presentationId, value },
@@ -75,6 +156,7 @@ export async function handleJudgePanelAction(
   if (result.reason === "invalid-sheet") {
     return {
       fieldErrors: result.fieldErrors,
+      intent,
       message: invalidScoreMessage,
       status: "error",
       values: { presentationId },
@@ -83,6 +165,7 @@ export async function handleJudgePanelAction(
 
   if (result.reason === "closed") {
     return {
+      intent,
       message: closedJudgingDayMessage,
       status: "error",
       values: { presentationId, value },
@@ -91,6 +174,7 @@ export async function handleJudgePanelAction(
 
   return {
     fieldErrors: { value: scoreValueMessage() },
+    intent,
     message: invalidScoreMessage,
     status: "error",
     values: { presentationId, value },
