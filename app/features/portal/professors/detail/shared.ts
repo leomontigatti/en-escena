@@ -1,6 +1,11 @@
 import { z } from "zod";
+import {
+  rosterDocumentPairFields,
+  rosterPersonNameFields,
+} from "@/lib/roster/roster-identity-fields";
 
 import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 
 import type { PortalProfessorListItem } from "@/lib/portal/professors.server";
 import {
@@ -9,7 +14,6 @@ import {
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
-import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const updateProfessorIntent = "update-professor";
 export const archiveProfessorIntent = "archive-professor";
@@ -18,12 +22,7 @@ export const portalProfessorNotFoundMessage = "No encontramos ese Profesor.";
 export const professorDetailFormId = "portal-profesor-form";
 
 export const professorSchema = z
-  .object({
-    firstName: z.string().trim().min(1, requiredFieldMessage),
-    lastName: z.string().trim().min(1, requiredFieldMessage),
-    documentType: z.string().trim(),
-    documentNumber: z.string().trim(),
-  })
+  .object({ ...rosterPersonNameFields, ...rosterDocumentPairFields })
   .superRefine(refineDocumentPair);
 
 export type ProfessorFormValues = z.infer<typeof professorSchema>;
@@ -139,6 +138,13 @@ export type PortalProfessorDetailActionData =
       // The professor already holding the document number, so the form can
       // link to them when the match is an archived one.
       duplicateDocumentProfessorId?: string;
+    }
+  | {
+      // Another professor of the academy carries this name; the form shows who
+      // and re-submits with their ids.
+      status: "warning";
+      warning: RosterNameWarning;
+      values: ProfessorFormValues;
     }
   | {
       status: "success";

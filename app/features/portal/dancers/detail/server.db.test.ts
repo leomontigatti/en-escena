@@ -29,6 +29,7 @@ import {
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
 import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-assertions";
+import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createFormData } from "@/lib/test-support/form-data";
 import {
   allocateChoreographyNumberForTest,
@@ -132,6 +133,101 @@ describe("handlePortalDancerDetailAction", () => {
       documentType: "dni",
       documentNumber: "123456789",
     });
+  });
+
+  test("warns when another dancer of the academy has that name and birth date", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.edit.samename@example.com",
+      academyName: "Academia Homónimos",
+    });
+    const [twin] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Lu",
+        lastName: "Paz",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "ana",
+          lastName: "paz",
+          birthDate: "2014-02-01",
+          documentType: "",
+          documentNumber: "",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "warning",
+      warning: {
+        kind: "dancer-name",
+        matches: [{ id: twin.id, label: "Ana Paz" }],
+        scope: "portal",
+      },
+    });
+    await expectPersistedDancer(dancer.id, { firstName: "Lu" });
+  });
+
+  test("saves once the matching dancer is acknowledged", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.edit.acknowledged@example.com",
+      academyName: "Academia Reconocida",
+    });
+    const [twin] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Lu",
+        lastName: "Paz",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+    const formData = dancerEditFormData({
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2014-02-01",
+      documentType: "",
+      documentNumber: "",
+    });
+    formData.append(acknowledgedDuplicateIdsField, twin.id);
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        formData,
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    await expectPersistedDancer(dancer.id, { firstName: "Ana" });
   });
 
   test("recalculates linked choreographies when a dancer birth date changes", async () => {

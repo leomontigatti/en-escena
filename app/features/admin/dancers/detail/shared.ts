@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  buildDancerBirthDateField,
+  rosterDocumentImageFields,
+  rosterDocumentPairFields,
+  rosterPersonNameFields,
+} from "@/lib/roster/roster-identity-fields";
 
 import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
 
@@ -13,13 +19,11 @@ import {
   type DancerBirthDateScheduleMove,
 } from "@/lib/choreographies/dancer-birthdate-messages";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
-import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import {
   getArchiveKeepsRosterMessage,
   getRosterPersonArchiveAvailability,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   notificationToasts,
   type NotificationKey,
@@ -127,17 +131,10 @@ export type DancerEditFormValues = DancerUpdateInput;
 export function buildDancerUpdateSchema(eventStartDate: string | null) {
   return z
     .object({
-      firstName: z.string().trim().min(1, requiredFieldMessage),
-      lastName: z.string().trim().min(1, requiredFieldMessage),
-      birthDate: z
-        .string()
-        .trim()
-        .min(1, requiredFieldMessage)
-        .superRefine(buildBirthDateRefinement(eventStartDate)),
-      documentType: z.string().trim(),
-      documentNumber: z.string().trim(),
-      documentFrontImageStorageKey: z.string().trim(),
-      documentBackImageStorageKey: z.string().trim(),
+      ...rosterPersonNameFields,
+      birthDate: buildDancerBirthDateField(eventStartDate),
+      ...rosterDocumentPairFields,
+      ...rosterDocumentImageFields,
     })
     .superRefine((values, context) => {
       validateDocumentPair(values.documentType, values.documentNumber, context);

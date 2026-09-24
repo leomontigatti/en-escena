@@ -5,6 +5,7 @@ import {
   createDancerForAcademy,
   type CreateDancerInput,
 } from "@/lib/portal/dancers.server";
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   buildCreateDancerSchema,
@@ -38,7 +39,18 @@ export async function handleCreateDancerAction({
     };
   }
 
-  const result = await createDancerForAcademy(academyId, parsed.data);
+  const result = await createDancerForAcademy(academyId, parsed.data, {
+    acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
+  });
+
+  if (!result.ok && "warning" in result) {
+    return {
+      status: "warning" as const,
+      warning: result.warning,
+      values: parsed.data,
+      modalOpen: true,
+    };
+  }
 
   if (!result.ok) {
     return {

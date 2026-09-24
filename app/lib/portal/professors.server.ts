@@ -1,6 +1,8 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { findProfessorNameWarning } from "@/lib/roster/roster-name-duplicates.server";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { professors } from "@/db/schema";
 import {
   findProfessorDocumentConflict,
@@ -39,6 +41,7 @@ export type PortalProfessorListItem = Pick<
 export type CreateProfessorField = keyof CreateProfessorInput;
 export type CreateProfessorResult =
   | { ok: true; professor: typeof professors.$inferSelect }
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: false;
       message: string;
@@ -52,6 +55,7 @@ export type CreateProfessorResult =
 export type UpdateProfessorField = keyof UpdateProfessorInput;
 export type UpdateProfessorResult =
   | { ok: true; professor: typeof professors.$inferSelect }
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: false;
       message: string;
@@ -100,6 +104,7 @@ export async function listAcademyProfessors(
 export async function createAcademyProfessor(
   academyId: string,
   input: CreateProfessorInput,
+  options: { acknowledgedDuplicateIds?: readonly string[] } = {},
 ): Promise<CreateProfessorResult> {
   const values = {
     firstName: input.firstName,
@@ -142,6 +147,19 @@ export async function createAcademyProfessor(
 
   if (documentConflict) {
     return toProfessorDocumentRefusal(documentConflict, values);
+  }
+
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findProfessorNameWarning({
+    academyId,
+    acknowledgedDuplicateIds: options.acknowledgedDuplicateIds ?? [],
+    firstName,
+    lastName,
+    scope: "portal",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
   }
 
   // The index can still refuse the number between the pre-check and the
@@ -219,6 +237,7 @@ export async function updateAcademyProfessor(
   academyId: string,
   professorId: string,
   input: UpdateProfessorInput,
+  options: { acknowledgedDuplicateIds?: readonly string[] } = {},
 ): Promise<UpdateProfessorResult> {
   const existingProfessor = await findAcademyProfessor(academyId, professorId);
 
@@ -285,6 +304,20 @@ export async function updateAcademyProfessor(
       values,
       duplicateDocumentProfessorId: documentConflict.professorId,
     };
+  }
+
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findProfessorNameWarning({
+    academyId,
+    acknowledgedDuplicateIds: options.acknowledgedDuplicateIds ?? [],
+    firstName,
+    lastName,
+    professorId,
+    scope: "portal",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
   }
 
   // The index can still refuse the number between the pre-check and the write.

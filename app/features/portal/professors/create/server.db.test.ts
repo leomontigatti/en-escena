@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
 import { handleCreateProfessorAction } from "@/features/portal/professors/create/server";
 import { createAcademySession } from "@/features/portal/test-support/db";
+import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createFormData } from "@/lib/test-support/form-data";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -208,8 +209,104 @@ describe("handleCreateProfessorAction", () => {
       })
       .returning();
 
-    // The other save lands between the pre-check and the insert.
+    // The other save lands between the pre-check and the insert. A different
+    // name, so the document twin is what refuses and not the name warning.
     findProfessorDocumentConflictMock.mockResolvedValueOnce(null);
+
+    const result = await handleCreateProfessorAction({
+      academyId: owner.academyId,
+      formData: createFormData({
+        firstName: "Luz",
+        lastName: "Diaz",
+        documentType: "other",
+        documentNumber: "12345678",
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Profesor con ese documento en tu academia.",
+      },
+      duplicateDocumentProfessorId: existing.id,
+    });
+    expect(await findAcademyProfessors(owner.academyId)).toHaveLength(1);
+  });
+
+  test("warns when the academy already has a professor with that name", async () => {
+    const owner = await createOwner("profesores.create.samename@example.com");
+    const [existing] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+      })
+      .returning();
+
+    const result = await handleCreateProfessorAction({
+      academyId: owner.academyId,
+      formData: createFormData({
+        firstName: " ana ",
+        lastName: "paz",
+        documentType: "",
+        documentNumber: "",
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: "warning",
+      warning: {
+        kind: "professor-name",
+        matches: [{ id: existing.id, label: "Ana Paz" }],
+        scope: "portal",
+      },
+      modalOpen: true,
+    });
+    expect(await findAcademyProfessors(owner.academyId)).toHaveLength(1);
+  });
+
+  test("creates the professor once the match is acknowledged", async () => {
+    const owner = await createOwner(
+      "profesores.create.acknowledged@example.com",
+    );
+    const [existing] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+      })
+      .returning();
+    const formData = createFormData({
+      firstName: "Ana",
+      lastName: "Paz",
+      documentType: "",
+      documentNumber: "",
+    });
+    formData.append(acknowledgedDuplicateIdsField, existing.id);
+
+    const result = await handleCreateProfessorAction({
+      academyId: owner.academyId,
+      formData,
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    expect(await findAcademyProfessors(owner.academyId)).toHaveLength(2);
+  });
+
+  test("returns the document refusal rather than the name warning", async () => {
+    const owner = await createOwner(
+      "profesores.create.documentwins@example.com",
+    );
+    await db.insert(professors).values({
+      academyId: owner.academyId,
+      firstName: "Ana",
+      lastName: "Paz",
+      documentType: "dni",
+      documentNumber: "12345678",
+    });
 
     const result = await handleCreateProfessorAction({
       academyId: owner.academyId,
@@ -227,9 +324,7 @@ describe("handleCreateProfessorAction", () => {
         documentNumber:
           "Ya existe un Profesor con ese documento en tu academia.",
       },
-      duplicateDocumentProfessorId: existing.id,
     });
-    expect(await findAcademyProfessors(owner.academyId)).toHaveLength(1);
   });
 });
 

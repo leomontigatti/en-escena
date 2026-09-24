@@ -1,20 +1,19 @@
 import { z } from "zod";
+import {
+  rosterDocumentPairFields,
+  rosterPersonNameFields,
+} from "@/lib/roster/roster-identity-fields";
 
 import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
 import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
-import { requiredFieldMessage } from "@/lib/shared/forms";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 
 export const createProfessorIntent = "create-professor";
 
+// The document is optional at creation, so the per-academy rule acts from the
+// first save without being required to load a professor.
 export const createProfessorSchema = z
-  .object({
-    firstName: z.string().trim().min(1, requiredFieldMessage),
-    lastName: z.string().trim().min(1, requiredFieldMessage),
-    // Optional: the document is asked for at creation so the per-academy rule
-    // acts from the first save, not required to load a professor.
-    documentType: z.string().trim(),
-    documentNumber: z.string().trim(),
-  })
+  .object({ ...rosterPersonNameFields, ...rosterDocumentPairFields })
   .superRefine(refineDocumentPair);
 
 export type CreateProfessorFormValues = z.infer<typeof createProfessorSchema>;
@@ -30,6 +29,14 @@ export type CreateProfessorActionData =
   | {
       status: "success";
       message: string;
+    }
+  | {
+      // Another professor of the academy carries this name; the dialog shows
+      // who and re-submits with their ids.
+      status: "warning";
+      warning: RosterNameWarning;
+      values: CreateProfessorFormValues;
+      modalOpen: boolean;
     }
   | {
       status: "error";

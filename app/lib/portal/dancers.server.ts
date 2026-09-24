@@ -25,6 +25,8 @@ import {
 import type { EventBases } from "@/lib/events/bases.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 import { activeRosterPerson } from "@/lib/roster/roster-person-status.server";
+import { findDancerNameWarning } from "@/lib/roster/roster-name-duplicates.server";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import {
   type ParticipationStatus,
   toParticipationStatus,
@@ -72,6 +74,7 @@ type DancerImageField =
 
 export type CreateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: false;
       error: string;
@@ -92,6 +95,7 @@ export type UpdateDancerResult =
       scheduleMoves: DancerBirthDateScheduleMove[];
       recategorisedChoreographies: RecategorisedChoreography[];
     }
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: false;
       error: string;
@@ -160,11 +164,26 @@ export async function countActiveDancersForAcademy(academyId: string) {
 export async function createDancerForAcademy(
   academyId: string,
   input: CreateDancerInput,
+  options: { acknowledgedDuplicateIds?: readonly string[] } = {},
 ): Promise<CreateDancerResult> {
   const validation = await validateCreateDancerInput(academyId, input);
 
   if (!validation.ok) {
     return validation;
+  }
+
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findDancerNameWarning({
+    academyId,
+    acknowledgedDuplicateIds: options.acknowledgedDuplicateIds ?? [],
+    birthDate: validation.input.birthDate,
+    firstName: validation.input.firstName,
+    lastName: validation.input.lastName,
+    scope: "portal",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
   }
 
   const { documentType, documentNumber } = validation.input;
@@ -220,6 +239,7 @@ export async function updateDancerForAcademy(
   academyId: string,
   dancerId: string,
   input: UpdateDancerInput,
+  options: { acknowledgedDuplicateIds?: readonly string[] } = {},
 ): Promise<UpdateDancerResult> {
   const dancer = await findDancerForAcademy(academyId, dancerId);
 
@@ -231,6 +251,21 @@ export async function updateDancerForAcademy(
 
   if (!validation.ok) {
     return validation;
+  }
+
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findDancerNameWarning({
+    academyId,
+    acknowledgedDuplicateIds: options.acknowledgedDuplicateIds ?? [],
+    birthDate: validation.input.birthDate,
+    dancerId,
+    firstName: validation.input.firstName,
+    lastName: validation.input.lastName,
+    scope: "portal",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
   }
 
   const birthDateChanged = dancer.birthDate !== validation.input.birthDate;

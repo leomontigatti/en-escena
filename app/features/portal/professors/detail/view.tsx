@@ -389,7 +389,9 @@ function getProfessorStatusFormId(intent: ProfessorStatusIntent | null) {
   }
 }
 
-function getGeneralActionError(actionData?: ActionData) {
+function getGeneralActionError(
+  actionData?: Extract<ActionData, { status: "error" }>,
+) {
   if (!actionData) {
     return null;
   }

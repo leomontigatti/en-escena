@@ -1,26 +1,24 @@
 import { z } from "zod";
+import {
+  buildDancerBirthDateField,
+  rosterDocumentPairFields,
+  rosterPersonNameFields,
+} from "@/lib/roster/roster-identity-fields";
 
 import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
-import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
-import { requiredFieldMessage } from "@/lib/shared/forms";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 
 export const createDancerIntent = "create-dancer";
 
 export function buildCreateDancerSchema(eventStartDate: string | null) {
+  // The document is optional at creation, so the per-academy rule acts from
+  // the first save without being required to load a dancer.
   return z
     .object({
-      firstName: z.string().trim().min(1, requiredFieldMessage),
-      lastName: z.string().trim().min(1, requiredFieldMessage),
-      birthDate: z
-        .string()
-        .trim()
-        .min(1, requiredFieldMessage)
-        .superRefine(buildBirthDateRefinement(eventStartDate)),
-      // Optional: the document is asked for at creation so the per-academy
-      // rule acts from the first save, not required to load a dancer.
-      documentType: z.string().trim(),
-      documentNumber: z.string().trim(),
+      ...rosterPersonNameFields,
+      birthDate: buildDancerBirthDateField(eventStartDate),
+      ...rosterDocumentPairFields,
     })
     .superRefine(refineDocumentPair);
 }
@@ -41,6 +39,14 @@ export type CreateDancerActionData =
   | {
       status: "success";
       message: string;
+    }
+  | {
+      // Another dancer of the academy carries this name and birth date; the
+      // dialog shows who and re-submits with their ids.
+      status: "warning";
+      warning: RosterNameWarning;
+      values: CreateDancerFormValues;
+      modalOpen: boolean;
     }
   | {
       status: "error";

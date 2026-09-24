@@ -2,6 +2,7 @@ import {
   createAcademyProfessor,
   type CreateProfessorInput,
 } from "@/lib/portal/professors.server";
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createProfessorSchema } from "@/features/portal/professors/create/shared";
 
@@ -34,7 +35,18 @@ export async function handleCreateProfessorAction({
     };
   }
 
-  const result = await createAcademyProfessor(academyId, parsed.data);
+  const result = await createAcademyProfessor(academyId, parsed.data, {
+    acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
+  });
+
+  if (!result.ok && "warning" in result) {
+    return {
+      status: "warning" as const,
+      warning: result.warning,
+      values: parsed.data,
+      modalOpen: true,
+    };
+  }
 
   if (!result.ok) {
     return {

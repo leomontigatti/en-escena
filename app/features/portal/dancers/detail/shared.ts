@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  buildDancerBirthDateField,
+  rosterDocumentImageFields,
+  rosterDocumentPairFields,
+  rosterPersonNameFields,
+} from "@/lib/roster/roster-identity-fields";
 
 import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
 
@@ -12,14 +18,13 @@ import type {
   DancerVerificationStatus,
 } from "@/lib/dancers/verification";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
-import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import {
   getArchiveKeepsRosterMessage,
   getRosterPersonArchiveAvailability,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
-import { requiredFieldMessage } from "@/lib/shared/forms";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import {
   withDancerBirthDateScheduleMoveFeedback,
   type DancerBirthDateScheduleMove,
@@ -34,17 +39,10 @@ export const portalDancerInvalidValuesMessage =
 export function buildPortalDancerSchema(eventStartDate: string | null) {
   return z
     .object({
-      firstName: z.string().trim().min(1, requiredFieldMessage),
-      lastName: z.string().trim().min(1, requiredFieldMessage),
-      birthDate: z
-        .string()
-        .trim()
-        .min(1, requiredFieldMessage)
-        .superRefine(buildBirthDateRefinement(eventStartDate)),
-      documentType: z.string().trim(),
-      documentNumber: z.string().trim(),
-      documentFrontImageStorageKey: z.string().trim(),
-      documentBackImageStorageKey: z.string().trim(),
+      ...rosterPersonNameFields,
+      birthDate: buildDancerBirthDateField(eventStartDate),
+      ...rosterDocumentPairFields,
+      ...rosterDocumentImageFields,
     })
     .superRefine(refineDocumentPair);
 }
@@ -75,6 +73,13 @@ export type PortalDancerDetailActionData =
       // The dancer already holding the document number, so the form can link to
       // them when the match is an archived one.
       duplicateDocumentDancerId?: string;
+    }
+  | {
+      // Another dancer of the academy carries this name and birth date; the
+      // form shows who and re-submits with their ids.
+      status: "warning";
+      warning: RosterNameWarning;
+      values: PortalDancerFormValues;
     }
   | {
       status: "success";

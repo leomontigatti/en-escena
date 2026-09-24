@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import { handleCreateDancerAction } from "@/features/portal/dancers/create/server";
 import { createAcademySession } from "@/features/portal/test-support/db";
+import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createFormData } from "@/lib/test-support/form-data";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -178,6 +179,168 @@ describe("handleCreateDancerAction", () => {
           "Ya existe un Bailarín archivado con ese documento en tu academia.",
       },
       duplicateDocumentDancerId: archived.id,
+    });
+  });
+
+  test("warns when the academy already has that name and birth date", async () => {
+    const owner = await createOwner("bailarines.create.samename@example.com");
+    const [existing] = await db
+      .insert(dancers)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2015-05-04",
+      })
+      .returning();
+
+    const result = await handleCreateDancerAction({
+      academyId: owner.academyId,
+      formData: createFormData({
+        firstName: " ana ",
+        lastName: "paz",
+        birthDate: "2015-05-04",
+        documentType: "",
+        documentNumber: "",
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: "warning",
+      warning: {
+        kind: "dancer-name",
+        matches: [{ id: existing.id, label: "Ana Paz" }],
+        scope: "portal",
+      },
+      modalOpen: true,
+    });
+    expect(await findAcademyDancers(owner.academyId)).toHaveLength(1);
+  });
+
+  test("does not warn when the birth date differs", async () => {
+    const owner = await createOwner("bailarines.create.otherbirth@example.com");
+    await db.insert(dancers).values({
+      academyId: owner.academyId,
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2015-05-04",
+    });
+
+    const result = await handleCreateDancerAction({
+      academyId: owner.academyId,
+      formData: createFormData({
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2016-05-04",
+        documentType: "",
+        documentNumber: "",
+      }),
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+  });
+
+  test("creates the dancer once the match is acknowledged", async () => {
+    const owner = await createOwner(
+      "bailarines.create.acknowledged@example.com",
+    );
+    const [existing] = await db
+      .insert(dancers)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2015-05-04",
+      })
+      .returning();
+    const formData = createFormData({
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2015-05-04",
+      documentType: "",
+      documentNumber: "",
+    });
+    formData.append(acknowledgedDuplicateIdsField, existing.id);
+
+    const result = await handleCreateDancerAction({
+      academyId: owner.academyId,
+      formData,
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    expect(await findAcademyDancers(owner.academyId)).toHaveLength(2);
+  });
+
+  test("warns again for a match the acknowledged ids do not cover", async () => {
+    const owner = await createOwner("bailarines.create.newmatch@example.com");
+    const [first] = await db
+      .insert(dancers)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2015-05-04",
+      })
+      .returning();
+    const [second] = await db
+      .insert(dancers)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2015-05-04",
+      })
+      .returning();
+    const formData = createFormData({
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2015-05-04",
+      documentType: "",
+      documentNumber: "",
+    });
+    formData.append(acknowledgedDuplicateIdsField, first.id);
+
+    const result = await handleCreateDancerAction({
+      academyId: owner.academyId,
+      formData,
+    });
+
+    expect(result).toMatchObject({
+      status: "warning",
+      warning: { matches: [{ id: second.id }] },
+    });
+  });
+
+  test("returns the document refusal rather than the name warning", async () => {
+    const owner = await createOwner(
+      "bailarines.create.documentwins@example.com",
+    );
+    await db.insert(dancers).values({
+      academyId: owner.academyId,
+      firstName: "Ana",
+      lastName: "Paz",
+      birthDate: "2015-05-04",
+      documentType: "dni",
+      documentNumber: "12345678",
+    });
+
+    const result = await handleCreateDancerAction({
+      academyId: owner.academyId,
+      formData: createFormData({
+        firstName: "Ana",
+        lastName: "Paz",
+        birthDate: "2015-05-04",
+        documentType: "other",
+        documentNumber: "12345678",
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Bailarín con ese documento en tu academia.",
+      },
     });
   });
 
