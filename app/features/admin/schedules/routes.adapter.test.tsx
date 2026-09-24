@@ -21,6 +21,7 @@ const loaderResult = {
   categories: [],
   modalities: [],
   schedules: [],
+  registrationOpenBlockers: [],
   selectedEventId: "evento_1",
 };
 

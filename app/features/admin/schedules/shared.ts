@@ -30,7 +30,14 @@ export type EventScheduleFormLoaderData = {
 };
 
 export type EventScheduleDetailLoaderData = EventSchedulesListLoaderData &
-  EventScheduleFormLoaderData;
+  EventScheduleFormLoaderData & {
+    /**
+     * Why `Abrir inscripciones` would be refused for any schedule of this
+     * event. Empty is the permission to open; anything in it both disables the
+     * action and is what the detail's alert lists.
+     */
+    registrationOpenBlockers: string[];
+  };
 
 export type EventSchedulesLoaderData = EventScheduleDetailLoaderData;
 

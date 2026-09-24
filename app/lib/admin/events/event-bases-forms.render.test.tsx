@@ -342,6 +342,7 @@ function buildLoaderData(): EventBasesLoaderData {
   return {
     selectedEventId: "event_1",
     requiredDepositPercentage: 30,
+    registrationOpenBlockers: [],
     modalities: [
       {
         id: "modality_1",

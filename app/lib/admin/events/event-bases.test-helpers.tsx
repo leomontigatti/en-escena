@@ -32,6 +32,7 @@ import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { createModality } from "@/lib/modalities/repository.server";
+import { getEventRegistrationOpenBlockers } from "@/lib/schedules/registration-open.server";
 import {
   getEventBases,
   type PriceListItem,
@@ -74,6 +75,7 @@ export type EventBasesLoaderData = {
   categories: CategoryRow[];
   schedules: ScheduleListItem[];
   prices: PriceListItem[];
+  registrationOpenBlockers: string[];
 };
 
 export async function createSavedEvent(
@@ -384,6 +386,9 @@ export async function loader({ request }: { request: Request }) {
   return {
     selectedEventId,
     requiredDepositPercentage: selectedEvent?.requiredDepositPercentage ?? null,
+    registrationOpenBlockers: selectedEventId
+      ? await getEventRegistrationOpenBlockers(selectedEventId)
+      : [],
     ...eventBases,
   } satisfies EventBasesLoaderData;
 }

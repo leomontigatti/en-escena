@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { EventScheduleDetailView } from "@/features/admin/schedules/detail/view";
 import type { EventScheduleDetailLoaderData } from "@/features/admin/schedules/shared";
 import { scheduleCategoriesPlaceholder } from "@/features/admin/schedules/view-shared";
+import { openRadixSelect } from "@/lib/test-support/radix-select";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -195,6 +196,78 @@ describe("EventScheduleDetailView", () => {
     );
   });
 
+  // The switch is the administrator's, and what it offers is exactly what the
+  // server would accept: one item at a time, and the opening one disabled with
+  // the reasons beside it.
+  test('offers "Abrir inscripciones" while the `Cronograma` is closed', async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({ initialDeleteDialogOpen: false });
+    await openScheduleActionsMenu();
+
+    expect(getButton("Abrir inscripciones").disabled).toBe(false);
+    expect(document.body.textContent).not.toContain("Cerrar inscripciones");
+    expect(document.body.textContent).not.toContain(
+      "No se pueden abrir las inscripciones de este cronograma.",
+    );
+  });
+
+  test('offers "Cerrar inscripciones" while the `Cronograma` is open', async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildOpenLoaderData(),
+    });
+    await openScheduleActionsMenu();
+
+    expect(getButton("Cerrar inscripciones").disabled).toBe(false);
+    expect(document.body.textContent).not.toContain("Abrir inscripciones");
+  });
+
+  test('disables "Abrir inscripciones" and lists why it is refused', async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildBlockedLoaderData(),
+    });
+    await openScheduleActionsMenu();
+
+    expect(getButton("Abrir inscripciones").disabled).toBe(true);
+    expect(document.body.textContent).toContain(
+      "No se pueden abrir las inscripciones de este cronograma.",
+    );
+    expect(document.body.textContent).toContain(
+      "Falta al menos un precio en este evento.",
+    );
+    expect(document.body.textContent).toContain("El evento ya finalizó.");
+  });
+
+  // An open `Cronograma` has nothing to be refused: the alert belongs to the
+  // disabled action, so it goes away with it.
+  test("hides the reasons once the `Cronograma` is open", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: {
+        ...buildOpenLoaderData(),
+        registrationOpenBlockers: ["El evento ya finalizó."],
+      },
+    });
+
+    expect(document.body.textContent).not.toContain(
+      "No se pueden abrir las inscripciones de este cronograma.",
+    );
+  });
+
+  async function openScheduleActionsMenu() {
+    await openRadixSelect(
+      document.querySelector('button[aria-label="Acciones"]'),
+    );
+  }
+
   async function renderDetail(
     props: Partial<ComponentProps<typeof EventScheduleDetailView>> = {},
   ) {
@@ -223,6 +296,7 @@ describe("EventScheduleDetailView", () => {
 function buildLoaderData(): EventScheduleDetailLoaderData {
   return {
     selectedEventId: "event_1",
+    registrationOpenBlockers: [],
     modalities: [
       {
         id: "modality_1",
@@ -312,6 +386,26 @@ function buildOccupiedLoaderData(): EventScheduleDetailLoaderData {
           },
         ],
       },
+    ],
+  };
+}
+
+function buildOpenLoaderData(): EventScheduleDetailLoaderData {
+  const loaderData = buildLoaderData();
+  const [schedule] = loaderData.schedules;
+
+  return {
+    ...loaderData,
+    schedules: [{ ...schedule, registrationOpen: true }],
+  };
+}
+
+function buildBlockedLoaderData(): EventScheduleDetailLoaderData {
+  return {
+    ...buildLoaderData(),
+    registrationOpenBlockers: [
+      "Falta al menos un precio en este evento.",
+      "El evento ya finalizó.",
     ],
   };
 }

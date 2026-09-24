@@ -54,6 +54,7 @@ _Avoid_: `schedule`, time block
 
 **`registrationOpen`** — ui: "Inscripciones abiertas"
 Whether a `schedule` takes registrations right now, reading `Inscripciones cerradas` while it does not. A manual switch an administrator opens and closes on one `schedule` at a time; a new `schedule` is born closed, and the event's registrations are open when any of its schedules is.
+The actions that move it, on the `schedule` detail, are `Abrir inscripciones` and `Cerrar inscripciones`; opening is refused while the event's registration readiness fails or the event already ended, and closing never fails.
 _Avoid_: `registrationPeriod`, registration window, `active`
 
 **`academy`** — ui: "Academia"

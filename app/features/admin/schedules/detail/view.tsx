@@ -1,4 +1,7 @@
+import { TriangleAlert } from "lucide-react";
+
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { EmptyResourceState, ScheduleActions } from "../dialogs";
@@ -20,6 +23,39 @@ export type EventScheduleDetailViewProps = {
   scheduleId: string;
   initialDeleteDialogOpen?: boolean;
 };
+
+/**
+ * Why `Abrir inscripciones` is unavailable, shown only while the action is
+ * disabled. The reasons are the event's —what its `Bases del evento` are
+ * missing, or that it already finished— because the readiness they come from
+ * is per event and the switch is what makes it a rule.
+ */
+function ScheduleRegistrationOpenBlockersAlert({
+  blockers,
+}: {
+  blockers: string[];
+}) {
+  if (blockers.length === 0) {
+    return null;
+  }
+
+  return (
+    <Alert variant="warning">
+      <TriangleAlert
+        aria-hidden="true"
+        className="self-center !translate-y-0"
+      />
+      <AlertDescription className="[&_p:not(:last-child)]:mb-1">
+        <p>No se pueden abrir las inscripciones de este cronograma.</p>
+        <ul className="list-disc pl-5">
+          {blockers.map((blocker) => (
+            <li key={blocker}>{blocker}</li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 export function EventScheduleDetailView({
   loaderData,
@@ -61,6 +97,7 @@ export function EventScheduleDetailView({
         schedule ? (
           <ScheduleActions
             schedule={schedule}
+            registrationOpenBlockers={loaderData.registrationOpenBlockers}
             initialDeleteDialogOpen={initialDeleteDialogOpen}
           />
         ) : null
@@ -68,6 +105,11 @@ export function EventScheduleDetailView({
     >
       {schedule ? (
         <ScheduleFormPanel>
+          {schedule.registrationOpen ? null : (
+            <ScheduleRegistrationOpenBlockersAlert
+              blockers={loaderData.registrationOpenBlockers}
+            />
+          )}
           <ScheduleForm
             categories={loaderData.categories}
             form={form}
