@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-duplicates";
 import {
   rosterDocumentPairFields,
   rosterPersonNameFields,
@@ -65,7 +66,9 @@ export type ProfessorActionSuccess = {
 };
 
 export type ProfessorDetailActionData =
-  ProfessorActionError | ProfessorActionSuccess;
+  | ProfessorActionError
+  | ProfessorActionSuccess
+  | RosterNameWarningActionData<ProfessorEditFormValues>;
 
 export type ProfessorRouteNotification = Extract<
   NotificationKey,

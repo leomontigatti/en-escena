@@ -1,4 +1,5 @@
 import { getFieldErrors } from "@/lib/shared/form-validation";
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
@@ -116,6 +117,25 @@ export async function handleProfessorDetailAction(input: {
     );
   }
 
+  return await saveAdministrativeProfessor({
+    formData,
+    professorId,
+    selectedEventId: eventContext.selectedEventId,
+  });
+}
+
+/**
+ * The edit itself, apart from the status intents.
+ */
+async function saveAdministrativeProfessor({
+  formData,
+  professorId,
+  selectedEventId,
+}: {
+  formData: FormData;
+  professorId: string;
+  selectedEventId: string | null;
+}) {
   const values = readProfessorUpdateValues(formData);
   const parsed = buildProfessorEditSchema().safeParse(values);
 
@@ -128,10 +148,19 @@ export async function handleProfessorDetailAction(input: {
   }
 
   const result = await updateAdministrativeProfessor({
+    acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
     professorId,
-    selectedEventId: eventContext.selectedEventId,
+    selectedEventId: selectedEventId,
     values: parsed.data,
   });
+
+  if (!result.ok && "warning" in result) {
+    return {
+      status: "warning" as const,
+      warning: result.warning,
+      values: parsed.data,
+    };
+  }
 
   if (!result.ok) {
     return buildProfessorActionError(

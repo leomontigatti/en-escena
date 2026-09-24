@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { dancers } from "@/db/schema";
+import { findDancerNameWarning } from "@/lib/roster/roster-name-duplicates.server";
 import {
   findDancerForMutation,
   toDancerSnapshot,
@@ -25,6 +26,7 @@ import {
 } from "@/lib/dancers/dancer-records.server";
 
 export async function updateAdministrativeDancer(input: {
+  acknowledgedDuplicateIds?: readonly string[];
   dancerId: string;
   selectedEventId: string | null;
   values: DancerUpdateInput;
@@ -79,6 +81,21 @@ export async function updateAdministrativeDancer(input: {
       values,
       duplicateDocumentDancerId: documentConflict.dancerId,
     };
+  }
+
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findDancerNameWarning({
+    academyId: existingDancer.academyId,
+    acknowledgedDuplicateIds: input.acknowledgedDuplicateIds ?? [],
+    birthDate: normalizedValues.birthDate,
+    dancerId: existingDancer.id,
+    firstName: normalizedValues.firstName,
+    lastName: normalizedValues.lastName,
+    scope: "admin",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
   }
 
   const birthDateChanged =

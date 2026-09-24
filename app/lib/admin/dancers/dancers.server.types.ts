@@ -9,6 +9,7 @@ import type {
 import type { ParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 
 export type { DancerInscription };
 
@@ -82,6 +83,7 @@ export type DancerFieldErrors = Partial<
 >;
 
 export type DancerMutationResult =
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: true;
       dancer: DancerEditableSnapshot;

@@ -21,6 +21,16 @@ export type RosterNameWarning = DuplicateWarning<
 > & { scope: RosterNameScope };
 
 /**
+ * What an action answers with when it found a person of the same name: the
+ * form shows who and re-submits the same values carrying their ids.
+ */
+export type RosterNameWarningActionData<Values> = {
+  status: "warning";
+  warning: RosterNameWarning;
+  values: Values;
+};
+
+/**
  * Dancers match on the name and the birth date, professors on the name alone
  * (PRD #1090), and the copy says which.
  */

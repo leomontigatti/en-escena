@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-duplicates";
 import {
   buildDancerBirthDateField,
   rosterDocumentImageFields,
@@ -87,7 +88,10 @@ export type DancerActionSuccess = {
   recategorisedChoreographies: RecategorisedChoreography[];
 };
 
-export type DancerDetailActionData = DancerActionError | DancerActionSuccess;
+export type DancerDetailActionData =
+  | DancerActionError
+  | DancerActionSuccess
+  | RosterNameWarningActionData<DancerEditFormValues>;
 
 export type DancerRouteNotification = Extract<
   NotificationKey,

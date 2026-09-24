@@ -14,6 +14,7 @@ import {
 } from "@/lib/admin/test-support/db";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
+import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createEventChoreographyFixture,
@@ -764,6 +765,94 @@ describe("`/administracion/profesores` route", () => {
       message: "Profesor guardado.",
     });
     await expectPersistedProfessor(professor.id, { firstName: "Lola Beatriz" });
+  });
+
+  test("warns when another professor of the academy has that name", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.homonimo.academia@example.com",
+      academyName: "Academia Homónimos",
+      contactName: "Dora Homónimos",
+      phone: "1010-1010",
+    });
+    const twin = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Ana",
+      lastName: "Paz",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Bia",
+      lastName: "Nueva",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.homonimo@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-professor",
+          firstName: "ana",
+          lastName: "paz",
+          documentType: "",
+          documentNumber: "",
+        }),
+        professor.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "warning",
+      warning: {
+        kind: "professor-name",
+        matches: [{ id: twin.id, label: "Ana Paz" }],
+        scope: "admin",
+      },
+    });
+    await expectPersistedProfessor(professor.id, { firstName: "Bia" });
+  });
+
+  test("saves from the panel once the matching professor is acknowledged", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.homonimo.ok.academia@example.com",
+      academyName: "Academia Reconocida",
+      contactName: "Dora Reconocida",
+      phone: "1010-1010",
+    });
+    const twin = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Ana",
+      lastName: "Paz",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Bia",
+      lastName: "Nueva",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.homonimo.ok@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-professor",
+          firstName: "Ana",
+          lastName: "Paz",
+          documentType: "",
+          documentNumber: "",
+          [acknowledgedDuplicateIdsField]: twin.id,
+        }),
+        professor.id,
+      ),
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    await expectPersistedProfessor(professor.id, { firstName: "Ana" });
   });
 
   test("rejects a duplicate document within the same academy", async () => {

@@ -1,4 +1,5 @@
 import { getFieldErrors } from "@/lib/shared/form-validation";
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
@@ -140,6 +141,28 @@ export async function handleDancerDetailAction(input: {
     return buildDancerActionSuccess("bailarin-verificado", []);
   }
 
+  return await saveAdministrativeDancer({
+    dancer,
+    dancerId,
+    formData,
+    selectedEventId: eventContext.selectedEventId,
+  });
+}
+
+/**
+ * The edit itself, apart from the status and verification intents.
+ */
+async function saveAdministrativeDancer({
+  dancer,
+  dancerId,
+  formData,
+  selectedEventId,
+}: {
+  dancer: NonNullable<Awaited<ReturnType<typeof findDancer>>>;
+  dancerId: string;
+  formData: FormData;
+  selectedEventId: string | null;
+}) {
   const submittedValues = readDancerUpdateValues(formData);
   const values = {
     ...submittedValues,
@@ -159,10 +182,19 @@ export async function handleDancerDetailAction(input: {
   }
 
   const result = await updateAdministrativeDancer({
+    acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
     dancerId,
-    selectedEventId: eventContext.selectedEventId,
+    selectedEventId: selectedEventId,
     values: parsed.data,
   });
+
+  if (!result.ok && "warning" in result) {
+    return {
+      status: "warning" as const,
+      warning: result.warning,
+      values: parsed.data,
+    };
+  }
 
   if (!result.ok) {
     return buildDancerActionError(

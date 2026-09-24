@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
+import { findProfessorNameWarning } from "@/lib/roster/roster-name-duplicates.server";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import {
   academies,
   choreographies,
@@ -89,6 +91,7 @@ export type ProfessorMutationResult =
       ok: true;
       professor: ProfessorEditableSnapshot;
     }
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: false;
       message: string;
@@ -288,6 +291,7 @@ export async function findProfessor(input: {
 }
 
 export async function updateAdministrativeProfessor(input: {
+  acknowledgedDuplicateIds?: readonly string[];
   professorId: string;
   selectedEventId: string | null;
   values: ProfessorUpdateInput;
@@ -352,6 +356,20 @@ export async function updateAdministrativeProfessor(input: {
       values,
       duplicateDocumentProfessorId: documentConflict.professorId,
     };
+  }
+
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findProfessorNameWarning({
+    academyId: existingProfessor.academyId,
+    acknowledgedDuplicateIds: input.acknowledgedDuplicateIds ?? [],
+    firstName: normalizedNames.firstName,
+    lastName: normalizedNames.lastName,
+    professorId: existingProfessor.id,
+    scope: "admin",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
   }
 
   // The index can still refuse the number between the pre-check and the write.
