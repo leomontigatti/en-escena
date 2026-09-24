@@ -16,6 +16,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleRegistrationOpenBlockers } from "@/lib/schedules/registration-open";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 export function ScheduleActions({
@@ -24,7 +25,7 @@ export function ScheduleActions({
   initialDeleteDialogOpen = false,
 }: {
   schedule: ScheduleListItem;
-  registrationOpenBlockers: string[];
+  registrationOpenBlockers: ScheduleRegistrationOpenBlockers;
   initialDeleteDialogOpen?: boolean;
 }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(

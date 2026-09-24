@@ -70,7 +70,11 @@ export async function resolveOfferedScheduleOptions(input: {
       )
     : input.compatibleScheduleCapacities;
 
-  return offered && (await mapScheduleResolution(offered));
+  if (!offered) {
+    return null;
+  }
+
+  return mapScheduleResolution(offered);
 }
 
 async function withOpenSchedulesOnly(

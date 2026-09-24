@@ -1,3 +1,4 @@
+import type { ScheduleRegistrationOpenBlockers } from "@/lib/schedules/registration-open";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import type { categories, modalities } from "@/db/schema";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
@@ -36,7 +37,7 @@ export type EventScheduleDetailLoaderData = EventSchedulesListLoaderData &
      * event. Empty is the permission to open; anything in it both disables the
      * action and is what the detail's alert lists.
      */
-    registrationOpenBlockers: string[];
+    registrationOpenBlockers: ScheduleRegistrationOpenBlockers;
   };
 
 export type EventSchedulesLoaderData = EventScheduleDetailLoaderData;

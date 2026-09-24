@@ -473,22 +473,24 @@ function PortalActiveEventSummary({
   const activeEventName = eventContext.activeEvent?.name ?? "Sin evento";
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton size="lg">
-          <EnEscenaAvatar />
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{activeEventName}</span>
-            <span className="truncate text-xs">Portal de academias</span>
-          </div>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      {eventContext.isRegistrationOpen ? null : (
-        <SidebarMenuItem className="px-2 text-xs text-muted-foreground">
-          Las inscripciones están cerradas.
+    <>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg">
+            <EnEscenaAvatar />
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">{activeEventName}</span>
+              <span className="truncate text-xs">Portal de academias</span>
+            </div>
+          </SidebarMenuButton>
         </SidebarMenuItem>
+      </SidebarMenu>
+      {eventContext.isRegistrationOpen ? null : (
+        <p className="px-2 text-xs text-muted-foreground">
+          Las inscripciones están cerradas.
+        </p>
       )}
-    </SidebarMenu>
+    </>
   );
 }
 

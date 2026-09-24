@@ -1,8 +1,6 @@
-import { and, eq } from "drizzle-orm";
-
 import { db } from "@/db";
-import { schedules } from "@/db/schema";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { findOpenScheduleIds } from "@/lib/schedules/registration-open.server";
 import { toPaymentInstructions } from "@/lib/finances/payment-instructions";
 import type {
   PortalActiveEventContext,
@@ -37,15 +35,11 @@ export async function isEventRegistrationOpen(
     return false;
   }
 
-  const openSchedule = await db.query.schedules.findFirst({
-    columns: { id: true },
-    where: and(
-      eq(schedules.eventId, eventId),
-      eq(schedules.registrationOpen, true),
-    ),
-  });
+  // The same query the portal resolver filters its options with, so "the event
+  // is open" and "this schedule is offered" can never answer from two reads.
+  const openScheduleIds = await findOpenScheduleIds(eventId);
 
-  return openSchedule !== undefined;
+  return openScheduleIds.size > 0;
 }
 
 export async function getPortalActiveEventSummaryContext(

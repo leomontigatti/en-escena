@@ -2,6 +2,10 @@ import { TriangleAlert } from "lucide-react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  scheduleRegistrationOpenRefusalMessage,
+  type ScheduleRegistrationOpenBlockers,
+} from "@/lib/schedules/registration-open";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { EmptyResourceState, ScheduleActions } from "../dialogs";
@@ -33,7 +37,7 @@ export type EventScheduleDetailViewProps = {
 function ScheduleRegistrationOpenBlockersAlert({
   blockers,
 }: {
-  blockers: string[];
+  blockers: ScheduleRegistrationOpenBlockers;
 }) {
   if (blockers.length === 0) {
     return null;
@@ -46,7 +50,7 @@ function ScheduleRegistrationOpenBlockersAlert({
         className="self-center !translate-y-0"
       />
       <AlertDescription className="[&_p:not(:last-child)]:mb-1">
-        <p>No se pueden abrir las inscripciones de este cronograma.</p>
+        <p>{scheduleRegistrationOpenRefusalMessage}</p>
         <ul className="list-disc pl-5">
           {blockers.map((blocker) => (
             <li key={blocker}>{blocker}</li>

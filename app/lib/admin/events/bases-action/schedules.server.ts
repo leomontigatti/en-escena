@@ -141,7 +141,12 @@ function readScheduleCapacityInputList(formData: FormData) {
   });
 }
 
-const scheduleIntents = new Set([
+/**
+ * Every intent this handler answers, in one place: the union the route derives
+ * its `allowedIntents` from is read off this list, so adding an intent is one
+ * edit rather than a list and a union that drift apart.
+ */
+const eventScheduleIntents = [
   "create-schedule",
   "update-schedule",
   "delete-schedule",
@@ -150,10 +155,16 @@ const scheduleIntents = new Set([
   "delete-schedule-capacity",
   "open-schedule-registration",
   "close-schedule-registration",
-]);
+] as const;
+
+export type EventScheduleIntent = (typeof eventScheduleIntents)[number];
+
+const eventScheduleIntentSet: ReadonlySet<string> = new Set(
+  eventScheduleIntents,
+);
 
 function handlesScheduleIntent(intent: string) {
-  return scheduleIntents.has(intent);
+  return eventScheduleIntentSet.has(intent);
 }
 
 function getScheduleConfirmationError(
@@ -287,7 +298,9 @@ function runScheduleRegistrationSwitchIntent(input: ScheduleActionInput) {
  * line through the flash cookie on a redirect back to the same path, which is
  * what "staying" means for an event bases action (docs/agents/form-feedback.md).
  */
-const scheduleStayingNotifications: Record<string, NotificationKey> = {
+const scheduleStayingNotifications: Partial<
+  Record<EventScheduleIntent, NotificationKey>
+> = {
   "update-schedule": scheduleSavedNotification,
   "create-schedule-capacity": scheduleCapacitySavedNotification,
   "update-schedule-capacity": scheduleCapacitySavedNotification,
@@ -302,7 +315,8 @@ function buildScheduleRedirectUrl(
   result: EventBasesActionResult,
 ) {
   const currentPath = new URL(requestUrl).pathname;
-  const stayingNotification = scheduleStayingNotifications[input.intent];
+  const stayingNotification =
+    scheduleStayingNotifications[input.intent as EventScheduleIntent];
 
   if (stayingNotification) {
     return withEventBasesFlashNotification(currentPath, stayingNotification);

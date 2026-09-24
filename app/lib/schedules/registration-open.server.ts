@@ -55,12 +55,13 @@ export async function getEventRegistrationOpenBlockers(
 export async function findOpenScheduleIds(
   eventId: string,
 ): Promise<Set<string>> {
-  const rows = await db
-    .select({ id: schedules.id })
-    .from(schedules)
-    .where(
-      and(eq(schedules.eventId, eventId), eq(schedules.registrationOpen, true)),
-    );
+  const rows = await db.query.schedules.findMany({
+    columns: { id: true },
+    where: and(
+      eq(schedules.eventId, eventId),
+      eq(schedules.registrationOpen, true),
+    ),
+  });
 
   return new Set(rows.map((row) => row.id));
 }

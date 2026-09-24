@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 const findEvents = vi.hoisted(() => vi.fn());
-const findOpenSchedule = vi.hoisted(() => vi.fn());
+const findOpenSchedules = vi.hoisted(() => vi.fn());
 const getEventRegistrationReadiness = vi.hoisted(() => vi.fn());
 
 vi.mock("@/db", () => ({
@@ -11,7 +11,7 @@ vi.mock("@/db", () => ({
         findMany: findEvents,
       },
       schedules: {
-        findFirst: findOpenSchedule,
+        findMany: findOpenSchedules,
       },
     },
   },
@@ -37,13 +37,13 @@ describe("portal event context helpers", () => {
     findEvents.mockResolvedValue([
       buildEventSummary({ id: "event_active", active: true }),
     ]);
-    findOpenSchedule.mockResolvedValue({ id: "schedule_open" });
+    findOpenSchedules.mockResolvedValue([{ id: "schedule_open" }]);
 
     await expect(
       getPortalShellEventContext(new Request("http://localhost/portal")),
     ).resolves.toMatchObject({ isRegistrationOpen: true });
 
-    findOpenSchedule.mockResolvedValue(undefined);
+    findOpenSchedules.mockResolvedValue([]);
 
     await expect(
       getPortalActiveEventContext(new Request("http://localhost/portal")),
@@ -57,7 +57,7 @@ describe("portal event context helpers", () => {
       getPortalShellEventContext(new Request("http://localhost/portal")),
     ).resolves.toEqual({ activeEvent: null, isRegistrationOpen: false });
 
-    expect(findOpenSchedule).not.toHaveBeenCalled();
+    expect(findOpenSchedules).not.toHaveBeenCalled();
   });
 
   test("keeps shell and child summary contexts on the active-event summary path without readiness work", async () => {
@@ -147,8 +147,6 @@ type EventSummaryFixture = {
   id: string;
   name: string;
   active: boolean;
-  registrationStartsAt: Date;
-  registrationEndsAt: Date;
   startsAt: Date;
   endsAt: Date;
 };
