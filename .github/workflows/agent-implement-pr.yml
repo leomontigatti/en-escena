@@ -177,7 +177,7 @@ jobs:
 
       - name: Run implement-pr runner
         if: steps.preflight.outputs.proceed == 'true'
-        timeout-minutes: 30 # guardrail: an agent hang must not burn the whole run
+        timeout-minutes: 60 # guardrail: an agent hang must not burn the whole run
         env:
           # Read-only prefetch (`gh`) uses this. The runner calls
           # `revokeGitHubToken()` once the prefetch is done, so the agent itself
@@ -188,7 +188,10 @@ jobs:
           # Internal deadline, below the step's `timeout-minutes`: the runner aborts
           # the agent and fails with a real reason instead of being killed without
           # leaving one (#512).
-          AGENT_BUDGET_MINUTES: 25
+          #
+          # 50, not 25, like Implement and Implement PRD: a review round on a
+          # whole-PRD PR outgrew 25 min twice on #1185 (#1186).
+          AGENT_BUDGET_MINUTES: 50
         run: pnpm exec tsx .sandcastle/agent-implement-pr/implement-pr.mts
 
       - name: Upload agent log

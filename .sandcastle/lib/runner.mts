@@ -205,18 +205,25 @@ export const COMPLETION_SIGNAL = "<promise>COMPLETE</promise>";
  *
  * Text arrives in arbitrary chunks, so the signal can straddle two of them; the
  * watch keeps just enough of the previous chunk to catch it.
+ *
+ * It also keeps everything it observed: a runner with structured output gets
+ * nothing back from a rejected `run()`, so after a late completion its own text
+ * is the only place that output can still be read from (#1186).
  */
 export interface CompletionWatch {
   observe: (text: string) => void;
   readonly seen: boolean;
+  readonly text: string;
 }
 
 export function createCompletionWatch(): CompletionWatch {
   let seen = false;
   let tail = "";
+  const chunks: string[] = [];
 
   return {
     observe(text) {
+      chunks.push(text);
       if (seen) {
         return;
       }
@@ -226,6 +233,9 @@ export function createCompletionWatch(): CompletionWatch {
     },
     get seen() {
       return seen;
+    },
+    get text() {
+      return chunks.join("");
     },
   };
 }
@@ -276,6 +286,19 @@ function installSignalHandlers(): () => void {
   };
 }
 
+/**
+ * Whether a failure is an agent that finished after the deadline: the budget
+ * aborted the run, but the agent had already emitted the completion signal and
+ * left nothing uncommitted. A dirty tree means the signal was premature.
+ */
+export function isLateCompletion(
+  error: unknown,
+  completion: CompletionWatch,
+  isClean: () => boolean = isWorkingTreeClean,
+): error is BudgetExhaustedError {
+  return error instanceof BudgetExhaustedError && completion.seen && isClean();
+}
+
 /** What `runMain` hands a runner. */
 export interface RunnerContext {
   /**
@@ -286,9 +309,11 @@ export interface RunnerContext {
   readonly signal: AbortSignal | undefined;
   /**
    * Hand this to {@link streamingLog} to let a completion that lands after the
-   * budget count as success. Only a runner whose whole result is its commits may
-   * opt in: one that needs structured output gets nothing back from a rejected
-   * `run()`, so a late completion there is still a failure.
+   * budget count as success. A runner whose whole result is its commits can opt
+   * in as is. One that needs structured output gets nothing back from a rejected
+   * `run()`, so it must catch the late completion itself and recover its output
+   * from {@link CompletionWatch.text}, as Implement PR does; letting it reach
+   * `runMain` would pass a run that wrote no outputs.
    */
   readonly completion: CompletionWatch;
 }
@@ -318,9 +343,11 @@ export async function runMain(
     // is left in the tree, so failing here would only throw it away. A dirty
     // tree means the signal was premature, and that stays a failure.
     if (
-      error instanceof BudgetExhaustedError &&
-      completion.seen &&
-      (options.isWorkingTreeClean ?? isWorkingTreeClean)()
+      isLateCompletion(
+        error,
+        completion,
+        options.isWorkingTreeClean ?? isWorkingTreeClean,
+      )
     ) {
       console.warn(
         `Wall-clock budget of ${error.budgetMinutes} min exhausted after the agent had already ` +

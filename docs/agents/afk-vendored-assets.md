@@ -63,8 +63,9 @@ are only concrete references to this repo:
   abort cannot stop an agent under `noSandbox()`, so an agent close to done finishes past the
   deadline and `run()` still rejects — run 34715632348 reported a committed #917 as failed.
   `runMain` treats that case as success when the completion signal was seen and the tree is
-  clean (opt-in, `implement` and `implement-prd` only), the two implement passes move to 60 / 50,
-  and their prompts state the budget and ask for checkpoint commits. Details in
+  clean (opt-in: `implement` and `implement-prd` as is; `implement-pr` recovers its structured
+  output from the agent's own text, #1186), the three implement passes move to 60 / 50, and the
+  prompts state the budget and ask for checkpoint commits. Details in
   [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails".
 - **A local workflow beside the eight, feeding the sixth (#1020).** The spec has Update Branch triggered by a
   human applying `agent:update-branch` (§4.6). Branch protection here is strict, so every open
@@ -129,8 +130,8 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   deviation: spec §4.5 defines its inputs as _"identical to Review"_
   ([line 829](./afk-agent-platform-spec.md)), so the two runners drifting apart on the diff
   shape is what would have broken the contract. It adopts only the summary, not the skill —
-  an implement-pr pass acts on the conversation instead of auditing, so it keeps its budget at
-  30/25 while Review needs 45/40 for the sub-agent fan-out (rationale in
+  an implement-pr pass acts on the conversation instead of auditing. Its 60/50 budget matches the
+  other implement passes, not Review's 45/40 for the sub-agent fan-out (rationale in
   [`afk-setup.md`](./afk-setup.md#wall-clock-guardrails-timeout-minutes--agent_budget_minutes)).
 - **The linked issue's body is embedded, not just its title.** Adopting the skill's Spec axis
   exposed a local gap that predated it: the review context fetched the issue with

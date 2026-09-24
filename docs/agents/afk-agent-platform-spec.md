@@ -314,6 +314,15 @@ otherwise takes a unique per-run group (`agent-mutate-pr-noop-${{ github.run_id 
 with nobody. Two workflows that genuinely run against the same PR (e.g. Review mid-run, then an
 `agent:implement` dispatch) still share the group and serialise — the §3.5 mutual exclusion holds.
 
+The three issue-side groups follow the same rule (#1136). To Issues, Implement and Implement PRD
+trigger on `issues: [labeled]` for every label and gate on their own label in the job, after
+concurrency is evaluated. An issue created with its triage labels in one call fires one event per
+label, and a no-op that joined the per-issue group would cancel the pending real run. So each joins
+its `…-issue-${ISSUE_NUMBER}` group only when its own label fired, and otherwise takes a unique
+`…-noop-${{ github.run_id }}` group. Implement and Implement PRD keep **separate** groups on the
+real path: both fire on the same `agent:implement` event and only their preflight tells them apart
+by issue shape (§3.2), so sharing a group would let one cancel the other.
+
 ## 3.6 Push safety
 
 Workflows that let the agent commit and then push the branch protect against the branch
