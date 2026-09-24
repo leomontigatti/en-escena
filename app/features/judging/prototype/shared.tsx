@@ -465,11 +465,12 @@ export function useScoreSubmit(
  * value, like `Cupo total`'s suffix, but stays even while the field is empty:
  * with the descriptions gone it is the only place the maximum shows.
  */
-function ScoreInputField({
+export function ScoreInputField({
   autoFocus,
   control,
   disabled,
   label,
+  labelClassName,
   max,
   name,
 }: {
@@ -477,6 +478,7 @@ function ScoreInputField({
   control: Control<ScoreValues>;
   disabled?: boolean;
   label: string;
+  labelClassName?: string;
   max: number;
   name: string;
 }) {
@@ -492,6 +494,7 @@ function ScoreInputField({
           error={fieldState.error?.message}
           id={id}
           label={label}
+          labelClassName={labelClassName}
         >
           {({ describedBy, isInvalid }) => (
             <div className="relative">

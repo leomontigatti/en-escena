@@ -1,6 +1,11 @@
 import { data, redirect } from "react-router";
 
+import {
+  getPrototypeEvaluationStatus,
+  numberRowsInMemory,
+} from "@/features/judging/prototype/results-fixtures";
 import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
+import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
@@ -93,7 +98,10 @@ async function loadPresentationList(input: {
     };
   }
 
-  const rows = await readParticipationRows(input.selectedEventId);
+  // PROTOTYPE (#223): numbered in memory while the local event has none.
+  const rows = numberRowsInMemory(
+    await readParticipationRows(input.selectedEventId),
+  );
   const warnings = derivePresentationWarnings(rows);
   // The assignments of every row of the event, not only of the page: the
   // removal dialog offers the judges of the selection, and a selection is made
@@ -332,6 +340,10 @@ function buildPresentationListItem(
     modalityName: row.modalityName,
     name: row.name,
     orderNumber: row.orderNumber,
+    prototypeEvaluation: getPrototypeEvaluationStatus(row.orderNumber),
+    experienceLevelLabel: row.experienceLevel
+      ? (experienceLevelLabels[row.experienceLevel] ?? row.experienceLevel)
+      : null,
     scheduledDate: row.schedule.scheduledDate,
     submodalityName: row.submodalityName,
     warnings: warnings.get(row.choreographyId) ?? [],

@@ -40,7 +40,8 @@ type AdminResourceLayoutProps = {
   loaderData?: AdminResourceLayoutSelectedEvent;
   requireSelectedEvent?: boolean;
   selectedEventId?: string | null;
-  title: string;
+  // PROTOTYPE (#223): a node, so the scores view can put its medal beside it.
+  title: ReactNode;
   titleStyle?: CSSProperties;
 };
 
@@ -169,7 +170,7 @@ function AdminResourceHeader({
     to: string;
   };
   headerAction?: ReactNode;
-  title: string;
+  title: ReactNode;
   titleStyle?: CSSProperties;
   description: string;
 }) {

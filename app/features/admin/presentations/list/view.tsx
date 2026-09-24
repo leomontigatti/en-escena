@@ -133,14 +133,14 @@ function buildPresentationColumns({
     {
       id: "academia",
       header: "Academia",
-      width: 19,
+      width: 17,
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
     },
     {
       id: "nombre",
       header: "Nombre",
-      width: 19,
+      width: 17,
       className: "font-medium",
       // The choreography number is not a column of this list, so it travels in
       // the truncation title: it stays searchable and the admin can still name
@@ -149,17 +149,41 @@ function buildPresentationColumns({
         <DataTableTruncatedText
           value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
         >
-          <DataTableLink to={`/administracion/coreografias/${row.id}`}>
+          <DataTableLink
+            to={
+              // PROTOTYPE (#223): an evaluated row opens its scores.
+              row.prototypeEvaluation
+                ? `/administracion/presentacion/${row.id}/puntajes`
+                : `/administracion/coreografias/${row.id}`
+            }
+          >
             {row.name}
           </DataTableLink>
         </DataTableTruncatedText>
       ),
     },
+    // PROTOTYPE (#223): the level, between the name and the state.
+    {
+      id: "nivel",
+      header: "Nivel",
+      width: 10,
+      className: "text-muted-foreground",
+      cell: (row) => (
+        <DataTableTruncatedText value={row.experienceLevelLabel ?? "—"} />
+      ),
+    },
     {
       id: "estado",
       header: "Estado",
-      width: 11,
-      cell: (row) => <PresentationStatusBadge row={row} />,
+      width: 13,
+      // PROTOTYPE (#223): once evaluated, the evaluation replaces the warning,
+      // which was only there to be fixed before the presentation was judged.
+      cell: (row) =>
+        row.prototypeEvaluation ? (
+          <PrototypeEvaluationBadge row={row} />
+        ) : (
+          <PresentationStatusBadge row={row} />
+        ),
     },
   ];
 }
@@ -474,6 +498,17 @@ export function PresentationsListView({
       ) : null}
     </AdminResourceLayout>
   );
+}
+
+/** PROTOTYPE (#223): the evaluation badge, in place of the warning one. */
+function PrototypeEvaluationBadge({ row }: { row: PresentationListItem }) {
+  if (row.prototypeEvaluation === "descalificada") {
+    return <Badge variant="destructive">Descalificada</Badge>;
+  }
+  if (row.prototypeEvaluation === "evaluada") {
+    return <Badge variant="success">Evaluada</Badge>;
+  }
+  return null;
 }
 
 function PresentationStatusBadge({ row }: { row: PresentationListItem }) {

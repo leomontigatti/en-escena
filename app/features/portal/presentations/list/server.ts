@@ -6,7 +6,14 @@ import {
   readAcademyPresentations,
 } from "@/lib/presentations/academy-program.server";
 
+import {
+  getPrototypePublishedResult,
+  isPrototypeSheetModality,
+  numberRowsInMemory,
+} from "@/features/judging/prototype/results-fixtures";
+import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { ProgramListRow } from "@/features/program/shared";
+import { readParticipationRows } from "@/lib/presentations/participation.server";
 
 /**
  * The academy's presentations page. It only reads: the order is the
@@ -20,6 +27,8 @@ export type PortalPresentationsLoaderData = {
   isEventOrdered: boolean;
   /** The header action to the full program follows it. */
   programVisible: boolean;
+  /** PROTOTYPE (#223): `?resultados=ocultos` shows the list before publishing. */
+  prototypeResultsPublished?: boolean;
   rows: ProgramListRow[];
 };
 
@@ -34,23 +43,50 @@ export async function loadPortalPresentationsList(
       hasActiveEvent: false,
       isEventOrdered: false,
       programVisible: false,
+      prototypeResultsPublished: false,
       rows: [],
     };
   }
 
-  const [rows, isEventOrdered, programVisible] = await Promise.all([
+  const [rows, , programVisible, participation] = await Promise.all([
     readAcademyPresentations({
       academyId: academy.id,
       eventId: activeEvent.id,
     }),
     hasEventPresentations(activeEvent.id),
     isEventProgramVisible(activeEvent.id),
+    readParticipationRows(activeEvent.id),
   ]);
+  // PROTOTYPE (#223): the admin list's in-memory numbers, so both agree.
+  const numbered = new Map(
+    numberRowsInMemory(participation).map((row) => [row.choreographyId, row]),
+  );
 
   return {
     hasActiveEvent: true,
-    isEventOrdered,
+    isEventOrdered: true,
     programVisible,
-    rows: rows.map((row) => ({ ...row, academyName: academy.name })),
+    prototypeResultsPublished:
+      new URL(request.url).searchParams.get("resultados") !== "ocultos",
+    rows: rows.map((row) => {
+      const orderNumber =
+        row.orderNumber ??
+        numbered.get(row.choreographyId)?.orderNumber ??
+        null;
+      const experienceLevel =
+        numbered.get(row.choreographyId)?.experienceLevel ?? null;
+      return {
+        ...row,
+        academyName: academy.name,
+        orderNumber,
+        prototypeLevelLabel: experienceLevel
+          ? (experienceLevelLabels[experienceLevel] ?? experienceLevel)
+          : null,
+        prototypeResult: getPrototypePublishedResult({
+          orderNumber,
+          isSheet: isPrototypeSheetModality(row.modalityName),
+        }),
+      };
+    }),
   };
 }

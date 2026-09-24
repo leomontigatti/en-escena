@@ -1,10 +1,11 @@
 import { Info, SquareArrowOutUpRight, TriangleAlert } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { ProgramList } from "@/features/program/list";
 
 import type { PortalPresentationsLoaderData } from "./server";
@@ -84,13 +85,41 @@ export function PortalPresentationsListView({
           <ProgramList
             rows={loaderData.rows}
             showAcademy={false}
+            showLevel
             choreographyPath={(row) =>
-              `/portal/coreografias/${row.choreographyId}`
+              // PROTOTYPE (#223): a published result opens the evaluation.
+              loaderData.prototypeResultsPublished && row.prototypeResult
+                ? `/portal/presentaciones/${row.choreographyId}`
+                : `/portal/coreografias/${row.choreographyId}`
             }
           />
         </>
       )}
+      <PrototypeResultsBar />
     </PortalListPage>
+  );
+}
+
+/** PROTOTYPE (#223): flips between before and after publishing. */
+function PrototypeResultsBar() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isPublished = searchParams.get("resultados") !== "ocultos";
+
+  if (import.meta.env.PROD) {
+    return null;
+  }
+
+  return (
+    <div className="dark fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border bg-background px-4 py-2 text-sm text-foreground shadow-lg">
+      <Switch
+        id="prototipo-resultados"
+        checked={isPublished}
+        onCheckedChange={(checked) =>
+          setSearchParams(checked ? {} : { resultados: "ocultos" })
+        }
+      />
+      <label htmlFor="prototipo-resultados">Resultados publicados</label>
+    </div>
   );
 }
 

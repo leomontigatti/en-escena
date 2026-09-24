@@ -57,7 +57,7 @@ export function Waveform({
 /** The pill both rows sit in, like the browser's own audio player. */
 export function MediaRow({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-3 rounded-full border px-2 py-1.5">
+    <div className="flex items-center gap-3 rounded-full border py-1.5 pr-4 pl-2">
       {children}
     </div>
   );

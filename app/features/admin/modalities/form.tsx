@@ -1,7 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "lucide-react";
 import { useEffect, useMemo, type ReactNode } from "react";
-import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
+import {
+  useFieldArray,
+  useForm,
+  useWatch,
+  type UseFormReturn,
+} from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { TextInputField } from "@/components/shared/text-input-field";
@@ -26,6 +31,7 @@ import {
 } from "@/lib/shared/forms";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
+import { SubmodalityCriteriaButton } from "./prototype-criteria";
 import { basePath, type EventSubmodalityRow } from "./shared";
 import { modalityFormSchema, type ModalityFormValues } from "./view-shared";
 
@@ -194,9 +200,10 @@ function SubmodalityInlineFields({
 }) {
   const idFieldName = `submodalities.${index}.id` as const;
   const nameFieldName = `submodalities.${index}.name` as const;
+  const name = useWatch({ control: form.control, name: nameFieldName });
 
   return (
-    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_2rem] sm:items-start">
+    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_2rem] sm:items-start">
       {field.id ? (
         <input type="hidden" name={idFieldName} value={field.id} />
       ) : null}
@@ -207,6 +214,15 @@ function SubmodalityInlineFields({
         label="Submodalidad"
         labelClassName="sr-only"
       />
+      {/* PROTOTYPE (#223): only saved submodalities can carry criteria. */}
+      {field.id ? (
+        <SubmodalityCriteriaButton
+          submodalityId={field.id}
+          submodalityName={name}
+        />
+      ) : (
+        <span />
+      )}
       <Button
         type="button"
         variant="destructive"

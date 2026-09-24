@@ -24,6 +24,9 @@ export type ProgramListRow = {
   orderNumber: number | null;
   scheduledDate: string;
   submodalityName: string | null;
+  /** PROTOTYPE (#223): the published result, made up. */
+  prototypeLevelLabel?: string | null;
+  prototypeResult?: import("@/features/judging/prototype/results-fixtures").PrototypePublishedResult;
 };
 
 export function formatProgramOrderNumber(row: ProgramListRow) {

@@ -1,4 +1,11 @@
 import { TriangleAlert } from "lucide-react";
+import {
+  PrototypeResultsAlert,
+  PrototypeResultsDialogs,
+  PrototypeResultsMenuItems,
+  usePrototypeResults,
+  type PrototypeResults,
+} from "./prototype-results";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
@@ -82,6 +89,9 @@ export function EventDetailView({
     toastId: "admin-evento-detail:success",
   });
 
+  // PROTOTYPE (#223): results publishing, in memory.
+  const prototypeResults = usePrototypeResults();
+
   return (
     <AdminResourceLayout
       title="Editar evento"
@@ -91,9 +101,12 @@ export function EventDetailView({
         <EventActions
           event={loaderData.event}
           initialDeleteDialogOpen={initialDeleteDialogOpen}
+          prototypeResults={prototypeResults}
         />
       }
     >
+      <PrototypeResultsAlert results={prototypeResults} />
+      <PrototypeResultsDialogs results={prototypeResults} />
       <EditEventPanel
         event={loaderData.event}
         actionData={errorData}
@@ -439,9 +452,11 @@ function RemoveDocumentsDialog({
 function EventActions({
   event,
   initialDeleteDialogOpen = false,
+  prototypeResults,
 }: {
   event: EventDetailLoaderData["event"];
   initialDeleteDialogOpen?: boolean;
+  prototypeResults: PrototypeResults;
 }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
@@ -466,14 +481,7 @@ function EventActions({
               event.programVisible ? "Ocultar programa" : "Mostrar programa"
             }
           />
-          <EventActionItem
-            action={eventActionPath(event.id)}
-            intent="set-results-visibility"
-            value={event.resultsVisible ? "false" : "true"}
-            label={
-              event.resultsVisible ? "Ocultar resultados" : "Mostrar resultados"
-            }
-          />
+          <PrototypeResultsMenuItems results={prototypeResults} />
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>

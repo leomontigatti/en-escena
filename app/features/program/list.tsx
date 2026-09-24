@@ -34,12 +34,15 @@ export type ProgramListProps = {
   rows: ProgramListRow[];
   /** The public page names who dances; an academy already knows. */
   showAcademy: boolean;
+  /** PROTOTYPE (#223): the `Nivel` column, on the academy's own page. */
+  showLevel?: boolean;
 };
 
 export function ProgramList({
   choreographyPath = null,
   rows,
   showAcademy,
+  showLevel = false,
 }: ProgramListProps) {
   // The day narrows what is on screen and nothing else: the whole list is
   // already here, so the tab is reading state rather than a query.
@@ -74,7 +77,11 @@ export function ProgramList({
 
       <ClientDataTable
         rows={visibleRows}
-        columns={buildProgramColumns({ choreographyPath, showAcademy })}
+        columns={buildProgramColumns({
+          choreographyPath,
+          showAcademy,
+          showLevel,
+        })}
         getRowKey={(row) => row.choreographyId}
         layout="fit"
         searchPlaceholder={
@@ -103,9 +110,11 @@ export function ProgramList({
 function buildProgramColumns({
   choreographyPath,
   showAcademy,
+  showLevel,
 }: {
   choreographyPath: ((row: ProgramListRow) => string) | null;
   showAcademy: boolean;
+  showLevel: boolean;
 }): DataTableColumn<ProgramListRow>[] {
   const columns: Array<DataTableColumn<ProgramListRow> | null> = [
     {
@@ -157,7 +166,8 @@ function buildProgramColumns({
     {
       id: "nombre",
       header: "Nombre",
-      width: showAcademy ? 19 : 26,
+      // PROTOTYPE (#223): narrower when the level column takes its share.
+      width: showAcademy ? 19 : showLevel ? 17 : 26,
       className: "font-medium",
       cell: (row) =>
         choreographyPath ? (
@@ -185,10 +195,21 @@ function buildProgramColumns({
     {
       id: "bailarines",
       header: "Bailarines",
-      width: 17,
+      width: showLevel ? 15 : 17,
       className: "text-muted-foreground",
       cell: (row) => <ProgramDancerNames row={row} />,
     },
+    showLevel
+      ? {
+          id: "nivel",
+          header: "Nivel",
+          width: 11,
+          className: "text-muted-foreground",
+          cell: (row) => (
+            <DataTableTruncatedText value={row.prototypeLevelLabel ?? "—"} />
+          ),
+        }
+      : null,
     // The academy's own page keeps the participation list's `Estado`, with the
     // two badges that can reach it; the public program carries no state.
     showAcademy

@@ -101,7 +101,8 @@ export function FeedbackPlayback({
 }: {
   audioUrl: string;
   disabled: boolean;
-  onDelete: () => void;
+  /** Without it the row only plays: administration listens, never deletes. */
+  onDelete?: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const decoded = useDecodedAudio(audioUrl);
@@ -153,16 +154,18 @@ export function FeedbackPlayback({
         levels={decoded?.levels ?? emptyLevels()}
         activeRatio={durationMs > 0 ? positionMs / durationMs : 0}
       />
-      <Button
-        type="button"
-        variant="destructive"
-        size="icon"
-        aria-label="Eliminar grabación"
-        disabled={disabled}
-        onClick={() => setIsDeleteOpen(true)}
-      >
-        <Trash2 aria-hidden="true" />
-      </Button>
+      {onDelete ? (
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          aria-label="Eliminar grabación"
+          disabled={disabled}
+          onClick={() => setIsDeleteOpen(true)}
+        >
+          <Trash2 aria-hidden="true" />
+        </Button>
+      ) : null}
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent size="sm">
@@ -180,7 +183,7 @@ export function FeedbackPlayback({
               onClick={() => {
                 audioRef.current?.pause();
                 setIsDeleteOpen(false);
-                onDelete();
+                onDelete?.();
               }}
             >
               <Trash2 aria-hidden="true" data-icon="inline-start" />

@@ -105,7 +105,8 @@ export type PortalRouteHandle = {
 
 type PortalListPageProps = {
   titleId: string;
-  title: string;
+  // PROTOTYPE (#223): a node, so the evaluation detail can put its medal beside it.
+  title: ReactNode;
   description: ReactNode;
   action?: ReactNode;
   children: ReactNode;

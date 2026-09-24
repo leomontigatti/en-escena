@@ -55,12 +55,16 @@ export type PresentationListItem = {
   academyName: string;
   categoryName: string;
   choreographyNumber: number;
+  /** PROTOTYPE (#223): the level's label, for the `Nivel` column. */
+  experienceLevelLabel?: string | null;
   financialStatus: ChoreographyFinancialStatus;
   groupType: ChoreographyGroupType;
   id: string;
   modalityName: string;
   name: string;
   orderNumber: number | null;
+  /** PROTOTYPE (#223): made-up evaluation state. */
+  prototypeEvaluation?: "evaluada" | "descalificada" | null;
   /** Who already judges the row, which is what the removal dialog offers. */
   assignedJudgeIds: string[];
   scheduledDate: string;
