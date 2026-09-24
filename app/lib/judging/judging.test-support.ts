@@ -1,7 +1,10 @@
+import { eq } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   judgeAssignments,
   presentations,
+  schedules,
   submodalityCriteria,
   user,
 } from "@/db/schema";
@@ -15,6 +18,8 @@ import {
   createAcademyUser,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
 
 const paidInFullAmount = 100000;
 
@@ -33,19 +38,48 @@ export async function seedJudgingFixture() {
   });
   const catalog = await createEventCatalog(event.id);
 
+  const createScheduleOn = async (scheduledDate: string) => {
+    const schedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+    });
+
+    await db
+      .update(schedules)
+      .set({ scheduledDate })
+      .where(eq(schedules.id, schedule.id));
+
+    return schedule.id;
+  };
+
   const addPresentation = async (input: {
+    categoryId?: string;
+    experienceLevelId?: ExperienceLevel | null;
     name: string;
     orderNumber: number;
+    /** Defaults to the catalog schedule's own date; another date gets its own schedule. */
+    scheduledDate?: string;
+    submodalityId?: string | null;
   }) => {
+    const scheduleId = input.scheduledDate
+      ? await createScheduleOn(input.scheduledDate)
+      : null;
     const choreography = await createChoreographyRecord({
       academyId: academy.academy.id,
-      categoryId: catalog.categoryWithLevel.id,
+      categoryId: input.categoryId ?? catalog.categoryWithLevel.id,
       eventId: event.id,
-      experienceLevelId: catalog.level.id,
+      experienceLevelId:
+        input.experienceLevelId === undefined
+          ? catalog.level.id
+          : input.experienceLevelId,
       modalityId: catalog.modality.id,
       name: input.name,
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
+      scheduleCapacityId: scheduleId ? null : catalog.scheduleCapacity.id,
+      scheduleId: scheduleId ?? undefined,
+      submodalityId:
+        input.submodalityId === undefined
+          ? catalog.submodality.id
+          : input.submodalityId,
     });
     const dancer = await createDancer(academy.academy.id);
 
@@ -69,21 +103,25 @@ export async function seedJudgingFixture() {
     return { choreographyId: choreography.id, presentationId: presentation.id };
   };
 
-  const assignJudge = async (presentationId: string) => {
-    const [judge] = await db
-      .insert(user)
-      .values({
-        email: `${crypto.randomUUID()}@example.com`,
-        name: "Ana Juez",
-        role: "judge",
-      })
-      .returning();
+  const assignJudge = async (presentationId: string, judgeId?: string) => {
+    const userId =
+      judgeId ??
+      (
+        await db
+          .insert(user)
+          .values({
+            email: `${crypto.randomUUID()}@example.com`,
+            name: "Ana Juez",
+            role: "judge",
+          })
+          .returning()
+      )[0].id;
     const [assignment] = await db
       .insert(judgeAssignments)
-      .values({ presentationId, userId: judge.id })
+      .values({ presentationId, userId })
       .returning();
 
-    return { judgeAssignmentId: assignment.id, judgeId: judge.id };
+    return { judgeAssignmentId: assignment.id, judgeId: userId };
   };
 
   const addCriterion = async (input: {
