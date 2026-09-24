@@ -1,12 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
 
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
@@ -35,6 +36,7 @@ import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitio
 import {
   archiveProfessorIntent,
   buildPortalProfessorDetailViewModel,
+  getPortalProfessorDocumentConflict,
   portalProfessorStatusActions,
   professorDetailFormId,
   professorSchema,
@@ -77,6 +79,12 @@ export function PortalProfessorDetailRouteView({
   const form = useProfessorForm({
     submit,
     values: formValues,
+  });
+  const documentConflictDescription = useRosterDocumentConflictField({
+    actionData,
+    conflict: getPortalProfessorDocumentConflict(actionData),
+    name: "documentNumber",
+    setError: form.form.setError,
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
@@ -138,27 +146,14 @@ export function PortalProfessorDetailRouteView({
           </ResourceActionsMenu>
         </div>
 
-        <AlertStack>
-          {!loaderData.professor.active ? (
-            <ArchivedPersonAlert
-              personLabel="profesor"
-              onReactivate={() => {
-                setStatusDialogIntent(reactivateProfessorIntent);
-              }}
-            />
-          ) : null}
-          {participatingAlert ? (
-            <RosterPersonParticipatingAlert message={participatingAlert} />
-          ) : null}
-          {loaderData.professor.isIncomplete ? (
-            <Alert variant="warning">
-              <TriangleAlert aria-hidden="true" />
-              <AlertDescription>
-                Faltan datos de identificación.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </AlertStack>
+        <PortalProfessorAlertsSection
+          isIncomplete={loaderData.professor.isIncomplete}
+          onReactivate={() => {
+            setStatusDialogIntent(reactivateProfessorIntent);
+          }}
+          participatingAlert={participatingAlert}
+          professorActive={loaderData.professor.active}
+        />
 
         <Card>
           <CardContent>
@@ -194,6 +189,7 @@ export function PortalProfessorDetailRouteView({
                   placeholder={documentTypeEmptyLabel}
                 />
                 <ProfessorTextField
+                  description={documentConflictDescription}
                   form={form.form}
                   label="Número de documento"
                   name="documentNumber"
@@ -220,6 +216,38 @@ export function PortalProfessorDetailRouteView({
         }}
       />
     </>
+  );
+}
+
+function PortalProfessorAlertsSection({
+  isIncomplete,
+  onReactivate,
+  participatingAlert,
+  professorActive,
+}: {
+  isIncomplete: boolean;
+  onReactivate: () => void;
+  participatingAlert: string | null;
+  professorActive: boolean;
+}) {
+  return (
+    <AlertStack>
+      {!professorActive ? (
+        <ArchivedPersonAlert
+          personLabel="profesor"
+          onReactivate={onReactivate}
+        />
+      ) : null}
+      {participatingAlert ? (
+        <RosterPersonParticipatingAlert message={participatingAlert} />
+      ) : null}
+      {isIncomplete ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertDescription>Faltan datos de identificación.</AlertDescription>
+        </Alert>
+      ) : null}
+    </AlertStack>
   );
 }
 
@@ -255,10 +283,12 @@ function useProfessorForm({
 }
 
 function ProfessorTextField({
+  description,
   form,
   label,
   name,
 }: {
+  description?: ReactNode;
   form: ProfessorFormReturn;
   label: string;
   name: FieldPath<ProfessorFormValues>;
@@ -269,6 +299,7 @@ function ProfessorTextField({
     <TextInputField
       autoComplete={autoComplete}
       control={form.control}
+      description={description}
       label={label}
       name={name}
     />

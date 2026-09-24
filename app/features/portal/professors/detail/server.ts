@@ -116,6 +116,7 @@ export async function handlePortalProfessorDetailAction({
       message: result.message,
       fieldErrors: result.fieldErrors,
       values: result.values,
+      duplicateDocumentProfessorId: result.duplicateDocumentProfessorId,
     };
   }
 

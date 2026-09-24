@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
+
 import type { PortalProfessorListItem } from "@/lib/portal/professors.server";
 import {
   getArchiveKeepsRosterMessage,
@@ -153,9 +155,32 @@ export type PortalProfessorDetailActionData =
       // Absent when the failure was not a rejected edit: a refused archive has
       // no form to repopulate.
       values?: ProfessorFormValues;
+      // The professor already holding the document number, so the form can
+      // link to them when the match is an archived one.
+      duplicateDocumentProfessorId?: string;
     }
   | {
       status: "success";
       message: string;
     }
   | undefined;
+
+/**
+ * The document refusal the portal professor action can answer with, read for
+ * the field it belongs to.
+ */
+export function getPortalProfessorDocumentConflict(
+  actionData?: PortalProfessorDetailActionData,
+): RosterDocumentConflict {
+  if (actionData?.status !== "error") {
+    return {};
+  }
+
+  const matchId = actionData.duplicateDocumentProfessorId;
+
+  return {
+    matchHref: matchId ? `/portal/profesores/${matchId}` : undefined,
+    matchLabel: "Ver la ficha del profesor con ese documento",
+    message: actionData.fieldErrors.documentNumber,
+  };
+}
