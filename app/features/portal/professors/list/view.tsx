@@ -88,12 +88,11 @@ export function PortalProfessorsListRouteView({
   actionData?: ActionData;
 }) {
   const createProfessorFetcher = useFetcher<ActionData>();
+  // A warning keeps the dialog open exactly as an error does: the values stay,
+  // and the academy answers the question the server asked.
   const actionData =
-    createProfessorFetcher.data?.status === "error"
-      ? createProfessorFetcher.data
-      : providedActionData?.status === "error"
-        ? providedActionData
-        : undefined;
+    keepsCreateProfessorDialogOpen(createProfessorFetcher.data) ??
+    keepsCreateProfessorDialogOpen(providedActionData);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
     actionData?.modalOpen === true,
   );
@@ -117,7 +116,7 @@ export function PortalProfessorsListRouteView({
     if (
       previousState !== "idle" &&
       createProfessorFetcher.state === "idle" &&
-      createProfessorFetcher.data?.status !== "error"
+      !keepsCreateProfessorDialogOpen(createProfessorFetcher.data)
     ) {
       setIsCreateDialogOpen(false);
       setDismissServerState(true);
@@ -289,4 +288,10 @@ function getProfessorStateBadges(professor: ProfessorRow) {
   );
 
   return badges;
+}
+
+function keepsCreateProfessorDialogOpen(actionData?: ActionData) {
+  return actionData?.status === "error" || actionData?.status === "warning"
+    ? actionData
+    : undefined;
 }

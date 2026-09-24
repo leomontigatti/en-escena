@@ -10,6 +10,7 @@ import {
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
@@ -42,7 +43,7 @@ export function CreateDancerDialog({
   onOpenChange,
   submit,
 }: {
-  actionData?: Extract<CreateDancerActionData, { status: "error" }>;
+  actionData?: Extract<CreateDancerActionData, { status: "error" | "warning" }>;
   eventStartDate: string | null;
   isOpen: boolean;
   isSubmitting: boolean;
@@ -60,7 +61,7 @@ export function CreateDancerDialog({
   }, [actionData?.values, form]);
 
   const documentConflictDescription = useRosterDocumentConflictField({
-    actionData,
+    actionData: actionData?.status === "error" ? actionData : undefined,
     conflict: getCreateDancerDocumentConflict(actionData),
     name: "documentNumber",
     setError: form.setError,
@@ -126,13 +127,19 @@ export function CreateDancerDialog({
             />
           </FieldGroup>
 
+          {actionData?.status === "warning" ? (
+            <RosterNameWarningNotice warning={actionData.warning} />
+          ) : null}
+
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" disabled={isSubmitting}>
                 Cancelar
               </Button>
             </DialogClose>
-            <SubmitButton isPending={isSubmitting} />
+            {actionData?.status === "warning" ? null : (
+              <SubmitButton isPending={isSubmitting} />
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

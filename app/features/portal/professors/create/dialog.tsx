@@ -9,6 +9,7 @@ import {
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,10 @@ export function CreateProfessorDialog({
   onOpenChange,
   submit,
 }: {
-  actionData?: Extract<CreateProfessorActionData, { status: "error" }>;
+  actionData?: Extract<
+    CreateProfessorActionData,
+    { status: "error" | "warning" }
+  >;
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
@@ -55,7 +59,7 @@ export function CreateProfessorDialog({
   }, [actionData?.values, form]);
 
   const documentConflictDescription = useRosterDocumentConflictField({
-    actionData,
+    actionData: actionData?.status === "error" ? actionData : undefined,
     conflict: getCreateProfessorDocumentConflict(actionData),
     name: "documentNumber",
     setError: form.setError,
@@ -113,13 +117,19 @@ export function CreateProfessorDialog({
             />
           </FieldGroup>
 
+          {actionData?.status === "warning" ? (
+            <RosterNameWarningNotice warning={actionData.warning} />
+          ) : null}
+
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" disabled={isSubmitting}>
                 Cancelar
               </Button>
             </DialogClose>
-            <SubmitButton isPending={isSubmitting} />
+            {actionData?.status === "warning" ? null : (
+              <SubmitButton isPending={isSubmitting} />
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
