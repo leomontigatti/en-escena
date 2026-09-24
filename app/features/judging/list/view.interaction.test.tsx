@@ -20,6 +20,7 @@ function buildRow(
     categoryName: "Juvenil",
     criteria: [],
     experienceLevel: "amateur",
+    feedbackAudioUrl: null,
     groupType: "solo",
     judgeAssignmentId: `assignment-${overrides.presentationId}`,
     modalityName: "Jazz",

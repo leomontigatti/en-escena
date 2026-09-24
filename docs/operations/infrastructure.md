@@ -302,6 +302,39 @@ own "Guardar".
   documents today. Cleaning storage orphans on event deletion is a separate
   issue that has to cover both.
 
+### `Devolución` audio contract
+
+Bucket, format, size limit and expiry are declared in
+`app/lib/storage/asset-kinds.ts` and enforced by
+`app/lib/storage/feedback-audio.server.ts`; the row that points at the object is
+written by `app/lib/judging/save-score.server.ts`, from the judge's own save.
+
+- Bucket directory: `en-escena-feedback-audio`, private.
+- Accepted format: `audio/webm` only, up to **10 MB**. The only producer is the
+  in-browser recorder, which emits `audio/webm;codecs=opus`, so the
+  codec-qualified string is accepted alongside the bare one — that is what a
+  real take arrives as. Downloads go through a signed URL that expires after
+  **300** seconds.
+- One object per upload, at
+  `events/{eventId}/presentations/{presentationId}/judges/{judgeId}/devolucion-{unique}.webm`.
+  The key is deliberately **not** stable per judge: the replacement is written
+  before the take it replaces is removed, so a stable key would have the removal
+  delete the audio that had just been saved. The `score` row holds that key,
+  never a URL.
+- The upload happens **inside** the save's transaction, before the score is
+  written: a failed upload aborts the whole save, so no score ever points at an
+  object that does not exist.
+- On a replace or a remove, the previous object is deleted only **after** the
+  transaction commits, so a rolled-back save never loses stored audio. A failed
+  delete leaves that object orphaned on the volume and logs
+  `[storage:feedback-audio:orphan]` with the key — the save still succeeds,
+  because the row already points elsewhere and the judge must not be told their
+  score was lost. There is no sweep that reclaims it; reconciliation is by hand,
+  from that log line, and it has to cover the B2 backup copy as well — see
+  [Backups](./backups.md).
+- `serveFilesystemObject` has **no Range support**. The player never seeks, so
+  none is needed; a scrubber may not be added without it.
+
 ## Related runbooks
 
 - [Backups](./backups.md) — database and storage backups, restore drills.

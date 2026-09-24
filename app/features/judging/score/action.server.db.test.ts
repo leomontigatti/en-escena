@@ -39,11 +39,16 @@ async function signIn(role: "auditor" | "judge", name: string) {
 function scoreRequest(
   cookie: string,
   fields: Record<string, string>,
+  audio?: Blob,
 ): Parameters<typeof action>[0] {
   const body = new FormData();
 
   for (const [name, value] of Object.entries(fields)) {
     body.set(name, value);
+  }
+
+  if (audio) {
+    body.set("audio", audio, "devolucion.webm");
   }
 
   return {
@@ -170,5 +175,40 @@ describe("the `/juzgamiento` action", () => {
       status: "error",
       values: { presentationId: presentation.presentationId, value: "90.2" },
     });
+  });
+
+  // The take rides along with the score as multipart, so a file the policy
+  // refuses has to come back as the judge's own copy rather than a crash.
+  test("answers with the feedback audio copy for a take the policy refuses", async () => {
+    const judge = await signIn("judge", "Juana Juez");
+    const { fixture, presentation } = await seedOpenPresentation();
+    const assignment = await fixture.assignJudge(
+      presentation.presentationId,
+      judge.userId,
+    );
+
+    const result = await action(
+      scoreRequest(
+        judge.cookie,
+        {
+          audioIntent: "replace",
+          intent: "save-score",
+          presentationId: presentation.presentationId,
+          value: "90.5",
+        },
+        new Blob(["audio"], { type: "audio/mpeg" }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      fieldErrors: { audio: "El audio de la devolución debe ser WEBM." },
+      status: "error",
+    });
+    expect(
+      await db
+        .select()
+        .from(scores)
+        .where(eq(scores.judgeAssignmentId, assignment.judgeAssignmentId)),
+    ).toEqual([]);
   });
 });

@@ -20,6 +20,11 @@ import {
 } from "@/lib/judging/judge-status";
 import { judgingDate } from "@/lib/judging/judging-day";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
+import {
+  type FeedbackAudioStorage,
+  createDefaultFeedbackAudioStorage,
+  loadFeedbackAudioDownloadUrl,
+} from "@/lib/storage/feedback-audio.server";
 
 /**
  * What a judge sees when they sign in: the presentations assigned to them whose
@@ -45,6 +50,8 @@ export type JudgePresentationRow = {
   categoryAdmitsExperienceLevels: boolean;
   categoryName: string;
   experienceLevel: string | null;
+  /** The judge's own take, signed for playback; null when there is none. */
+  feedbackAudioUrl: string | null;
   groupType: ChoreographyGroupType;
   judgeAssignmentId: string;
   modalityName: string;
@@ -56,7 +63,7 @@ export type JudgePresentationRow = {
 };
 
 export async function readJudgePresentations(
-  input: { judgeId: string; now?: Date },
+  input: { judgeId: string; now?: Date; storage?: FeedbackAudioStorage },
   executor: Executor = db,
 ): Promise<JudgePresentationRow[]> {
   const rows = await executor
@@ -103,26 +110,41 @@ export async function readJudgePresentations(
     rows.map((row) => row.submodalityId),
   );
 
-  return rows.map((row) => ({
-    categoryAdmitsExperienceLevels: row.categoryExperienceLevels.length > 0,
-    categoryName: row.categoryName,
-    criteria: row.submodalityId
-      ? (criteriaBySubmodality.get(row.submodalityId) ?? [])
-      : [],
-    experienceLevel: row.experienceLevel,
-    groupType: row.groupType as ChoreographyGroupType,
-    judgeAssignmentId: row.judgeAssignmentId,
-    modalityName: row.modalityName,
-    name: row.name,
-    orderNumber: row.orderNumber,
-    presentationId: row.presentationId,
-    status: deriveJudgeScoreStatus({
-      disqualified: row.disqualifiedAt !== null,
-      hasFeedbackAudio: row.feedbackAudioStorageKey !== null,
-      value: row.scoreValue,
-    }),
-    submodalityName: row.submodalityName,
-  }));
+  // Built once for the whole list, and only when a take is actually stored: a
+  // judge who has recorded nothing must not need the storage env to see their
+  // list at all.
+  const storage = rows.some((row) => row.feedbackAudioStorageKey)
+    ? (input.storage ?? createDefaultFeedbackAudioStorage())
+    : null;
+
+  return await Promise.all(
+    rows.map(async (row) => ({
+      categoryAdmitsExperienceLevels: row.categoryExperienceLevels.length > 0,
+      categoryName: row.categoryName,
+      criteria: row.submodalityId
+        ? (criteriaBySubmodality.get(row.submodalityId) ?? [])
+        : [],
+      experienceLevel: row.experienceLevel,
+      feedbackAudioUrl: storage
+        ? await loadFeedbackAudioDownloadUrl({
+            storage,
+            storageKey: row.feedbackAudioStorageKey,
+          })
+        : null,
+      groupType: row.groupType as ChoreographyGroupType,
+      judgeAssignmentId: row.judgeAssignmentId,
+      modalityName: row.modalityName,
+      name: row.name,
+      orderNumber: row.orderNumber,
+      presentationId: row.presentationId,
+      status: deriveJudgeScoreStatus({
+        disqualified: row.disqualifiedAt !== null,
+        hasFeedbackAudio: row.feedbackAudioStorageKey !== null,
+        value: row.scoreValue,
+      }),
+      submodalityName: row.submodalityName,
+    })),
+  );
 }
 
 async function readCriteria(

@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 
 import { readJudgePresentations } from "@/lib/judging/judge-list.server";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
+import { createFeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -157,5 +158,58 @@ describe("the judge's list of today's presentations", () => {
         judgeId,
       }),
     ).resolves.toEqual([]);
+  });
+});
+
+describe("the judge's own `Devolución`", () => {
+  test("signs the stored take so the judge can listen to it again", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const judge = await fixture.assignJudge(presentation.presentationId);
+
+    await db.insert(scores).values({
+      feedbackAudioStorageKey: "takes/a.webm",
+      judgeAssignmentId: judge.judgeAssignmentId,
+      value: "80.0",
+    });
+
+    const [row] = await readJudgePresentations({
+      judgeId: judge.judgeId,
+      now: showNight,
+      storage: createFeedbackAudioStorage({
+        createSignedUrl: async (input) => `https://example.test/${input.key}`,
+        remove: async () => {},
+        upload: async () => {},
+      }),
+    });
+
+    expect(row.feedbackAudioUrl).toBe("https://example.test/takes/a.webm");
+  });
+
+  test("reads no take as no url, without signing anything", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const judge = await fixture.assignJudge(presentation.presentationId);
+    const storage = createFeedbackAudioStorage({
+      createSignedUrl: async () => {
+        throw new Error("nothing to sign");
+      },
+      remove: async () => {},
+      upload: async () => {},
+    });
+
+    const [row] = await readJudgePresentations({
+      judgeId: judge.judgeId,
+      now: showNight,
+      storage,
+    });
+
+    expect(row.feedbackAudioUrl).toBeNull();
   });
 });

@@ -1,7 +1,11 @@
 import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
-import { saveJudgeScore } from "@/lib/judging/save-score.server";
+import {
+  type FeedbackAudioSubmission,
+  saveJudgeScore,
+} from "@/lib/judging/save-score.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
 import { readFormString } from "@/lib/shared/forms";
+import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 
 /**
  * The judge panel's single action. A judge scores from a dialog over their own
@@ -14,6 +18,9 @@ import { readFormString } from "@/lib/shared/forms";
  * make, so it is a 403; a day that closed while the dialog was open is an
  * ordinary thing to run into mid-show, so it is an error toast over the form
  * the judge is still looking at.
+ *
+ * The `Devolución` is posted as multipart with the score, because the judge's
+ * one "Guardar" saves both.
  */
 
 export type JudgePanelActionData = {
@@ -27,6 +34,8 @@ const savedScoreMessage = "Guardaste el puntaje.";
 
 const invalidScoreMessage = "Revisá el puntaje.";
 
+const invalidFeedbackAudioMessage = "No se pudo guardar la devolución.";
+
 const closedJudgingDayMessage =
   "La jornada ya cerró, no se pueden guardar puntajes.";
 
@@ -38,6 +47,7 @@ export async function handleJudgePanelAction(
   const presentationId = readFormString(formData, "presentationId");
   const value = readFormString(formData, "value");
   const result = await saveJudgeScore({
+    audio: readFeedbackAudioSubmission(formData),
     judgeId: judge.id,
     presentationId,
     value,
@@ -49,6 +59,15 @@ export async function handleJudgePanelAction(
 
   if (result.reason === "not-assigned") {
     throw new Response("Forbidden", { status: 403 });
+  }
+
+  if (result.reason === "invalid-audio") {
+    return {
+      fieldErrors: { audio: formatUploadRejection(result.rejection) },
+      message: invalidFeedbackAudioMessage,
+      status: "error",
+      values: { presentationId, value },
+    };
   }
 
   if (result.reason === "closed") {
@@ -65,4 +84,28 @@ export async function handleJudgePanelAction(
     status: "error",
     values: { presentationId, value },
   };
+}
+
+/**
+ * What the form asked for the stored take. Anything that is not an explicit
+ * `replace` carrying bytes, or an explicit `remove`, is read as "leave it
+ * alone": an empty file part is what a browser sends for a recorder that was
+ * never used, and must not be mistaken for a deletion.
+ */
+function readFeedbackAudioSubmission(
+  formData: FormData,
+): FeedbackAudioSubmission {
+  const intent = readFormString(formData, "audioIntent");
+
+  if (intent === "remove") {
+    return { intent: "remove" };
+  }
+
+  const file = formData.get("audio");
+
+  if (intent === "replace" && file instanceof Blob && file.size > 0) {
+    return { file, intent: "replace" };
+  }
+
+  return { intent: "keep" };
 }

@@ -14,6 +14,11 @@ import {
   parseScoreValue,
   singleScoreMaximum,
 } from "@/lib/judging/score-value";
+import type { UploadRejection } from "@/lib/storage/asset-kinds";
+import {
+  type FeedbackAudioStorage,
+  createDefaultFeedbackAudioStorage,
+} from "@/lib/storage/feedback-audio.server";
 
 /**
  * A judge's own save of a single 0-100 score. See docs/domain/judging.md,
@@ -24,17 +29,36 @@ import {
  * moves around them must not have their write decided by what the page was
  * rendered with. The write itself is an upsert on the assignment, so the row a
  * retry finds is the row it updates and a doubled tap never yields two scores.
+ *
+ * The `Devolución` rides along with the score rather than having a save of its
+ * own, so the judge's one "Guardar" means one thing. The take is uploaded
+ * inside the transaction, before the score is written, and the object it
+ * replaces is deleted only after the commit: a failed upload takes the whole
+ * save down rather than leaving a score pointing at nothing, and a rolled-back
+ * save never costs the judge audio that was already stored.
  */
 
 export type SaveJudgeScoreRefusal = "not-assigned" | "closed" | "invalid-value";
 
 export type SaveJudgeScoreResult =
-  { ok: true } | { ok: false; reason: SaveJudgeScoreRefusal };
+  | { ok: true }
+  | { ok: false; reason: SaveJudgeScoreRefusal }
+  | { ok: false; reason: "invalid-audio"; rejection: UploadRejection };
+
+/**
+ * What the form says to do with the stored take. `keep` is what a save that
+ * never touched the recorder submits, and is the default so a caller that knows
+ * nothing about audio cannot silently drop one.
+ */
+export type FeedbackAudioSubmission =
+  { file: Blob; intent: "replace" } | { intent: "keep" } | { intent: "remove" };
 
 export type SaveJudgeScoreInput = {
+  audio?: FeedbackAudioSubmission;
   judgeId: string;
   now?: Date;
   presentationId: string;
+  storage?: FeedbackAudioStorage;
   value: string;
 };
 
@@ -47,20 +71,25 @@ export async function saveJudgeScore(
     return { ok: false, reason: "invalid-value" };
   }
 
-  return await db.transaction(async (tx) => {
+  const audio = input.audio ?? { intent: "keep" };
+  const committed = await db.transaction(async (tx) => {
     const [locked] = await tx
-      .select({ id: presentations.id })
+      .select({ eventId: presentations.eventId, id: presentations.id })
       .from(presentations)
       .where(eq(presentations.id, input.presentationId))
       .for("update");
 
     if (!locked) {
-      return { ok: false, reason: "not-assigned" };
+      return { result: { ok: false, reason: "not-assigned" } as const };
     }
 
     const [assignment] = await tx
-      .select({ id: judgeAssignments.id })
+      .select({
+        feedbackAudioStorageKey: scores.feedbackAudioStorageKey,
+        id: judgeAssignments.id,
+      })
       .from(judgeAssignments)
+      .leftJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
       .where(
         and(
           eq(judgeAssignments.presentationId, input.presentationId),
@@ -69,26 +98,129 @@ export async function saveJudgeScore(
       );
 
     if (!assignment) {
-      return { ok: false, reason: "not-assigned" };
+      return { result: { ok: false, reason: "not-assigned" } as const };
     }
 
     if (!(await isPresentationOpenForJudges(tx, input))) {
-      return { ok: false, reason: "closed" };
+      return { result: { ok: false, reason: "closed" } as const };
     }
+
+    const storedKey = assignment.feedbackAudioStorageKey;
+    const nextKey = await resolveFeedbackAudioKey({
+      audio,
+      eventId: locked.eventId,
+      judgeId: input.judgeId,
+      presentationId: input.presentationId,
+      storage: input.storage,
+      storedKey,
+    });
+
+    if (!nextKey.ok) {
+      return {
+        result: {
+          ok: false,
+          reason: "invalid-audio",
+          rejection: nextKey.rejection,
+        } as const,
+      };
+    }
+
+    const row = {
+      feedbackAudioStorageKey: nextKey.storageKey,
+      value: formatScoreValue(value),
+    };
 
     await tx
       .insert(scores)
-      .values({
-        judgeAssignmentId: assignment.id,
-        value: formatScoreValue(value),
-      })
+      .values({ ...row, judgeAssignmentId: assignment.id })
       .onConflictDoUpdate({
         target: scores.judgeAssignmentId,
-        set: { updatedAt: new Date(), value: formatScoreValue(value) },
+        set: { ...row, updatedAt: new Date() },
       });
 
-    return { ok: true };
+    return {
+      previousKey:
+        storedKey && storedKey !== nextKey.storageKey ? storedKey : null,
+      result: { ok: true } as const,
+    };
   });
+
+  if ("previousKey" in committed && committed.previousKey) {
+    await removeReplacedFeedbackAudio({
+      storage: input.storage,
+      storageKey: committed.previousKey,
+    });
+  }
+
+  return committed.result;
+}
+
+type FeedbackAudioKeyResolution =
+  | { ok: false; rejection: UploadRejection }
+  | { ok: true; storageKey: string | null };
+
+/**
+ * Where the score's key comes from, given what the form asked for. The upload
+ * runs here, inside the transaction, so anything it throws rolls the score back
+ * with it; only a policy rejection — which the judge can act on — comes back as
+ * a value.
+ */
+async function resolveFeedbackAudioKey(input: {
+  audio: FeedbackAudioSubmission;
+  eventId: string;
+  judgeId: string;
+  presentationId: string;
+  storage?: FeedbackAudioStorage;
+  storedKey: string | null;
+}): Promise<FeedbackAudioKeyResolution> {
+  if (input.audio.intent === "keep") {
+    return { ok: true, storageKey: input.storedKey };
+  }
+
+  if (input.audio.intent === "remove") {
+    return { ok: true, storageKey: null };
+  }
+
+  const uploaded = await feedbackAudioStorage(
+    input.storage,
+  ).uploadFeedbackAudio({
+    eventId: input.eventId,
+    file: input.audio.file,
+    judgeId: input.judgeId,
+    presentationId: input.presentationId,
+  });
+
+  return uploaded.ok
+    ? { ok: true, storageKey: uploaded.storageKey }
+    : { ok: false, rejection: uploaded.rejection };
+}
+
+/**
+ * The score already points elsewhere by the time this runs, so a failure here
+ * cannot undo the save: propagating it would tell the judge their score was
+ * lost when it was not. The cost is an object left on the volume, and this line
+ * is the only thing that makes it locatable without walking the volume by hand
+ * — the same trade the choreography music replacement makes.
+ */
+async function removeReplacedFeedbackAudio(input: {
+  storage?: FeedbackAudioStorage;
+  storageKey: string;
+}) {
+  try {
+    await feedbackAudioStorage(input.storage).removeFeedbackAudio(
+      input.storageKey,
+    );
+  } catch (thrown) {
+    console.error("[storage:feedback-audio:orphan]", {
+      detail: thrown instanceof Error ? thrown.message : String(thrown),
+      storageKey: input.storageKey,
+    });
+  }
+}
+
+/** Built on demand: a save with no audio must not need the storage env at all. */
+function feedbackAudioStorage(storage?: FeedbackAudioStorage) {
+  return storage ?? createDefaultFeedbackAudioStorage();
 }
 
 /**
