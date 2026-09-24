@@ -690,7 +690,7 @@ function getCoreographyCreationState(
     return {
       tone: "ready",
       message:
-        "La creación de coreografías va a estar disponible para este Evento mientras la inscripción esté abierta.",
+        "La creación de coreografías va a estar disponible para este Evento mientras las inscripciones estén abiertas.",
       details: [],
     };
   }
@@ -698,7 +698,7 @@ function getCoreographyCreationState(
   return {
     tone: "info",
     message:
-      "La creación de coreografías va a estar disponible cuando exista un Evento activo y la inscripción esté abierta.",
+      "La creación de coreografías va a estar disponible cuando exista un Evento activo y las inscripciones estén abiertas.",
     details: [],
   };
 }
