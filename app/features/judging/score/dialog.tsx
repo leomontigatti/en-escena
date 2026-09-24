@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -15,16 +15,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  feedbackAudioFieldSubmission,
+  feedbackAudioFieldUrl,
+  initialFeedbackAudioField,
+  isFeedbackAudioFieldDirty,
+  reduceFeedbackAudioField,
+  type FeedbackAudioFieldEvent,
+} from "@/lib/judging/feedback-audio-field";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { singleScoreMaximum } from "@/lib/judging/score-value";
-import {
-  createValidatedRouteSubmitHandler,
-  useOptionalFormAction,
-  useOptionalSubmit,
-} from "@/lib/shared/forms";
+import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
-import { judgeScoreFormSchema, type JudgeScoreFormValues } from "./form-shared";
+import { FeedbackRecorder } from "./feedback-recorder";
+import {
+  buildJudgeScoreSubmission,
+  judgeScoreFormSchema,
+  type JudgeScoreFormValues,
+} from "./form-shared";
 import { ScoreInputField } from "./score-input-field";
 
 type JudgeScoreDialogProps = {
@@ -49,11 +58,13 @@ export function JudgeScoreDialog({
     defaultValues: { value: "" },
     resolver: zodResolver(judgeScoreFormSchema),
   });
+  const [audio, setAudio] = useState(() =>
+    initialFeedbackAudioField(presentation.feedbackAudioUrl),
+  );
   const { discardDialogProps, requestClose } = useDiscardGuard({
-    // The `Devolución` is not recorded here yet, so the fields are all there is
-    // to lose. When it lands it feeds this flag, and the guard covers a take
-    // recorded over untouched fields without changing.
-    isAudioDirty: false,
+    // A take recorded or deleted over untouched fields is a change the form
+    // state knows nothing about, and is exactly what the judge would lose.
+    isAudioDirty: isFeedbackAudioFieldDirty(audio),
     isFormDirty: form.formState.isDirty,
     onClose,
   });
@@ -69,6 +80,10 @@ export function JudgeScoreDialog({
       setError("value", { message: fieldErrors.value });
     }
   }, [fieldErrors, setError]);
+
+  function applyAudioEvent(event: FeedbackAudioFieldEvent) {
+    setAudio((current) => reduceFeedbackAudioField(current, event));
+  }
 
   return (
     <>
@@ -97,18 +112,21 @@ export function JudgeScoreDialog({
             id="judge-score-form"
             method="post"
             className="flex w-full flex-col gap-4"
-            onSubmit={createValidatedRouteSubmitHandler(
-              form,
-              submit,
-              formAction,
-            )}
+            onSubmit={form.handleSubmit((values) => {
+              void submit(
+                buildJudgeScoreSubmission({
+                  audio: feedbackAudioFieldSubmission(audio),
+                  presentationId: presentation.presentationId,
+                  values,
+                }),
+                {
+                  action: formAction,
+                  encType: "multipart/form-data",
+                  method: "post",
+                },
+              );
+            })}
           >
-            <input type="hidden" name="intent" value="save-score" />
-            <input
-              type="hidden"
-              name="presentationId"
-              value={presentation.presentationId}
-            />
             <ScoreInputField
               autoFocus
               control={form.control}
@@ -116,6 +134,12 @@ export function JudgeScoreDialog({
               label="Puntaje"
               maximum={singleScoreMaximum}
               name="value"
+            />
+            <FeedbackRecorder
+              audioUrl={feedbackAudioFieldUrl(audio)}
+              error={fieldErrors?.audio}
+              onDelete={() => applyAudioEvent({ type: "deleted" })}
+              onRecorded={(take) => applyAudioEvent({ take, type: "recorded" })}
             />
           </form>
           <DialogFooter>

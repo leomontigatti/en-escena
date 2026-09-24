@@ -164,7 +164,7 @@ describe("scoring a presentation without criteria", () => {
     expect(errorMessages()).toEqual([]);
   });
 
-  test("posts the score with the save intent and the presentation", async () => {
+  test("posts the score with the save intent, the presentation and what to do with the take", async () => {
     await mount({ presentationId: "b" });
     const input = scoreInput();
 
@@ -179,7 +179,12 @@ describe("scoring a presentation without criteria", () => {
     });
 
     expect(submitted.map((body) => Object.fromEntries(body))).toEqual([
-      { intent: "save-score", presentationId: "b", value: "90.5" },
+      {
+        audioIntent: "keep",
+        intent: "save-score",
+        presentationId: "b",
+        value: "90.5",
+      },
     ]);
   });
 
