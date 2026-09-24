@@ -3,7 +3,10 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { PresentationScoresView } from "@/features/admin/presentations/scores/view";
-import type { PresentationScoresLoaderData } from "@/features/admin/presentations/scores/server";
+import type {
+  PresentationScoresActionData,
+  PresentationScoresLoaderData,
+} from "@/features/admin/presentations/scores/server";
 import type {
   PresentationJudgeScore,
   PresentationScoresView as PresentationScores,
@@ -11,14 +14,17 @@ import type {
 
 describe("PresentationScoresView", () => {
   test("shows a row per judge, with the panel's average and medal", () => {
-    const markup = renderView({
-      average: 85,
-      judges: [
-        buildJudge({ judgeName: "Ana Juez", value: "90.0" }),
-        buildJudge({ judgeName: "Zulema Juez", value: "80.5" }),
-      ],
-      medal: "plata",
-    });
+    const markup = renderView(
+      {
+        average: 85,
+        judges: [
+          buildJudge({ judgeName: "Ana Juez", value: "90.0" }),
+          buildJudge({ judgeName: "Zulema Juez", value: "80.5" }),
+        ],
+        medal: "plata",
+      },
+      { canEdit: false },
+    );
 
     expect(markup).toContain("Ana Juez");
     expect(markup).toContain("Zulema Juez");
@@ -29,20 +35,24 @@ describe("PresentationScoresView", () => {
   });
 
   test("names a judge who has not saved anything yet", () => {
-    const markup = renderView({
-      average: null,
-      judges: [buildJudge({ judgeName: "Ana Juez", value: null })],
-      medal: null,
-    });
+    const markup = renderView(
+      {
+        average: null,
+        judges: [buildJudge({ judgeName: "Ana Juez", value: null })],
+        medal: null,
+      },
+      { canEdit: false },
+    );
 
     expect(markup).toContain("Sin puntaje");
     expect(markup).toContain("Sin devolución");
   });
 
   test("marks an annulled score as out of the average", () => {
-    const markup = renderView({
-      judges: [buildJudge({ annulled: true, value: "10.0" })],
-    });
+    const markup = renderView(
+      { judges: [buildJudge({ annulled: true, value: "10.0" })] },
+      { canEdit: false },
+    );
 
     expect(markup).toContain("Anulado");
   });
@@ -69,25 +79,88 @@ describe("PresentationScoresView", () => {
   });
 
   test("shows a tab per judge with their sheet when there are criteria", () => {
-    const markup = renderView({
-      criteria: [
-        { id: "technique", kind: "adds", maximum: 100, name: "Técnica" },
-        { id: "falls", kind: "deducts", maximum: 10, name: "Caídas" },
-      ],
-      judges: [
-        buildJudge({
-          criteriaValues: { falls: "5.0", technique: "90.5" },
-          judgeName: "Ana Juez",
-          value: "85.5",
-        }),
-      ],
-    });
+    const markup = renderView(
+      {
+        criteria: [
+          { id: "technique", kind: "adds", maximum: 100, name: "Técnica" },
+          { id: "falls", kind: "deducts", maximum: 10, name: "Caídas" },
+        ],
+        judges: [
+          buildJudge({
+            criteriaValues: { falls: "5.0", technique: "90.5" },
+            judgeName: "Ana Juez",
+            value: "85.5",
+          }),
+        ],
+      },
+      { canEdit: false },
+    );
 
     expect(markup).toContain("Técnica");
     expect(markup).toContain("Caídas");
     expect(markup).toContain(">90.5<");
     expect(markup).toContain("/ 100");
     expect(markup).toContain("/ 10");
+  });
+  test("gives an administrator a field and a save on every stored score", () => {
+    const markup = renderView({
+      judges: [buildJudge({ scoreId: "score-9", value: "90.0" })],
+    });
+
+    expect(markup).toContain('name="scoreId" value="score-9"');
+    expect(markup).toContain('name="intent" value="edit-score"');
+    expect(markup).toContain("Guardar");
+    expect(markup).toContain("Anular");
+  });
+
+  test("withholds every write from an auditor", () => {
+    const markup = renderView({}, { canEdit: false });
+
+    expect(markup).not.toContain('name="intent"');
+    expect(markup).not.toContain("Guardar");
+    expect(markup).not.toContain("Descalificar");
+  });
+
+  test("offers no edit for a judge who saved nothing, so none is created", () => {
+    const markup = renderView({
+      judges: [buildJudge({ scoreId: null, value: null })],
+    });
+
+    expect(markup).toContain("Sin puntaje");
+    expect(markup).not.toContain('name="intent" value="edit-score"');
+  });
+
+  test("lets an administrator settle the disqualification either way", () => {
+    expect(renderView({ disqualified: false })).toContain("Descalificar");
+    expect(renderView({ disqualified: true })).toContain("Volver a calificar");
+  });
+
+  test("shows the refused edit's message under the score it belongs to", () => {
+    const markup = renderView(
+      { judges: [buildJudge({ scoreId: "score-9" })] },
+      {
+        actionData: {
+          fieldErrors: { "score-9": "Ingresá un valor de 0 a 100." },
+          message: "Revisá el puntaje.",
+          status: "error",
+        },
+      },
+    );
+
+    expect(markup).toContain("Ingresá un valor de 0 a 100.");
+  });
+
+  test("gives an administrator a field per criterion on a sheet", () => {
+    const markup = renderView({
+      criteria: [
+        { id: "technique", kind: "adds", maximum: 100, name: "Técnica" },
+      ],
+      judges: [
+        buildJudge({ criteriaValues: { technique: "90.5" }, value: "90.5" }),
+      ],
+    });
+
+    expect(markup).toContain('name="criterio.technique"');
   });
 });
 
@@ -107,9 +180,15 @@ function buildJudge(
   };
 }
 
-function renderView(overrides: Partial<PresentationScores> = {}) {
+function renderView(
+  overrides: Partial<PresentationScores> = {},
+  options: {
+    actionData?: PresentationScoresActionData;
+    canEdit?: boolean;
+  } = {},
+) {
   const loaderData: PresentationScoresLoaderData = {
-    canEdit: true,
+    canEdit: options.canEdit ?? true,
     presentation: {
       academyName: "Academia Sur",
       average: 90,
@@ -132,7 +211,12 @@ function renderView(overrides: Partial<PresentationScores> = {}) {
     [
       {
         path: "/administracion/presentacion/presentation-1/puntajes",
-        element: <PresentationScoresView loaderData={loaderData} />,
+        element: (
+          <PresentationScoresView
+            actionData={options.actionData}
+            loaderData={loaderData}
+          />
+        ),
       },
     ],
     {

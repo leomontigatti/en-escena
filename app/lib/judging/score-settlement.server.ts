@@ -36,11 +36,11 @@ import { validateSheetValues } from "@/lib/judging/sheet-total";
  * have typed.
  */
 
-export type AdminScoreRefusal = "invalid-value" | "not-found";
+export type ScoreSettlementRefusal = "invalid-value" | "not-found";
 
-export type AdminScoreResult =
+export type ScoreSettlementResult =
   | { fieldErrors: Record<string, string>; ok: false; reason: "invalid-sheet" }
-  | { ok: false; reason: AdminScoreRefusal }
+  | { ok: false; reason: ScoreSettlementRefusal }
   | { ok: true };
 
 /**
@@ -49,9 +49,9 @@ export type AdminScoreResult =
  * page could not have made, and refusing it here keeps the seam honest rather
  * than trusting an id that arrived in a form.
  */
-export type AdminScoreTarget = { presentationId: string; scoreId: string };
+export type ScoreSettlementTarget = { presentationId: string; scoreId: string };
 
-export type EditScoreInput = AdminScoreTarget & {
+export type EditScoreInput = ScoreSettlementTarget & {
   /** The sheet by criterion; read only when the submodality has criteria. */
   criteriaValues?: Record<string, string>;
   /** The single 0-100 score; ignored by a submodality judged on a sheet. */
@@ -60,7 +60,7 @@ export type EditScoreInput = AdminScoreTarget & {
 
 export async function editScore(
   input: EditScoreInput,
-): Promise<AdminScoreResult> {
+): Promise<ScoreSettlementResult> {
   return await db.transaction(async (tx) => {
     const criteria = await readScoreCriteria(tx, input);
 
@@ -88,7 +88,7 @@ type ScoreCriterion = {
 async function editSingleValue(
   tx: Transaction,
   input: EditScoreInput,
-): Promise<AdminScoreResult> {
+): Promise<ScoreSettlementResult> {
   const value = parseScoreValue(input.value ?? "", singleScoreMaximum);
 
   if (value === null) {
@@ -112,7 +112,7 @@ async function editSheet(
   tx: Transaction,
   input: EditScoreInput,
   criteria: readonly ScoreCriterion[],
-): Promise<AdminScoreResult> {
+): Promise<ScoreSettlementResult> {
   const validated = validateSheetValues(criteria, input.criteriaValues ?? {});
 
   if (!validated.ok) {
@@ -150,7 +150,7 @@ async function editSheet(
  */
 async function readScoreCriteria(
   tx: Transaction,
-  target: AdminScoreTarget,
+  target: ScoreSettlementTarget,
 ): Promise<ScoreCriterion[] | null> {
   const [found] = await tx
     .select({ submodalityId: choreographies.submodalityId })
@@ -202,8 +202,8 @@ async function readScoreCriteria(
  * one.
  */
 export async function annulScore(
-  input: AdminScoreTarget & { annulled: boolean },
-): Promise<AdminScoreResult> {
+  input: ScoreSettlementTarget & { annulled: boolean },
+): Promise<ScoreSettlementResult> {
   const updated = await db
     .update(scores)
     .set({ annulled: input.annulled, updatedAt: new Date() })
@@ -235,7 +235,7 @@ export async function annulScore(
 export async function setPresentationDisqualified(input: {
   disqualified: boolean;
   presentationId: string;
-}): Promise<AdminScoreResult> {
+}): Promise<ScoreSettlementResult> {
   const updated = await db
     .update(presentations)
     .set({ disqualifiedAt: input.disqualified ? new Date() : null })

@@ -41,9 +41,9 @@ export default function PresentationScoresRoute({
   actionData,
   loaderData,
 }: Route.ComponentProps) {
-  useServerActionToast(
-    actionData && "message" in actionData ? actionData : undefined,
-  );
+  const result = actionData && "message" in actionData ? actionData : undefined;
 
-  return <PresentationScoresView loaderData={loaderData} />;
+  useServerActionToast(result);
+
+  return <PresentationScoresView actionData={result} loaderData={loaderData} />;
 }

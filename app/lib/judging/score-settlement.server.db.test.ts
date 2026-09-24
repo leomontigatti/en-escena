@@ -10,7 +10,7 @@ import {
   annulScore,
   editScore,
   setPresentationDisqualified,
-} from "./admin-scores.server";
+} from "./score-settlement.server";
 import { seedJudgingFixture } from "./judging.test-support";
 import { readPresentationScores } from "./presentation-scores.server";
 

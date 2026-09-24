@@ -8,8 +8,8 @@ import {
   annulScore,
   editScore,
   setPresentationDisqualified,
-  type AdminScoreResult,
-} from "@/lib/judging/admin-scores.server";
+  type ScoreSettlementResult,
+} from "@/lib/judging/score-settlement.server";
 import {
   readPresentationScores,
   type PresentationScoresView,
@@ -142,7 +142,7 @@ export async function handlePresentationScoresAction(input: {
 
 function answer(
   message: string,
-  result: AdminScoreResult,
+  result: ScoreSettlementResult,
 ): PresentationScoresActionData | ReturnType<typeof data> {
   return result.ok
     ? { message, status: "success" }
@@ -159,7 +159,7 @@ function answer(
  */
 function answerEdit(
   scoreId: string,
-  result: AdminScoreResult,
+  result: ScoreSettlementResult,
 ): PresentationScoresActionData | ReturnType<typeof data> {
   if (result.ok) {
     return { message: savedScoreMessage, status: "success" };
