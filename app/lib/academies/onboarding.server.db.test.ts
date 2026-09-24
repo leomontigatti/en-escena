@@ -176,18 +176,20 @@ describe("academy onboarding route", () => {
       accessIdentity("duplicada@example.com", "supabase-duplicate-user"),
     );
 
-    await expect(
-      academyOnboardingAction(
-        routeActionArgs(
-          createOnboardingRequest({
-            academyName: "  academia   existente  ",
-            contactName: "Contacto Duplicado",
-            phone: "1112345678",
-          }),
-        ),
+    const answer = await academyOnboardingAction(
+      routeActionArgs(
+        createOnboardingRequest({
+          academyName: "  academia   existente  ",
+          contactName: "Contacto Duplicado",
+          phone: "1112345678",
+        }),
       ),
-    ).resolves.toEqual({
-      message: "Ya existe una academia con ese nombre.",
+    );
+
+    // No `message`: the inline notice carries the copy, so the warning answer
+    // never reaches the route's toast.
+    expect(answer).not.toHaveProperty("message");
+    expect(answer).toEqual({
       status: "warning",
       values: {
         academyName: "  academia   existente  ",

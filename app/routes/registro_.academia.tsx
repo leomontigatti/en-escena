@@ -29,8 +29,6 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/registro_.academia";
 
-const duplicateAcademyNameMessage = "Ya existe una academia con ese nombre.";
-
 const academyOnboardingSchema = z.object({
   academyName: requiredTextField(),
   contactName: requiredTextField(),
@@ -96,7 +94,6 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (!result.ok && "warning" in result) {
     return {
-      message: duplicateAcademyNameMessage,
       status: "warning" as const,
       values,
       warning: result.warning,
@@ -129,7 +126,12 @@ export default function AcademyOnboardingRoute() {
   const warning =
     actionData && "warning" in actionData ? actionData.warning : null;
 
-  useServerActionToast(actionData, {
+  // The duplicate-name warning is carried by the inline notice alone, so the
+  // warning answer is kept out of the toast.
+  const toastData =
+    actionData && actionData.status !== "warning" ? actionData : null;
+
+  useServerActionToast(toastData, {
     toastId: authToastIds.registrationError,
   });
 

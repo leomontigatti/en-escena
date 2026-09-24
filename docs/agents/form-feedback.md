@@ -109,6 +109,9 @@ carries it (PRD #1090):
   `app/lib/shared/duplicate-warning.ts` is that type; `kind` says which guard spoke
   (`dancer-name`, `professor-name`, `choreography-cast`, `academy-name`) and each
   match carries the id of the record found plus whatever the copy names it by.
+  The answer carries **no `message`**: the matches shown beside the field are the
+  whole copy, so a warning answer never reaches `useServerActionToast` — a route that
+  toasts its other answers narrows the warning one out.
 - The form keeps the values, shows the matches, and swaps its submit for
   `Continuar de todos modos`. `DuplicateWarningPrompt`
   (`app/components/shared/duplicate-warning-prompt.tsx`) is that half: a warning
