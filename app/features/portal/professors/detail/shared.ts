@@ -171,3 +171,17 @@ export function getPortalProfessorDocumentConflict(
     message: actionData.fieldErrors.documentNumber,
   };
 }
+
+/**
+ * The three answers the ficha's action can give, each narrowed for the piece
+ * of the view that reads it.
+ */
+export function splitPortalProfessorActionData(
+  actionData?: PortalProfessorDetailActionData,
+) {
+  return {
+    error: actionData?.status === "error" ? actionData : undefined,
+    nameWarning: actionData?.status === "warning" ? actionData : undefined,
+    success: actionData?.status === "success" ? actionData : undefined,
+  };
+}

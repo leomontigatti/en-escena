@@ -222,8 +222,12 @@ export function getPortalDancerFormValues(input: {
   dancer: PortalDancerDetailLoaderData["dancer"];
 }): PortalDancerFormValues {
   const { actionData, dancer } = input;
+  // A warning keeps the form as it was submitted and asks the academy to
+  // confirm, so its values are shown back exactly as an error's are.
   const submittedValues =
-    actionData?.status === "error" ? actionData.values : undefined;
+    actionData?.status === "error" || actionData?.status === "warning"
+      ? actionData.values
+      : undefined;
 
   return (
     submittedValues ?? {

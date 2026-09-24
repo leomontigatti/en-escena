@@ -5,6 +5,7 @@ import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
 
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
@@ -39,6 +40,7 @@ import {
   getPortalProfessorDocumentConflict,
   portalProfessorStatusActions,
   professorDetailFormId,
+  splitPortalProfessorActionData,
   professorSchema,
   reactivateProfessorIntent,
   updateProfessorIntent,
@@ -66,14 +68,20 @@ export function PortalProfessorDetailRouteView({
   actionData: actionDataOverride,
   initialStatusDialogIntent = null,
 }: PortalProfessorDetailRouteViewProps) {
-  const actionData =
-    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
-  const formValues = actionData?.values ?? {
-    firstName: loaderData.professor.firstName,
-    lastName: loaderData.professor.lastName,
-    documentType: loaderData.professor.documentType ?? "",
-    documentNumber: loaderData.professor.documentNumber ?? "",
-  };
+  // A warning keeps the form as it was submitted and asks the academy to
+  // confirm, so the values it carries are shown back as an error's are.
+  const {
+    error: actionData,
+    nameWarning,
+    success: successData,
+  } = splitPortalProfessorActionData(actionDataOverride);
+  const formValues = actionData?.values ??
+    nameWarning?.values ?? {
+      firstName: loaderData.professor.firstName,
+      lastName: loaderData.professor.lastName,
+      documentType: loaderData.professor.documentType ?? "",
+      documentNumber: loaderData.professor.documentNumber ?? "",
+    };
   const submit = useSubmit();
   const navigation = useNavigation();
   const form = useProfessorForm({
@@ -102,9 +110,6 @@ export function PortalProfessorDetailRouteView({
     listHref: "/portal/profesores",
   });
   const title = `${loaderData.professor.firstName} ${loaderData.professor.lastName}`;
-
-  const successData =
-    actionDataOverride?.status === "success" ? actionDataOverride : undefined;
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-profesor-detail:error",
@@ -195,14 +200,20 @@ export function PortalProfessorDetailRouteView({
                   name="documentNumber"
                 />
               </FieldGroup>
+
+              {nameWarning ? (
+                <RosterNameWarningNotice warning={nameWarning.warning} />
+              ) : null}
             </form>
           </CardContent>
           <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
             <BackButton to="/portal/profesores" viewTransition />
-            <SubmitButton
-              form={professorDetailFormId}
-              isPending={isSubmitting}
-            />
+            {nameWarning ? null : (
+              <SubmitButton
+                form={professorDetailFormId}
+                isPending={isSubmitting}
+              />
+            )}
           </CardFooter>
         </Card>
       </section>

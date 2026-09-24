@@ -73,6 +73,34 @@ describe("PortalProfessorDetailRouteView", () => {
     expect(markup).toContain("Ver la ficha del profesor con ese documento");
   });
 
+  test("shows the same-name warning with the continue action and the ids", () => {
+    const markup = renderProfessorDetail({
+      actionData: {
+        status: "warning",
+        warning: {
+          kind: "professor-name",
+          matches: [{ id: "professor_twin_1", label: "Ana Paz" }],
+          scope: "portal",
+        },
+        values: {
+          firstName: "Ana",
+          lastName: "Paz",
+          documentType: "",
+          documentNumber: "",
+        },
+      },
+    });
+
+    expect(markup).toContain(
+      "Ya existe un Profesor con el mismo nombre en tu academia: Ana Paz. ¿Es la misma persona?",
+    );
+    expect(markup).toContain(
+      'name="acknowledgedDuplicateIds" value="professor_twin_1"',
+    );
+    expect(markup).toContain("Continuar de todos modos");
+    expect(markup).toContain('name="firstName" value="Ana"');
+  });
+
   test("does not render server field errors and preserves submitted values", () => {
     const markup = renderProfessorDetail({
       actionData: {

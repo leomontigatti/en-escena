@@ -4,6 +4,7 @@ import { useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
@@ -88,6 +89,7 @@ export function PortalDancerDetailRouteView({
     submit,
     values: formValues,
   });
+  const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const documentConflictDescription = useRosterDocumentConflictField({
     actionData,
     conflict: getPortalDancerDocumentConflict(actionData),
@@ -243,11 +245,20 @@ export function PortalDancerDetailRouteView({
                   />
                 </TabsContent>
               </Tabs>
+
+              {nameWarning ? (
+                <RosterNameWarningNotice warning={nameWarning.warning} />
+              ) : null}
             </form>
           </CardContent>
           <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
             <BackButton to="/portal/bailarines" viewTransition />
-            <SubmitButton form={portalDancerFormId} isPending={isSubmitting} />
+            {nameWarning ? null : (
+              <SubmitButton
+                form={portalDancerFormId}
+                isPending={isSubmitting}
+              />
+            )}
           </CardFooter>
         </PortalDancerFormSection>
       </section>
