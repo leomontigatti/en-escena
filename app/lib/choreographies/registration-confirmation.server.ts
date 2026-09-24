@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -9,6 +9,12 @@ import {
   professors,
 } from "@/db/schema";
 import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
+import {
+  getDuplicateChoreographyMessage,
+  type ChoreographyCastMatch,
+  type ChoreographyCastWarning,
+} from "@/lib/choreographies/choreography-duplicates";
+import { filterUnacknowledgedMatches } from "@/lib/shared/duplicate-warning";
 import {
   choreographyNameMaxLength,
   collapseChoreographyNameWhitespace,
@@ -54,8 +60,11 @@ const choreographyTitleCaseParticles = new Set([
   "y",
 ]);
 
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 type CreateChoreographyRegistrationInput =
   ChoreographyRegistrationOperationInput & {
+    acknowledgedDuplicateIds?: readonly string[];
     name: string;
     professorIds: string[];
     experienceLevelId: string | null;
@@ -70,11 +79,27 @@ type CreateChoreographyRegistrationFailureCode =
   | "invalid-schedule-capacity"
   | "schedule-capacity-full";
 
-type CreateChoreographyRegistrationFailure = {
+type CreateChoreographyRegistrationErrorFailure = {
   ok: false;
   code: CreateChoreographyRegistrationFailureCode;
   error: string;
 };
+
+/**
+ * The one failure the wizard renders as a warning: the piece is registrable, it
+ * just looks like one the academy already registered, so the refusal carries
+ * what it found and the same submit continues once those ids come back.
+ */
+type CreateChoreographyDuplicateFailure = {
+  ok: false;
+  code: "duplicate-choreography";
+  error: string;
+  warning: ChoreographyCastWarning;
+};
+
+type CreateChoreographyRegistrationFailure =
+  | CreateChoreographyRegistrationErrorFailure
+  | CreateChoreographyDuplicateFailure;
 
 type CreateChoreographyRegistrationSuccess = {
   ok: true;
@@ -176,6 +201,24 @@ export async function createChoreographyRegistration(
 
       if (!scheduleLock.ok) {
         throw createFailure(scheduleLock.code, scheduleLock.error);
+      }
+
+      // Inside the transaction and before the number is taken: a warning must
+      // leave the event's counter where it was, so a piece the academy decides
+      // not to register does not burn a number.
+      const castMatches = filterUnacknowledgedMatches(
+        await findSameCastChoreographies({
+          tx,
+          academyId: input.academyId,
+          eventId: input.eventId,
+          name: normalizedName.value,
+          dancerIds: operation.resolution.dancers.map((dancer) => dancer.id),
+        }),
+        input.acknowledgedDuplicateIds ?? [],
+      );
+
+      if (castMatches.length > 0) {
+        throw createDuplicateFailure(castMatches);
       }
 
       // After the capacity lock, never before. The counter is a single row per
@@ -485,10 +528,92 @@ function resolveSelectedScheduleSelection(input: {
   };
 }
 
+/**
+ * Same name and same cast, in the same academy and the same event: name alone
+ * would refuse two solos of different dancers dancing a piece with the same
+ * name, which production is full of, and cast alone would refuse a second piece
+ * by the same group, which is the normal case.
+ */
+async function findSameCastChoreographies(input: {
+  tx: Transaction;
+  academyId: string;
+  eventId: string;
+  name: string;
+  dancerIds: string[];
+}): Promise<ChoreographyCastMatch[]> {
+  const candidates = await input.tx
+    .select({
+      choreographyNumber: choreographies.choreographyNumber,
+      id: choreographies.id,
+      name: choreographies.name,
+    })
+    .from(choreographies)
+    .where(
+      and(
+        eq(choreographies.academyId, input.academyId),
+        eq(choreographies.eventId, input.eventId),
+        isNull(choreographies.withdrawnAt),
+        sql`lower(${choreographies.name}) = lower(${input.name})`,
+      ),
+    );
+
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  const rosterRows = await input.tx
+    .select({
+      choreographyId: choreographyDancers.choreographyId,
+      dancerId: choreographyDancers.dancerId,
+    })
+    .from(choreographyDancers)
+    .where(
+      and(
+        inArray(
+          choreographyDancers.choreographyId,
+          candidates.map((candidate) => candidate.id),
+        ),
+        isNull(choreographyDancers.withdrawnAt),
+      ),
+    );
+
+  const castByChoreographyId = new Map<string, Set<string>>();
+
+  for (const row of rosterRows) {
+    const cast = castByChoreographyId.get(row.choreographyId) ?? new Set();
+    cast.add(row.dancerId);
+    castByChoreographyId.set(row.choreographyId, cast);
+  }
+
+  const newCast = new Set(input.dancerIds);
+
+  return candidates.filter((candidate) =>
+    isSameCast(castByChoreographyId.get(candidate.id) ?? new Set(), newCast),
+  );
+}
+
+function isSameCast(cast: Set<string>, otherCast: Set<string>) {
+  return (
+    cast.size === otherCast.size &&
+    [...cast].every((dancerId) => otherCast.has(dancerId))
+  );
+}
+
+function createDuplicateFailure(
+  matches: ChoreographyCastMatch[],
+): CreateChoreographyDuplicateFailure {
+  return {
+    ok: false,
+    code: "duplicate-choreography",
+    error: getDuplicateChoreographyMessage(matches),
+    warning: { kind: "choreography-cast", matches },
+  };
+}
+
 function createFailure(
   code: CreateChoreographyRegistrationFailureCode,
   error: string,
-): CreateChoreographyRegistrationFailure {
+): CreateChoreographyRegistrationErrorFailure {
   return {
     ok: false,
     code,
