@@ -21,6 +21,7 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
+import { openScheduleRegistration } from "@/lib/schedules/registration-open.server";
 import {
   expectCreated,
   fixedExperienceLevel,
@@ -577,6 +578,11 @@ describe("handlePortalChoreographiesListAction", () => {
         scheduleId: block.id,
       }),
     );
+    // A `Cronograma` is born closed, and the portal only registers into an open
+    // one. Opening needs the bases above in place, so it comes last.
+    await expect(openScheduleRegistration(block.id)).resolves.toMatchObject({
+      ok: true,
+    });
     const [dancer] = await db
       .insert(dancers)
       .values({

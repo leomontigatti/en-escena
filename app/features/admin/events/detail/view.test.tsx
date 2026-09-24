@@ -87,6 +87,50 @@ describe("EventDetailView delete", () => {
   }
 });
 
+describe("EventDetailView header", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(() => {
+    renderer.cleanup();
+    useNavigationMock.mockReset();
+  });
+
+  test("states the derived inscriptions state of the event", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderHeader({ isRegistrationOpen: false });
+
+    expect(document.body.textContent).toContain("Inscripciones cerradas");
+    expect(document.body.textContent).not.toContain("Inscripciones abiertas");
+
+    renderer.cleanup();
+
+    await renderHeader({ isRegistrationOpen: true });
+
+    expect(document.body.textContent).toContain("Inscripciones abiertas");
+    expect(document.body.textContent).not.toContain("Inscripciones cerradas");
+  });
+
+  async function renderHeader(overrides: Partial<EventDetailLoaderData>) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/eventos/event_1",
+          action: async () => null,
+          element: (
+            <EventDetailView
+              loaderData={{ ...buildLoaderData(), ...overrides }}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/administracion/eventos/event_1"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+});
+
 describe("EventDetailView form", () => {
   const renderer = createReactDomTestRenderer();
 
@@ -447,6 +491,7 @@ function buildLoaderData(): EventDetailLoaderData {
       paymentInstructionsText: null,
       createdAt: new Date("2026-01-01T00:00:00Z"),
     },
+    isRegistrationOpen: false,
     registrationReadiness: {
       eventId: "event_1",
       isReady: true,

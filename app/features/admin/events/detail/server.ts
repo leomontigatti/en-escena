@@ -28,6 +28,7 @@ import {
   type EventMutationResult,
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { isEventRegistrationOpen } from "@/lib/portal/event-context.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import {
   notificationToasts,
@@ -63,18 +64,21 @@ export async function loadEventDetail(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const [event, registrationReadiness, documents] = await Promise.all([
-    loadEvent(eventId),
-    getEventRegistrationReadiness(eventId),
-    loadEventDocumentSummaries({
-      eventId,
-      storage: createDefaultEventDocumentStorage(),
-    }),
-  ]);
+  const [event, registrationReadiness, documents, isRegistrationOpen] =
+    await Promise.all([
+      loadEvent(eventId),
+      getEventRegistrationReadiness(eventId),
+      loadEventDocumentSummaries({
+        eventId,
+        storage: createDefaultEventDocumentStorage(),
+      }),
+      isEventRegistrationOpen(eventId),
+    ]);
 
   return {
     documents,
     event,
+    isRegistrationOpen,
     registrationReadiness,
   } satisfies EventDetailLoaderData;
 }

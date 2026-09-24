@@ -71,6 +71,8 @@ export type EventDocumentsFormValues = z.infer<typeof eventDocumentsFormSchema>;
 export type EventDetailLoaderData = {
   documents: EventDocumentSummaries;
   event: EventRow;
+  /** Derived from the event's schedules by the portal event-context owner. */
+  isRegistrationOpen: boolean;
   registrationReadiness: EventRegistrationReadiness;
 };
 

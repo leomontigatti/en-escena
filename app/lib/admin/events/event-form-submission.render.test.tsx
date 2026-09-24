@@ -185,6 +185,7 @@ function buildDetailLoaderData(): Parameters<
 >[0]["loaderData"] {
   return {
     documents: eventDocumentSummaries(),
+    isRegistrationOpen: false,
     event: {
       id: "evento_1",
       name: "Evento 2026",

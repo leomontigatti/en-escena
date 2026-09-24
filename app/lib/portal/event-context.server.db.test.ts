@@ -26,14 +26,14 @@ describe("portal event context derived inscriptions state", () => {
     });
     const second = await insertSchedule(event.id);
 
-    await expect(portalRegistrationState()).resolves.toBe(false);
-
-    await openScheduleRegistration(catalog.schedule.id);
-
+    // The fixture leaves the catalog's `Cronograma` open and the second closed.
     await expect(portalRegistrationState()).resolves.toBe(true);
 
-    await openScheduleRegistration(second.id);
     await closeScheduleRegistration(catalog.schedule.id);
+
+    await expect(portalRegistrationState()).resolves.toBe(false);
+
+    await openScheduleRegistration(second.id);
 
     await expect(portalRegistrationState()).resolves.toBe(true);
 
