@@ -42,6 +42,8 @@ export const notificationToastIds = {
   "comprobante-recuperado": "route-notification:comprobante-recuperado",
   "programa-visible": "route-notification:programa-visible",
   "programa-oculto": "route-notification:programa-oculto",
+  "resultados-publicados": "route-notification:resultados-publicados",
+  "resultados-ocultos": "route-notification:resultados-ocultos",
   "categoria-guardada": "route-notification:categoria-guardada",
   "categoria-eliminada": "route-notification:categoria-eliminada",
   "modalidad-guardada": "route-notification:modalidad-guardada",
@@ -56,9 +58,14 @@ export const notificationToastIds = {
   "usuario-interno-reactivado": "route-notification:usuario-interno-reactivado",
 } as const;
 
+/**
+ * `resultados-publicados` is out because its message names how many results
+ * went out, so it is built per submission by `publishedResultsToast` rather
+ * than fixed here.
+ */
 type NotificationToastKey = Exclude<
   keyof typeof notificationToastIds,
-  "event-form-error" | "user-form-error"
+  "event-form-error" | "user-form-error" | "resultados-publicados"
 >;
 
 export const notificationToasts = {
@@ -237,6 +244,11 @@ export const notificationToasts = {
     message: "Programa oculto.",
     variant: "success",
   },
+  "resultados-ocultos": {
+    id: notificationToastIds["resultados-ocultos"],
+    message: "Se ocultaron los resultados.",
+    variant: "success",
+  },
   "categoria-guardada": {
     id: notificationToastIds["categoria-guardada"],
     message: "Categoría guardada.",
@@ -290,6 +302,23 @@ export const notificationToasts = {
 } as const satisfies Record<NotificationToastKey, NotificationToast>;
 
 export type NotificationKey = keyof typeof notificationToasts;
+
+/**
+ * What `Mostrar resultados` and `Actualizar resultados` toast: the same
+ * notification either way, naming how many presentations the academies see
+ * afterwards — a publication is a snapshot, not a delta.
+ */
+export function publishedResultsToast(
+  publishedCount: number,
+): NotificationToast {
+  return {
+    id: notificationToastIds["resultados-publicados"],
+    message: `Se publicaron los resultados de ${publishedCount} ${
+      publishedCount === 1 ? "presentación" : "presentaciones"
+    }.`,
+    variant: "success",
+  };
+}
 
 export function getNotificationToast(
   notification: string,

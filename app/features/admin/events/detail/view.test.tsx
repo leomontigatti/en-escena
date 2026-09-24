@@ -423,7 +423,13 @@ const validCbu = "0070099330004512345678";
 
 function buildLoaderData(): EventDetailLoaderData {
   return {
+    canPublishResults: true,
     documents: eventDocumentSummaries(),
+    resultsPublication: {
+      pendingCount: 0,
+      publishedAt: null,
+      publishedCount: 0,
+    },
     event: {
       id: "event_1",
       name: "Festival 2026",
