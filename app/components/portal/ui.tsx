@@ -105,7 +105,8 @@ export type PortalRouteHandle = {
 
 type PortalListPageProps = {
   titleId: string;
-  title: string;
+  /** A node, not a string: a title can carry a badge beside it. */
+  title: ReactNode;
   description: ReactNode;
   action?: ReactNode;
   children: ReactNode;
