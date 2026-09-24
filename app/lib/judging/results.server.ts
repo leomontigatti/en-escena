@@ -2,6 +2,7 @@ import {
   and,
   eq,
   exists,
+  inArray,
   isNotNull,
   isNull,
   or,
@@ -154,17 +155,34 @@ async function countPresentations(
 export async function isPresentationResultPublished(
   choreographyId: string,
 ): Promise<boolean> {
-  const [row] = await db
-    .select({ presentationId: presentations.id })
+  const published = await readPublishedResultChoreographyIds([choreographyId]);
+
+  return published.has(choreographyId);
+}
+
+/**
+ * The same rule asked for a whole list at once, so the academy's presentations
+ * page does not ask once per row. Only the published ones come back; a
+ * choreography with no presentation is simply absent.
+ */
+export async function readPublishedResultChoreographyIds(
+  choreographyIds: readonly string[],
+): Promise<Set<string>> {
+  if (choreographyIds.length === 0) {
+    return new Set();
+  }
+
+  const rows = await db
+    .select({ choreographyId: presentations.choreographyId })
     .from(presentations)
     .innerJoin(events, eq(events.id, presentations.eventId))
     .where(
       and(
-        eq(presentations.choreographyId, choreographyId),
+        inArray(presentations.choreographyId, [...choreographyIds]),
         isNotNull(presentations.resultPublishedAt),
         isNotNull(events.resultsPublishedAt),
       ),
     );
 
-  return row !== undefined;
+  return new Set(rows.map((row) => row.choreographyId));
 }

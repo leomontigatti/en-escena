@@ -2,10 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import type { ProgramListRow } from "@/features/program/shared";
-
 import { PortalPresentationsListView } from "./view";
-import type { PortalPresentationsLoaderData } from "./server";
+import type {
+  PortalPresentationRow,
+  PortalPresentationsLoaderData,
+} from "./server";
 
 describe("PortalPresentationsListView", () => {
   test("shows the empty state when there is no active event", () => {
@@ -151,6 +152,23 @@ describe("PortalPresentationsListView", () => {
 
     expect(markup).toContain("/portal/coreografias/choreography-1");
   });
+
+  test("sends a published row's name to its evaluation detail instead", () => {
+    const markup = renderView({
+      rows: [
+        buildRow({ choreographyId: "publicada", isResultPublished: true }),
+        buildRow({ choreographyId: "sin-publicar" }),
+      ],
+    });
+
+    expect(markup).toContain("/portal/presentaciones/publicada");
+    expect(markup).toContain("/portal/coreografias/sin-publicar");
+    expect(markup).not.toContain("/portal/coreografias/publicada");
+  });
+
+  test("gives the list no results column", () => {
+    expect(renderView()).not.toContain("Resultado");
+  });
 });
 
 /** The weights the `colgroup` carries, in column order. */
@@ -160,7 +178,9 @@ function readColumnWidths(markup: string) {
   ).map(([, width]) => Number(width));
 }
 
-function buildRow(overrides: Partial<ProgramListRow> = {}): ProgramListRow {
+function buildRow(
+  overrides: Partial<PortalPresentationRow> = {},
+): PortalPresentationRow {
   return {
     academyName: "Academia Sur",
     categoryName: "Infantil",
@@ -169,6 +189,7 @@ function buildRow(overrides: Partial<ProgramListRow> = {}): ProgramListRow {
     dancerNames: ["Ana Paz"],
     groupType: "solo",
     isBelowDeposit: false,
+    isResultPublished: false,
     levelLabel: "Amateur",
     modalityName: "Jazz",
     name: "Pieza",

@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -10,6 +11,7 @@ import {
   createEventRecord,
 } from "@/features/portal/choreographies/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
+import { publishResults } from "@/lib/judging/results.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -61,6 +63,58 @@ describe("loadPortalPresentationsList", () => {
     expect(loaderData.rows.map((row) => [row.name, row.levelLabel])).toEqual([
       ["Con nivel", "Amateur"],
       ["Sin nivel", null],
+    ]);
+  });
+
+  test("reports which rows have a published result and which do not", async () => {
+    const session = await createAcademySession({
+      academyName: "Academia Resultados",
+      email: "presentaciones.resultados@example.com",
+    });
+    const event = await createEventRecord({ name: "Regional 2026" });
+    await activateEvent(event.id);
+    const catalog = await createEventCatalog(event.id);
+
+    const evaluated = await createChoreographyRecord({
+      academyId: session.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Evaluada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+    const pending = await createChoreographyRecord({
+      academyId: session.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Sin evaluar",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+    await db.insert(presentations).values([
+      { choreographyId: evaluated.id, eventId: event.id, orderNumber: 1 },
+      { choreographyId: pending.id, eventId: event.id, orderNumber: 2 },
+    ]);
+    // Disqualified counts as evaluated, which is the cheapest way to reach the
+    // snapshot without a whole panel behind it.
+    await db
+      .update(presentations)
+      .set({ disqualifiedAt: new Date() })
+      .where(eq(presentations.choreographyId, evaluated.id));
+    await publishResults(event.id);
+
+    const loaderData = await loadPortalPresentationsList(
+      portalPresentationsRequest(session.cookie),
+    );
+
+    expect(
+      loaderData.rows.map((row) => [row.name, row.isResultPublished]),
+    ).toEqual([
+      ["Evaluada", true],
+      ["Sin evaluar", false],
     ]);
   });
 });
