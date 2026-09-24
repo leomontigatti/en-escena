@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { professors } from "@/db/schema";
 import {
   findProfessorDocumentConflict,
+  type ProfessorDocumentConflict,
   writeProfessorGuardingDocument,
   normalizeProfessorDocumentPair,
   normalizeProfessorNames as normalizeProfessorNamesShared,
@@ -16,12 +17,16 @@ import {
 
 export type ProfessorFormField = "firstName" | "lastName";
 
-export type CreateProfessorInput = Record<ProfessorFormField, string>;
-
-export type UpdateProfessorInput = CreateProfessorInput & {
+/**
+ * The document is optional at creation, so the per-academy rule acts from the
+ * first save without a document being required to load a professor.
+ */
+export type CreateProfessorInput = Record<ProfessorFormField, string> & {
   documentType: string;
   documentNumber: string;
 };
+
+export type UpdateProfessorInput = CreateProfessorInput;
 
 export type PortalProfessorListItem = Pick<
   typeof professors.$inferSelect,
@@ -31,13 +36,17 @@ export type PortalProfessorListItem = Pick<
   participationStatus: ParticipationStatus;
 };
 
+export type CreateProfessorField = keyof CreateProfessorInput;
 export type CreateProfessorResult =
   | { ok: true; professor: typeof professors.$inferSelect }
   | {
       ok: false;
       message: string;
-      fieldErrors: Partial<Record<ProfessorFormField, string>>;
+      fieldErrors: Partial<Record<CreateProfessorField, string>>;
       values: CreateProfessorInput;
+      // The professor already holding the document number, so the form can
+      // link to them when the match is an archived one.
+      duplicateDocumentProfessorId?: string;
     };
 
 export type UpdateProfessorField = keyof UpdateProfessorInput;
@@ -95,8 +104,23 @@ export async function createAcademyProfessor(
   const values = {
     firstName: input.firstName,
     lastName: input.lastName,
+    documentType: input.documentType,
+    documentNumber: input.documentNumber,
   };
   const { firstName, lastName, fieldErrors } = normalizeProfessorNames(input);
+  const normalizedDocument = normalizeProfessorDocumentPair(
+    input.documentType,
+    input.documentNumber,
+  );
+
+  if (!normalizedDocument.ok) {
+    return {
+      ok: false,
+      message: reviewProfessorFieldsMessage,
+      fieldErrors: { ...fieldErrors, ...normalizedDocument.fieldErrors },
+      values,
+    };
+  }
 
   if (hasFieldErrors(fieldErrors)) {
     return {
@@ -107,17 +131,62 @@ export async function createAcademyProfessor(
     };
   }
 
-  const [professor] = await db
-    .insert(professors)
-    .values({
-      academyId,
-      firstName,
-      lastName,
-      active: true,
-    })
-    .returning();
+  const documentConflict =
+    normalizedDocument.documentNumber === null
+      ? null
+      : await findProfessorDocumentConflict({
+          academyId,
+          documentNumber: normalizedDocument.documentNumber,
+          scope: "portal",
+        });
 
-  return { ok: true, professor };
+  if (documentConflict) {
+    return toProfessorDocumentRefusal(documentConflict, values);
+  }
+
+  // The index can still refuse the number between the pre-check and the
+  // insert.
+  const guarded = await writeProfessorGuardingDocument({
+    academyId,
+    documentNumber: normalizedDocument.documentNumber,
+    scope: "portal",
+    write: async () => {
+      const [professor] = await db
+        .insert(professors)
+        .values({
+          academyId,
+          firstName,
+          lastName,
+          documentType: normalizedDocument.documentType,
+          documentNumber: normalizedDocument.documentNumber,
+          active: true,
+        })
+        .returning();
+
+      return professor;
+    },
+  });
+
+  if (!guarded.ok) {
+    return toProfessorDocumentRefusal(guarded.conflict, values);
+  }
+
+  return { ok: true, professor: guarded.result };
+}
+
+function toProfessorDocumentRefusal(
+  conflict: ProfessorDocumentConflict,
+  values: CreateProfessorInput,
+): Extract<CreateProfessorResult, { ok: false }> {
+  return {
+    ok: false,
+    message: reviewProfessorFieldsMessage,
+    fieldErrors: { documentNumber: conflict.message },
+    values,
+    ...(conflict.professorId
+      ? { duplicateDocumentProfessorId: conflict.professorId }
+      : {}),
+  };
 }
 
 export async function findAcademyProfessor(

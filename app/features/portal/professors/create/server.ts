@@ -15,6 +15,8 @@ export async function handleCreateProfessorAction({
   const values = {
     firstName: formValue(formData, "firstName"),
     lastName: formValue(formData, "lastName"),
+    documentType: formValue(formData, "documentType"),
+    documentNumber: formValue(formData, "documentNumber"),
   };
   const parsed = createProfessorSchema.safeParse(values);
 
@@ -24,6 +26,8 @@ export async function handleCreateProfessorAction({
       fieldErrors: {
         firstName: parsed.error.flatten().fieldErrors.firstName?.[0],
         lastName: parsed.error.flatten().fieldErrors.lastName?.[0],
+        documentType: parsed.error.flatten().fieldErrors.documentType?.[0],
+        documentNumber: parsed.error.flatten().fieldErrors.documentNumber?.[0],
       },
       values,
       modalOpen: true,
@@ -38,6 +42,9 @@ export async function handleCreateProfessorAction({
       fieldErrors: result.fieldErrors,
       values: result.values,
       modalOpen: true,
+      ...(result.duplicateDocumentProfessorId
+        ? { duplicateDocumentProfessorId: result.duplicateDocumentProfessorId }
+        : {}),
     };
   }
 

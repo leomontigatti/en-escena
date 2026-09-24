@@ -36,6 +36,8 @@ describe("PortalProfessorsListRouteView", () => {
         values: {
           firstName: "",
           lastName: "  de la CRUZ ",
+          documentType: "",
+          documentNumber: "",
         },
         modalOpen: true,
       },

@@ -141,6 +141,57 @@ describe("professor create submissions", () => {
     expect((submission as FormData).get("lastName")).toBe("Paz");
     expect(options).toEqual({ method: "post" });
   });
+
+  test("lands the duplicate-document refusal on the field and links to the match", async () => {
+    portalSubmissionRouterMocks.useFetcher.mockReturnValue({
+      data: undefined,
+      state: "idle",
+      submit: vi.fn(),
+    });
+    portalSubmissionRouterMocks.useNavigation.mockReturnValue({
+      formData: undefined,
+      state: "idle",
+    });
+    portalSubmissionRouterMocks.useSubmit.mockReturnValue(vi.fn());
+
+    await renderPortalSubmission(
+      <MemoryRouter initialEntries={["/portal/profesores"]}>
+        <PortalProfessorsListRouteView
+          loaderData={buildProfessorLoaderData()}
+          actionData={{
+            status: "error",
+            fieldErrors: {
+              documentNumber:
+                "Ya existe un Profesor archivado con ese documento en tu academia.",
+            },
+            values: {
+              firstName: "Ana",
+              lastName: "Paz",
+              documentType: "dni",
+              documentNumber: "30111222",
+            },
+            modalOpen: true,
+            duplicateDocumentProfessorId: "professor_archived_1",
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    const documentField = document.querySelector<HTMLInputElement>(
+      'input[name="documentNumber"]',
+    );
+
+    expect(documentField?.value).toBe("30111222");
+    expect(documentField?.getAttribute("aria-invalid")).toBe("true");
+    expect(document.body.textContent).toContain(
+      "Ya existe un Profesor archivado con ese documento en tu academia.",
+    );
+    expect(
+      document.querySelector<HTMLAnchorElement>(
+        'a[href="/portal/profesores/professor_archived_1"]',
+      )?.textContent,
+    ).toBe("Ver la ficha del profesor con ese documento");
+  });
 });
 
 function buildProfessorLoaderData(): Parameters<
