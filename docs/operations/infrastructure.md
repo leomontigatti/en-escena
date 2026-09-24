@@ -334,6 +334,12 @@ written by `app/lib/judging/save-score.server.ts`, from the judge's own save.
   [Backups](./backups.md).
 - `serveFilesystemObject` has **no Range support**. The player never seeks, so
   none is needed; a scrubber may not be added without it.
+- The bucket is backed up only because it is named in `STORAGE_BACKUP_BUCKETS`,
+  which production sets and the backup scripts default — see
+  [Backups](./backups.md#required-environment). A show's audio is all recorded in
+  one evening, so the base twice-a-day cadence is raised for the event days.
+  Adding the bucket to the production variable is a
+  [pending manual step](./backups.md#pending-production-step-before-the-october-event).
 
 ## Related runbooks
 
