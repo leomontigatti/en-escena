@@ -113,6 +113,7 @@ describe("PortalPresentationsListView", () => {
       "Modalidad / Submodalidad",
       "Nombre",
       "Bailarines",
+      "Nivel",
       "Estado",
     ]) {
       expect(markup).toContain(header);
@@ -125,6 +126,24 @@ describe("PortalPresentationsListView", () => {
     expect(markup).toContain("2 de mayo de 2026");
   });
 
+  test("names each presentation's level, and dashes the ones without one", () => {
+    const markup = renderView({
+      rows: [
+        buildRow({ choreographyId: "levelled", levelLabel: "Pre Elite" }),
+        buildRow({ choreographyId: "unlevelled", levelLabel: null }),
+      ],
+    });
+
+    expect(markup).toContain("Pre Elite");
+    expect(markup).toContain("—");
+  });
+
+  test("rebalances the column widths so the level fits", () => {
+    const markup = renderView();
+
+    expect(readColumnWidths(markup)).toEqual([9, 16, 20, 17, 15, 11, 11]);
+  });
+
   test("links a name to the academy's own choreography detail", () => {
     const markup = renderView({
       rows: [buildRow({ choreographyId: "choreography-1" })],
@@ -133,6 +152,13 @@ describe("PortalPresentationsListView", () => {
     expect(markup).toContain("/portal/coreografias/choreography-1");
   });
 });
+
+/** The weights the `colgroup` carries, in column order. */
+function readColumnWidths(markup: string) {
+  return Array.from(
+    markup.matchAll(/<col style="width:calc\(100% \* (\d+)/g),
+  ).map(([, width]) => Number(width));
+}
 
 function buildRow(overrides: Partial<ProgramListRow> = {}): ProgramListRow {
   return {

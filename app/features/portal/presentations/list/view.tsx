@@ -84,6 +84,7 @@ export function PortalPresentationsListView({
           <ProgramList
             rows={loaderData.rows}
             showAcademy={false}
+            showLevel
             choreographyPath={(row) =>
               `/portal/coreografias/${row.choreographyId}`
             }

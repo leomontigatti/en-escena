@@ -61,6 +61,7 @@ describe("PublicProgramView", () => {
       "Buscar por número de presentación, nombre o academia",
     );
     expect(markup).not.toContain(">Estado<");
+    expect(markup).not.toContain(">Nivel<");
     // The name is plain text here: nowhere public to link a choreography to.
     expect(markup).not.toContain("/portal/coreografias/");
   });
