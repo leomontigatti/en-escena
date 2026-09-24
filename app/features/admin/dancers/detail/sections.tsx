@@ -1,3 +1,5 @@
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { Check, Pencil, TriangleAlert } from "lucide-react";
 import type { FormEventHandler, ReactNode } from "react";
 import { Link } from "react-router";
@@ -157,6 +159,7 @@ export function DancerDetailCard({
   editFormId,
   editHref,
   isEditing,
+  nameWarning,
   onConfirmSave,
   onSubmit,
   selectedEventId,
@@ -171,6 +174,7 @@ export function DancerDetailCard({
   editFormId: string;
   editHref: string;
   isEditing: boolean;
+  nameWarning?: RosterNameWarning;
   onConfirmSave: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
   selectedEventId: string | null;
@@ -185,7 +189,9 @@ export function DancerDetailCard({
           cancelHref={cancelHref}
           editFormId={editFormId}
           editHref={editHref}
-          isEditing={isEditing}
+          // The warning carries the save of its own, so the footer must not
+          // offer a second one.
+          isEditing={isEditing && !nameWarning}
           onConfirmSave={onConfirmSave}
           shouldConfirmSave={shouldConfirmSave}
         />
@@ -211,6 +217,8 @@ export function DancerDetailCard({
           isEditing={isEditing}
           selectedEventId={selectedEventId}
         />
+
+        {nameWarning ? <RosterNameWarningNotice warning={nameWarning} /> : null}
       </form>
     </AdminResourceFormCard>
   );

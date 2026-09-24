@@ -33,6 +33,9 @@ export function ProfessorDetailRouteView({
   loaderData,
 }: ProfessorDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
+  // A warning keeps the edit open with the submitted values and asks the
+  // administrator to confirm.
+  const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
 
   useServerActionToast(errorData, {
@@ -49,11 +52,12 @@ export function ProfessorDetailRouteView({
   // submitted values and leaves the screen in read mode.
   const isEditing =
     loaderData.canEdit &&
-    (loaderData.isEditing || Boolean(submittedUpdateValues));
-  const editValues = getProfessorEditValues({
-    actionData: errorData,
-    professor,
-  });
+    (loaderData.isEditing ||
+      Boolean(submittedUpdateValues) ||
+      Boolean(nameWarning));
+  const editValues = nameWarning
+    ? nameWarning.values
+    : getProfessorEditValues({ actionData: errorData, professor });
   const editForm = useProfessorEditForm({
     actionData: errorData,
     values: editValues,
@@ -148,6 +152,7 @@ export function ProfessorDetailRouteView({
           editFormId={editFormId}
           editHref={loaderData.editHref}
           isEditing={isEditing}
+          nameWarning={nameWarning?.warning}
           onSubmit={handleEditSubmit}
           professor={professor}
         />

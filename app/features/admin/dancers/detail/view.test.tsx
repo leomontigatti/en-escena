@@ -71,6 +71,38 @@ describe("DancerDetailRouteView", () => {
     );
     expect(markup).toContain("Ver la ficha del bailarín con ese documento");
   });
+
+  test("shows the same-name warning with the continue action and the ids", () => {
+    const markup = renderDetailView({
+      loaderData: createLoaderData({ isEditing: true }),
+      actionData: {
+        status: "warning",
+        warning: {
+          kind: "dancer-name",
+          matches: [{ id: "dancer-twin-1", label: "Ana Paz" }],
+          scope: "admin",
+        },
+        values: {
+          firstName: "Ana",
+          lastName: "Paz",
+          birthDate: "2012-07-12",
+          documentType: "",
+          documentNumber: "",
+          documentFrontImageStorageKey: "",
+          documentBackImageStorageKey: "",
+        },
+      },
+    });
+
+    expect(markup).toContain(
+      "Ya existe un Bailarín con el mismo nombre y fecha de nacimiento en la academia: Ana Paz. ¿Es la misma persona?",
+    );
+    expect(markup).toContain(
+      'name="acknowledgedDuplicateIds" value="dancer-twin-1"',
+    );
+    expect(markup).toContain("Continuar de todos modos");
+    expect(markup).toContain('name="firstName" value="Ana"');
+  });
 });
 
 function renderDetailView(input: Partial<DetailRouteViewProps> = {}) {
