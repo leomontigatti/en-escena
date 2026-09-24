@@ -91,7 +91,8 @@ export type EventBaseFailure = {
     | "invalid-modality"
     | "missing-price"
     | "invalid-schedule-capacity"
-    | "schedule-has-dependencies";
+    | "schedule-has-dependencies"
+    | "schedule-registration-not-allowed";
   error: string;
   fieldErrors?: Record<string, string>;
 };
