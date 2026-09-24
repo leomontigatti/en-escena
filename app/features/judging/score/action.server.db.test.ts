@@ -1,0 +1,174 @@
+import { eq } from "drizzle-orm";
+import { describe, expect, test } from "vitest";
+
+import { db } from "@/db";
+import { schedules, scores, user } from "@/db/schema";
+import {
+  createAccessRequestCookie,
+  createAccessUser,
+} from "@/lib/auth/access-auth.test-support";
+import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
+import { judgingDate } from "@/lib/judging/judging-day";
+import { scoreValueMessage } from "@/lib/judging/score-value";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { action } from "@/routes/juzgamiento";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
+
+installDatabaseTestHooks();
+
+async function signIn(role: "auditor" | "judge", name: string) {
+  const email = `${crypto.randomUUID()}@example.com`;
+  const signUp = await createAccessUser({
+    email,
+    name,
+    password: "password-segura",
+  });
+
+  await db
+    .update(user)
+    .set({ emailVerified: true, internalUsername: "persona", name, role })
+    .where(eq(user.id, signUp.response.user.id));
+
+  return {
+    cookie: createAccessRequestCookie(signUp.headers),
+    userId: signUp.response.user.id,
+  };
+}
+
+function scoreRequest(
+  cookie: string,
+  fields: Record<string, string>,
+): Parameters<typeof action>[0] {
+  const body = new FormData();
+
+  for (const [name, value] of Object.entries(fields)) {
+    body.set(name, value);
+  }
+
+  return {
+    request: new Request("http://localhost/juzgamiento", {
+      body,
+      headers: { cookie },
+      method: "POST",
+    }),
+    params: {},
+    context: {},
+  } as Parameters<typeof action>[0];
+}
+
+async function seedOpenPresentation() {
+  const fixture = await seedJudgingFixture();
+  const presentation = await fixture.addPresentation({
+    name: "Primera",
+    orderNumber: 1,
+  });
+
+  await db
+    .update(schedules)
+    .set({ scheduledDate: judgingDate() })
+    .where(eq(schedules.id, fixture.catalog.schedule.id));
+
+  return { fixture, presentation };
+}
+
+describe("the `/juzgamiento` action", () => {
+  test("saves the signed-in judge's score", async () => {
+    const judge = await signIn("judge", "Juana Juez");
+    const { fixture, presentation } = await seedOpenPresentation();
+    const assignment = await fixture.assignJudge(
+      presentation.presentationId,
+      judge.userId,
+    );
+
+    const result = await action(
+      scoreRequest(judge.cookie, {
+        intent: "save-score",
+        presentationId: presentation.presentationId,
+        value: "90.5",
+      }),
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    expect(
+      await db
+        .select({ value: scores.value })
+        .from(scores)
+        .where(eq(scores.judgeAssignmentId, assignment.judgeAssignmentId)),
+    ).toEqual([{ value: "90.5" }]);
+  });
+
+  test("refuses a judge who is not assigned to the presentation", async () => {
+    const judge = await signIn("judge", "Juana Juez");
+    const { presentation } = await seedOpenPresentation();
+
+    await expectThrownResponse(
+      action(
+        scoreRequest(judge.cookie, {
+          intent: "save-score",
+          presentationId: presentation.presentationId,
+          value: "90.5",
+        }),
+      ),
+      403,
+    );
+  });
+
+  test("refuses a user who is not a judge", async () => {
+    const auditor = await signIn("auditor", "Ariel Auditor");
+    const { presentation } = await seedOpenPresentation();
+
+    await expectThrownResponse(
+      action(
+        scoreRequest(auditor.cookie, {
+          intent: "save-score",
+          presentationId: presentation.presentationId,
+          value: "90.5",
+        }),
+      ),
+      403,
+    );
+  });
+
+  test("answers with an error once the judging day has closed", async () => {
+    const judge = await signIn("judge", "Juana Juez");
+    const { fixture, presentation } = await seedOpenPresentation();
+
+    await fixture.assignJudge(presentation.presentationId, judge.userId);
+    await db
+      .update(schedules)
+      .set({ scheduledDate: "2020-01-01" })
+      .where(eq(schedules.id, fixture.catalog.schedule.id));
+
+    const result = await action(
+      scoreRequest(judge.cookie, {
+        intent: "save-score",
+        presentationId: presentation.presentationId,
+        value: "90.5",
+      }),
+    );
+
+    expect(result).toMatchObject({ status: "error" });
+  });
+
+  test("answers with the field error for a value that is not a half step", async () => {
+    const judge = await signIn("judge", "Juana Juez");
+    const { fixture, presentation } = await seedOpenPresentation();
+
+    await fixture.assignJudge(presentation.presentationId, judge.userId);
+
+    const result = await action(
+      scoreRequest(judge.cookie, {
+        intent: "save-score",
+        presentationId: presentation.presentationId,
+        value: "90.2",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      fieldErrors: { value: scoreValueMessage() },
+      status: "error",
+      values: { presentationId: presentation.presentationId, value: "90.2" },
+    });
+  });
+});

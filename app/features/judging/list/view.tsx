@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import {
   AccessHeader,
@@ -13,6 +14,8 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import type { JudgePanelActionData } from "@/features/judging/score/action.server";
+import { JudgeScoreDialog } from "@/features/judging/score/dialog";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import {
@@ -21,6 +24,7 @@ import {
 } from "@/lib/judging/judge-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
+import { showToastMessage } from "@/lib/shared/toasts";
 
 import {
   findResumePresentationId,
@@ -30,6 +34,7 @@ import {
 import type { JudgePanelRouteData } from "./server";
 
 export type JudgePanelViewProps = {
+  actionData?: JudgePanelActionData;
   loaderData: JudgePanelRouteData;
 };
 
@@ -49,8 +54,13 @@ const statusVariants: Record<
  * and no row carries a number: the judge is looking for the piece that is about
  * to go on, not comparing scores.
  */
-export function JudgePanelView({ loaderData }: JudgePanelViewProps) {
+export function JudgePanelView({
+  actionData,
+  loaderData,
+}: JudgePanelViewProps) {
   const [onlyPending, setOnlyPending] = useState(false);
+  const { openPresentation, openPresentationId, setOpenPresentationId } =
+    useOpenPresentation(loaderData.presentations);
   const tableRef = useRef<HTMLDivElement>(null);
   const resumePresentationId = useResumePresentationId(
     loaderData.presentations,
@@ -58,6 +68,13 @@ export function JudgePanelView({ loaderData }: JudgePanelViewProps) {
   const rows = onlyPending
     ? loaderData.presentations.filter((row) => row.status === "pendiente")
     : loaderData.presentations;
+
+  useJudgeScoreFeedback({
+    actionData,
+    openPresentationId,
+    presentations: loaderData.presentations,
+    setOpenPresentationId,
+  });
 
   useEffect(() => {
     tableRef.current
@@ -101,9 +118,126 @@ export function JudgePanelView({ loaderData }: JudgePanelViewProps) {
           searchPlaceholder="Buscar presentación"
         />
       </div>
+
+      {openPresentation && openPresentation.criteria.length === 0 ? (
+        <JudgeScoreDialog
+          fieldErrors={actionData?.fieldErrors}
+          key={openPresentation.presentationId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setOpenPresentationId(null);
+            }
+          }}
+          presentation={openPresentation}
+        />
+      ) : null}
     </AccessPage>
   );
 }
+
+/**
+ * Which presentation the judge has open, kept in the URL so that coming back to
+ * the tab, or a revalidation mid-show, reopens what they were looking at.
+ */
+function useOpenPresentation(presentations: JudgePresentationRow[]) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openPresentationId = searchParams.get("presentacion");
+  const setOpenPresentationId = useCallback(
+    (presentationId: string | null) => {
+      setSearchParams(
+        (params) => {
+          if (presentationId === null) {
+            params.delete("presentacion");
+          } else {
+            params.set("presentacion", presentationId);
+          }
+
+          return params;
+        },
+        { preventScrollReset: true, replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  return {
+    openPresentation:
+      presentations.find((row) => row.presentationId === openPresentationId) ??
+      null,
+    openPresentationId,
+    setOpenPresentationId,
+  };
+}
+
+const allPresentationsScoredMessage =
+  "Puntuaste todas las presentaciones de hoy.";
+
+/**
+ * What happens once the save has answered. A judge keeps pace with the stage,
+ * so a saved score opens the next one they still owe — read from the list the
+ * save revalidated, never from what was on screen when they tapped — and only
+ * when nothing is left does the form close.
+ *
+ * A refusal keeps the form exactly as it was: there is no offline mode, so the
+ * score on screen is the only copy of it and the judge retries with it.
+ */
+function useJudgeScoreFeedback({
+  actionData,
+  openPresentationId,
+  presentations,
+  setOpenPresentationId,
+}: {
+  actionData?: JudgePanelActionData;
+  openPresentationId: string | null;
+  presentations: JudgePresentationRow[];
+  setOpenPresentationId: (presentationId: string | null) => void;
+}) {
+  const answered = useRef<JudgePanelActionData | null>(null);
+
+  useEffect(() => {
+    if (!actionData || answered.current === actionData) {
+      return;
+    }
+
+    answered.current = actionData;
+
+    if (actionData.status === "error") {
+      showToastMessage({
+        id: judgeScoreToastId,
+        message: actionData.message,
+        variant: "error",
+      });
+
+      return;
+    }
+
+    const nextPresentationId = findResumePresentationId(
+      presentations,
+      openPresentationId,
+    );
+
+    if (nextPresentationId === null) {
+      setOpenPresentationId(null);
+      showToastMessage({
+        id: judgeScoreToastId,
+        message: allPresentationsScoredMessage,
+        variant: "success",
+      });
+
+      return;
+    }
+
+    rememberOpenedPresentation(nextPresentationId);
+    setOpenPresentationId(nextPresentationId);
+    showToastMessage({
+      id: judgeScoreToastId,
+      message: actionData.message,
+      variant: "success",
+    });
+  }, [actionData, openPresentationId, presentations, setOpenPresentationId]);
+}
+
+const judgeScoreToastId = "juzgamiento-puntaje";
 
 /**
  * The marker is read once, on mount: it says where the judge left off when they
