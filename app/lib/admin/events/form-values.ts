@@ -30,9 +30,6 @@ export type FieldErrors = NonNullable<
 
 export { MAX_REQUIRED_DEPOSIT_PERCENTAGE, MIN_REQUIRED_DEPOSIT_PERCENTAGE };
 
-export const registrationAfterEventStartMessage =
-  "No puede ser posterior a la fecha de inicio del evento.";
-
 export const PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH = 2000;
 
 /**
@@ -84,12 +81,6 @@ type PaymentInstructionsField = (typeof paymentInstructionsFields)[number];
 
 const eventFormFields = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
-  registrationStartsAt: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, requiredFieldMessage),
-  registrationEndsAt: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, requiredFieldMessage),
   startsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, requiredFieldMessage),
   endsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, requiredFieldMessage),
   requiredDepositPercentage: z.string().refine((value) => {
@@ -163,23 +154,9 @@ function optionalIdentifier(check: (value: string) => string | undefined) {
   });
 }
 
-/**
- * Inscriptions that open after the event starts are a typo, not a
- * configuration: the check lives in the schema so the same rule reaches the
- * field through `zodResolver` and the action through `parseEventFormValues`.
- */
-export const eventFormSchema = eventFormFields
-  .superRefine(addPaymentInstructionsGroupIssues)
-  .refine(
-    (values) =>
-      values.registrationStartsAt === "" ||
-      values.startsAt === "" ||
-      values.registrationStartsAt <= values.startsAt,
-    {
-      message: registrationAfterEventStartMessage,
-      path: ["registrationStartsAt"],
-    },
-  );
+export const eventFormSchema = eventFormFields.superRefine(
+  addPaymentInstructionsGroupIssues,
+);
 
 /**
  * The bank identifiers are a group: an alias alone cannot be paid into, and a
@@ -220,8 +197,6 @@ export type EventFormValues = z.infer<typeof eventFormSchema>;
 export function readEventFormValues(formData: FormData): EventFormValues {
   return {
     name: String(formData.get("name") ?? ""),
-    registrationStartsAt: String(formData.get("registrationStartsAt") ?? ""),
-    registrationEndsAt: String(formData.get("registrationEndsAt") ?? ""),
     startsAt: String(formData.get("startsAt") ?? ""),
     endsAt: String(formData.get("endsAt") ?? ""),
     requiredDepositPercentage: String(
@@ -266,22 +241,14 @@ export function parseEventFormValues(
     };
   }
 
-  const registrationStartsAt = parseBusinessDate(values.registrationStartsAt);
-  const registrationEndsAt = parseBusinessDate(values.registrationEndsAt);
   const startsAt = parseBusinessDate(values.startsAt);
   const endsAt = parseBusinessDate(values.endsAt);
   const requiredDepositPercentage = Number(values.requiredDepositPercentage);
 
-  if (!registrationStartsAt || !registrationEndsAt || !startsAt || !endsAt) {
+  if (!startsAt || !endsAt) {
     return {
       ok: false,
       fieldErrors: {
-        registrationStartsAt: registrationStartsAt
-          ? undefined
-          : requiredFieldMessage,
-        registrationEndsAt: registrationEndsAt
-          ? undefined
-          : requiredFieldMessage,
         startsAt: startsAt ? undefined : requiredFieldMessage,
         endsAt: endsAt ? undefined : requiredFieldMessage,
       },
@@ -292,8 +259,6 @@ export function parseEventFormValues(
     ok: true,
     input: {
       name: parsedValues.data.name,
-      registrationStartsAt,
-      registrationEndsAt,
       startsAt,
       endsAt,
       requiredDepositPercentage,
@@ -337,8 +302,6 @@ export function getEventFormErrorMessage(
 export function defaultEventFormValues(): EventFormValues {
   return {
     name: "",
-    registrationStartsAt: "",
-    registrationEndsAt: "",
     startsAt: "",
     endsAt: "",
     requiredDepositPercentage: String(DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE),
@@ -355,8 +318,6 @@ function emptyPaymentInstructionsFormValues() {
 export function eventFormValues(event: EventRow): EventFormValues {
   return {
     name: event.name,
-    registrationStartsAt: formatBusinessDateInput(event.registrationStartsAt),
-    registrationEndsAt: formatBusinessDateInput(event.registrationEndsAt),
     startsAt: formatBusinessDateInput(event.startsAt),
     endsAt: formatBusinessDateInput(event.endsAt),
     requiredDepositPercentage: String(event.requiredDepositPercentage),

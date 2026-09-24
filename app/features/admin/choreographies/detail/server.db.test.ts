@@ -90,8 +90,6 @@ describe("administrative choreography detail server", () => {
     const inactiveEvent = await createEventRecord({
       active: false,
       name: "Regional 2025",
-      registrationStartsAt: date("2025-03-01T12:00:00Z"),
-      registrationEndsAt: date("2025-04-30T12:00:00Z"),
       startsAt: date("2025-05-01T12:00:00Z"),
       endsAt: date("2025-05-03T12:00:00Z"),
     });

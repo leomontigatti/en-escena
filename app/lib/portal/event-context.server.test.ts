@@ -137,8 +137,6 @@ function buildEventSummary(overrides: Partial<EventSummaryFixture> = {}) {
     id: "event_1",
     name: "Regional 2026",
     active: false,
-    registrationStartsAt: new Date("2026-01-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-12-31T12:00:00Z"),
     startsAt: new Date("2026-02-01T12:00:00Z"),
     endsAt: new Date("2026-02-03T12:00:00Z"),
     ...overrides,

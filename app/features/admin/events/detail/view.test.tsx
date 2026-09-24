@@ -165,7 +165,9 @@ describe("EventDetailView form", () => {
     const submitted = Array.from(new FormData(getEventForm()).keys());
 
     expect(submitted).toContain("name");
-    expect(submitted).toContain("registrationStartsAt");
+    expect(submitted).toContain("startsAt");
+    expect(submitted).toContain("endsAt");
+    expect(submitted).not.toContain("registrationStartsAt");
     expect(submitted).toContain(eventDocumentKeptField("professor_contract"));
   });
 
@@ -475,8 +477,6 @@ function buildLoaderData(): EventDetailLoaderData {
       programVisible: false,
       resultsVisible: false,
       requiredDepositPercentage: 30,
-      registrationStartsAt: new Date("2026-01-01T00:00:00Z"),
-      registrationEndsAt: new Date("2026-02-01T00:00:00Z"),
       startsAt: new Date("2026-03-01T00:00:00Z"),
       endsAt: new Date("2026-03-02T00:00:00Z"),
       registrationReady: true,

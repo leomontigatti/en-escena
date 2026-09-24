@@ -37,22 +37,16 @@ export async function seedBaselineFixture() {
 
   const activeEvent = await createSavedEvent({
     name: "Evento Activo",
-    registrationStartsAt: date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: date("2026-04-30T12:00:00Z"),
     startsAt: date("2026-05-01T12:00:00Z"),
     endsAt: date("2026-05-03T12:00:00Z"),
   });
   const futureEvent = await createSavedEvent({
     name: "Evento Futuro",
-    registrationStartsAt: date("2027-03-01T12:00:00Z"),
-    registrationEndsAt: date("2027-04-30T12:00:00Z"),
     startsAt: date("2027-05-01T12:00:00Z"),
     endsAt: date("2027-05-03T12:00:00Z"),
   });
   await createSavedEvent({
     name: "Evento Finalizado",
-    registrationStartsAt: date("2024-03-01T12:00:00Z"),
-    registrationEndsAt: date("2024-04-30T12:00:00Z"),
     startsAt: date("2024-05-01T12:00:00Z"),
     endsAt: date("2024-05-03T12:00:00Z"),
   });

@@ -5,8 +5,6 @@ export type PortalEventSummary = {
   id: string;
   name: string;
   active: boolean;
-  registrationStartsAt: Date;
-  registrationEndsAt: Date;
   startsAt: Date;
   endsAt: Date;
 };

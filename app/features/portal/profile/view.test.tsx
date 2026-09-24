@@ -99,8 +99,6 @@ function portalEventContext(
     id: "event_1",
     name: "Regional 2026",
     active: true,
-    registrationStartsAt: new Date("2026-03-01T12:00:00Z"),
-    registrationEndsAt: new Date("2026-04-30T12:00:00Z"),
     startsAt: new Date("2026-05-01T12:00:00Z"),
     endsAt: new Date("2026-05-03T12:00:00Z"),
   };

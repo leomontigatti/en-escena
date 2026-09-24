@@ -107,8 +107,6 @@ describe("PGlite pilot", () => {
       id: "event_1",
       name: "Evento Activo",
       active: true,
-      registrationStartsAt: new Date("2026-01-01T00:00:00.000Z"),
-      registrationEndsAt: new Date("2026-01-10T00:00:00.000Z"),
       startsAt: new Date("2026-02-01T00:00:00.000Z"),
       endsAt: new Date("2026-02-02T00:00:00.000Z"),
     });
@@ -119,8 +117,6 @@ describe("PGlite pilot", () => {
         id: "event_2",
         name: "Otro Evento Activo",
         active: true,
-        registrationStartsAt: new Date("2026-03-01T00:00:00.000Z"),
-        registrationEndsAt: new Date("2026-03-10T00:00:00.000Z"),
         startsAt: new Date("2026-04-01T00:00:00.000Z"),
         endsAt: new Date("2026-04-02T00:00:00.000Z"),
       })

@@ -218,6 +218,13 @@
       "when": 1790223772698,
       "tag": "0030_add_schedule_registration_open",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790228261356,
+      "tag": "0031_drop_event_registration_window",
+      "breakpoints": true
     }
   ]
 }

@@ -32,8 +32,6 @@ describe("portal loader event active", () => {
   test("uses the active event in the shell summary", async () => {
     await createSavedEvent({
       name: "Regional 2025",
-      registrationStartsAt: date("2025-03-01T12:00:00Z"),
-      registrationEndsAt: date("2025-04-30T12:00:00Z"),
       startsAt: date("2025-05-01T12:00:00Z"),
       endsAt: date("2025-05-03T12:00:00Z"),
     });
@@ -59,8 +57,6 @@ describe("portal loader event active", () => {
       name: "Activo",
       startsAt: date("2027-05-01T12:00:00Z"),
       endsAt: date("2027-05-03T12:00:00Z"),
-      registrationStartsAt: date("2027-03-01T12:00:00Z"),
-      registrationEndsAt: date("2027-04-30T12:00:00Z"),
     });
     await activateEvent(activeEvent.id);
 
@@ -78,8 +74,6 @@ describe("portal loader event active", () => {
   test("does not fall back to the most recent event when no event is active", async () => {
     await createSavedEvent({
       name: "Regional 2025",
-      registrationStartsAt: date("2025-03-01T12:00:00Z"),
-      registrationEndsAt: date("2025-04-30T12:00:00Z"),
       startsAt: date("2025-05-01T12:00:00Z"),
       endsAt: date("2025-05-03T12:00:00Z"),
     });

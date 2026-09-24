@@ -27,7 +27,6 @@ import {
   createOpenEventCatalog,
   createProfessor,
   date,
-  OPEN_REGISTRATION_ENDS_AT,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -52,8 +51,6 @@ describe("choreography registration resolution", () => {
     });
     const { event, catalog } = await createOpenEventCatalog({
       active: true,
-      registrationStartsAt: date("2026-03-01T12:00:00Z"),
-      registrationEndsAt: OPEN_REGISTRATION_ENDS_AT,
       startsAt: date("2026-05-01T02:30:00Z"),
     });
     const dancer = await createDancer(owner.academyId, {
@@ -388,7 +385,6 @@ describe("choreography registration resolution", () => {
 
     const notReadyEvent = await createEventRecord({
       active: true,
-      registrationEndsAt: date("2099-04-30T12:00:00Z"),
     });
     const [modality] = await db
       .insert(modalities)

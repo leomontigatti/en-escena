@@ -164,8 +164,6 @@ describe("Event RHF + React Router form submission", () => {
           values: {
             ...defaultEventFormValues(),
             name: "Evento 2026",
-            registrationStartsAt: "2026-03-01",
-            registrationEndsAt: "2026-04-30",
             startsAt: "2026-05-01",
             endsAt: "2026-05-03",
             requiredDepositPercentage: "45",
@@ -189,8 +187,6 @@ function buildDetailLoaderData(): Parameters<
     event: {
       id: "evento_1",
       name: "Evento 2026",
-      registrationStartsAt: new Date("2026-03-01T03:00:00.000Z"),
-      registrationEndsAt: new Date("2026-04-30T03:00:00.000Z"),
       startsAt: new Date("2026-05-01T03:00:00.000Z"),
       endsAt: new Date("2026-05-03T03:00:00.000Z"),
       active: false,
@@ -221,8 +217,6 @@ function buildSubmittedEventValues() {
   return {
     ...defaultEventFormValues(),
     name: "Metropolitano 2027",
-    registrationStartsAt: "2027-03-01",
-    registrationEndsAt: "2027-05-02",
     startsAt: "2027-05-01",
     endsAt: "2027-05-03",
     requiredDepositPercentage: "45",

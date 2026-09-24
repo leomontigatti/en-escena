@@ -61,8 +61,6 @@ export function useEventForm({
     values.paymentInstructionsHolderCuit,
     values.paymentInstructionsHolderName,
     values.paymentInstructionsText,
-    values.registrationEndsAt,
-    values.registrationStartsAt,
     values.requiredDepositPercentage,
     values.startsAt,
   ]);
@@ -78,8 +76,8 @@ export function useEventForm({
 
 /**
  * Everything the administration edits about the event itself, in a two-column
- * grid: the name and the deposit share the first row, then the dates pair off
- * as the event window and the inscription window.
+ * grid: the name and the deposit share the first row, then the event's own two
+ * dates. Inscriptions are not here — they open and close per `Cronograma`.
  */
 export function EventFormFields({ controller }: EventFormFieldsProps) {
   const { form } = controller;
@@ -104,16 +102,6 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
         control={form.control}
         label="Cierre del evento"
         name="endsAt"
-      />
-      <DateOnlyField
-        control={form.control}
-        label="Inicio de inscripciones"
-        name="registrationStartsAt"
-      />
-      <DateOnlyField
-        control={form.control}
-        label="Cierre de inscripciones"
-        name="registrationEndsAt"
       />
     </FieldGroup>
   );

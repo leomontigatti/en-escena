@@ -26,8 +26,6 @@ describe("event dependencies on the event detail action", () => {
   test.each([
     ["startsAt", { startsAt: "2026-05-02" }],
     ["endsAt", { endsAt: "2026-06-05" }],
-    ["registrationStartsAt", { registrationStartsAt: "2026-02-01" }],
-    ["registrationEndsAt", { registrationEndsAt: "2026-04-15" }],
     ["requiredDepositPercentage", { requiredDepositPercentage: "45" }],
   ] as const)(
     "refuses a structural edit to %s on an event with choreographies",
@@ -43,8 +41,6 @@ describe("event dependencies on the event detail action", () => {
       await expect(readEvent(event.id)).resolves.toMatchObject({
         startsAt: event.startsAt,
         endsAt: event.endsAt,
-        registrationStartsAt: event.registrationStartsAt,
-        registrationEndsAt: event.registrationEndsAt,
         requiredDepositPercentage: event.requiredDepositPercentage,
       });
     },

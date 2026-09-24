@@ -132,8 +132,6 @@ function portalPaymentsLoaderDataFixture(
       id: "event_1",
       name: "Evento 2026",
       active: true,
-      registrationStartsAt: new Date("2026-01-01T00:00:00Z"),
-      registrationEndsAt: new Date("2026-02-01T00:00:00Z"),
       startsAt: new Date("2026-03-01T00:00:00Z"),
       endsAt: new Date("2026-03-02T00:00:00Z"),
     },

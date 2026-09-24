@@ -132,14 +132,12 @@ async function findPortalActiveEventSummary() {
   return events.find((event) => event.active) ?? null;
 }
 
-/** The summary's seven fields out of a row that carries more of them. */
+/** The summary's five fields out of a row that carries more of them. */
 function toPortalEventSummary(event: PortalEventSummary): PortalEventSummary {
   return {
     id: event.id,
     name: event.name,
     active: event.active,
-    registrationStartsAt: event.registrationStartsAt,
-    registrationEndsAt: event.registrationEndsAt,
     startsAt: event.startsAt,
     endsAt: event.endsAt,
   };
@@ -149,8 +147,6 @@ const portalEventSummaryColumns = {
   id: true,
   name: true,
   active: true,
-  registrationStartsAt: true,
-  registrationEndsAt: true,
   startsAt: true,
   endsAt: true,
 } as const;

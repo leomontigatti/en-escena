@@ -18,8 +18,6 @@ import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-nu
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
-export const OPEN_REGISTRATION_ENDS_AT = date("2099-04-30T12:00:00Z");
-
 // Fixtures that insert a choreography by hand need its number first, and the
 // allocator only hands one out inside a transaction. Keeping the wrapper here
 // means a test never spells out the transaction, and never reaches for a
@@ -54,7 +52,6 @@ export async function createOpenEventCatalog(
 ) {
   const event = await createEventRecord({
     active: true,
-    registrationEndsAt: OPEN_REGISTRATION_ENDS_AT,
     ...overrides,
   });
   const catalog = await createEventCatalog(event.id);
@@ -90,8 +87,6 @@ export async function createEventRecord(
       programVisible: false,
       resultsVisible: false,
       requiredDepositPercentage: 30,
-      registrationStartsAt: date("2026-03-01T12:00:00Z"),
-      registrationEndsAt: date("2026-04-30T12:00:00Z"),
       startsAt: date("2026-05-01T12:00:00Z"),
       endsAt: date("2026-05-03T12:00:00Z"),
       ...overrides,

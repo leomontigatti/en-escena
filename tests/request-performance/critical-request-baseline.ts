@@ -167,8 +167,6 @@ export async function measureCriticalRequestBaseline(): Promise<
               "/administracion/eventos/nuevo",
               adminEventFormData({
                 name: "Evento Medición",
-                registrationStartsAt: "2027-03-01",
-                registrationEndsAt: "2027-04-30",
                 startsAt: "2027-05-01",
                 endsAt: "2027-05-03",
                 requiredDepositPercentage: "35",
@@ -245,8 +243,6 @@ export async function measureCriticalRequestBaseline(): Promise<
               adminEventFormData({
                 intent: "update",
                 name: "Evento Activo Ajustado",
-                registrationStartsAt: "2026-03-01",
-                registrationEndsAt: "2026-04-30",
                 startsAt: "2026-05-01",
                 endsAt: "2026-05-03",
                 requiredDepositPercentage: "30",

@@ -36,14 +36,6 @@ export const events = createTable(
     requiredDepositPercentage: integer("required_deposit_percentage")
       .notNull()
       .default(30),
-    registrationStartsAt: timestamp("registration_starts_at", {
-      mode: "date",
-      withTimezone: true,
-    }).notNull(),
-    registrationEndsAt: timestamp("registration_ends_at", {
-      mode: "date",
-      withTimezone: true,
-    }).notNull(),
     startsAt: timestamp("starts_at", {
       mode: "date",
       withTimezone: true,

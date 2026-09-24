@@ -8,7 +8,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { formatBusinessDate } from "@/lib/shared/business-time-zone";
+import { formatLongBusinessDate } from "@/lib/shared/business-time-zone";
 
 import type { EventsListLoaderData, EventListRow } from "./shared";
 
@@ -51,28 +51,23 @@ function EventTable({ events }: { events: EventListRow[] }) {
       sortValue: (event) => event.name,
     },
     {
-      id: "registration",
-      header: "Inscripción",
-      cell: (event) => (
-        <DateRange
-          startsAt={event.registrationStartsAt}
-          endsAt={event.registrationEndsAt}
-        />
-      ),
-      filterValue: (event) =>
-        `${formatBusinessDate(event.registrationStartsAt)} ${formatBusinessDate(
-          event.registrationEndsAt,
-        )}`,
+      // One day per column, spelled the way the schedules list spells a date.
+      // Nothing about inscriptions: those are opened and closed per
+      // `Cronograma`, and the schedules list is where they read.
+      id: "startsAt",
+      header: "Fecha de inicio",
+      className: "text-muted-foreground whitespace-nowrap",
+      cell: (event) => formatLongBusinessDate(event.startsAt),
+      filterValue: (event) => formatLongBusinessDate(event.startsAt),
+      sortValue: (event) => event.startsAt,
     },
     {
-      id: "event",
-      header: "Evento",
-      cell: (event) => (
-        <DateRange startsAt={event.startsAt} endsAt={event.endsAt} />
-      ),
-      filterValue: (event) =>
-        `${formatBusinessDate(event.startsAt)} ${formatBusinessDate(event.endsAt)}`,
-      sortValue: (event) => event.startsAt,
+      id: "endsAt",
+      header: "Fecha de finalización",
+      className: "text-muted-foreground whitespace-nowrap",
+      cell: (event) => formatLongBusinessDate(event.endsAt),
+      filterValue: (event) => formatLongBusinessDate(event.endsAt),
+      sortValue: (event) => event.endsAt,
     },
     {
       id: "status",
@@ -117,19 +112,8 @@ function EventTable({ events }: { events: EventListRow[] }) {
       searchPlaceholder="Buscar evento por nombre"
       textFilterColumnId="name"
       emptyMessage="No hay eventos que coincidan con la búsqueda."
-      initialSort={{ columnId: "event", direction: "desc" }}
+      initialSort={{ columnId: "startsAt", direction: "desc" }}
     />
-  );
-}
-
-function DateRange({ startsAt, endsAt }: { startsAt: Date; endsAt: Date }) {
-  return (
-    <span>
-      {formatBusinessDate(startsAt)}
-      <span className="block text-xs text-muted-foreground">
-        hasta {formatBusinessDate(endsAt)}
-      </span>
-    </span>
   );
 }
 

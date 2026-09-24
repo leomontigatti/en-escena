@@ -220,8 +220,6 @@ async function loadPaymentInstructions(
   const result = await updateEvent(event.id, {
     name: event.name,
     requiredDepositPercentage: event.requiredDepositPercentage,
-    registrationStartsAt: event.registrationStartsAt,
-    registrationEndsAt: event.registrationEndsAt,
     startsAt: event.startsAt,
     endsAt: event.endsAt,
     ...instructions,

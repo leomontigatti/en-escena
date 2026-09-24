@@ -70,8 +70,6 @@ describe("`/administracion/eventos` route", () => {
     });
     await createSavedEvent({
       name: "Regional 2025",
-      registrationStartsAt: date("2025-03-01T12:00:00Z"),
-      registrationEndsAt: date("2025-04-30T12:00:00Z"),
       startsAt: date("2025-05-01T12:00:00Z"),
       endsAt: date("2025-05-03T12:00:00Z"),
     });
@@ -173,8 +171,6 @@ describe("`/administracion/eventos` route", () => {
       requestUrl: "http://localhost/administracion/eventos/nuevo",
       body: eventFormData({
         name: "Metropolitano 2027",
-        registrationStartsAt: "2027-03-01",
-        registrationEndsAt: "2027-05-02",
         startsAt: "2027-05-01",
         endsAt: "2027-05-03",
         requiredDepositPercentage: "45",
@@ -215,8 +211,6 @@ describe("`/administracion/eventos` route", () => {
       requestUrl: "http://localhost/administracion/eventos/nuevo",
       body: eventFormData({
         name: "Inscripción tardía 2027",
-        registrationStartsAt: "2027-03-01",
-        registrationEndsAt: "2027-05-02",
         startsAt: "2027-05-01",
         endsAt: "2027-05-03",
         requiredDepositPercentage: "30",
@@ -242,8 +236,6 @@ describe("`/administracion/eventos` route", () => {
       requestUrl: "http://localhost/administracion/eventos/nuevo",
       body: eventFormData({
         name: "",
-        registrationStartsAt: "2027-03-01",
-        registrationEndsAt: "2027-03-02",
         startsAt: "2027-05-01",
         endsAt: "2027-05-03",
         requiredDepositPercentage: "101",
@@ -269,21 +261,17 @@ describe("`/administracion/eventos` route", () => {
       requestUrl: "http://localhost/administracion/eventos/nuevo",
       body: eventFormData({
         name: "Fechas inválidas",
-        registrationStartsAt: "2027-03-01",
-        registrationEndsAt: "2027-05-04",
-        startsAt: "2027-05-01",
-        endsAt: "2027-05-03",
+        startsAt: "2027-05-03",
+        endsAt: "2027-05-01",
         requiredDepositPercentage: "30",
       }),
     });
 
     await expect(createAction(newRouteArgs(request))).resolves.toMatchObject({
       status: "error",
-      message:
-        "El cierre de inscripción no puede ser posterior al cierre del Evento.",
+      message: "El inicio del Evento no puede ser posterior al cierre.",
       fieldErrors: {
-        registrationEndsAt:
-          "El cierre de inscripción no puede ser posterior al cierre del Evento.",
+        startsAt: "El inicio del Evento no puede ser posterior al cierre.",
       },
     });
     await expect(db.query.events.findMany()).resolves.toEqual([]);
