@@ -31,6 +31,13 @@ export const presentations = createTable(
     choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
     orderNumber: integer("order_number").notNull(),
+    // Set while the presentation is disqualified and cleared when it is
+    // reinstated. Who did it is not stored: any assigned judge can undo a
+    // disqualification, so there is no decision to attribute.
+    disqualifiedAt: timestamp("disqualified_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,
