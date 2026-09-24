@@ -53,11 +53,12 @@ export const dancers = createTable(
       table.lastName,
       table.firstName,
     ),
-    uniqueIndex("dancer_academy_document_unique")
-      .on(table.academyId, table.documentType, table.documentNumber)
-      .where(
-        sql`${table.documentType} is not null and ${table.documentNumber} is not null`,
-      ),
+    // The number alone is the key within an academy: the same person loaded as
+    // `dni` and as `otro` is one person (PRD #1090). Archived rows stay in the
+    // index — an archived dancer still holds their document.
+    uniqueIndex("dancer_academy_document_number_unique")
+      .on(table.academyId, table.documentNumber)
+      .where(sql`${table.documentNumber} is not null`),
   ],
 ).enableRLS();
 
@@ -91,10 +92,10 @@ export const professors = createTable(
   },
   (table) => [
     index("professor_academy_id_idx").on(table.academyId),
-    uniqueIndex("professor_academy_document_unique")
-      .on(table.academyId, table.documentType, table.documentNumber)
-      .where(
-        sql`${table.documentType} is not null and ${table.documentNumber} is not null`,
-      ),
+    // Same rule as the dancers', and it never crosses the two tables: a teacher
+    // who also dances is one dancer row and one professor row (PRD #1090).
+    uniqueIndex("professor_academy_document_number_unique")
+      .on(table.academyId, table.documentNumber)
+      .where(sql`${table.documentNumber} is not null`),
   ],
 ).enableRLS();

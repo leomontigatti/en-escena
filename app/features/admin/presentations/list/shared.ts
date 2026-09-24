@@ -1,6 +1,8 @@
 import { z } from "zod";
 
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
+import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
 import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { PresentationWarning } from "@/lib/presentations/warnings";
@@ -55,6 +57,10 @@ export type PresentationListItem = {
   academyName: string;
   categoryName: string;
   choreographyNumber: number;
+  /** Where the presentation stands for the panel, which decides the row's badge. */
+  evaluationStatus: PresentationEvaluationStatus;
+  /** The choreography's level; `null` when its category admits none. */
+  experienceLevel: ExperienceLevel | null;
   financialStatus: ChoreographyFinancialStatus;
   groupType: ChoreographyGroupType;
   id: string;
@@ -63,6 +69,8 @@ export type PresentationListItem = {
   orderNumber: number | null;
   /** Who already judges the row, which is what the removal dialog offers. */
   assignedJudgeIds: string[];
+  /** `null` while the choreography has no presentation, so nothing to score. */
+  presentationId: string | null;
   scheduledDate: string;
   submodalityName: string | null;
   warnings: PresentationWarning[];
@@ -119,13 +127,31 @@ export function selectRemovableJudges(
  * What each dialog says when it closes. It names what was reached rather than
  * what was asked for: an already assigned pair is skipped and a judge nobody
  * had is a removal of nothing, so both counts are of rows actually touched.
+ *
+ * A removal also reports what it refused to touch. A pair that already has a
+ * score cannot be taken apart without orphaning the score, so removal keeps it
+ * and says so here — beside the success when the rest went, and alone when
+ * there was no rest, which is what a single scored assignment looks like.
  */
 export function formatJudgeAssignmentMessage(input: {
   intent: typeof assignJudgesIntent | typeof removeJudgesIntent;
   judgeCount: number;
+  /** Scored pairs the removal kept; a removal that kept none, or an assignment. */
+  keptCount?: number;
   presentationCount: number;
 }) {
   const isAssigning = input.intent === assignJudgesIntent;
+  const keptCount = input.keptCount ?? 0;
+
+  if (!isAssigning && keptCount > 0 && input.judgeCount === 0) {
+    const kept =
+      keptCount === 1
+        ? "1 asignación ya tiene puntaje"
+        : `${keptCount} asignaciones ya tienen puntaje`;
+
+    return `No se quitó nada: ${kept}.`;
+  }
+
   // The verb agrees with the judges and the preposition with the direction:
   // a judge is assigned *to* a presentation and taken *off* one.
   const verb = isAssigning
@@ -142,5 +168,30 @@ export function formatJudgeAssignmentMessage(input: {
       ? "1 presentación"
       : `${input.presentationCount} presentaciones`;
 
-  return `${verb} ${judges} ${isAssigning ? "a" : "de"} ${presentations}.`;
+  const reached = `${verb} ${judges} ${isAssigning ? "a" : "de"} ${presentations}.`;
+
+  if (keptCount === 0) {
+    return reached;
+  }
+
+  const kept =
+    keptCount === 1
+      ? "Se mantuvo 1 asignación que ya tiene puntaje."
+      : `Se mantuvieron ${keptCount} asignaciones que ya tienen puntaje.`;
+
+  return `${reached} ${kept}`;
+}
+
+/**
+ * Where the row's name leads. A presentation the panel has already judged is
+ * read through its scores and not through its choreography: during the show
+ * that is what an administrator opens a row for, and the scores view links on
+ * to the choreography for the rest.
+ */
+export function presentationRowPath(row: PresentationListItem) {
+  if (row.evaluationStatus !== "pending" && row.presentationId !== null) {
+    return `/administracion/presentacion/${row.presentationId}/puntajes`;
+  }
+
+  return `/administracion/coreografias/${row.id}`;
 }

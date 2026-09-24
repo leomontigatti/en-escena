@@ -18,6 +18,11 @@ export type ProgramListRow = {
   dancerNames: string[];
   groupType: ChoreographyGroupType;
   isBelowDeposit: boolean;
+  /**
+   * The level the choreography competes at, as the `Nivel` column reads it, or
+   * `null` when its category declares no level. Only the portal shows it.
+   */
+  levelLabel: string | null;
   modalityName: string;
   name: string;
   /** `null` for a choreography the administrator has not placed yet. */

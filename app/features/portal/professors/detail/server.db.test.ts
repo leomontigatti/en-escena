@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -13,6 +14,7 @@ import {
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
 import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
+import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createFormData } from "@/lib/test-support/form-data";
 import {
   createEventChoreographyFixture,
@@ -24,6 +26,95 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("handlePortalProfessorDetailAction", () => {
+  test("warns when another professor of the academy has that name", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.edit.samename@example.com",
+      academyName: "Academia Homónimos",
+    });
+    const [twin] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+      })
+      .returning();
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Lu",
+        lastName: "Paz",
+      })
+      .returning();
+
+    const result = await handlePortalProfessorDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        createFormData({
+          firstName: "ana",
+          lastName: "paz",
+          documentType: "",
+          documentNumber: "",
+        }),
+      ),
+      params: { professorId: professor.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "warning",
+      warning: {
+        kind: "professor-name",
+        matches: [{ id: twin.id, label: "Ana Paz" }],
+        scope: "portal",
+      },
+    });
+    await expectPersistedProfessor(professor.id, { firstName: "Lu" });
+  });
+
+  test("saves once the matching professor is acknowledged", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.edit.acknowledged@example.com",
+      academyName: "Academia Reconocida",
+    });
+    const [twin] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Paz",
+      })
+      .returning();
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Lu",
+        lastName: "Paz",
+      })
+      .returning();
+    const formData = createFormData({
+      firstName: "Ana",
+      lastName: "Paz",
+      documentType: "",
+      documentNumber: "",
+    });
+    formData.append(acknowledgedDuplicateIdsField, twin.id);
+
+    const result = await handlePortalProfessorDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        formData,
+      ),
+      params: { professorId: professor.id },
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    await expectPersistedProfessor(professor.id, { firstName: "Ana" });
+  });
+
   test("updates a professor in place with normalized document data", async () => {
     const owner = await createAcademySession({
       email: "profesores.edit.owner@example.com",
@@ -163,6 +254,77 @@ describe("handlePortalProfessorDetailAction", () => {
         documentNumber:
           "Ya existe un Profesor con ese documento en tu academia.",
       },
+    });
+  });
+
+  test("rejects the same number under another type, and names an archived match", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.duplicate.number@example.com",
+      academyName: "Academia Dueña",
+    });
+    const [existing] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Perez",
+        documentType: "dni",
+        documentNumber: "30111222",
+      })
+      .returning();
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Bea",
+        lastName: "Lopez",
+      })
+      .returning();
+
+    const editRequest = () =>
+      createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        createFormData({
+          firstName: "Bea",
+          lastName: "Lopez",
+          documentType: "other",
+          documentNumber: "30111222",
+        }),
+      );
+
+    // The type differs, the number does not: one person, one row.
+    expect(
+      await handlePortalProfessorDetailAction({
+        request: editRequest(),
+        params: { professorId: professor.id },
+      }),
+    ).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Profesor con ese documento en tu academia.",
+      },
+      duplicateDocumentProfessorId: existing.id,
+    });
+
+    await db
+      .update(professors)
+      .set({ active: false })
+      .where(eq(professors.id, existing.id));
+
+    expect(
+      await handlePortalProfessorDetailAction({
+        request: editRequest(),
+        params: { professorId: professor.id },
+      }),
+    ).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Profesor archivado con ese documento en tu academia.",
+      },
+      duplicateDocumentProfessorId: existing.id,
     });
   });
 

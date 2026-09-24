@@ -38,8 +38,9 @@ import {
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 
-// The evaluated lock is a seam with no body yet (evaluation-lock.server.ts), so
-// a test that needs a closed choreography declares it here.
+// Reaching a real evaluation means a score on an assigned judge, which is not
+// this file's subject, so a test that needs a closed choreography declares it
+// through the stub instead.
 vi.mock(
   "@/lib/presentations/evaluation-lock.server",
   async () =>
@@ -407,7 +408,6 @@ async function createCorrectionCatalog(input: {
       name: input.eventName,
       active: true,
       programVisible: false,
-      resultsVisible: false,
       requiredDepositPercentage: 30,
       startsAt: new Date("2026-05-01T12:00:00Z"),
       endsAt: new Date("2026-05-03T12:00:00Z"),

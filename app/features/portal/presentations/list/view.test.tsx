@@ -2,10 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import type { ProgramListRow } from "@/features/program/shared";
-
 import { PortalPresentationsListView } from "./view";
-import type { PortalPresentationsLoaderData } from "./server";
+import type {
+  PortalPresentationRow,
+  PortalPresentationsLoaderData,
+} from "./server";
 
 describe("PortalPresentationsListView", () => {
   test("shows the empty state when there is no active event", () => {
@@ -113,6 +114,7 @@ describe("PortalPresentationsListView", () => {
       "Modalidad / Submodalidad",
       "Nombre",
       "Bailarines",
+      "Nivel",
       "Estado",
     ]) {
       expect(markup).toContain(header);
@@ -125,6 +127,24 @@ describe("PortalPresentationsListView", () => {
     expect(markup).toContain("2 de mayo de 2026");
   });
 
+  test("names each presentation's level, and dashes the ones without one", () => {
+    const markup = renderView({
+      rows: [
+        buildRow({ choreographyId: "levelled", levelLabel: "Pre Elite" }),
+        buildRow({ choreographyId: "unlevelled", levelLabel: null }),
+      ],
+    });
+
+    expect(markup).toContain("Pre Elite");
+    expect(markup).toContain("—");
+  });
+
+  test("rebalances the column widths so the level fits", () => {
+    const markup = renderView();
+
+    expect(readColumnWidths(markup)).toEqual([9, 16, 20, 17, 15, 11, 11]);
+  });
+
   test("links a name to the academy's own choreography detail", () => {
     const markup = renderView({
       rows: [buildRow({ choreographyId: "choreography-1" })],
@@ -132,9 +152,35 @@ describe("PortalPresentationsListView", () => {
 
     expect(markup).toContain("/portal/coreografias/choreography-1");
   });
+
+  test("sends a published row's name to its evaluation detail instead", () => {
+    const markup = renderView({
+      rows: [
+        buildRow({ choreographyId: "publicada", isResultPublished: true }),
+        buildRow({ choreographyId: "sin-publicar" }),
+      ],
+    });
+
+    expect(markup).toContain("/portal/presentaciones/publicada");
+    expect(markup).toContain("/portal/coreografias/sin-publicar");
+    expect(markup).not.toContain("/portal/coreografias/publicada");
+  });
+
+  test("gives the list no results column", () => {
+    expect(renderView()).not.toContain("Resultado");
+  });
 });
 
-function buildRow(overrides: Partial<ProgramListRow> = {}): ProgramListRow {
+/** The weights the `colgroup` carries, in column order. */
+function readColumnWidths(markup: string) {
+  return Array.from(
+    markup.matchAll(/<col style="width:calc\(100% \* (\d+)/g),
+  ).map(([, width]) => Number(width));
+}
+
+function buildRow(
+  overrides: Partial<PortalPresentationRow> = {},
+): PortalPresentationRow {
   return {
     academyName: "Academia Sur",
     categoryName: "Infantil",
@@ -143,6 +189,8 @@ function buildRow(overrides: Partial<ProgramListRow> = {}): ProgramListRow {
     dancerNames: ["Ana Paz"],
     groupType: "solo",
     isBelowDeposit: false,
+    isResultPublished: false,
+    levelLabel: "Amateur",
     modalityName: "Jazz",
     name: "Pieza",
     orderNumber: 1,

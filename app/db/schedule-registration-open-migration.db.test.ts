@@ -11,7 +11,7 @@ import {
   migrationsFolder,
 } from "./migrations.test-support";
 
-const registrationOpenMigrationTag = "0030_add_schedule_registration_open";
+const registrationOpenMigrationTag = "0034_add_schedule_registration_open";
 
 type Database = ReturnType<typeof drizzle>;
 

@@ -11,6 +11,7 @@ export type AssetKind =
   | "choreographyMusic"
   | "dancerDocumentImage"
   | "eventDocument"
+  | "feedbackAudio"
   | "seminarInstructorPicture";
 
 export type AssetKindPolicy = {
@@ -72,6 +73,23 @@ export const assetKindPolicies = {
     maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
     signedUrlExpiresInSeconds: 300,
     subjectLabel: "El documento",
+  },
+  // The `Devolución` a judge records for an academy. The only producer is the
+  // in-browser recorder, which emits `audio/webm;codecs=opus`, so the accepted
+  // set is that one container rather than a general audio policy: anything else
+  // arriving here did not come from the recorder.
+  feedbackAudio: {
+    bucket: "en-escena-feedback-audio",
+    extensionByContentType: {
+      "audio/webm": "webm",
+      // `MediaRecorder` reports back the exact `mimeType` it was started with,
+      // so the codec-qualified string is what a real take arrives as.
+      "audio/webm;codecs=opus": "webm",
+    },
+    formatListLabel: "WEBM",
+    maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
+    signedUrlExpiresInSeconds: 300,
+    subjectLabel: "El audio de la devolución",
   },
   // The bucket deliberately drops the `en-escena-` prefix the other three
   // carry: nothing globs on it, and the name is pinned by a test either way.

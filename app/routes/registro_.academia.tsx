@@ -1,6 +1,7 @@
 import { Form, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
+import { AcademyNameWarningNotice } from "@/components/auth/academy-name-warning";
 import { AccessHeader, AccessPage } from "@/components/auth/access-ui";
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -84,10 +86,19 @@ export async function action({ request }: Route.ActionArgs) {
 
   const result = await completeAcademyOnboarding({
     academyName: parsed.data.academyName,
+    acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
     contactName: parsed.data.contactName,
     phone: parsed.data.phone,
     request,
   });
+
+  if (!result.ok && "warning" in result) {
+    return {
+      status: "warning" as const,
+      values,
+      warning: result.warning,
+    };
+  }
 
   if (!result.ok) {
     return {
@@ -112,7 +123,15 @@ export default function AcademyOnboardingRoute() {
     values: actionData?.values ?? emptyAcademyOnboardingValues,
   });
 
-  useServerActionToast(actionData, {
+  const warning =
+    actionData && "warning" in actionData ? actionData.warning : null;
+
+  // The duplicate-name warning is carried by the inline notice alone, so the
+  // warning answer is kept out of the toast.
+  const toastData =
+    actionData && actionData.status !== "warning" ? actionData : null;
+
+  useServerActionToast(toastData, {
     toastId: authToastIds.registrationError,
   });
 
@@ -156,9 +175,13 @@ export default function AcademyOnboardingRoute() {
             type="tel"
           />
 
-          <Button className="w-full" type="submit">
-            Crear academia
-          </Button>
+          {warning ? (
+            <AcademyNameWarningNotice matches={warning.matches} />
+          ) : (
+            <Button className="w-full" type="submit">
+              Crear academia
+            </Button>
+          )}
         </FieldGroup>
       </Form>
     </AccessPage>

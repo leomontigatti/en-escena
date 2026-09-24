@@ -1,50 +1,32 @@
-import {
-  AccessHeader,
-  AccessPage,
-  PrivateAccessHeader,
-} from "@/components/auth/access-ui";
-import { buildInternalAccount } from "@/lib/auth/internal-account";
-import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
+import { useActionData } from "react-router";
+
+import { JudgePanelView } from "@/features/judging/list/view";
+import { loadJudgePanelRouteData } from "@/features/judging/list/server";
+import { handleJudgePanelAction } from "@/features/judging/score/action.server";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/juzgamiento";
-
-type JuzgamientoRouteProps = Pick<Route.ComponentProps, "loaderData">;
 
 export const meta: Route.MetaFunction = () => [
   { title: "Panel de juzgamiento | En Escena" },
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireJudgePanelUser(request);
-
-  return { account: buildInternalAccount(user) };
+  return await loadJudgePanelRouteData(request);
 }
 
-export function JuzgamientoRouteView({ loaderData }: JuzgamientoRouteProps) {
-  return (
-    <AccessPage width="xl">
-      <PrivateAccessHeader account={loaderData.account} />
-      <AccessHeader
-        eyebrow="Juzgamiento"
-        title="Panel de evaluación"
-        description={
-          <>
-            Las presentaciones asignadas y la carga de puntajes y devoluciones
-            se van a construir en próximas iteraciones.
-          </>
-        }
-      />
-
-      <div className="mt-8 rounded-lg bg-muted p-5">
-        <p className="text-sm font-semibold text-foreground">
-          Presentaciones asignadas
-        </p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Todavía no hay una lista de evaluación disponible para este usuario.
-        </p>
-      </div>
-    </AccessPage>
-  );
+export async function action({ request }: Route.ActionArgs) {
+  return await handleJudgePanelAction(request);
 }
 
-export default JuzgamientoRouteView;
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
+}
+
+export const JuzgamientoRouteView = JudgePanelView;
+
+export default function JuzgamientoRoute({ loaderData }: Route.ComponentProps) {
+  const actionData = useActionData<typeof action>();
+
+  return <JudgePanelView actionData={actionData} loaderData={loaderData} />;
+}

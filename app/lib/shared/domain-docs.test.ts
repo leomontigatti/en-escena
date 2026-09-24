@@ -31,10 +31,27 @@ const domainRuleRequirements = [
   "`Bailarín` document type and document number are treated as a pair",
   "both may be left empty",
   "If one is filled in and the other is empty, the record is invalid and is not saved",
-  "When the document pair is complete, its uniqueness is enforced within the same academy",
+  "The document **number** alone is unique among the professors of one academy",
+  "The document **number** alone is unique among the dancers of one academy",
+  "may hold the same number: the rule never crosses the two tables",
   "If any document field or image is missing, the dancer verification status is incompleto",
   "A partial document pair is not a saved state",
   "it is a form validation error",
+  "## Duplicate warnings",
+  "the same name **and** the same birth date is a **warning**",
+  "whose name already exists there is a **warning**",
+  "the same name **and** the same cast",
+  "accent-sensitive",
+];
+
+const warningMechanismRequirements = [
+  "acknowledgedDuplicateIds",
+  '{ status: "warning", warning: { kind, matches: [{ id, ... }] } }',
+  "Continuar de todos modos",
+  "re-runs the check",
+  "**Nothing is stored** about an acknowledgement",
+  "**A refusal always wins.**",
+  "accent-sensitive",
 ];
 
 const fastDbIsolationAdrRequirements = [
@@ -184,6 +201,100 @@ const accessPermissionRequirements = [
   "Server guards",
 ];
 
+// The scoring half of the judging rules, rewritten in #1183 to match what was
+// built. Pinned literally because the rules a judge and an administrator are
+// held to are the part of this document that must never drift quietly.
+const judgingScoringRequirements = [
+  "created on the judge's first save",
+  "in steps of 0.5",
+  "`Criterio`",
+  "adding maxima total exactly 100",
+  "locked once any presentation of that submodality has a score",
+  "additions minus the deductions, clamped to 0 and 100",
+  "`Jornada`",
+  "business date of three hours before",
+  "03:00",
+  "A presentation is **evaluated** when it is disqualified or when any score row exists for it",
+  "Any assigned judge reinstates",
+  "rounded to two decimals",
+  "| below 60        | `Mención especial`  |",
+  "| 60 to below 80  | `Medalla de bronce` |",
+  "| 80 to below 90  | `Medalla de plata`  |",
+  "| 90 or more      | `Medalla de oro`    |",
+  "`Pendiente`, `Completa`, `Sin devolución` and `Descalificada`",
+  "Removing a judge assignment is refused once that judge has a score row",
+];
+
+// What the rewrite dropped. Scoped to everything before `Program And Results`,
+// which legitimately still rounds to two decimals.
+const retiredJudgingRules = [
+  "Corrección de puntaje",
+  "up to two decimals",
+  "even if value stays empty",
+  "unconfirmed",
+  "explicit reason and traceability",
+];
+
+const judgingGlossaryRequirements = [
+  '**`submodalityCriterion`** — ui: "Criterio"',
+  '**`scoreSheet`** — ui: "Planilla"',
+  '**`judgingDay`** — ui: "Jornada"',
+  '**`medal`** — ui: "Medalla"',
+  '**`disqualification`** — ui: "Descalificación"',
+  '**`judgeScoreStatus`** — ui: "Estado"',
+  "`Pendiente`",
+  "`Completa`",
+  "`Sin devolución`",
+  "`Descalificada`",
+  'which "Pendiente"',
+];
+
+// What the results effort rewrote: the ranking is gone from the judging doc,
+// the glossary and the codebase map, and the snapshot takes its place.
+const retiredResultsTerms = [
+  "Competitive average is rounded to two decimals and that rounded value orders positions.",
+  "Ties are real competition ties, e.g. 1, 1, 3.",
+  "Final award ranking requires every presentation",
+  "Public results require all competitive groups resolved",
+  "Publishing results also enables academy results",
+  "`ranking`",
+  "`preliminaryRanking`",
+  "`publishedResults`",
+  "`awardType`",
+];
+
+const resultsJudgingRequirements = [
+  "## Program And Results",
+  "Results are not a ranking",
+  "no positions, no ties, no competitive grouping and no public results page",
+  "`Mostrar resultados`",
+  "`Actualizar resultados`",
+  "`Ocultar resultados`",
+  "reaches the academy immediately, with no need to publish again",
+  "behind its login and only for its own published presentations",
+  "says that it has no scores to show",
+];
+
+const resultsGlossaryRequirements = [
+  '**`resultsPublishedAt`** — ui: "Resultados publicados"',
+  '**`resultsPublication`** — ui: "Publicación de resultados"',
+  '**`academyResults`** — ui: "Resultados de academia"',
+];
+
+const judgingCodebaseMapRequirements = [
+  "`app/lib/judging/judging-day.ts`",
+  "`app/lib/judging/save-score.server.ts`",
+  "`app/lib/judging/score-settlement.server.ts`",
+  "`app/lib/judging/evaluation-status.server.ts`",
+  "`app/features/judging/list/`",
+  "`app/features/judging/score/`",
+  "`app/features/admin/presentations/scores/`",
+  "`app/routes/administracion.presentacion_.$presentationId.puntajes.tsx`",
+  "`app/lib/judging/results.server.ts`",
+  "`app/features/portal/presentations/detail/`",
+  "`app/routes/portal.presentaciones_.$choreographyId.tsx`",
+];
+
 describe("domain documentation", () => {
   test("keeps active event context in the domain glossary", async () => {
     const glossary = await readFile("CONTEXT.md", "utf8");
@@ -248,6 +359,14 @@ describe("domain documentation", () => {
     const rules = await readFile("docs/domain/choreographies.md", "utf8");
 
     for (const requirement of domainRuleRequirements) {
+      expect(rules).toContain(requirement);
+    }
+  });
+
+  test("describes the shared duplicate warning mechanism", async () => {
+    const rules = await readFile("docs/agents/form-feedback.md", "utf8");
+
+    for (const requirement of warningMechanismRequirements) {
       expect(rules).toContain(requirement);
     }
   });
@@ -352,6 +471,89 @@ describe("domain documentation", () => {
     for (const requirement of accessPermissionRequirements) {
       expect(rules).toContain(requirement);
     }
+  });
+
+  test("states the scoring rules the judging effort built", async () => {
+    const rules = await readFile("docs/domain/judging.md", "utf8");
+
+    for (const requirement of judgingScoringRequirements) {
+      expect(rules, requirement).toContain(requirement);
+    }
+  });
+
+  test("drops the judging rules the scoring effort replaced", async () => {
+    const rules = await readFile("docs/domain/judging.md", "utf8");
+    const beforeRanking = rules.slice(
+      0,
+      rules.indexOf("## Program And Results"),
+    );
+
+    expect(beforeRanking.length).toBeGreaterThan(0);
+
+    for (const retired of retiredJudgingRules) {
+      expect(beforeRanking, retired).not.toContain(retired);
+    }
+  });
+
+  test("states the results rules the publishing effort built", async () => {
+    const rules = await readFile("docs/domain/judging.md", "utf8");
+
+    for (const requirement of resultsJudgingRequirements) {
+      expect(rules, requirement).toContain(requirement);
+    }
+  });
+
+  test("drops the ranking from the judging doc and the glossary", async () => {
+    const rules = await readFile("docs/domain/judging.md", "utf8");
+    const glossary = await readFile("CONTEXT.md", "utf8");
+
+    for (const retired of retiredResultsTerms) {
+      expect(rules, retired).not.toContain(retired);
+      expect(glossary, retired).not.toContain(retired);
+    }
+  });
+
+  test("names the results vocabulary in the glossary", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+
+    for (const requirement of resultsGlossaryRequirements) {
+      expect(glossary, requirement).toContain(requirement);
+    }
+
+    expect(glossary).not.toContain("resultsVisible");
+  });
+
+  test("names the judging vocabulary the scoring effort built", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+
+    for (const requirement of judgingGlossaryRequirements) {
+      expect(glossary, requirement).toContain(requirement);
+    }
+
+    expect(glossary).not.toContain("scoreCorrection");
+    expect(glossary).not.toContain("Corrección de puntaje");
+  });
+
+  test("marks the `Devolución` as built in the glossary", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+    const entry = glossary.slice(
+      glossary.indexOf('**`feedbackAudio`** — ui: "Devolución"'),
+    );
+
+    expect(entry.slice(0, 1200)).not.toContain("Specified, not built");
+    expect(glossary).toContain("app/lib/storage/feedback-audio.server.ts");
+  });
+
+  test("refreshes the judging section of the codebase map", async () => {
+    const map = await readFile("docs/agents/codebase-map.md", "utf8");
+
+    for (const requirement of judgingCodebaseMapRequirements) {
+      expect(map, requirement).toContain(requirement);
+    }
+
+    expect(map).not.toContain(
+      "shell routes and access guards exist; most judging domain rules are documented ahead of deeper implementation",
+    );
   });
 
   // Two-way sync rather than a hardcoded count: a new ADR that never reaches

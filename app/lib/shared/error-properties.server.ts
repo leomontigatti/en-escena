@@ -1,5 +1,5 @@
 export type ErrorPropertyKey =
-  "code" | "constraint_name" | "detail" | "message";
+  "code" | "constraint" | "constraint_name" | "detail" | "message";
 
 export function readErrorProperty(error: unknown, key: ErrorPropertyKey) {
   let current: unknown = error;
@@ -41,9 +41,15 @@ function isSqlStateViolation(
     return false;
   }
 
+  if (constraintName === undefined) {
+    return true;
+  }
+
+  // The two drivers name the field differently: postgres.js (production) says
+  // `constraint_name`, PGlite (the fast db tests) says `constraint`.
   return (
-    constraintName === undefined ||
-    readErrorProperty(error, "constraint_name") === constraintName
+    readErrorProperty(error, "constraint_name") === constraintName ||
+    readErrorProperty(error, "constraint") === constraintName
   );
 }
 

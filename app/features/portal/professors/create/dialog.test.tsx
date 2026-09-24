@@ -49,6 +49,8 @@ describe("PortalProfessorsListRouteView dialog", () => {
             values: {
               firstName: "",
               lastName: "Pérez",
+              documentType: "",
+              documentNumber: "",
             },
             modalOpen: true,
           }}

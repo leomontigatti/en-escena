@@ -1,4 +1,5 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { readPublishedResultChoreographyIds } from "@/lib/judging/results.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 import {
   hasEventPresentations,
@@ -14,13 +15,23 @@ import type { ProgramListRow } from "@/features/program/shared";
  * deposit— happens on the finances pages this one links to.
  */
 
+/**
+ * A row of the academy's own list. It carries what the shared program list
+ * reads plus the one thing only this surface acts on: whether the result is
+ * published, which is what sends the name to the evaluation detail instead of
+ * to the choreography.
+ */
+export type PortalPresentationRow = ProgramListRow & {
+  isResultPublished: boolean;
+};
+
 export type PortalPresentationsLoaderData = {
   hasActiveEvent: boolean;
   /** Whether the event has any presentation at all, its own empty state. */
   isEventOrdered: boolean;
   /** The header action to the full program follows it. */
   programVisible: boolean;
-  rows: ProgramListRow[];
+  rows: PortalPresentationRow[];
 };
 
 export async function loadPortalPresentationsList(
@@ -47,10 +58,20 @@ export async function loadPortalPresentationsList(
     isEventProgramVisible(activeEvent.id),
   ]);
 
+  // Asked once for the whole list rather than once per row, and always through
+  // the results module: whether a result is published is never re-derived here.
+  const publishedIds = await readPublishedResultChoreographyIds(
+    rows.map((row) => row.choreographyId),
+  );
+
   return {
     hasActiveEvent: true,
     isEventOrdered,
     programVisible,
-    rows: rows.map((row) => ({ ...row, academyName: academy.name })),
+    rows: rows.map((row) => ({
+      ...row,
+      academyName: academy.name,
+      isResultPublished: publishedIds.has(row.choreographyId),
+    })),
   };
 }

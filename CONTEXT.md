@@ -29,7 +29,7 @@ Reading rules:
 ## Vocabulary
 
 **`event`** — ui: "Evento"
-A concrete edition of a dance competition, with its own dates, settings, inscriptions, schedule, judges, scores and awards.
+A concrete edition of a dance competition, with its own dates, settings, inscriptions, schedule, judges, scores and results.
 _Avoid_: Concurso, season, edition
 
 **`activeEvent`** — ui: "Evento activo"
@@ -40,9 +40,9 @@ _Avoid_: `eventStatus`, hidden event filter, queried event
 Automatic temporal lifecycle of an event, derived from its start and end dates.
 _Avoid_: `activeEvent`, visible
 
-**`resultsVisible`** — ui: "Visibilidad de resultados"
-Condition indicating whether an event's results are visible or hidden.
-_Avoid_: `eventStatus`, active
+**`resultsPublishedAt`** — ui: "Resultados publicados"
+The moment an `event`'s results were last published, null while they are hidden. It is half of the publication: the other half is each `presentation`'s own `resultPublishedAt`, and a presentation is published only when both are set. It is independent of `activeEvent` and of `eventStatus`.
+_Avoid_: `eventStatus`, active, results visibility flag
 
 **`schedule`** — ui: "Cronograma"
 A programming slot of an event, with name, local date, local time, accepted modalities, optionally accepted categories, and total choreography capacity. Listing no category means it accepts every category, which is how a schedule that names none behaves. When no specific schedule capacity exists for a choreography's group type, the choreography may consume the schedule's total capacity as a global allowance.
@@ -59,7 +59,7 @@ The schedules list reads the same fact as a read-only column headed `Inscripcion
 _Avoid_: `registrationPeriod` (retired), registration window, `active`
 
 **`academy`** — ui: "Academia"
-Participating entity that can register for events and load professors, dancers and choreographies.
+Participating entity that can register for events and load professors, dancers and choreographies. Its name is not unique, but it is guarded at both ends. At signup the onboarding **warns** when an academy of that name already exists, naming it and the date it registered and nothing else about the other account, and points the reader at logging in or recovering that password before offering to continue — a forgotten login is what forks a roster. At the other end administration can **delete an academy that holds nothing** — no dancer, no professor, no choreography (withdrawn ones included), no seminar inscription and no payment — together with its `user`, from the academy detail behind the shared delete confirmation; when it holds something the delete is refused naming what, so an abandoned or forked signup is one panel action instead of SQL.
 _Avoid_: `user`, `professor`, `escuela`, `delegación`
 
 **`academyRegistration`** — ui: "Registro público de academia"
@@ -147,15 +147,15 @@ Internal user assigned to evaluate an event's presentations.
 _Avoid_: `admin`, auditor
 
 **`resultsPublication`** — ui: "Publicación de resultados"
-Single administrative action that enables or hides the public and academy results for an event.
-_Avoid_: `eventStatus`, program visibility
+The snapshot of which presentations an `event`'s academies can read, taken by administration from the event's actions menu with no precondition: `Mostrar resultados` publishes every presentation evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes them all down, so publishing again starts from what is evaluated then. Only membership is stored (`resultsPublishedAt` and `resultPublishedAt`); the medal, the average and the scores are always read live, so a correction to a published presentation reaches the academy without publishing again.
+_Avoid_: `eventStatus`, program visibility, public results, freezing results
 
 **`financialDocument`** — ui: "Documento financiero"
 Financial record managed by an administrator, such as an invoice or a credit note.
 _Avoid_: `payment`, `imputación`, `choreographyFinancialStatus`
 
 **`professor`** — ui: "Profesor"
-Person associated with an academy and loaded by that academy as part of its data.
+Person associated with an academy and loaded by that academy as part of its data. Their document **number** alone identifies them within their academy, whatever `documentType` was chosen and archived professors included, so the same number cannot be loaded twice; the creation dialog asks for the pair, optionally, so the rule acts from the first save. A second professor of the same **name** in the academy is a warning the academy confirms, not a refusal. Neither rule crosses into **`dancer`**: one academy may hold the same number on a dancer and on a professor, because a teacher who also dances is one person on two rosters.
 _Avoid_: `user`, `admin`
 
 **`seminar`** — ui: "Seminario"
@@ -195,7 +195,7 @@ The date an inscription was registered, held on the inscription's own row and no
 _Avoid_: `choreography.createdAt`, `financialReferenceDate` (retired), payment date
 
 **`choreography`** — ui: "Coreografía"
-Choreography registered by an academy for a concrete event.
+Choreography registered by an academy for a concrete event. Nothing about its name is unique — two solos of different dancers share a piece name all the time — but confirming one **warns** when the academy already has a non-withdrawn choreography of the same name **and** the same cast in that event, naming it by **`choreographyNumber`** and name; same name with another cast and same cast with another name are both ordinary and pass unremarked.
 _Avoid_: reusable work, `inscription`, number
 
 **`choreographyNumber`** — ui: "#"
@@ -275,7 +275,7 @@ The set of dancers and professors a choreography currently carries: the **`chore
 _Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
 
 **`dancer`** — ui: "Bailarín"
-Person loaded by an academy to take part in choreographies.
+Person loaded by an academy to take part in choreographies. Their document **number** is unique within their academy on the same terms as a **`professor`**'s, and the creation dialog asks for the pair optionally too; a second dancer of the same **name and birth date** is a warning the academy confirms, since two children of one academy may share both.
 _Avoid_: `professor`, `user`
 
 **`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"
@@ -311,55 +311,55 @@ Derived, informational flag on a row of the `choreographyParticipationList`: nev
 _Avoid_: error, validation, lock
 
 **`participationStatus`** — ui: "Estado de participación"
-State derived from a choreography's presentation at the event.
-_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
+State derived from a choreography's presentation at the event, and the presentation's evaluation status for the whole panel: `disqualified` is disqualified, `evaluated` is evaluated —disqualified, or carrying any `score` row— and not disqualified, and `pending` is everything else, a choreography with no presentation included. `PresentationEvaluationStatus` is the identifier the code reads it under, with English members and the Spanish in its labels map. The `choreographyParticipationList` shows `Evaluada` and `Descalificada` as badges, each replacing that row's `presentationWarning` badge, and shows no badge for `pending`. It answers for the panel, never for one judge: that is the `judgeScoreStatus`.
+_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, `judgeScoreStatus`
+
+**`judgingDay`** — ui: "Jornada"
+The day the judges are working on: the business date of three hours before now, so a show that runs past midnight keeps its date until 03:00 the next morning, when it closes for good. A `presentation` is open for its judges exactly while its choreography's schedule date is that day — before it there is nothing to score, after it every judge write is refused. It is computed on read from the current instant, with no stored flag and no job, and it binds the judge's list and the judge's editing window with one rule. Administration is not bound by it.
+_Avoid_: `schedule`, event date, score window, deadline flag
+
+**`disqualification`** — ui: "Descalificación"
+A `presentation` closed for the whole panel and taken out of the results, held as its `disqualifiedAt` timestamp. Any assigned judge sets it while the `judgingDay` is open and any assigned judge clears it, with no confirmation and no reason; administration does both from the scores view at any time. Who did it is not stored, and the scores saved before it are kept, so reinstating brings them back untouched. A judge may still record a `feedbackAudio` on it, stored with no value.
+_Avoid_: `scoreAnnulment`, absence, `withdrawnChoreography`, `participationStatus`
 
 **`judgeAssignment`** — ui: "Asignación de juez"
-Relation between one judge and one `presentation` they must evaluate, unique per pair. Assigned and removed in bulk from the `choreographyParticipationList`; it survives a reordering, and the judge's suspension or change of role.
+Relation between one judge and one `presentation` they must evaluate, unique per pair. Assigned and removed in bulk from the `choreographyParticipationList`; it survives a reordering, and the judge's suspension or change of role. Removing it is refused once that judge has a `score` for that presentation, and a bulk removal removes the rest and reports how many it kept.
 _Avoid_: `presentation`, `score`
-
-**`ranking`** — ui: "Ranking"
-Competitive order computed from non-disqualified presentations having at least one valid score.
-_Avoid_: `presentation`, `schedule`, presentation order
-
-**`publishedResults`** — ui: "Resultados publicados"
-Public results view released manually by administration.
-_Avoid_: `preliminaryRanking`, `feedbackAudio`
 
 **`eventProgram`** — ui: "Programa del evento"
 Public view of the active event's presentations in order, at `/programa`, without login and only while the event's program is visible. It lists every `presentation`, with non-competitive data only.
-_Avoid_: `publishedResults`, `ranking`
+_Avoid_: `resultsPublication`, score, medal
 
 **`academyResults`** — ui: "Resultados de academia"
-Results view available with login to the academy owning a choreography once administration publishes results.
-_Avoid_: `publishedResults`, `preliminaryRanking`
-
-**`preliminaryRanking`** — ui: "Ranking preliminar"
-Internal administration view that can be computed even while presentations remain unresolved.
-_Avoid_: final ranking, `award`
-
-**`award`** — ui: "Premio"
-Recognition derived from the valid competitive average of a presentation within an event.
-_Avoid_: `score`, `ranking`
-
-**`awardType`** — ui: "Tipo de premio"
-Award rule within an event.
-_Avoid_: `award`, `ranking`
+The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `medal` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Annulled scores and judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no medal, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
+_Avoid_: `resultsPublication`, public results, ranking
 
 **`score`** — ui: "Puntaje"
-Evaluation assigned by a judge to a presentation.
-_Avoid_: `presentation`, price, `payment`
+What one judge gave one `presentation`, one row per `judgeAssignment`, **created on that judge's first save** and never on assignment. Its value runs from 0 to 100 in steps of 0.5, and is null only for a judge who saved just a `feedbackAudio` on a disqualified presentation. On a `scoreSheet` the value is the sheet's computed total, recomputed on every save and every administrative edit, so an average never re-derives a sheet. A judge corrects their own until the `judgingDay` closes; administration edits any of them at any time, with no window, no reason asked and no trace kept, and never creates one for a judge who has none. Every score, sheet total and average the app shows is written with a decimal point, on every surface —the judge's screens, administration, the academy portal and the results print—: a deliberate exception to es-AR formatting that covers scores only, money and dates unchanged.
+_Avoid_: `presentation`, price, `payment`, confirmed score, draft score
 
-**`scoreCorrection`** — ui: "Corrección de puntaje"
-Administrative change to an already confirmed score.
-_Avoid_: draft score, `presentation`
+**`submodalityCriterion`** — ui: "Criterio"
+One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality` and unique by name within it. The adding maxima total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them as a whole from the modality page, and they lock as soon as any presentation of that submodality has a `score`.
+_Avoid_: `medal`, weight, percentage
+
+**`scoreSheet`** — ui: "Planilla"
+How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
+_Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
 **`scoreAnnulment`** — ui: "Anulación de puntaje"
-Explicit administrative action on a confirmed score that excludes it from the competitive average without removing its traceability.
-_Avoid_: `scoreCorrection`, assignment deletion
+Administrative exclusion of a `score` from the average that neither deletes it nor changes it, held as the `annulled` flag and reversed with the same toggle. An annulled score keeps its value, stays visible to administration and is not shown to the academy in published results.
+_Avoid_: `disqualification`, assignment deletion, score deletion
+
+**`medal`** — ui: "Medalla"
+The recognition a `presentation` earns, read off its average —the mean of its non-annulled score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same medal. A disqualified presentation has no average and no medal. It is the single recognition term of the domain —what used to be called `Premio`— and there is no award rule, no award type and no ranking beside it.
+_Avoid_: `award`, `premio`, position, tie, ranking
+
+**`judgeScoreStatus`** — ui: "Estado"
+How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, `Completa` with a value and a `feedbackAudio`, `Sin devolución` with a value and none —neutral in tone, not a fault— and `Descalificada` whenever the presentation is —`pending`, `complete`, `noFeedback` and `disqualified` in the code, which keeps the Spanish in its labels map. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.
+_Avoid_: `participationStatus`, `choreographyOperationalStatus`, score completeness
 
 **`feedbackAudio`** — ui: "Devolución"
-Optional audio file associated with the evaluation or disqualification made by a judge. **Specified, not built**: nothing in `app/` carries this identifier — judging owns the concept in `docs/domain/judging.md`, and the column, the upload and the reader are all still to come. **`Devolución` is reserved for it regardless**: a returned amount of money is a **`refund`** (`Reembolso`), never a `devolución`. The reservation is what keeps the name free for the surface that will need it.
+The optional private audio a judge records for the academy, one per `score`, saved by the same save that carries the score and replaced or removed by it. It is allowed on a disqualified presentation, where it is stored with no value, so the academy still hears why. It is `audio/webm` from the browser recorder, capped at three minutes, kept in its own private bucket and served by signed URL (`app/lib/storage/feedback-audio.server.ts`, `app/lib/storage/asset-kinds.ts`). **`Devolución` is reserved for it**: a returned amount of money is a **`refund`** (`Reembolso`), never a `devolución`.
 _Avoid_: numeric score, `presentation`, refund, money returned
 
 **`payment`** — ui: "Pago"
@@ -371,7 +371,7 @@ What an academy needs in order to pay an event: the bank identifiers of the acco
 _Avoid_: `payment`, bank settings, global account, `eventBases`
 
 **`refund`** — ui: "Reembolso"
-Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it `Devolución`: that term is reserved for **`feedbackAudio`**, itself specified and not built.
+Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
@@ -414,7 +414,7 @@ Money an academy has handed over in an event and that is not committed: `paid �
 _Avoid_: `owedBalanceAmount`, total paid, `academyAccountBalance` (retired)
 
 **`paymentAvailableAmount`** — ui: "Disponible"
-The `availableBalanceAmount` of a **single payment**: its amount minus what its own allocations commit, floored at zero. It reads as "how much of this payment is still free to draw", never as "this payment is unresolved" — the money arrived in full either way, which is why it is not called "Pendiente": that word already means an amount that cannot be computed for want of a price, and `Seña pendiente` means an unmet threshold. It carries **no provenance**: the pool draws oldest-first and unwinds newest-first, so money returned may land on a different payment than it left, and a row's figure can move without that payment being touched. Summed over an event it is the same money `availableBalanceAmount` counts per academy.
+The `availableBalanceAmount` of a **single payment**: its amount minus what its own allocations commit, floored at zero. It reads as "how much of this payment is still free to draw", never as "this payment is unresolved" — the money arrived in full either way, which is why it is not called "Pendiente": that word already means an amount that cannot be computed for want of a price, and `Seña pendiente` means an unmet threshold. Two other `Pendiente`s exist and neither is this one: the `judgeScoreStatus` `Pendiente`, which is one judge who has not scored a presentation yet, and the `participationStatus` `pendiente`, which is a presentation the panel has not evaluated. A screen that shows any of the three says which it means. It carries **no provenance**: the pool draws oldest-first and unwinds newest-first, so money returned may land on a different payment than it left, and a row's figure can move without that payment being touched. Summed over an event it is the same money `availableBalanceAmount` counts per academy.
 _Avoid_: Pendiente, `owedBalanceAmount`, unpaid payment, `availableBalanceAmount` (that one is the academy's)
 
 **`owedBalanceAmount`** — ui: "Saldo adeudado"

@@ -44,12 +44,13 @@ export const notificationToastIds = {
   "comprobante-recuperado": "route-notification:comprobante-recuperado",
   "programa-visible": "route-notification:programa-visible",
   "programa-oculto": "route-notification:programa-oculto",
-  "resultados-visibles": "route-notification:resultados-visibles",
   "resultados-ocultos": "route-notification:resultados-ocultos",
   "categoria-guardada": "route-notification:categoria-guardada",
   "categoria-eliminada": "route-notification:categoria-eliminada",
   "modalidad-guardada": "route-notification:modalidad-guardada",
   "modalidad-eliminada": "route-notification:modalidad-eliminada",
+  "criterios-guardados": "route-notification:criterios-guardados",
+  "academia-eliminada": "route-notification:academia-eliminada",
   "usuario-interno-creado": "route-notification:usuario-interno-creado",
   "usuario-interno-actualizado":
     "route-notification:usuario-interno-actualizado",
@@ -250,14 +251,9 @@ export const notificationToasts = {
     message: "Programa oculto.",
     variant: "success",
   },
-  "resultados-visibles": {
-    id: notificationToastIds["resultados-visibles"],
-    message: "Resultados visibles.",
-    variant: "success",
-  },
   "resultados-ocultos": {
     id: notificationToastIds["resultados-ocultos"],
-    message: "Resultados ocultos.",
+    message: "Se ocultaron los resultados.",
     variant: "success",
   },
   "categoria-guardada": {
@@ -275,9 +271,19 @@ export const notificationToasts = {
     message: "Modalidad guardada.",
     variant: "success",
   },
+  "criterios-guardados": {
+    id: notificationToastIds["criterios-guardados"],
+    message: "Criterios guardados.",
+    variant: "success",
+  },
   "modalidad-eliminada": {
     id: notificationToastIds["modalidad-eliminada"],
     message: "Modalidad eliminada.",
+    variant: "success",
+  },
+  "academia-eliminada": {
+    id: notificationToastIds["academia-eliminada"],
+    message: "Academia eliminada.",
     variant: "success",
   },
   "usuario-interno-creado": {

@@ -41,6 +41,16 @@ export type ModalityActionValues = NameActionValues & {
   submodalities: NameActionValuesWithId[];
 };
 
+export type CriterionActionValues = {
+  kind: string;
+  maximum: string;
+  name: string;
+};
+
+export type SubmodalityCriteriaActionValues = {
+  criteria: CriterionActionValues[];
+};
+
 export type PriceActionValues = {
   name: string;
   isSpecialPrice: string;
@@ -77,6 +87,7 @@ export type ScheduleActionValues = {
 export type EventBasesActionValues =
   | CategoryActionValues
   | ModalityActionValues
+  | SubmodalityCriteriaActionValues
   | NameActionValues
   | PriceActionValues
   | SeminarPriceActionValues

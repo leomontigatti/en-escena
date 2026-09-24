@@ -215,15 +215,43 @@
     {
       "idx": 30,
       "version": "7",
-      "when": 1790223772698,
-      "tag": "0030_add_schedule_registration_open",
+      "when": 1790233910782,
+      "tag": "0030_add_judging_scores",
       "breakpoints": true
     },
     {
       "idx": 31,
       "version": "7",
-      "when": 1790228261356,
-      "tag": "0031_drop_event_registration_window",
+      "when": 1790258320233,
+      "tag": "0031_add_results_publication",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790258325586,
+      "tag": "0032_drop_event_results_visible",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790275382225,
+      "tag": "0033_roster_document_number_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790283721350,
+      "tag": "0034_add_schedule_registration_open",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790283723215,
+      "tag": "0035_drop_event_registration_window",
       "breakpoints": true
     }
   ]

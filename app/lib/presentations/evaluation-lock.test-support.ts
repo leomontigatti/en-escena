@@ -1,8 +1,10 @@
 /**
  * The stub every lock test writes its "this one was evaluated" through. The
- * seam answers `false` for everything until the judging effort gives it a body
- * (evaluation-lock.server.ts), so a test that needs a locked choreography
- * replaces the module with this one and adds the id:
+ * seam now has a body (evaluation-lock.server.ts), so this is a convenience
+ * rather than a necessity: reaching a real evaluation means a numbered
+ * presentation, an assigned judge and a saved score, which is a lot of setup
+ * for a test whose subject is the lock and not the scoring. A test that needs a
+ * locked choreography replaces the module with this one and adds the id:
  *
  * ```ts
  * vi.mock("@/lib/presentations/evaluation-lock.server", async () =>

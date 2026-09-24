@@ -12,6 +12,7 @@ import {
   isEveryScheduleCapacityOptionFull,
   toScheduleCapacitySelectOptions,
 } from "@/lib/choreographies/schedule-capacity-options";
+import { ChoreographyDuplicateWarning } from "@/features/portal/choreographies/create/duplicate-warning";
 import { ChoreographyCreationSummary } from "@/features/portal/choreographies/create/summary";
 import {
   everyScheduleCapacityFullMessage,
@@ -62,10 +63,13 @@ export function CreateChoreographyDialog({
   });
   const {
     currentStepIndex,
+    handleConfirm,
     handlePrevious,
+    isSubmitting,
     progressValue,
     registrationSteps,
     submissionError,
+    submissionWarning,
   } = dialog;
 
   return (
@@ -93,6 +97,14 @@ export function CreateChoreographyDialog({
 
           {submissionError ? (
             <AccessNotice variant="error">{submissionError}</AccessNotice>
+          ) : null}
+
+          {submissionWarning ? (
+            <ChoreographyDuplicateWarning
+              isSubmitting={isSubmitting}
+              message={submissionWarning.message}
+              onContinue={() => handleConfirm(submissionWarning.matchIds)}
+            />
           ) : null}
 
           <div className="flex flex-col gap-6">
@@ -393,7 +405,11 @@ function CreateChoreographyFooterAction({
       </Button>
     ),
     summary: (
-      <Button type="button" disabled={isSubmitting} onClick={handleConfirm}>
+      <Button
+        type="button"
+        disabled={isSubmitting}
+        onClick={() => handleConfirm()}
+      >
         {isSubmitting ? (
           <Spinner aria-hidden="true" data-icon />
         ) : (

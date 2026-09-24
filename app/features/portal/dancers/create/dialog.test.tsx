@@ -36,6 +36,8 @@ describe("PortalDancersListRouteView dialog", () => {
               firstName: "",
               lastName: "López",
               birthDate: "2999-01-01",
+              documentType: "",
+              documentNumber: "",
             },
             modalOpen: true,
           }}
@@ -90,6 +92,8 @@ describe("PortalDancersListRouteView dialog", () => {
               firstName: "Ana",
               lastName: "López",
               birthDate: "2999-01-01",
+              documentType: "",
+              documentNumber: "",
             },
             modalOpen: true,
           }}

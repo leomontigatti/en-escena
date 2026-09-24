@@ -17,6 +17,7 @@ const assetKinds: AssetKind[] = [
   "choreographyMusic",
   "dancerDocumentImage",
   "eventDocument",
+  "feedbackAudio",
   "seminarInstructorPicture",
 ];
 
@@ -32,6 +33,9 @@ describe("asset kind policy", () => {
     );
     expect(assetKindPolicies.eventDocument.bucket).toBe(
       "en-escena-event-documents",
+    );
+    expect(assetKindPolicies.feedbackAudio.bucket).toBe(
+      "en-escena-feedback-audio",
     );
     expect(assetKindPolicies.seminarInstructorPicture.bucket).toBe(
       "enescena-seminar-pictures",
@@ -69,6 +73,7 @@ describe("asset kind policy", () => {
       "JPG, PNG o WEBP - max 10 MB",
     );
     expect(getAssetKindHelperText("eventDocument")).toBe("PDF - max 10 MB");
+    expect(getAssetKindHelperText("feedbackAudio")).toBe("WEBM - max 10 MB");
     expect(getAssetKindHelperText("seminarInstructorPicture")).toBe(
       "JPG, PNG o WEBP - max 10 MB",
     );
@@ -349,5 +354,44 @@ describe("seminar instructor picture policy", () => {
     expect(
       assetKindPolicies.seminarInstructorPicture.signedUrlExpiresInSeconds,
     ).toBe(300);
+  });
+});
+
+// The recorder is the only producer of a `Devolución`, so the policy is the
+// narrow one its own output satisfies rather than a general audio policy.
+describe("feedback audio policy", () => {
+  test("accepts the recorder's webm and refuses any other audio", () => {
+    expect(
+      resolveAssetUpload("feedbackAudio", { size: 1, type: "audio/webm" }),
+    ).toEqual({ extension: "webm", ok: true });
+    // `MediaRecorder` stamps the blob with the codec it was asked for, and the
+    // browser hands that string straight to the upload.
+    expect(
+      resolveAssetUpload("feedbackAudio", {
+        size: 1,
+        type: "audio/webm;codecs=opus",
+      }),
+    ).toEqual({ extension: "webm", ok: true });
+    expect(
+      formatUploadRejection(
+        checkAssetAgainstPolicy("feedbackAudio", {
+          size: 1,
+          type: "audio/mpeg",
+        })!,
+      ),
+    ).toBe("El audio de la devolución debe ser WEBM.");
+  });
+
+  test("refuses a take over the ceiling with the kind's own copy", () => {
+    const sizeBytes = assetKindPolicies.feedbackAudio.maxFileSizeBytes + 1;
+
+    expect(
+      formatUploadRejection(
+        checkAssetAgainstPolicy("feedbackAudio", {
+          size: sizeBytes,
+          type: "audio/webm",
+        })!,
+      ),
+    ).toBe("El audio de la devolución no puede superar 10 MB.");
   });
 });

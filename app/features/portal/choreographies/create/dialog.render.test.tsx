@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { ChoreographyDuplicateWarning } from "@/features/portal/choreographies/create/duplicate-warning";
 import { PortalChoreographiesListRouteView } from "@/features/portal/choreographies/list/view";
 
 type PortalChoreographiesListRouteViewProps = Parameters<
@@ -75,6 +76,39 @@ describe("choreography creation dialog render", () => {
     expect(markup).toContain("Paso 1 de 5");
     expect(markup).not.toContain("Nivel y cupo de cronograma");
     expect(markup).not.toContain("El nombre se normaliza al confirmar.");
+  });
+
+  test("names the registered piece and continues with the ids the academy saw", async () => {
+    const continued: string[] = [];
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        <ChoreographyDuplicateWarning
+          isSubmitting={false}
+          message="Ya registraste «Luna Llena» (N.º 7) con los mismos bailarines en este evento."
+          onContinue={() => continued.push("choreography_1")}
+        />,
+      );
+    });
+
+    expect(document.body.innerHTML).toContain(
+      "Ya registraste «Luna Llena» (N.º 7) con los mismos bailarines en este evento.",
+    );
+
+    const continueButton = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent === "Continuar de todos modos",
+    );
+    expect(continueButton).toBeDefined();
+
+    await act(async () => {
+      continueButton?.click();
+    });
+
+    expect(continued).toEqual(["choreography_1"]);
   });
 });
 

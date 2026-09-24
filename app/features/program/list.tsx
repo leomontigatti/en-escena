@@ -34,12 +34,19 @@ export type ProgramListProps = {
   rows: ProgramListRow[];
   /** The public page names who dances; an academy already knows. */
   showAcademy: boolean;
+  /**
+   * The `Nivel` column, which only the academy's own page carries: it tells
+   * apart two presentations that differ in nothing else. The public program
+   * keeps the columns it has always had.
+   */
+  showLevel?: boolean;
 };
 
 export function ProgramList({
   choreographyPath = null,
   rows,
   showAcademy,
+  showLevel = false,
 }: ProgramListProps) {
   // The day narrows what is on screen and nothing else: the whole list is
   // already here, so the tab is reading state rather than a query.
@@ -74,7 +81,11 @@ export function ProgramList({
 
       <ClientDataTable
         rows={visibleRows}
-        columns={buildProgramColumns({ choreographyPath, showAcademy })}
+        columns={buildProgramColumns({
+          choreographyPath,
+          showAcademy,
+          showLevel,
+        })}
         getRowKey={(row) => row.choreographyId}
         layout="fit"
         searchPlaceholder={
@@ -103,9 +114,11 @@ export function ProgramList({
 function buildProgramColumns({
   choreographyPath,
   showAcademy,
+  showLevel,
 }: {
   choreographyPath: ((row: ProgramListRow) => string) | null;
   showAcademy: boolean;
+  showLevel: boolean;
 }): DataTableColumn<ProgramListRow>[] {
   const columns: Array<DataTableColumn<ProgramListRow> | null> = [
     {
@@ -157,7 +170,7 @@ function buildProgramColumns({
     {
       id: "nombre",
       header: "Nombre",
-      width: showAcademy ? 19 : 26,
+      width: selectNameWidth({ showAcademy, showLevel }),
       className: "font-medium",
       cell: (row) =>
         choreographyPath ? (
@@ -185,10 +198,21 @@ function buildProgramColumns({
     {
       id: "bailarines",
       header: "Bailarines",
-      width: 17,
+      width: showLevel ? 15 : 17,
       className: "text-muted-foreground",
       cell: (row) => <ProgramDancerNames row={row} />,
     },
+    showLevel
+      ? {
+          id: "nivel",
+          header: "Nivel",
+          width: 11,
+          className: "text-muted-foreground",
+          cell: (row) => (
+            <DataTableTruncatedText value={row.levelLabel ?? "—"} />
+          ),
+        }
+      : null,
     // The academy's own page keeps the participation list's `Estado`, with the
     // two badges that can reach it; the public program carries no state.
     showAcademy
@@ -214,6 +238,24 @@ function buildProgramColumns({
   return columns.filter(
     (column): column is DataTableColumn<ProgramListRow> => column !== null,
   );
+}
+
+/**
+ * The name takes whatever the columns beside it leave: the academy column and
+ * the level each take their share of it.
+ */
+function selectNameWidth({
+  showAcademy,
+  showLevel,
+}: {
+  showAcademy: boolean;
+  showLevel: boolean;
+}) {
+  if (showAcademy) {
+    return 19;
+  }
+
+  return showLevel ? 17 : 26;
 }
 
 /**

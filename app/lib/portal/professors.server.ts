@@ -1,9 +1,13 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { findProfessorNameWarning } from "@/lib/roster/roster-name-duplicates.server";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { professors } from "@/db/schema";
 import {
-  findDuplicateProfessorDocument,
+  findProfessorDocumentConflict,
+  type ProfessorDocumentConflict,
+  writeProfessorGuardingDocument,
   normalizeProfessorDocumentPair,
   normalizeProfessorNames as normalizeProfessorNamesShared,
 } from "@/lib/portal/professor-records.server";
@@ -15,12 +19,16 @@ import {
 
 export type ProfessorFormField = "firstName" | "lastName";
 
-export type CreateProfessorInput = Record<ProfessorFormField, string>;
-
-export type UpdateProfessorInput = CreateProfessorInput & {
+/**
+ * The document is optional at creation, so the per-academy rule acts from the
+ * first save without a document being required to load a professor.
+ */
+export type CreateProfessorInput = Record<ProfessorFormField, string> & {
   documentType: string;
   documentNumber: string;
 };
+
+export type UpdateProfessorInput = CreateProfessorInput;
 
 export type PortalProfessorListItem = Pick<
   typeof professors.$inferSelect,
@@ -30,23 +38,32 @@ export type PortalProfessorListItem = Pick<
   participationStatus: ParticipationStatus;
 };
 
+export type CreateProfessorField = keyof CreateProfessorInput;
 export type CreateProfessorResult =
   | { ok: true; professor: typeof professors.$inferSelect }
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: false;
       message: string;
-      fieldErrors: Partial<Record<ProfessorFormField, string>>;
+      fieldErrors: Partial<Record<CreateProfessorField, string>>;
       values: CreateProfessorInput;
+      // The professor already holding the document number, so the form can
+      // link to them when the match is an archived one.
+      duplicateDocumentProfessorId?: string;
     };
 
 export type UpdateProfessorField = keyof UpdateProfessorInput;
 export type UpdateProfessorResult =
   | { ok: true; professor: typeof professors.$inferSelect }
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: false;
       message: string;
       fieldErrors: Partial<Record<UpdateProfessorField, string>>;
       values: UpdateProfessorInput;
+      // The professor already holding the document number, so the form can
+      // link to them when the match is an archived one.
+      duplicateDocumentProfessorId?: string;
     };
 
 const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
@@ -87,12 +104,28 @@ export async function listAcademyProfessors(
 export async function createAcademyProfessor(
   academyId: string,
   input: CreateProfessorInput,
+  options: { acknowledgedDuplicateIds?: readonly string[] } = {},
 ): Promise<CreateProfessorResult> {
   const values = {
     firstName: input.firstName,
     lastName: input.lastName,
+    documentType: input.documentType,
+    documentNumber: input.documentNumber,
   };
   const { firstName, lastName, fieldErrors } = normalizeProfessorNames(input);
+  const normalizedDocument = normalizeProfessorDocumentPair(
+    input.documentType,
+    input.documentNumber,
+  );
+
+  if (!normalizedDocument.ok) {
+    return {
+      ok: false,
+      message: reviewProfessorFieldsMessage,
+      fieldErrors: { ...fieldErrors, ...normalizedDocument.fieldErrors },
+      values,
+    };
+  }
 
   if (hasFieldErrors(fieldErrors)) {
     return {
@@ -103,17 +136,75 @@ export async function createAcademyProfessor(
     };
   }
 
-  const [professor] = await db
-    .insert(professors)
-    .values({
-      academyId,
-      firstName,
-      lastName,
-      active: true,
-    })
-    .returning();
+  const documentConflict =
+    normalizedDocument.documentNumber === null
+      ? null
+      : await findProfessorDocumentConflict({
+          academyId,
+          documentNumber: normalizedDocument.documentNumber,
+          scope: "portal",
+        });
 
-  return { ok: true, professor };
+  if (documentConflict) {
+    return toProfessorDocumentRefusal(documentConflict, values);
+  }
+
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findProfessorNameWarning({
+    academyId,
+    acknowledgedDuplicateIds: options.acknowledgedDuplicateIds ?? [],
+    firstName,
+    lastName,
+    scope: "portal",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
+  }
+
+  // The index can still refuse the number between the pre-check and the
+  // insert.
+  const guarded = await writeProfessorGuardingDocument({
+    academyId,
+    documentNumber: normalizedDocument.documentNumber,
+    scope: "portal",
+    write: async () => {
+      const [professor] = await db
+        .insert(professors)
+        .values({
+          academyId,
+          firstName,
+          lastName,
+          documentType: normalizedDocument.documentType,
+          documentNumber: normalizedDocument.documentNumber,
+          active: true,
+        })
+        .returning();
+
+      return professor;
+    },
+  });
+
+  if (!guarded.ok) {
+    return toProfessorDocumentRefusal(guarded.conflict, values);
+  }
+
+  return { ok: true, professor: guarded.result };
+}
+
+function toProfessorDocumentRefusal(
+  conflict: ProfessorDocumentConflict,
+  values: CreateProfessorInput,
+): Extract<CreateProfessorResult, { ok: false }> {
+  return {
+    ok: false,
+    message: reviewProfessorFieldsMessage,
+    fieldErrors: { documentNumber: conflict.message },
+    values,
+    ...(conflict.professorId
+      ? { duplicateDocumentProfessorId: conflict.professorId }
+      : {}),
+  };
 }
 
 export async function findAcademyProfessor(
@@ -146,6 +237,7 @@ export async function updateAcademyProfessor(
   academyId: string,
   professorId: string,
   input: UpdateProfessorInput,
+  options: { acknowledgedDuplicateIds?: readonly string[] } = {},
 ): Promise<UpdateProfessorResult> {
   const existingProfessor = await findAcademyProfessor(academyId, professorId);
 
@@ -194,45 +286,79 @@ export async function updateAcademyProfessor(
     };
   }
 
-  if (
-    normalizedDocument.documentType !== null &&
-    normalizedDocument.documentNumber !== null
-  ) {
-    const duplicateProfessor = await findDuplicateProfessorDocument({
-      academyId,
-      professorId,
-      documentType: normalizedDocument.documentType,
-      documentNumber: normalizedDocument.documentNumber,
-    });
+  const documentConflict =
+    normalizedDocument.documentNumber === null
+      ? null
+      : await findProfessorDocumentConflict({
+          academyId,
+          professorId,
+          documentNumber: normalizedDocument.documentNumber,
+          scope: "portal",
+        });
 
-    if (duplicateProfessor) {
-      return {
-        ok: false,
-        message: reviewProfessorFieldsMessage,
-        fieldErrors: {
-          documentNumber:
-            "Ya existe un Profesor con ese documento en tu academia.",
-        },
-        values,
-      };
-    }
+  if (documentConflict) {
+    return {
+      ok: false,
+      message: reviewProfessorFieldsMessage,
+      fieldErrors: { documentNumber: documentConflict.message },
+      values,
+      duplicateDocumentProfessorId: documentConflict.professorId,
+    };
   }
 
-  const [professor] = await db
-    .update(professors)
-    .set({
-      firstName,
-      lastName,
-      documentType: normalizedDocument.documentType,
-      documentNumber: normalizedDocument.documentNumber,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(eq(professors.id, professorId), eq(professors.academyId, academyId)),
-    )
-    .returning();
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findProfessorNameWarning({
+    academyId,
+    acknowledgedDuplicateIds: options.acknowledgedDuplicateIds ?? [],
+    firstName,
+    lastName,
+    professorId,
+    scope: "portal",
+  });
 
-  return { ok: true, professor };
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
+  }
+
+  // The index can still refuse the number between the pre-check and the write.
+  const guarded = await writeProfessorGuardingDocument({
+    academyId,
+    professorId,
+    documentNumber: normalizedDocument.documentNumber,
+    scope: "portal",
+    write: async () => {
+      const [professor] = await db
+        .update(professors)
+        .set({
+          firstName,
+          lastName,
+          documentType: normalizedDocument.documentType,
+          documentNumber: normalizedDocument.documentNumber,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(professors.id, professorId),
+            eq(professors.academyId, academyId),
+          ),
+        )
+        .returning();
+
+      return professor;
+    },
+  });
+
+  if (!guarded.ok) {
+    return {
+      ok: false,
+      message: reviewProfessorFieldsMessage,
+      fieldErrors: { documentNumber: guarded.conflict.message },
+      values,
+      duplicateDocumentProfessorId: guarded.conflict.professorId,
+    };
+  }
+
+  return { ok: true, professor: guarded.result };
 }
 
 function toProfessorListItem(

@@ -1,6 +1,6 @@
 {
-  "id": "6a78f1f6-57ec-4fb8-8842-8bea2ea29aa3",
-  "prevId": "2b410367-571a-4406-b04e-b60d60367ba6",
+  "id": "7b2da5a7-6ff1-4ede-84b2-9be359a19e66",
+  "prevId": "0d120801-e7e7-443b-88ea-95613981b687",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1270,12 +1270,30 @@
           "notNull": true,
           "default": false
         },
+        "results_published_at": {
+          "name": "results_published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "required_deposit_percentage": {
           "name": "required_deposit_percentage",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "default": 30
+        },
+        "registration_starts_at": {
+          "name": "registration_starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_ends_at": {
+          "name": "registration_ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
         },
         "starts_at": {
           "name": "starts_at",
@@ -1968,13 +1986,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "registration_open": {
-          "name": "registration_open",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -4015,6 +4026,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "disqualified_at": {
+          "name": "disqualified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_published_at": {
+          "name": "result_published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -4099,6 +4122,296 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": true
+    },
+    "public.en_escena_score_criterion_value": {
+      "name": "en_escena_score_criterion_value",
+      "schema": "",
+      "columns": {
+        "score_id": {
+          "name": "score_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criterion_id": {
+          "name": "criterion_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "numeric(4, 1)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "score_criterion_value_criterion_idx": {
+          "name": "score_criterion_value_criterion_idx",
+          "columns": [
+            {
+              "expression": "criterion_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "score_criterion_value_score_fk": {
+          "name": "score_criterion_value_score_fk",
+          "tableFrom": "en_escena_score_criterion_value",
+          "tableTo": "en_escena_score",
+          "columnsFrom": ["score_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "score_criterion_value_criterion_fk": {
+          "name": "score_criterion_value_criterion_fk",
+          "tableFrom": "en_escena_score_criterion_value",
+          "tableTo": "en_escena_submodality_criterion",
+          "columnsFrom": ["criterion_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "score_criterion_value_pk": {
+          "name": "score_criterion_value_pk",
+          "columns": ["score_id", "criterion_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "score_criterion_value_non_negative": {
+          "name": "score_criterion_value_non_negative",
+          "value": "\"en_escena_score_criterion_value\".\"value\" >= 0"
+        },
+        "score_criterion_value_half_step": {
+          "name": "score_criterion_value_half_step",
+          "value": "mod(\"en_escena_score_criterion_value\".\"value\" * 10, 5) = 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.en_escena_score": {
+      "name": "en_escena_score",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "judge_assignment_id": {
+          "name": "judge_assignment_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "numeric(4, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feedback_audio_storage_key": {
+          "name": "feedback_audio_storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "annulled": {
+          "name": "annulled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "score_judge_assignment_unique": {
+          "name": "score_judge_assignment_unique",
+          "columns": [
+            {
+              "expression": "judge_assignment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "score_judge_assignment_fk": {
+          "name": "score_judge_assignment_fk",
+          "tableFrom": "en_escena_score",
+          "tableTo": "en_escena_judge_assignment",
+          "columnsFrom": ["judge_assignment_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "score_value_range": {
+          "name": "score_value_range",
+          "value": "\"en_escena_score\".\"value\" is null or (\"en_escena_score\".\"value\" >= 0 and \"en_escena_score\".\"value\" <= 100)"
+        },
+        "score_value_half_step": {
+          "name": "score_value_half_step",
+          "value": "\"en_escena_score\".\"value\" is null or mod(\"en_escena_score\".\"value\" * 10, 5) = 0"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.en_escena_submodality_criterion": {
+      "name": "en_escena_submodality_criterion",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submodality_id": {
+          "name": "submodality_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maximum": {
+          "name": "maximum",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "en_escena_criterion_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "submodality_criterion_submodality_idx": {
+          "name": "submodality_criterion_submodality_idx",
+          "columns": [
+            {
+              "expression": "submodality_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "submodality_criterion_submodality_name_unique": {
+          "name": "submodality_criterion_submodality_name_unique",
+          "columns": [
+            {
+              "expression": "submodality_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "submodality_criterion_event_fk": {
+          "name": "submodality_criterion_event_fk",
+          "tableFrom": "en_escena_submodality_criterion",
+          "tableTo": "en_escena_event",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "submodality_criterion_submodality_fk": {
+          "name": "submodality_criterion_submodality_fk",
+          "tableFrom": "en_escena_submodality_criterion",
+          "tableTo": "en_escena_submodality",
+          "columnsFrom": ["submodality_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "submodality_criterion_maximum_whole": {
+          "name": "submodality_criterion_maximum_whole",
+          "value": "\"en_escena_submodality_criterion\".\"maximum\" >= 1"
+        }
+      },
+      "isRLSEnabled": true
     }
   },
   "enums": {
@@ -4153,6 +4466,11 @@
       "name": "en_escena_comprobante_issuer_iva_condition",
       "schema": "public",
       "values": ["exento"]
+    },
+    "public.en_escena_criterion_kind": {
+      "name": "en_escena_criterion_kind",
+      "schema": "public",
+      "values": ["adds", "deducts"]
     }
   },
   "schemas": {},

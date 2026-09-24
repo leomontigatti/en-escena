@@ -5,12 +5,13 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { events } from "@/db/schema";
+import { events, presentations } from "@/db/schema";
 import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
+import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import {
@@ -171,7 +172,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
     ).resolves.toMatchObject({ active: false });
   });
 
-  test("toggles program and results visibility independently", async () => {
+  test("toggles program visibility", async () => {
     const event = await createSavedEvent({ name: "Regional 2026" });
     const programRequest = await createSignedInRequest({
       email: "admin.programa@example.com",
@@ -179,13 +180,6 @@ describe("`/administracion/eventos/:eventId` route", () => {
       requestUrl: `http://localhost/administracion/eventos/${event.id}`,
       body: formData({ intent: "set-program-visibility", value: "true" }),
     });
-    const resultsRequest = await createSignedInRequest({
-      email: "admin.resultados@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
-      body: formData({ intent: "set-results-visibility", value: "true" }),
-    });
-
     await expect(
       action(routeArgs(programRequest.request, event.id)),
     ).resolves.toMatchObject({
@@ -193,17 +187,75 @@ describe("`/administracion/eventos/:eventId` route", () => {
       message: "Programa visible.",
     });
     await expect(
-      action(routeArgs(resultsRequest.request, event.id)),
-    ).resolves.toMatchObject({
-      status: "success",
-      message: "Resultados visibles.",
-    });
-    await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
     ).resolves.toMatchObject({
       programVisible: true,
-      resultsVisible: true,
     });
+  });
+
+  test("publishes the evaluated results and takes them down again", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Descalificada",
+      orderNumber: 1,
+    });
+    await db
+      .update(presentations)
+      .set({ disqualifiedAt: new Date() })
+      .where(eq(presentations.id, presentation.presentationId));
+
+    const publishRequest = await createSignedInRequest({
+      email: "admin.resultados.publicar@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/eventos/${fixture.event.id}`,
+      body: formData({ intent: "publish-results" }),
+    });
+
+    await expect(
+      action(routeArgs(publishRequest.request, fixture.event.id)),
+    ).resolves.toMatchObject({
+      status: "success",
+      message: "Se publicaron los resultados de 1 presentación.",
+    });
+    await expect(
+      db.query.events.findFirst({ where: eq(events.id, fixture.event.id) }),
+    ).resolves.toMatchObject({ resultsPublishedAt: expect.any(Date) });
+
+    const hideRequest = await createSignedInRequest({
+      email: "admin.resultados.ocultar@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/eventos/${fixture.event.id}`,
+      body: formData({ intent: "hide-results" }),
+    });
+
+    await expect(
+      action(routeArgs(hideRequest.request, fixture.event.id)),
+    ).resolves.toMatchObject({
+      status: "success",
+      message: "Se ocultaron los resultados.",
+    });
+    await expect(
+      db.query.events.findFirst({ where: eq(events.id, fixture.event.id) }),
+    ).resolves.toMatchObject({ resultsPublishedAt: null });
+  });
+
+  test("refuses an auditor's publication submission", async () => {
+    const event = await createSavedEvent({ name: "Regional 2026" });
+
+    for (const intent of ["publish-results", "hide-results"]) {
+      const { request } = await createSignedInRequest({
+        email: `auditor.${intent}@example.com`,
+        role: "auditor",
+        requestUrl: `http://localhost/administracion/eventos/${event.id}`,
+        body: formData({ intent }),
+      });
+
+      await expectThrownResponse(action(routeArgs(request, event.id)), 403);
+    }
+
+    await expect(
+      db.query.events.findFirst({ where: eq(events.id, event.id) }),
+    ).resolves.toMatchObject({ resultsPublishedAt: null });
   });
 
   test("deletes only after explicit confirmation and returns to the events list", async () => {

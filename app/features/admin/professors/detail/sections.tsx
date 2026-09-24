@@ -1,3 +1,5 @@
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { Check, Pencil, TriangleAlert } from "lucide-react";
 import type { FormEventHandler } from "react";
 import { Link } from "react-router";
@@ -98,6 +100,7 @@ export function ProfessorDetailCard({
   editFormId,
   editHref,
   isEditing,
+  nameWarning,
   onSubmit,
   professor,
 }: {
@@ -108,6 +111,7 @@ export function ProfessorDetailCard({
   editFormId: string;
   editHref: string;
   isEditing: boolean;
+  nameWarning?: RosterNameWarning;
   onSubmit: FormEventHandler<HTMLFormElement>;
   professor: ProfessorDetailLoaderData["professor"];
 }) {
@@ -120,7 +124,9 @@ export function ProfessorDetailCard({
           cancelHref={cancelHref}
           editFormId={editFormId}
           editHref={editHref}
-          isEditing={isEditing}
+          // The warning carries the save of its own, so the footer must not
+          // offer a second one.
+          isEditing={isEditing && !nameWarning}
         />
       }
     >
@@ -137,6 +143,8 @@ export function ProfessorDetailCard({
           isEditing={isEditing}
           professor={professor}
         />
+
+        {nameWarning ? <RosterNameWarningNotice warning={nameWarning} /> : null}
       </form>
     </AdminResourceFormCard>
   );
@@ -185,6 +193,7 @@ function ProfessorAdministrativeDataSection({
             placeholder={documentTypeEmptyLabel}
           />
           <ProfessorTextField
+            description={editForm.documentConflictDescription}
             form={editForm.form}
             label="Número de documento"
             name="documentNumber"

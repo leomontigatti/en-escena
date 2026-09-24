@@ -7,7 +7,7 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 - `Evento activo` is the only event context in V1 for `Panel de administración` and `Portal de academias`. Lists, event-specific mutations, choreographies, financial operations, scores and awards use it unless a detail route identifies one explicit `Evento` by URL.
 - At most one `Evento activo` can exist globally; there can also be none.
 - `Estado del evento` is automatic from dates: no iniciado, en curso, finalizado. It is not the same as active.
-- `Visibilidad de resultados` is controlled by publish/unpublish actions and is independent from active status and temporal state.
+- `Resultados publicados` is a snapshot administration takes from the event's actions menu, independent of active status and of the event's temporal state: `Mostrar resultados` publishes the presentations evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes them all down. There is no precondition, and corrections to a published presentation reach the academy without publishing again — see [judging.md](judging.md#program-and-results).
 - `Cronograma` dates and times are local business dates/times, without their own timezone.
 - A `Cupo de cronograma` consumes capacity inside a `Cronograma`; the sum of its capacities cannot exceed the `Cronograma` capacity.
 - A `Cronograma` accepts modalities, and optionally categories: listing no category means it accepts every one of them. A listed category has to belong to the event and share a modality with the schedule's accepted modalities, re-checked on every save, and cannot be deleted while a `Cronograma` lists it.

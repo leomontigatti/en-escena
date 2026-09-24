@@ -1,4 +1,11 @@
 import { z } from "zod";
+import {
+  rosterDocumentPairFields,
+  rosterPersonNameFields,
+} from "@/lib/roster/roster-identity-fields";
+
+import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 
 import type { PortalProfessorListItem } from "@/lib/portal/professors.server";
 import {
@@ -6,7 +13,7 @@ import {
   getRosterPersonArchiveAvailability,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { requiredFieldMessage } from "@/lib/shared/forms";
+import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
 
 export const updateProfessorIntent = "update-professor";
 export const archiveProfessorIntent = "archive-professor";
@@ -15,33 +22,8 @@ export const portalProfessorNotFoundMessage = "No encontramos ese Profesor.";
 export const professorDetailFormId = "portal-profesor-form";
 
 export const professorSchema = z
-  .object({
-    firstName: z.string().trim().min(1, requiredFieldMessage),
-    lastName: z.string().trim().min(1, requiredFieldMessage),
-    documentType: z.string().trim(),
-    documentNumber: z.string().trim(),
-  })
-  .superRefine((values, context) => {
-    if (!values.documentType && !values.documentNumber) {
-      return;
-    }
-
-    if (!values.documentType) {
-      context.addIssue({
-        code: "custom",
-        message: "Seleccioná el tipo de documento.",
-        path: ["documentType"],
-      });
-    }
-
-    if (!values.documentNumber) {
-      context.addIssue({
-        code: "custom",
-        message: "Ingresá el número de documento.",
-        path: ["documentNumber"],
-      });
-    }
-  });
+  .object({ ...rosterPersonNameFields, ...rosterDocumentPairFields })
+  .superRefine(refineDocumentPair);
 
 export type ProfessorFormValues = z.infer<typeof professorSchema>;
 export type PortalProfessorFieldErrors = Partial<
@@ -153,9 +135,53 @@ export type PortalProfessorDetailActionData =
       // Absent when the failure was not a rejected edit: a refused archive has
       // no form to repopulate.
       values?: ProfessorFormValues;
+      // The professor already holding the document number, so the form can
+      // link to them when the match is an archived one.
+      duplicateDocumentProfessorId?: string;
+    }
+  | {
+      // Another professor of the academy carries this name; the form shows who
+      // and re-submits with their ids.
+      status: "warning";
+      warning: RosterNameWarning;
+      values: ProfessorFormValues;
     }
   | {
       status: "success";
       message: string;
     }
   | undefined;
+
+/**
+ * The document refusal the portal professor action can answer with, read for
+ * the field it belongs to.
+ */
+export function getPortalProfessorDocumentConflict(
+  actionData?: PortalProfessorDetailActionData,
+): RosterDocumentConflict {
+  if (actionData?.status !== "error") {
+    return {};
+  }
+
+  const matchId = actionData.duplicateDocumentProfessorId;
+
+  return {
+    matchHref: matchId ? `/portal/profesores/${matchId}` : undefined,
+    matchLabel: "Ver la ficha del profesor con ese documento",
+    message: actionData.fieldErrors.documentNumber,
+  };
+}
+
+/**
+ * The three answers the ficha's action can give, each narrowed for the piece
+ * of the view that reads it.
+ */
+export function splitPortalProfessorActionData(
+  actionData?: PortalProfessorDetailActionData,
+) {
+  return {
+    error: actionData?.status === "error" ? actionData : undefined,
+    nameWarning: actionData?.status === "warning" ? actionData : undefined,
+    success: actionData?.status === "success" ? actionData : undefined,
+  };
+}

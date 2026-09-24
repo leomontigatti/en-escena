@@ -1,12 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
 
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
@@ -35,8 +37,10 @@ import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitio
 import {
   archiveProfessorIntent,
   buildPortalProfessorDetailViewModel,
+  getPortalProfessorDocumentConflict,
   portalProfessorStatusActions,
   professorDetailFormId,
+  splitPortalProfessorActionData,
   professorSchema,
   reactivateProfessorIntent,
   updateProfessorIntent,
@@ -64,19 +68,31 @@ export function PortalProfessorDetailRouteView({
   actionData: actionDataOverride,
   initialStatusDialogIntent = null,
 }: PortalProfessorDetailRouteViewProps) {
-  const actionData =
-    actionDataOverride?.status === "error" ? actionDataOverride : undefined;
-  const formValues = actionData?.values ?? {
-    firstName: loaderData.professor.firstName,
-    lastName: loaderData.professor.lastName,
-    documentType: loaderData.professor.documentType ?? "",
-    documentNumber: loaderData.professor.documentNumber ?? "",
-  };
+  // A warning keeps the form as it was submitted and asks the academy to
+  // confirm, so the values it carries are shown back as an error's are.
+  const {
+    error: actionData,
+    nameWarning,
+    success: successData,
+  } = splitPortalProfessorActionData(actionDataOverride);
+  const formValues = actionData?.values ??
+    nameWarning?.values ?? {
+      firstName: loaderData.professor.firstName,
+      lastName: loaderData.professor.lastName,
+      documentType: loaderData.professor.documentType ?? "",
+      documentNumber: loaderData.professor.documentNumber ?? "",
+    };
   const submit = useSubmit();
   const navigation = useNavigation();
   const form = useProfessorForm({
     submit,
     values: formValues,
+  });
+  const documentConflictDescription = useRosterDocumentConflictField({
+    actionData,
+    conflict: getPortalProfessorDocumentConflict(actionData),
+    name: "documentNumber",
+    setError: form.form.setError,
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
@@ -94,9 +110,6 @@ export function PortalProfessorDetailRouteView({
     listHref: "/portal/profesores",
   });
   const title = `${loaderData.professor.firstName} ${loaderData.professor.lastName}`;
-
-  const successData =
-    actionDataOverride?.status === "success" ? actionDataOverride : undefined;
 
   useServerActionToast(getGeneralActionError(actionData), {
     toastId: "portal-profesor-detail:error",
@@ -138,27 +151,14 @@ export function PortalProfessorDetailRouteView({
           </ResourceActionsMenu>
         </div>
 
-        <AlertStack>
-          {!loaderData.professor.active ? (
-            <ArchivedPersonAlert
-              personLabel="profesor"
-              onReactivate={() => {
-                setStatusDialogIntent(reactivateProfessorIntent);
-              }}
-            />
-          ) : null}
-          {participatingAlert ? (
-            <RosterPersonParticipatingAlert message={participatingAlert} />
-          ) : null}
-          {loaderData.professor.isIncomplete ? (
-            <Alert variant="warning">
-              <TriangleAlert aria-hidden="true" />
-              <AlertDescription>
-                Faltan datos de identificación.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </AlertStack>
+        <PortalProfessorAlertsSection
+          isIncomplete={loaderData.professor.isIncomplete}
+          onReactivate={() => {
+            setStatusDialogIntent(reactivateProfessorIntent);
+          }}
+          participatingAlert={participatingAlert}
+          professorActive={loaderData.professor.active}
+        />
 
         <Card>
           <CardContent>
@@ -194,19 +194,26 @@ export function PortalProfessorDetailRouteView({
                   placeholder={documentTypeEmptyLabel}
                 />
                 <ProfessorTextField
+                  description={documentConflictDescription}
                   form={form.form}
                   label="Número de documento"
                   name="documentNumber"
                 />
               </FieldGroup>
+
+              {nameWarning ? (
+                <RosterNameWarningNotice warning={nameWarning.warning} />
+              ) : null}
             </form>
           </CardContent>
           <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
             <BackButton to="/portal/profesores" viewTransition />
-            <SubmitButton
-              form={professorDetailFormId}
-              isPending={isSubmitting}
-            />
+            {nameWarning ? null : (
+              <SubmitButton
+                form={professorDetailFormId}
+                isPending={isSubmitting}
+              />
+            )}
           </CardFooter>
         </Card>
       </section>
@@ -220,6 +227,38 @@ export function PortalProfessorDetailRouteView({
         }}
       />
     </>
+  );
+}
+
+function PortalProfessorAlertsSection({
+  isIncomplete,
+  onReactivate,
+  participatingAlert,
+  professorActive,
+}: {
+  isIncomplete: boolean;
+  onReactivate: () => void;
+  participatingAlert: string | null;
+  professorActive: boolean;
+}) {
+  return (
+    <AlertStack>
+      {!professorActive ? (
+        <ArchivedPersonAlert
+          personLabel="profesor"
+          onReactivate={onReactivate}
+        />
+      ) : null}
+      {participatingAlert ? (
+        <RosterPersonParticipatingAlert message={participatingAlert} />
+      ) : null}
+      {isIncomplete ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertDescription>Faltan datos de identificación.</AlertDescription>
+        </Alert>
+      ) : null}
+    </AlertStack>
   );
 }
 
@@ -255,10 +294,12 @@ function useProfessorForm({
 }
 
 function ProfessorTextField({
+  description,
   form,
   label,
   name,
 }: {
+  description?: ReactNode;
   form: ProfessorFormReturn;
   label: string;
   name: FieldPath<ProfessorFormValues>;
@@ -269,6 +310,7 @@ function ProfessorTextField({
     <TextInputField
       autoComplete={autoComplete}
       control={form.control}
+      description={description}
       label={label}
       name={name}
     />
@@ -358,7 +400,9 @@ function getProfessorStatusFormId(intent: ProfessorStatusIntent | null) {
   }
 }
 
-function getGeneralActionError(actionData?: ActionData) {
+function getGeneralActionError(
+  actionData?: Extract<ActionData, { status: "error" }>,
+) {
   if (!actionData) {
     return null;
   }

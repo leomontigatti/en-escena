@@ -12,6 +12,7 @@ import type {
   CreateActionData,
 } from "@/features/portal/choreographies/create/flow";
 import { listChoreographiesForAcademyEvent } from "@/lib/portal/choreographies.server";
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { countActiveDancersForAcademy } from "@/lib/portal/dancers.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 
@@ -54,6 +55,7 @@ export async function handlePortalChoreographiesListAction(request: Request) {
   if (intent === CREATE_CHOREOGRAPHY_INTENT) {
     const result = await createChoreographyRegistration({
       academyId: academy.id,
+      acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
       eventId: readFormString(formData, "eventId"),
       name: readFormString(formData, "name"),
       modalityId: readFormString(formData, "modalityId"),

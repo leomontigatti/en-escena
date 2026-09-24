@@ -15,6 +15,7 @@ import { Output } from "@ai-hero/sandcastle";
 import {
   createAgent,
   createSandboxProvider,
+  isLateCompletion,
   requireEnv,
   revokeGitHubToken,
   runMain,
@@ -25,6 +26,7 @@ import {
 import { runWithExtraction } from "../lib/run-with-extraction.mjs";
 import { buildReviewContext } from "../agent-review/context.mjs";
 import { isAnchorInDiff, parseDiffAnchors } from "../agent-review/diff-anchors.mjs";
+import { recoverLateOutput } from "./late-completion.mjs";
 import { implementPrSchema, type ImplementPrOutput } from "./output.mjs";
 
 const EXTRACTION_PROMPT = [
@@ -44,7 +46,11 @@ function describeLinkedIssue(
   return `#${issueNumber}: ${issueTitle ?? ""}`.trimEnd();
 }
 
-await runMain(async ({ signal }) => {
+function headSha(): string {
+  return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+}
+
+await runMain(async ({ signal, completion }) => {
   const prNumber = requireEnv("PR_NUMBER");
   const branch = requireEnv("BRANCH");
   const repo = requireEnv("GH_REPO");
@@ -66,29 +72,49 @@ await runMain(async ({ signal }) => {
   // it and its `gh` calls would succeed with the job's write permissions.
   revokeGitHubToken();
 
-  const result = await runWithExtraction({
-    name: "implement-pr",
-    agent: createAgent(),
-    sandbox: createSandboxProvider(),
-    logging: streamingLog("implement-pr"),
-    signal,
-    maxIterations: 100,
-    promptFile: "./.sandcastle/agent-implement-pr/prompt.md",
-    promptArgs: {
-      PR_NUMBER: prNumber,
-      BRANCH: branch,
-      LINKED_ISSUE: describeLinkedIssue(context.issueNumber, context.issueTitle),
-      DIFF_STAT: context.diffStat,
-      PR_COMMENTS_JSON: context.prCommentsJson,
-    },
-    extractionPrompt: EXTRACTION_PROMPT,
-    output: Output.object({ tag: "output", schema: implementPrSchema }),
-  });
+  const startSha = headSha();
+  let output: ImplementPrOutput;
+  let hasCommits: boolean;
 
-  const { threadReplies, newInlineComments, topLevelComments }: ImplementPrOutput = result.output;
+  try {
+    const result = await runWithExtraction({
+      name: "implement-pr",
+      agent: createAgent(),
+      sandbox: createSandboxProvider(),
+      // Watched so a completion after the budget can be told apart and recovered.
+      logging: streamingLog("implement-pr", completion),
+      signal,
+      maxIterations: 100,
+      promptFile: "./.sandcastle/agent-implement-pr/prompt.md",
+      promptArgs: {
+        PR_NUMBER: prNumber,
+        BRANCH: branch,
+        LINKED_ISSUE: describeLinkedIssue(context.issueNumber, context.issueTitle),
+        DIFF_STAT: context.diffStat,
+        PR_COMMENTS_JSON: context.prCommentsJson,
+      },
+      extractionPrompt: EXTRACTION_PROMPT,
+      output: Output.object({ tag: "output", schema: implementPrSchema }),
+    });
+    output = result.output;
+    hasCommits = result.commits.length > 0;
+  } catch (error) {
+    // The agent finished after the deadline (#1186): its commits are in the tree
+    // and its output is in its own text, so the run goes on to push and post
+    // instead of failing. Anything else is a real failure for `runMain`.
+    if (!isLateCompletion(error, completion)) {
+      throw error;
+    }
+    console.warn(
+      `${error.message} The agent had already finished with a clean tree, so its commits and ` +
+        `the output it wrote are recovered.`,
+    );
+    output = recoverLateOutput(completion.text);
+    hasCommits = headSha() !== startSha;
+  }
 
-  const headSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-  const hasCommits = result.commits.length > 0;
+  const { threadReplies, newInlineComments, topLevelComments } = output;
+  const currentSha = headSha();
 
   // Drop replies to commentIds we never showed the agent, and inline comments
   // whose path:line isn't anchorable in the diff (spec §3.8). Inline comments
@@ -98,7 +124,7 @@ await runMain(async ({ signal }) => {
   const keptInline = newInlineComments
     .filter((comment) => isAnchorInDiff(anchors, comment.path, comment.line))
     .map((comment) => ({
-      commit_id: headSha,
+      commit_id: currentSha,
       path: comment.path,
       line: comment.line,
       side: comment.side,

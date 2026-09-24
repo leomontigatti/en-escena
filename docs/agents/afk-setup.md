@@ -319,7 +319,7 @@ Every runner step carries **two** ceilings, and the order between them is load-b
 | -------------------------------------- | ---------------------- | ---------------------- |
 | `agent-implement` (implement pass)     | 60                     | 50                     |
 | `agent-implement` (write-pr pass)      | 10                     | 8                      |
-| `agent-implement-pr`                   | 30                     | 25                     |
+| `agent-implement-pr`                   | 60                     | 50                     |
 | `agent-implement-prd` (implement pass) | 60                     | 50                     |
 | `agent-implement-prd` (write-prd-pr)   | 10                     | 8                      |
 | `agent-review`                         | 45                     | 40                     |
@@ -346,10 +346,15 @@ that was nearly done finishes anyway.
 34715632348 lost #917 that way: finished and committed, reported as failed, never marked
 implemented. `runMain` now treats a `BudgetExhaustedError` as success when the agent's stream
 had already carried the completion signal **and** the working tree is clean. Runners opt in by
-passing the context's `completion` watch to `streamingLog`; only `implement` and
-`implement-prd` do, because their whole result is their commits. A runner with structured output
-gets nothing back from a rejected `run()`, so a late completion there is still a failure.
-`tests/afk/runner-budget.test.ts` covers the rule.
+passing the context's `completion` watch to `streamingLog`. `implement` and `implement-prd` opt in
+as is, because their whole result is their commits. `implement-pr` also needs its structured
+output, which a rejected `run()` never returns: its extract pass does not run. So it catches the
+late completion itself (`isLateCompletion`), counts its commits from `HEAD`, and reads its
+output back from the last valid `<output>` block in the agent's own text, which the watch keeps.
+With no valid block, the commits still land and a top-level note says the replies were not
+recovered (#1186; run 35989696715 lost six green commits on #1185 before this).
+`tests/afk/runner-budget.test.ts` and `tests/afk/implement-pr-late-completion.test.ts` cover the
+rule.
 
 **Why the implement passes get 60 / 50.** A slice that carries a migration, a repository,
 screens and their tests outgrows 25 minutes: #917 committed in its 26th minute. The implement
@@ -362,10 +367,12 @@ which fans out into parallel sub-agents, and the runner hands the agent a `--sta
 instead of the full patch — so the agent spends its own time reading the diff per file. Measured
 review runs were 5-9 minutes end to end with a ~20 minute tail, already brushing the old 25.
 
-`agent-implement-pr` also hands the agent `--stat` and stays at 30/25, which is not an
-oversight: the fan-out is what costs the time, not the summary. A review has to survey the
-whole diff, so reading it per file is a broad sweep; an implement-pr pass acts on comments that
-already name their paths, so it drills into a handful. The run on #787 took 5m49s of its 25.
+**Why `agent-implement-pr` gets 60 / 50 too.** It hands the agent `--stat` as Review does, but
+acts on comments that already name their paths, so it drills into a handful instead of surveying
+the whole diff; the run on #787 took 5m49s. What outgrows 25 minutes is the size of the round,
+not the reading: a review round on a whole-PRD PR carries several briefs, and #1185's round of
+seven ran past 25 twice (#1186). `tests/afk/implement-budgets.test.ts` holds the three implement
+passes at the same budget.
 
 **The invariant: the budget must stay strictly below the step's `timeout-minutes`.** If it is
 equal or larger, Actions wins the race and the guardrail buys nothing.

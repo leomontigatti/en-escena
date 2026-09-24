@@ -4,6 +4,7 @@ import {
   assignJudgesIntent,
   formatJudgeAssignmentMessage,
   judgeAssignmentSchema,
+  presentationRowPath,
   removeJudgesIntent,
   selectRemovableJudges,
   type PresentationListItem,
@@ -17,12 +18,15 @@ function buildItem(
     assignedJudgeIds: [],
     categoryName: "Infantil",
     choreographyNumber: 1,
+    evaluationStatus: "pending",
+    experienceLevel: null,
     financialStatus: "paidInFull",
     groupType: "solo",
     id: "choreography-1",
     modalityName: "Jazz",
     name: "Primera",
     orderNumber: 1,
+    presentationId: "presentation-1",
     scheduledDate: "2026-05-01",
     submodalityName: null,
     warnings: [],
@@ -113,5 +117,77 @@ describe("formatJudgeAssignmentMessage", () => {
         presentationCount: 1,
       }),
     ).toBe("Se quitó 1 juez de 1 presentación.");
+  });
+});
+
+describe("formatJudgeAssignmentMessage with kept assignments", () => {
+  test("names the scored assignments it kept beside what it removed", () => {
+    expect(
+      formatJudgeAssignmentMessage({
+        intent: removeJudgesIntent,
+        judgeCount: 2,
+        keptCount: 1,
+        presentationCount: 3,
+      }),
+    ).toBe(
+      "Se quitaron 2 jueces de 3 presentaciones. Se mantuvo 1 asignación que ya tiene puntaje.",
+    );
+
+    expect(
+      formatJudgeAssignmentMessage({
+        intent: removeJudgesIntent,
+        judgeCount: 1,
+        keptCount: 2,
+        presentationCount: 1,
+      }),
+    ).toBe(
+      "Se quitó 1 juez de 1 presentación. Se mantuvieron 2 asignaciones que ya tienen puntaje.",
+    );
+  });
+
+  test("says only why when every chosen pair already has a score", () => {
+    expect(
+      formatJudgeAssignmentMessage({
+        intent: removeJudgesIntent,
+        judgeCount: 0,
+        keptCount: 1,
+        presentationCount: 0,
+      }),
+    ).toBe("No se quitó nada: 1 asignación ya tiene puntaje.");
+
+    expect(
+      formatJudgeAssignmentMessage({
+        intent: removeJudgesIntent,
+        judgeCount: 0,
+        keptCount: 3,
+        presentationCount: 0,
+      }),
+    ).toBe("No se quitó nada: 3 asignaciones ya tienen puntaje.");
+  });
+});
+
+describe("presentationRowPath", () => {
+  test("sends a pending row to its choreography", () => {
+    expect(
+      presentationRowPath(
+        buildItem({ evaluationStatus: "pending", presentationId: "p-1" }),
+      ),
+    ).toBe("/administracion/coreografias/choreography-1");
+  });
+
+  test("sends an evaluated row to its scores", () => {
+    expect(
+      presentationRowPath(
+        buildItem({ evaluationStatus: "evaluated", presentationId: "p-1" }),
+      ),
+    ).toBe("/administracion/presentacion/p-1/puntajes");
+  });
+
+  test("sends a disqualified row to its scores", () => {
+    expect(
+      presentationRowPath(
+        buildItem({ evaluationStatus: "disqualified", presentationId: "p-1" }),
+      ),
+    ).toBe("/administracion/presentacion/p-1/puntajes");
   });
 });

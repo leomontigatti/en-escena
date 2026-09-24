@@ -5,6 +5,7 @@ import {
   createDancerForAcademy,
   type CreateDancerInput,
 } from "@/lib/portal/dancers.server";
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   buildCreateDancerSchema,
@@ -22,6 +23,8 @@ export async function handleCreateDancerAction({
     firstName: formValue(formData, "firstName"),
     lastName: formValue(formData, "lastName"),
     birthDate: formValue(formData, "birthDate"),
+    documentType: formValue(formData, "documentType"),
+    documentNumber: formValue(formData, "documentNumber"),
   };
   const parsed = buildCreateDancerSchema(
     await findActiveEventStartDateOnly(),
@@ -36,7 +39,18 @@ export async function handleCreateDancerAction({
     };
   }
 
-  const result = await createDancerForAcademy(academyId, parsed.data);
+  const result = await createDancerForAcademy(academyId, parsed.data, {
+    acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
+  });
+
+  if (!result.ok && "warning" in result) {
+    return {
+      status: "warning" as const,
+      warning: result.warning,
+      values: parsed.data,
+      modalOpen: true,
+    };
+  }
 
   if (!result.ok) {
     return {
@@ -44,6 +58,9 @@ export async function handleCreateDancerAction({
       fieldErrors: result.fieldErrors,
       values: result.values,
       modalOpen: true,
+      ...(result.duplicateDocumentDancerId
+        ? { duplicateDocumentDancerId: result.duplicateDocumentDancerId }
+        : {}),
     };
   }
 
@@ -66,5 +83,7 @@ function getCreateDancerFieldErrors(error: z.ZodError<CreateDancerFormValues>) {
     firstName: fieldErrors.firstName?.[0],
     lastName: fieldErrors.lastName?.[0],
     birthDate: fieldErrors.birthDate?.[0],
+    documentType: fieldErrors.documentType?.[0],
+    documentNumber: fieldErrors.documentNumber?.[0],
   };
 }

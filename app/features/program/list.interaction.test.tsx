@@ -121,6 +121,7 @@ function buildRow(overrides: Partial<ProgramListRow> = {}): ProgramListRow {
     dancerNames: ["Ana Paz"],
     groupType: "solo",
     isBelowDeposit: false,
+    levelLabel: "Amateur",
     modalityName: "Jazz",
     name: "Pieza",
     orderNumber: 1,

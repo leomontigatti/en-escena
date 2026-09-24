@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies } from "@/db/schema";
+import { academies, dancers, user } from "@/db/schema";
 import {
   createAcademyUser,
   createSignedInRequest,
@@ -96,6 +96,30 @@ async function buildFormRequest(input: {
   });
 }
 
+async function buildDeleteRequest(input: {
+  academyId: string;
+  confirmDeletion?: string;
+  email: string;
+  role: "admin" | "auditor";
+}) {
+  const signedIn = await createSignedInRequest({
+    email: input.email,
+    role: input.role,
+    requestUrl: detailUrl(input.academyId),
+  });
+  const formData = new FormData();
+
+  formData.set("intent", "delete-academy");
+  formData.set("id", input.academyId);
+  formData.set("confirmDeletion", input.confirmDeletion ?? input.academyId);
+
+  return new Request(detailUrl(input.academyId), {
+    method: "POST",
+    body: formData,
+    headers: { cookie: signedIn.request.headers.get("cookie") ?? "" },
+  });
+}
+
 describe("`/administracion/academias` detail", () => {
   test("renders the academy contact data with save and back actions", async () => {
     const academy = await createAcademyUser({
@@ -157,6 +181,7 @@ describe("`/administracion/academias` detail", () => {
 
     expect(actionData).toEqual({
       status: "success",
+      intent: "update-academy",
       message: "Academia guardada.",
     });
 
@@ -196,8 +221,11 @@ describe("`/administracion/academias` detail", () => {
 
     expect(actionData.status).toBe("error");
 
-    if (actionData.status !== "error") {
-      throw new Error("Expected an error action result.");
+    if (
+      actionData.status !== "error" ||
+      actionData.intent !== "update-academy"
+    ) {
+      throw new Error("Expected an update error action result.");
     }
 
     expect(actionData.fieldErrors.contactName).toBeTruthy();
@@ -283,5 +311,124 @@ describe("`/administracion/academias` detail", () => {
     await expect(
       detailAction(routeArgs(request, "no-existe")),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  test("deletes an empty academy with its user and redirects to the list", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.eliminar@example.com",
+      academyName: "Academia Fork",
+    });
+    const request = await buildDeleteRequest({
+      academyId: academy.academy.id,
+      email: "admin.academia.eliminar@example.com",
+      role: "admin",
+    });
+
+    const response = await detailAction(
+      routeArgs(request, academy.academy.id),
+    ).then(
+      () => {
+        throw new Error("Expected the delete to redirect.");
+      },
+      (thrown: unknown) => thrown as Response,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/administracion/academias");
+
+    await expect(
+      db
+        .select({ id: academies.id })
+        .from(academies)
+        .where(eq(academies.id, academy.academy.id)),
+    ).resolves.toEqual([]);
+    await expect(
+      db.select({ id: user.id }).from(user).where(eq(user.id, academy.user.id)),
+    ).resolves.toEqual([]);
+  });
+
+  test("refuses to delete an academy that still holds people and changes nothing", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.con.bailarines@example.com",
+      academyName: "Academia Poblada",
+    });
+
+    await db.insert(dancers).values({
+      academyId: academy.academy.id,
+      firstName: "Ana",
+      lastName: "Gómez",
+      birthDate: "2010-01-01",
+    });
+
+    const request = await buildDeleteRequest({
+      academyId: academy.academy.id,
+      email: "admin.academia.poblada@example.com",
+      role: "admin",
+    });
+
+    const actionData = await detailAction(
+      routeArgs(request, academy.academy.id),
+    );
+
+    expect(actionData).toEqual({
+      status: "error",
+      intent: "delete-academy",
+      message: "No se puede eliminar la academia: tiene 1 bailarín.",
+    });
+    await expect(
+      db
+        .select({ id: academies.id })
+        .from(academies)
+        .where(eq(academies.id, academy.academy.id)),
+    ).resolves.toHaveLength(1);
+  });
+
+  test("refuses a delete whose confirmation does not match the academy", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.sin.confirmar@example.com",
+      academyName: "Academia Sin Confirmar",
+    });
+    const request = await buildDeleteRequest({
+      academyId: academy.academy.id,
+      confirmDeletion: "otra-academia",
+      email: "admin.academia.sin.confirmar@example.com",
+      role: "admin",
+    });
+
+    await expect(
+      detailAction(routeArgs(request, academy.academy.id)),
+    ).resolves.toEqual({
+      status: "error",
+      intent: "delete-academy",
+      message: "Confirmá la eliminación de la academia.",
+    });
+    await expect(
+      db
+        .select({ id: academies.id })
+        .from(academies)
+        .where(eq(academies.id, academy.academy.id)),
+    ).resolves.toHaveLength(1);
+  });
+
+  test("blocks an auditor from deleting an academy", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.auditor.delete@example.com",
+      academyName: "Academia Auditor",
+    });
+    const request = await buildDeleteRequest({
+      academyId: academy.academy.id,
+      email: "auditor.academia.delete@example.com",
+      role: "auditor",
+    });
+
+    await expect(
+      detailAction(routeArgs(request, academy.academy.id)),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      db
+        .select({ id: academies.id })
+        .from(academies)
+        .where(eq(academies.id, academy.academy.id)),
+    ).resolves.toHaveLength(1);
   });
 });

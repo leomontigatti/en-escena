@@ -8,13 +8,18 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - `Profesor` document type and document number are treated as a pair: both may be left empty, or both must be filled in.
 - If one is filled in and the other is empty, the record is invalid and is not saved.
 - A professor with empty document pair is incomplete but can be used in choreographies.
-- When the document pair is complete, its uniqueness is enforced within the same academy.
+- The document **number** alone is unique among the professors of one academy, whatever type was chosen: the same number cannot be loaded once as `DNI` and once as `Otro`. Archived professors keep their number in that key, and a match against one says so and links to them.
+- A `dancer` and a `professor` of the same academy may hold the same number: the rule never crosses the two tables, because a teacher who also dances is one person on two rosters.
+- The professor creation dialog asks for the document pair too, optionally, so the rule acts when the person is first loaded rather than on a later edit.
+- A second professor of the same academy whose name already exists there is a **warning**, not a refusal: the action names the existing professor and the academy confirms that this is a different person. See "Duplicate warnings" below.
 - Professors do not have manual admin verification.
 - Professor records can be edited even when linked to paid or presented choreographies; professor links inside non-pending choreographies can be blocked.
 - `Bailarín` birth date is a declared civil date without time or timezone and is compared against event local start date for competitive age.
 - `Bailarín` document type and document number are treated as a pair: both may be left empty, or both must be filled in.
 - If one is filled in and the other is empty, the record is invalid and is not saved.
-- When the document pair is complete, its uniqueness is enforced within the same academy.
+- The document **number** alone is unique among the dancers of one academy, whatever type was chosen, on the same terms as the professors' — archived dancers included, and never crossing into the professors table.
+- The dancer creation dialog asks for the document pair too, optionally.
+- A second dancer of the same academy with the same name **and** the same birth date is a **warning**, not a refusal: two children of one academy may share both. See "Duplicate warnings" below.
 - A dancer participating with another academy is a different domain entity.
 - Dancer verification states are: incompleto, no verificado, verificado.
 - If any document field or image is missing, the dancer verification status is incompleto.
@@ -281,6 +286,14 @@ What the dialog announced is advisory.
 - Backend revalidates the selected specific capacity when present and always revalidates schedule total capacity on confirmation.
 - Capacity options show their occupancy and full options are offered disabled, in the portal registration and in the administrative reassignment alike. The count is a snapshot that races with any other registration: the hint does not replace the backend revalidation.
 - If every compatible option is full, the registration schedule step replaces the select with a message explaining it, instead of offering a list with nothing selectable.
+- Confirmation **warns** when the academy already has, in the same event, a non-withdrawn choreography with the same name **and** the same cast, naming it by number and name; nothing is inserted until the academy continues. Same name with a different cast is not warned about, and neither is the same cast under a different name: two solos of different dancers share a piece name all the time, and one cast dancing two pieces is ordinary. See "Duplicate warnings" below.
+
+## Duplicate warnings
+
+- Uniqueness that the data supports is a **refusal** on the field (the document number above). Where a hard rule would turn away legitimate registrations, the guard **warns** instead: the action answers with the records it found, the surface names them, and an explicit confirmation continues. The mechanism is one and is documented in [docs/agents/form-feedback.md](../agents/form-feedback.md).
+- The warning rules of this domain: a dancer with the same name and birth date in the academy, a professor with the same name in the academy, a choreography with the same name and cast in the event, and —at signup— an academy with the same name.
+- Every warning check is case-insensitive and whitespace-insensitive, and **accent-sensitive**: `Sofía` and `Sofia` do not match. No accent-folding extension is installed and adding one was not this rule's call.
+- Nothing is stored about a confirmation: the next save of the same values warns again.
 
 ## Choreography Locks
 

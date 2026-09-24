@@ -239,8 +239,7 @@ export async function deactivateEvent(
 export async function setEventVisibility(
   eventId: string,
   visibility: {
-    programVisible?: boolean;
-    resultsVisible?: boolean;
+    programVisible: boolean;
   },
 ): Promise<EventMutationResult> {
   const [event] = await db

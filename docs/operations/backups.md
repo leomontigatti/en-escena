@@ -247,7 +247,7 @@ AWS_SECRET_ACCESS_KEY="your-b2-application-key"
 AWS_DEFAULT_REGION="us-east-005"
 
 STORAGE_VOLUME_DIR="/var/lib/en-escena/storage"
-STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents"
+STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents,en-escena-feedback-audio,enescena-seminar-pictures"
 BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
@@ -270,6 +270,38 @@ environment once `B2_FILESTORE_BUCKET` is set explicitly.
 `STORAGE_VOLUME_DIR` (which are also the prefixes under `B2_FILESTORE_PREFIX` in
 B2). The storage backup no longer reads from Supabase Storage, so no
 `SUPABASE_STORAGE_S3_*` credentials are needed for it.
+
+**The list is the whole backup.** The scripts copy only the directories they are
+named, so a bucket missing from it is not backed up and nothing reports it — the
+backup succeeds, over fewer buckets. Every asset kind declared in
+`app/lib/storage/asset-kinds.ts` must appear here, and the value above must match
+the defaults of `scripts/backup-storage-to-b2.sh`,
+`scripts/restore-drill-from-b2.sh` and
+`scripts/reseed-storage-volume-from-b2.sh`, which
+`scripts/storage-backup-buckets.test.ts` pins against those declarations. The
+sample omitted `enescena-seminar-pictures` until #1177 added
+`en-escena-feedback-audio` beside it.
+
+`en-escena-feedback-audio` holds the `Devolución` a judge records for an academy
+(see [Infrastructure](./infrastructure.md#devoluci%C3%B3n-audio-contract)). It is
+the only bucket whose bytes are all produced inside a single evening, which is
+what makes the event-window cadence below matter for it.
+
+### Pending production step (before the October event)
+
+Not done by the repo, and not done yet:
+
+1. Add `en-escena-feedback-audio` to `STORAGE_BACKUP_BUCKETS` in Coolify, and
+   check the whole value matches the script defaults above — the scripts fall
+   back to their defaults only when the variable is unset, so a stale production
+   value silently wins.
+2. Raise the storage backup cadence for the event days, as
+   [Daily Schedule](#daily-schedule) already prescribes for an event window. The
+   base twice-a-day schedule would leave a whole show's `Devolución` audio
+   uncopied until 03:00.
+3. Run `pnpm restore:storage:drill` once real audio exists, to prove the new
+   bucket restores. Before any judge has recorded, the bucket has no directory
+   and the drill has nothing to prove about it.
 
 ## Runtime Requirements
 

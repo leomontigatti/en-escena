@@ -343,6 +343,8 @@ function buildLoaderData(): EventBasesLoaderData {
     selectedEventId: "event_1",
     requiredDepositPercentage: 30,
     registrationOpenBlockers: [],
+    submodalityCriteria: [],
+    lockedSubmodalityIds: [],
     modalities: [
       {
         id: "modality_1",

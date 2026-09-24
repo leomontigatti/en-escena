@@ -32,7 +32,14 @@ export const events = createTable(
     name: text("name").notNull(),
     active: boolean("active").notNull().default(false),
     programVisible: boolean("program_visible").notNull().default(false),
-    resultsVisible: boolean("results_visible").notNull().default(false),
+    // When administration last published results, and null while they are
+    // hidden. It carries no boolean beside it: the snapshot is this timestamp
+    // plus each presentation's own, and nothing about a medal or an average is
+    // ever stored. See docs/domain/judging.md, "Program And Results".
+    resultsPublishedAt: timestamp("results_published_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
     requiredDepositPercentage: integer("required_deposit_percentage")
       .notNull()
       .default(30),

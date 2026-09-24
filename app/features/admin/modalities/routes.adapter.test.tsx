@@ -107,9 +107,11 @@ function loaderData(
   overrides: Partial<EventModalitiesLoaderData> = {},
 ): EventModalitiesLoaderData {
   return {
+    lockedSubmodalityIds: [],
     modalities: [],
     selectedEventId: "evento_1",
     submodalities: [],
+    submodalityCriteria: [],
     ...overrides,
   };
 }

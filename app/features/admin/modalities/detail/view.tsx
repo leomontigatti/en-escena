@@ -84,6 +84,12 @@ export function EventModalityDetailView({
       {modality ? (
         <ModalityFormPanel>
           <ModalityForm
+            criteriaSetup={{
+              criteria: loaderData.submodalityCriteria,
+              lockedSubmodalityIds: loaderData.lockedSubmodalityIds,
+              modalityId: modality.id,
+              submodalities: modalitySubmodalities,
+            }}
             form={form}
             formId="update-modality-form"
             id={modality.id}

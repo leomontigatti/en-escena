@@ -9,11 +9,17 @@ import {
   invalidArgentinePhoneMessage,
   isValidArgentinePhone,
 } from "@/lib/shared/argentine-phone";
+import type {
+  AcademyNameMatch,
+  AcademyNameWarning,
+} from "@/lib/academies/academy-name-duplicates";
+import { matchesToWarnAbout } from "@/lib/shared/duplicate-warning";
 import {
   isUniqueViolation,
   readErrorProperty,
 } from "@/lib/shared/error-properties.server";
 import { toTitleCase } from "@/lib/shared/text-normalization";
+import { normalizedTextEquals } from "@/lib/shared/text-normalization.server";
 
 const ACADEMY_ONBOARDING_CONFLICT_ERROR =
   "No pudimos completar el alta de la academia porque este acceso ya está asociado a otro usuario. Volvé a ingresar o contactanos.";
@@ -55,6 +61,7 @@ export async function requireAcademyOnboardingUser(request: Request) {
 
 export async function completeAcademyOnboarding(input: {
   academyName: string;
+  acknowledgedDuplicateIds: readonly string[];
   contactName: string;
   phone: string;
   request: Request;
@@ -63,6 +70,21 @@ export async function completeAcademyOnboarding(input: {
 
   if (!isValidArgentinePhone(input.phone)) {
     return { ok: false as const, error: invalidArgentinePhoneMessage };
+  }
+
+  const name = toTitleCase(input.academyName);
+  const matchesToShow = matchesToWarnAbout(
+    await findAcademiesNamed(name),
+    input.acknowledgedDuplicateIds,
+  );
+
+  if (matchesToShow.length > 0) {
+    const warning: AcademyNameWarning = {
+      kind: "academy-name",
+      matches: matchesToShow,
+    };
+
+    return { ok: false as const, warning };
   }
 
   try {
@@ -79,7 +101,7 @@ export async function completeAcademyOnboarding(input: {
 
       await tx.insert(academies).values({
         userId: onboardingUser.user.id,
-        name: toTitleCase(input.academyName),
+        name,
         contactName: toTitleCase(input.contactName),
         phone: input.phone,
       });
@@ -96,6 +118,22 @@ export async function completeAcademyOnboarding(input: {
   }
 
   return { headers: onboardingUser.headers, ok: true as const };
+}
+
+/**
+ * Only the name and the registration date of the other academy ever leave this
+ * function: the check must not become a way to probe who is registered.
+ */
+async function findAcademiesNamed(name: string): Promise<AcademyNameMatch[]> {
+  return await db
+    .select({
+      createdAt: academies.createdAt,
+      id: academies.id,
+      name: academies.name,
+    })
+    .from(academies)
+    .where(normalizedTextEquals(academies.name, name))
+    .orderBy(academies.createdAt);
 }
 
 function isAcademyOnboardingConflict(error: unknown) {

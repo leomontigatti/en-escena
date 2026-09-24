@@ -58,6 +58,45 @@ describe("ProfessorDetailRouteView dialogs", () => {
     expect(document.body.textContent).toContain("ya participó de un evento");
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });
+
+  test("lands the duplicate-document refusal on the field and links to the match", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/profesores/profesor_1"]}>
+        <ProfessorDetailRouteView
+          loaderData={createLoaderData({ isEditing: true })}
+          actionData={{
+            status: "error",
+            message: "Revisá los datos del Profesor.",
+            fieldErrors: {
+              documentNumber:
+                "Ya existe un Profesor archivado con ese documento en la academia.",
+            },
+            values: {
+              firstName: "Ana",
+              lastName: "Perez",
+              documentType: "dni",
+              documentNumber: "30111222",
+            },
+            duplicateDocumentProfessorId: "profesor_archivado_1",
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    const documentField = document.querySelector<HTMLInputElement>(
+      'input[name="documentNumber"]',
+    );
+
+    expect(documentField?.getAttribute("aria-invalid")).toBe("true");
+    expect(document.body.textContent).toContain(
+      "Ya existe un Profesor archivado con ese documento en la academia.",
+    );
+    expect(
+      document.querySelector(
+        'a[href="/administracion/profesores/profesor_archivado_1"]',
+      )?.textContent,
+    ).toBe("Ver la ficha del profesor con ese documento");
+  });
 });
 
 function createLoaderData({

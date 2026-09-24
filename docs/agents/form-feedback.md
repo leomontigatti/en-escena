@@ -95,6 +95,54 @@ in `app/lib/shared/notification-toasts.ts` and feeds both the flash flow and the
 `actionData` one. For a new form: use the flash session (redirect) or direct
 `actionData` (stay), never a URL param.
 
+## A third answer: the duplicate warning
+
+Some guards must not refuse. A second dancer with the same name and birth date, a
+second choreography with the same name and cast, a second academy with the same
+name: each is a duplicate often enough to raise, and a legitimate registration often
+enough that turning it away would be the worse bug. Those actions answer with a
+**warning** beside their existing `error` / `success` shapes, and one mechanism
+carries it (PRD #1090):
+
+- The action returns `{ status: "warning", warning: { kind, matches: [{ id, ... }] } }`
+  with the values the user typed, and **writes nothing**. `DuplicateWarning` in
+  `app/lib/shared/duplicate-warning.ts` is that type; `kind` says which guard spoke
+  (`dancer-name`, `professor-name`, `choreography-cast`, `academy-name`) and each
+  match carries the id of the record found plus whatever the copy names it by.
+  The answer carries **no `message`**: the matches shown beside the field are the
+  whole copy, so a warning answer never reaches `useServerActionToast` — a route that
+  toasts its other answers narrows the warning one out.
+- The form keeps the values, shows the matches, and swaps its submit for
+  `Continuar de todos modos`. `DuplicateWarningPrompt`
+  (`app/components/shared/duplicate-warning-prompt.tsx`) is that half: a warning
+  `AccessNotice` above the actions, one hidden `acknowledgedDuplicateIds` input per
+  match, and the continue button. A multi-step form (the choreography wizard) adds
+  the same field to the form data it rebuilds.
+- The re-submit **re-runs the check** (`readAcknowledgedDuplicateIds`,
+  `matchesToWarnAbout`). A match that appeared between the two submits was never
+  shown to the user, so it warns again — and that second answer carries **every**
+  match, the acknowledged ones included, so the next submit covers the whole set.
+  Answering with the new match alone would drop the acknowledgement of the others,
+  and two matches appearing in turn would warn about each other forever. The server
+  is the only party that sees both surfaces and concurrent writes, which is why the
+  acknowledgement travels to it rather than being resolved client-side.
+- **Nothing is stored** about an acknowledgement: saving the same values again warns
+  again.
+- **A refusal always wins.** The warning runs after validation and after the hard
+  uniqueness pre-checks, so a document already used in the academy is a field error,
+  never a warning the user can click past.
+- **Known limit:** matching is case-insensitive and whitespace-insensitive but
+  **accent-sensitive** (`lower(...)` in SQL, no folding extension installed), so
+  `Sofía` and `Sofia` do not match.
+
+The comprobante emission dialog (`app/features/admin/finances/comprobante-emission`)
+is the visual precedent for "the server says wait, the user acknowledges, the same
+submit is re-enabled"; the difference is only that here the acknowledgement is sent.
+
+The seam to test is the same as the matrix's: the action returns the warning and
+performs no write, the acknowledged re-submit performs it, and the form renders the
+continue action and includes the ids in the submission.
+
 ## Unexpected failures during a submit
 
 The matrix above covers what an `action` **decides**. What it does not decide —

@@ -11,14 +11,14 @@ import {
   migrationsFolder,
 } from "./migrations.test-support";
 
-const dropWindowMigrationTag = "0031_drop_event_registration_window";
+const dropWindowMigrationTag = "0035_drop_event_registration_window";
 
 type Database = ReturnType<typeof drizzle>;
 
 /**
  * An event as production holds it the instant before the window goes, with the
  * schedule that now carries the switch: the drop must not need the columns to be
- * empty, and must not take the flag 0030 backfilled with it.
+ * empty, and must not take the flag 0034 backfilled with it.
  */
 async function seedEventWithWindow(db: Database) {
   await db.execute(sql`set session_replication_role = replica`);
