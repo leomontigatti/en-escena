@@ -279,6 +279,9 @@ export async function createGrupalOnlyModalityFixture(eventId: string) {
       scheduledDate: "2026-05-02",
       startTime: "12:00",
       totalCapacity: 10,
+      // The portal registrations that reach this modality are meant to get as
+      // far as the categories, so its show takes inscriptions.
+      registrationOpen: true,
     })
     .returning();
   await db.insert(scheduleModalities).values({

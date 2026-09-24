@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events, schedules } from "@/db/schema";
@@ -44,6 +44,25 @@ export async function getEventRegistrationOpenBlockers(
     endsAt: event.endsAt,
     readiness: await getEventRegistrationReadiness(eventId),
   });
+}
+
+/**
+ * The `Cronograma`s of the event taking inscriptions right now, by id. The
+ * portal resolver offers no other: the event-level predicate only says that
+ * *some* schedule is open, and a path whose own shows are all closed has to be
+ * refused even then.
+ */
+export async function findOpenScheduleIds(
+  eventId: string,
+): Promise<Set<string>> {
+  const rows = await db
+    .select({ id: schedules.id })
+    .from(schedules)
+    .where(
+      and(eq(schedules.eventId, eventId), eq(schedules.registrationOpen, true)),
+    );
+
+  return new Set(rows.map((row) => row.id));
 }
 
 export async function openScheduleRegistration(

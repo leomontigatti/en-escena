@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import {
   choreographyNotFoundMessage,
   formatChoreographyReferences,
+  getClosedRegistrationPathMessage,
   getNoCompatibleCategoryRegistrationMessage,
 } from "@/lib/choreographies/choreography-messages";
 
@@ -85,6 +86,31 @@ describe("no compatible category registration message", () => {
       "No hay una categoría para Solo con las edades de estos bailarines. Revisá los bailarines o la modalidad.",
     );
     expect(message).not.toContain("  ");
+  });
+});
+
+describe("closed registration path message", () => {
+  test("names the path whose every schedule is closed", () => {
+    expect(
+      getClosedRegistrationPathMessage({
+        categoryName: "Infantil",
+        modalityName: "Jazz",
+        groupType: "solo",
+      }),
+    ).toBe("Las inscripciones para Infantil, Jazz, Solo están cerradas.");
+  });
+
+  // A registration can reach the schedules without a resolved category —
+  // nothing to filter by— and the sentence names the rest of the path instead
+  // of leaving a hole where the category would go.
+  test("drops the clause of a name it does not have", () => {
+    const message = getClosedRegistrationPathMessage({
+      categoryName: null,
+      modalityName: null,
+      groupType: "grupal",
+    });
+
+    expect(message).toBe("Las inscripciones para Grupal están cerradas.");
   });
 });
 

@@ -16,6 +16,7 @@ import { createChoreographyRegistration } from "@/lib/choreographies/registratio
 import {
   deriveGroupType,
   resolveChoreographyRegistrationOperation,
+  resolveChoreographyRegistrationOperationForResolvedDancers,
 } from "@/lib/choreographies/registration-resolution.server";
 import {
   createAcademySession,
@@ -113,6 +114,7 @@ describe("choreography registration resolution", () => {
         scheduledDate: "2026-05-01",
         startTime: "16:00",
         totalCapacity: 10,
+        registrationOpen: true,
       })
       .returning();
     await db.insert(scheduleModalities).values({
@@ -164,6 +166,129 @@ describe("choreography registration resolution", () => {
       ok: true,
       resolution: {
         category: { id: catalog.childCategory.id },
+        schedule: {
+          status: "auto",
+          canConfirm: true,
+          options: [{ scheduleId: catalog.schedule.id }],
+        },
+      },
+    });
+  });
+
+  test("leaves the schedules with closed inscriptions out of the portal options", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Función Cerrada",
+      email: "registro.coreografia.cerrada@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog({ active: true });
+    const [secondShow] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Función 2",
+        scheduledDate: "2026-05-01",
+        startTime: "16:00",
+        totalCapacity: 10,
+        registrationOpen: true,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      scheduleId: secondShow.id,
+      modalityId: catalog.modality.id,
+    });
+    await db
+      .update(schedules)
+      .set({ registrationOpen: false })
+      .where(eq(schedules.id, catalog.schedule.id));
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2013-05-01",
+    });
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      resolution: {
+        schedule: {
+          status: "auto",
+          canConfirm: true,
+          options: [{ scheduleId: secondShow.id }],
+        },
+      },
+    });
+  });
+
+  test("refuses the path whose every compatible schedule is closed, naming it", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Camino Cerrado",
+      email: "registro.coreografia.camino@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog({ active: true });
+    // Another modality keeps its own show open, so the event's inscriptions are
+    // open and only this path is closed.
+    await createGrupalOnlyModalityFixture(event.id);
+    await db
+      .update(schedules)
+      .set({ registrationOpen: false })
+      .where(eq(schedules.id, catalog.schedule.id));
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2013-05-01",
+    });
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "registration-closed",
+      error: `Las inscripciones para ${catalog.teenCategory.name}, ${catalog.modality.name}, Solo están cerradas.`,
+    });
+  });
+
+  test("keeps offering the closed schedules to the administrative re-resolution", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Reasignación",
+      email: "registro.coreografia.reasignacion@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog({ active: true });
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2013-05-01",
+      firstName: "Ana",
+      lastName: "Paz",
+    });
+    await db
+      .update(schedules)
+      .set({ registrationOpen: false })
+      .where(eq(schedules.eventId, event.id));
+
+    await expect(
+      resolveChoreographyRegistrationOperationForResolvedDancers({
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancers: [
+          {
+            id: dancer.id,
+            firstName: "Ana",
+            lastName: "Paz",
+            ageAtEventStart: 12,
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      resolution: {
         schedule: {
           status: "auto",
           canConfirm: true,
@@ -629,6 +754,7 @@ describe("choreography registration resolution", () => {
         scheduledDate: "2026-05-02",
         startTime: "18:00",
         totalCapacity: 10,
+        registrationOpen: true,
       })
       .returning();
     await db.insert(scheduleModalities).values({
@@ -674,6 +800,7 @@ describe("choreography registration resolution", () => {
         scheduledDate: "2026-05-03",
         startTime: "20:00",
         totalCapacity: 10,
+        registrationOpen: true,
       })
       .returning();
     await db.insert(scheduleModalities).values({
@@ -762,6 +889,7 @@ describe("choreography registration resolution", () => {
         scheduledDate: "2026-05-02",
         startTime: "18:00",
         totalCapacity: 10,
+        registrationOpen: true,
       })
       .returning();
     await db.insert(scheduleModalities).values({
