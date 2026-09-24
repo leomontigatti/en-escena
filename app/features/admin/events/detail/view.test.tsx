@@ -460,3 +460,224 @@ function buildLoaderData(): EventDetailLoaderData {
     },
   };
 }
+
+describe("EventDetailView results publication", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(() => {
+    renderer.cleanup();
+    useNavigationMock.mockReset();
+  });
+
+  test("offers only `Mostrar resultados` while the results are hidden", async () => {
+    await renderResults();
+    await openActionsMenu();
+
+    expect(getMenuLabels()).toContain("Mostrar resultados");
+    expect(getMenuLabels()).not.toContain("Actualizar resultados");
+    expect(getMenuLabels()).not.toContain("Ocultar resultados");
+    expect(document.body.textContent).not.toContain("Resultados publicados");
+  });
+
+  test("swaps to `Actualizar resultados` and `Ocultar resultados` once published", async () => {
+    await renderResults({
+      pendingCount: 2,
+      publishedAt: new Date("2026-03-14T23:30:00Z"),
+      publishedCount: 3,
+    });
+    await openActionsMenu();
+
+    expect(getMenuLabels()).toContain("Actualizar resultados");
+    expect(getMenuLabels()).toContain("Ocultar resultados");
+    expect(getMenuLabels()).not.toContain("Mostrar resultados");
+  });
+
+  test("keeps the publication out of an auditor's menu, alert and all", async () => {
+    await renderResults(
+      {
+        pendingCount: 0,
+        publishedAt: new Date("2026-03-14T23:30:00Z"),
+        publishedCount: 3,
+      },
+      { canPublishResults: false },
+    );
+    await openActionsMenu();
+
+    expect(getMenuLabels()).not.toContain("Actualizar resultados");
+    expect(getMenuLabels()).not.toContain("Ocultar resultados");
+    expect(document.body.textContent).toContain("Resultados publicados");
+  });
+
+  test("says what the academies see, and only names the pending ones when there are any", async () => {
+    await renderResults({
+      pendingCount: 0,
+      publishedAt: new Date("2026-03-14T23:30:00Z"),
+      publishedCount: 1,
+    });
+
+    expect(document.body.textContent).toContain(
+      "Las academias ven los resultados de 1 presentación, publicados el 14/3 a las 20:30.",
+    );
+    expect(document.body.textContent).not.toContain("desde entonces");
+
+    renderer.cleanup();
+
+    await renderResults({
+      pendingCount: 2,
+      publishedAt: new Date("2026-03-14T23:30:00Z"),
+      publishedCount: 3,
+    });
+
+    expect(document.body.textContent).toContain(
+      "Las academias ven los resultados de 3 presentaciones, publicados el 14/3 a las 20:30.",
+    );
+    expect(document.body.textContent).toContain(
+      'Hay 2 evaluadas desde entonces: usá "Actualizar resultados" para sumarlas.',
+    );
+  });
+
+  test("confirms showing the results with what the academies are about to see", async () => {
+    await renderResults({
+      pendingCount: 4,
+      publishedAt: null,
+      publishedCount: 0,
+    });
+    await openActionsMenu();
+    await clickMenuItem("Mostrar resultados");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("¿Mostrar resultados?");
+    expect(dialog?.textContent).toContain(
+      "Cada academia ve el premio, el promedio y las devoluciones de las 4 presentaciones evaluadas hasta ahora. Las que se evalúen después se suman cuando actualices.",
+    );
+    expect(
+      dialog?.querySelector('input[name="intent"]')?.getAttribute("value"),
+    ).toBe("publish-results");
+  });
+
+  test("confirms updating the results with how many more go out", async () => {
+    await renderResults({
+      pendingCount: 2,
+      publishedAt: new Date("2026-03-14T23:30:00Z"),
+      publishedCount: 3,
+    });
+    await openActionsMenu();
+    await clickMenuItem("Actualizar resultados");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("¿Actualizar resultados?");
+    expect(dialog?.textContent).toContain(
+      "Se publican las 5 presentaciones evaluadas hasta ahora, 2 más que la última vez.",
+    );
+    expect(
+      dialog?.querySelector('input[name="intent"]')?.getAttribute("value"),
+    ).toBe("publish-results");
+  });
+
+  test("confirms hiding the results destructively", async () => {
+    await renderResults({
+      pendingCount: 0,
+      publishedAt: new Date("2026-03-14T23:30:00Z"),
+      publishedCount: 3,
+    });
+    await openActionsMenu();
+    await clickMenuItem("Ocultar resultados");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("¿Ocultar resultados?");
+    expect(dialog?.textContent).toContain(
+      "Las academias dejan de ver todos los resultados. Para volver a mostrarlos se publica de nuevo lo evaluado en ese momento.",
+    );
+    expect(
+      dialog?.querySelector('input[name="intent"]')?.getAttribute("value"),
+    ).toBe("hide-results");
+    expect(
+      dialog?.querySelector('button[data-variant="destructive"]'),
+    ).not.toBeNull();
+  });
+
+  function getMenuLabels() {
+    return Array.from(document.querySelectorAll('[role="menuitem"]')).map(
+      (item) => item.textContent?.trim(),
+    );
+  }
+
+  async function renderResults(
+    resultsPublication: EventDetailLoaderData["resultsPublication"] = {
+      pendingCount: 0,
+      publishedAt: null,
+      publishedCount: 0,
+    },
+    overrides: Partial<EventDetailLoaderData> = {},
+  ) {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/eventos/event_1",
+          action: async () => null,
+          element: (
+            <EventDetailView
+              loaderData={{
+                ...buildLoaderData(),
+                resultsPublication,
+                ...overrides,
+              }}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/administracion/eventos/event_1"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+});
+
+async function openActionsMenu() {
+  const button = document.querySelector('button[aria-label="Acciones"]');
+
+  if (!button) {
+    throw new Error("Expected the event actions button to be rendered.");
+  }
+
+  const pointerDown = new MouseEvent("pointerdown", {
+    bubbles: true,
+    button: 0,
+    cancelable: true,
+  });
+  Object.defineProperty(pointerDown, "pointerType", { value: "mouse" });
+
+  await act(async () => {
+    button.dispatchEvent(pointerDown);
+    button.dispatchEvent(
+      new MouseEvent("pointerup", {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+      }),
+    );
+    await Promise.resolve();
+  });
+}
+
+async function clickMenuItem(label: string) {
+  const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
+    (candidate) => candidate.textContent?.includes(label),
+  );
+
+  if (!item) {
+    throw new Error(`Expected menu item "${label}" to be rendered.`);
+  }
+
+  await act(async () => {
+    item.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+}

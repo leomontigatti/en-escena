@@ -45,6 +45,11 @@ import {
   EventDocumentsFields,
   useEventDocumentsForm,
 } from "./documents-fields";
+import {
+  ResultsPublicationAlert,
+  ResultsPublicationDialog,
+  type ResultsAction,
+} from "./results-publication";
 import { EventPaymentInstructionsFields } from "./payment-instructions-fields";
 import {
   eventDocumentDeclarations,
@@ -89,8 +94,10 @@ export function EventDetailView({
       requireSelectedEvent={false}
       headerAction={
         <EventActions
+          canPublishResults={loaderData.canPublishResults}
           event={loaderData.event}
           initialDeleteDialogOpen={initialDeleteDialogOpen}
+          resultsPublication={loaderData.resultsPublication}
         />
       }
     >
@@ -99,6 +106,7 @@ export function EventDetailView({
         actionData={errorData}
         documents={loaderData.documents}
         registrationReadiness={loaderData.registrationReadiness}
+        resultsPublication={loaderData.resultsPublication}
       />
     </AdminResourceLayout>
   );
@@ -178,11 +186,13 @@ function EditEventPanel({
   actionData,
   documents,
   registrationReadiness,
+  resultsPublication,
 }: {
   event: EventDetailLoaderData["event"];
   actionData?: Extract<EventDetailActionData, { status: "error" }>;
   documents: EventDetailLoaderData["documents"];
   registrationReadiness: EventDetailLoaderData["registrationReadiness"];
+  resultsPublication: EventDetailLoaderData["resultsPublication"];
 }) {
   const defaultValues = actionData?.values ?? eventFormValues(event);
   const eventForm = useEventForm({
@@ -206,6 +216,7 @@ function EditEventPanel({
         {!registrationReadiness.isReady ? (
           <EventRegistrationReadinessAlert readiness={registrationReadiness} />
         ) : null}
+        <ResultsPublicationAlert publication={resultsPublication} />
       </AlertStack>
       <form
         ref={removal.formRef}
@@ -437,15 +448,25 @@ function RemoveDocumentsDialog({
 }
 
 function EventActions({
+  canPublishResults,
   event,
   initialDeleteDialogOpen = false,
+  resultsPublication,
 }: {
+  canPublishResults: boolean;
   event: EventDetailLoaderData["event"];
   initialDeleteDialogOpen?: boolean;
+  resultsPublication: EventDetailLoaderData["resultsPublication"];
 }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  // Which confirmation is open, or none. The three share one piece of state
+  // because at most one of them can be reached from the menu at a time.
+  const [resultsAction, setResultsAction] = useState<ResultsAction | null>(
+    null,
+  );
+  const isPublished = resultsPublication.publishedAt !== null;
 
   return (
     <>
@@ -466,6 +487,30 @@ function EventActions({
               event.programVisible ? "Ocultar programa" : "Mostrar programa"
             }
           />
+          {/* The menu always matches the state: nothing to update or hide until
+              results are out, and nothing to show once they are. */}
+          {canPublishResults ? (
+            isPublished ? (
+              <>
+                <DropdownMenuItem
+                  onSelect={() => setResultsAction("update-results")}
+                >
+                  Actualizar resultados
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setResultsAction("hide-results")}
+                >
+                  Ocultar resultados
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <DropdownMenuItem
+                onSelect={() => setResultsAction("show-results")}
+              >
+                Mostrar resultados
+              </DropdownMenuItem>
+            )
+          ) : null}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
@@ -477,6 +522,12 @@ function EventActions({
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </ResourceActionsMenu>
+      <ResultsPublicationDialog
+        action={resultsAction}
+        eventId={event.id}
+        onClose={() => setResultsAction(null)}
+        publication={resultsPublication}
+      />
       <DeleteDialog
         title="Eliminar evento"
         description={`Esta acción no se puede deshacer. Se va a eliminar ${event.name}.`}

@@ -1,3 +1,4 @@
+import { formatPresentationCount } from "@/lib/judging/results-copy";
 import { type ToastMessage } from "@/lib/shared/toasts";
 
 type NotificationToast = ToastMessage & {
@@ -313,9 +314,7 @@ export function publishedResultsToast(
 ): NotificationToast {
   return {
     id: notificationToastIds["resultados-publicados"],
-    message: `Se publicaron los resultados de ${publishedCount} ${
-      publishedCount === 1 ? "presentación" : "presentaciones"
-    }.`,
+    message: `Se publicaron los resultados de ${formatPresentationCount(publishedCount)}.`,
     variant: "success",
   };
 }
