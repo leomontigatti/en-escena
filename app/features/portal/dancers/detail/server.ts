@@ -183,6 +183,7 @@ export async function handlePortalDancerDetailAction(input: {
       message: result.error,
       fieldErrors: result.fieldErrors,
       values: result.values,
+      duplicateDocumentDancerId: result.duplicateDocumentDancerId,
     };
   }
 

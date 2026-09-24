@@ -968,6 +968,84 @@ describe("handlePortalDancerDetailAction", () => {
     expect(ownerExisting.id).not.toBe(otherEditable.id);
   });
 
+  test("rejects the same number under another type, and names an archived match", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.document.number@example.com",
+      academyName: "Academia Numero",
+    });
+    const [existing] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Alvarez",
+        birthDate: "2014-02-01",
+        documentType: "dni",
+        documentNumber: "30111222",
+      })
+      .returning();
+    const [editable] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Beatriz",
+        lastName: "Suarez",
+        birthDate: "2013-03-02",
+      })
+      .returning();
+
+    const editRequest = () =>
+      createPortalPostRequest(
+        `http://localhost/portal/bailarines/${editable.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Beatriz",
+          lastName: "Suarez",
+          birthDate: "2013-03-02",
+          documentType: "other",
+          documentNumber: "30111222",
+        }),
+      );
+
+    // The type differs, the number does not: one person, one row.
+    expect(
+      await handlePortalDancerDetailAction({
+        request: editRequest(),
+        params: { dancerId: editable.id },
+      }),
+    ).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Bailarín con ese documento en tu academia.",
+      },
+      duplicateDocumentDancerId: existing.id,
+    });
+    await expectPersistedDancer(editable.id, {
+      documentType: null,
+      documentNumber: null,
+    });
+
+    await db
+      .update(dancers)
+      .set({ active: false })
+      .where(eq(dancers.id, existing.id));
+
+    expect(
+      await handlePortalDancerDetailAction({
+        request: editRequest(),
+        params: { dancerId: editable.id },
+      }),
+    ).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Bailarín archivado con ese documento en tu academia.",
+      },
+      duplicateDocumentDancerId: existing.id,
+    });
+  });
+
   test("returns not found when another academy loads or updates a dancer", async () => {
     const ownerSession = await createAcademySession({
       email: "bailarines.owner.scope@example.com",

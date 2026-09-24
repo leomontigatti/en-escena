@@ -89,6 +89,9 @@ export type PortalDancerDetailActionData =
       // Absent when the failure was not a rejected edit: a refused archive has
       // no form to repopulate.
       values?: PortalDancerFormValues;
+      // The dancer already holding the document number, so the form can link to
+      // them when the match is an archived one.
+      duplicateDocumentDancerId?: string;
     }
   | {
       status: "success";
