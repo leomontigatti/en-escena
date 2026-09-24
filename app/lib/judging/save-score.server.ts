@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -6,7 +6,9 @@ import {
   judgeAssignments,
   presentations,
   schedules,
+  scoreCriterionValues,
   scores,
+  submodalityCriteria,
 } from "@/db/schema";
 import { isOpenForJudges } from "@/lib/judging/judging-day";
 import {
@@ -14,6 +16,7 @@ import {
   parseScoreValue,
   singleScoreMaximum,
 } from "@/lib/judging/score-value";
+import { validateSheetValues } from "@/lib/judging/sheet-total";
 import type { UploadRejection } from "@/lib/storage/asset-kinds";
 import {
   type FeedbackAudioStorage,
@@ -38,11 +41,14 @@ import {
  * save never costs the judge audio that was already stored.
  */
 
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export type SaveJudgeScoreRefusal = "not-assigned" | "closed" | "invalid-value";
 
 export type SaveJudgeScoreResult =
   | { ok: true }
   | { ok: false; reason: SaveJudgeScoreRefusal }
+  | { fieldErrors: Record<string, string>; ok: false; reason: "invalid-sheet" }
   | { ok: false; reason: "invalid-audio"; rejection: UploadRejection };
 
 /**
@@ -55,22 +61,19 @@ export type FeedbackAudioSubmission =
 
 export type SaveJudgeScoreInput = {
   audio?: FeedbackAudioSubmission;
+  /** What the sheet posted, by criterion; read only when the submodality has criteria. */
+  criteriaValues?: Record<string, string>;
   judgeId: string;
   now?: Date;
   presentationId: string;
   storage?: FeedbackAudioStorage;
-  value: string;
+  /** The single 0-100 score; ignored by a submodality judged on a sheet. */
+  value?: string;
 };
 
 export async function saveJudgeScore(
   input: SaveJudgeScoreInput,
 ): Promise<SaveJudgeScoreResult> {
-  const value = parseScoreValue(input.value, singleScoreMaximum);
-
-  if (value === null) {
-    return { ok: false, reason: "invalid-value" };
-  }
-
   const audio = input.audio ?? { intent: "keep" };
   const committed = await db.transaction(async (tx) => {
     const [locked] = await tx
@@ -105,6 +108,12 @@ export async function saveJudgeScore(
       return { result: { ok: false, reason: "closed" } as const };
     }
 
+    const sheet = await readSheet(tx, input);
+
+    if (!sheet.ok) {
+      return { result: sheet.result };
+    }
+
     const storedKey = assignment.feedbackAudioStorageKey;
     const nextKey = await resolveFeedbackAudioKey({
       audio,
@@ -127,16 +136,19 @@ export async function saveJudgeScore(
 
     const row = {
       feedbackAudioStorageKey: nextKey.storageKey,
-      value: formatScoreValue(value),
+      value: formatScoreValue(sheet.total),
     };
 
-    await tx
+    const [saved] = await tx
       .insert(scores)
       .values({ ...row, judgeAssignmentId: assignment.id })
       .onConflictDoUpdate({
         target: scores.judgeAssignmentId,
         set: { ...row, updatedAt: new Date() },
-      });
+      })
+      .returning({ id: scores.id });
+
+    await writeSheetValues(tx, saved.id, sheet.values);
 
     return {
       previousKey:
@@ -229,7 +241,7 @@ function feedbackAudioStorage(storage?: FeedbackAudioStorage) {
  * anything to score.
  */
 async function isPresentationOpenForJudges(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: Transaction,
   input: Pick<SaveJudgeScoreInput, "now" | "presentationId">,
 ): Promise<boolean> {
   const [row] = await tx
@@ -243,4 +255,99 @@ async function isPresentationOpenForJudges(
     .where(eq(presentations.id, input.presentationId));
 
   return Boolean(row) && isOpenForJudges(row.scheduledDate, input.now);
+}
+
+type SheetResolution =
+  | { ok: false; result: SaveJudgeScoreResult }
+  | {
+      ok: true;
+      total: number;
+      values: { criterionId: string; value: number }[] | null;
+    };
+
+/**
+ * What the save is actually storing: the sheet of the submodality as it stands
+ * in the database, or the single value the judge typed when there is no sheet.
+ * The criteria are read here, inside the transaction, rather than trusted from
+ * what the form rendered — a criterion added since the page loaded is a line the
+ * judge has to fill, and one removed is a value that must not be stored.
+ *
+ * `values` is null when there is no sheet, which is what tells the write to
+ * leave the criterion values alone.
+ */
+async function readSheet(
+  tx: Transaction,
+  input: Pick<
+    SaveJudgeScoreInput,
+    "criteriaValues" | "presentationId" | "value"
+  >,
+): Promise<SheetResolution> {
+  const criteria = await tx
+    .select({
+      id: submodalityCriteria.id,
+      kind: submodalityCriteria.kind,
+      maximum: submodalityCriteria.maximum,
+      name: submodalityCriteria.name,
+    })
+    .from(presentations)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, presentations.choreographyId),
+    )
+    .innerJoin(
+      submodalityCriteria,
+      eq(submodalityCriteria.submodalityId, choreographies.submodalityId),
+    )
+    .where(eq(presentations.id, input.presentationId))
+    .orderBy(asc(submodalityCriteria.position));
+
+  if (criteria.length === 0) {
+    const value = parseScoreValue(input.value ?? "", singleScoreMaximum);
+
+    return value === null
+      ? { ok: false, result: { ok: false, reason: "invalid-value" } }
+      : { ok: true, total: value, values: null };
+  }
+
+  const validated = validateSheetValues(criteria, input.criteriaValues ?? {});
+
+  if (!validated.ok) {
+    return {
+      ok: false,
+      result: {
+        fieldErrors: validated.fieldErrors,
+        ok: false,
+        reason: "invalid-sheet",
+      },
+    };
+  }
+
+  return { ok: true, total: validated.total, values: validated.values };
+}
+
+/**
+ * The sheet is saved as a whole: what was stored before is cleared and the
+ * validated lines are written in its place, so a criterion the submodality no
+ * longer has cannot survive as a stale value under a total that ignores it.
+ */
+async function writeSheetValues(
+  tx: Transaction,
+  scoreId: string,
+  values: { criterionId: string; value: number }[] | null,
+) {
+  if (values === null) {
+    return;
+  }
+
+  await tx
+    .delete(scoreCriterionValues)
+    .where(eq(scoreCriterionValues.scoreId, scoreId));
+
+  await tx.insert(scoreCriterionValues).values(
+    values.map((line) => ({
+      criterionId: line.criterionId,
+      scoreId,
+      value: formatScoreValue(line.value),
+    })),
+  );
 }

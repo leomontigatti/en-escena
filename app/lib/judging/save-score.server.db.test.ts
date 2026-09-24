@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { schedules, scores } from "@/db/schema";
+import { schedules, scoreCriterionValues, scores } from "@/db/schema";
 import {
   type FeedbackAudioStorageAdapter,
   createFeedbackAudioStorage,
@@ -303,5 +303,114 @@ describe("saving a judge's score", () => {
 
     expect(result).toEqual({ ok: false, reason: "invalid-value" });
     expect(await readScores(judge.judgeAssignmentId)).toEqual([]);
+  });
+});
+
+async function readCriterionValues(judgeAssignmentId: string) {
+  return db
+    .select({
+      criterionId: scoreCriterionValues.criterionId,
+      value: scoreCriterionValues.value,
+    })
+    .from(scoreCriterionValues)
+    .innerJoin(scores, eq(scores.id, scoreCriterionValues.scoreId))
+    .where(eq(scores.judgeAssignmentId, judgeAssignmentId))
+    .orderBy(asc(scoreCriterionValues.value));
+}
+
+describe("saving a judge's sheet of criteria", () => {
+  async function seedSheet() {
+    const open = await seedOpenPresentation();
+    const tecnica = await open.fixture.addCriterion({
+      maximum: 60,
+      name: "Técnica",
+      position: 0,
+    });
+    const interpretacion = await open.fixture.addCriterion({
+      maximum: 40,
+      name: "Interpretación",
+      position: 1,
+    });
+    const penalizacion = await open.fixture.addCriterion({
+      kind: "deducts",
+      maximum: 20,
+      name: "Penalización",
+      position: 2,
+    });
+
+    return { ...open, interpretacion, penalizacion, tecnica };
+  }
+
+  test("stores every criterion value and recomputes the score from the total", async () => {
+    const sheet = await seedSheet();
+
+    const result = await saveJudgeScore({
+      criteriaValues: {
+        [sheet.interpretacion.id]: "30",
+        [sheet.penalizacion.id]: "2.5",
+        [sheet.tecnica.id]: "50",
+      },
+      judgeId: sheet.judge.judgeId,
+      presentationId: sheet.presentation.presentationId,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(await readScores(sheet.judge.judgeAssignmentId)).toMatchObject([
+      { value: "77.5" },
+    ]);
+    expect(await readCriterionValues(sheet.judge.judgeAssignmentId)).toEqual([
+      { criterionId: sheet.penalizacion.id, value: "2.5" },
+      { criterionId: sheet.interpretacion.id, value: "30.0" },
+      { criterionId: sheet.tecnica.id, value: "50.0" },
+    ]);
+  });
+
+  test("replaces the stored sheet when the judge corrects it", async () => {
+    const sheet = await seedSheet();
+    const save = (tecnica: string) =>
+      saveJudgeScore({
+        criteriaValues: {
+          [sheet.interpretacion.id]: "30",
+          [sheet.penalizacion.id]: "0",
+          [sheet.tecnica.id]: tecnica,
+        },
+        judgeId: sheet.judge.judgeId,
+        presentationId: sheet.presentation.presentationId,
+      });
+
+    await save("50");
+    await save("60");
+
+    expect(await readScores(sheet.judge.judgeAssignmentId)).toMatchObject([
+      { value: "90.0" },
+    ]);
+    expect(await readCriterionValues(sheet.judge.judgeAssignmentId)).toEqual([
+      { criterionId: sheet.penalizacion.id, value: "0.0" },
+      { criterionId: sheet.interpretacion.id, value: "30.0" },
+      { criterionId: sheet.tecnica.id, value: "60.0" },
+    ]);
+  });
+
+  test("refuses the sheet when a criterion of the submodality is missing or out of range", async () => {
+    const sheet = await seedSheet();
+
+    const result = await saveJudgeScore({
+      criteriaValues: {
+        [sheet.penalizacion.id]: "30",
+        [sheet.tecnica.id]: "50",
+      },
+      judgeId: sheet.judge.judgeId,
+      presentationId: sheet.presentation.presentationId,
+    });
+
+    expect(result).toEqual({
+      fieldErrors: {
+        [sheet.interpretacion.id]: "Ingresá un valor de 0 a 40, de 0.5 en 0.5.",
+        [sheet.penalizacion.id]: "Ingresá un valor de 0 a 20, de 0.5 en 0.5.",
+      },
+      ok: false,
+      reason: "invalid-sheet",
+    });
+    expect(await readScores(sheet.judge.judgeAssignmentId)).toEqual([]);
   });
 });
