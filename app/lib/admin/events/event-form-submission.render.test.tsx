@@ -195,7 +195,7 @@ function buildDetailLoaderData(): Parameters<
       active: false,
       requiredDepositPercentage: 30,
       programVisible: false,
-      resultsVisible: false,
+      resultsPublishedAt: null,
       registrationReady: false,
       registrationReadinessMissingItems: [],
       registrationReadinessDirty: true,

@@ -42,8 +42,6 @@ export const notificationToastIds = {
   "comprobante-recuperado": "route-notification:comprobante-recuperado",
   "programa-visible": "route-notification:programa-visible",
   "programa-oculto": "route-notification:programa-oculto",
-  "resultados-visibles": "route-notification:resultados-visibles",
-  "resultados-ocultos": "route-notification:resultados-ocultos",
   "categoria-guardada": "route-notification:categoria-guardada",
   "categoria-eliminada": "route-notification:categoria-eliminada",
   "modalidad-guardada": "route-notification:modalidad-guardada",
@@ -237,16 +235,6 @@ export const notificationToasts = {
   "programa-oculto": {
     id: notificationToastIds["programa-oculto"],
     message: "Programa oculto.",
-    variant: "success",
-  },
-  "resultados-visibles": {
-    id: notificationToastIds["resultados-visibles"],
-    message: "Resultados visibles.",
-    variant: "success",
-  },
-  "resultados-ocultos": {
-    id: notificationToastIds["resultados-ocultos"],
-    message: "Resultados ocultos.",
     variant: "success",
   },
   "categoria-guardada": {

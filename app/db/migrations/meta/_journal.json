@@ -218,6 +218,20 @@
       "when": 1790233910782,
       "tag": "0030_add_judging_scores",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790258320233,
+      "tag": "0031_add_results_publication",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790258325586,
+      "tag": "0032_drop_event_results_visible",
+      "breakpoints": true
     }
   ]
 }

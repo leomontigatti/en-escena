@@ -49,8 +49,6 @@ type EventRouteNotification = Extract<
   | "evento-guardado"
   | "programa-visible"
   | "programa-oculto"
-  | "resultados-visibles"
-  | "resultados-ocultos"
 >;
 
 export async function loadEventDetail(
@@ -122,18 +120,6 @@ export async function updateAdministrativeEvent(
           programVisible,
         },
         programVisible ? "programa-visible" : "programa-oculto",
-      );
-    }
-
-    case "set-results-visibility": {
-      const resultsVisible = formData.get("value") === "true";
-
-      return updateVisibility(
-        eventId,
-        {
-          resultsVisible,
-        },
-        resultsVisible ? "resultados-visibles" : "resultados-ocultos",
       );
     }
 

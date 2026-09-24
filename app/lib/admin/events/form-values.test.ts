@@ -310,7 +310,7 @@ function storedEvent(overrides: Partial<EventRow> = {}): EventRow {
     name: "En Escena 2027",
     active: false,
     programVisible: false,
-    resultsVisible: false,
+    resultsPublishedAt: null,
     requiredDepositPercentage: 30,
     registrationStartsAt: new Date("2027-04-01T03:00:00Z"),
     registrationEndsAt: new Date("2027-04-20T03:00:00Z"),

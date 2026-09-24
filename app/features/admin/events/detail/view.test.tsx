@@ -429,7 +429,7 @@ function buildLoaderData(): EventDetailLoaderData {
       name: "Festival 2026",
       active: true,
       programVisible: false,
-      resultsVisible: false,
+      resultsPublishedAt: null,
       requiredDepositPercentage: 30,
       registrationStartsAt: new Date("2026-01-01T00:00:00Z"),
       registrationEndsAt: new Date("2026-02-01T00:00:00Z"),

@@ -177,7 +177,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
     ).resolves.toMatchObject({ active: false });
   });
 
-  test("toggles program and results visibility independently", async () => {
+  test("toggles program visibility", async () => {
     const event = await createSavedEvent({ name: "Regional 2026" });
     const programRequest = await createSignedInRequest({
       email: "admin.programa@example.com",
@@ -185,13 +185,6 @@ describe("`/administracion/eventos/:eventId` route", () => {
       requestUrl: `http://localhost/administracion/eventos/${event.id}`,
       body: formData({ intent: "set-program-visibility", value: "true" }),
     });
-    const resultsRequest = await createSignedInRequest({
-      email: "admin.resultados@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
-      body: formData({ intent: "set-results-visibility", value: "true" }),
-    });
-
     await expect(
       action(routeArgs(programRequest.request, event.id)),
     ).resolves.toMatchObject({
@@ -199,16 +192,9 @@ describe("`/administracion/eventos/:eventId` route", () => {
       message: "Programa visible.",
     });
     await expect(
-      action(routeArgs(resultsRequest.request, event.id)),
-    ).resolves.toMatchObject({
-      status: "success",
-      message: "Resultados visibles.",
-    });
-    await expect(
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
     ).resolves.toMatchObject({
       programVisible: true,
-      resultsVisible: true,
     });
   });
 

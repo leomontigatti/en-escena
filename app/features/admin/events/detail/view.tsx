@@ -466,14 +466,6 @@ function EventActions({
               event.programVisible ? "Ocultar programa" : "Mostrar programa"
             }
           />
-          <EventActionItem
-            action={eventActionPath(event.id)}
-            intent="set-results-visibility"
-            value={event.resultsVisible ? "false" : "true"}
-            label={
-              event.resultsVisible ? "Ocultar resultados" : "Mostrar resultados"
-            }
-          />
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
