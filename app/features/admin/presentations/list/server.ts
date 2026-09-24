@@ -17,6 +17,10 @@ import {
   type ParticipationRow,
 } from "@/lib/presentations/participation.server";
 import {
+  readPresentationEvaluationStatuses,
+  type PresentationEvaluationStatus,
+} from "@/lib/judging/evaluation-status.server";
+import {
   derivePresentationWarnings,
   type PresentationWarning,
 } from "@/lib/presentations/warnings";
@@ -100,12 +104,17 @@ async function loadPresentationList(input: {
   // on one page at a time, so the page's rows are all it can ever need — but
   // the read is one query either way, and scoping it to the page would have to
   // wait for the page to be resolved.
-  const [assignableJudges, assigned] = await Promise.all([
+  const [assignableJudges, assigned, evaluationStatuses] = await Promise.all([
     readAssignableJudges(),
     readAssignedJudges(rows.map((row) => row.choreographyId)),
+    readPresentationEvaluationStatuses(rows.map((row) => row.choreographyId)),
   ]);
   const items = rows.map((row) =>
-    buildPresentationListItem(row, warnings, assigned.byChoreography),
+    buildPresentationListItem(row, {
+      assignedJudgeIds: assigned.byChoreography,
+      evaluationStatuses,
+      warnings,
+    }),
   );
   const days = [...new Set(items.map((item) => item.scheduledDate))].sort();
   const filters = {
@@ -327,23 +336,30 @@ function readPresentationFilters(
 
 function buildPresentationListItem(
   row: ParticipationRow,
-  warnings: Map<string, PresentationWarning[]>,
-  assignedJudgeIds: Map<string, string[]>,
+  event: {
+    assignedJudgeIds: Map<string, string[]>;
+    evaluationStatuses: Map<string, PresentationEvaluationStatus>;
+    warnings: Map<string, PresentationWarning[]>;
+  },
 ): PresentationListItem {
   return {
     academyName: row.academyName,
-    assignedJudgeIds: assignedJudgeIds.get(row.choreographyId) ?? [],
+    assignedJudgeIds: event.assignedJudgeIds.get(row.choreographyId) ?? [],
     categoryName: row.category.name,
     choreographyNumber: row.choreographyNumber,
+    evaluationStatus:
+      event.evaluationStatuses.get(row.choreographyId) ?? "pendiente",
+    experienceLevel: row.experienceLevel,
     financialStatus: row.financialStatus,
     groupType: row.groupType as ChoreographyGroupType,
     id: row.choreographyId,
     modalityName: row.modalityName,
     name: row.name,
     orderNumber: row.orderNumber,
+    presentationId: row.presentationId,
     scheduledDate: row.schedule.scheduledDate,
     submodalityName: row.submodalityName,
-    warnings: warnings.get(row.choreographyId) ?? [],
+    warnings: event.warnings.get(row.choreographyId) ?? [],
   };
 }
 

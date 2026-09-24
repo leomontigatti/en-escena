@@ -1,6 +1,8 @@
 import { z } from "zod";
 
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
+import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
 import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { PresentationWarning } from "@/lib/presentations/warnings";
@@ -55,6 +57,10 @@ export type PresentationListItem = {
   academyName: string;
   categoryName: string;
   choreographyNumber: number;
+  /** Where the presentation stands for the panel, which decides the row's badge. */
+  evaluationStatus: PresentationEvaluationStatus;
+  /** The choreography's level; `null` when its category admits none. */
+  experienceLevel: ExperienceLevel | null;
   financialStatus: ChoreographyFinancialStatus;
   groupType: ChoreographyGroupType;
   id: string;
@@ -63,6 +69,8 @@ export type PresentationListItem = {
   orderNumber: number | null;
   /** Who already judges the row, which is what the removal dialog offers. */
   assignedJudgeIds: string[];
+  /** `null` while the choreography has no presentation, so nothing to score. */
+  presentationId: string | null;
   scheduledDate: string;
   submodalityName: string | null;
   warnings: PresentationWarning[];
@@ -172,4 +180,18 @@ export function formatJudgeAssignmentMessage(input: {
       : `Se mantuvieron ${keptCount} asignaciones que ya tienen puntaje.`;
 
   return `${reached} ${kept}`;
+}
+
+/**
+ * Where the row's name leads. A presentation the panel has already judged is
+ * read through its scores and not through its choreography: during the show
+ * that is what an administrator opens a row for, and the scores view links on
+ * to the choreography for the rest.
+ */
+export function presentationRowPath(row: PresentationListItem) {
+  if (row.evaluationStatus !== "pendiente" && row.presentationId !== null) {
+    return `/administracion/presentacion/${row.presentationId}/puntajes`;
+  }
+
+  return `/administracion/coreografias/${row.id}`;
 }

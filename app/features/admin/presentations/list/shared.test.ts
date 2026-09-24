@@ -4,6 +4,7 @@ import {
   assignJudgesIntent,
   formatJudgeAssignmentMessage,
   judgeAssignmentSchema,
+  presentationRowPath,
   removeJudgesIntent,
   selectRemovableJudges,
   type PresentationListItem,
@@ -17,12 +18,15 @@ function buildItem(
     assignedJudgeIds: [],
     categoryName: "Infantil",
     choreographyNumber: 1,
+    evaluationStatus: "pendiente",
+    experienceLevel: null,
     financialStatus: "paidInFull",
     groupType: "solo",
     id: "choreography-1",
     modalityName: "Jazz",
     name: "Primera",
     orderNumber: 1,
+    presentationId: "presentation-1",
     scheduledDate: "2026-05-01",
     submodalityName: null,
     warnings: [],
@@ -159,5 +163,31 @@ describe("formatJudgeAssignmentMessage with kept assignments", () => {
         presentationCount: 0,
       }),
     ).toBe("No se quitó nada: 3 asignaciones ya tienen puntaje.");
+  });
+});
+
+describe("presentationRowPath", () => {
+  test("sends a pending row to its choreography", () => {
+    expect(
+      presentationRowPath(
+        buildItem({ evaluationStatus: "pendiente", presentationId: "p-1" }),
+      ),
+    ).toBe("/administracion/coreografias/choreography-1");
+  });
+
+  test("sends an evaluated row to its scores", () => {
+    expect(
+      presentationRowPath(
+        buildItem({ evaluationStatus: "evaluada", presentationId: "p-1" }),
+      ),
+    ).toBe("/administracion/presentacion/p-1/puntajes");
+  });
+
+  test("sends a disqualified row to its scores", () => {
+    expect(
+      presentationRowPath(
+        buildItem({ evaluationStatus: "descalificada", presentationId: "p-1" }),
+      ),
+    ).toBe("/administracion/presentacion/p-1/puntajes");
   });
 });
