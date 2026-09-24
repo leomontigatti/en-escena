@@ -208,8 +208,8 @@ const judgingScoringRequirements = [
   "Removing a judge assignment is refused once that judge has a score row",
 ];
 
-// What the rewrite dropped. Scoped to everything before `Ranking And Results`,
-// which PRD 2 owns and which legitimately still rounds to two decimals.
+// What the rewrite dropped. Scoped to everything before `Program And Results`,
+// which legitimately still rounds to two decimals.
 const retiredJudgingRules = [
   "Corrección de puntaje",
   "up to two decimals",
@@ -232,6 +232,37 @@ const judgingGlossaryRequirements = [
   'which "Pendiente"',
 ];
 
+// What the results effort rewrote: the ranking is gone from the judging doc,
+// the glossary and the codebase map, and the snapshot takes its place.
+const retiredResultsTerms = [
+  "Competitive average is rounded to two decimals and that rounded value orders positions.",
+  "Ties are real competition ties, e.g. 1, 1, 3.",
+  "Final award ranking requires every presentation",
+  "Public results require all competitive groups resolved",
+  "Publishing results also enables academy results",
+  "`ranking`",
+  "`preliminaryRanking`",
+  "`publishedResults`",
+  "`awardType`",
+];
+
+const resultsJudgingRequirements = [
+  "## Program And Results",
+  "Results are not a ranking",
+  "no positions, no ties, no competitive grouping and no public results page",
+  "`Mostrar resultados`",
+  "`Actualizar resultados`",
+  "`Ocultar resultados`",
+  "reaches the academy immediately, with no need to publish again",
+  "behind its login and only for its own published presentations",
+];
+
+const resultsGlossaryRequirements = [
+  '**`resultsPublishedAt`** — ui: "Resultados publicados"',
+  '**`resultsPublication`** — ui: "Publicación de resultados"',
+  '**`academyResults`** — ui: "Resultados de academia"',
+];
+
 const judgingCodebaseMapRequirements = [
   "`app/lib/judging/judging-day.ts`",
   "`app/lib/judging/save-score.server.ts`",
@@ -241,6 +272,9 @@ const judgingCodebaseMapRequirements = [
   "`app/features/judging/score/`",
   "`app/features/admin/presentations/scores/`",
   "`app/routes/administracion.presentacion_.$presentationId.puntajes.tsx`",
+  "`app/lib/judging/results.server.ts`",
+  "`app/features/portal/presentations/detail/`",
+  "`app/routes/portal.presentaciones_.$choreographyId.tsx`",
 ];
 
 describe("domain documentation", () => {
@@ -425,7 +459,7 @@ describe("domain documentation", () => {
     const rules = await readFile("docs/domain/judging.md", "utf8");
     const beforeRanking = rules.slice(
       0,
-      rules.indexOf("## Ranking And Results"),
+      rules.indexOf("## Program And Results"),
     );
 
     expect(beforeRanking.length).toBeGreaterThan(0);
@@ -435,13 +469,32 @@ describe("domain documentation", () => {
     }
   });
 
-  test("keeps the ranking rules for the results effort to rewrite", async () => {
+  test("states the results rules the publishing effort built", async () => {
     const rules = await readFile("docs/domain/judging.md", "utf8");
 
-    expect(rules).toContain(
-      "Competitive average is rounded to two decimals and that rounded value orders positions.",
-    );
-    expect(rules).toContain("Ties are real competition ties, e.g. 1, 1, 3.");
+    for (const requirement of resultsJudgingRequirements) {
+      expect(rules, requirement).toContain(requirement);
+    }
+  });
+
+  test("drops the ranking from the judging doc and the glossary", async () => {
+    const rules = await readFile("docs/domain/judging.md", "utf8");
+    const glossary = await readFile("CONTEXT.md", "utf8");
+
+    for (const retired of retiredResultsTerms) {
+      expect(rules, retired).not.toContain(retired);
+      expect(glossary, retired).not.toContain(retired);
+    }
+  });
+
+  test("names the results vocabulary in the glossary", async () => {
+    const glossary = await readFile("CONTEXT.md", "utf8");
+
+    for (const requirement of resultsGlossaryRequirements) {
+      expect(glossary, requirement).toContain(requirement);
+    }
+
+    expect(glossary).not.toContain("resultsVisible");
   });
 
   test("names the judging vocabulary the scoring effort built", async () => {
