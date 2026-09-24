@@ -10,6 +10,7 @@ import {
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
+import { disqualifyPresentation } from "./disqualification.server";
 import { seedJudgingFixture } from "./judging.test-support";
 import { judgingDate } from "./judging-day";
 import { saveJudgeScore } from "./save-score.server";
@@ -412,5 +413,58 @@ describe("saving a judge's sheet of criteria", () => {
       reason: "invalid-sheet",
     });
     expect(await readScores(sheet.judge.judgeAssignmentId)).toEqual([]);
+  });
+});
+
+describe("saving on a presentation a colleague disqualified", () => {
+  test("stores the take, leaves the score alone and says so", async () => {
+    const { judge, presentation } = await seedOpenPresentation();
+    const audio = createAudioStorage();
+
+    await saveJudgeScore({
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+      value: "80",
+    });
+    await disqualifyPresentation({
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+    });
+
+    const result = await saveJudgeScore({
+      audio: { file: webmTake(), intent: "replace" },
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+      storage: audio.storage,
+      value: "20",
+    });
+
+    expect(result).toEqual({ disqualified: true, ok: true });
+    expect(await readScores(judge.judgeAssignmentId)).toMatchObject([
+      { feedbackAudioStorageKey: audio.uploaded[0], value: "80.0" },
+    ]);
+  });
+
+  test("leaves a `Devolución` with no score for a judge who had not scored yet", async () => {
+    const { judge, presentation } = await seedOpenPresentation();
+    const audio = createAudioStorage();
+
+    await disqualifyPresentation({
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+    });
+
+    const result = await saveJudgeScore({
+      audio: { file: webmTake(), intent: "replace" },
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+      storage: audio.storage,
+      value: "no es un puntaje",
+    });
+
+    expect(result).toEqual({ disqualified: true, ok: true });
+    expect(await readScores(judge.judgeAssignmentId)).toMatchObject([
+      { feedbackAudioStorageKey: audio.uploaded[0], value: null },
+    ]);
   });
 });

@@ -1,16 +1,17 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   choreographies,
-  judgeAssignments,
   presentations,
-  schedules,
   scoreCriterionValues,
   scores,
   submodalityCriteria,
 } from "@/db/schema";
-import { isOpenForJudges } from "@/lib/judging/judging-day";
+import {
+  readJudgeWriteTarget,
+  type JudgeWriteTarget,
+} from "@/lib/judging/judge-write.server";
 import {
   formatScoreValue,
   parseScoreValue,
@@ -39,6 +40,11 @@ import {
  * replaces is deleted only after the commit: a failed upload takes the whole
  * save down rather than leaving a score pointing at nothing, and a rolled-back
  * save never costs the judge audio that was already stored.
+ *
+ * A presentation a colleague disqualified mid-dialog takes the take and nothing
+ * else. The judge is still owed their `Devolución` — the academy hears why —
+ * but a score typed before the panel closed the presentation must not land on
+ * top of what is already stored, so the value is left exactly as it was.
  */
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -46,7 +52,7 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type SaveJudgeScoreRefusal = "not-assigned" | "closed" | "invalid-value";
 
 export type SaveJudgeScoreResult =
-  | { ok: true }
+  | { disqualified?: true; ok: true }
   | { ok: false; reason: SaveJudgeScoreRefusal }
   | { fieldErrors: Record<string, string>; ok: false; reason: "invalid-sheet" }
   | { ok: false; reason: "invalid-audio"; rejection: UploadRejection };
@@ -75,89 +81,11 @@ export async function saveJudgeScore(
   input: SaveJudgeScoreInput,
 ): Promise<SaveJudgeScoreResult> {
   const audio = input.audio ?? { intent: "keep" };
-  const committed = await db.transaction(async (tx) => {
-    const [locked] = await tx
-      .select({ eventId: presentations.eventId, id: presentations.id })
-      .from(presentations)
-      .where(eq(presentations.id, input.presentationId))
-      .for("update");
+  const committed = await db.transaction(
+    async (tx) => await saveScoreWithin(tx, input, audio),
+  );
 
-    if (!locked) {
-      return { result: { ok: false, reason: "not-assigned" } as const };
-    }
-
-    const [assignment] = await tx
-      .select({
-        feedbackAudioStorageKey: scores.feedbackAudioStorageKey,
-        id: judgeAssignments.id,
-      })
-      .from(judgeAssignments)
-      .leftJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
-      .where(
-        and(
-          eq(judgeAssignments.presentationId, input.presentationId),
-          eq(judgeAssignments.userId, input.judgeId),
-        ),
-      );
-
-    if (!assignment) {
-      return { result: { ok: false, reason: "not-assigned" } as const };
-    }
-
-    if (!(await isPresentationOpenForJudges(tx, input))) {
-      return { result: { ok: false, reason: "closed" } as const };
-    }
-
-    const sheet = await readSheet(tx, input);
-
-    if (!sheet.ok) {
-      return { result: sheet.result };
-    }
-
-    const storedKey = assignment.feedbackAudioStorageKey;
-    const nextKey = await resolveFeedbackAudioKey({
-      audio,
-      eventId: locked.eventId,
-      judgeId: input.judgeId,
-      presentationId: input.presentationId,
-      storage: input.storage,
-      storedKey,
-    });
-
-    if (!nextKey.ok) {
-      return {
-        result: {
-          ok: false,
-          reason: "invalid-audio",
-          rejection: nextKey.rejection,
-        } as const,
-      };
-    }
-
-    const row = {
-      feedbackAudioStorageKey: nextKey.storageKey,
-      value: formatScoreValue(sheet.total),
-    };
-
-    const [saved] = await tx
-      .insert(scores)
-      .values({ ...row, judgeAssignmentId: assignment.id })
-      .onConflictDoUpdate({
-        target: scores.judgeAssignmentId,
-        set: { ...row, updatedAt: new Date() },
-      })
-      .returning({ id: scores.id });
-
-    await writeSheetValues(tx, saved.id, sheet.values);
-
-    return {
-      previousKey:
-        storedKey && storedKey !== nextKey.storageKey ? storedKey : null,
-      result: { ok: true } as const,
-    };
-  });
-
-  if ("previousKey" in committed && committed.previousKey) {
+  if (committed.previousKey) {
     await removeReplacedFeedbackAudio({
       storage: input.storage,
       storageKey: committed.previousKey,
@@ -165,6 +93,140 @@ export async function saveJudgeScore(
   }
 
   return committed.result;
+}
+
+/**
+ * The whole write, once every refusal is out of the way. What it hands back
+ * beside the result is the object the save orphaned, which is deleted only
+ * after the commit.
+ */
+async function saveScoreWithin(
+  tx: Transaction,
+  input: SaveJudgeScoreInput,
+  audio: FeedbackAudioSubmission,
+): Promise<{ previousKey: string | null; result: SaveJudgeScoreResult }> {
+  const prepared = await prepareScoreWrite(tx, input, audio);
+
+  if (!prepared.ok) {
+    return { previousKey: null, result: prepared.result };
+  }
+
+  const { sheet, storageKey, target } = prepared;
+
+  await writeScore(tx, {
+    judgeAssignmentId: target.judgeAssignmentId,
+    sheet,
+    storageKey,
+  });
+
+  return {
+    previousKey:
+      target.feedbackAudioStorageKey === storageKey
+        ? null
+        : target.feedbackAudioStorageKey,
+    result: target.disqualified
+      ? { disqualified: true, ok: true }
+      : { ok: true },
+  };
+}
+
+type PreparedScoreWrite =
+  | { ok: false; result: SaveJudgeScoreResult }
+  | {
+      ok: true;
+      /** Null on a disqualified presentation, which takes the take and nothing else. */
+      sheet: { total: number; values: SheetLine[] | null } | null;
+      storageKey: string | null;
+      target: JudgeWriteTarget;
+    };
+
+/**
+ * Everything the write depends on, resolved in the order the judge would want
+ * it refused in: a presentation that is not theirs, then a day that closed,
+ * then a value the sheet does not accept, and only then the upload — so a take
+ * is never stored for a save that was never going to happen.
+ */
+async function prepareScoreWrite(
+  tx: Transaction,
+  input: SaveJudgeScoreInput,
+  audio: FeedbackAudioSubmission,
+): Promise<PreparedScoreWrite> {
+  const found = await readJudgeWriteTarget(tx, input);
+
+  if (!found.ok) {
+    return { ok: false, result: { ok: false, reason: found.reason } };
+  }
+
+  const target = found.target;
+  const sheet = target.disqualified ? null : await readSheet(tx, input);
+
+  if (sheet && !sheet.ok) {
+    return { ok: false, result: sheet.result };
+  }
+
+  const nextKey = await resolveFeedbackAudioKey({
+    audio,
+    eventId: target.eventId,
+    judgeId: input.judgeId,
+    presentationId: input.presentationId,
+    storage: input.storage,
+    storedKey: target.feedbackAudioStorageKey,
+  });
+
+  if (!nextKey.ok) {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        reason: "invalid-audio",
+        rejection: nextKey.rejection,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    sheet: sheet?.ok ? sheet : null,
+    storageKey: nextKey.storageKey,
+    target,
+  };
+}
+
+/**
+ * The judge's row, written as one upsert on their assignment so that a doubled
+ * tap in the dark cannot yield two scores. `sheet` is null on a disqualified
+ * presentation, and then the stored value is left exactly as it stands: the
+ * take is all that save is allowed to change.
+ */
+async function writeScore(
+  tx: Transaction,
+  input: {
+    judgeAssignmentId: string;
+    sheet: { total: number; values: SheetLine[] | null } | null;
+    storageKey: string | null;
+  },
+) {
+  const value = input.sheet ? formatScoreValue(input.sheet.total) : null;
+  const [saved] = await tx
+    .insert(scores)
+    .values({
+      feedbackAudioStorageKey: input.storageKey,
+      judgeAssignmentId: input.judgeAssignmentId,
+      value,
+    })
+    .onConflictDoUpdate({
+      target: scores.judgeAssignmentId,
+      set: {
+        feedbackAudioStorageKey: input.storageKey,
+        updatedAt: new Date(),
+        ...(input.sheet ? { value } : {}),
+      },
+    })
+    .returning({ id: scores.id });
+
+  if (input.sheet) {
+    await writeSheetValues(tx, saved.id, input.sheet.values);
+  }
 }
 
 type FeedbackAudioKeyResolution =
@@ -235,34 +297,19 @@ function feedbackAudioStorage(storage?: FeedbackAudioStorage) {
   return storage ?? createDefaultFeedbackAudioStorage();
 }
 
-/**
- * A presentation whose choreography has no schedule yet has no day to be open
- * on, so it is closed: the judges are given the program before they are given
- * anything to score.
- */
-async function isPresentationOpenForJudges(
-  tx: Transaction,
-  input: Pick<SaveJudgeScoreInput, "now" | "presentationId">,
-): Promise<boolean> {
-  const [row] = await tx
-    .select({ scheduledDate: schedules.scheduledDate })
-    .from(presentations)
-    .innerJoin(
-      choreographies,
-      eq(choreographies.id, presentations.choreographyId),
-    )
-    .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
-    .where(eq(presentations.id, input.presentationId));
-
-  return Boolean(row) && isOpenForJudges(row.scheduledDate, input.now);
-}
+type SheetLine = { criterionId: string; value: number };
 
 type SheetResolution =
-  | { ok: false; result: SaveJudgeScoreResult }
+  | {
+      ok: false;
+      result: SaveJudgeScoreResult;
+      total?: undefined;
+      values?: undefined;
+    }
   | {
       ok: true;
       total: number;
-      values: { criterionId: string; value: number }[] | null;
+      values: SheetLine[] | null;
     };
 
 /**
@@ -333,7 +380,7 @@ async function readSheet(
 async function writeSheetValues(
   tx: Transaction,
   scoreId: string,
-  values: { criterionId: string; value: number }[] | null,
+  values: SheetLine[] | null,
 ) {
   if (values === null) {
     return;
