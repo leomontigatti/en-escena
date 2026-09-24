@@ -28,8 +28,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
 import type { PresentationWarningKind } from "@/lib/presentations/warnings";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
@@ -43,6 +45,7 @@ import {
 } from "./notices";
 import {
   movePresentationIntent,
+  presentationRowPath,
   type PresentationListActionData,
   type PresentationListItem,
   type PresentationListResult,
@@ -66,6 +69,19 @@ const warningTriage: {
   { kind: "outOfBlock", label: "Fuera de bloque" },
   { kind: "missingLevel", label: "Sin nivel" },
 ];
+
+/**
+ * What an evaluated row's badge says. It replaces the warning badge rather
+ * than joining it: the warnings exist to be fixed before the presentation is
+ * judged, so once it has been they have nothing left to ask for.
+ */
+const evaluationBadges: Record<
+  Exclude<PresentationEvaluationStatus, "pendiente">,
+  { label: string; variant: "destructive" | "success" }
+> = {
+  descalificada: { label: "Descalificada", variant: "destructive" },
+  evaluada: { label: "Evaluada", variant: "success" },
+};
 
 /**
  * The list's columns. The number is a cell the administrator writes into, so
@@ -105,7 +121,7 @@ function buildPresentationColumns({
     {
       id: "categoriaTipoGrupo",
       header: "Categoría / Tipo de grupo",
-      width: 16,
+      width: 14,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -119,7 +135,7 @@ function buildPresentationColumns({
     {
       id: "modalidadSubmodalidad",
       header: "Modalidad / Submodalidad",
-      width: 20,
+      width: 17,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -133,7 +149,7 @@ function buildPresentationColumns({
     {
       id: "academia",
       header: "Academia",
-      width: 19,
+      width: 16,
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
     },
@@ -149,10 +165,25 @@ function buildPresentationColumns({
         <DataTableTruncatedText
           value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
         >
-          <DataTableLink to={`/administracion/coreografias/${row.id}`}>
+          <DataTableLink to={presentationRowPath(row)}>
             {row.name}
           </DataTableLink>
         </DataTableTruncatedText>
+      ),
+    },
+    {
+      id: "nivel",
+      header: "Nivel",
+      width: 8,
+      className: "text-muted-foreground",
+      cell: (row) => (
+        <DataTableTruncatedText
+          value={
+            row.experienceLevel === null
+              ? "—"
+              : experienceLevelLabels[row.experienceLevel]
+          }
+        />
       ),
     },
     {
@@ -479,6 +510,14 @@ export function PresentationsListView({
 function PresentationStatusBadge({ row }: { row: PresentationListItem }) {
   if (row.orderNumber === null) {
     return <Badge variant="info">Sin número</Badge>;
+  }
+
+  if (row.evaluationStatus !== "pendiente") {
+    const badge = evaluationBadges[row.evaluationStatus];
+
+    // No count and no tooltip: the badge is the whole answer, and what the
+    // panel gave is read in the scores view the row's name now leads to.
+    return <Badge variant={badge.variant}>{badge.label}</Badge>;
   }
 
   const sorted = [...row.warnings].sort(
