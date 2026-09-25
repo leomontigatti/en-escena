@@ -7,6 +7,11 @@ const scheduleDayFormatter = new Intl.DateTimeFormat("es-AR", {
   timeZone: "UTC",
 });
 
+const scheduleWeekdayFormatter = new Intl.DateTimeFormat("es-AR", {
+  weekday: "long",
+  timeZone: "UTC",
+});
+
 /**
  * A schedule's day on its own, without the time. A day holds as many schedules
  * as the event needs, so what names it is the date they share.
@@ -19,6 +24,24 @@ export function formatScheduleDayLabel(scheduledDate: string) {
   }
 
   return scheduleDayFormatter.format(new Date(`${scheduledDate}T00:00:00Z`));
+}
+
+/**
+ * The same day in the short form a row of tabs has room for: the weekday, which
+ * is what the organizers plan by, and the day and month. The year is left out
+ * because every day of an event shares it.
+ */
+export function formatScheduleDayTabLabel(scheduledDate: string) {
+  if (!isDateOnly(scheduledDate)) {
+    return scheduledDate;
+  }
+
+  const [, month, day] = scheduledDate.split("-").map(Number);
+  const weekday = scheduleWeekdayFormatter.format(
+    new Date(`${scheduledDate}T00:00:00Z`),
+  );
+
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${day}/${month}`;
 }
 
 export type ScheduleDateTimeInput = {

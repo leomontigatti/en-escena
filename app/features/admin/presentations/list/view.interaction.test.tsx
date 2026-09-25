@@ -106,6 +106,18 @@ describe("the participation list moved by hand", () => {
     ]);
   });
 
+  test("keeps only the digits of what is typed into the number", async () => {
+    await mount();
+
+    const input = numberInput("Segunda");
+
+    await updateReactDomForm(() => {
+      setInputValue(input, "-1e.");
+    });
+
+    expect(input.value).toBe("1");
+  });
+
   test("commits the typed number on blur", async () => {
     await mount();
 

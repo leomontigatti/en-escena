@@ -498,6 +498,49 @@ describe("DataTable fit layout", () => {
     ]);
   });
 
+  test("cuts a header at its column's edge in a fit table instead of spilling it", () => {
+    const markup = renderTable({ layout: "fit" });
+
+    // A fixed column cannot grow to hold its header, so the label is cut like
+    // a long cell rather than drawn over the next column's.
+    expect(markup).toMatch(
+      /<th[^>]*><span title="Academia"[^>]*>Academia<\/span><\/th>/,
+    );
+  });
+
+  test("cuts a sortable header inside its sort link too", () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/administracion/coreografias"]}>
+        <ServerDataTable
+          rows={[row]}
+          columns={[
+            {
+              id: "academy",
+              header: "Academia",
+              width: 1,
+              cell: (c) => c.academy,
+              sortValue: (c) => c.academy,
+            },
+          ]}
+          getRowKey={(current) => current.id}
+          layout="fit"
+          searchPlaceholder="Buscar coreografía por nombre"
+          currentPage={1}
+          totalPages={1}
+          totalRows={1}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toMatch(/<a [^>]*max-w-full[^>]*><span title="Academia"/);
+  });
+
+  test("leaves a header whole in an auto table, where its column fits it", () => {
+    const markup = renderTable({ layout: "auto" });
+
+    expect(markup).not.toContain('title="Academia"');
+  });
+
   test("leaves a column with no weight to share what the others did not claim", () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter initialEntries={["/administracion/coreografias"]}>

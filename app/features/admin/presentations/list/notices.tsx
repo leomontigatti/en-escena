@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
+import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 import {
@@ -154,7 +154,13 @@ export function PresentationDayTabs({
   };
 
   return (
-    <Tabs value={loaderData.filters.day ?? allDaysTabValue}>
+    <Tabs
+      value={loaderData.filters.day ?? allDaysTabValue}
+      // An event with more days than the page is wide scrolls its tabs rather
+      // than widening the page; the padding keeps the active underline, drawn
+      // below the list, inside the scroll box that would otherwise clip it.
+      className="max-w-full overflow-x-auto pb-1"
+    >
       <TabsList variant="line">
         <TabsTrigger
           value={allDaysTabValue}
@@ -164,7 +170,7 @@ export function PresentationDayTabs({
         </TabsTrigger>
         {loaderData.days.map((day) => (
           <TabsTrigger key={day} value={day} onClick={() => selectDay(day)}>
-            {formatScheduleDayLabel(day)}
+            {formatScheduleDayTabLabel(day)}
           </TabsTrigger>
         ))}
       </TabsList>
