@@ -763,6 +763,40 @@ terms, a single-agent readback for everything else.
 Two rules sit on top of it for a local session: keep the change scoped to the requested
 behaviour, and do not commit unless the user explicitly asks for a commit.
 
+Before calling a change done, walk this list and say which entries applied. The most common
+defect here is a change that works on the path that was tested and is missing everywhere else.
+
+- **Reverse states.** If you added a way in, add the way out and the way to see it. Open needs
+  close, publish needs a visible published state and, where the domain allows it, unpublish. A
+  one-way door is a bug, not a smaller feature.
+- **Entry points.** A behaviour reachable from the admin is usually also reachable from the
+  portal, or from a list and its detail. Fixing one path is not fixing the feature; say which
+  paths you checked and which are deliberately different.
+- **Docs.** Check whether the change makes existing guidance wrong, then apply the
+  [documentation rules](#documentation) before adding anything.
+
+## Documentation
+
+Most code changes need no documentation change: agents and maintainers read the code. Before
+adding a paragraph anywhere under `docs/`, ask what a maintainer or a later session would get
+wrong without it. If reading the relevant code answers the question, leave it out.
+
+- `docs/agents/` holds operative rules and the traps that are hard to discover from the source.
+  `docs/domain/` holds the model, and `check:doc-map` fails a PR that changes mapped code without
+  touching its page. `docs/adr/` holds decisions and their reasons.
+- Do not enumerate fields or functions, narrate control flow, keep file catalogs, or append PR
+  summaries. Types, tests and code already record the implementation. A local explanation goes
+  in a nearby code comment; a doc page is for reasoning that crosses boundaries.
+- When a documented decision or constraint changes, rewrite or remove the affected text. Do not
+  append a second account of the new behaviour. ADRs are the exception: they are records, so a
+  change is a dated amendment section, and a reversal is a new ADR that supersedes.
+- Plans, research notes and scratch files stay out of the repo. The issue and the PR are the
+  record of the work ([pull-requests.md](./pull-requests.md#prd-prs)); a plan page is committed
+  only when it carries decisions a later session has to honour, as
+  [test-suite-speed-plan.md](./test-suite-speed-plan.md) does. Research that is a durable primary
+  source goes under `docs/research/` per
+  [issue-tracker.md](./issue-tracker.md#research-tickets).
+
 The DB TDD and Frontend State TDD sections below are this repo's detail for the skill's two
 sub-workflows, and UI verification is its browser step.
 

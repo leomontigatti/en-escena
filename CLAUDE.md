@@ -32,6 +32,8 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Implementing** (a feature, a fix, any code change) happens in a local session: call the
   Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
+- **Documentation** (when a change needs a doc change, which is rarely, and where it goes):
+  see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
   (canonical). Guide for the whole repo, not just for Sandcastle. Includes the code
   language convention (Spanish for what the user reads, English for everything else;
