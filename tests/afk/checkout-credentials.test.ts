@@ -286,7 +286,10 @@ describe("no post-session step runs the tree with the PAT (#1029)", () => {
 describe("the pre-session guard shipped in the workflows", () => {
   // One representative copy drives the behaviour cases; the suite below pins
   // every workflow's copy to it, so covering one covers all of them.
-  const block = liftBlock(".github/workflows/agent-review.yml", GUARD_START);
+  const block = liftBlock(
+    ".github/workflows/agent-update-branch.yml",
+    GUARD_START,
+  );
 
   function repoWithConfig(...config: string[]): string {
     const repo = join(scratch, "repo");
@@ -339,12 +342,15 @@ describe("the pre-session guard shipped in the workflows", () => {
         `${file}: the identity step must refuse to start the agent over a persisted credential`,
       ).toBe(block);
     }
-    expect(agentWorkflows().length).toBeGreaterThanOrEqual(5);
+    expect(agentWorkflows().length).toBeGreaterThanOrEqual(1);
   });
 });
 
 describe("the race-safe push shipped in the workflows", () => {
-  const block = liftBlock(".github/workflows/agent-review.yml", PUSH_START);
+  const block = liftBlock(
+    ".github/workflows/agent-update-branch.yml",
+    PUSH_START,
+  );
 
   interface Fixture {
     work: string;
@@ -421,7 +427,7 @@ describe("the race-safe push shipped in the workflows", () => {
     const { status, reason } = push(f);
 
     expect(status).toBe(1);
-    expect(reason).toBe("Branch advanced during review run.");
+    expect(reason).toBe("Branch advanced during update-branch run.");
   });
 
   it("fails the step when the push fails for any other reason", () => {

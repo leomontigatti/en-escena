@@ -1,6 +1,6 @@
 # Pull requests
 
-How a PR is written here, by a session or by an AFK runner. The title rule is
+How a PR is written here. The title rule is
 enforced (`pnpm check:pr-title`, see [workflows.md](./workflows.md#continuous-integration));
 everything below is convention. Branches and linking the PR to its T3 thread are
 in [workflows.md](./workflows.md#branches-worktrees-and-t3-code-threads).
@@ -79,12 +79,10 @@ change to motion or interaction carries a short GIF instead.
 - **The repository is public, and so is every asset.** Remove one with
   `gh release delete-asset pr-assets <name>`.
 - Never commit PR-only evidence to the repo.
-- AFK runners have no browser and are exempt.
 
 ## Babysitting a PR
 
 When asked to see a PR through: read the checks and the review comments newer
 than the last push, verify each finding against the source, fix the real ones
 and answer the false positives with the reason. Say nothing when nothing is
-new. Stop when CI and the review are clean on the latest commit. A review
-outcome of `agent:needs-decision` is handled with `/review-triage`, not here.
+new. Stop when CI and the review are clean on the latest commit.

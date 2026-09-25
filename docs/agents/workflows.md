@@ -6,27 +6,26 @@ These workflows adapt useful ideas from `mattpocock/course-video-manager` to thi
 
 ## Where work starts
 
-Implementation runs on the AFK platform by default (`docs/agents/afk-setup.md`):
-work arrives as an issue, a label dispatches it, and a local session builds
-only what it was asked to build in that session (a docs change, a skill, a
-fix the user wants done in front of them). Three entry points, by how much is
-still unknown:
+Implementation happens in a local T3 Code session (ADR-0016): a session has a
+browser, the dev database and a human to ask, and the AFK implement runners had
+none of those. Three entry points, by how much is still unknown:
 
-- **Small and clear** (a bug, a UI tweak, a one-slice feature): write the
-  issue with what to build and its acceptance criteria, then label it
-  `agent:implement`. No PRD, no map.
+- **Small and clear** (a bug, a UI tweak, a one-slice feature): say it in the
+  thread, or write the issue with what to build and its acceptance criteria and
+  label it `ready-for-agent`. No PRD, no map. A session grabs it and runs the
+  `implement` skill.
 - **Clear but big** (known shape, several slices): write one PRD with the
-  [PRD workflow](#prd-workflow), label it `agent:to-issues`, then
-  `agent:implement`. Implement PRD chains the sub-issues onto one PR, and one
-  review covers the whole.
+  [PRD workflow](#prd-workflow) and label it `agent:to-issues`, or slice it by
+  hand. A session then implements the sub-issues in order onto one branch and
+  one PR.
 - **Foggy** (decisions nobody has made yet): `/wayfinder`. The map's tickets
   are grilling, research, prototype or task; a prototype is a throwaway
   artifact whose result is a decision on its ticket, never another PRD. The map
   ends with one or more PRDs, per the exit shapes in
   [issue-tracker.md](./issue-tracker.md#wayfinding-operations).
 
-After the review, the PR carries `agent:ready` or `agent:needs-decision`; the
-second is the cue for `/review-triage`, which also lands the PR.
+The PR is reviewed in the session before it is opened (`implement` step 4) and
+babysat afterwards per [pull-requests.md](./pull-requests.md#babysitting-a-pr).
 
 ## Investigate before implementing
 
@@ -141,9 +140,8 @@ Rules for a session:
 - **Branch prefixes.** T3 names the worktree's branch when it creates the
   thread; when a session renames it or creates one, human-driven work uses
   `feat/`, `fix/`, `docs/`, `chore/`, `refactor/`, `research/` or
-  `prototype/`. The `agent/` prefix is
-  reserved for the AFK workflows on GitHub Actions (`agent/issue-<n>-<slug>`,
-  `agent/prd-<n>-<slug>`, spec §3.9); a local session never creates one.
+  `prototype/`. The `agent/` prefix belonged to the retired AFK implement
+  runners (ADR-0016); a session never creates one.
 - **One thread, one branch, one PR.** After `gh pr create`, register the PR with
   the thread through the `link_pull_request` tool so T3 shows its status and
   settles the thread when it merges. To keep working on an existing PR, start
@@ -235,18 +233,11 @@ runtime that runs). The point is not that one edit suffices; it is that the test
 above names every copy you forgot, instead of a runner and a container quietly
 disagreeing months later.
 
-### Waiting on AFK runs and CI from a session
+### Waiting on CI from a session
 
-A session that drives AFK work (a reviewed PR to land, a chain of issues) never
-polls by hand. `pnpm afk:watch pr <n> --until <review|implement|checks|merged>`
-(or `issue <n> --until <pr|closed|label:<name>>`) blocks until the event happens,
-prints one JSON line and exits; run it as a background command and act when it
-returns. It reads labels, reviews, threads and the five required contexts
-(`checks`, `db-gate`, `docs-gate`, `actions-gate` and `pr-title`), and
-ignores workflow runs on purpose: every `agent:implement` label also fires
-`agent-implement-prd.yml`, which skips when the issue has no sub-issues, and a
-watcher on runs would wake on that noise. The `review-triage` skill is its
-caller.
+A session never polls by hand. `gh pr checks <n> --watch` blocks until every
+check on the PR is terminal and exits non-zero when one failed; run it as a
+background command and act when it returns.
 
 ### The actions gate
 
@@ -493,9 +484,8 @@ Hook guidance:
     `pnpm typecheck && pnpm lint` and **blocks** with exit 2, putting the failing
     output in front of the agent. It costs ~11.6 s (5.1 s typecheck + ~6.5 s
     lint, type-aware since #986). It exits 0 without running
-    anything when `SKIP_STOP_CHECKS` is set, when `GITHUB_WORKFLOW` is any
-    workflow outside `AFK Implement`, `AFK Implement PRD` and `AFK Implement PR`,
-    or when no changed path — tracked or untracked — matches what either half
+    anything when `SKIP_STOP_CHECKS` is set, when `GITHUB_WORKFLOW` is set
+    (no workflow authors app code since ADR-0016), or when no changed path — tracked or untracked — matches what either half
     of the gate reads: `.ts`/`.tsx`/`.mts`/`.cts` plus `tsconfig*.json` and
     `package.json` for typecheck, and `.js`/`.jsx`/`.mjs`/`.cjs` plus
     `.oxlintrc.json` for lint — type-aware lint reads `.ts`/`.tsx` as well, which

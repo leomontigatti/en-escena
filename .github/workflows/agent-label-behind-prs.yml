@@ -1,10 +1,13 @@
 # AFK — Label Behind PRs. Feeds Update Branch (spec §4.6).
 #
-# push to `master` → every open `agent/*` PR whose merge state is `BEHIND` gets
+# push to `master` → every open PR whose merge state is `BEHIND` gets
 # `agent:update-branch`, which is what starts `agent-update-branch.yml`. Branch
 # protection here is strict, so a stacked PR is behind the moment the one below
 # it merges; without this the label is a hand a human (or a driving session) has
-# to lend per PR, on a decision that needs no judgement (#1020).
+# to lend per PR, on a decision that needs no judgement (#1020). It used to be
+# limited to `agent/*` branches; since implementation moved to local sessions
+# (ADR-0016) every human branch is a candidate, and only the dependency bots'
+# branches are skipped, because they rebase themselves.
 #
 # This workflow only labels. The merge itself, the conflict agent, the push and
 # the comment all stay in Update Branch — one place does the work, whether the
@@ -63,7 +66,7 @@ jobs:
           # Per-command auth (#956): no credential belongs in `.git/config`.
           persist-credentials: false
 
-      - name: Label every behind agent/* PR
+      - name: Label every behind PR
         env:
           # Per-command auth (#956): each `gh` call below is handed exactly the
           # token it needs, and only `gh` ever sees one — the checkout above
@@ -77,7 +80,7 @@ jobs:
           # off by the query itself. For the first seconds after a push every PR
           # answers UNKNOWN, and a run that believed that first answer would
           # label nothing at all — the one moment this workflow exists for. Ask
-          # again until no agent/* PR is UNKNOWN, or the attempts run out.
+          # again until no candidate PR is UNKNOWN, or the attempts run out.
 
           # One page. A repo with more open PRs than this against $BASE_REF would
           # leave some of them unseen, and nothing else in the run would say so.
@@ -87,12 +90,12 @@ jobs:
           while :; do
             prs=$(GH_TOKEN="$GITHUB_TOKEN" gh pr list --state open --base "$BASE_REF" --limit "$page_limit" \
               --json number,headRefName,mergeStateStatus,labels)
-            agent_prs=$(printf '%s' "$prs" | jq '[.[] | select(.headRefName | startswith("agent/"))]')
-            unknown=$(printf '%s' "$agent_prs" | jq '[.[] | select(.mergeStateStatus == "UNKNOWN")] | length')
+            candidate_prs=$(printf '%s' "$prs" | jq '[.[] | select((.headRefName | startswith("renovate/") or startswith("dependabot/")) | not)]')
+            unknown=$(printf '%s' "$candidate_prs" | jq '[.[] | select(.mergeStateStatus == "UNKNOWN")] | length')
             if [ "$unknown" -eq 0 ] || [ "$attempt" -ge "$MERGE_STATE_ATTEMPTS" ]; then
               break
             fi
-            echo "$unknown agent/* PR(s) still report UNKNOWN mergeability; retrying ($attempt/$MERGE_STATE_ATTEMPTS)."
+            echo "$unknown PR(s) still report UNKNOWN mergeability; retrying ($attempt/$MERGE_STATE_ATTEMPTS)."
             sleep "$MERGE_STATE_DELAY_SECONDS"
             attempt=$((attempt + 1))
           done
@@ -117,7 +120,7 @@ jobs:
           # `agent:update-branch` already present means the previous pass labelled
           # it and the run has not started yet: re-adding is a no-op that would
           # not re-trigger anything anyway.
-          behind=$(printf '%s' "$agent_prs" | jq -r '
+          behind=$(printf '%s' "$candidate_prs" | jq -r '
             .[]
             | select(.mergeStateStatus == "BEHIND")
             | select([.labels[].name] | index("agent:in-progress") == null)
@@ -125,7 +128,7 @@ jobs:
             | .number')
 
           if [ -z "$behind" ]; then
-            echo "No open agent/* PR is behind $BASE_REF."
+            echo "No open PR is behind $BASE_REF."
             exit 0
           fi
 

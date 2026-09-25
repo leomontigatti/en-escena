@@ -1,11 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-// Shared reading + evaluation helpers for the three workflows-over-a-PR. Both
-// `pr-workflow-concurrency.test.ts` (#383) and `pr-workflow-fork-guard.test.ts`
-// (#635) assert a property across the same table, and both need to evaluate a
-// GitHub Actions expression rather than match its spelling: the property is what
-// the condition *decides*, not how it is written.
+// Shared reading + evaluation helpers for the workflows-over-a-PR (one since
+// the implement and review runners were retired, ADR-0016).
+// `pr-workflow-fork-guard.test.ts` (#635) asserts a property across the table,
+// and needs to evaluate a GitHub Actions expression rather than match its
+// spelling: the property is what the condition *decides*, not how it is written.
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -24,11 +24,6 @@ export interface PrWorkflow {
  * rather than a silent coverage hole.
  */
 export const PR_WORKFLOWS: PrWorkflow[] = [
-  { file: ".github/workflows/agent-review.yml", label: "agent:review" },
-  {
-    file: ".github/workflows/agent-implement-pr.yml",
-    label: "agent:implement",
-  },
   {
     file: ".github/workflows/agent-update-branch.yml",
     label: "agent:update-branch",
@@ -195,7 +190,7 @@ export function forkExposedWorkflows(): string[] {
   return workflowFiles()
     .filter((file) => {
       // Scoped to the `on:` block: the string also appears in prose comments
-      // about workflows that merely *trigger* one of these (agent-implement.yml).
+      // about workflows that merely *trigger* one of these.
       const on = topLevelBlock(file, "on");
       if (!on || !/^ {2}pull_request_target:/m.test(on)) return false;
       return /^[ \t]*ref:.*github\.event\.pull_request\.head\./m.test(
@@ -259,18 +254,6 @@ export function workflowSteps(file: string): WorkflowStep[] {
   }
 
   return steps;
-}
-
-/**
- * Every workflow with a preflight step (`id: preflight`), discovered from disk
- * rather than listed: the gating invariant is a property of that *shape*, so a
- * workflow that grows a preflight later is covered without anyone remembering
- * to extend a table.
- */
-export function workflowsWithPreflight(): string[] {
-  return workflowFiles().filter((file) =>
-    workflowSteps(file).some((step) => step.id === "preflight"),
-  );
 }
 
 function concurrencyBlock(file: string): string {

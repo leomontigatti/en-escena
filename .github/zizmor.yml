@@ -11,13 +11,10 @@ rules:
   # chore that gets skipped, while `stable` lags `latest` by weeks and moves
   # without upkeep. The runs are reproducible after the fact instead: every
   # install step prints `claude --version`. `npx skills@latest` is gone — the
-  # `code-review` skill is vendored and copied from `origin/master` (#965, #966).
+  # `code-review` skill runs in local sessions only since the implement and review
+  # runners were retired (ADR-0016).
   adhoc-packages:
     ignore:
-      - agent-implement.yml
-      - agent-implement-pr.yml
-      - agent-implement-prd.yml
-      - agent-review.yml
       - agent-to-issues-prd.yml
       - agent-update-branch.yml
       - architecture-review.yml

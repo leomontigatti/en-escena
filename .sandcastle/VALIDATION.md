@@ -66,7 +66,7 @@ running them yourself, since it reports once at the end with no idea what you
 changed. It skips a turn that touched nothing either half of the gate reads —
 `.ts`/`.tsx`/`.mts`/`.cts`, `tsconfig*.json` and `package.json` for typecheck,
 `.js`/`.jsx`/`.mjs`/`.cjs` and `.oxlintrc.json` for lint — and it skips every
-workflow outside the three implement runners, `AFK Review` included. It looks at
+workflow on GitHub Actions. It looks at
 the working tree only; committed work was already typechecked by pre-commit.
 `SKIP_STOP_CHECKS` set to any value is the bypass (`SKIP_STOP_CHECKS=1`), and it
 is for local work, not for getting a red branch committed here. Both hooks are
@@ -131,10 +131,10 @@ about 13 minutes. Measured on this repo, pinned to 2 cores:
 | `pnpm test:db`     | ~10 min     |
 | `pnpm test` (both) | ~13 min     |
 
-Most runner steps get 30 minutes; the implement passes get 60, with a 50-minute
-budget (the table is in `docs/agents/afk-setup.md`). A prompt that asks for
-`pnpm test` before *and* after the edits spends ~26 minutes waiting, which is what
-exhausted a 30-minute budget on PR #512 and lost an entire review's findings.
+Runner steps get 20 to 30 minutes (the table is in `docs/agents/afk-setup.md`).
+When the implement runners still existed, a prompt that asked for `pnpm test`
+before *and* after the edits spent ~26 minutes waiting, which is what exhausted
+a 30-minute budget on PR #512 and lost an entire review's findings.
 
 CI never does this: `checks` runs on its own runner and the DB suite is split
 across the `db-shard` matrix behind the `db-gate` aggregator (#962), so the whole

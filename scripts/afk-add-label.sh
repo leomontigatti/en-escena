@@ -5,7 +5,7 @@
 # Usage: scripts/afk-add-label.sh <number> <label> <woken> <consequence>
 #
 #   number       the issue or PR number to label
-#   label        the label to add, e.g. `agent:implement`
+#   label        the label to add, e.g. `agent:update-branch`
 #   woken        the workflow the label is meant to start, for the fallback line
 #   consequence  what a wholly refused add leaves behind, for the `::error::`
 #

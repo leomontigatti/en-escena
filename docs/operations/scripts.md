@@ -75,17 +75,14 @@ recommended order for a final pass is in
 
 ## AFK Platform
 
-The agent platform: see [AFK setup](../agents/afk-setup.md) for the operational
-side and the [platform spec](../agents/afk-agent-platform-spec.md) for what each
-workflow does.
+The four remaining workflows (To Issues, Update Branch, Promote Queued,
+Architecture Review): see [AFK setup](../agents/afk-setup.md) for the
+operational side and ADR-0016 for why implementation and review moved to local
+sessions. Their runners are invoked by the workflows, never by hand.
 
-| Script                  | Purpose                                                                                                                                                           |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm afk:watch`        | Block until an AFK event happens on a PR or an issue, then print one JSON line and exit. Run it as a background command; see [Workflows](../agents/workflows.md). |
-| ⚠️ `pnpm setup:secrets` | Load the repo's GitHub Actions secrets through `gh`. Prompts for each value, so it needs a terminal. See [AFK setup](../agents/afk-setup.md).                     |
-| `pnpm agent:implement`  | Sandcastle runner for a single issue (spec §4.2). Invoked by the workflow, not by hand; it reads its input from environment variables.                            |
-| `pnpm agent:write-pr`   | Sandcastle runner that writes the PR body for a branch. Invoked by the workflow.                                                                                  |
-| `pnpm agent:review`     | Sandcastle runner that reviews a PR. Invoked by the workflow.                                                                                                     |
+| Script                  | Purpose                                                                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| ⚠️ `pnpm setup:secrets` | Load the repo's GitHub Actions secrets through `gh`. Prompts for each value, so it needs a terminal. See [AFK setup](../agents/afk-setup.md). |
 
 ## Pull Requests
 

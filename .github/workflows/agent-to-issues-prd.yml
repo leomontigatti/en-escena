@@ -3,7 +3,7 @@
 # issue labeled `agent:to-issues` → the to-issues agent drafts a flat, ordered
 # list of tracer-bullet slices → the orchestrator creates each as a native
 # sub-issue and attaches it to the PRD. No automatic chaining: a human reviews
-# the sub-issues, then labels the PRD `agent:implement`.
+# the sub-issues, then a local session implements them (ADR-0016).
 #
 # The orchestrator (this workflow) owns every tracker mutation; the runner holds
 # no GitHub token (spec §3.9).
