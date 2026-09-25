@@ -57,8 +57,11 @@ Closes #N
 ### PRD PRs
 
 One PR carries every sub-issue of a PRD. Its body is one paragraph saying what
-the PRD delivers, then `## Sub-issues` listing every sub-issue (number and
-title), then `Closes #<PRD>`. The PRD holds the rest.
+the PRD delivers, then `## Sub-issues` listing every sub-issue as a checkbox
+(number and title), then `Closes #<PRD>`. The PRD holds the rest. The session
+ticks each box when its slice lands on the branch, so the body is the progress
+record: a session that resumes the PR reads it there, not in the scrollback,
+and nothing is committed to the repository to track it.
 
 ## UI evidence
 
