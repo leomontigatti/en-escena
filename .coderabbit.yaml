@@ -5,6 +5,10 @@ language: en-US
 reviews:
   auto_review:
     enabled: true
+    # PRs here are usually stacked on a branch other than master; the default
+    # reviews only PRs whose base is the default branch.
+    base_branches:
+      - ".*"
   review_status: false
   path_filters:
     - "!docs/agents/afk-agent-platform-spec.md"
