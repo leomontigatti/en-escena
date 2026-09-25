@@ -197,6 +197,16 @@ database with another shard; the serial-within-a-runner isolation model of
 repo setting, not part of this file: renaming a job does not update branch
 protection, which is why the aggregator is named exactly `db-gate`.
 
+`test:unit` (`vitest.config.ts`) runs as two Vitest projects. A test file that
+calls `vi.mock`, `vi.doMock`, `vi.hoisted`, `vi.stubGlobal` or `vi.stubEnv`, or
+imports a local helper that does, runs in `unit-isolated` with a fresh module
+graph per file; every other file runs in `unit-shared` with `isolate: false`,
+sharing a worker and its already-imported modules with the files before it.
+The split is computed from file contents when the config loads, so there is no
+list to maintain, but a test in `unit-shared` must not rely on module-level
+state (a module's `let`, a `Set` or a cache) being reset between files: reset
+it in the test, or the next file on that worker sees what this one left.
+
 `.github/workflows/pr-title.yml` is a fifth gate, in its own file (#1007): one
 job, `pr-title`, running `pnpm check:pr-title` over
 `github.event.pull_request.title`. It is separate from `ci.yml` because it needs
