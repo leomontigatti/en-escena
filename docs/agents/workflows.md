@@ -767,8 +767,9 @@ Before calling a change done, walk this list and say which entries applied. The 
 defect here is a change that works on the path that was tested and is missing everywhere else.
 
 - **Reverse states.** If you added a way in, add the way out and the way to see it. Open needs
-  close, publish needs a visible published state and, where the domain allows it, unpublish. A
-  one-way door is a bug, not a smaller feature.
+  close, publish needs a visible published state and, where the domain allows it, unpublish.
+  When the domain makes a transition irreversible, the screen shows the terminal state and
+  says so; a one-way door with no way to see it is a bug, not a smaller feature.
 - **Entry points.** A behaviour reachable from the admin is usually also reachable from the
   portal, or from a list and its detail. Fixing one path is not fixing the feature; say which
   paths you checked and which are deliberately different.
@@ -783,7 +784,9 @@ wrong without it. If reading the relevant code answers the question, leave it ou
 
 - `docs/agents/` holds operative rules and the traps that are hard to discover from the source.
   `docs/domain/` holds the model, and `check:doc-map` fails a PR that changes mapped code without
-  touching its page. `docs/adr/` holds decisions and their reasons.
+  touching its page or carrying a `Doc-Change-Not-Needed: <reason>` commit trailer
+  ([CODING_STANDARDS.md](../../.sandcastle/CODING_STANDARDS.md#documentation-gate)).
+  `docs/adr/` holds decisions and their reasons.
 - Do not enumerate fields or functions, narrate control flow, keep file catalogs, or append PR
   summaries. Types, tests and code already record the implementation. A local explanation goes
   in a nearby code comment; a doc page is for reasoning that crosses boundaries.
