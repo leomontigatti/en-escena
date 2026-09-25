@@ -92,12 +92,10 @@ than the last push, verify each finding against the source, fix the real ones
 and answer the false positives with the reason. Say nothing when nothing is
 new. Stop when CI and the review are clean on the latest commit.
 
-CodeRabbit is the second reviewer. On a public repository with fewer than ten
-stars its open-source tier reviews only on request, so after each push comment
-`@coderabbitai review` on the PR and wait for it before reading the findings.
-`.coderabbit.yaml` is read from the PR's head branch, and its `base_branches`
-entry is what lets a PR stacked on a non-master branch be reviewed at all.
-
-CodeRabbit is the second reviewer: it reviews every PR on its own, configured
-by `.coderabbit.yaml`. Its findings are verified against the source like any
-other — it has the diff and the repo's standards, not the issue or the domain.
+CodeRabbit is the second reviewer, configured by `.coderabbit.yaml`, which is
+read from the PR's head branch; its `base_branches` entry is what lets a PR
+stacked on a non-master branch be reviewed at all. On a public repository with
+fewer than ten stars its open-source tier reviews only on request, so after
+each push comment `@coderabbitai review` on the PR and wait for it before
+reading the findings. They are verified against the source like any other: it
+has the diff and the repo's standards, not the issue or the domain.
