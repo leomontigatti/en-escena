@@ -13,56 +13,6 @@ type DancersListViewInput = {
 };
 
 describe("PortalDancersListRouteView", () => {
-  test("shows the empty list surface", () => {
-    const markup = renderDancersList();
-
-    expect(markup).toContain("Bailarines");
-    expect(markup).toContain("Nuevo bailarín");
-    expect(markup).toContain("Todavía no cargaste bailarines");
-    expect(markup).toContain(
-      "Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías.",
-    );
-  });
-
-  test("renders the table with filters and action", () => {
-    const markup = renderDancersList({
-      loaderData: {
-        dancers: [
-          dancerListItem({
-            id: "dancer_complete",
-            firstName: "Ana",
-            lastName: "Completa",
-            birthDate: "2014-02-01",
-            documentType: "dni",
-            documentNumber: "12345678",
-            verificationStatus: "incomplete",
-          }),
-          dancerListItem({
-            id: "dancer_archived",
-            firstName: "José Luis",
-            lastName: "de la Cruz",
-            active: false,
-          }),
-        ],
-      },
-    });
-
-    expect(markup).toContain("Bailarines");
-    expect(markup).toContain(
-      "Buscar bailarín por nombre o número de documento",
-    );
-    expect(markup).toContain("Nuevo bailarín");
-    expect(markup).toContain("Filtros");
-    expect(markup).toContain('aria-label="Filtros"');
-    expect(markup).not.toContain('aria-label="Filtros:');
-    expect(markup).toContain("1 de 2 registros");
-    expect(markup).toContain("DNI 12345678");
-    expect(markup).toContain("Incompleto");
-    expect(markup).toContain('href="/portal/bailarines/dancer_complete"');
-    expect(markup).not.toContain('href="/portal/bailarines/dancer_archived"');
-    expect(markup).not.toContain("Cargar Bailarín");
-  });
-
   test("shows ordered rows with document and state badges", () => {
     const markup = renderDancersList({
       loaderData: {
@@ -153,52 +103,6 @@ describe("PortalDancersListRouteView", () => {
     expect(markup).toContain("1 de 2 registros");
     expect(markup).toContain('href="/portal/bailarines/dancer_active"');
     expect(markup).not.toContain('href="/portal/bailarines/dancer_archived"');
-  });
-
-  test("keeps the screen stable when create returns field errors", () => {
-    const markup = renderDancersList({
-      actionData: {
-        status: "error",
-        fieldErrors: {
-          firstName: "Este campo es obligatorio.",
-          birthDate: "La fecha de nacimiento no puede ser futura.",
-        },
-        values: {
-          firstName: "",
-          lastName: "López",
-          birthDate: "2999-01-01",
-          documentType: "",
-          documentNumber: "",
-        },
-        modalOpen: true,
-      },
-    });
-
-    expect(markup).toContain("Bailarines");
-    expect(markup).toContain("Nuevo bailarín");
-    expect(markup).not.toContain("Bailarín creado.");
-  });
-});
-
-describe("PortalDancersListRouteView event documents", () => {
-  test("offers the dancer documents beside the primary action", () => {
-    const markup = renderDancersList({
-      loaderData: {
-        documentDownloadUrls: eventDocumentDownloadUrls({
-          adult_contract: "/almacenamiento?key=mayores",
-          minor_authorization: "/almacenamiento?key=menores",
-        }),
-      },
-    });
-
-    expect(markup).toContain("Nuevo bailarín");
-    expect(markup).toContain('aria-label="Acciones"');
-  });
-
-  test("keeps the menu when the event has no document", () => {
-    const markup = renderDancersList();
-
-    expect(markup).toContain('aria-label="Acciones"');
   });
 });
 

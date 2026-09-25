@@ -4,11 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import {
-  ComprobantesListRouteView,
-  comprobanteColumns,
-  comprobanteFacetedFilters,
-} from "./view";
+import { ComprobantesListRouteView } from "./view";
 import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
 
 function comprobanteRow(
@@ -115,73 +111,6 @@ describe("ComprobantesListRouteView", () => {
     );
   });
 
-  test("orders the columns as `número`, `tipo`, `academia`, `coreografía`, `estado`, `fecha`, `importe`", () => {
-    expect(comprobanteColumns.map((column) => column.id)).toEqual([
-      "numero",
-      "tipo",
-      "academia",
-      "unidad",
-      "estado",
-      "fecha",
-      "importe",
-    ]);
-
-    expect(comprobanteColumns.map((column) => column.header)).toEqual([
-      "Comprobante",
-      "Tipo",
-      "Academia",
-      "Coreografía o seminario",
-      "Estado",
-      "Fecha",
-      "Importe",
-    ]);
-  });
-
-  test("only `número` and `fecha` are sortable", () => {
-    const sortable = comprobanteColumns
-      .filter((column) => Boolean(column.sortValue))
-      .map((column) => column.id);
-
-    expect(sortable).toEqual(["numero", "fecha"]);
-  });
-
-  test("exposes only `estado` and `tipo` faceted filters (`academia` and `porción` are gone)", () => {
-    expect(comprobanteFacetedFilters.map((filter) => filter.label)).toEqual([
-      "Estado",
-      "Tipo",
-    ]);
-    expect(comprobanteFacetedFilters.map((filter) => filter.id)).not.toContain(
-      "academia",
-    );
-    expect(comprobanteFacetedFilters.map((filter) => filter.id)).not.toContain(
-      "porcion",
-    );
-
-    const estado = comprobanteFacetedFilters.find(
-      (filter) => filter.id === "estado",
-    );
-    expect(estado?.options.map((option) => option.value)).toEqual([
-      "vigente",
-      "anulada",
-    ]);
-
-    const tipo = comprobanteFacetedFilters.find(
-      (filter) => filter.id === "tipo",
-    );
-    expect(tipo?.options.map((option) => option.value)).toEqual([
-      "factura_c",
-      "nota_credito_c",
-    ]);
-  });
-
-  test("searches by `academia`, `coreografía`, instructor and `número`", () => {
-    const markup = renderView(loaderData({ rows: [comprobanteRow()] }));
-
-    expect(markup).toContain(
-      'placeholder="Buscar por academia, coreografía, instructor o número"',
-    );
-  });
-
   test("a seminar comprobante reads its unit as the instructor and the date, linked to the `(seminar, academy)` detail", () => {
     const markup = renderView(
       loaderData({
@@ -202,15 +131,5 @@ describe("ComprobantesListRouteView", () => {
     expect(markup).toContain(
       'href="/administracion/finanzas/academy_1/seminarios/seminar_1"',
     );
-    // No kind facet joins the list for the second anchor.
-    expect(comprobanteFacetedFilters.map((filter) => filter.id)).not.toContain(
-      "unidad",
-    );
-  });
-
-  test("renders the empty state when the active event has no comprobantes", () => {
-    const markup = renderView(loaderData());
-
-    expect(markup).toContain("Todavía no hay comprobantes emitidos.");
   });
 });

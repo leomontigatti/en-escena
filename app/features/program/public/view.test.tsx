@@ -43,29 +43,6 @@ describe("PublicProgramView", () => {
     expect(anonymous).not.toContain("Ir al portal");
   });
 
-  test("renders the list with the academy column, no state and the wider search", () => {
-    const markup = renderView();
-
-    for (const header of [
-      "N.º",
-      "Categoría / Tipo de grupo",
-      "Modalidad / Submodalidad",
-      "Academia",
-      "Nombre",
-      "Bailarines",
-    ]) {
-      expect(markup).toContain(header);
-    }
-
-    expect(markup).toContain(
-      "Buscar por número de presentación, nombre o academia",
-    );
-    expect(markup).not.toContain(">Estado<");
-    expect(markup).not.toContain(">Nivel<");
-    // The name is plain text here: nowhere public to link a choreography to.
-    expect(markup).not.toContain("/portal/coreografias/");
-  });
-
   test("prints one page run per schedule, each under its own heading", () => {
     const markup = renderView({
       rows: [

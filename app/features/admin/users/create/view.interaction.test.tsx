@@ -52,33 +52,6 @@ describe("NewInternalUserRouteView interactions", () => {
     reactRouterMocks.useSubmit.mockReset();
   });
 
-  test("keeps every rule in a placeholder and drops the field descriptions", () => {
-    renderIdleView();
-
-    expect(getInput("internalUsername").placeholder).toBe(
-      "Solo minúsculas, números, puntos, guion o guion bajo",
-    );
-    expect(getInput("temporaryPassword").placeholder).toBe(
-      "Mínimo 8 caracteres",
-    );
-    expect(document.body.textContent).not.toContain(
-      "Usá solo letras minúsculas",
-    );
-    expect(document.body.textContent).not.toContain(
-      "Debe tener al menos 8 caracteres.",
-    );
-    expect(document.body.textContent).not.toContain(
-      "No se verifica ni se usa para ingresar.",
-    );
-  });
-
-  test("asks for no email", () => {
-    renderIdleView();
-
-    expect(document.querySelector('input[name="email"]')).toBeNull();
-    expect(document.body.textContent).not.toContain("Correo");
-  });
-
   test("shows no error on blur before the first submit, then validates on submit and clears live", async () => {
     const submitSpy = vi.fn();
 

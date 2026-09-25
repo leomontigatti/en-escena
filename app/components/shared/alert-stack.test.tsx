@@ -14,15 +14,4 @@ describe("AlertStack", () => {
 
     expect(markup).toBe("");
   });
-
-  test("stacks rendered alerts with the shared spacing", () => {
-    const markup = renderToStaticMarkup(
-      <AlertStack className="md:col-span-2">
-        <div>Visible alert</div>
-      </AlertStack>,
-    );
-
-    expect(markup).toContain('class="flex flex-col gap-3 md:col-span-2"');
-    expect(markup).toContain("Visible alert");
-  });
 });

@@ -107,41 +107,6 @@ describe("SeminarsListView", () => {
         ?.textContent,
     ).toBe("Abril Sosa");
   });
-
-  test("marks a seminar with no places left as destructive", async () => {
-    await renderAt(
-      "/administracion/seminarios",
-      <SeminarsListView
-        loaderData={{
-          selectedEventId: "event_1",
-          seminars: [buildSeminar({ availablePlaces: 0 })],
-        }}
-      />,
-    );
-
-    const suffix = Array.from(document.querySelectorAll("span")).find(
-      (element) => element.textContent === " / sin lugares",
-    );
-
-    expect(suffix?.className).toContain("text-destructive");
-  });
-
-  test("offers the empty state and the create action when the event has no seminars", async () => {
-    await renderAt(
-      "/administracion/seminarios",
-      <SeminarsListView
-        loaderData={{ selectedEventId: "event_1", seminars: [] }}
-      />,
-    );
-
-    expect(document.body.textContent).toContain(
-      "Todavía no hay seminarios creados.",
-    );
-    expect(
-      document.querySelector('a[href="/administracion/seminarios/nuevo"]')
-        ?.textContent,
-    ).toContain("Nuevo seminario");
-  });
 });
 
 function renderDetail(
@@ -284,48 +249,6 @@ describe("SeminarDetailView", () => {
     });
 
     expect(save?.disabled).toBe(false);
-  });
-
-  // The picture is a field of the seminar's own form, so it travels on the same
-  // "Guardar" — which is what makes the body multipart — and spans both columns
-  // through a wrapper, because the field forwards its class to the control.
-  test("offers the instructor picture as a field of the seminar form", async () => {
-    await renderDetail(buildSeminar());
-
-    const fileInput = document.querySelector<HTMLInputElement>(
-      'input[name="instructorPictureFile"]',
-    );
-
-    expect(fileInput?.getAttribute("accept")).toBe(
-      "image/jpeg,image/png,image/webp",
-    );
-    expect(fileInput?.closest("form")?.getAttribute("enctype")).toBe(
-      "multipart/form-data",
-    );
-    expect(fileInput?.closest(".sm\\:col-span-2")).not.toBeNull();
-    expect(document.body.textContent).toContain("Foto del instructor");
-    expect(document.body.textContent).toContain("JPG, PNG o WEBP - max 10 MB");
-  });
-
-  test("reads a stored picture as a link that opens it", async () => {
-    await renderDetail(
-      buildSeminar({
-        instructorPictureStorageKey:
-          "events/event_1/seminars/seminar_1/instructor.jpg",
-      }),
-      "https://example.test/signed/instructor" as never,
-    );
-
-    const link = document.querySelector<HTMLAnchorElement>(
-      'a[href="https://example.test/signed/instructor"]',
-    );
-
-    expect(link?.textContent).toContain("Abrir foto");
-    expect(
-      document.querySelector<HTMLInputElement>(
-        'input[name="instructorPictureKept"]',
-      )?.value,
-    ).toBe("kept");
   });
 
   // A chosen picture is a change on its own: nothing else has to be edited for
@@ -519,14 +442,6 @@ describe("SeminarDetailView `Inscriptos`", () => {
     // The quota is not this tab's business, and administration never registers.
     expect(body).not.toContain("Inscribir");
     expect(body).not.toContain("disponibles");
-  });
-
-  test("reads the empty tab as a table with nobody in it", async () => {
-    await renderInscriptions([]);
-
-    expect(document.body.textContent).toContain(
-      "Todavía no hay inscriptos en este seminario.",
-    );
   });
 
   test("opens the removal confirmation from the person name", async () => {

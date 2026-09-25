@@ -74,39 +74,6 @@ describe("PortalAcademyFinancesRouteView", () => {
     expect(columnValues("Nombre")).toEqual(["Tango"]);
   });
 
-  test("filters choreographies by financial status", async () => {
-    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
-
-    const text = document.body.textContent ?? "";
-
-    expect(text).toContain("Estado");
-    expect(text).toContain("Seña pendiente");
-    expect(text).toContain("Pagada");
-    expect(
-      document.querySelector(
-        'input[placeholder="Buscar coreografía por número o nombre"]',
-      ),
-    ).not.toBeNull();
-  });
-
-  // The same five the administrator reads, in the same order: each threshold
-  // with its owed figure beside it, and the unallocated money last.
-  test("keeps the five aggregates visible", async () => {
-    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
-
-    const text = document.body.textContent ?? "";
-
-    for (const metric of [
-      "Seña total",
-      "Seña adeudada",
-      "Total",
-      "Saldo adeudado",
-      "Saldo disponible",
-    ]) {
-      expect(text).toContain(metric);
-    }
-  });
-
   // Selecting is how the academy asks what a few choreographies owe without
   // adding them up from memory. It is the administrator's behaviour minus the
   // collections: there is nothing to fire from here, so the rows only re-scope

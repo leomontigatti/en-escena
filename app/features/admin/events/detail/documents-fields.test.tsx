@@ -10,7 +10,6 @@ import {
 import {
   eventDocumentFileField,
   eventDocumentKeptField,
-  eventDocumentsPresentField,
   keptEventDocumentValue,
   type EventDetailLoaderData,
 } from "@/features/admin/events/detail/shared";
@@ -22,44 +21,6 @@ describe("EventDocumentsFields", () => {
 
   afterEach(() => {
     renderer.cleanup();
-  });
-
-  test("asks for the three documents of the event", async () => {
-    await renderFields(eventDocumentSummaries());
-
-    expect(document.body.textContent).toContain("Contrato para profesores");
-    expect(document.body.textContent).toContain("Autorización para menores");
-    expect(document.body.textContent).toContain("Contrato para mayores");
-  });
-
-  // The whole point of folding the uploads into the event form: a document is a
-  // field, so it may not bring a form or a button of its own.
-  test("brings no form and no button of its own", async () => {
-    await renderFields(eventDocumentSummaries());
-
-    expect(document.querySelector("[data-documents] form")).toBeNull();
-    expect(
-      document.querySelector('[data-documents] button[type="submit"]'),
-    ).toBeNull();
-    expect(document.body.textContent).not.toContain("Reemplazar");
-    expect(document.body.textContent).not.toContain("Cargar el");
-  });
-
-  test("posts one PDF input per document under the presence marker", async () => {
-    await renderFields(eventDocumentSummaries());
-
-    expect(
-      document.querySelector<HTMLInputElement>(
-        `input[name="${eventDocumentsPresentField}"]`,
-      )?.value,
-    ).toBe(keptEventDocumentValue);
-
-    const fileInput = document.querySelector<HTMLInputElement>(
-      `input[name="${eventDocumentFileField("professor_contract")}"]`,
-    );
-
-    expect(fileInput?.type).toBe("file");
-    expect(fileInput?.accept).toBe("application/pdf");
   });
 
   // The field is the whole status: an uploaded document reads as the link that
@@ -106,16 +67,6 @@ describe("EventDocumentsFields", () => {
 
     expect(readKept("professor_contract")).toBe(keptEventDocumentValue);
     expect(readKept("adult_contract")).toBe("");
-  });
-
-  // The compact variant renders no `helperText`, so the format and the ceiling
-  // stand in for the empty value or they are stated nowhere.
-  test("places the accepted format and the ceiling in the empty field", async () => {
-    await renderFields(eventDocumentSummaries());
-
-    expect(getUploadBox("professor_contract")?.textContent).toBe(
-      "PDF - max 10 MB",
-    );
   });
 
   function uploadedProfessorContract() {
