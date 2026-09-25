@@ -66,7 +66,9 @@ A PR that changes what a screen looks like carries before and after images. A
 change to motion or interaction carries a short GIF instead.
 
 - Capture against seed data, never a database refreshed from production:
-  screenshots show names and payments.
+  screenshots show names and payments. The screenshots come from the browser
+  loop in [workflows.md](./workflows.md#ui-verification), run against what
+  `pnpm db:seed` creates.
 - Name the files `<what>-before.png` and `<what>-after.png`, then run
   `pnpm pr:evidence <pr> <files...>`. It uploads them to the `pr-assets`
   prerelease (`gh` has no attachment upload, and a release asset renders inline)
@@ -86,3 +88,7 @@ When asked to see a PR through: read the checks and the review comments newer
 than the last push, verify each finding against the source, fix the real ones
 and answer the false positives with the reason. Say nothing when nothing is
 new. Stop when CI and the review are clean on the latest commit.
+
+CodeRabbit is the second reviewer: it reviews every PR on its own, configured
+by `.coderabbit.yaml`. Its findings are verified against the source like any
+other — it has the diff and the repo's standards, not the issue or the domain.

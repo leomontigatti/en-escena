@@ -118,8 +118,37 @@ start the app:
 pnpm install
 docker compose up -d postgres
 pnpm db:migrate
+pnpm db:seed
 pnpm dev
 ```
+
+Then sign in at `/ingresar` with one of the demo accounts below.
+
+### Demo data
+
+`pnpm db:seed` (`scripts/seed-dev.ts`, logic in `app/lib/dev-seed/`) is the
+primary way to get a local login. It creates, on the local `DATABASE_URL`:
+
+- `admin@enescena.local`: an internal administrator, landing on
+  `/administracion`.
+- `academia@enescena.local`: an academy user with its `Academia Demo`, landing
+  on `/portal`.
+- Both are email-verified and share one password, `DEV_SEED_PASSWORD` in
+  `app/lib/dev-seed/seed.server.ts`; the command prints it.
+- Three events: `Evento Activo` (active, 60 days out), `Evento Futuro` and
+  `Evento Finalizado`. The active one has a catalog registrations accept: a
+  modality and submodality, two categories covering ages 1 to 100, a
+  schedule open for registrations with a solo capacity, and a solo price.
+- Two dancers and two professors in `Academia Demo`, and one choreography
+  registered on the active event.
+
+Re-running it resets the demo: everything hanging off those two emails and
+those three event names is deleted first — including what was created on them
+through the UI — and created again. Only one event can be active, so any other
+active event is deactivated, and the command names it. It refuses to run
+unless `DATABASE_URL`'s host is `localhost` or `127.0.0.1`: the password is
+published here, and screenshots taken against this data go into a public
+repository ([pull-requests.md](agents/pull-requests.md#ui-evidence)).
 
 The main local auth routes are:
 
@@ -144,8 +173,8 @@ Invitation links are built from the incoming request URL. Public academy
 registration confirmation and recovery emails are now app-owned through Better
 Auth (#420): the app builds the Spanish content and sends it via
 `app/lib/shared/email.server.ts`, so in non-production the link is printed to the
-server console with the `[email:dev]` prefix. Test registration locally with this
-flow:
+server console with the `[email:dev]` prefix. The demo accounts above skip this
+flow; to test registration itself, or as an alternative to the seed, use it:
 
 1. Run `pnpm dev`.
 2. Open `http://localhost:5173/registro`.

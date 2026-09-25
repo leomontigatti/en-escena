@@ -744,13 +744,69 @@ Implementing a feature, fixing a bug or changing code in a local session follows
 call the Skill tool with "implement" before editing. It is the same workflow the AFK implement
 runners follow from their prompts — test-first through the `tdd` skill at the ticket's **Test
 seams**, typecheck and single test files as you go, the list in
-[`.sandcastle/VALIDATION.md`](../../.sandcastle/VALIDATION.md) once at the end, then `code-review`.
+[`.sandcastle/VALIDATION.md`](../../.sandcastle/VALIDATION.md) once at the end, a browser check
+for rendered changes ([UI verification](#ui-verification)), then a review tiered by risk: the
+full two-axis `code-review` for money, results or judging, auth, migrations and `CONTEXT.md`
+terms, a single-agent readback for everything else.
 
 Two rules sit on top of it for a local session: keep the change scoped to the requested
 behaviour, and do not commit unless the user explicitly asks for a commit.
 
 The DB TDD and Frontend State TDD sections below are this repo's detail for the skill's two
-sub-workflows.
+sub-workflows, and UI verification is its browser step.
+
+## UI verification
+
+A change to anything the dev server renders — a route, a component, a loader's output, an
+action's feedback — is checked in a real browser before it is reviewed. The browser is the
+Playwright CLI (`@playwright/cli`, the `playwright-cli` binary), installed globally with a
+headless Chromium (`playwright-cli install-browser chromium`). It keeps its scratch files —
+snapshots, console logs, default screenshots — in `.playwright-cli/` under the current
+directory, which is gitignored. Skip this for what the browser cannot exercise: types, tests,
+tooling, docs, server code with no rendered surface.
+
+Data comes from `pnpm db:seed` against the local database, never from a database refreshed from
+production (see [pull-requests.md](./pull-requests.md#ui-evidence)). The seed prints the demo
+accounts and their shared password; [local-auth.md](../local-auth.md#demo-data) lists what it
+creates.
+
+The loop:
+
+1. Start the dev server in the background: `pnpm dev` (port 5173 per `.claude/launch.json`; it
+   takes the next free port when 5173 is busy, so read the URL it prints).
+2. **Log in once per account and keep the session.** Open `/ingresar` in a named session,
+   `snapshot` to get the field refs, `fill` the email and password, `click` the button, then
+   `state-save` into `.playwright-cli/`:
+
+   ```sh
+   playwright-cli -s=academy open http://localhost:5173/ingresar
+   playwright-cli -s=academy snapshot
+   playwright-cli -s=academy fill e15 "academia@enescena.local"
+   playwright-cli -s=academy fill e20 "<seed password>"
+   playwright-cli -s=academy click e21
+   playwright-cli -s=academy state-save .playwright-cli/academy-state.json
+   ```
+
+   A later session starts from `state-load .playwright-cli/academy-state.json` instead of the
+   form. Refs (`e15`) change between snapshots; read them from the latest one.
+
+3. **Capture the before** during exploration, before editing: `goto` the screen and
+   `screenshot --filename=<what>-before.png`. After the edit there is no before left to take.
+4. Drive the flow: `goto`, `click`, `fill`, `select`, `press`, and `snapshot` (or `find "<text>"`)
+   to confirm the result. Prefer the snapshot for asserting text and structure; it is what the
+   page actually exposes.
+5. Diagnose from the page, not from guesses: `console` for errors, `requests` then
+   `request <n>` or `response-body <n>` for the network. Fix the source and go back to step 4.
+   A first load may log `504 (Outdated Optimize Dep)` while Vite pre-bundles; `reload` once.
+6. **Capture the after** at the end, once the change is final: `screenshot
+--filename=<what>-after.png`, same screen, same account.
+7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server. A
+   session left open holds a Chromium for up to an hour.
+
+Quote any URL with a `$`-segment route or a query string (`'http://localhost:5173/portal?evento=…'`)
+so the shell does not expand it. Attach the two screenshots with `pnpm pr:evidence <pr>
+<what>-before.png <what>-after.png`, as [pull-requests.md](./pull-requests.md#ui-evidence)
+describes. Never ask the user to check a screen by hand: drive it and show the result.
 
 ## DB TDD
 
