@@ -3,8 +3,8 @@
 # Scheduled unattended pass: the architecture-review runner surveys the codebase
 # read-only, picks ONE high-leverage deepening opportunity not already proposed,
 # and emits it as a PRD-shaped structured output → orchestrator publishes it as an
-# issue labeled `source:architecture-review`. A human then triages it (may label
-# it `agent:to-issues`). The agent creates nothing — the orchestrator is the sole
+# issue labeled `source:architecture-review`. A human then triages it, and a local
+# session slices it into sub-issues with `to-tickets`. The agent creates nothing — the orchestrator is the sole
 # publisher (§3.9).
 
 name: AFK Architecture Review

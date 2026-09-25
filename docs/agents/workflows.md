@@ -14,10 +14,12 @@ none of those. Three entry points, by how much is still unknown:
   thread, or write the issue with what to build and its acceptance criteria and
   label it `ready-for-agent`. No PRD, no map. A session grabs it and runs the
   `implement` skill.
-- **Clear but big** (known shape, several slices): write one PRD with the
-  [PRD workflow](#prd-workflow) and label it `agent:to-issues`, or slice it by
-  hand. A session then implements the sub-issues in order onto one branch and
-  one PR, ticking each in the PR body's `## Sub-issues` list as it lands
+- **Clear but big** (known shape, several slices): `/grilling` until the shape
+  and the test seams are agreed, `/to-spec` to file the PRD
+  ([PRD workflow](#prd-workflow)), `/to-tickets` to slice it into sub-issues
+  ([Issue breakdown workflow](#issue-breakdown-workflow)), then `implement`. A
+  session implements the sub-issues in order onto one branch and one PR,
+  ticking each in the PR body's `## Sub-issues` list as it lands
   ([pull-requests.md](./pull-requests.md#prd-prs)): a resumed session reads the
   list, never the scrollback.
 - **Foggy** (decisions nobody has made yet): `/wayfinder`. The map's tickets
@@ -971,76 +973,36 @@ baseline assumptions materially change.
 
 ## PRD Workflow
 
-Use this when the user asks to turn a conversation, plan, or feature idea into a PRD.
+A PRD is written with the vendored `to-spec` skill: the user runs `/to-spec` (the skill sets
+`disable-model-invocation`, so a session asks for it instead of calling the Skill tool). The
+skill carries the process and the template; what it does not know about this repo:
 
-1. Read `CONTEXT.md` and relevant ADRs.
-2. Explore the current code enough to avoid proposing stale or incompatible work.
-3. Ask for clarification only when a reasonable assumption would create meaningful product or architecture risk.
-4. Write the PRD as a GitHub issue in `leomontigatti/en-escena`.
-5. Do not add implementation labels automatically.
-
-PRD template:
-
-```markdown
-## Problem Statement
-
-## Solution
-
-## User Stories
-
-## Implementation Decisions
-
-## Testing Decisions
-
-## Out of Scope
-
-## Further Notes
-```
-
-**Testing Decisions** names the **test seams**: the public interfaces the behaviour is tested
-through (a service function, a route's loader or action, a pure state module). The `tdd` skill
-tests only at seams agreed up front, and the AFK implement agent has nobody to agree them with, so
-the PRD is where that agreement is recorded.
-
-The PRD should be concrete enough for a later agent to break into implementation issues without re-deriving core decisions.
+- The PRD is a GitHub issue in this repo, filed per
+  [issue-tracker.md → Ticket operations](./issue-tracker.md#ticket-operations).
+- **Testing Decisions names the test seams**: the public interfaces the behaviour is tested
+  through (a service function, a route's loader or action, a pure state module). The `tdd` skill
+  tests only at seams agreed up front, and this session is the last point where a human agrees
+  them, so the skill's "check with the user that these seams match" step is not skippable.
+- Labels: `ready-for-agent` as the skill says, which here is a triage state and triggers nothing
+  ([triage-labels.md](./triage-labels.md)), plus one `priority:*` and a type label. Ask the
+  priority together with the seams when the conversation has not settled it. No `agent:*` label.
 
 ## Issue Breakdown Workflow
 
-Use this when the user asks to break a PRD into implementation issues.
+A PRD is sliced into sub-issues with the vendored `to-tickets` skill: the user runs
+`/to-tickets <PRD number>` (user-invoked only, like `to-spec`). The skill's step 4 quizzes the
+user on the slices, and no slice is published before that approval. What it does not know
+about this repo:
 
-1. Fetch the PRD with `gh issue view <number> --comments`.
-2. Confirm whether implementation issues already exist for that PRD, starting with native GitHub sub-issues from `gh issue view <number> --json subIssues,subIssuesSummary` and then checking body links or comments as a fallback.
-3. Draft a flat, ordered list of vertical slices.
-4. Review the proposed slices with the user before creating issues.
-5. Create GitHub issues only after approval. Use `gh issue create --parent <PRD_NUMBER>` so each implementation issue is a native sub-issue of the PRD.
-
-Slice rules:
-
-- Each issue should deliver a narrow but complete path through the stack.
-- Each issue should be independently verifiable.
-- Prefer vertical slices over horizontal layer-only tasks.
-- Put prefactoring first when it makes later slices simpler.
-- Keep each issue small enough for one focused agent session.
-- Name each issue's test seams, taken from the PRD's **Testing Decisions**.
-
-Issue body template:
-
-```markdown
-## Parent PRD
-
-#<PRD_NUMBER>
-
-## What to build
-
-## Acceptance criteria
-
-- [ ] Concrete, checkable outcome
-- [ ] Tests cover the new behavior
-
-## Test seams
-
-## Depends on
-```
+- Each slice is a **native sub-issue** of the PRD, and each blocking edge is GitHub's native
+  relation, per [issue-tracker.md → Ticket operations](./issue-tracker.md#ticket-operations).
+  Check first that the PRD has no sub-issues yet
+  (`gh issue view <PRD> --json subIssues,subIssuesSummary`).
+- Sub-issues stay **flat and ordered**: publish them in the order a session will implement them.
+- Every sub-issue carries a `## Test seams` section, taken from the PRD's **Testing
+  Decisions**. The skill's issue template lacks it; add it after `## Acceptance criteria`.
+- A session then implements the sub-issues in order onto one PR, per
+  [pull-requests.md](./pull-requests.md#prd-prs).
 
 ## Architecture Review Workflow
 
