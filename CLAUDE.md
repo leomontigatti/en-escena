@@ -1,7 +1,11 @@
 # En Escena — guide for Claude Code
 
 Index of the repo's conventions. Every operative rule lives in its own file under
-`docs/agents/` (or `.sandcastle/`); this file only routes.
+`docs/agents/` (or `.sandcastle/`); this file only routes. The first section is
+read at the start of every task; the second is reached when its leading word
+matches the task.
+
+## Every task
 
 - **Session conduct**: when a step needs no input from the user, keep going, and
   put status notes in the same message as the next action. Stop and ask only when
@@ -9,6 +13,15 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   data, force-pushing, changing anything outside this repository. When a rule in
   these docs fights the task, say so and get a sign-off before breaking it. End a
   run with what needs the user first, then what changed, then what was found.
+- **Implementing** (a feature, a fix, any code change) happens in a local session: call the
+  Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
+  Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets`: see
+  "Where work starts" in [docs/agents/workflows.md](docs/agents/workflows.md).
+- **Investigate before implementing**: see the section of the same name in
+  [docs/agents/workflows.md](docs/agents/workflows.md).
+- **Branches, worktrees and T3 Code threads** (each thread works in its own T3
+  worktree, link every PR to the thread):
+  see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Validation**: [docs/agents/workflows.md](docs/agents/workflows.md).
   Use `pnpm typecheck` (not `pnpm exec tsc`); a hook enforces it. Do not run
   `pnpm typecheck` in parallel with `pnpm build`. **The commands listed there are
@@ -17,6 +30,14 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   `.oxlintrc.json` enables — React hook mistakes, import cycles and un-awaited
   promises — and is not a style checker; formatting is Prettier's, unused code is
   `tsc`'s, and repo conventions belong to the `check:*` scripts.
+- **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
+  (canonical). Guide for the whole repo, not just for Sandcastle. Includes the code
+  language convention (Spanish for what the user reads, English for everything else;
+  `comprobante` as the only reserved term). The identifier → UI term mapping lives in
+  [CONTEXT.md](CONTEXT.md).
+
+## When routed
+
 - **Every other command**: [docs/operations/scripts.md](docs/operations/scripts.md)
   is the complete index of `pnpm` scripts — databases, backups, the AFK workflows —
   each with a link to its runbook. A command that is not there is not a script of
@@ -25,22 +46,8 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   replaces the local **development** database from a production backup artifact,
   while `pnpm db:test:reset` resets the separate **test** database — "refresh the
   local db" means the first.
-- **Branches, worktrees and T3 Code threads** (each thread works in its own T3
-  worktree, link every PR to the thread):
-  see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Investigate before implementing**: see the section of the same name in
-  [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Implementing** (a feature, a fix, any code change) happens in a local session: call the
-  Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
-  Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets`: see
-  "Where work starts" in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Documentation** (when a change needs a doc change, which is rarely, and where it goes):
   see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
-  (canonical). Guide for the whole repo, not just for Sandcastle. Includes the code
-  language convention (Spanish for what the user reads, English for everything else;
-  `comprobante` as the only reserved term). The identifier → UI term mapping lives in
-  [CONTEXT.md](CONTEXT.md).
 - **Style guide** (frontend/UI): [docs/agents/style-guide.md](docs/agents/style-guide.md).
 - **UI verification** (a rendered change is checked in a real browser with `playwright-cli`
   against `pnpm db:seed` data, with before/after screenshots): see the section of the same
