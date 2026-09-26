@@ -16,6 +16,8 @@ import { getEventRegistrationReadiness } from "@/lib/events/registration-readine
 import {
   DEV_SEED_ACADEMY_EMAIL,
   DEV_SEED_ADMIN_EMAIL,
+  DEV_SEED_AUDITOR_EMAIL,
+  DEV_SEED_JUDGE_EMAIL,
   DEV_SEED_PASSWORD,
   seedDevData,
 } from "@/lib/dev-seed/seed.server";
@@ -27,14 +29,17 @@ installDatabaseTestHooks();
 const now = new Date("2026-09-25T12:00:00Z");
 
 describe("dev seed", () => {
-  test("creates a verified admin and academy that sign in with the shared dev password", async () => {
+  test("creates one verified account per role, all signing in with the shared dev password", async () => {
     await seedDevData({ now });
 
+    const seededEmails = [
+      DEV_SEED_ADMIN_EMAIL,
+      DEV_SEED_ACADEMY_EMAIL,
+      DEV_SEED_AUDITOR_EMAIL,
+      DEV_SEED_JUDGE_EMAIL,
+    ];
     const seededUsers = await db.query.user.findMany({
-      where: inArray(user.email, [
-        DEV_SEED_ADMIN_EMAIL,
-        DEV_SEED_ACADEMY_EMAIL,
-      ]),
+      where: inArray(user.email, seededEmails),
     });
 
     expect(
@@ -47,10 +52,12 @@ describe("dev seed", () => {
       expect.arrayContaining([
         { email: DEV_SEED_ADMIN_EMAIL, role: "admin", emailVerified: true },
         { email: DEV_SEED_ACADEMY_EMAIL, role: "academy", emailVerified: true },
+        { email: DEV_SEED_AUDITOR_EMAIL, role: "auditor", emailVerified: true },
+        { email: DEV_SEED_JUDGE_EMAIL, role: "judge", emailVerified: true },
       ]),
     );
 
-    for (const email of [DEV_SEED_ADMIN_EMAIL, DEV_SEED_ACADEMY_EMAIL]) {
+    for (const email of seededEmails) {
       await expect(
         signInAccessUser({ email, password: DEV_SEED_PASSWORD }),
       ).resolves.toMatchObject({ user: { email } });

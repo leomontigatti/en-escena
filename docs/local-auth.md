@@ -133,7 +133,10 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   `/administracion`.
 - `academia@enescena.local`: an academy user with its `Academia Demo`, landing
   on `/portal`.
-- Both are email-verified and share one password, `DEV_SEED_PASSWORD` in
+- `auditoria@enescena.local` and `jurado@enescena.local`: an auditor and a
+  judge, landing on `/auditoria` and `/juzgamiento`, with nothing assigned to
+  them.
+- All four are email-verified and share one password, `DEV_SEED_PASSWORD` in
   `app/lib/dev-seed/seed.server.ts`; the command prints it.
 - Three events: `Evento Activo` (active, 60 days out), `Evento Futuro` and
   `Evento Finalizado`. The active one has a catalog registrations accept: a
