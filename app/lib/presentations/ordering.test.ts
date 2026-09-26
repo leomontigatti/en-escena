@@ -923,6 +923,15 @@ describe("computeManualMove", () => {
     });
   });
 
+  test("refuses a frozen position past the last free one instead of clamping", () => {
+    const frozenTail = new Set([...frozen, "d2-c"]);
+
+    expect(computeManualMove(numbered, frozenTail, "d2-a", 5)).toEqual({
+      ok: false,
+      reason: "frozenPosition",
+    });
+  });
+
   test("permutes the free positions only", () => {
     const result = computeManualMove(numbered, frozen, "d2-c", 3);
 

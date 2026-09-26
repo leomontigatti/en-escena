@@ -234,16 +234,20 @@ export function computeManualMove(
     .sort((left, right) => left.orderNumber - right.orderNumber)
     .map((row) => row.choreographyId);
   const isLate = !unfrozenIds.includes(choreographyId);
+  // Checked against the blocked set itself, not against the free list: a
+  // frozen number past the last free position is still not a target, and
+  // must not be clamped to the end as if it were merely too high.
+  if (
+    listBlockedPositions(numbered, frozenChoreographyIds).has(toOrderNumber)
+  ) {
+    return { ok: false, reason: "frozenPosition" };
+  }
+
   const freePositions = listFreePositions(
     numbered,
     frozenChoreographyIds,
     unfrozenIds.length + (isLate ? 1 : 0),
   );
-  const lastFree = freePositions.at(-1) ?? 0;
-
-  if (toOrderNumber <= lastFree && !freePositions.includes(toOrderNumber)) {
-    return { ok: false, reason: "frozenPosition" };
-  }
 
   // The target index is where the number falls among the free positions; a
   // number past the last one is the end, as it always was.
@@ -308,15 +312,14 @@ function conflictsWithRecentPlacements(
 }
 
 /**
- * The first `count` positions, from 1, that a row may take: not the number of
- * a frozen row, and not a gap between two consecutive numbered rows that are
- * both frozen. Such a gap is inside, or between, runs that already ran, and
- * filling it would put a stranger in the middle of what was announced.
+ * The positions a row may not take: the number of a frozen row, and any gap
+ * between two consecutive numbered rows that are both frozen. Such a gap is
+ * inside, or between, runs that already ran, and filling it would put a
+ * stranger in the middle of what was announced.
  */
-function listFreePositions(
+function listBlockedPositions(
   rows: FrozenRow[],
   frozenChoreographyIds: Set<string>,
-  count: number,
 ) {
   const numbered = rows
     .filter(
@@ -348,6 +351,16 @@ function listFreePositions(
     }
   }
 
+  return blocked;
+}
+
+/** The first `count` positions, from 1, that are not blocked. */
+function listFreePositions(
+  rows: FrozenRow[],
+  frozenChoreographyIds: Set<string>,
+  count: number,
+) {
+  const blocked = listBlockedPositions(rows, frozenChoreographyIds);
   const free: number[] = [];
 
   for (let position = 1; free.length < count; position += 1) {
