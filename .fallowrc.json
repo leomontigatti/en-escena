@@ -11,7 +11,10 @@
     "tests/db/setup.ts",
     "tests/setup/react-test-env.ts"
   ],
-  "ignoreDependencies": ["isbot"],
+  // `@ai-hero/sandcastle` is value-imported by the two `.mts` runner entries
+  // above and by `.sandcastle/lib/runner.mts`, but Fallow does not follow the
+  // `.mts` files into its import graph, so it reports the package as unused.
+  "ignoreDependencies": ["isbot", "@ai-hero/sandcastle"],
   "ignoreExports": [
     {
       "file": "tests/db/fast-db.ts",
