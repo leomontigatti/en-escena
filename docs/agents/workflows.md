@@ -381,10 +381,11 @@ JS plugin, `scripts/oxlint-ui-plugin.mjs`, and an `overrides` entry scopes them 
 the direct child of an `asChild` parent (`<DropdownMenuItem asChild><button>`) is
 exempt, since the parent owns its look. The files that already broke a rule when
 it landed sit in two more `overrides` entries that turn it off, one per rule;
-those lists shrink as each file is touched, and nothing is added to them. JS
-plugins are alpha in oxlint and outside its semver promise, so `package.json`
-pins oxlint to an exact version: a minor bump that changes the plugin API has to
-arrive as a deliberate upgrade, not through the lockfile.
+those lists shrink as each file is touched (#1210 records why each file is
+there), and nothing is added to them. JS plugins are alpha in oxlint and outside
+its semver promise, so `package.json` pins oxlint to an exact version: a minor
+bump that changes the plugin API has to arrive as a deliberate upgrade, not
+through the lockfile.
 
 ESLint is not an option here: `typescript-eslint` refuses to run against this
 repo's TypeScript 7 and throws on startup
