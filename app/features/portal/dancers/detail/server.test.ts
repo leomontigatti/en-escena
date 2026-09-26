@@ -10,6 +10,9 @@ function createStorage(
   return {
     createDocumentImageSignedUrl: async (storageKey: string) =>
       `signed:${storageKey}`,
+    removeDocumentImages: async () => {
+      throw new Error("removeDocumentImages was not expected to be called");
+    },
     uploadDocumentImage: async () => {
       throw new Error("uploadDocumentImage was not expected to be called");
     },

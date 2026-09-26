@@ -19,6 +19,10 @@ import {
   type MergeRefusedActionData,
 } from "@/lib/shared/merge";
 import { formatSpanishList } from "@/lib/shared/text-normalization";
+import {
+  type DancerDocumentStorage,
+  createDefaultDancerDocumentStorage,
+} from "@/lib/storage/dancer-documents.server";
 
 import {
   getRosterMergeKindCopy,
@@ -70,9 +74,12 @@ type LockedPerson = {
  * is also why the merge is refused when both people share a choreography or a
  * seminar: the two inscriptions cannot become one without moving money, so the
  * operator withdraws one first.
+ *
+ * A dancer's document the survivor does not take is gone with its row, and so
+ * are the keys of its images: those files are deleted once the merge commits.
  */
 export async function mergeRosterPeople(
-  input: RosterMergePair,
+  input: RosterMergePair & { storage?: DancerDocumentStorage },
 ): Promise<MergeRosterPeopleResult> {
   const copy = getRosterMergeKindCopy(input.kind);
 
@@ -80,61 +87,102 @@ export async function mergeRosterPeople(
     return { ok: false, message: copy.sameRowMessage };
   }
 
-  return await db.transaction(async (tx) => {
-    const locked = await lockPeople(tx, input);
-    const removed = locked.find((person) => person.id === input.removedId);
-    const survivor = locked.find((person) => person.id === input.survivorId);
+  let discardedImageKeys: string[] = [];
+  const result = await db.transaction(
+    async (tx): Promise<MergeRosterPeopleResult> => {
+      const locked = await lockPeople(tx, input);
+      const removed = locked.find((person) => person.id === input.removedId);
+      const survivor = locked.find((person) => person.id === input.survivorId);
 
-    if (!removed) {
-      throw new Response(copy.notFoundMessage, { status: 404 });
-    }
+      if (!removed) {
+        throw new Response(copy.notFoundMessage, { status: 404 });
+      }
 
-    if (!survivor) {
-      return { ok: false, message: copy.survivorNotFoundMessage };
-    }
+      if (!survivor) {
+        return { ok: false, message: copy.survivorNotFoundMessage };
+      }
 
-    if (removed.academyId !== survivor.academyId) {
-      return { ok: false, message: copy.otherAcademyMessage };
-    }
+      if (removed.academyId !== survivor.academyId) {
+        return { ok: false, message: copy.otherAcademyMessage };
+      }
 
-    const sharedChoreographies = await findSharedChoreographies(tx, input);
+      const sharedChoreographies = await findSharedChoreographies(tx, input);
 
-    if (sharedChoreographies.length > 0) {
+      if (sharedChoreographies.length > 0) {
+        return {
+          ok: false,
+          message: `No se puede fusionar: los dos están en ${formatSpanishList(
+            sharedChoreographies.map((name) => `«${name}»`),
+          )}. Quitá a uno de la coreografía antes de fusionar.`,
+        };
+      }
+
+      const sharedSeminars = await findSharedSeminars(tx, input);
+
+      if (sharedSeminars.length > 0) {
+        return {
+          ok: false,
+          message: `No se puede fusionar: los dos están inscriptos en el seminario de ${formatSpanishList(
+            sharedSeminars,
+          )}. Quitá a uno del seminario antes de fusionar.`,
+        };
+      }
+
+      const moved = await moveInscriptions(tx, input);
+      const gainedDocument =
+        survivor.documentNumber === null && removed.documentNumber !== null;
+
+      discardedImageKeys = await replaceRemovedPerson(tx, {
+        ...input,
+        gainedDocument,
+      });
+
       return {
-        ok: false,
-        message: `No se puede fusionar: los dos están en ${formatSpanishList(
-          sharedChoreographies.map((name) => `«${name}»`),
-        )}. Quitá a uno de la coreografía antes de fusionar.`,
+        ok: true,
+        survivor: {
+          id: survivor.id,
+          name: `${survivor.firstName} ${survivor.lastName}`,
+        },
+        gainedDocument,
+        moved,
       };
-    }
+    },
+  );
 
-    const sharedSeminars = await findSharedSeminars(tx, input);
+  if (discardedImageKeys.length > 0) {
+    await removeDiscardedDocumentImages({
+      dancerId: input.removedId,
+      storage: input.storage,
+      storageKeys: discardedImageKeys,
+    });
+  }
 
-    if (sharedSeminars.length > 0) {
-      return {
-        ok: false,
-        message: `No se puede fusionar: los dos están inscriptos en el seminario de ${formatSpanishList(
-          sharedSeminars,
-        )}. Quitá a uno del seminario antes de fusionar.`,
-      };
-    }
+  return result;
+}
 
-    const moved = await moveInscriptions(tx, input);
-    const gainedDocument =
-      survivor.documentNumber === null && removed.documentNumber !== null;
-
-    await replaceRemovedPerson(tx, { ...input, gainedDocument });
-
-    return {
-      ok: true,
-      survivor: {
-        id: survivor.id,
-        name: `${survivor.firstName} ${survivor.lastName}`,
-      },
-      gainedDocument,
-      moved,
-    };
-  });
+/**
+ * Runs after the commit, so a failure here cannot undo the merge: the row is
+ * already gone and reporting the merge as failed would be false. The cost is
+ * images left on the volume, and this line is the only thing that makes them
+ * locatable without walking the volume by hand — the same trade the
+ * choreography music replacement makes.
+ */
+async function removeDiscardedDocumentImages(input: {
+  dancerId: string;
+  storage?: DancerDocumentStorage;
+  storageKeys: string[];
+}) {
+  try {
+    await (
+      input.storage ?? createDefaultDancerDocumentStorage()
+    ).removeDocumentImages(input.storageKeys);
+  } catch (thrown) {
+    console.error("[storage:dancer-document:orphan]", {
+      dancerId: input.dancerId,
+      detail: thrown instanceof Error ? thrown.message : String(thrown),
+      storageKeys: input.storageKeys,
+    });
+  }
 }
 
 const mergeDestinations = {
@@ -358,11 +406,12 @@ async function moveInscriptions(tx: Transaction, input: RosterMergePair) {
  * Deletes the removed row and, when the survivor lacks a document, hands it the
  * removed one. The delete comes first: the document number is unique within
  * the academy, so the survivor can only take it once the removed row is gone.
+ * Returns the image keys of a dancer's document nobody took.
  */
 async function replaceRemovedPerson(
   tx: Transaction,
   input: RosterMergePair & { gainedDocument: boolean },
-) {
+): Promise<string[]> {
   const updatedAt = new Date();
 
   if (input.kind === "dancer") {
@@ -383,9 +432,14 @@ async function replaceRemovedPerson(
           updatedAt,
         })
         .where(eq(dancers.id, input.survivorId));
+
+      return [];
     }
 
-    return;
+    return [
+      removed.documentBackImageStorageKey,
+      removed.documentFrontImageStorageKey,
+    ].filter((key): key is string => key !== null);
   }
 
   const [removed] = await tx
@@ -403,6 +457,8 @@ async function replaceRemovedPerson(
       })
       .where(eq(professors.id, input.survivorId));
   }
+
+  return [];
 }
 
 async function countInscriptionsByEvent(input: {

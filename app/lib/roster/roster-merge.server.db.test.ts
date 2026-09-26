@@ -1,5 +1,5 @@
 import { eq, sum } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -25,10 +25,18 @@ import {
   loadRosterMergeOptions,
   mergeRosterPeople,
 } from "@/lib/roster/roster-merge.server";
+import {
+  type DancerDocumentStorageAdapter,
+  createDancerDocumentStorage,
+} from "@/lib/storage/dancer-documents.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("mergeRosterPeople", () => {
   test("moves every inscription of the removed dancer to the survivor, with its money", async () => {
@@ -106,14 +114,17 @@ describe("mergeRosterPeople", () => {
       identityVerifiedAt: verifiedAt,
     });
     const removed = await createDancer(academyId, {
+      documentBackImageStorageKey: "removed-back",
       documentFrontImageStorageKey: "removed-front",
       documentNumber: "30111223",
       documentType: "dni",
     });
+    const storage = createRecordingStorage();
 
     const result = await mergeRosterPeople({
       kind: "dancer",
       removedId: removed.id,
+      storage: storage.storage,
       survivorId: survivor.id,
     });
 
@@ -123,6 +134,45 @@ describe("mergeRosterPeople", () => {
       documentNumber: "30111222",
       documentType: "dni",
       identityVerifiedAt: verifiedAt,
+    });
+    // The discarded document's images, which nothing points at any more.
+    expect(storage.removed).toEqual([["removed-back", "removed-front"]]);
+  });
+
+  test("keeps the merge when deleting the discarded images fails, and logs them", async () => {
+    const { academyId } = await createRoster("Documento huerfano");
+    const survivor = await createDancer(academyId, {
+      documentNumber: "30111222",
+      documentType: "dni",
+    });
+    const removed = await createDancer(academyId, {
+      documentFrontImageStorageKey: "removed-front",
+      documentNumber: "30111223",
+      documentType: "dni",
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await mergeRosterPeople({
+      kind: "dancer",
+      removedId: removed.id,
+      storage: createDancerDocumentStorage(
+        createStorageAdapter({
+          remove: async () => {
+            throw new Error("volume unavailable");
+          },
+        }),
+      ),
+      survivorId: survivor.id,
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    await expect(
+      db.select().from(dancers).where(eq(dancers.id, removed.id)),
+    ).resolves.toEqual([]);
+    expect(errors).toHaveBeenCalledWith("[storage:dancer-document:orphan]", {
+      dancerId: removed.id,
+      detail: "volume unavailable",
+      storageKeys: ["removed-front"],
     });
   });
 
@@ -137,13 +187,17 @@ describe("mergeRosterPeople", () => {
       identityVerifiedAt: verifiedAt,
     });
 
+    const storage = createRecordingStorage();
+
     const result = await mergeRosterPeople({
       kind: "dancer",
       removedId: removed.id,
+      storage: storage.storage,
       survivorId: survivor.id,
     });
 
     expect(result).toMatchObject({ ok: true, gainedDocument: true });
+    expect(storage.removed).toEqual([]);
     await expect(readDancerDocument(survivor.id)).resolves.toEqual({
       documentFrontImageStorageKey: "removed-front",
       documentNumber: "30111222",
@@ -411,4 +465,31 @@ async function allocatedTotal(eventId: string) {
     .where(eq(paymentAllocations.eventId, eventId));
 
   return row?.total ?? 0;
+}
+
+function createStorageAdapter(
+  overrides: Partial<DancerDocumentStorageAdapter>,
+): DancerDocumentStorageAdapter {
+  return {
+    createSignedUrl: async () => "https://example.test/signed",
+    list: async () => [],
+    remove: async () => {},
+    upload: async () => {},
+    ...overrides,
+  };
+}
+
+function createRecordingStorage() {
+  const removed: string[][] = [];
+
+  return {
+    removed,
+    storage: createDancerDocumentStorage(
+      createStorageAdapter({
+        remove: async (input) => {
+          removed.push(input.keys);
+        },
+      }),
+    ),
+  };
 }

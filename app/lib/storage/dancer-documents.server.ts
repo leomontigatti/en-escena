@@ -75,6 +75,10 @@ export function createDancerDocumentStorage(
       });
     },
 
+    async removeDocumentImages(storageKeys: string[]) {
+      await adapter.remove({ bucket: policy.bucket, keys: storageKeys });
+    },
+
     async uploadDocumentImage(
       input: UploadDocumentImageInput,
     ): Promise<UploadResult> {
