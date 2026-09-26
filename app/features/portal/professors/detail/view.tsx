@@ -338,17 +338,14 @@ function ProfessorStatusDialog({
       ) : null}
       <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
         {action ? (
-          <AlertDialogContent
-            forceMount
-            className="w-[calc(100%-2rem)] max-w-lg gap-4 p-6 sm:max-w-lg"
-          >
-            <AlertDialogHeader className="flex flex-col items-start gap-1.5 text-left">
+          <AlertDialogContent forceMount>
+            <AlertDialogHeader>
               <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
               <AlertDialogDescription>
                 {action.confirmDescription}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="m-0 rounded-none border-0 bg-transparent p-0">
+            <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <form id={dialogFormId} method="post">
                 <input type="hidden" name="intent" value={action.intent} />

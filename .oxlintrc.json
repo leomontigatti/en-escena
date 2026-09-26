@@ -62,30 +62,6 @@
         "ui/no-raw-form-element": "error",
         "ui/no-restyle": "error"
       }
-    },
-    {
-      "files": [
-        "app/components/shared/file-upload-compact-control.tsx",
-        "app/components/shared/file-upload-field.tsx",
-        "app/features/admin/comprobantes/print/view.tsx"
-      ],
-      "rules": {
-        "ui/no-raw-form-element": "off"
-      }
-    },
-    {
-      "files": [
-        "app/components/shared/combobox-field.tsx",
-        "app/components/shared/data-table-shell.tsx",
-        "app/components/shared/home-access-card.tsx",
-        "app/components/shared/multi-combobox.tsx",
-        "app/features/admin/presentations/list/view.tsx",
-        "app/features/portal/dancers/detail/view.tsx",
-        "app/features/portal/professors/detail/view.tsx"
-      ],
-      "rules": {
-        "ui/no-restyle": "off"
-      }
     }
   ]
 }
