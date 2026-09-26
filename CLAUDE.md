@@ -27,9 +27,11 @@ matches the task.
   `pnpm typecheck` in parallel with `pnpm build`. **The commands listed there are
   the whole validation surface — check the script index below before running one
   that is not, rather than after it fails.** `pnpm lint` is oxlint over what
-  `.oxlintrc.json` enables — React hook mistakes, import cycles and un-awaited
-  promises — and is not a style checker; formatting is Prettier's, unused code is
-  `tsc`'s, and repo conventions belong to the `check:*` scripts.
+  `.oxlintrc.json` enables — React hook mistakes, import cycles, un-awaited
+  promises, and the `ui` rules against raw form elements and restyled
+  `app/components/ui` components — and is not a formatter; formatting is
+  Prettier's, unused code is `tsc`'s, and repo conventions belong to the
+  `check:*` scripts.
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
   (canonical). Guide for the whole repo, not just for Sandcastle. Includes the code
   language convention (Spanish for what the user reads, English for everything else;

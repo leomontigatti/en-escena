@@ -29,8 +29,6 @@ reviews:
       instructions: >-
         Also review against docs/agents/style-guide.md for colours, spacing,
         typography, shadcn/ui conventions and the tone of the Spanish copy.
-        Review only the changed lines. Flag a raw <button>, <input> or <select>
-        where a component under app/components/ui exists, a call site that
-        overrides a ui component's height, radius or focus ring through
-        className, and a new global CSS rule that could be a Tailwind class on
-        its owner. Do not restate the style guide when the diff follows it.
+        Review only the changed lines. Flag a new global CSS rule that could be
+        a Tailwind class on its owner. Do not restate the style guide when the
+        diff follows it.
