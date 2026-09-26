@@ -213,7 +213,7 @@ describe("runAutomaticOrdering", () => {
 
     const result = await runAutomaticOrdering(event.id);
 
-    expect(result).toEqual({ ok: true, orderedCount: 1 });
+    expect(result).toEqual({ ok: true, frozenCount: 0, orderedCount: 1 });
     expect(await readOrder(event.id)).toEqual([
       expect.objectContaining({
         choreographyId: performing.id,
@@ -238,7 +238,7 @@ describe("runAutomaticOrdering", () => {
 
     const result = await runAutomaticOrdering(event.id);
 
-    expect(result).toEqual({ ok: true, orderedCount: 3 });
+    expect(result).toEqual({ ok: true, frozenCount: 0, orderedCount: 3 });
 
     const after = await readOrder(event.id);
 
@@ -268,7 +268,7 @@ describe("runAutomaticOrdering", () => {
 
     const result = await runAutomaticOrdering(event.id);
 
-    expect(result).toEqual({ ok: true, orderedCount: 2 });
+    expect(result).toEqual({ ok: true, frozenCount: 0, orderedCount: 2 });
     expect(
       (await readOrder(event.id)).map(
         (presentation) => presentation.choreographyId,
@@ -276,7 +276,25 @@ describe("runAutomaticOrdering", () => {
     ).toEqual([nudo.id, amateur.id]);
   });
 
-  test("refuses when a presentation was already evaluated", async () => {
+  test("keeps the frozen rows where they are and places the late one after them", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const scored = await addChoreography({ name: "Evaluada", orderNumber: 1 });
+    const tail = await addChoreography({ name: "Cola", orderNumber: 2 });
+    const late = await addChoreography({ name: "Tardía" });
+
+    evaluatedChoreographyIds.add(scored.id);
+
+    const result = await runAutomaticOrdering(event.id);
+
+    expect(result).toEqual({ ok: true, frozenCount: 2, orderedCount: 1 });
+    expect(await readOrder(event.id)).toEqual([
+      expect.objectContaining({ choreographyId: scored.id, orderNumber: 1 }),
+      expect.objectContaining({ choreographyId: tail.id, orderNumber: 2 }),
+      expect.objectContaining({ choreographyId: late.id, orderNumber: 3 }),
+    ]);
+  });
+
+  test("refuses when every presentation is frozen", async () => {
     const { addChoreography, event } = await seedEvent();
     const numbered = await addChoreography({
       name: "Evaluada",
@@ -287,7 +305,7 @@ describe("runAutomaticOrdering", () => {
 
     const result = await runAutomaticOrdering(event.id);
 
-    expect(result).toEqual({ ok: false, reason: "evaluated" });
+    expect(result).toEqual({ ok: false, reason: "nothingToOrder" });
     expect((await readOrder(event.id))[0].orderNumber).toBe(3);
   });
 
@@ -404,6 +422,43 @@ describe("movePresentation", () => {
 
     expect(result).toEqual({ ok: false, reason: "notFound" });
     expect((await readOrder(event.id)).length).toBe(1);
+  });
+
+  test("refuses to move a frozen row, and refuses a frozen number as the target", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const scored = await addChoreography({ name: "Evaluada", orderNumber: 1 });
+    const tail = await addChoreography({ name: "Cola", orderNumber: 2 });
+    const late = await addChoreography({ name: "Tardía" });
+
+    evaluatedChoreographyIds.add(scored.id);
+
+    expect(
+      await movePresentation({
+        choreographyId: tail.id,
+        eventId: event.id,
+        fromOrderNumber: 2,
+        toOrderNumber: 1,
+      }),
+    ).toEqual({ ok: false, reason: "frozenRow" });
+    expect(
+      await movePresentation({
+        choreographyId: late.id,
+        eventId: event.id,
+        fromOrderNumber: null,
+        toOrderNumber: 2,
+      }),
+    ).toEqual({ ok: false, reason: "frozenPosition" });
+    expect(
+      await movePresentation({
+        choreographyId: late.id,
+        eventId: event.id,
+        fromOrderNumber: null,
+        toOrderNumber: 3,
+      }),
+    ).toEqual({ ok: true, movedToOrderNumber: 3 });
+    expect((await readOrder(event.id)).map((row) => row.orderNumber)).toEqual([
+      1, 2, 3,
+    ]);
   });
 
   test("refuses every move before the event's first automatic ordering", async () => {

@@ -62,6 +62,11 @@ export type PresentationListItem = {
   /** The choreography's level; `null` when its category admits none. */
   experienceLevel: ExperienceLevel | null;
   financialStatus: ChoreographyFinancialStatus;
+  /**
+   * `Presentación fija`: its schedule already has an evaluated presentation,
+   * so its number is neither moved nor offered as a place to move to.
+   */
+  frozen: boolean;
   groupType: ChoreographyGroupType;
   id: string;
   modalityName: string;
@@ -97,11 +102,13 @@ export type PresentationListResult = {
   canOrder: boolean;
   days: string[];
   filters: PresentationListFilters;
+  /** How many presentations the next automatic ordering will leave in place. */
+  frozenCount: number;
   hasAnyRow: boolean;
   hasPresentations: boolean;
+  /** The highest number in the order; `0` before the first ordering. */
+  highestOrderNumber: number;
   presentations: PresentationListItem[];
-  /** How many presentations the event has, which is the highest number free. */
-  presentationCount: number;
   selectedEventId: string | null;
   totalCount: number;
   totalPages: number;
@@ -180,6 +187,31 @@ export function formatJudgeAssignmentMessage(input: {
       : `Se mantuvieron ${keptCount} asignaciones que ya tienen puntaje.`;
 
   return `${reached} ${kept}`;
+}
+
+/**
+ * What the ordering says when it is done: the rows it placed and, when a
+ * schedule had already run, the rows it left where they were.
+ */
+export function formatAutomaticOrderingMessage(input: {
+  frozenCount: number;
+  orderedCount: number;
+}) {
+  const ordered =
+    input.orderedCount === 1
+      ? "Se ordenó 1 presentación."
+      : `Se ordenaron ${input.orderedCount} presentaciones.`;
+
+  if (input.frozenCount === 0) {
+    return ordered;
+  }
+
+  const frozen =
+    input.frozenCount === 1
+      ? "Quedó fija 1 porque su cronograma ya fue evaluado."
+      : `Quedaron fijas ${input.frozenCount} porque su cronograma ya fue evaluado.`;
+
+  return `${ordered} ${frozen}`;
 }
 
 /**

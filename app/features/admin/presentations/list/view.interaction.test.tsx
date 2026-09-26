@@ -153,7 +153,7 @@ describe("the participation list moved by hand", () => {
         buildItem({ id: "choreography-1", name: "Primera", orderNumber: 1 }),
         buildItem({ id: "choreography-3", name: "Tardía", orderNumber: null }),
       ],
-      presentationCount: 1,
+      highestOrderNumber: 1,
       unorderedCount: 1,
     });
 
@@ -211,7 +211,7 @@ describe("the participation list moved by hand", () => {
       presentations: [
         buildItem({ id: "choreography-1", name: "Primera", orderNumber: null }),
       ],
-      presentationCount: 0,
+      highestOrderNumber: 0,
       unorderedCount: 1,
     });
 
@@ -330,6 +330,7 @@ function buildItem(
     evaluationStatus: "pending",
     experienceLevel: null,
     financialStatus: "paidInFull",
+    frozen: false,
     groupType: "solo",
     id: "choreography-1",
     modalityName: "Jazz",
@@ -358,6 +359,7 @@ function buildLoaderData(
       query: "",
       warnings: null,
     },
+    frozenCount: 0,
     hasAnyRow: true,
     hasPresentations: true,
     presentations: [
@@ -369,7 +371,7 @@ function buildLoaderData(
         orderNumber: 2,
       }),
     ],
-    presentationCount: 2,
+    highestOrderNumber: 2,
     selectedEventId: "event-1",
     totalCount: 2,
     totalPages: 1,

@@ -306,8 +306,12 @@ _Avoid_: `choreography`, `choreographyNumber` (the number a choreography is sear
 The minimum of four presentations between two that share an active dancer, counted within one schedule. The automatic ordering enforces it inside a block, and a clash it could not avoid, or one a manual move or a roster change created, shows as a `presentationWarning` (`Separación`).
 _Avoid_: costume change, gap setting, professor spacing
 
+**`frozenPresentation`** — ui: "Presentación fija"
+A numbered `presentation` of a schedule that already has an evaluated presentation. Its number is kept by the automatic ordering and by every manual move, and is never offered as a place to move to. Derived on read from the panel's evaluations, never stored.
+_Avoid_: locked presentation, evaluated presentation (a frozen row need not be evaluated itself), closed schedule (`registrationOpen` is about inscriptions)
+
 **`presentationWarning`** — ui: "Advertencia"
-Derived, informational flag on a row of the `choreographyParticipationList`: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `dancerSpacing` (`Separación`) and `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in). Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
+Derived, informational flag on a row of the `choreographyParticipationList`: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `evaluatedSchedule` (`Cronograma evaluado`: a row without a number whose schedule already has a `frozenPresentation`, so no ordering can place it among the presentations already announced), `dancerSpacing` (`Separación`) and `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in). Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
 _Avoid_: error, validation, lock
 
 **`participationStatus`** — ui: "Estado de participación"

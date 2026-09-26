@@ -12,6 +12,7 @@ import {
 } from "@/lib/presentations/judge-assignments.server";
 import {
   movePresentation,
+  readFrozenChoreographyIds,
   readParticipationRows,
   runAutomaticOrdering,
   type ParticipationRow,
@@ -28,6 +29,7 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
 import {
   assignJudgesIntent,
+  formatAutomaticOrderingMessage,
   formatJudgeAssignmentMessage,
   judgeAssignmentSchema,
   judgeIdFieldName,
@@ -85,10 +87,11 @@ async function loadPresentationList(input: {
       canOrder: input.canOrder,
       days: [],
       filters: input.filters,
+      frozenCount: 0,
       hasAnyRow: false,
       hasPresentations: false,
+      highestOrderNumber: 0,
       presentations: [],
-      presentationCount: 0,
       selectedEventId: null,
       totalCount: 0,
       totalPages: 1,
@@ -98,7 +101,8 @@ async function loadPresentationList(input: {
   }
 
   const rows = await readParticipationRows(input.selectedEventId);
-  const warnings = derivePresentationWarnings(rows);
+  const frozenChoreographyIds = await readFrozenChoreographyIds(rows);
+  const warnings = derivePresentationWarnings(rows, frozenChoreographyIds);
   // The assignments of every row of the event, not only of the page: the
   // removal dialog offers the judges of the selection, and a selection is made
   // on one page at a time, so the page's rows are all it can ever need — but
@@ -113,6 +117,7 @@ async function loadPresentationList(input: {
     buildPresentationListItem(row, {
       assignedJudgeIds: assigned.byChoreography,
       evaluationStatuses,
+      frozenChoreographyIds,
       warnings,
     }),
   );
@@ -135,13 +140,17 @@ async function loadPresentationList(input: {
     canOrder: input.canOrder,
     days,
     filters: { ...filters, page },
+    frozenCount: frozenChoreographyIds.size,
     hasAnyRow: items.length > 0,
     hasPresentations: items.some((item) => item.orderNumber !== null),
+    highestOrderNumber: Math.max(
+      0,
+      ...items.map((item) => item.orderNumber ?? 0),
+    ),
     presentations: filteredItems.slice(
       (page - 1) * participationPageSize,
       page * participationPageSize,
     ),
-    presentationCount: items.filter((item) => item.orderNumber !== null).length,
     selectedEventId: input.selectedEventId,
     totalCount,
     totalPages,
@@ -196,10 +205,7 @@ export async function handlePresentationListAction(
   if (!result.ok) {
     return data(
       {
-        message:
-          result.reason === "evaluated"
-            ? "No se puede ordenar: hay presentaciones que ya fueron evaluadas."
-            : "No hay coreografías para ordenar.",
+        message: "No hay coreografías para ordenar.",
         status: "error" as const,
       },
       { status: 400 },
@@ -207,7 +213,7 @@ export async function handlePresentationListAction(
   }
 
   return {
-    message: `Se ordenaron ${result.orderedCount} presentaciones.`,
+    message: formatAutomaticOrderingMessage(result),
     status: "success" as const,
   };
 }
@@ -319,6 +325,10 @@ function movePresentationRefusal(
       return "Ordená automáticamente el evento antes de mover una presentación.";
     case "notFound":
       return "La coreografía ya no forma parte de la lista de presentación.";
+    case "frozenRow":
+      return "Esa presentación está fija: su cronograma ya fue evaluado.";
+    case "frozenPosition":
+      return "Esa posición está fija: su cronograma ya fue evaluado.";
   }
 }
 
@@ -339,6 +349,7 @@ function buildPresentationListItem(
   event: {
     assignedJudgeIds: Map<string, string[]>;
     evaluationStatuses: Map<string, PresentationEvaluationStatus>;
+    frozenChoreographyIds: Set<string>;
     warnings: Map<string, PresentationWarning[]>;
   },
 ): PresentationListItem {
@@ -351,6 +362,7 @@ function buildPresentationListItem(
       event.evaluationStatuses.get(row.choreographyId) ?? "pending",
     experienceLevel: row.experienceLevel,
     financialStatus: row.financialStatus,
+    frozen: event.frozenChoreographyIds.has(row.choreographyId),
     groupType: row.groupType as ChoreographyGroupType,
     id: row.choreographyId,
     modalityName: row.modalityName,

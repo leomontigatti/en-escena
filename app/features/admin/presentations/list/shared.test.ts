@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   assignJudgesIntent,
+  formatAutomaticOrderingMessage,
   formatJudgeAssignmentMessage,
   judgeAssignmentSchema,
   presentationRowPath,
@@ -21,6 +22,7 @@ function buildItem(
     evaluationStatus: "pending",
     experienceLevel: null,
     financialStatus: "paidInFull",
+    frozen: false,
     groupType: "solo",
     id: "choreography-1",
     modalityName: "Jazz",
@@ -189,5 +191,23 @@ describe("presentationRowPath", () => {
         buildItem({ evaluationStatus: "disqualified", presentationId: "p-1" }),
       ),
     ).toBe("/administracion/presentacion/p-1/puntajes");
+  });
+});
+
+describe("formatAutomaticOrderingMessage", () => {
+  test("counts what it ordered, and what it left in place when there was any", () => {
+    expect(
+      formatAutomaticOrderingMessage({ frozenCount: 0, orderedCount: 32 }),
+    ).toBe("Se ordenaron 32 presentaciones.");
+    expect(
+      formatAutomaticOrderingMessage({ frozenCount: 40, orderedCount: 1 }),
+    ).toBe(
+      "Se ordenó 1 presentación. Quedaron fijas 40 porque su cronograma ya fue evaluado.",
+    );
+    expect(
+      formatAutomaticOrderingMessage({ frozenCount: 1, orderedCount: 2 }),
+    ).toBe(
+      "Se ordenaron 2 presentaciones. Quedó fija 1 porque su cronograma ya fue evaluado.",
+    );
   });
 });

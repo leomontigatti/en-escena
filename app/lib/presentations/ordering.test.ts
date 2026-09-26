@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import {
   computeAutomaticOrder,
+  computeManualMove,
+  findFrozenChoreographyIds,
   isPresentationEligible,
   movePosition,
   type PresentationOrderingRow,
@@ -36,15 +38,55 @@ function row({
   };
 }
 
-function orderOf(rows: PresentationOrderingRow[]) {
-  const result = computeAutomaticOrder(rows);
+function orderOf(
+  rows: PresentationOrderingRow[],
+  frozenChoreographyIds = new Set<string>(),
+) {
+  const result = computeAutomaticOrder(rows, frozenChoreographyIds);
 
   if (!result.ok) {
     throw new Error(`Unexpected refusal: ${result.reason}`);
   }
 
-  return result.choreographyIds;
+  return [...result.placements]
+    .sort((left, right) => left.orderNumber - right.orderNumber)
+    .map((placement) => placement.choreographyId);
 }
+
+/** The placements as `[choreographyId, orderNumber]` pairs, by number. */
+function placementsOf(
+  rows: PresentationOrderingRow[],
+  frozenChoreographyIds: Set<string>,
+) {
+  const result = computeAutomaticOrder(rows, frozenChoreographyIds);
+
+  if (!result.ok) {
+    throw new Error(`Unexpected refusal: ${result.reason}`);
+  }
+
+  return [...result.placements]
+    .sort((left, right) => left.orderNumber - right.orderNumber)
+    .map((placement) => [placement.choreographyId, placement.orderNumber]);
+}
+
+const dayOne = {
+  id: "day-1",
+  name: "Sala A",
+  scheduledDate: "2026-05-01",
+  startTime: "10:00",
+};
+const dayTwo = {
+  id: "day-2",
+  name: "Sala A",
+  scheduledDate: "2026-05-02",
+  startTime: "10:00",
+};
+const dayThree = {
+  id: "day-3",
+  name: "Sala A",
+  scheduledDate: "2026-05-03",
+  startTime: "10:00",
+};
 
 function shuffle<Item>(items: Item[], seed: number) {
   return [...items].sort(
@@ -575,5 +617,352 @@ describe("movePosition", () => {
   test("clamps a target beyond the ends of the order", () => {
     expect(movePosition(["a", "b"], "late", 99)).toEqual(["a", "b", "late"]);
     expect(movePosition(["a", "b"], "late", -3)).toEqual(["late", "a", "b"]);
+  });
+});
+
+describe("findFrozenChoreographyIds", () => {
+  test("freezes every numbered row of a schedule with an evaluated presentation", () => {
+    const rows = [
+      row({
+        choreographyId: "scored",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "tail",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "late-day-one",
+        choreographyNumber: 3,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "next-day",
+        choreographyNumber: 4,
+        orderNumber: 3,
+        schedule: dayTwo,
+      }),
+    ];
+
+    expect(findFrozenChoreographyIds(rows, new Set(["scored"]))).toEqual(
+      new Set(["scored", "tail"]),
+    );
+  });
+
+  test("freezes nothing while no presentation is evaluated", () => {
+    const rows = [
+      row({ choreographyId: "a", choreographyNumber: 1, orderNumber: 1 }),
+    ];
+
+    expect(findFrozenChoreographyIds(rows, new Set())).toEqual(new Set());
+  });
+});
+
+describe("computeAutomaticOrder with frozen rows", () => {
+  test("keeps the frozen numbers and fills the free positions in block order", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-b",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-b",
+        choreographyNumber: 20,
+        orderNumber: 3,
+        schedule: dayTwo,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 10,
+        orderNumber: 4,
+        schedule: dayTwo,
+      }),
+      row({
+        choreographyId: "d2-late",
+        choreographyNumber: 5,
+        schedule: dayTwo,
+      }),
+    ];
+
+    const result = computeAutomaticOrder(rows, new Set(["d1-a", "d1-b"]));
+
+    expect(result).toEqual({
+      ok: true,
+      frozenCount: 2,
+      placements: expect.arrayContaining([
+        { choreographyId: "d2-late", orderNumber: 3 },
+        { choreographyId: "d2-a", orderNumber: 4 },
+        { choreographyId: "d2-b", orderNumber: 5 },
+      ]),
+    });
+    expect(result.ok && result.placements).toHaveLength(3);
+  });
+
+  test("places a late row of a frozen schedule right after that schedule's run", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d1-late",
+        choreographyNumber: 9,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayTwo,
+      }),
+    ];
+
+    expect(placementsOf(rows, new Set(["d1-a"]))).toEqual([
+      ["d1-late", 2],
+      ["d2-a", 3],
+    ]);
+  });
+
+  test("never inserts between two frozen schedules: the late row lands after both", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d1-late",
+        choreographyNumber: 9,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayTwo,
+      }),
+      row({
+        choreographyId: "d3-a",
+        choreographyNumber: 3,
+        orderNumber: 3,
+        schedule: dayThree,
+      }),
+    ];
+
+    expect(placementsOf(rows, new Set(["d1-a", "d2-a"]))).toEqual([
+      ["d1-late", 3],
+      ["d3-a", 4],
+    ]);
+  });
+
+  test("leaves a gap inside a frozen run alone", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d1-c",
+        choreographyNumber: 3,
+        orderNumber: 3,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 4,
+        orderNumber: 7,
+        schedule: dayTwo,
+      }),
+    ];
+
+    expect(placementsOf(rows, new Set(["d1-a", "d1-c"]))).toEqual([
+      ["d2-a", 4],
+    ]);
+  });
+
+  test("leaves a gap between two frozen schedules alone as well", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 2,
+        orderNumber: 4,
+        schedule: dayTwo,
+      }),
+      row({
+        choreographyId: "d3-a",
+        choreographyNumber: 3,
+        schedule: dayThree,
+      }),
+    ];
+
+    expect(placementsOf(rows, new Set(["d1-a", "d2-a"]))).toEqual([
+      ["d3-a", 5],
+    ]);
+  });
+
+  test("counts the frozen tail of a schedule towards the dancer gap", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+        activeDancerIds: ["ana"],
+      }),
+      row({
+        choreographyId: "d1-shares",
+        choreographyNumber: 2,
+        schedule: dayOne,
+        activeDancerIds: ["ana"],
+      }),
+      row({
+        choreographyId: "d1-free",
+        choreographyNumber: 3,
+        schedule: dayOne,
+      }),
+    ];
+
+    expect(placementsOf(rows, new Set(["d1-a"]))).toEqual([
+      ["d1-free", 2],
+      ["d1-shares", 3],
+    ]);
+  });
+
+  test("refuses when every candidate is frozen", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "below",
+        choreographyNumber: 2,
+        financialStatus: "depositPending",
+        schedule: dayTwo,
+      }),
+    ];
+
+    expect(computeAutomaticOrder(rows, new Set(["d1-a"]))).toEqual({
+      ok: false,
+      reason: "nothingToOrder",
+    });
+  });
+});
+
+describe("computeManualMove", () => {
+  const numbered = [
+    row({
+      choreographyId: "d1-a",
+      choreographyNumber: 1,
+      orderNumber: 1,
+      schedule: dayOne,
+    }),
+    row({
+      choreographyId: "d1-b",
+      choreographyNumber: 2,
+      orderNumber: 2,
+      schedule: dayOne,
+    }),
+    row({
+      choreographyId: "d2-a",
+      choreographyNumber: 3,
+      orderNumber: 3,
+      schedule: dayTwo,
+    }),
+    row({
+      choreographyId: "d2-b",
+      choreographyNumber: 4,
+      orderNumber: 4,
+      schedule: dayTwo,
+    }),
+    row({
+      choreographyId: "d2-c",
+      choreographyNumber: 5,
+      orderNumber: 5,
+      schedule: dayTwo,
+    }),
+  ];
+  const frozen = new Set(["d1-a", "d1-b"]);
+
+  test("refuses to move a frozen row", () => {
+    expect(computeManualMove(numbered, frozen, "d1-b", 5)).toEqual({
+      ok: false,
+      reason: "frozenRow",
+    });
+  });
+
+  test("refuses a frozen position as the target", () => {
+    expect(computeManualMove(numbered, frozen, "d2-c", 2)).toEqual({
+      ok: false,
+      reason: "frozenPosition",
+    });
+  });
+
+  test("permutes the free positions only", () => {
+    const result = computeManualMove(numbered, frozen, "d2-c", 3);
+
+    expect(result).toEqual({
+      ok: true,
+      movedToOrderNumber: 3,
+      placements: expect.arrayContaining([
+        { choreographyId: "d2-c", orderNumber: 3 },
+        { choreographyId: "d2-a", orderNumber: 4 },
+        { choreographyId: "d2-b", orderNumber: 5 },
+      ]),
+    });
+  });
+
+  test("places a late row at the end and closes gaps outside the frozen runs", () => {
+    const withGap = [
+      ...numbered.slice(0, 4),
+      row({
+        choreographyId: "d2-c",
+        choreographyNumber: 5,
+        orderNumber: 9,
+        schedule: dayTwo,
+      }),
+    ];
+
+    const result = computeManualMove(withGap, frozen, "late", 10);
+
+    expect(result).toEqual({
+      ok: true,
+      movedToOrderNumber: 6,
+      placements: expect.arrayContaining([
+        { choreographyId: "d2-c", orderNumber: 5 },
+        { choreographyId: "late", orderNumber: 6 },
+      ]),
+    });
+  });
+
+  test("moves freely when nothing is frozen", () => {
+    const result = computeManualMove(numbered, new Set(), "d2-c", 1);
+
+    expect(result.ok && result.movedToOrderNumber).toBe(1);
   });
 });
