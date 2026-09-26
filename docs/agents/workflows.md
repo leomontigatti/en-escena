@@ -406,10 +406,11 @@ The two UI rules, `ui/no-raw-form-element` and `ui/no-restyle`, come from a loca
 JS plugin, `scripts/oxlint-ui-plugin.mjs`, and an `overrides` entry scopes them to
 `app/**/*.tsx` outside `app/components/ui` and test files. A raw element that is
 the direct child of an `asChild` parent (`<DropdownMenuItem asChild><button>`) is
-exempt, since the parent owns its look. The files that already broke a rule when
-it landed sit in two more `overrides` entries that turn it off, one per rule;
-those lists shrink as each file is touched (#1210 records why each file is
-there), and nothing is added to them. JS plugins are alpha in oxlint and outside
+exempt, since the parent owns its look, and so are a visually hidden one
+(`sr-only`, the file picker behind a drop zone) and one inside a standalone
+`<html>` document, which does not load the app's stylesheet. A height on
+`TableCell` is layout, since the cell sets none. No file turns a rule off; a
+case the rules misjudge is narrowed in the plugin, with a test. JS plugins are alpha in oxlint and outside
 its semver promise, so `package.json` pins oxlint to an exact version: a minor
 bump that changes the plugin API has to arrive as a deliberate upgrade, not
 through the lockfile.

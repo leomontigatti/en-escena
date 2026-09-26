@@ -19,6 +19,11 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-brand underline-offset-4 hover:underline",
+        // A button that stands in for a form field, like a combobox trigger: it
+        // keeps the arrow cursor, does not react to hover, and takes the fields'
+        // brand ring on focus.
+        field:
+          "cursor-default border-input bg-background font-normal hover:bg-background hover:text-foreground aria-expanded:bg-background aria-expanded:text-foreground focus-visible:border-brand focus-visible:ring-brand/50 dark:bg-input/30 dark:hover:bg-input/30 dark:aria-expanded:bg-input/30",
       },
       size: {
         default:

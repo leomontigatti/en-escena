@@ -272,7 +272,7 @@ function MultiComboboxTrigger<TOption extends MultiComboboxOption>({
       aria-invalid={config.error ? true : undefined}
       disabled={config.disabled}
       className={cn(
-        "flex min-w-16 flex-1 items-center justify-between gap-2 text-left text-muted-foreground outline-none",
+        "flex min-w-16 flex-1 items-center justify-between gap-2 text-left text-muted-foreground",
         config.disabled && "pointer-events-none",
       )}
       onBlur={config.onBlur}
