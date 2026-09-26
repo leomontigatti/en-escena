@@ -100,9 +100,9 @@ function buildPresentationColumns({
             id: "arrastrar",
             header: "",
             leading: true,
-            // The weights are the prototype's (#912), where they were settled
-            // against the 1152 px content width with real event data. With the
-            // selection column's own weight the row comes to 100.
+            // The weights started as the prototype's (#912), settled against
+            // the 1152 px content width with real event data. The category and
+            // modality columns were widened later: their headers did not fit.
             width: 3,
             className: "px-1",
             headerClassName: "px-1",
@@ -121,7 +121,7 @@ function buildPresentationColumns({
     {
       id: "categoriaTipoGrupo",
       header: "Categoría / Tipo de grupo",
-      width: 14,
+      width: 18,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -135,7 +135,7 @@ function buildPresentationColumns({
     {
       id: "modalidadSubmodalidad",
       header: "Modalidad / Submodalidad",
-      width: 17,
+      width: 18,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -149,14 +149,14 @@ function buildPresentationColumns({
     {
       id: "academia",
       header: "Academia",
-      width: 16,
+      width: 15,
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
     },
     {
       id: "nombre",
       header: "Nombre",
-      width: 19,
+      width: 16,
       className: "font-medium",
       // The choreography number is not a column of this list, so it travels in
       // the truncation title: it stays searchable and the admin can still name
@@ -362,7 +362,9 @@ function PresentationOrderCell({
         className="h-8 tabular-nums"
         inputMode="numeric"
         onBlur={commit}
-        onChange={(event) => setValue(event.target.value)}
+        // A place in the order is a whole number, so anything but a digit is
+        // dropped as it is typed rather than refused on commit.
+        onChange={(event) => setValue(event.target.value.replace(/\D/g, ""))}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();

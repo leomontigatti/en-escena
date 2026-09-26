@@ -4,6 +4,7 @@ import {
   appendScheduleOccupancySuffix,
   formatScheduleDateTime,
   formatScheduleDayLabel,
+  formatScheduleDayTabLabel,
 } from "@/lib/choreographies/schedule-formatters";
 
 const schedule = {
@@ -66,5 +67,14 @@ describe("schedule formatters", () => {
 
   test("hands back a date that is shaped right but impossible", () => {
     expect(formatScheduleDayLabel("2026-13-40")).toBe("2026-13-40");
+  });
+
+  test("names a day by its weekday and day/month when space is short", () => {
+    expect(formatScheduleDayTabLabel("2026-10-10")).toBe("Sábado 10/10");
+    expect(formatScheduleDayTabLabel("2026-01-05")).toBe("Lunes 5/1");
+  });
+
+  test("hands back an impossible date as written in the short form too", () => {
+    expect(formatScheduleDayTabLabel("2026-13-40")).toBe("2026-13-40");
   });
 });

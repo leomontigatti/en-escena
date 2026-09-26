@@ -36,6 +36,7 @@ import {
 } from "@/components/shared/data-table-controls";
 import { DataTableFacetedFilterControl } from "@/components/shared/data-table-filters-trigger";
 import { toSortDirection } from "@/components/shared/data-table-helpers";
+import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
@@ -238,7 +239,11 @@ export function DataTableShell<TData>({
   const tableElement = (
     <Table className={layout === "fit" ? "table-fixed" : undefined}>
       {layout === "fit" ? <DataTableColumnGroup table={table} /> : null}
-      <DataTableHead serverSort={serverSort} table={table} />
+      <DataTableHead
+        isFit={layout === "fit"}
+        serverSort={serverSort}
+        table={table}
+      />
       <DataTableBody
         emptyMessage={emptyMessage}
         getRowProps={getRowProps}
@@ -420,9 +425,11 @@ function DataTableSearchField({ search }: { search: DataTableSearchProps }) {
  * construction rather than by assumption.
  */
 function DataTableHead<TData>({
+  isFit,
   serverSort,
   table,
 }: {
+  isFit: boolean;
   serverSort?: DataTableServerSortProps;
   table: TanStackTable<TData>;
 }) {
@@ -438,7 +445,11 @@ function DataTableHead<TData>({
                 header.column.columnDef.meta?.headerClassName,
               )}
             >
-              <DataTableHeaderContent header={header} serverSort={serverSort} />
+              <DataTableHeaderContent
+                header={header}
+                isFit={isFit}
+                serverSort={serverSort}
+              />
             </TableHead>
           ))}
         </TableRow>
@@ -455,12 +466,24 @@ function DataTableHead<TData>({
  */
 function DataTableHeaderContent<TData>({
   header,
+  isFit,
   serverSort,
 }: {
   header: Header<TData, unknown>;
+  isFit: boolean;
   serverSort?: DataTableServerSortProps;
 }) {
-  const label = flexRender(header.column.columnDef.header, header.getContext());
+  const { header: definition } = header.column.columnDef;
+  // A fixed column cannot grow to hold its header, and a header is never
+  // wrapped, so a label longer than its column is cut the way a long cell is
+  // instead of being drawn over the next column's.
+  const label =
+    isFit && typeof definition === "string" && definition !== "" ? (
+      <DataTableTruncatedText className="min-w-0" value={definition} />
+    ) : (
+      flexRender(definition, header.getContext())
+    );
+  const sortButtonClassName = cn("-ml-2 text-sm", isFit && "max-w-full");
 
   if (!header.column.getCanSort()) {
     return label;
@@ -468,7 +491,7 @@ function DataTableHeaderContent<TData>({
 
   if (serverSort) {
     return (
-      <Button asChild variant="ghost" size="sm" className="-ml-2 text-sm">
+      <Button asChild variant="ghost" size="sm" className={sortButtonClassName}>
         <Link to={serverSort.getHref(header.column.id)}>
           {label}
           <SortIcon direction={serverSort.getDirection?.(header.column.id)} />
@@ -482,7 +505,7 @@ function DataTableHeaderContent<TData>({
       type="button"
       variant="ghost"
       size="sm"
-      className="-ml-2 text-sm"
+      className={sortButtonClassName}
       onClick={header.column.getToggleSortingHandler()}
     >
       {label}
