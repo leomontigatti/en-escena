@@ -165,6 +165,28 @@ describe("PresentationsListView", () => {
     );
   });
 
+  test("locks the number and hides the grip of a frozen row", () => {
+    const markup = renderView({
+      frozenCount: 1,
+      presentations: [
+        buildItem({ frozen: true, id: "frozen", name: "Fija", orderNumber: 1 }),
+        buildItem({ id: "free", name: "Libre", orderNumber: 2 }),
+      ],
+      highestOrderNumber: 2,
+    });
+    const grips = [...markup.matchAll(/aria-label="Mover la presentación"/g)];
+    const lockedNumber = markup.match(
+      /<input[^>]*aria-label="Número de presentación de Fija"[^>]*>/,
+    )?.[0];
+    const freeNumber = markup.match(
+      /<input[^>]*aria-label="Número de presentación de Libre"[^>]*>/,
+    )?.[0];
+
+    expect(grips).toHaveLength(1);
+    expect(lockedNumber).toContain('disabled=""');
+    expect(freeNumber).not.toContain('disabled=""');
+  });
+
   test("keeps the actions menu out of an auditor's header", () => {
     const markup = renderView({ canOrder: false });
 
@@ -183,6 +205,7 @@ function buildItem(
     evaluationStatus: "pending",
     experienceLevel: null,
     financialStatus: "depositMet",
+    frozen: false,
     groupType: "solo",
     id: "choreography-1",
     modalityName: "Jazz",
@@ -209,10 +232,11 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
       query: "",
       warnings: null,
     },
+    frozenCount: 0,
     hasAnyRow: true,
     hasPresentations: true,
+    highestOrderNumber: 1,
     presentations: [buildItem()],
-    presentationCount: 1,
     selectedEventId: "event-1",
     totalCount: 1,
     totalPages: 1,

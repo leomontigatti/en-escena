@@ -15,7 +15,11 @@ import {
  */
 
 export type PresentationWarningKind =
-  "belowDeposit" | "dancerSpacing" | "missingLevel" | "outOfBlock";
+  | "belowDeposit"
+  | "dancerSpacing"
+  | "evaluatedSchedule"
+  | "missingLevel"
+  | "outOfBlock";
 
 export type PresentationWarning = {
   kind: PresentationWarningKind;
@@ -39,13 +43,28 @@ export type PresentationWarningRow = PresentationBlock & {
  */
 const warningKindPrecedence: readonly PresentationWarningKind[] = [
   "belowDeposit",
+  "evaluatedSchedule",
   "dancerSpacing",
   "outOfBlock",
   "missingLevel",
 ];
 
-/** Every warning of every row, keyed by choreography; rows with none are absent. */
-export function derivePresentationWarnings(rows: PresentationWarningRow[]) {
+/**
+ * Every warning of every row, keyed by choreography; rows with none are
+ * absent. `frozenChoreographyIds` is what `findFrozenChoreographyIds` answers:
+ * it names the schedules that already ran, and an unnumbered row of one of
+ * them is flagged, since no ordering can put it among the presentations that
+ * were announced.
+ */
+export function derivePresentationWarnings(
+  rows: PresentationWarningRow[],
+  frozenChoreographyIds: Set<string> = new Set(),
+) {
+  const frozenScheduleIds = new Set(
+    rows
+      .filter((row) => frozenChoreographyIds.has(row.choreographyId))
+      .map((row) => row.schedule.id),
+  );
   const warnings = new Map<string, PresentationWarning[]>();
 
   const add = (choreographyId: string, warning: PresentationWarning) => {
@@ -78,6 +97,14 @@ export function derivePresentationWarnings(rows: PresentationWarningRow[]) {
       row.experienceLevel === null
     ) {
       add(row.choreographyId, { kind: "missingLevel", message: "Sin nivel" });
+    }
+
+    if (row.orderNumber === null && frozenScheduleIds.has(row.schedule.id)) {
+      add(row.choreographyId, {
+        kind: "evaluatedSchedule",
+        message:
+          "Su cronograma ya fue evaluado: se ubicará después de los cronogramas ya evaluados",
+      });
     }
   }
 

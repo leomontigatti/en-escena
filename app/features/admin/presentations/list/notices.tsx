@@ -184,9 +184,12 @@ export function PresentationDayTabs({
  * data — what cannot be ordered is answered by the server, not by the menu.
  */
 export function OrderingConfirmationDialog({
+  frozenCount,
   onOpenChange,
   open,
 }: {
+  /** The presentations the ordering will leave in place, named up front. */
+  frozenCount: number;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
@@ -228,6 +231,16 @@ export function OrderingConfirmationDialog({
             número de presentación nuevo.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {frozenCount > 0 ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              {frozenCount === 1
+                ? "1 presentación queda fija porque su cronograma ya fue evaluado."
+                : `${frozenCount} presentaciones quedan fijas porque su cronograma ya fue evaluado.`}
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <Alert variant="destructive">
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>

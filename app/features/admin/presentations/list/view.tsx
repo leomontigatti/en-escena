@@ -65,6 +65,7 @@ const warningTriage: {
   label: string;
 }[] = [
   { kind: "belowDeposit", label: "Seña pendiente" },
+  { kind: "evaluatedSchedule", label: "Cronograma evaluado" },
   { kind: "dancerSpacing", label: "Separación" },
   { kind: "outOfBlock", label: "Fuera de bloque" },
   { kind: "missingLevel", label: "Sin nivel" },
@@ -106,7 +107,12 @@ function buildPresentationColumns({
             width: 3,
             className: "px-1",
             headerClassName: "px-1",
-            cell: () => <DataTableDragHandle label="Mover la presentación" />,
+            // A frozen row has no grip: its schedule already ran, so there
+            // is nowhere for it to go.
+            cell: (row) =>
+              row.frozen ? null : (
+                <DataTableDragHandle label="Mover la presentación" />
+              ),
           } satisfies DataTableColumn<PresentationListItem>,
         ]
       : []),
@@ -250,7 +256,7 @@ function usePresentationMoving(loaderData: PresentationListResult) {
     canDrag: canMove && isSortedByNumberAscending,
     canMove,
     highestNumber: loaderData.hasPresentations
-      ? loaderData.presentationCount
+      ? loaderData.highestOrderNumber
       : null,
     move: (input) => {
       setOptimisticRowIds(input.optimisticRowIds ?? null);
@@ -288,8 +294,9 @@ function usePresentationMoving(loaderData: PresentationListResult) {
 /**
  * The number, always an input once the event has been ordered: typing one is
  * the way to place a row that dragging cannot reach, on another page or under
- * another sort. Before the first ordering there is no order to type into, so
- * the number is locked.
+ * another sort. Before the first ordering there is no order to type into, and
+ * a frozen row's number is not the administrator's to change, so both are
+ * locked.
  */
 function PresentationOrderCell({
   moving,
@@ -311,11 +318,15 @@ function PresentationOrderCell({
     setError(null);
   }
 
-  if (!moving.canMove || moving.highestNumber === null) {
+  if (!moving.canMove || moving.highestNumber === null || row.frozen) {
     return (
       <div className="relative">
         <Input
-          aria-label="Número de presentación"
+          aria-label={
+            row.frozen
+              ? `Número de presentación de ${row.name}`
+              : "Número de presentación"
+          }
           className="h-8 tabular-nums"
           disabled
           readOnly
@@ -487,6 +498,7 @@ export function PresentationsListView({
       )}
       {loaderData.canOrder ? (
         <OrderingConfirmationDialog
+          frozenCount={loaderData.frozenCount}
           open={isOrderingDialogOpen}
           onOpenChange={setIsOrderingDialogOpen}
         />
@@ -572,7 +584,15 @@ function moveDraggedRow({
   const active = rows.find((row) => row.id === activeRowId);
   const over = rows.find((row) => row.id === overRowId);
 
-  if (!active || !over || over.orderNumber === null) {
+  // Neither a frozen row nor a frozen place moves: the server would refuse
+  // both, so the drop is ignored rather than shown and then undone.
+  if (
+    !active ||
+    !over ||
+    over.orderNumber === null ||
+    active.frozen ||
+    over.frozen
+  ) {
     return;
   }
 
