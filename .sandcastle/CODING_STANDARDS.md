@@ -26,6 +26,32 @@ Avoid tests that simply restate trivial implementation details, such as a
 one-line string concatenation or direct mapping. These tests add little
 confidence and tend to break during harmless refactors.
 
+### Component tests
+
+Test meaningful logic or observable behaviour. Do not render components to
+static markup to assert props, classes or attributes, and do not add tests that
+merely assert callback wiring or mirror the implementation.
+
+Since [ADR-0016](../docs/adr/0016-local-implementation.md), implementation runs
+in a local session with a browser, and what a component renders is verified
+there, against the real layout and styles, rather than in jsdom. A jsdom test
+earns its place when it covers something a glance at the page would not:
+
+- **Keep**: reducers, state machines, validation, formatting and label logic
+  (ideally extracted into a pure module and tested without React, per
+  [FRONTEND-TDD.md](../.claude/skills/implement/FRONTEND-TDD.md)), and user
+  flows that type or click and assert the resulting behaviour — what gets
+  submitted, what the user is told, what becomes disabled — or an
+  accessibility contract such as focus, labels or roles a keyboard user
+  depends on.
+- **Do not write**: a render that checks a prop's text appears in the DOM, a
+  Tailwind class or attribute, that a callback fired when its button was
+  clicked with nothing observable following, or an assertion that restates
+  the JSX.
+
+A regression test for a real bug stays even when its assertion looks like
+markup: the bug is the reason it exists, and its name or commit should say so.
+
 ## Documentation Gate
 
 Some code has a current-state document that must stay in step with it. The

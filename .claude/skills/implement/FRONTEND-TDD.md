@@ -45,3 +45,5 @@ Once all behavior is covered, clean up: extract helpers, simplify switch arms, i
 ### 6. Wire into the component
 
 Only after the state logic is fully tested and green, integrate it into the component. The component layer should be thin — dispatch actions, render state.
+
+Check the wired component in the browser, not with a jsdom render that restates its markup. Add a component test only for a user flow whose outcome matters (what is submitted, what the user is told, what becomes disabled) or an accessibility contract; the rule is `.sandcastle/CODING_STANDARDS.md` § Component tests.

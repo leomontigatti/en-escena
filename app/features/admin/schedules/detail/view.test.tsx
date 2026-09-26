@@ -35,16 +35,6 @@ describe("EventScheduleDetailView", () => {
     useNavigationMock.mockReset();
   });
 
-  test("confirms the delete through the shared alert dialog", async () => {
-    useNavigationMock.mockReturnValue({ state: "idle" });
-
-    await renderDetail();
-
-    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
-    expect(document.body.textContent).toContain("Eliminar cronograma");
-    expect(getButton("Eliminar").disabled).toBe(false);
-  });
-
   test("disables the destructive action while its delete submission is pending", async () => {
     const formData = new FormData();
     formData.set("intent", "delete-schedule");
@@ -140,22 +130,6 @@ describe("EventScheduleDetailView", () => {
     await updateReactDomForm(() => setInputValue(name, "Mañana"));
 
     expect(getButton("Guardar").disabled).toBe(true);
-  });
-
-  test("leads the footer with Volver and its chevron, opposite Guardar", async () => {
-    useNavigationMock.mockReturnValue({ state: "idle" });
-
-    await renderDetail({ initialDeleteDialogOpen: false });
-
-    const volver = document.querySelector(
-      'a[href*="/administracion/cronogramas"]',
-    );
-    const actions = volver?.closest("div");
-
-    expect(volver?.textContent).toContain("Volver");
-    expect(volver?.querySelector("svg")).not.toBeNull();
-    expect(actions?.className).toContain("justify-between");
-    expect(actions?.firstElementChild?.textContent).toContain("Volver");
   });
 
   // The schedule's accepted categories are the field itself: the chips are what

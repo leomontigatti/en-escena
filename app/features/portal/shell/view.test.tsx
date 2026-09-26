@@ -4,7 +4,6 @@ import { describe, expect, test } from "vitest";
 
 import {
   PortalCoreographiesSection,
-  PortalEmptyListSection,
   PortalShell,
 } from "@/components/portal/ui";
 import { PortalShellRouteView } from "@/features/portal/shell/view";
@@ -58,24 +57,6 @@ describe("portal route view", () => {
     expect(markup).toContain("Sin evento");
   });
 
-  test("keeps the shell usable when the active event is not ready", () => {
-    const selectedEvent = eventSummary({
-      id: "event_active",
-      name: "Regional 2026",
-      active: true,
-    });
-
-    const markup = renderPortal({
-      eventContext: {
-        activeEvent: selectedEvent,
-        isRegistrationOpen: true,
-      },
-    });
-
-    expect(markup).toContain("Regional 2026");
-    expect(markup).toContain("Coreografías");
-  });
-
   test("states in the shell whether the inscriptions are open", () => {
     const openMarkup = renderPortal({
       eventContext: {
@@ -94,31 +75,6 @@ describe("portal route view", () => {
     });
 
     expect(closedMarkup).toContain("Las inscripciones están cerradas.");
-  });
-
-  test("renders shared portal surfaces with shadcn components and semantic tokens", () => {
-    const markup = renderToStaticMarkup(
-      <>
-        <PortalEmptyListSection
-          title="Profesores"
-          description="Gestioná el plantel docente de tu academia."
-          emptyTitle="Todavía no hay profesores"
-          emptyDescription="Cuando sumes profesores, van a aparecer en esta sección."
-        />
-        <PortalCoreographiesSection eventContext={portalEventContext()} />
-      </>,
-    );
-
-    expect(markup).toContain('data-slot="card"');
-    expect(markup).toContain('data-slot="badge"');
-    expect(markup).toContain('data-slot="alert"');
-    expect(markup).not.toContain("border-slate-200");
-    expect(markup).not.toContain("bg-white");
-    expect(markup).not.toContain("text-slate-950");
-    expect(markup).not.toContain("text-slate-600");
-    expect(markup).not.toContain("bg-amber-50");
-    expect(markup).not.toContain("bg-emerald-50");
-    expect(markup).not.toContain("bg-slate-50");
   });
 
   test("renders shared choreography availability states with shadcn alert and badge variants", () => {

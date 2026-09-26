@@ -10,7 +10,6 @@ import {
   eventDocumentFileField,
   eventDocumentKeptField,
 } from "@/features/admin/events/detail/shared";
-import { eventDocumentKinds } from "@/lib/events/event-documents";
 import { eventDocumentSummaries } from "@/lib/events/event-documents.test-support";
 import {
   clickReactDomButton,
@@ -36,16 +35,6 @@ describe("EventDetailView delete", () => {
   afterEach(() => {
     renderer.cleanup();
     useNavigationMock.mockReset();
-  });
-
-  test("confirms the delete through the shared alert dialog", async () => {
-    useNavigationMock.mockReturnValue({ state: "idle" });
-
-    await renderDetail();
-
-    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
-    expect(document.body.textContent).toContain("Eliminar evento");
-    expect(getButton("Eliminar").disabled).toBe(false);
   });
 
   test("disables the destructive action while its delete submission is pending", async () => {
@@ -139,26 +128,6 @@ describe("EventDetailView form", () => {
     useNavigationMock.mockReset();
   });
 
-  // One "Guardar" for the event and its three PDFs. That is only possible while
-  // nothing nests a form inside the event form, so the documents are fields.
-  test("carries the documents as fields of the single event form", async () => {
-    await renderForm();
-
-    const form = getEventForm();
-
-    expect(form.querySelector("form")).toBeNull();
-    expect(form.getAttribute("enctype")).toBe("multipart/form-data");
-    expect(
-      form.querySelector<HTMLInputElement>('input[name="intent"]')?.value,
-    ).toBe("update");
-
-    for (const kind of eventDocumentKinds) {
-      expect(
-        form.querySelector(`input[name="${eventDocumentFileField(kind)}"]`),
-      ).not.toBeNull();
-    }
-  });
-
   test("keeps every field on the same submission", async () => {
     await renderForm();
 
@@ -203,29 +172,6 @@ describe("EventDetailView form", () => {
     expect(
       document.querySelector('a[href="/almacenamiento?key=contrato"]'),
     ).not.toBeNull();
-  });
-
-  // An alert about the whole event is not a field: it belongs above the card,
-  // where the stack owns the spacing between however many of them there are.
-  test("renders the readiness alert above the card", async () => {
-    await renderForm({
-      registrationReadiness: {
-        eventId: "event_1",
-        isReady: false,
-        missingItems: [
-          { code: "prices", detail: "Sin precios.", label: "Precios" },
-        ],
-      },
-    });
-
-    const alert = document.querySelector('[data-slot="alert"]');
-    const card = document.querySelector('[data-slot="card"]');
-
-    expect(alert).not.toBeNull();
-    expect(card?.contains(alert!)).toBe(false);
-    expect(
-      alert!.compareDocumentPosition(card!) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
   });
 
   // The generic per-code line cannot say which category is missing, so this is

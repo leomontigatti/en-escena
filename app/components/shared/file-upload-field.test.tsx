@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import { renderToStaticMarkup } from "react-dom/server";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useForm } from "react-hook-form";
@@ -59,70 +58,6 @@ function TestFileUploadField({
 }
 
 describe("FileUploadField", () => {
-  test("renders an accessible upload dropzone with semantic tokens", () => {
-    const markup = renderToStaticMarkup(<TestFileUploadField />);
-
-    expect(markup).toContain('type="file"');
-    expect(markup).toContain('name="documentFrontImage"');
-    expect(markup).toContain('name="documentFrontImageValidationError"');
-    expect(markup).toContain('name="documentFrontImageStorageKey"');
-    expect(markup).toContain("Frente del documento");
-    expect(markup).toContain("Arrastrá o hacé click");
-    expect(markup).toContain("JPG, PNG o WEBP - max 10 MB");
-    expect(markup).toContain("lucide-cloud-upload");
-    expect(markup).toContain("border-input");
-    expect(markup).toContain("bg-brand");
-    expect(markup).toContain("text-white");
-    expect(markup).not.toContain("bg-slate");
-    expect(markup).not.toContain("text-blue");
-  });
-
-  test("renders a compact empty field without placeholder copy", () => {
-    const markup = renderToStaticMarkup(
-      <TestFileUploadField variant="compact" />,
-    );
-
-    expect(markup).toContain('type="file"');
-    expect(markup).toContain("Frente del documento");
-    expect(markup).toContain("border-input");
-    expect(markup).not.toContain("Arrastrá o hacé click");
-    expect(markup).not.toContain("JPG, PNG o WEBP - max 10 MB");
-    expect(markup).not.toContain("lucide-cloud-upload");
-  });
-
-  test("renders a compact download link when a file is available", () => {
-    const markup = renderToStaticMarkup(
-      <TestFileUploadField
-        defaultStorageKey="dancers/document-front.jpg"
-        disabled
-        downloadLabel="Abrir imagen"
-        downloadUrl="https://storage.example/document-front.jpg"
-        variant="compact"
-      />,
-    );
-
-    expect(markup).toContain("https://storage.example/document-front.jpg");
-    expect(markup).toContain("Abrir imagen");
-    expect(markup).toContain("lucide-external-link");
-    expect(markup).toContain("lucide-lock");
-    expect(markup).not.toContain("Arrastrá o hacé click");
-  });
-
-  test("renders an existing image preview without placeholder copy", () => {
-    const markup = renderToStaticMarkup(
-      <TestFileUploadField
-        defaultStorageKey="dancers/document-front.jpg"
-        existingPreviewUrl="https://storage.example/document-front.jpg"
-      />,
-    );
-
-    expect(markup).toContain("https://storage.example/document-front.jpg");
-    expect(markup).toContain("Vista previa del documento");
-    expect(markup).toContain("Borrar imagen");
-    expect(markup).not.toContain("Imagen cargada");
-    expect(markup).not.toContain("JPG, PNG o WEBP - max 10 MB");
-  });
-
   test("notifies when an existing storage key is cleared", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);

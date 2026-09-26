@@ -57,14 +57,6 @@ describe("DeleteDialog", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  test("renders as an alert dialog", async () => {
-    useNavigationMock.mockReturnValue({ state: "idle" });
-
-    await renderDialog();
-
-    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
-  });
-
   test("disables the destructive action while its delete submission is pending", async () => {
     const formData = new FormData();
     formData.set("intent", "delete-category");
@@ -100,16 +92,6 @@ describe("DeleteDialog", () => {
         button.textContent?.includes("Eliminar"),
       ),
     ).toBe(false);
-  });
-
-  test("renders the details slot", async () => {
-    useNavigationMock.mockReturnValue({ state: "idle" });
-
-    await renderDialog({
-      details: <p>Coreografía afectada: Vals</p>,
-    });
-
-    expect(document.body.textContent).toContain("Coreografía afectada: Vals");
   });
 
   // Regression (#708): a payment reaching eleven choreographies pushed the

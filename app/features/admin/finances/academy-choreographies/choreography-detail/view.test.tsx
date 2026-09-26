@@ -199,32 +199,6 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toContain("$ 17.500");
   });
 
-  test("styles the amount columns by column and never by row", () => {
-    const pending = amountColumnStyles(
-      renderDetail({
-        inscriptions: [
-          inscriptionFixture({ financialStatus: "depositPending" }),
-        ],
-      }),
-    );
-    const paid = amountColumnStyles(
-      renderDetail({
-        inscriptions: [inscriptionFixture({ financialStatus: "paidInFull" })],
-      }),
-    );
-
-    // No figure is provisional, so the styling cannot vary with the state: if it
-    // did, grey would go back to meaning something.
-    expect(pending).toEqual(paid);
-    // What is left is fixed decoration: `Total` is context, `Saldo adeudado` is
-    // the only actionable figure.
-    expect(pending).toEqual({
-      Seña: { emphasised: false, muted: false },
-      Total: { emphasised: false, muted: true },
-      "Saldo adeudado": { emphasised: true, muted: false },
-    });
-  });
-
   test("does not label any amount as provisional", () => {
     const markup = renderDetail({
       inscriptions: [inscriptionFixture({ financialStatus: "depositPending" })],
@@ -304,32 +278,6 @@ function columnCell(markup: string, column: string, rowIndex: number): Element {
   }
 
   return cell;
-}
-
-function amountColumnStyles(markup: string) {
-  const table = inscriptionsTable(markup);
-  const headers = [...(table?.querySelectorAll("thead th") ?? [])].map(
-    (header) => header.textContent?.trim() ?? "",
-  );
-  const cells = [...(table?.querySelectorAll("tbody tr td") ?? [])];
-
-  return Object.fromEntries(
-    ["Seña", "Total", "Saldo adeudado"].map((column) => {
-      const cell = cells[headers.indexOf(column)];
-
-      if (!cell) {
-        throw new Error(`Expected a cell for the column "${column}".`);
-      }
-
-      return [
-        column,
-        {
-          emphasised: cell.classList.contains("font-medium"),
-          muted: cell.classList.contains("text-muted-foreground"),
-        },
-      ];
-    }),
-  );
 }
 
 /** The detail's anomaly alert, located by its `destructive` variant. */
@@ -515,27 +463,6 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
       (candidate) => candidate.textContent?.includes("Emitir factura"),
     );
     expect(item?.getAttribute("aria-disabled")).toBe("true");
-  });
-
-  test("offers Emitir invoice inside the actions menu, not as a standalone button", async () => {
-    await mount({
-      invoicing: invoicingFixture({
-        billableAmount: 12000,
-        canEmit: true,
-      }),
-    });
-
-    // Closed, the affordance is not a loose button: it lives behind the `...` menu.
-    expect(
-      document.querySelector('button[aria-label="Acciones"]'),
-    ).not.toBeNull();
-
-    await openActionsMenu();
-
-    const item = Array.from(
-      document.querySelectorAll('[role="menuitem"]'),
-    ).find((candidate) => candidate.textContent?.includes("Emitir factura"));
-    expect(item).not.toBeUndefined();
   });
 
   /**

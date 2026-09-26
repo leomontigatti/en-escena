@@ -14,34 +14,6 @@ describe("choreography creation summary", () => {
     renderer.cleanup();
   });
 
-  test("warns that the choreography cannot be edited after creating it", () => {
-    renderer.render(
-      <ChoreographyCreationSummary
-        baseOptions={{
-          modalities: [{ id: "modality_1", name: "Jazz" }],
-          submodalities: [
-            { id: "submodality_1", name: "Lyrical", modalityId: "modality_1" },
-          ],
-        }}
-        name="Danza de la Luna"
-        resolution={buildResolution()}
-        selectedExperienceLevelId="amateur"
-        selectedModalityId="modality_1"
-        selectedProfessors={[
-          { id: "professor_1", firstName: "Luz", lastName: "Suárez" },
-        ]}
-        selectedScheduleCapacityId="capacity_1"
-        selectedSubmodalityId="submodality_1"
-      />,
-    );
-
-    const markup = renderer.getContainer().innerHTML;
-
-    expect(markup).toContain(
-      "Revisá los datos ya que una vez guardados no vas a poder modificarlos.",
-    );
-  });
-
   // Occupancy is only for choosing between options: in the echo of the already
   // chosen schedule, saying how many places are left means nothing.
   test("echoes the chosen schedule without its occupancy", () => {

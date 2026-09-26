@@ -8,22 +8,6 @@ import { PaymentsListRouteView } from "./view";
 import type { PaymentsListLoaderData, PaymentsListRow } from "./server";
 
 describe("PaymentsListRouteView", () => {
-  // `Disponible` sits to the right of the amount it is a remainder of, and the
-  // amount keeps its own name: `Monto` is one payment's figure, not a total.
-  test('shows "Disponible" right after "Monto"', () => {
-    expect(headers()).toEqual([
-      // The selection column, whose header is the select-all checkbox and
-      // carries no text.
-      "",
-      "#",
-      "Fecha",
-      "Academia",
-      "Medio de pago",
-      "Monto",
-      "Disponible",
-    ]);
-  });
-
   // The administrator selects to read: the two cards above re-scope to what is
   // ticked. What the sums come to is `resolveSelectedPaymentTotals`' own test;
   // this one asserts the column is there to tick at all.
@@ -53,15 +37,6 @@ describe("PaymentsListRouteView", () => {
     // A fully applied payment reads `$ 0` and not a dash: the zero is the
     // answer, not a missing value.
     expect(markup).toContain("$ 0");
-  });
-
-  // The same reading as `Total` / `Saldo adeudado` on the finance lists: the
-  // context column is muted and the actionable one is not.
-  test("mutes the amount column and emphasises the remainder", () => {
-    expect(amountColumnStyles()).toEqual({
-      Monto: { emphasised: false, muted: true },
-      Disponible: { emphasised: true, muted: false },
-    });
   });
 
   // The facet's options only mount once the menu is opened, so what is asserted
@@ -180,46 +155,4 @@ function rowFixture(overrides: Partial<PaymentsListRow> = {}): PaymentsListRow {
     paymentNumber: 1,
     ...overrides,
   };
-}
-
-function table(markup = render()) {
-  const document = new DOMParser().parseFromString(markup, "text/html");
-  const rendered = document.querySelector("table");
-
-  if (!rendered) {
-    throw new Error("Expected the payments table to be rendered.");
-  }
-
-  return rendered;
-}
-
-function headers(markup?: string) {
-  return [...table(markup).querySelectorAll("thead th")].map(
-    (header) => header.textContent?.trim() ?? "",
-  );
-}
-
-/** Each amount column's decoration, read by header and never by position. */
-function amountColumnStyles(markup?: string) {
-  const rendered = table(markup);
-  const columnHeaders = headers(markup);
-  const cells = [...rendered.querySelectorAll("tbody tr td")];
-
-  return Object.fromEntries(
-    ["Monto", "Disponible"].map((column) => {
-      const cell = cells[columnHeaders.indexOf(column)];
-
-      if (!cell) {
-        throw new Error(`Expected a cell for the column "${column}".`);
-      }
-
-      return [
-        column,
-        {
-          emphasised: cell.classList.contains("font-medium"),
-          muted: cell.classList.contains("text-muted-foreground"),
-        },
-      ];
-    }),
-  );
 }
