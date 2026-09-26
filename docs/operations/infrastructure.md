@@ -190,6 +190,11 @@ What a deploy does, for reference:
   because the edge must not cache PII in the first place.
 - Dancer documents on this volume are plaintext PII; encryption at rest is
   accepted debt, documented in [Backups](./backups.md#encryption-at-rest-accepted-debt).
+- Merging two dancers (`mergeRosterPeople`) deletes the removed dancer's
+  document images when the survivor keeps its own document. The delete runs
+  after the merge commits, so a failure cannot undo the merge: it is logged as
+  `[storage:dancer-document:orphan]` with the keys, and reconciliation is by
+  hand from that line, as for choreography music below.
 - There is **one** storage backend in the app. The Supabase and Backblaze
   in-app adapters were deleted in #571: they had no production caller and only
   made the storage layer read as though a live provider choice existed. The
