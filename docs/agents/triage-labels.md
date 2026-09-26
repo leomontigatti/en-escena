@@ -55,7 +55,9 @@ An Architecture Review PRD that documents a confirmed defect carries `bug` next 
 `bug` issue so it can ship alone (#1063 out of #740 is the example).
 
 The dispatch queue is `priority:next` plus `ready-for-agent`:
-`gh issue list --label priority:next --label ready-for-agent`.
+`gh issue list --label priority:next --label ready-for-agent`. Skip an issue whose
+`gh issue view <n> --json blockedBy` still lists an open blocker: blocking is GitHub's native
+relation ([issue-tracker.md](./issue-tracker.md#ticket-operations)), and no label tracks it.
 
 Sub-issues are not triaged on their own. `to-tickets` creates each slice with its PRD's
 priority, type and milestone ([issue-tracker.md](./issue-tracker.md#ticket-operations)). That
@@ -64,6 +66,5 @@ multiplies a PRD in any priority list, so add `no:parent-issue` for the PRD-leve
 
 > **`ready-for-agent` triggers nothing.** It is a triage state ("specified and
 > grabbable"): a local session picks the issue up from the dispatch queue above
-> (ADR-0016). The only `agent:*` label that starts a run is `agent:update-branch`, which a
-> workflow applies (a human re-adds it only to retry). Detail in
-> [afk-setup.md → Dispatch](afk-setup.md#dispatch-from-ready-for-agent-triage-to-the-agent-trigger).
+> (ADR-0016). No label starts a run: the one AFK workflow left, Architecture Review, runs
+> on a schedule ([afk-setup.md](afk-setup.md)).

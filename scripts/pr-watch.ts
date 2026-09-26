@@ -17,13 +17,13 @@ import { fileURLToPath } from "node:url";
 // CodeRabbit is read from its `CodeRabbit` commit status, which turns green a
 // minute or two before its review posts. So it counts as done only once a
 // review of the head commit exists, or a grace period has passed with none,
-// which is how a commit it skips (an Update Branch merge) looks.
+// which is how a commit it skips (a merge from the base) looks.
 //
 // Usage: pnpm pr:watch [pr] [--once] [--interval <s>] [--timeout <s>]
 //
 // Exit codes: 0 READY or MERGED, 2 CONFLICTS, 3 THREADS or FINDINGS, 4 CHECKS,
 // 5 WAITING (timed out, or --once mid-round), 6 GATE or CLOSED, 7 `gh` kept
-// failing, 1 usage error. The default timeout keeps one call under the Bash
+// failing, 8 BEHIND (nothing else open, but the base moved on), 1 usage error. The default timeout keeps one call under the Bash
 // tool's ten-minute limit; the skill re-runs it.
 
 /** The contexts branch protection requires on `master`: `ci.yml`'s four plus `pr-title`. */
@@ -101,7 +101,8 @@ export type Verdict = {
     | "THREADS"
     | "FINDINGS"
     | "CHECKS"
-    | "GATE";
+    | "GATE"
+    | "BEHIND";
   exitCode: number;
   pr: number;
   head: string;
@@ -309,6 +310,7 @@ const EXIT_CODES: Record<Verdict["verdict"], number> = {
   WAITING: 5,
   GATE: 6,
   CLOSED: 6,
+  BEHIND: 8,
 };
 
 function isBotOrRequest(comment: { author: string; body: string }): boolean {
@@ -354,7 +356,6 @@ export function classify(pr: PrSnapshot, now: number): Verdict {
   const coderabbit = coderabbitState(pr, now);
   const pending = [...checks.pending];
   if (!coderabbit.done) pending.push(CODERABBIT_CONTEXT);
-  if (pr.mergeState === "BEHIND") pending.push("update-branch");
   if (pr.mergeState === "UNKNOWN") pending.push("merge-state");
   const failed = coderabbit.failed
     ? [...checks.failed, { name: CODERABBIT_CONTEXT, workflow: "", link: "" }]
@@ -375,6 +376,8 @@ export function classify(pr: PrSnapshot, now: number): Verdict {
 
   // CHECKS precedes GATE because a failing required check also reads as
   // mergeState BLOCKED: the other order would call every red run a gate.
+  // BEHIND comes last, so a branch is brought up to date once per PR, after
+  // its fixes, rather than once per push to the base.
   const verdict = firstVerdict([
     ["MERGED", pr.state === "MERGED" || pr.mergedAt !== null],
     ["CLOSED", pr.state === "CLOSED"],
@@ -384,6 +387,7 @@ export function classify(pr: PrSnapshot, now: number): Verdict {
     ["FINDINGS", reviewFindings !== null],
     ["CHECKS", failed.length > 0],
     ["GATE", gate !== null],
+    ["BEHIND", pr.mergeState === "BEHIND"],
   ]);
 
   return {

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 // Regression coverage for #384: the runners' read-only context prefetch used a
 // bare `gh` call, so a transient GitHub blip (a 503, a secondary rate limit, a
 // dropped connection) during prefetch crashed the runner and turned an infra
-// hiccup into an `agent:blocked` PR. The shared `gh` helper now retries only
+// hiccup into a failed run. The shared `gh` helper now retries only
 // *transient* failures with backoff, while permission/validation errors keep
 // failing fast.
 import {

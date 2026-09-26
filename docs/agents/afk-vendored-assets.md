@@ -1,9 +1,9 @@
 # AFK assets vendored from Matt Pocock
 
-> **Partly retired (ADR-0016).** The implement, review, write-PR and To Issues runners and
-> their runtime prompts are gone; implementation, review and PRD slicing happen in local
-> sessions. What remains is Update Branch, Promote Queued (now promoting to
-> `ready-for-agent`) and Architecture Review. The text below describes the vendoring as it was done.
+> **Mostly retired (ADR-0016).** The implement, review, write-PR, To Issues, Update Branch,
+> Label Behind PRs and Promote Queued runners and their runtime prompts are gone; implementation,
+> review, PRD slicing and branch updates happen in local sessions. Architecture Review is the
+> only workflow left. The text below describes the vendoring as it was done.
 
 The AFK platform ("GitHub-Native Agent Platform") uses a set of assets from the public
 repo [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager)
@@ -72,31 +72,33 @@ are only concrete references to this repo:
   output from the agent's own text, #1186), the three implement passes move to 60 / 50, and the
   prompts state the budget and ask for checkpoint commits. Details in
   [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails".
-- **A local workflow beside the eight, feeding the sixth (#1020).** The spec has Update Branch triggered by a
-  human applying `agent:update-branch` (§4.6). Branch protection here is strict, so every open
-  `agent/*` PR is behind `master` the moment the one below it merges, and in practice that hand
-  was the driving session's, once per PR, on a decision needing no judgement.
-  `agent-label-behind-prs.yml` applies the label on `push` to `master` instead. It is a local
-  addition kept deliberately thin — no agent, no runner, no checkout, no section of its own in
-  the spec — so §4.6 stays the single description of what the label _does_; the trigger is
-  recorded there and in [`afk-setup.md`](./afk-setup.md) → "The one trigger you never apply".
-- **No credential persisted by the checkout (#956).** The spec's runner steps (§4.2 step 2,
+- **A local workflow beside the eight, feeding the sixth (#1020)** (retired). The spec has
+  Update Branch triggered by a human applying `agent:update-branch` (§4.6). Branch protection
+  here is strict, so every open `agent/*` PR was behind `master` the moment the one below it
+  merged, and in practice that hand was the driving session's, once per PR, on a decision
+  needing no judgement. `agent-label-behind-prs.yml` applied the label on `push` to `master`
+  instead, kept deliberately thin (no agent, no runner, no checkout). Retired with Update Branch
+  itself (ADR-0016, amendment of 2026-09-26): a PR behind `master` is now brought up to date by
+  the [`babysit-pr`](../../.claude/skills/babysit-pr/SKILL.md) skill, once, when that is the only
+  thing between it and merge.
+- **No credential persisted by the checkout (#956)** (retired). The spec's runner steps (§4.2 step 2,
   §4.3 step 3, §4.5 step 2 and their siblings) read "Checkout … with `AGENT_PAT ||
 GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   `actions/checkout` persisting that token into `.git/config` for the push at the end of the
   job. Here every checkout sets `persist-credentials: false` and takes no `token:`; the push
-  steps authenticate per command with `PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}`
-  scoped to that step, and the identity step refuses to start the agent over a persisted
-  credential. The spec's fallback order and the no-PAT degradation are unchanged; only where
-  the token lives during the run is. Details in [`afk-setup.md`](./afk-setup.md) → "Where the
-  PAT is during a run".
-- **Typecheck gate on §4.6's clean-merge path.** The spec invokes the update-branch agent only
-  when `git merge` conflicts, so a textually clean merge is pushed without anything compiling
-  the result — and a semantic conflict (the base reshapes a signature, the branch adds a caller
-  in another file) slips through to CI (#567). `agent-update-branch.yml` adds a `pnpm typecheck`
-  step **after** the push and the merge comment: the merge is kept, and a failure only flips the
-  PR to `agent:blocked` with the compiler output, naming the semantic conflict instead of
-  leaving a bare CI red.
+  steps authenticated per command with `PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}`
+  scoped to that step, and the identity step refused to start the agent over a persisted
+  credential. This applied to the runners that pushed (Update Branch chief among them); none of
+  the remaining Architecture Review workflow's steps push, and `AGENT_PAT` is no longer loaded
+  (ADR-0016, amendment of 2026-09-26).
+- **Typecheck gate on §4.6's clean-merge path** (retired with Update Branch). The spec invoked
+  the update-branch agent only when `git merge` conflicted, so a textually clean merge was
+  pushed without anything compiling the result — and a semantic conflict (the base reshapes a
+  signature, the branch adds a caller in another file) slipped through to CI (#567).
+  `agent-update-branch.yml` added a `pnpm typecheck` step **after** the push and the merge
+  comment to catch it. `gh pr update-branch`, which the `babysit-pr` skill now uses for a clean
+  merge, runs no such gate; a semantic conflict it lets through is caught by CI same as before
+  #567, under the babysitting session's watch.
 - **Sub-issues are not closed at implementation time (§4.3).** The spec's step 7 runs
   `gh issue close $SUB --comment "Implemented in <sha>. Part of #$PRD."` right before the draft
   PR is opened — a `COMPLETED` close asserting the work is built while it sits on a shared
@@ -164,27 +166,30 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   report neither the refusal nor the failure. The other four preflighted workflows still carry
   the `== 'true'` spelling, so a failing preflight is silent there.
 - **The token-less runner is enforced, not just asserted (§3.9).** The spec's hard invariant is
-  that the agent never mutates the tracker or the remote, and `agent-implement` /
-  `agent-implement-prd` honour it by simply omitting `GH_TOKEN` from the runner step. The three
-  runners that **prefetch** context (review, implement-pr, update-branch) cannot: they need the
-  token for their own read-only `gh` calls. That was enough to break the invariant in practice —
-  sandcastle's `noSandbox()` builds the agent's environment as `{ ...process.env }`, so the
-  step-level `GH_TOKEN` reached the agent, whose `gh` calls would have **succeeded** with the
-  job's write permissions. Only the prompt's "do not run `gh`" stood in the way, and a
-  succeeding call leaves no trace in the logs. `revokeGitHubToken()`
-  ([`lib/runner.mts`](../../.sandcastle/lib/runner.mts)) now drops `GH_TOKEN` / `GITHUB_TOKEN` /
-  `GH_ENTERPRISE_TOKEN` after the prefetch and before `createAgent()`, in all three runners;
+  that the agent never mutates the tracker or the remote. Runners that **prefetch** context with
+  a read-only `gh` call cannot get there by simply omitting `GH_TOKEN` from the runner step, the
+  way `agent-implement` / `agent-implement-prd` (both since retired) did. That was enough to
+  break the invariant in practice — sandcastle's `noSandbox()` builds the agent's environment as
+  `{ ...process.env }`, so the step-level `GH_TOKEN` reached the agent, whose `gh` calls would
+  have **succeeded** with the job's write permissions. Only the prompt's "do not run `gh`" stood
+  in the way, and a succeeding call leaves no trace in the logs. `revokeGitHubToken()`
+  ([`lib/runner.mts`](../../.sandcastle/lib/runner.mts)) drops `GH_TOKEN` / `GITHUB_TOKEN` /
+  `GH_ENTERPRISE_TOKEN` after the prefetch and before `createAgent()`; review, implement-pr and
+  update-branch all called it before their retirement, and `architecture-review` is the runner
+  that calls it now, revoking the token it used to read prior proposals before the agent starts.
   `tests/afk/runner-token-revocation.test.ts` keeps the call ordered ahead of the agent.
 - **`agent-review` gets a bigger wall-clock budget** (45 / 40 instead of the usual 30 / 25),
   because the skill's sub-agents and the agent's own per-file diff reading both cost time. The
   table and the reasoning are in [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails"; the
   budget-below-timeout invariant is unchanged and still enforced by
   `tests/afk/failure-reason-fallback.test.ts`.
-- **Promote Queued says what it does not promote (§4.7).** The gate stays exactly as specified
-  (`state_reason != 'not_planned'` — a deferred or rejected decision genuinely unblocks nothing),
-  but a `not planned` close is now the documented way to close a _deferred_ issue, so the local
-  `agent-promote-queued.yml` adds a step ahead of it that comments on each `agent:queued`
-  dependent it declines to promote. Behaviour unchanged, silence removed.
+- **Promote Queued says what it does not promote (§4.7)** (retired). The gate stayed exactly as
+  specified (`state_reason != 'not_planned'` — a deferred or rejected decision genuinely unblocks
+  nothing), but a `not planned` close was the documented way to close a _deferred_ issue, so the
+  local `agent-promote-queued.yml` added a step ahead of it that commented on each `agent:queued`
+  dependent it declined to promote. Retired with the workflow itself (ADR-0016, amendment of
+  2026-09-26): blocking is now read from GitHub's native `blockedBy` relation by the session
+  picking unblocked issues, so `agent:queued` has no user left.
 - **Architecture Review runs weekly, not per weekday (§4.8).** The spec's reference trigger is
   `0 9 * * 1-5` and its stated purpose is "one architectural-improvement PRD per weekday";
   locally `architecture-review.yml` uses `0 9 * * 1` (Mondays). The cadence assumes proposals

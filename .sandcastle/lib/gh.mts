@@ -4,7 +4,7 @@
 // comments, review threads) before invoking the agent. Those reads are
 // idempotent, so a transient GitHub blip (a 503, a secondary rate limit, a
 // dropped connection) should be retried rather than crash the runner and turn
-// an infra hiccup into an `agent:blocked` PR that needs a human to unstick.
+// an infra hiccup into a failed run that needs a human to re-run.
 //
 // Only *transient* failures are retried, with exponential backoff + full jitter
 // and a hard cap on attempts (which also bounds total wall time). Non-transient

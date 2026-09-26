@@ -5,7 +5,7 @@
 # to the code it excuses. An entry that is a deferral names the issue that
 # removes it; one that is a decision says which issue decided it.
 rules:
-  # Decided in #966 (formerly #944), not deferred: the agent runners install
+  # Decided in #966 (formerly #944), not deferred: the agent runner installs
   # Claude Code as `@anthropic-ai/claude-code@stable`, a moving tag rather than an
   # exact version. The CLI ships almost daily, so a version pin would be a bump
   # chore that gets skipped, while `stable` lags `latest` by weeks and moves
@@ -15,5 +15,4 @@ rules:
   # runners were retired (ADR-0016).
   adhoc-packages:
     ignore:
-      - agent-update-branch.yml
       - architecture-review.yml

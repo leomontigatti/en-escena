@@ -66,28 +66,6 @@
         "description": "A decision to settle rather than work to do"
       }
     ],
-    "agent": [
-      {
-        "name": "agent:queued",
-        "color": "fbca04",
-        "description": "AFK: waiting on declared blockers; promoted to ready-for-agent when they close. Human-applied only."
-      },
-      {
-        "name": "agent:in-progress",
-        "color": "0052cc",
-        "description": "AFK: run active (acts as a lock)"
-      },
-      {
-        "name": "agent:blocked",
-        "color": "b60205",
-        "description": "AFK: run failed or was refused; needs human attention before retrying"
-      },
-      {
-        "name": "agent:update-branch",
-        "color": "d93f0b",
-        "description": "AFK: the PR must be merged up with its base"
-      }
-    ],
     "wayfinder": [
       {
         "name": "wayfinder:map",
