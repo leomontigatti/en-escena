@@ -322,19 +322,21 @@ made, by hand, once #955 merged) is a human step outside the repo.
 
 `pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`, which is
 the list — do not restate it here. What it owns is React hook mistakes, import
-cycles and un-awaited promises. It runs over the whole repo in about six and a
-half seconds; the un-awaited-promise rules are type-aware (`oxlint-tsgolint`), so
-the run builds a TypeScript program, which is the whole of the 1.5 s → 6.5 s
-difference.
+cycles, un-awaited promises, and two structural UI rules from the style guide. It
+runs over the whole repo in about six and a half seconds; the un-awaited-promise
+rules are type-aware (`oxlint-tsgolint`), so the run builds a TypeScript program,
+which is the whole of the 1.5 s → 6.5 s difference.
 
-**It is deliberately not a style checker**, and rules must not be added to it
-casually. The scope rule is that every concern already has exactly one owner:
+**It owns structural rules that nothing else can own, not formatting or taste**,
+and rules must not be added to it casually. The scope rule is that every concern
+already has exactly one owner:
 
 | Concern                                                                                                                                                                                                                    | Owner                                                                           |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Formatting                                                                                                                                                                                                                 | Prettier (`pnpm format`)                                                        |
 | Types, unused locals/parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`)                     |
 | Hook mistakes, import cycles, un-awaited promises                                                                                                                                                                          | `pnpm lint`                                                                     |
+| A raw `<button>`, `<select>`, `<textarea>` or non-hidden `<input>` where an `app/components/ui` component exists; a `className` that overrides a ui component's height, radius or focus ring                               | `pnpm lint`, the `ui` JS plugin (`scripts/oxlint-ui-plugin.mjs`)                |
 | Repo conventions — doc map, repo styles, banned imports, file tokens, comment language, migration order and immutability, Fallow                                                                                           | the `check:*` scripts                                                           |
 | Destructive or lock-hazardous DDL in migrations the branch adds                                                                                                                                                            | squawk (`pnpm check:migration-safety`)                                          |
 | Secrets in commits                                                                                                                                                                                                         | gitleaks (`.husky/pre-commit` + the `checks` job), under GitHub push protection |
@@ -348,9 +350,10 @@ ignored, so it does not go in — the rationale is decision 2 of
 [ADR-0015](../adr/0015-deterministic-guardrails.md). What justifies the ones
 that are in is that nothing else can see them: a stale closure in `useEffect`
 type-checks perfectly and misbehaves at runtime, TypeScript tolerates import
-cycles until a module reads `undefined` during initialisation, and a promise
-nothing awaits type-checks too while silently dropping whatever it would have
-rejected with.
+cycles until a module reads `undefined` during initialisation, a promise nothing
+awaits type-checks too while silently dropping whatever it would have rejected
+with, and a raw `<button>` or an `h-8` on an `Input` renders fine while drifting
+from the look the `app/components/ui` component owns.
 
 Two options on those promise rules are load-bearing, and neither is legible from
 the rule name:
@@ -371,6 +374,17 @@ Fourteen files are exempt from `exhaustive-deps` via `overrides` in
 to sync a prop into state, which the rule cannot see through; depending on the
 object itself would re-run the effect on every render. The list is a **shrinking
 allowlist** — do not add to it to make a change pass.
+
+The two UI rules, `ui/no-raw-form-element` and `ui/no-restyle`, come from a local
+JS plugin, `scripts/oxlint-ui-plugin.mjs`, and an `overrides` entry scopes them to
+`app/**/*.tsx` outside `app/components/ui` and test files. A raw element that is
+the direct child of an `asChild` parent (`<DropdownMenuItem asChild><button>`) is
+exempt, since the parent owns its look. The files that already broke a rule when
+it landed sit in two more `overrides` entries that turn it off, one per rule;
+those lists shrink as each file is touched, and nothing is added to them. JS
+plugins are alpha in oxlint and outside its semver promise, so `package.json`
+pins oxlint to an exact version: a minor bump that changes the plugin API has to
+arrive as a deliberate upgrade, not through the lockfile.
 
 ESLint is not an option here: `typescript-eslint` refuses to run against this
 repo's TypeScript 7 and throws on startup
