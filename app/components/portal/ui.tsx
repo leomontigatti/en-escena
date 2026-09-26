@@ -10,7 +10,6 @@ import {
   Inbox,
   Info,
   ListOrdered,
-  LogOut,
   Presentation,
   TriangleAlert,
   User,
@@ -20,6 +19,7 @@ import { Link, useLocation, type UIMatch } from "react-router";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
+import { LogoutMenuItem } from "@/components/shared/logout-menu-item";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -306,8 +306,8 @@ export function PortalShell({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton size="lg">
-                        <Avatar className="rounded-lg after:rounded-lg">
-                          <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                        <Avatar shape="square">
+                          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
                             {getUserInitials(displayName)}
                           </AvatarFallback>
                         </Avatar>
@@ -337,14 +337,7 @@ export function PortalShell({
                       </DropdownMenuGroup>
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
-                        <form action="/salir" method="post">
-                          <DropdownMenuItem asChild variant="destructive">
-                            <button type="submit" className="w-full">
-                              <LogOut aria-hidden="true" />
-                              Salir
-                            </button>
-                          </DropdownMenuItem>
-                        </form>
+                        <LogoutMenuItem />
                       </DropdownMenuGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>

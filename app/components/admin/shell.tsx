@@ -5,7 +5,6 @@ import {
   Building2,
   GraduationCap,
   Home,
-  LogOut,
   Settings,
   Users,
   AudioLines,
@@ -27,6 +26,7 @@ import {
 } from "@/lib/auth/internal-account";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
+import { LogoutMenuItem } from "@/components/shared/logout-menu-item";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -267,8 +267,8 @@ export function AdminShell({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton size="lg">
-                        <Avatar className="rounded-lg after:rounded-lg">
-                          <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                        <Avatar shape="square">
+                          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
                             {getInternalAccountInitials(account.name)}
                           </AvatarFallback>
                         </Avatar>
@@ -295,14 +295,7 @@ export function AdminShell({
                       </DropdownMenuGroup>
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
-                        <form action="/salir" method="post">
-                          <DropdownMenuItem asChild variant="destructive">
-                            <button type="submit" className="w-full">
-                              <LogOut aria-hidden="true" />
-                              Salir
-                            </button>
-                          </DropdownMenuItem>
-                        </form>
+                        <LogoutMenuItem />
                       </DropdownMenuGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>

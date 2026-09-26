@@ -68,11 +68,6 @@
     ],
     "agent": [
       {
-        "name": "agent:to-issues",
-        "color": "1d76db",
-        "description": "AFK: PRD ready to be decomposed into sub-issues"
-      },
-      {
         "name": "agent:queued",
         "color": "fbca04",
         "description": "AFK: waiting on declared blockers; promoted to ready-for-agent when they close. Human-applied only."

@@ -3,8 +3,10 @@
 > **Status in this repo (ADR-0016, 2026-09-25).** Workflows 2, 3, 4 and 5 — Implement,
 > Implement PRD, Review and Implement PR — are **retired**: implementation and review
 > happen in local T3 Code sessions, which have a browser, the dev database and a human.
-> Workflow 7 (Promote Queued) now promotes to the `ready-for-agent` triage label instead
-> of `agent:implement`. Workflows 1, 6, 7 and 8 still run as described. The rest of this
+> Workflow 1 (To Issues) is retired too (ADR-0016, amendment of 2026-09-25): a local session
+> slices a PRD with the vendored `to-tickets` skill. Workflow 7 (Promote Queued) now promotes
+> to the `ready-for-agent` triage label instead of `agent:implement`. Workflows 6, 7 and 8
+> still run as described. The rest of this
 > document is kept unedited as the record of the model that was built.
 
 > **Vendored from [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager/blob/main/docs/agents/afk-agent-platform-spec.md).**

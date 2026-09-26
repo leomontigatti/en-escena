@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit is the second reviewer on every PR (docs/agents/pull-requests.md,
+# "Babysitting a PR"); its findings are verified against the source like any other.
+language: en-US
+reviews:
+  auto_review:
+    enabled: true
+    # PRs here are usually stacked on a branch other than master; the default
+    # reviews only PRs whose base is the default branch.
+    base_branches:
+      - ".*"
+  review_status: false
+  path_filters:
+    - "!docs/agents/afk-agent-platform-spec.md"
+    - "!pnpm-lock.yaml"
+    - "!app/db/migrations/**"
+  path_instructions:
+    - path: "**/*"
+      instructions: >-
+        Review against .sandcastle/CODING_STANDARDS.md. Its code language rule:
+        Spanish only in user-facing strings (UI copy, page titles, URLs, route
+        filenames, the body of a thrown Response); identifiers, comments, test
+        names, thrown Error messages, docs, commits and PR text are English.
+        `comprobante` is the only Spanish term allowed in identifiers.
+        Flag any new or widened directive that disables or suppresses a lint,
+        type-checker or other static-analysis diagnostic (a line comment, a
+        file-level comment or a config entry): each needs a written reason.
+    - path: "app/**/*.tsx"
+      instructions: >-
+        Also review against docs/agents/style-guide.md for colours, spacing,
+        typography, shadcn/ui conventions and the tone of the Spanish copy.
+        Review only the changed lines. Flag a new global CSS rule that could be
+        a Tailwind class on its owner. Do not restate the style guide when the
+        diff follows it.

@@ -79,3 +79,26 @@ changing how the code is written.
 - The `implement` skill is the only implementation workflow. Browser
   verification joins it as a step, with the Playwright CLI, in the change that
   follows this one.
+
+## Amendment (2026-09-25): To Issues is retired too
+
+"What stays" kept **To Issues** as cheap work that needs no browser. It is
+retired the same day. A PRD is now sliced in a local session with the vendored
+`to-tickets` skill, after `to-spec` files it; the repo's additions to both are
+in [workflows.md](../agents/workflows.md#prd-workflow).
+
+- **The slices were the part that most needed a human.** Granularity, order and
+  blocking edges decide how many sessions and PRs the work costs and whether
+  each slice lands green. The runner decided them alone, so a wrong cut could
+  only surface once a session started implementing.
+- **The skill asks where the runner could not.** `to-tickets` step 4 presents
+  the breakdown and iterates with the user on granularity, blocking edges and
+  merges or splits before anything is published. A runner has nobody to quiz.
+- **It was the last runner that produced work product without a human in the
+  loop.** What remains on GitHub Actions either keeps branches mergeable
+  (Update Branch, Label Behind PRs), moves a label (Promote Queued), or files a
+  proposal a human triages (Architecture Review).
+
+`agent:to-issues` is no longer in `.github/labels.json`; as above, it stays on
+GitHub until removed by hand. The To Issues prompt skeleton stays under
+`docs/agents/prompts/` because the vendored spec links it.

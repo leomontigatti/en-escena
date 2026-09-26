@@ -1,9 +1,9 @@
 # AFK assets vendored from Matt Pocock
 
-> **Partly retired (ADR-0016).** The implement, review and write-PR runners and their
-> prompts are gone; implementation and review happen in local sessions. What remains is
-> To Issues, Update Branch, Promote Queued (now promoting to `ready-for-agent`) and
-> Architecture Review. The text below describes the vendoring as it was done.
+> **Partly retired (ADR-0016).** The implement, review, write-PR and To Issues runners and
+> their runtime prompts are gone; implementation, review and PRD slicing happen in local
+> sessions. What remains is Update Branch, Promote Queued (now promoting to
+> `ready-for-agent`) and Architecture Review. The text below describes the vendoring as it was done.
 
 The AFK platform ("GitHub-Native Agent Platform") uses a set of assets from the public
 repo [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager)
@@ -218,16 +218,16 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   detail on top, and ends on `code-review`. The two runtime implement prompts follow the same
   workflow up to validation (review is its own workflow, §4.4). One thing had to bend: `tdd`
   tests only at seams **confirmed with the user**, and a runner has no user, so the seams are
-  agreed upstream instead: the PRD's **Testing Decisions**, a **Test seams** paragraph on every
-  slice `agent-to-issues` drafts, and the wayfinder ticket that decided them
+  agreed upstream instead: the PRD's **Testing Decisions**, a **Test seams** section on every
+  slice `to-tickets` publishes, and the wayfinder ticket that decided them
   ([`issue-tracker.md`](./issue-tracker.md#test-seams)). A runner that finds none chooses them
   and says so in the commit body. The validation cadence is the same in both places: typecheck
   and single test files as you go, the [`VALIDATION.md`](../../.sandcastle/VALIDATION.md) list
   once at the end.
 - **The runtime prompts route to `codebase-design` and `domain-modeling`.** Nothing invoked
   either skill outside a wayfinder session, and a runner has nobody to type the slash command.
-  `implement`, `implement-prd` and `to-issues` call `codebase-design` when where a seam belongs
-  is the question and `domain-modeling` when a domain term, `CONTEXT.md` or an ADR changes;
+  `implement` and `implement-prd` (both since retired) called `codebase-design` when where a seam belongs
+  is the question and `domain-modeling` when a domain term, `CONTEXT.md` or an ADR changed;
   `architecture-review` calls `codebase-design` up front, since its candidates are judged in
   that vocabulary.
 
@@ -248,6 +248,8 @@ Vendored skills load unprefixed: `/grilling`, not `/mattpocock-skills:grilling`.
 | `prototype`                 | `skills/engineering/prototype`                 |
 | `resolving-merge-conflicts` | `skills/engineering/resolving-merge-conflicts` |
 | `tdd`                       | `skills/engineering/tdd`                       |
+| `to-spec`                   | `skills/engineering/to-spec`                   |
+| `to-tickets`                | `skills/engineering/to-tickets`                |
 | `wayfinder`                 | `skills/engineering/wayfinder`                 |
 | `grilling`                  | `skills/productivity/grilling`                 |
 | `handoff`                   | `skills/productivity/handoff`                  |
@@ -255,7 +257,8 @@ Vendored skills load unprefixed: `/grilling`, not `/mattpocock-skills:grilling`.
 
 **Pin.** Vendored from `mattpocock/skills` at commit `959a8e9f1edc3adbe2f7e3054bb6fbefa6696260`
 (2026-09-15, after tag `v1.2.3`), with `skills@1.6.0`. `tdd` was added on 2026-09-21 from
-`c55ee460`, where its files are identical to the pinned commit's. `skills-lock.json` holds each skill's
+`c55ee460`, where its files are identical to the pinned commit's; so were `to-spec` and
+`to-tickets`, added on 2026-09-25 from the same `c55ee460`. `skills-lock.json` holds each skill's
 content hash.
 
 **No local edits.** The files are byte-identical to upstream, so the hashes stay true.
@@ -265,7 +268,7 @@ goes in the prompt or doc that invokes the skill, never in the skill.
 
 **Not vendored**: `setup-matt-pocock-skills` (its output, [`issue-tracker.md`](./issue-tracker.md),
 [`triage-labels.md`](./triage-labels.md) and [`domain.md`](./domain.md), already exists), and
-`to-spec`, `to-tickets`, `triage` and `grill-me` (rarely or never used). `research` was vendored
+`triage` and `grill-me` (rarely or never used). `research` was vendored
 and then dropped: the `research` agent (`.claude/agents/research.md`) does that job, and
 [`issue-tracker.md`](./issue-tracker.md#research-tickets) tells `wayfinder` to spawn it where the
 skill's text says to call the `research` skill. `code-review` and
@@ -279,7 +282,7 @@ repo root with a pinned CLI version:
 ```sh
 pnpm dlx skills@<version> add mattpocock/skills -a claude-code -y --copy \
   -s code-review -s codebase-design -s domain-modeling -s prototype -s tdd \
-  -s resolving-merge-conflicts -s wayfinder -s grilling -s handoff -s writing-for-agents
+  -s to-spec -s to-tickets -s resolving-merge-conflicts -s wayfinder -s grilling -s handoff -s writing-for-agents
 ```
 
 It installs into `.claude/skills/`: move each directory to `.agents/skills/`, restore the
@@ -291,17 +294,11 @@ it to the table, the command and `excludedYamlFiles`.
 - **`to-prd` / `to-issues`** (removed): they were the AFK-native variants of the global HITL
   `to-spec` / `to-tickets`, vendored from the source's `to-prd-project` / `to-issues-project`.
   They were removed when Matt Pocock's set was installed as the `mattpocock-skills` plugin,
-  which shipped `to-spec` and `to-tickets`. That plugin is gone too, replaced by the vendored
-  subset below, which does not include those two.
-  [`afk-setup.md`](./afk-setup.md) → "With the `to-spec` / `to-tickets` skills" already describes
-  the supported HITL path under the human-gated model: let the global skills publish with
-  `ready-for-agent`, then add the matching `agent:*` label by hand to dispatch.
-- **What this costs.** The removed skills produced the AFK sub-issue shape directly — a parent
-  PRD plus ordered native sub-issues via `gh issue create --parent`, matching the unattended
-  runner [`prompts/to-issues.prompt.md`](./prompts/to-issues.prompt.md). The global `to-tickets`
-  models **blocking edges** instead of execution order, which `agent-implement-prd.yml` does not
-  read (it reads **list order**). To get the AFK shape from a PRD, prefer the unattended path:
-  label the PRD **`agent:to-issues`** and let the runner decompose it.
+  which shipped `to-spec` and `to-tickets`, and the unattended To Issues runner did the slicing
+  until its own retirement (ADR-0016, amendment of 2026-09-25). `to-spec` and `to-tickets` are
+  now vendored (table above), and the sub-issue shape the runner produced (native sub-issues in
+  list order, a test-seams section on each) is this repo's delta on top of them, in
+  [`issue-tracker.md`](./issue-tracker.md#ticket-operations).
 
 ## What was **not** adapted (on purpose)
 

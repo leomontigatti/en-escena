@@ -54,8 +54,8 @@ Prior `source:architecture-review` proposals (do not re-propose these):
 # PRD BODY TEMPLATE
 
 The `body` you emit is the published PRD. It will be read by humans deciding whether the plan is
-sound, by the decomposition step that breaks it into sub-issues, by the implement agent at the
-start of each sub-issue run, and by the review agent checking "does the PR match the spec?". So
+sound, by the `to-tickets` session that breaks it into sub-issues, by the session implementing
+each sub-issue, and by the review checking "does the PR match the spec?". So
 it must be a **spec, not a sketch** — concrete enough that a sub-issue agent can implement
 against it without re-deriving decisions. Structure the `body` as:
 

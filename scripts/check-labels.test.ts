@@ -35,8 +35,8 @@ describe("label references (#1116)", () => {
 
   test("reads workflow conditions and jq equality", () => {
     expect(
-      labelsIn(`if: github.event.label.name == 'agent:to-issues'`),
-    ).toEqual(["agent:to-issues"]);
+      labelsIn(`if: github.event.label.name == 'agent:update-branch'`),
+    ).toEqual(["agent:update-branch"]);
     expect(
       labelsIn(`select(startswith("priority:") or . == "bug" or . == "chore")`),
     ).toEqual(["bug", "chore"]);
