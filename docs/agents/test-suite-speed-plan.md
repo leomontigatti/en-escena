@@ -275,6 +275,9 @@ Regular suite with global mutations of `window`, `document` or the DOM runtime:
 
 ### Decision
 
+Superseded for the unit suite by the 2026-09-25 amendment at the end of this
+document, which adopts the split; the DB suites are unchanged.
+
 No Vitest project split and no shared mode with `isolate: false` is adopted for
 now.
 
@@ -605,3 +608,25 @@ pinned to 2 cores; both runs above had 4. The table's rows are unchanged on
 purpose — the upgrade moved the suite faster, not slower, so the budgets it
 justifies still hold. Re-measure it on 2 cores if a change ever moves them the
 other way.
+
+## Operational amendment 2026-09-25 (unit suite project split)
+
+`vitest.config.ts` now splits `pnpm test:unit` into two projects: `unit-isolated`
+(default `isolate: true`) for every test file that calls `vi.mock`, `vi.doMock`,
+`vi.hoisted`, `vi.stubGlobal` or `vi.stubEnv`, or imports a local helper that does
+(`app/features/portal/test-support/submission.tsx`), and `unit-shared`
+(`isolate: false`) for the rest. Unlike Phase 4's proposal there is no explicit
+list: the config derives the split from file contents when it loads. On the
+current tree that is 43 isolated and 241 shared files. jsdom and node files share
+workers in `unit-shared` without trouble.
+
+Measured locally on 8 cores (284 files, 2173 tests, both configs): four baseline
+runs at 103.8 s, 111.9 s, 113.2 s and about 112 s of wall clock, against 84.1 s,
+86.0 s, 82.1 s and 80.1 s with the split, about 24% less. A blanket
+`isolate: false` had failed 55 tests in 17 files through mocks leaking into the
+next file; with the split none fail, and `app/components/auth/access-ui.test.tsx`,
+whose `jsxDEV` failure #128 recorded, passes in `unit-shared`. Three runs with
+`--sequence.shuffle.files` passed apart from
+`scripts/check-comment-language.test.ts`'s whole-repo scan, which takes about
+2 s alone and times out at 5 s on a loaded machine in either configuration, the
+baseline included.
