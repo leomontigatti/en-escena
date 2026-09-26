@@ -4,7 +4,7 @@
   "scripts": [
     {
       "name": "Setup worktree",
-      "command": "ln -sf \"$T3CODE_PROJECT_ROOT/.env\" .env && pnpm install --frozen-lockfile && pnpm typecheck",
+      "command": "ln -sf \"$T3CODE_PROJECT_ROOT/.env\" .env && pnpm install --frozen-lockfile && pnpm exec react-router typegen",
       "icon": "configure",
       "runOnWorktreeCreate": true,
       "async": false
