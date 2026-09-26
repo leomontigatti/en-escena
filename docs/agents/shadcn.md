@@ -64,7 +64,7 @@ overwrite is unsafe.
 | `button`                                     | `cursor-pointer`; `link` variant uses `text-brand`                                |
 | `progress`                                   | indicator uses `bg-brand`                                                         |
 | `badge`, `alert`                             | extra `success` / `info` / `warning` variants, and borders upstream dropped       |
-| `avatar`                                     | `data-layout="overlap"` for avatar groups                                         |
+| `avatar`                                     | `data-layout="overlap"` for avatar groups; `shape="square"` (see below)           |
 | `sidebar`                                    | `SIDEBAR_WIDTH` is exported, so the filters panel cannot drift from the sidebar   |
 | `select`                                     | defaults to `position="popper"`, `align="start"`, explicit `side`                 |
 | `sidebar`                                    | wraps its tree in `TooltipProvider`                                               |
@@ -92,6 +92,14 @@ if the Portal unmounts around it. With the prop omitted the component behaves
 exactly as upstream does, so this is additive, not a fork. Callers must still
 gate rendering themselves (`{open ? <AlertDialogContent forceMount/> : null}`),
 since `forceMount` defeats Radix's presence-based unmounting.
+
+`avatar.tsx`'s `shape` prop has no upstream counterpart either; a CLI sync would
+drop it. Every square avatar here (the brand mark, the account menus, the home
+cards, the private header) used to override the radius on the root, its `after:`
+ring and the image or fallback with `rounded-lg`, which `ui/no-restyle` forbids
+outside `app/components/ui`. `shape="square"` moves that radius into the
+component, wired like `size` (`data-shape` on the root, `group-data-[shape=square]/avatar:`
+on the children). The default, `round`, renders as upstream does.
 
 ## Upstream exports we deliberately do not carry
 
