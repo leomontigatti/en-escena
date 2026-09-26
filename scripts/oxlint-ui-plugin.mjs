@@ -37,6 +37,30 @@ function isSlotChild(openingElement) {
   );
 }
 
+// `<input type="file" className="sr-only">` under a styled `<label>`: the
+// element is only the picker behind a drop zone, so it has no look to drift.
+function isVisuallyHidden(openingElement) {
+  const attribute = openingElement.attributes.find(
+    (item) => item.type === "JSXAttribute" && item.name.name === "className",
+  );
+  return classTokens(attribute?.value).includes("sr-only");
+}
+
+// The comprobante's printable view renders a whole `<html>` document with its
+// own CSS and without the app's stylesheet, so a ui component there is unstyled.
+function isInStandaloneDocument(openingElement) {
+  for (let node = openingElement.parent; node; node = node.parent) {
+    if (
+      node.type === "JSXElement" &&
+      node.openingElement.name.type === "JSXIdentifier" &&
+      node.openingElement.name.name === "html"
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function inputReplacement(type) {
   if (type === "checkbox") return "Checkbox, or Switch for an on/off setting";
   if (type === "submit" || type === "button" || type === "reset") {
@@ -62,7 +86,14 @@ const noRawFormElement = {
       JSXOpeningElement(node) {
         if (node.name.type !== "JSXIdentifier") return;
         const element = node.name.name;
-        if (!RAW_FORM_ELEMENTS.has(element) || isSlotChild(node)) return;
+        if (
+          !RAW_FORM_ELEMENTS.has(element) ||
+          isSlotChild(node) ||
+          isVisuallyHidden(node) ||
+          isInStandaloneDocument(node)
+        ) {
+          return;
+        }
 
         let replacement;
         if (element === "input") {
@@ -96,12 +127,16 @@ const RADIUS_CLASS = /^rounded(-|$)/;
 const RING_CLASS = /^(ring|outline)(-|$)/;
 const FOCUS_VARIANTS = new Set(["focus", "focus-visible", "focus-within"]);
 
-function restyledClass(token) {
+// A component that sets no height of its own: a height on it sizes the box, the
+// way shadcn's data-table gives its empty row `h-24`.
+const HEIGHTLESS_COMPONENTS = new Set(["TableCell"]);
+
+function restyledClass(token, component) {
   const parts = token.split(":");
   const utility = parts.pop().replace(/^!/, "").replace(/!$/, "");
   if (parts.some((variant) => FOCUS_VARIANTS.has(variant))) return true;
   return (
-    HEIGHT_CLASS.test(utility) ||
+    (HEIGHT_CLASS.test(utility) && !HEIGHTLESS_COMPONENTS.has(component)) ||
     RADIUS_CLASS.test(utility) ||
     RING_CLASS.test(utility)
   );
@@ -147,16 +182,17 @@ function uiComponentName(name, uiNames, uiNamespaces) {
   return namespaced ? `${name.object.name}.${name.property.name}` : undefined;
 }
 
-function restyledClasses(value) {
+function classTokens(value) {
   if (!value) return [];
   const strings =
     value.type === "Literal"
       ? [value.value]
       : staticClassStrings(value.expression);
-  return strings
-    .join(" ")
-    .split(/\s+/)
-    .filter((token) => token && restyledClass(token));
+  return strings.join(" ").split(/\s+/).filter(Boolean);
+}
+
+function restyledClasses(value, component) {
+  return classTokens(value).filter((token) => restyledClass(token, component));
 }
 
 const noRestyle = {
@@ -194,7 +230,7 @@ const noRestyle = {
           (item) =>
             item.type === "JSXAttribute" && item.name.name === "className",
         );
-        const restyled = restyledClasses(attribute?.value);
+        const restyled = restyledClasses(attribute?.value, component);
         if (restyled.length === 0) return;
         context.report({
           node: attribute,

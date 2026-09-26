@@ -58,20 +58,20 @@ and the `cn-*` tokens — `cn-font-heading`, `cn-menu-target`,
 Do not "fix" these by re-adding the component. They are the reason a blind
 overwrite is unsafe.
 
-| Component                                    | Divergence                                                                        |
-| -------------------------------------------- | --------------------------------------------------------------------------------- |
-| `input`, `textarea`, `select`, `input-group` | focus ring uses `brand`, not `ring`                                               |
-| `button`                                     | `cursor-pointer`; `link` variant uses `text-brand`                                |
-| `progress`                                   | indicator uses `bg-brand`                                                         |
-| `badge`, `alert`                             | extra `success` / `info` / `warning` variants, and borders upstream dropped       |
-| `avatar`                                     | `data-layout="overlap"` for avatar groups; `shape="square"` (see below)           |
-| `sidebar`                                    | `SIDEBAR_WIDTH` is exported, so the filters panel cannot drift from the sidebar   |
-| `select`                                     | defaults to `position="popper"`, `align="start"`, explicit `side`                 |
-| `sidebar`                                    | wraps its tree in `TooltipProvider`                                               |
-| `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content                            |
-| `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer` |
-| `dialog`                                     | `useLayerAbovePress` — see below                                                  |
-| all                                          | `font-heading` instead of upstream's `cn-font-heading`                            |
+| Component                                    | Divergence                                                                                                       |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `input`, `textarea`, `select`, `input-group` | focus ring uses `brand`, not `ring`                                                                              |
+| `button`                                     | `cursor-pointer`; `link` variant uses `text-brand`; extra `field` variant                                        |
+| `progress`                                   | indicator uses `bg-brand`                                                                                        |
+| `badge`, `alert`                             | extra `success` / `info` / `warning` variants, and borders upstream dropped                                      |
+| `avatar`                                     | `data-layout="overlap"` for avatar groups; `shape="square"` (see below)                                          |
+| `sidebar`                                    | `SIDEBAR_WIDTH` is exported, so the filters panel cannot drift from the sidebar                                  |
+| `select`                                     | defaults to `position="popper"`, `align="start"`, explicit `side`                                                |
+| `sidebar`                                    | wraps its tree in `TooltipProvider`                                                                              |
+| `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content                                                           |
+| `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger |
+| `dialog`                                     | `useLayerAbovePress` — see below                                                                                 |
+| all                                          | `font-heading` instead of upstream's `cn-font-heading`                                                           |
 
 Most of those rows are cosmetic. Two are load-bearing and will break behaviour
 if they are reconciled away:

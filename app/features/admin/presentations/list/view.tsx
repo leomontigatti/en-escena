@@ -327,7 +327,7 @@ function PresentationOrderCell({
               ? `Número de presentación de ${row.name}`
               : "Número de presentación"
           }
-          className="h-8 tabular-nums"
+          className="tabular-nums"
           disabled
           readOnly
           value={current}
@@ -370,7 +370,7 @@ function PresentationOrderCell({
       <Input
         aria-label={`Número de presentación de ${row.name}`}
         aria-invalid={error !== null || undefined}
-        className="h-8 tabular-nums"
+        className="tabular-nums"
         inputMode="numeric"
         onBlur={commit}
         // A place in the order is a whole number, so anything but a digit is

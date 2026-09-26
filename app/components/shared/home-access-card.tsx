@@ -22,7 +22,7 @@ export function HomeAccessCard({ item }: { item: HomeAccessCardItem }) {
     return (
       <Link
         to={item.to}
-        className="group flex h-full rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
+        className="group flex h-full rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
       >
         <HomeAccessCardSurface item={item} />
       </Link>
@@ -36,7 +36,7 @@ function HomeAccessCardSurface({ item }: { item: HomeAccessCardItem }) {
   const Icon = item.icon;
 
   return (
-    <Card className="h-full w-full rounded-lg transition-colors hover:bg-accent group-hover:bg-accent">
+    <Card className="h-full w-full transition-colors hover:bg-accent group-hover:bg-accent">
       <CardHeader className="grid-cols-[auto_1fr] items-center gap-4">
         <Avatar size="lg" shape="square">
           <AvatarFallback className="bg-brand text-white">

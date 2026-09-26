@@ -271,11 +271,8 @@ function ComboboxFieldTrigger({
       <ComboboxTrigger
         render={
           <Button
-            variant="outline"
-            // A field, not a button: it keeps the arrow cursor, does not react
-            // to hover, and takes the brand ring on focus, like the control
-            // `MultiCombobox` builds out of `ComboboxChips`.
-            className="w-full cursor-default justify-between border-input font-normal hover:bg-background hover:text-foreground aria-expanded:bg-background aria-expanded:text-foreground focus-visible:border-brand focus-visible:ring-brand/50 dark:hover:bg-input/30 dark:aria-expanded:bg-input/30"
+            variant="field"
+            className="w-full justify-between"
             aria-describedby={describedBy || undefined}
             aria-invalid={isInvalid ? true : undefined}
           >
