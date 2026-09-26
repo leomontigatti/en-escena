@@ -795,12 +795,12 @@ wrong without it. If reading the relevant code answers the question, leave it ou
 - When a documented decision or constraint changes, rewrite or remove the affected text. Do not
   append a second account of the new behaviour. ADRs are the exception: they are records, so a
   change is a dated amendment section, and a reversal is a new ADR that supersedes.
-- Plans, research notes and scratch files stay out of the repo. The issue and the PR are the
-  record of the work ([pull-requests.md](./pull-requests.md#prd-prs)); a plan page is committed
-  only when it carries decisions a later session has to honour, as
-  [test-suite-speed-plan.md](./test-suite-speed-plan.md) does. Research that is a durable primary
-  source goes under `docs/research/` per
-  [issue-tracker.md](./issue-tracker.md#research-tickets).
+- A session's plan, research notes and scratch files stay out of the repo. The issue and the PR
+  are the record of the work ([pull-requests.md](./pull-requests.md#prd-prs)). Only a plan that
+  has to outlive its session is committed, as `docs/plans/<kebab-name>.md`, never under `docs/agents/`,
+  and is deleted when its work lands: the decisions it produced move to an ADR or to the
+  operative page that owns them. Research that is a durable primary source goes under
+  `docs/research/` per [issue-tracker.md](./issue-tracker.md#research-tickets).
 
 The DB TDD and Frontend State TDD sections below are this repo's detail for the skill's two
 sub-workflows, and UI verification is its browser step.
@@ -965,11 +965,6 @@ Current form-submit standard:
 - Shared RHF + React Router submit helpers should pass `FormData`, not
   `Record<string, string>`, so repeated fields, arrays, checkboxes, and file
   inputs survive the abstraction.
-
-Use `docs/agents/request-performance-refactor-plan.md` as the current route
-inventory, submit-pattern inventory, and measurement starting point for this
-refactor family. Keep it discoverable from child issues and update it when the
-baseline assumptions materially change.
 
 ## PRD Workflow
 
