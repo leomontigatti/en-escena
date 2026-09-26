@@ -1,5 +1,10 @@
 import { z } from "zod";
 import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-duplicates";
+import type {
+  MergeRefusedActionData,
+  RosterMergeCandidate,
+  RosterMergeEventInscriptions,
+} from "@/lib/roster/roster-merge.shared";
 import {
   buildDancerBirthDateField,
   rosterDocumentImageFields,
@@ -61,6 +66,11 @@ export type DancerDetailLoaderData = {
    * grey out a button the server would honour — or offer one it would refuse.
    */
   isParticipatingInActiveEvent: boolean;
+  /** What the merge dialog offers; `null` for a read-only auditor. */
+  merge: {
+    candidates: RosterMergeCandidate[];
+    inscriptionsByEvent: RosterMergeEventInscriptions[];
+  } | null;
   selectedEventId: string | null;
 };
 
@@ -91,6 +101,7 @@ export type DancerActionSuccess = {
 export type DancerDetailActionData =
   | DancerActionError
   | DancerActionSuccess
+  | MergeRefusedActionData
   | RosterNameWarningActionData<DancerEditFormValues>;
 
 export type DancerRouteNotification = Extract<

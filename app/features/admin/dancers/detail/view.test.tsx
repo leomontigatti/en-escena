@@ -159,6 +159,7 @@ function createLoaderData(
     editHref: "/administracion/bailarines/dancer-1?modo=editar",
     isEditing: false,
     isParticipatingInActiveEvent: false,
+    merge: null,
     selectedEventId: null,
     ...overrides,
   };

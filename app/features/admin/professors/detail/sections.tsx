@@ -38,10 +38,12 @@ type ProfessorStatusIntent = Exclude<ProfessorDialogIntent, "update-professor">;
 export function ProfessorDetailHeaderActions({
   canEdit,
   onSelectIntent,
+  onSelectMerge,
   statusAction,
 }: {
   canEdit: boolean;
   onSelectIntent: (intent: ProfessorStatusIntent) => void;
+  onSelectMerge: () => void;
   statusAction: ProfessorStatusAction;
 }) {
   if (!canEdit) {
@@ -51,6 +53,7 @@ export function ProfessorDetailHeaderActions({
   return (
     <ProfessorActionsMenu
       onSelect={onSelectIntent}
+      onSelectMerge={onSelectMerge}
       statusAction={statusAction}
     />
   );

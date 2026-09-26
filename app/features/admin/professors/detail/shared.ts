@@ -1,5 +1,10 @@
 import { z } from "zod";
 import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-duplicates";
+import type {
+  MergeRefusedActionData,
+  RosterMergeCandidate,
+  RosterMergeEventInscriptions,
+} from "@/lib/roster/roster-merge.shared";
 import {
   rosterDocumentPairFields,
   rosterPersonNameFields,
@@ -40,6 +45,11 @@ export type ProfessorDetailLoaderData = {
    * `setRosterPersonStatus` asks — see the dancer twin.
    */
   isParticipatingInActiveEvent: boolean;
+  /** What the merge dialog offers; `null` for a read-only auditor. */
+  merge: {
+    candidates: RosterMergeCandidate[];
+    inscriptionsByEvent: RosterMergeEventInscriptions[];
+  } | null;
   professor: NonNullable<Awaited<ReturnType<typeof findProfessor>>>;
   selectedEventId: string | null;
 };
@@ -68,6 +78,7 @@ export type ProfessorActionSuccess = {
 export type ProfessorDetailActionData =
   | ProfessorActionError
   | ProfessorActionSuccess
+  | MergeRefusedActionData
   | RosterNameWarningActionData<ProfessorEditFormValues>;
 
 export type ProfessorRouteNotification = Extract<

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { useMergeDialogState } from "@/components/admin/merge-dialog";
+import { RosterMergeDialog } from "@/components/admin/roster-merge-dialog";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -40,6 +42,7 @@ export function DancerDetailRouteView({
   // administrator to confirm.
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
+  const mergeDialog = useMergeDialogState(actionData);
 
   useServerActionToast(errorData, {
     toastId: "admin-dancer-detail:error",
@@ -105,6 +108,7 @@ export function DancerDetailRouteView({
           canEdit={loaderData.canEdit}
           canVerifyIdentity={viewState.canVerifyIdentity}
           onSelectIntent={setDialogIntent}
+          onSelectMerge={() => mergeDialog.onOpenChange(true)}
           statusAction={viewState.statusAction}
         />
       }
@@ -157,6 +161,13 @@ export function DancerDetailRouteView({
           statusAction={viewState.statusAction}
           statusFormId={statusFormId}
           verifyFormId={verifyFormId}
+        />
+
+        <RosterMergeDialog
+          kind="dancer"
+          merge={loaderData.merge}
+          person={dancer}
+          {...mergeDialog}
         />
       </section>
     </AdminResourceLayout>

@@ -1053,6 +1053,143 @@ describe("`/administracion/profesores` route", () => {
     });
     await expectPersistedProfessor(professor.id, { active: true });
   });
+
+  test("merges a professor into another of the academy and redirects to the survivor", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.fusion.academia@example.com",
+      academyName: "Academia Fusión",
+    });
+    const survivor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Rosa",
+      lastName: "Queda",
+    });
+    const removed = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Rosita",
+      lastName: "Queda",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.fusion@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${removed.id}`,
+    });
+
+    await expect(
+      detailLoader(detailRouteArgs(request, removed.id)),
+    ).resolves.toMatchObject({
+      merge: {
+        candidates: [expect.objectContaining({ id: survivor.id })],
+        inscriptionsByEvent: [],
+      },
+    });
+
+    const response = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          id: removed.id,
+          intent: "merge-professor",
+          survivorId: survivor.id,
+        }),
+        removed.id,
+      ),
+    ).then(
+      () => {
+        throw new Error("Expected the merge to redirect.");
+      },
+      (thrown: unknown) => thrown as Response,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `/administracion/profesores/${survivor.id}`,
+    );
+    await expect(
+      db.select().from(professors).where(eq(professors.id, removed.id)),
+    ).resolves.toEqual([]);
+  });
+
+  test("returns a refused merge as action data for the dialog", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.fusion.rechazo.academia@example.com",
+      academyName: "Academia Fusión Rechazo",
+    });
+    const other = await createAcademyUser({
+      email: "admin.fusion.otra.academia@example.com",
+      academyName: "Academia Otra",
+    });
+    const removed = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Rosa",
+      lastName: "Rechazo",
+    });
+    const stranger = await createProfessor({
+      academyId: other.academy.id,
+      firstName: "Rosa",
+      lastName: "Ajena",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.fusion.rechazo@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${removed.id}`,
+    });
+
+    await expect(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            id: removed.id,
+            intent: "merge-professor",
+            survivorId: stranger.id,
+          }),
+          removed.id,
+        ),
+      ),
+    ).resolves.toEqual({
+      status: "merge-refused",
+      message: "Solo se pueden fusionar profesores de la misma academia.",
+    });
+    await expectPersistedProfessor(removed.id, { active: true });
+  });
+
+  test("offers no merge to an auditor and refuses the intent with a 403", async () => {
+    const academy = await createAcademyUser({
+      email: "auditor.fusion.academia@example.com",
+      academyName: "Academia Fusión Auditor",
+    });
+    const survivor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Rosa",
+      lastName: "Queda",
+    });
+    const removed = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Rosita",
+      lastName: "Queda",
+    });
+    const { request } = await createSignedInRequest({
+      email: "auditor.fusion@example.com",
+      role: "auditor",
+      requestUrl: `http://localhost/administracion/profesores/${removed.id}`,
+    });
+
+    await expect(
+      detailLoader(detailRouteArgs(request, removed.id)),
+    ).resolves.toMatchObject({ merge: null });
+    await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            id: removed.id,
+            intent: "merge-professor",
+            survivorId: survivor.id,
+          }),
+          removed.id,
+        ),
+      ),
+      403,
+    );
+  });
 });
 
 function renderRoute(

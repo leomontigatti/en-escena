@@ -1723,6 +1723,118 @@ describe("`/administracion/bailarines` route", () => {
     });
     await expectPersistedDancer(dancer.id, { active: true });
   });
+
+  test("merges a dancer into another of the academy and redirects to the survivor", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.fusion.bailarines.academia@example.com",
+      academyName: "Academia Fusión Bailarines",
+    });
+    const survivor = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lila",
+      lastName: "Queda",
+      birthDate: "2014-01-20",
+    });
+    const removed = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lilita",
+      lastName: "Queda",
+      birthDate: "2014-01-20",
+    });
+    await linkDancerToEventChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      dancerId: removed.id,
+      choreographyName: "Mudanza",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.fusion.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${removed.id}?evento=${event.id}`,
+    });
+
+    await expect(
+      detailLoader(detailRouteArgs(request, removed.id)),
+    ).resolves.toMatchObject({
+      merge: {
+        candidates: [expect.objectContaining({ id: survivor.id })],
+        inscriptionsByEvent: [
+          { choreographies: 1, eventName: event.name, seminars: 0 },
+        ],
+      },
+    });
+
+    const response = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          id: removed.id,
+          intent: "merge-dancer",
+          survivorId: survivor.id,
+        }),
+        removed.id,
+      ),
+    ).then(
+      () => {
+        throw new Error("Expected the merge to redirect.");
+      },
+      (thrown: unknown) => thrown as Response,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `/administracion/bailarines/${survivor.id}`,
+    );
+    await expect(
+      db
+        .select({ dancerId: choreographyDancers.dancerId })
+        .from(choreographyDancers)
+        .where(eq(choreographyDancers.dancerId, survivor.id)),
+    ).resolves.toHaveLength(1);
+  });
+
+  test("offers no merge to an auditor and refuses the intent with a 403", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "auditor.fusion.bailarines.academia@example.com",
+      academyName: "Academia Fusión Auditor",
+    });
+    const survivor = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lila",
+      lastName: "Queda",
+      birthDate: "2014-01-20",
+    });
+    const removed = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lilita",
+      lastName: "Queda",
+      birthDate: "2014-01-20",
+    });
+    const { request } = await createSignedInRequest({
+      email: "auditor.fusion.bailarines@example.com",
+      role: "auditor",
+      requestUrl: `http://localhost/administracion/bailarines/${removed.id}?evento=${event.id}`,
+    });
+
+    await expect(
+      detailLoader(detailRouteArgs(request, removed.id)),
+    ).resolves.toMatchObject({ merge: null });
+    await expectThrownResponse(
+      detailAction(
+        detailActionArgs(
+          createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+            id: removed.id,
+            intent: "merge-dancer",
+            survivorId: survivor.id,
+          }),
+          removed.id,
+        ),
+      ),
+      403,
+    );
+    await expectPersistedDancer(removed.id, { active: true });
+  });
 });
 
 function renderRoute(
