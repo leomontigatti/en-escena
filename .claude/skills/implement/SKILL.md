@@ -66,6 +66,16 @@ green tests.
 
 ## 6. Commit
 
-Commit to the current branch when the user asked for a commit or the run is unattended; otherwise
-report the result and leave the tree for the user. Conventional-commit subject and body in
-English, per `.sandcastle/CODING_STANDARDS.md` § Code Language.
+Commit to the current branch when the user asked for a commit or a PR, or the run is unattended;
+otherwise report the result and leave the tree for the user. Conventional-commit subject and body
+in English, per `.sandcastle/CODING_STANDARDS.md` § Code Language.
+
+## 7. Open the PR and hand it off
+
+When the user asked for a PR: push the branch, open it ready for review (never a draft) in the
+shape of [pull-requests.md](../../../docs/agents/pull-requests.md), attach the step 4 evidence,
+and link it to the thread. Done when `gh pr view` shows it open and it is linked.
+
+Then call the Skill tool with "babysit-pr", which hands the waiting to a background subagent. The
+babysit is not done in this session: this context is the largest in the run, and each review round
+would re-read it. Stop only at the subagent's report.
