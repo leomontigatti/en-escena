@@ -65,9 +65,11 @@ export function useProfessorEditForm({
 
 export function ProfessorActionsMenu({
   onSelect,
+  onSelectMerge,
   statusAction,
 }: {
   onSelect: (intent: ProfessorStatusAction["intent"]) => void;
+  onSelectMerge: () => void;
   statusAction: ProfessorStatusAction;
 }) {
   return (
@@ -85,6 +87,15 @@ export function ProfessorActionsMenu({
         }}
       >
         {statusAction.label}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        variant="destructive"
+        onSelect={(event) => {
+          event.preventDefault();
+          onSelectMerge();
+        }}
+      >
+        Fusionar
       </DropdownMenuItem>
     </ResourceActionsMenu>
   );

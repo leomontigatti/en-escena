@@ -295,6 +295,16 @@ What the dialog announced is advisory.
 - Every warning check is case-insensitive and whitespace-insensitive, and **accent-sensitive**: `Sofía` and `Sofia` do not match. No accent-folding extension is installed and adding one was not this rule's call.
 - Nothing is stored about a confirmation: the next save of the same values warns again.
 
+## Merging duplicates
+
+A duplicate that got past the guards above is merged from the panel, by an administrator; an auditor sees no merge. The record on screen is the one removed and the operator picks the survivor. A merge is final: there is no undo, and the confirmation lists what moves and what is discarded.
+
+- **Two people** of the same academy and kind: every choreography and seminar inscription of the removed one moves to the survivor. The survivor keeps its names, birth date, `Estado de alta`, document, images and verification, and takes the removed document —with its images and verification— only when it has no document. The removed row is deleted, not archived.
+- **Two academies**: dancers, professors, choreographies, payments and allocations move to the survivor (seminar inscriptions go with their people), and the removed academy's user is deleted, so its login stops working.
+- **A merge never moves money.** Allocations and comprobante lines point at inscription rows, and those rows move whole. For the same reason a people merge is refused when both are in the same choreography's cast or the same seminar, naming it: the two inscriptions cannot become one without moving money, so one is withdrawn first.
+- An academy merge is refused when the removed academy has any comprobante, since a comprobante never changes academy, and when a document number is on both rosters, naming the pairs, since it would break the document rule above; one document of each pair is cleared first.
+- Choreographies are not merged: a duplicate choreography's money is moved with the payment tools and the copy is removed (see "Removing a choreography").
+
 ## Choreography Locks
 
 - `Datos bloqueados de coreografía` include name, modality, submodality, group type and category. Modality, schedule capacity and experience level are not academy-editable either, but they are not fully blocked: the administrator can correct or reassign each of them under the conditions below.

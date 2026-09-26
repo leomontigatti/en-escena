@@ -18,6 +18,8 @@ export const notificationToastIds = {
   "bailarin-archivado": "route-notification:bailarin-archivado",
   "bailarin-reactivado": "route-notification:bailarin-reactivado",
   "bailarin-verificado": "route-notification:bailarin-verificado",
+  "bailarines-fusionados": "route-notification:bailarines-fusionados",
+  "profesores-fusionados": "route-notification:profesores-fusionados",
   "coreografia-creada": "route-notification:coreografia-creada",
   "coreografia-guardada": "route-notification:coreografia-guardada",
   "coreografia-eliminada": "route-notification:coreografia-eliminada",
@@ -51,6 +53,7 @@ export const notificationToastIds = {
   "modalidad-eliminada": "route-notification:modalidad-eliminada",
   "criterios-guardados": "route-notification:criterios-guardados",
   "academia-eliminada": "route-notification:academia-eliminada",
+  "academias-fusionadas": "route-notification:academias-fusionadas",
   "usuario-interno-creado": "route-notification:usuario-interno-creado",
   "usuario-interno-actualizado":
     "route-notification:usuario-interno-actualizado",
@@ -104,6 +107,16 @@ export const notificationToasts = {
   "bailarin-guardado-requiere-verificacion": {
     id: notificationToastIds["bailarin-guardado-requiere-verificacion"],
     message: "Bailarín guardado. La identidad volvió a no verificado.",
+    variant: "success",
+  },
+  "bailarines-fusionados": {
+    id: notificationToastIds["bailarines-fusionados"],
+    message: "Bailarines fusionados.",
+    variant: "success",
+  },
+  "profesores-fusionados": {
+    id: notificationToastIds["profesores-fusionados"],
+    message: "Profesores fusionados.",
     variant: "success",
   },
   "bailarin-archivado": {
@@ -284,6 +297,11 @@ export const notificationToasts = {
   "academia-eliminada": {
     id: notificationToastIds["academia-eliminada"],
     message: "Academia eliminada.",
+    variant: "success",
+  },
+  "academias-fusionadas": {
+    id: notificationToastIds["academias-fusionadas"],
+    message: "Academias fusionadas.",
     variant: "success",
   },
   "usuario-interno-creado": {

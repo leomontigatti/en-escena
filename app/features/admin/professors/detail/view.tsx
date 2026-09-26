@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { useMergeDialogState } from "@/features/admin/merge/dialog";
+import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ProfessorConfirmationDialog } from "./confirmation-dialog";
@@ -37,6 +39,7 @@ export function ProfessorDetailRouteView({
   // administrator to confirm.
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
+  const mergeDialog = useMergeDialogState(loaderData.professor.id, actionData);
 
   useServerActionToast(errorData, {
     toastId: "admin-professor-detail:error",
@@ -131,6 +134,7 @@ export function ProfessorDetailRouteView({
         <ProfessorDetailHeaderActions
           canEdit={loaderData.canEdit}
           onSelectIntent={openStatusDialog}
+          onSelectMerge={() => mergeDialog.onOpenChange(true)}
           statusAction={viewState.statusAction}
         />
       }
@@ -167,6 +171,13 @@ export function ProfessorDetailRouteView({
           }
         }}
         pendingUpdateValues={pendingUpdateValues}
+      />
+
+      <RosterMergeDialog
+        kind="professor"
+        merge={loaderData.merge}
+        person={professor}
+        {...mergeDialog}
       />
     </AdminResourceLayout>
   );

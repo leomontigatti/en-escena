@@ -6,12 +6,11 @@ import {
 } from "@/lib/storage/asset-kinds";
 import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
-  createFilesystemSignedUrl,
+  createFilesystemObjectStorageAdapter,
   fsList,
-  fsRemove,
-  fsUpload,
   getDefaultStorageUrlSigningSecret,
   getDefaultStorageVolumeDir,
+  type SignedObjectStorageAdapter,
 } from "@/lib/storage/filesystem-client.server";
 
 const ASSET_KIND: AssetKind = "seminarInstructorPicture";
@@ -22,30 +21,14 @@ type UploadInstructorPictureInput = {
   seminarId: string;
 };
 
-// The seam ADR-0008 asked for, kept so a future provider is a new
-// implementation rather than a rewrite. Identical in shape to the dancer
-// documents adapter: one object per subject, replaced by extension, so the
-// listing is what finds the sibling a new format leaves behind.
-export type SeminarPictureStorageAdapter = {
-  createSignedUrl(input: {
-    bucket: string;
-    expiresInSeconds: number;
-    key: string;
-  }): Promise<string>;
+// The shared adapter plus a listing: one object per seminar, replaced by
+// extension, so the listing is what finds the sibling a new format leaves
+// behind.
+export type SeminarPictureStorageAdapter = SignedObjectStorageAdapter & {
   list(input: {
     bucket: string;
     prefix: string;
   }): Promise<Array<{ name: string }>>;
-  remove(input: { bucket: string; keys: string[] }): Promise<void>;
-  upload(input: {
-    bucket: string;
-    file: Blob;
-    key: string;
-    options: {
-      contentType: string;
-      upsert: boolean;
-    };
-  }): Promise<void>;
 };
 
 // Live storage is the local Coolify volume in São Paulo. B2 is a backup
@@ -145,35 +128,13 @@ export function createFilesystemSeminarPictureStorage(deps: {
   now?: () => number;
   secret: string;
 }) {
-  const now = deps.now ?? Date.now;
-
   return createSeminarPictureStorage({
-    createSignedUrl: async (input) =>
-      createFilesystemSignedUrl({
-        bucket: input.bucket,
-        expiresInSeconds: input.expiresInSeconds,
-        key: input.key,
-        now: now(),
-        secret: deps.secret,
-      }),
+    ...createFilesystemObjectStorageAdapter(deps),
     list: (input) =>
       fsList({
         baseDir: deps.baseDir,
         bucket: input.bucket,
         prefix: input.prefix,
-      }),
-    remove: (input) =>
-      fsRemove({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        keys: input.keys,
-      }),
-    upload: (input) =>
-      fsUpload({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        file: input.file,
-        key: input.key,
       }),
   });
 }

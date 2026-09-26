@@ -113,6 +113,7 @@ function createLoaderData({
     editHref: "/administracion/profesores/profesor_1?modo=editar",
     isEditing,
     isParticipatingInActiveEvent: false,
+    merge: null,
     professor: {
       academy: {
         contactName: "Contacto Test",

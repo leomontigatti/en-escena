@@ -6,11 +6,10 @@ import {
 } from "@/lib/storage/asset-kinds";
 import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
-  createFilesystemSignedUrl,
-  fsRemove,
-  fsUpload,
   getDefaultStorageUrlSigningSecret,
   getDefaultStorageVolumeDir,
+  createFilesystemObjectStorageAdapter,
+  type SignedObjectStorageAdapter,
 } from "@/lib/storage/filesystem-client.server";
 
 const ASSET_KIND: AssetKind = "feedbackAudio";
@@ -22,27 +21,9 @@ type UploadFeedbackAudioInput = {
   presentationId: string;
 };
 
-// The seam ADR-0008 asked for, kept so a future provider is a new
-// implementation rather than a rewrite. Same shape as the choreography music
-// adapter; unlike the seminar picture one it never lists, because a take's key
-// is unique per upload and the previous one is known from the score row.
-export type FeedbackAudioStorageAdapter = {
-  createSignedUrl(input: {
-    bucket: string;
-    expiresInSeconds: number;
-    key: string;
-  }): Promise<string>;
-  remove(input: { bucket: string; keys: string[] }): Promise<void>;
-  upload(input: {
-    bucket: string;
-    file: Blob;
-    key: string;
-    options: {
-      contentType: string;
-      upsert: boolean;
-    };
-  }): Promise<void>;
-};
+// Unlike the seminar picture adapter it never lists, because a take's key is
+// unique per upload and the previous one is known from the score row.
+export type FeedbackAudioStorageAdapter = SignedObjectStorageAdapter;
 
 type FeedbackAudioStorageDeps = {
   /** Injected so a test can pin a key; production wants nothing but randomness. */
@@ -139,32 +120,8 @@ function createFilesystemFeedbackAudioStorage(deps: {
   secret: string;
   uniqueSuffix?: () => string;
 }) {
-  const now = deps.now ?? Date.now;
-
   return createFeedbackAudioStorage(
-    {
-      createSignedUrl: async (input) =>
-        createFilesystemSignedUrl({
-          bucket: input.bucket,
-          expiresInSeconds: input.expiresInSeconds,
-          key: input.key,
-          now: now(),
-          secret: deps.secret,
-        }),
-      remove: (input) =>
-        fsRemove({
-          baseDir: deps.baseDir,
-          bucket: input.bucket,
-          keys: input.keys,
-        }),
-      upload: (input) =>
-        fsUpload({
-          baseDir: deps.baseDir,
-          bucket: input.bucket,
-          file: input.file,
-          key: input.key,
-        }),
-    },
+    createFilesystemObjectStorageAdapter(deps),
     { uniqueSuffix: deps.uniqueSuffix },
   );
 }

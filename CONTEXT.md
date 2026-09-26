@@ -286,6 +286,14 @@ _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
 Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` (`Activo`) and `archived` (`Archivado`): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. Archiving is refused while the person is participating in the active event —a live inscription, a professor link or a live seminar inscription of that event— and reactivating is never refused; the predicate is one reader, shared by the writer's guard and by the detail screens that grey the `Archivar` button out. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.
 _Avoid_: participating, `dancerVerificationStatus`, deleted person
 
+**`mergeRosterPeople`** — ui: "Fusionar"
+Folding a duplicate roster person into the one that stays: two **`dancer`**s or two **`professor`**s of the same academy become one. The survivor keeps its own data and takes from the removed person only a document it lacks; every inscription moves to it whole, so no money moves; the removed person is deleted, not archived. Refused when both share a choreography or a seminar (see `docs/domain/choreographies.md`, "Merging duplicates").
+_Avoid_: combine, archive (an archived duplicate is still a duplicate)
+
+**`mergeAcademies`** — ui: "Fusionar"
+Folding an academy that forked at signup into the one that stays: everything it holds moves to the survivor, and it and its user are deleted. Refused when it has a comprobante or when a document number is on both rosters.
+_Avoid_: combine, delete academy (which only removes an empty one)
+
 **`administrativeInconsistency`** — ui: "Inconsistencia administrativa"
 Internal administration alert for data requiring review or traceability without belonging to the operational, financial or competitive state.
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, disqualification

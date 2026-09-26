@@ -53,11 +53,13 @@ export function DancerDetailHeaderActions({
   canEdit,
   canVerifyIdentity,
   onSelectIntent,
+  onSelectMerge,
   statusAction,
 }: {
   canEdit: boolean;
   canVerifyIdentity: boolean;
   onSelectIntent: (intent: DancerDialogIntent) => void;
+  onSelectMerge: () => void;
   statusAction: DancerStatusAction;
 }) {
   if (!canEdit) {
@@ -87,6 +89,15 @@ export function DancerDetailHeaderActions({
         }}
       >
         {statusAction.label}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        variant="destructive"
+        onSelect={(event) => {
+          event.preventDefault();
+          onSelectMerge();
+        }}
+      >
+        Fusionar
       </DropdownMenuItem>
     </ResourceActionsMenu>
   );

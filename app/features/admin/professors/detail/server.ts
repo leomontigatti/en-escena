@@ -10,6 +10,11 @@ import {
 } from "@/lib/admin/professors/professors.server";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
+  loadRosterMergeOptions,
+  submitRosterMerge,
+} from "@/lib/roster/roster-merge.server";
+import { rosterMergeIntents } from "@/lib/roster/roster-merge.shared";
+import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.server";
@@ -64,6 +69,13 @@ export async function loadProfessorDetail(input: {
       kind: "professor",
       personId: professorId,
     }),
+    merge:
+      user.role === "admin"
+        ? await loadRosterMergeOptions({
+            kind: "professor",
+            personId: professorId,
+          })
+        : null,
   };
 }
 
@@ -88,6 +100,14 @@ export async function handleProfessorDetailAction(input: {
 
   if (!professor) {
     throw new Response(professorNotFoundMessage, { status: 404 });
+  }
+
+  if (intent === rosterMergeIntents.professor) {
+    return await submitRosterMerge({
+      formData,
+      kind: "professor",
+      personId: professorId,
+    });
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {

@@ -175,6 +175,7 @@ function buildDetailLoaderData() {
     editHref: "/administracion/bailarines/dancer_1?modo=editar",
     isEditing: false,
     isParticipatingInActiveEvent: false,
+    merge: null,
     selectedEventId: null,
   } as Parameters<typeof DancerDetailRouteView>[0]["loaderData"];
 }

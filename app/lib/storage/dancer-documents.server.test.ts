@@ -17,7 +17,6 @@ function createStorageAdapter(
 ): DancerDocumentStorageAdapter {
   return {
     createSignedUrl: async () => "https://example.test/signed",
-    list: async () => [],
     remove: async () => {},
     upload: async () => {},
     ...overrides,
@@ -182,66 +181,29 @@ describe("dancer document storage", () => {
     expect(uploads).toEqual([]);
   });
 
-  test("removes previous files for the same document side regardless of extension", async () => {
-    const calls: Array<unknown> = [];
-    const file = new Blob(["front"], { type: "image/png" });
+  // The previous file goes by its stored key once the row no longer points at
+  // it, so an upload alone never deletes anything.
+  test("uploads without deleting any previous file", async () => {
+    const calls: Array<{ type: string }> = [];
     const storage = createDancerDocumentStorage(
       createStorageAdapter({
-        list: async (input) => {
-          calls.push({ ...input, type: "list" });
-
-          return [
-            { name: "document-front.jpg" },
-            { name: "document-front.webp" },
-            { name: "document-back.jpg" },
-            { name: "notes.txt" },
-          ];
+        remove: async () => {
+          calls.push({ type: "remove" });
         },
-        remove: async (input) => {
-          calls.push({ ...input, type: "remove" });
-        },
-        upload: async (input) => {
-          calls.push({ ...input, type: "upload" });
+        upload: async () => {
+          calls.push({ type: "upload" });
         },
       }),
     );
 
-    expect(
-      expectUploaded(
-        await storage.uploadDocumentImage({
-          academyId: "academy-1",
-          dancerId: "dancer-1",
-          file,
-          side: "front",
-        }),
-      ),
-    ).toBe("academies/academy-1/dancers/dancer-1/document-front.png");
+    await storage.uploadDocumentImage({
+      academyId: "academy-1",
+      dancerId: "dancer-1",
+      file: new Blob(["front"], { type: "image/png" }),
+      side: "front",
+    });
 
-    expect(calls).toEqual([
-      {
-        bucket: "en-escena-dancer-documents",
-        prefix: "academies/academy-1/dancers/dancer-1",
-        type: "list",
-      },
-      {
-        bucket: "en-escena-dancer-documents",
-        file,
-        key: "academies/academy-1/dancers/dancer-1/document-front.png",
-        options: {
-          contentType: "image/png",
-          upsert: true,
-        },
-        type: "upload",
-      },
-      {
-        bucket: "en-escena-dancer-documents",
-        keys: [
-          "academies/academy-1/dancers/dancer-1/document-front.jpg",
-          "academies/academy-1/dancers/dancer-1/document-front.webp",
-        ],
-        type: "remove",
-      },
-    ]);
+    expect(calls).toEqual([{ type: "upload" }]);
   });
 
   test("creates a signed URL for a stored dancer document image", async () => {
@@ -323,7 +285,7 @@ describe("dancer document storage", () => {
     }
   });
 
-  test("replaces a prior document side on the volume regardless of extension", async () => {
+  test("removes the given document images from the volume and nothing else", async () => {
     const baseDir = await mkdtemp(join(tmpdir(), "en-escena-docs-"));
 
     try {
@@ -332,32 +294,29 @@ describe("dancer document storage", () => {
         now: () => 1_000_000,
         secret: "volume-signing-secret",
       });
-
-      await storage.uploadDocumentImage({
-        academyId: "academy-1",
-        dancerId: "dancer-1",
-        file: new Blob(["old"], { type: "image/jpeg" }),
-        side: "front",
-      });
-      await storage.uploadDocumentImage({
-        academyId: "academy-1",
-        dancerId: "dancer-1",
-        file: new Blob(["new"], { type: "image/png" }),
-        side: "front",
-      });
-
-      const folder = join(
-        baseDir,
-        "en-escena-dancer-documents",
-        "academies/academy-1/dancers/dancer-1",
+      const previous = expectUploaded(
+        await storage.uploadDocumentImage({
+          academyId: "academy-1",
+          dancerId: "dancer-1",
+          file: new Blob(["old"], { type: "image/jpeg" }),
+          side: "front",
+        }),
+      );
+      const next = expectUploaded(
+        await storage.uploadDocumentImage({
+          academyId: "academy-1",
+          dancerId: "dancer-1",
+          file: new Blob(["new"], { type: "image/png" }),
+          side: "front",
+        }),
       );
 
-      await expect(
-        readFile(join(folder, "document-front.png"), "utf8"),
-      ).resolves.toBe("new");
-      await expect(
-        readFile(join(folder, "document-front.jpg"), "utf8"),
-      ).rejects.toThrow();
+      await storage.removeDocumentImages([previous]);
+
+      const bucket = join(baseDir, "en-escena-dancer-documents");
+
+      await expect(readFile(join(bucket, next), "utf8")).resolves.toBe("new");
+      await expect(readFile(join(bucket, previous), "utf8")).rejects.toThrow();
     } finally {
       await rm(baseDir, { force: true, recursive: true });
     }

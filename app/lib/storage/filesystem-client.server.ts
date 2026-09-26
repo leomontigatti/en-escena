@@ -23,6 +23,62 @@ const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
   webp: "image/webp",
 };
 
+/**
+ * The adapter a private asset kind stores through: the seam ADR-0008 asked for,
+ * kept so a future provider is a new implementation rather than a rewrite.
+ * Signing is not optional: the one live store always signs (#571).
+ */
+export type SignedObjectStorageAdapter = {
+  createSignedUrl(input: {
+    bucket: string;
+    expiresInSeconds: number;
+    key: string;
+  }): Promise<string>;
+  remove(input: { bucket: string; keys: string[] }): Promise<void>;
+  upload(input: {
+    bucket: string;
+    file: Blob;
+    key: string;
+    options: {
+      contentType: string;
+      upsert: boolean;
+    };
+  }): Promise<void>;
+};
+
+/** That adapter over the local volume, the one implementation there is. */
+export function createFilesystemObjectStorageAdapter(deps: {
+  baseDir: string;
+  now?: () => number;
+  secret: string;
+}): SignedObjectStorageAdapter {
+  const now = deps.now ?? Date.now;
+
+  return {
+    createSignedUrl: async (input) =>
+      createFilesystemSignedUrl({
+        bucket: input.bucket,
+        expiresInSeconds: input.expiresInSeconds,
+        key: input.key,
+        now: now(),
+        secret: deps.secret,
+      }),
+    remove: (input) =>
+      fsRemove({
+        baseDir: deps.baseDir,
+        bucket: input.bucket,
+        keys: input.keys,
+      }),
+    upload: (input) =>
+      fsUpload({
+        baseDir: deps.baseDir,
+        bucket: input.bucket,
+        file: input.file,
+        key: input.key,
+      }),
+  };
+}
+
 export function getRequiredFilesystemStorageEnv(
   name: FilesystemStorageEnvName,
   env: NodeJS.ProcessEnv,

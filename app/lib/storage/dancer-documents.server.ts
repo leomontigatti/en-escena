@@ -6,12 +6,10 @@ import {
 } from "@/lib/storage/asset-kinds";
 import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
-  createFilesystemSignedUrl,
-  fsList,
-  fsRemove,
-  fsUpload,
   getDefaultStorageUrlSigningSecret,
   getDefaultStorageVolumeDir,
+  createFilesystemObjectStorageAdapter,
+  type SignedObjectStorageAdapter,
 } from "@/lib/storage/filesystem-client.server";
 
 const ASSET_KIND: AssetKind = "dancerDocumentImage";
@@ -25,30 +23,7 @@ type UploadDocumentImageInput = {
   side: DancerDocumentSide;
 };
 
-// The seam ADR-0008 asked for, kept so a future provider is a new
-// implementation rather than a rewrite. Signing is not optional: the one live
-// store always signs, so there is no "cannot sign" branch to defend (#571).
-export type DancerDocumentStorageAdapter = {
-  createSignedUrl(input: {
-    bucket: string;
-    expiresInSeconds: number;
-    key: string;
-  }): Promise<string>;
-  list(input: {
-    bucket: string;
-    prefix: string;
-  }): Promise<Array<{ name: string }>>;
-  remove(input: { bucket: string; keys: string[] }): Promise<void>;
-  upload(input: {
-    bucket: string;
-    file: Blob;
-    key: string;
-    options: {
-      contentType: string;
-      upsert: boolean;
-    };
-  }): Promise<void>;
-};
+export type DancerDocumentStorageAdapter = SignedObjectStorageAdapter;
 
 // Live storage is the local Coolify volume in São Paulo. B2 is a backup
 // destination reached by the shell scripts, never by the app.
@@ -75,6 +50,10 @@ export function createDancerDocumentStorage(
       });
     },
 
+    async removeDocumentImages(storageKeys: string[]) {
+      await adapter.remove({ bucket: policy.bucket, keys: storageKeys });
+    },
+
     async uploadDocumentImage(
       input: UploadDocumentImageInput,
     ): Promise<UploadResult> {
@@ -88,11 +67,6 @@ export function createDancerDocumentStorage(
         input,
         resolution.extension,
       );
-      const keysToRemove = await listExistingDocumentImageSideKeys({
-        adapter,
-        input,
-        storageKey,
-      });
 
       await adapter.upload({
         bucket: policy.bucket,
@@ -104,22 +78,44 @@ export function createDancerDocumentStorage(
         },
       });
 
-      // Propagated on purpose, unlike choreography music: the row is written
-      // only after this returns, so aborting leaves the dancer pointing at the
-      // document it already had and the caller can say the save failed. A
-      // failed delete still orphans something — here it is the object just
-      // uploaded, not the one still in use. Choreography music cannot make that
-      // trade: its row already points at the new object by this point.
-      if (keysToRemove.length > 0) {
-        await adapter.remove({
-          bucket: policy.bucket,
-          keys: keysToRemove,
-        });
-      }
-
+      // Nothing is deleted here. The previous file is found by the key on the
+      // dancer's row, not by this folder — a merge can leave it elsewhere — and
+      // it goes only once the row points at the new one
+      // (`removeUnreferencedDocumentImages`), so a refused save never leaves
+      // the dancer pointing at a deleted file.
       return { ok: true, storageKey };
     },
   };
+}
+
+/**
+ * Deletes document images no row points at any more — a photo the academy
+ * replaced or removed, or a document a merge discarded. It runs after the row
+ * is written, so a failure here cannot undo the save: reporting it as failed
+ * would be false. The cost is images left on the volume, and this line is the
+ * only thing that makes them locatable without walking the volume by hand —
+ * the same trade the choreography music replacement makes.
+ */
+export async function removeUnreferencedDocumentImages(input: {
+  dancerId: string;
+  storage?: DancerDocumentStorage;
+  storageKeys: string[];
+}) {
+  if (input.storageKeys.length === 0) {
+    return;
+  }
+
+  try {
+    await (
+      input.storage ?? createDefaultDancerDocumentStorage()
+    ).removeDocumentImages(input.storageKeys);
+  } catch (thrown) {
+    console.error("[storage:dancer-document:orphan]", {
+      dancerId: input.dancerId,
+      detail: thrown instanceof Error ? thrown.message : String(thrown),
+      storageKeys: input.storageKeys,
+    });
+  }
 }
 
 export type DancerDocumentStorage = ReturnType<
@@ -163,55 +159,9 @@ export function createFilesystemDancerDocumentStorage(deps: {
   now?: () => number;
   secret: string;
 }) {
-  const now = deps.now ?? Date.now;
-
-  return createDancerDocumentStorage({
-    createSignedUrl: async (input) =>
-      createFilesystemSignedUrl({
-        bucket: input.bucket,
-        expiresInSeconds: input.expiresInSeconds,
-        key: input.key,
-        now: now(),
-        secret: deps.secret,
-      }),
-    list: (input) =>
-      fsList({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        prefix: input.prefix,
-      }),
-    remove: (input) =>
-      fsRemove({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        keys: input.keys,
-      }),
-    upload: (input) =>
-      fsUpload({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        file: input.file,
-        key: input.key,
-      }),
-  });
-}
-
-async function listExistingDocumentImageSideKeys(input: {
-  adapter: DancerDocumentStorageAdapter;
-  input: UploadDocumentImageInput;
-  storageKey: string;
-}) {
-  const folder = buildDancerDocumentImagesFolder(input.input);
-  const sideSegment = getDocumentImageSideSegment(input.input.side);
-  const files = await input.adapter.list({
-    bucket: getAssetKindPolicy(ASSET_KIND).bucket,
-    prefix: folder,
-  });
-
-  return files
-    .filter((file) => file.name.startsWith(`${sideSegment}.`))
-    .map((file) => `${folder}/${file.name}`)
-    .filter((key) => key !== input.storageKey);
+  return createDancerDocumentStorage(
+    createFilesystemObjectStorageAdapter(deps),
+  );
 }
 
 // The extension is passed in rather than looked up again: only the accepted

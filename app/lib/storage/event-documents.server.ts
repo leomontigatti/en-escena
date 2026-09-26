@@ -11,10 +11,10 @@ import {
 import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
   createFilesystemSignedUrl,
-  fsRemove,
-  fsUpload,
+  createFilesystemObjectStorageAdapter,
   getDefaultStorageUrlSigningSecret,
   getDefaultStorageVolumeDir,
+  type SignedObjectStorageAdapter,
 } from "@/lib/storage/filesystem-client.server";
 
 const ASSET_KIND: AssetKind = "eventDocument";
@@ -25,29 +25,19 @@ type UploadEventDocumentInput = {
   kind: EventDocumentKind;
 };
 
-// The seam ADR-0008 asked for, kept so a future provider is a new
-// implementation rather than a rewrite. Signing is not optional: the one live
-// store always signs, so there is no "cannot sign" branch to defend (#571).
 // These bytes are not PII — the same file goes to every academy — so signing
 // buys no secrecy here; it is reused because an unsigned read would mean a
 // second serve route with its own auth decision.
-export type EventDocumentStorageAdapter = {
+export type EventDocumentStorageAdapter = Omit<
+  SignedObjectStorageAdapter,
+  "createSignedUrl"
+> & {
   createSignedUrl(input: {
     bucket: string;
     expiresInSeconds: number;
     filename: string;
     key: string;
   }): Promise<string>;
-  remove(input: { bucket: string; keys: string[] }): Promise<void>;
-  upload(input: {
-    bucket: string;
-    file: Blob;
-    key: string;
-    options: {
-      contentType: string;
-      upsert: boolean;
-    };
-  }): Promise<void>;
 };
 
 // Live storage is the local Coolify volume in São Paulo. B2 is a backup
@@ -143,6 +133,7 @@ export function createFilesystemEventDocumentStorage(deps: {
   const now = deps.now ?? Date.now;
 
   return createEventDocumentStorage({
+    ...createFilesystemObjectStorageAdapter(deps),
     createSignedUrl: async (input) =>
       createFilesystemSignedUrl({
         bucket: input.bucket,
@@ -151,19 +142,6 @@ export function createFilesystemEventDocumentStorage(deps: {
         key: input.key,
         now: now(),
         secret: deps.secret,
-      }),
-    remove: (input) =>
-      fsRemove({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        keys: input.keys,
-      }),
-    upload: (input) =>
-      fsUpload({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        file: input.file,
-        key: input.key,
       }),
   });
 }

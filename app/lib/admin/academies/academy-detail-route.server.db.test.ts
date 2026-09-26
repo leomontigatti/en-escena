@@ -96,6 +96,30 @@ async function buildFormRequest(input: {
   });
 }
 
+async function buildMergeRequest(input: {
+  academyId: string;
+  email: string;
+  role: "admin" | "auditor";
+  survivorId: string;
+}) {
+  const signedIn = await createSignedInRequest({
+    email: input.email,
+    role: input.role,
+    requestUrl: detailUrl(input.academyId),
+  });
+  const formData = new FormData();
+
+  formData.set("intent", "merge-academy");
+  formData.set("id", input.academyId);
+  formData.set("survivorId", input.survivorId);
+
+  return new Request(detailUrl(input.academyId), {
+    method: "POST",
+    body: formData,
+    headers: { cookie: signedIn.request.headers.get("cookie") ?? "" },
+  });
+}
+
 async function buildDeleteRequest(input: {
   academyId: string;
   confirmDeletion?: string;
@@ -429,6 +453,118 @@ describe("`/administracion/academias` detail", () => {
         .select({ id: academies.id })
         .from(academies)
         .where(eq(academies.id, academy.academy.id)),
+    ).resolves.toHaveLength(1);
+  });
+
+  test("merges an academy into another, moving its dancers and redirecting to the survivor", async () => {
+    const removed = await createAcademyUser({
+      email: "academia.fusion.se.va@example.com",
+      academyName: "Academia Fork",
+    });
+    const survivor = await createAcademyUser({
+      email: "academia.fusion.queda@example.com",
+      academyName: "Academia Original",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: removed.academy.id,
+        birthDate: "2012-01-10",
+        firstName: "Ana",
+        lastName: "Paz",
+      })
+      .returning();
+    const request = await buildMergeRequest({
+      academyId: removed.academy.id,
+      email: "admin.academia.fusion@example.com",
+      role: "admin",
+      survivorId: survivor.academy.id,
+    });
+
+    await expect(
+      detailLoader(routeArgs(request, removed.academy.id)),
+    ).resolves.toMatchObject({
+      merge: {
+        candidates: [expect.objectContaining({ id: survivor.academy.id })],
+        holdings: { dancers: 1 },
+      },
+    });
+
+    const response = await detailAction(
+      routeArgs(request, removed.academy.id),
+    ).then(
+      () => {
+        throw new Error("Expected the merge to redirect.");
+      },
+      (thrown: unknown) => thrown as Response,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `/administracion/academias/${survivor.academy.id}`,
+    );
+    await expect(
+      db
+        .select({ academyId: dancers.academyId })
+        .from(dancers)
+        .where(eq(dancers.id, dancer.id)),
+    ).resolves.toEqual([{ academyId: survivor.academy.id }]);
+    await expect(
+      db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, removed.academy.userId)),
+    ).resolves.toEqual([]);
+  });
+
+  test("returns a refused academy merge as action data for the dialog", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.fusion.sola@example.com",
+      academyName: "Academia Sola",
+    });
+    const request = await buildMergeRequest({
+      academyId: academy.academy.id,
+      email: "admin.academia.fusion.sola@example.com",
+      role: "admin",
+      survivorId: academy.academy.id,
+    });
+
+    await expect(
+      detailAction(routeArgs(request, academy.academy.id)),
+    ).resolves.toEqual({
+      status: "merge-refused",
+      intent: "merge-academy",
+      message: "Elegí otra academia para fusionar.",
+    });
+  });
+
+  test("offers no merge to an auditor and refuses the intent with a 403", async () => {
+    const removed = await createAcademyUser({
+      email: "academia.auditor.fusion@example.com",
+      academyName: "Academia Auditor Fusión",
+    });
+    const survivor = await createAcademyUser({
+      email: "academia.auditor.fusion.queda@example.com",
+      academyName: "Academia Auditor Queda",
+    });
+    const request = await buildMergeRequest({
+      academyId: removed.academy.id,
+      email: "auditor.academia.fusion@example.com",
+      role: "auditor",
+      survivorId: survivor.academy.id,
+    });
+
+    await expect(
+      detailLoader(routeArgs(request, removed.academy.id)),
+    ).resolves.toMatchObject({ merge: null });
+    await expect(
+      detailAction(routeArgs(request, removed.academy.id)),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      db
+        .select({ id: academies.id })
+        .from(academies)
+        .where(eq(academies.id, removed.academy.id)),
     ).resolves.toHaveLength(1);
   });
 });

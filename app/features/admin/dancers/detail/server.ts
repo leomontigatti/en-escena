@@ -14,6 +14,11 @@ import {
 } from "@/lib/roster/roster-person-status.server";
 import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
+import {
+  loadRosterMergeOptions,
+  submitRosterMerge,
+} from "@/lib/roster/roster-merge.server";
+import { rosterMergeIntents } from "@/lib/roster/roster-merge.shared";
 import { findActiveEventStartDateOnly } from "@/lib/events/active-event.server";
 import {
   requireAdminUser,
@@ -76,6 +81,10 @@ export async function loadDancerDetail(input: {
       kind: "dancer",
       personId: dancerId,
     }),
+    merge:
+      user.role === "admin"
+        ? await loadRosterMergeOptions({ kind: "dancer", personId: dancerId })
+        : null,
   };
 }
 
@@ -130,6 +139,14 @@ export async function handleDancerDetailAction(input: {
         : "bailarin-reactivado",
       [],
     );
+  }
+
+  if (intent === rosterMergeIntents.dancer) {
+    return await submitRosterMerge({
+      formData,
+      kind: "dancer",
+      personId: dancerId,
+    });
   }
 
   if (intent === "verify-dancer-identity") {
