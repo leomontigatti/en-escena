@@ -3,7 +3,6 @@
   "entry": [
     "src/index.{ts,tsx,js,jsx}",
     "src/main.{ts,tsx,js,jsx}",
-    ".sandcastle/agent-update-branch/update-branch.mts",
     ".sandcastle/agent-architecture-review/architecture-review.mts"
   ],
   "ignorePatterns": [
@@ -11,7 +10,7 @@
     "tests/db/setup.ts",
     "tests/setup/react-test-env.ts"
   ],
-  // `@ai-hero/sandcastle` is value-imported by the two `.mts` runner entries
+  // `@ai-hero/sandcastle` is value-imported by the `.mts` runner entry
   // above and by `.sandcastle/lib/runner.mts`, but Fallow does not follow the
   // `.mts` files into its import graph, so it reports the package as unused.
   "ignoreDependencies": ["isbot", "@ai-hero/sandcastle"],

@@ -102,3 +102,29 @@ in [workflows.md](../agents/workflows.md#prd-workflow).
 `agent:to-issues` is no longer in `.github/labels.json`; as above, it stays on
 GitHub until removed by hand. The To Issues prompt skeleton stays under
 `docs/agents/prompts/` because the vendored spec links it.
+
+## Amendment (2026-09-26): Update Branch, Label Behind PRs and Promote Queued are retired
+
+Architecture Review is now the only AFK workflow. The other three are replaced as follows.
+
+- **A PR is brought up to date by the session babysitting it.** Label Behind PRs merged `master`
+  into every behind PR on every push to `master`. Each merge re-ran CI and a CodeRabbit pass,
+  and moved the head under a babysitting session: on #1222 it stalled the session on a fresh
+  review while three known threads sat unanswered. It also missed a PR that was opened already
+  behind, since only a push to `master` fired it. The
+  [`babysit-pr`](../../.claude/skills/babysit-pr/SKILL.md) skill now updates the branch once,
+  when being behind is the only thing between the PR and merge. `gh pr update-branch` does it
+  when the merge is clean. A conflict is resolved in the session with the
+  `resolving-merge-conflicts` skill, which knows what the PR is for; the runner's agent knew only
+  the conflict. Strict branch protection stays. The merge queue that would do this on GitHub
+  needs an organisation-owned repository.
+- **Blocking is read from the native relation, not a label.** A session picks unblocked issues
+  from the dispatch queue and reads `blockedBy` itself
+  ([issue-tracker.md](../agents/issue-tracker.md#ticket-operations)). `agent:queued` and the
+  workflow that promoted it add a label for what the relation already says.
+- **`AGENT_PAT` has no user left.** It existed to let one workflow's label start another.
+
+`agent:queued`, `agent:in-progress`, `agent:blocked` and `agent:update-branch` are no longer in
+`.github/labels.json`, and `pnpm setup:secrets` no longer loads `AGENT_PAT`. The labels and the
+secret stay on GitHub until removed by hand. The Update Branch prompt skeleton stays under
+`docs/agents/prompts/` because the vendored spec links it.

@@ -5,29 +5,21 @@ set -eo pipefail
 # AFK — loading the GitHub Actions secrets
 # ============================================================
 #
-# Loads the two secrets the AFK workflows consume (spec §3.1).
+# Loads the secret the AFK workflow consumes (spec §3.1).
 # Idempotent: if a secret already exists, it asks before overwriting.
-# The full runbook (what each secret is, why, how the platform degrades
-# without the PAT) lives in docs/agents/afk-setup.md.
+# The full runbook lives in docs/agents/afk-setup.md.
 #
 # Our model is orchestrator↔runner (spec §3.9): the runner holds NO
 # GitHub token. That is why there is NO read-only PAT for reading issues
 # inside the runner (the orchestrator prefetches and passes the context
-# through env/files). The two secrets are:
+# through env/files). The secret is:
 #
-# 1. CLAUDE_CODE_OAUTH_TOKEN
+# CLAUDE_CODE_OAUTH_TOKEN
 #    Claude Code OAuth token; the runner authenticates against the
 #    Anthropic API with it. Get it with:  claude setup-token
 #
-# 2. AGENT_PAT
-#    A classic PAT with `repo` + `workflow` scopes. The ORCHESTRATOR uses
-#    it to (a) chain workflows by adding trigger labels — GITHUB_TOKEN
-#    does not fire downstream runs, because of GitHub's anti-loop rule —
-#    and (b) push changes to .github/workflows/** (which needs the
-#    `workflow` scope).
-#    Create it at https://github.com/settings/tokens (classic: repo + workflow).
-#    It is strongly recommended: without it the platform still works but
-#    degrades (labels land, downstream does not start on its own).
+# AGENT_PAT is no longer loaded: the label-triggered workflows that needed
+# it were retired (ADR-0016, second amendment).
 #
 # Note: GITHUB_TOKEN is built-in (GitHub injects it per run); it is not loaded.
 #
@@ -112,7 +104,6 @@ set_secret() {
 }
 
 set_secret "CLAUDE_CODE_OAUTH_TOKEN" "Claude Code OAuth token. Get it with: claude setup-token"
-set_secret "AGENT_PAT" "Classic PAT with repo + workflow scopes. https://github.com/settings/tokens"
 
 echo "============================================================"
 echo "Secrets in $REPO (names only, never values):"

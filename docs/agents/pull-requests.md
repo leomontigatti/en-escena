@@ -93,6 +93,12 @@ rest with the reason, and stops at ready to merge. The merge stays the user's.
 In a stack, babysit once the whole stack is open: a babysit per layer spends
 checks on commits the next layer's push restarts.
 
+Branch protection requires a branch up to date with `master`, and nothing
+updates it on its own: the babysit does it once, when being behind is all that
+is left (`gh pr update-branch`, or a local merge when it conflicts). A PR nobody
+is babysitting is updated the same way by hand. After a stack's bottom layer
+merges, the next layer is behind: babysit it again.
+
 CodeRabbit is the second reviewer, configured by `.coderabbit.yaml`, which is
 read from the PR's head branch; its `base_branches` entry is what lets a PR
 stacked on a non-master branch be reviewed at all. It reviews each push on its

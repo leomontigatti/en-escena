@@ -28,8 +28,8 @@ function installingWorkflows(): string[] {
 }
 
 describe("the Claude Code CLI the runners install (#966)", () => {
-  it("is installed in the two workflows that run an agent", () => {
-    expect(installingWorkflows().length).toBe(2);
+  it("is installed in the one workflow that runs an agent", () => {
+    expect(installingWorkflows().length).toBe(1);
   });
 
   it("comes from the stable tag through pnpm, never from a global npm install", () => {

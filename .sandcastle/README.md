@@ -1,7 +1,7 @@
 # `.sandcastle/` — AFK agent runners
 
 This directory holds the **AFK agent runners** invoked by the GitHub Actions
-workflows in `.github/workflows/agent-*.yml` and `architecture-review.yml`. It
+workflow in `.github/workflows/architecture-review.yml`. It
 implements the **orchestrator↔runner split** of the AFK platform spec
 (`docs/agents/afk-agent-platform-spec.md`, §3.8/§3.9): the workflow
 (orchestrator) owns every tracker/VCS mutation (labels, comments, push, PR,
@@ -15,12 +15,13 @@ implement, review, write-PR and To Issues runners were retired in
 **ADR-0016**: code is written and reviewed, and PRDs are sliced, in local T3
 Code sessions (the `implement` and `to-tickets` skills), and what remains on
 GitHub Actions is the work that needs no browser and no judgement about the
-product.
+product. The Update Branch runner was retired in ADR-0016's second amendment: a
+session babysitting its PR brings the branch up to date itself.
 
 ## Layout
 
-- `agent-update-branch/`, `agent-architecture-review/` —
-  one directory per surviving runner, invoked by the matching workflow.
+- `agent-architecture-review/` — the surviving runner, invoked by
+  `architecture-review.yml`.
 - `lib/` — shared runner helpers (`runner.mts`, `run-with-extraction.mts`, …).
 - `retry-feedback.mts` — shared output/retry helper.
 - `CODING_STANDARDS.md` — canonical coding standards for the whole repo (not

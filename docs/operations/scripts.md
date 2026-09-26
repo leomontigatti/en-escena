@@ -76,10 +76,10 @@ recommended order for a final pass is in
 
 ## AFK Platform
 
-The three remaining workflows (Update Branch, Promote Queued, Architecture
-Review): see [AFK setup](../agents/afk-setup.md) for the operational side and
-ADR-0016 for why implementation, review and PRD slicing moved to local
-sessions. Their runners are invoked by the workflows, never by hand.
+The one remaining workflow (Architecture Review): see
+[AFK setup](../agents/afk-setup.md) for the operational side and ADR-0016 for
+why everything else moved to local sessions. Its runner is invoked by the
+workflow, never by hand.
 
 | Script                  | Purpose                                                                                                                                       |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The agent must never hold a GitHub credential (spec §3.9: "the agent never
 // mutates the tracker/VCS remote"). A runner that prefetches context —
-// update-branch, architecture-review — needs a token for its own read-only `gh` calls,
+// architecture-review, today — needs a token for its own read-only `gh` calls,
 // so its workflow step exports `GH_TOKEN`. That alone used to be enough to
 // reach the agent: sandcastle's `noSandbox()` builds the agent environment as
 // `{ ...process.env }`, so the agent inherited a working, write-capable token
@@ -13,7 +13,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { revokeGitHubToken } from "../../.sandcastle/lib/runner.mjs";
 
 const PREFETCHING_RUNNERS = [
-  ".sandcastle/agent-update-branch/update-branch.mts",
   ".sandcastle/agent-architecture-review/architecture-review.mts",
 ];
 
