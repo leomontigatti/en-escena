@@ -6,11 +6,10 @@ import {
 } from "@/lib/storage/asset-kinds";
 import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
-  createFilesystemSignedUrl,
-  fsRemove,
-  fsUpload,
   getDefaultStorageUrlSigningSecret,
   getDefaultStorageVolumeDir,
+  createFilesystemObjectStorageAdapter,
+  type SignedObjectStorageAdapter,
 } from "@/lib/storage/filesystem-client.server";
 
 const ASSET_KIND: AssetKind = "choreographyMusic";
@@ -21,26 +20,7 @@ type UploadChoreographyMusicInput = {
   file: Blob;
 };
 
-// The seam ADR-0008 asked for, kept so a future provider is a new
-// implementation rather than a rewrite. Signing is not optional: the one live
-// store always signs, so there is no "cannot sign" branch to defend (#571).
-export type ChoreographyMusicStorageAdapter = {
-  createSignedUrl(input: {
-    bucket: string;
-    expiresInSeconds: number;
-    key: string;
-  }): Promise<string>;
-  remove(input: { bucket: string; keys: string[] }): Promise<void>;
-  upload(input: {
-    bucket: string;
-    file: Blob;
-    key: string;
-    options: {
-      contentType: string;
-      upsert: boolean;
-    };
-  }): Promise<void>;
-};
+export type ChoreographyMusicStorageAdapter = SignedObjectStorageAdapter;
 
 // Live storage is the local Coolify volume in São Paulo. B2 is a backup
 // destination reached by the shell scripts, never by the app.
@@ -124,31 +104,9 @@ export function createFilesystemChoreographyMusicStorage(deps: {
   now?: () => number;
   secret: string;
 }) {
-  const now = deps.now ?? Date.now;
-
-  return createChoreographyMusicStorage({
-    createSignedUrl: async (input) =>
-      createFilesystemSignedUrl({
-        bucket: input.bucket,
-        expiresInSeconds: input.expiresInSeconds,
-        key: input.key,
-        now: now(),
-        secret: deps.secret,
-      }),
-    remove: (input) =>
-      fsRemove({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        keys: input.keys,
-      }),
-    upload: (input) =>
-      fsUpload({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        file: input.file,
-        key: input.key,
-      }),
-  });
+  return createChoreographyMusicStorage(
+    createFilesystemObjectStorageAdapter(deps),
+  );
 }
 
 // The extension is passed in rather than looked up again: only the accepted
