@@ -17,14 +17,25 @@ none of those. Three entry points, by how much is still unknown:
 - **Clear but big** (known shape, several slices): write one PRD with the
   [PRD workflow](#prd-workflow) and label it `agent:to-issues`, or slice it by
   hand. A session then implements the sub-issues in order onto one branch and
-  one PR.
+  one PR, ticking each in the PR body's `## Sub-issues` list as it lands
+  ([pull-requests.md](./pull-requests.md#prd-prs)): a resumed session reads the
+  list, never the scrollback.
 - **Foggy** (decisions nobody has made yet): `/wayfinder`. The map's tickets
   are grilling, research, prototype or task; a prototype is a throwaway
   artifact whose result is a decision on its ticket, never another PRD. The map
   ends with one or more PRDs, per the exit shapes in
   [issue-tracker.md](./issue-tracker.md#wayfinding-operations).
 
-The PR is reviewed in the session before it is opened (`implement` step 4) and
+A request in the thread names the finish line and the allowed stops, so the
+session knows when it is done and when to ask:
+
+```
+Implement #1234 and open the PR.
+Done means: the acceptance criteria pass, a regression test cites the issue,
+CI is green. Stop only if the seams are unclear.
+```
+
+The PR is reviewed in the session before it is opened (`implement` step 5) and
 babysat afterwards per [pull-requests.md](./pull-requests.md#babysitting-a-pr).
 
 ## Investigate before implementing

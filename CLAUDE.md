@@ -3,6 +3,12 @@
 Index of the repo's conventions. Every operative rule lives in its own file under
 `docs/agents/` (or `.sandcastle/`); this file only routes.
 
+- **Session conduct**: when a step needs no input from the user, keep going, and
+  put status notes in the same message as the next action. Stop and ask only when
+  the work cannot continue without them, or before anything destructive: deleting
+  data, force-pushing, changing anything outside this repository. When a rule in
+  these docs fights the task, say so and get a sign-off before breaking it. End a
+  run with what needs the user first, then what changed, then what was found.
 - **Validation**: [docs/agents/workflows.md](docs/agents/workflows.md).
   Use `pnpm typecheck` (not `pnpm exec tsc`); a hook enforces it. Do not run
   `pnpm typecheck` in parallel with `pnpm build`. **The commands listed there are
