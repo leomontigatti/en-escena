@@ -8,7 +8,8 @@
 // waste the exploration.
 //
 // Env: GH_REPO, OUTPUT_DIR. GH_TOKEN is present for the read-only prefetch of
-// prior proposals only; the agent holds no token.
+// prior proposals only and is revoked before the agent starts, so the agent
+// holds no token (§3.9).
 
 import { Output } from "@ai-hero/sandcastle";
 
@@ -17,6 +18,7 @@ import {
   createAgent,
   createSandboxProvider,
   requireEnv,
+  revokeGitHubToken,
   runMain,
   streamingLog,
   writeOutput,
@@ -54,6 +56,11 @@ await runMain(async ({ signal }) => {
       "--jq",
       "[.[] | {number, title, state}]",
     ]).trim() || "[]";
+
+  // Prefetch done: drop the token before the agent starts (§3.9). `noSandbox()`
+  // spreads `process.env` into the agent, so the step-level `GH_TOKEN` would
+  // reach it with the job's `issues: write` permission.
+  revokeGitHubToken();
 
   const result = await runWithExtraction({
     name: "architecture-review",

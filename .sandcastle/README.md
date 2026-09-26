@@ -11,14 +11,15 @@ emits commits on the already-checked-out branch plus plain/JSON files under
 
 The legacy local Docker runner (`main.mts` and its `*-prompt.md` chain, driven
 by `pnpm sandcastle`) was **retired in the Fase 4 cutover** (issue #347). The
-implement, review and write-PR runners were retired in **ADR-0016**: code is
-written and reviewed in local T3 Code sessions (the `implement` skill), and
-what remains on GitHub Actions is the work that needs no browser and no
-judgement about the product.
+implement, review, write-PR and To Issues runners were retired in
+**ADR-0016**: code is written and reviewed, and PRDs are sliced, in local T3
+Code sessions (the `implement` and `to-tickets` skills), and what remains on
+GitHub Actions is the work that needs no browser and no judgement about the
+product.
 
 ## Layout
 
-- `agent-to-issues/`, `agent-update-branch/`, `agent-architecture-review/` —
+- `agent-update-branch/`, `agent-architecture-review/` —
   one directory per surviving runner, invoked by the matching workflow.
 - `lib/` — shared runner helpers (`runner.mts`, `run-with-extraction.mts`, …).
 - `retry-feedback.mts` — shared output/retry helper.

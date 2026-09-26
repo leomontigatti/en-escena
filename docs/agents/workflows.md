@@ -14,17 +14,30 @@ none of those. Three entry points, by how much is still unknown:
   thread, or write the issue with what to build and its acceptance criteria and
   label it `ready-for-agent`. No PRD, no map. A session grabs it and runs the
   `implement` skill.
-- **Clear but big** (known shape, several slices): write one PRD with the
-  [PRD workflow](#prd-workflow) and label it `agent:to-issues`, or slice it by
-  hand. A session then implements the sub-issues in order onto one branch and
-  one PR.
+- **Clear but big** (known shape, several slices): `/grilling` until the shape
+  and the test seams are agreed, `/to-spec` to file the PRD
+  ([PRD workflow](#prd-workflow)), `/to-tickets` to slice it into sub-issues
+  ([Issue breakdown workflow](#issue-breakdown-workflow)), then `implement`. A
+  session implements the sub-issues in order onto one branch and one PR,
+  ticking each in the PR body's `## Sub-issues` list as it lands
+  ([pull-requests.md](./pull-requests.md#prd-prs)): a resumed session reads the
+  list, never the scrollback.
 - **Foggy** (decisions nobody has made yet): `/wayfinder`. The map's tickets
   are grilling, research, prototype or task; a prototype is a throwaway
   artifact whose result is a decision on its ticket, never another PRD. The map
   ends with one or more PRDs, per the exit shapes in
   [issue-tracker.md](./issue-tracker.md#wayfinding-operations).
 
-The PR is reviewed in the session before it is opened (`implement` step 4) and
+A request in the thread names the finish line and the allowed stops, so the
+session knows when it is done and when to ask:
+
+```
+Implement #1234 and open the PR.
+Done means: the acceptance criteria pass, a regression test cites the issue,
+CI is green. Stop only if the seams are unclear.
+```
+
+The PR is reviewed in the session before it is opened (`implement` step 5) and
 babysat afterwards per [pull-requests.md](./pull-requests.md#babysitting-a-pr).
 
 ## Investigate before implementing
@@ -309,19 +322,21 @@ made, by hand, once #955 merged) is a human step outside the repo.
 
 `pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`, which is
 the list — do not restate it here. What it owns is React hook mistakes, import
-cycles and un-awaited promises. It runs over the whole repo in about six and a
-half seconds; the un-awaited-promise rules are type-aware (`oxlint-tsgolint`), so
-the run builds a TypeScript program, which is the whole of the 1.5 s → 6.5 s
-difference.
+cycles, un-awaited promises, and two structural UI rules from the style guide. It
+runs over the whole repo in about six and a half seconds; the un-awaited-promise
+rules are type-aware (`oxlint-tsgolint`), so the run builds a TypeScript program,
+which is the whole of the 1.5 s → 6.5 s difference.
 
-**It is deliberately not a style checker**, and rules must not be added to it
-casually. The scope rule is that every concern already has exactly one owner:
+**It owns structural rules that nothing else can own, not formatting or taste**,
+and rules must not be added to it casually. The scope rule is that every concern
+already has exactly one owner:
 
 | Concern                                                                                                                                                                                                                    | Owner                                                                           |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Formatting                                                                                                                                                                                                                 | Prettier (`pnpm format`)                                                        |
 | Types, unused locals/parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`)                     |
 | Hook mistakes, import cycles, un-awaited promises                                                                                                                                                                          | `pnpm lint`                                                                     |
+| A raw `<button>`, `<select>`, `<textarea>` or non-hidden `<input>` where an `app/components/ui` component exists; a `className` that overrides a ui component's height, radius or focus ring                               | `pnpm lint`, the `ui` JS plugin (`scripts/oxlint-ui-plugin.mjs`)                |
 | Repo conventions — doc map, repo styles, banned imports, file tokens, comment language, migration order and immutability, Fallow                                                                                           | the `check:*` scripts                                                           |
 | Destructive or lock-hazardous DDL in migrations the branch adds                                                                                                                                                            | squawk (`pnpm check:migration-safety`)                                          |
 | Secrets in commits                                                                                                                                                                                                         | gitleaks (`.husky/pre-commit` + the `checks` job), under GitHub push protection |
@@ -335,9 +350,10 @@ ignored, so it does not go in — the rationale is decision 2 of
 [ADR-0015](../adr/0015-deterministic-guardrails.md). What justifies the ones
 that are in is that nothing else can see them: a stale closure in `useEffect`
 type-checks perfectly and misbehaves at runtime, TypeScript tolerates import
-cycles until a module reads `undefined` during initialisation, and a promise
-nothing awaits type-checks too while silently dropping whatever it would have
-rejected with.
+cycles until a module reads `undefined` during initialisation, a promise nothing
+awaits type-checks too while silently dropping whatever it would have rejected
+with, and a raw `<button>` or an `h-8` on an `Input` renders fine while drifting
+from the look the `app/components/ui` component owns.
 
 Two options on those promise rules are load-bearing, and neither is legible from
 the rule name:
@@ -358,6 +374,18 @@ Fourteen files are exempt from `exhaustive-deps` via `overrides` in
 to sync a prop into state, which the rule cannot see through; depending on the
 object itself would re-run the effect on every render. The list is a **shrinking
 allowlist** — do not add to it to make a change pass.
+
+The two UI rules, `ui/no-raw-form-element` and `ui/no-restyle`, come from a local
+JS plugin, `scripts/oxlint-ui-plugin.mjs`, and an `overrides` entry scopes them to
+`app/**/*.tsx` outside `app/components/ui` and test files. A raw element that is
+the direct child of an `asChild` parent (`<DropdownMenuItem asChild><button>`) is
+exempt, since the parent owns its look. The files that already broke a rule when
+it landed sit in two more `overrides` entries that turn it off, one per rule;
+those lists shrink as each file is touched (#1210 records why each file is
+there), and nothing is added to them. JS plugins are alpha in oxlint and outside
+its semver promise, so `package.json` pins oxlint to an exact version: a minor
+bump that changes the plugin API has to arrive as a deliberate upgrade, not
+through the lockfile.
 
 ESLint is not an option here: `typescript-eslint` refuses to run against this
 repo's TypeScript 7 and throws on startup
@@ -744,13 +772,106 @@ Implementing a feature, fixing a bug or changing code in a local session follows
 call the Skill tool with "implement" before editing. It is the same workflow the AFK implement
 runners follow from their prompts — test-first through the `tdd` skill at the ticket's **Test
 seams**, typecheck and single test files as you go, the list in
-[`.sandcastle/VALIDATION.md`](../../.sandcastle/VALIDATION.md) once at the end, then `code-review`.
+[`.sandcastle/VALIDATION.md`](../../.sandcastle/VALIDATION.md) once at the end, a browser check
+for rendered changes ([UI verification](#ui-verification)), then a review tiered by risk: the
+full two-axis `code-review` for money, results or judging, auth, migrations and `CONTEXT.md`
+terms, a single-agent readback for everything else.
 
 Two rules sit on top of it for a local session: keep the change scoped to the requested
 behaviour, and do not commit unless the user explicitly asks for a commit.
 
+Before calling a change done, walk this list and say which entries applied. The most common
+defect here is a change that works on the path that was tested and is missing everywhere else.
+
+- **Reverse states.** If you added a way in, add the way out and the way to see it. Open needs
+  close, publish needs a visible published state and, where the domain allows it, unpublish.
+  When the domain makes a transition irreversible, the screen shows the terminal state and
+  says so; a one-way door with no way to see it is a bug, not a smaller feature.
+- **Entry points.** A behaviour reachable from the admin is usually also reachable from the
+  portal, or from a list and its detail. Fixing one path is not fixing the feature; say which
+  paths you checked and which are deliberately different.
+- **Docs.** Check whether the change makes existing guidance wrong, then apply the
+  [documentation rules](#documentation) before adding anything.
+
+## Documentation
+
+Most code changes need no documentation change: agents and maintainers read the code. Before
+adding a paragraph anywhere under `docs/`, ask what a maintainer or a later session would get
+wrong without it. If reading the relevant code answers the question, leave it out.
+
+- `docs/agents/` holds operative rules and the traps that are hard to discover from the source.
+  `docs/domain/` holds the model, and `check:doc-map` fails a PR that changes mapped code without
+  touching its page or carrying a `Doc-Change-Not-Needed: <reason>` commit trailer
+  ([CODING_STANDARDS.md](../../.sandcastle/CODING_STANDARDS.md#documentation-gate)).
+  `docs/adr/` holds decisions and their reasons.
+- Do not enumerate fields or functions, narrate control flow, keep file catalogs, or append PR
+  summaries. Types, tests and code already record the implementation. A local explanation goes
+  in a nearby code comment; a doc page is for reasoning that crosses boundaries.
+- When a documented decision or constraint changes, rewrite or remove the affected text. Do not
+  append a second account of the new behaviour. ADRs are the exception: they are records, so a
+  change is a dated amendment section, and a reversal is a new ADR that supersedes.
+- A session's plan, research notes and scratch files stay out of the repo. The issue and the PR
+  are the record of the work ([pull-requests.md](./pull-requests.md#prd-prs)). Only a plan that
+  has to outlive its session is committed, as `docs/plans/<kebab-name>.md`, never under `docs/agents/`,
+  and is deleted when its work lands: the decisions it produced move to an ADR or to the
+  operative page that owns them. Research that is a durable primary source goes under
+  `docs/research/` per [issue-tracker.md](./issue-tracker.md#research-tickets).
+
 The DB TDD and Frontend State TDD sections below are this repo's detail for the skill's two
-sub-workflows.
+sub-workflows, and UI verification is its browser step.
+
+## UI verification
+
+A change to anything the dev server renders — a route, a component, a loader's output, an
+action's feedback — is checked in a real browser before it is reviewed. The browser is the
+Playwright CLI (`@playwright/cli`, the `playwright-cli` binary), installed globally with a
+headless Chromium (`playwright-cli install-browser chromium`). It keeps its scratch files —
+snapshots, console logs, default screenshots — in `.playwright-cli/` under the current
+directory, which is gitignored. Skip this for what the browser cannot exercise: types, tests,
+tooling, docs, server code with no rendered surface.
+
+Data comes from `pnpm db:seed` against the local database, never from a database refreshed from
+production (see [pull-requests.md](./pull-requests.md#ui-evidence)). The seed prints the demo
+accounts and their shared password; [local-auth.md](../local-auth.md#demo-data) lists what it
+creates.
+
+The loop:
+
+1. Start the dev server in the background: `pnpm dev` (port 5173 per `.claude/launch.json`; it
+   takes the next free port when 5173 is busy, so read the URL it prints).
+2. **Log in once per account and keep the session.** Open `/ingresar` in a named session,
+   `snapshot` to get the field refs, `fill` the email and password, `click` the button, then
+   `state-save` into `.playwright-cli/`:
+
+   ```sh
+   playwright-cli -s=academy open http://localhost:5173/ingresar
+   playwright-cli -s=academy snapshot
+   playwright-cli -s=academy fill e15 "academia@enescena.local"
+   playwright-cli -s=academy fill e20 "<seed password>"
+   playwright-cli -s=academy click e21
+   playwright-cli -s=academy state-save .playwright-cli/academy-state.json
+   ```
+
+   A later session starts from `state-load .playwright-cli/academy-state.json` instead of the
+   form. Refs (`e15`) change between snapshots; read them from the latest one.
+
+3. **Capture the before** during exploration, before editing: `goto` the screen and
+   `screenshot --filename=<what>-before.png`. After the edit there is no before left to take.
+4. Drive the flow: `goto`, `click`, `fill`, `select`, `press`, and `snapshot` (or `find "<text>"`)
+   to confirm the result. Prefer the snapshot for asserting text and structure; it is what the
+   page actually exposes.
+5. Diagnose from the page, not from guesses: `console` for errors, `requests` then
+   `request <n>` or `response-body <n>` for the network. Fix the source and go back to step 4.
+   A first load may log `504 (Outdated Optimize Dep)` while Vite pre-bundles; `reload` once.
+6. **Capture the after** at the end, once the change is final: `screenshot
+--filename=<what>-after.png`, same screen, same account.
+7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server. A
+   session left open holds a Chromium for up to an hour.
+
+Quote any URL with a `$`-segment route or a query string (`'http://localhost:5173/portal?evento=…'`)
+so the shell does not expand it. Attach the two screenshots with `pnpm pr:evidence <pr>
+<what>-before.png <what>-after.png`, as [pull-requests.md](./pull-requests.md#ui-evidence)
+describes. Never ask the user to check a screen by hand: drive it and show the result.
 
 ## DB TDD
 
@@ -860,83 +981,38 @@ Current form-submit standard:
   `Record<string, string>`, so repeated fields, arrays, checkboxes, and file
   inputs survive the abstraction.
 
-Use `docs/agents/request-performance-refactor-plan.md` as the current route
-inventory, submit-pattern inventory, and measurement starting point for this
-refactor family. Keep it discoverable from child issues and update it when the
-baseline assumptions materially change.
-
 ## PRD Workflow
 
-Use this when the user asks to turn a conversation, plan, or feature idea into a PRD.
+A PRD is written with the vendored `to-spec` skill: the user runs `/to-spec` (the skill sets
+`disable-model-invocation`, so a session asks for it instead of calling the Skill tool). The
+skill carries the process and the template; what it does not know about this repo:
 
-1. Read `CONTEXT.md` and relevant ADRs.
-2. Explore the current code enough to avoid proposing stale or incompatible work.
-3. Ask for clarification only when a reasonable assumption would create meaningful product or architecture risk.
-4. Write the PRD as a GitHub issue in `leomontigatti/en-escena`.
-5. Do not add implementation labels automatically.
-
-PRD template:
-
-```markdown
-## Problem Statement
-
-## Solution
-
-## User Stories
-
-## Implementation Decisions
-
-## Testing Decisions
-
-## Out of Scope
-
-## Further Notes
-```
-
-**Testing Decisions** names the **test seams**: the public interfaces the behaviour is tested
-through (a service function, a route's loader or action, a pure state module). The `tdd` skill
-tests only at seams agreed up front, and the AFK implement agent has nobody to agree them with, so
-the PRD is where that agreement is recorded.
-
-The PRD should be concrete enough for a later agent to break into implementation issues without re-deriving core decisions.
+- The PRD is a GitHub issue in this repo, filed per
+  [issue-tracker.md → Ticket operations](./issue-tracker.md#ticket-operations).
+- **Testing Decisions names the test seams**: the public interfaces the behaviour is tested
+  through (a service function, a route's loader or action, a pure state module). The `tdd` skill
+  tests only at seams agreed up front, and this session is the last point where a human agrees
+  them, so the skill's "check with the user that these seams match" step is not skippable.
+- Labels: `ready-for-agent` as the skill says, which here is a triage state and triggers nothing
+  ([triage-labels.md](./triage-labels.md)), plus one `priority:*` and a type label. Ask the
+  priority together with the seams when the conversation has not settled it. No `agent:*` label.
 
 ## Issue Breakdown Workflow
 
-Use this when the user asks to break a PRD into implementation issues.
+A PRD is sliced into sub-issues with the vendored `to-tickets` skill: the user runs
+`/to-tickets <PRD number>` (user-invoked only, like `to-spec`). The skill's step 4 quizzes the
+user on the slices, and no slice is published before that approval. What it does not know
+about this repo:
 
-1. Fetch the PRD with `gh issue view <number> --comments`.
-2. Confirm whether implementation issues already exist for that PRD, starting with native GitHub sub-issues from `gh issue view <number> --json subIssues,subIssuesSummary` and then checking body links or comments as a fallback.
-3. Draft a flat, ordered list of vertical slices.
-4. Review the proposed slices with the user before creating issues.
-5. Create GitHub issues only after approval. Use `gh issue create --parent <PRD_NUMBER>` so each implementation issue is a native sub-issue of the PRD.
-
-Slice rules:
-
-- Each issue should deliver a narrow but complete path through the stack.
-- Each issue should be independently verifiable.
-- Prefer vertical slices over horizontal layer-only tasks.
-- Put prefactoring first when it makes later slices simpler.
-- Keep each issue small enough for one focused agent session.
-- Name each issue's test seams, taken from the PRD's **Testing Decisions**.
-
-Issue body template:
-
-```markdown
-## Parent PRD
-
-#<PRD_NUMBER>
-
-## What to build
-
-## Acceptance criteria
-
-- [ ] Concrete, checkable outcome
-- [ ] Tests cover the new behavior
-
-## Test seams
-
-## Depends on
-```
+- Each slice is a **native sub-issue** of the PRD, and each blocking edge is GitHub's native
+  relation, per [issue-tracker.md → Ticket operations](./issue-tracker.md#ticket-operations).
+  Check first that the PRD has no sub-issues yet
+  (`gh issue view <PRD> --json subIssues,subIssuesSummary`).
+- Sub-issues stay **flat and ordered**: publish them in the order a session will implement them.
+- Every sub-issue carries a `## Test seams` section, taken from the PRD's **Testing
+  Decisions**. The skill's issue template lacks it; add it after `## Acceptance criteria`.
+- A session then implements the sub-issues in order onto one PR, per
+  [pull-requests.md](./pull-requests.md#prd-prs).
 
 ## Architecture Review Workflow
 

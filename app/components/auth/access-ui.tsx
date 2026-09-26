@@ -103,8 +103,8 @@ export function PrivateAccessHeader({ account }: PrivateAccessHeaderProps) {
   return (
     <div className="mb-8 flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
-        <Avatar className="rounded-lg after:rounded-lg">
-          <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
+        <Avatar shape="square">
+          <AvatarFallback className="bg-primary text-primary-foreground">
             {getInternalAccountInitials(account.name)}
           </AvatarFallback>
         </Avatar>

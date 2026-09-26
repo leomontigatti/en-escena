@@ -138,6 +138,25 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
+## Ticket operations
+
+The `to-spec` and `to-tickets` skills (vendored, `.agents/skills/`) ask for this section: where
+the spec lives and how this tracker expresses tickets and their blocking edges. The rest of the
+repo's deltas are in [workflows.md](./workflows.md#prd-workflow).
+
+- **The PRD** is an issue in this repo: `gh issue create --title "..." --body-file <file>
+--label ready-for-agent --label priority:<p> --label <type>`, body per the `to-spec` template.
+- **Tickets** are native sub-issues of the PRD, created in implementation order:
+  `gh issue create --parent <PRD> ...`, with the PRD's priority, type and milestone plus
+  `ready-for-agent` ([triage-labels.md](./triage-labels.md)). No `agent:*` label: one session
+  works them in order, so `agent:queued` does not apply.
+- **Blocking** is GitHub's native dependency relation:
+  `gh issue edit <ticket> --add-blocked-by <other>`, never only a "Blocked by #N" line in the
+  body. The template's `## Blocked by` section still lists the same issues for the reader.
+- **Test seams**: every ticket carries a `## Test seams` section after `## Acceptance
+criteria`, taken from the PRD's **Testing Decisions** (see [Test seams](#test-seams)).
+- **Do not close or edit the PRD**, as the skill says; the PRD PR closes it on merge.
+
 ## Wayfinding operations
 
 The `wayfinder` skill (vendored, `.agents/skills/wayfinder`) asks for this section: how
@@ -173,7 +192,7 @@ and commit that file on the session's own branch. There is no throwaway `researc
 A ticket that settles how something is built records its **test seams** (the public interfaces
 the behaviour will be tested through) in its resolution, and the map gists them under
 Decisions-so-far. They land in the exit PRD's **Testing Decisions**
-([PRD workflow](./workflows.md#prd-workflow)), which is where `agent:to-issues` and the
+([PRD workflow](./workflows.md#prd-workflow)), which is where `to-tickets` and the
 implementing session read them: the `tdd` skill tests only at seams agreed up front, and a
 grilling session is the last point where a human can agree them.
 
@@ -194,8 +213,8 @@ review-and-merge cycles for the same serial order.
 
 A large map may cut into two or three PRDs by theme, chained by blockers between the PRDs,
 when one diff would be too big to review well. The PRD is written per the
-[PRD workflow](./workflows.md#prd-workflow) and decomposed by `agent:to-issues` or by hand
-with `--parent`; either way the sub-issues stay flat.
+[PRD workflow](./workflows.md#prd-workflow) and sliced with `to-tickets` per
+[Ticket operations](#ticket-operations); the sub-issues stay flat.
 
 ### Driving what the map produced
 

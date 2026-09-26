@@ -70,7 +70,9 @@ Use shadcn/ui `radix-nova` as the base. The components live in
 
 Rules:
 
-- Use existing components before creating custom markup.
+- Use existing components before creating custom markup. For a raw `<button>`,
+  `<select>`, `<textarea>` or `<input>`, `pnpm lint` enforces this
+  (`ui/no-raw-form-element`).
 - If the needed shadcn component is not installed and the pattern repeats or the
   case clearly fits shadcn, add the component before creating a custom variant.
 - Use the component's variants before overriding colors, radii, typography or
@@ -194,7 +196,8 @@ Rules:
   specific composition — for example dynamic arrays, checkbox groups, switches
   with their own UI logic or confirmation controls.
 - Respect the height, border, focus and states of `Input`, `Checkbox`, `Select`,
-  `DateOnlyField` and other existing controls.
+  `DateOnlyField` and other existing controls. `pnpm lint` enforces the height,
+  radius and focus ring part (`ui/no-restyle`).
 - In forms and filters, when multiple options must be selected, use a
   multi-select `Combobox` instead of long checkbox lists. If `Combobox` is not
   installed and the case needs it, add it before creating custom markup.

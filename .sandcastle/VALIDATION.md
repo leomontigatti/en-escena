@@ -32,7 +32,7 @@ The scripts that exist and what owns what:
 | Command                     | Owns                                                      |
 | --------------------------- | --------------------------------------------------------- |
 | `pnpm typecheck`            | Types, unused locals and parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) — flags in `tsconfig.json` — also run by the `Stop` hook |
-| `pnpm lint`                 | React hook mistakes, import cycles and un-awaited promises — **only** these; also run by the `Stop` hook |
+| `pnpm lint`                 | React hook mistakes, import cycles, un-awaited promises, raw form elements and restyled ui components — **only** these; also run by the `Stop` hook |
 | `pnpm format` / `:check`    | All formatting — also applied per file by the `PostToolUse` hook |
 | `pnpm test:unit`            | Unit and React suites                                      |
 | `pnpm test:db <path>`       | DB suite on in-process PGlite                              |
@@ -88,7 +88,8 @@ and how to bump its pins is in `docs/agents/workflows.md`.
 
 `oxlint`, configured in `.oxlintrc.json` — that file is the list of rules, read it
 there rather than trusting a count written down here. What `pnpm lint` owns is
-React hook mistakes, import cycles and un-awaited promises.
+React hook mistakes, import cycles, un-awaited promises, and the two `ui` rules
+below.
 
 The un-awaited-promise rules are type-aware (`oxlint-tsgolint`), which is why the
 run costs ~6.5 s instead of the ~1.5 s it cost before: type-aware linting builds a
@@ -109,8 +110,16 @@ carry information, and this repo treats exactly two cases as settled:
 `void` on **any other** promise needs a reason in the code, and a reviewer should
 ask for one — `await` it, or handle the rejection.
 
-It is **not** a style checker. It has no opinion on formatting (Prettier's), on
-unused code (`tsc`'s) or on this repo's conventions (the `check:*` scripts').
+It checks structure, **not** formatting or taste. Its only UI rules are the two
+`ui` ones (no raw form element where an `app/components/ui` component exists, no
+`className` overriding a ui component's height, radius or focus state). It has
+no opinion on
+formatting (Prettier's), on unused code (`tsc`'s) or on this repo's conventions
+(the `check:*` scripts').
+
+The `ui` rules carry the same kind of exemption: the files that broke them when
+they landed are listed under `overrides` in `.oxlintrc.json`, one list per rule,
+and those lists only shrink.
 If it reports nothing, that is the expected result, not a reason to look for
 another linter.
 

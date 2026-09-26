@@ -297,4 +297,3 @@ disqualifications, program, results publishing and the academy's results.
 - Use `pnpm test:db <path>` for focused persistence work; `pnpm test` (unit + PGlite DB) is the default confidence command and needs no local Postgres. Real Postgres is `pnpm test:db:postgres` locally; CI runs the same suite sharded behind `db-gate` (#305, #962).
 - Use `pnpm check:repo-styles` after UI changes.
 - Use `pnpm check:file-tokens` before committing staged application source.
-- Performance notes live in `docs/agents/request-performance-baseline.md` and `docs/agents/request-performance-refactor-plan.md`.

@@ -9,6 +9,8 @@
       "Bash(pnpm check:*)",
       "Bash(pnpm exec fallow:*)",
       "Bash(pnpm db:studio)",
+      "Bash(pnpm db:seed)",
+      "Bash(playwright-cli:*)",
       "Bash(pnpm dev:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue view:*)",

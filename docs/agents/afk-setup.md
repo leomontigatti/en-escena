@@ -1,8 +1,8 @@
 # AFK — operational setup (labels, secrets, degradation)
 
-> **Scope since ADR-0016 (2026-09-25).** The implement, review and write-PR runners are
-> retired; implementation and review happen in local sessions. What this document sets up
-> is the four workflows that remain: To Issues, Update Branch, Promote Queued and
+> **Scope since ADR-0016 (2026-09-25).** The implement, review, write-PR and To Issues
+> runners are retired; implementation, review and PRD slicing happen in local sessions. What
+> this document sets up is the three workflows that remain: Update Branch, Promote Queued and
 > Architecture Review. Paragraphs that describe the retired runners are marked or removed.
 
 Runbook for the infrastructure consumed by **all** the AFK workflows (Part 3 of the
@@ -39,7 +39,8 @@ grabbable" — it is a **triage state, not a trigger**: an issue/PRD with `ready
 Dispatch is **deliberately human** (it fits the PR-only + human-merge model of map #319): you
 decide _when_ each item runs by adding the label by hand after publishing it.
 
-- **PRD → sub-issues** (auto-split): put **`agent:to-issues`** on the PRD.
+- **PRD → sub-issues**: a local session runs `/to-tickets` on the PRD
+  ([workflows.md](./workflows.md#issue-breakdown-workflow)). Nothing fires.
 - **Single issue → implementation**: label it `ready-for-agent`; a local session grabs it
   (ADR-0016). Nothing fires.
 - **Blocked item** you want to queue: put **`agent:queued`**; it auto-promotes to
@@ -74,14 +75,10 @@ the label lands, `agent-update-branch` does not start on its own, and re-adding 
 
 ### With the `to-spec` / `to-tickets` skills
 
-These are HITL skills from Matt Pocock's set; they run in your session, not in GHA. They are
-**not vendored** (see [`afk-vendored-assets.md`](./afk-vendored-assets.md) → "Matt Pocock
-skills"): vendor them the same way before using this path. By default they label
-what they publish as `ready-for-agent` (and `to-tickets` suggests working the frontier with
-`/implement`, a local command **already retired** in #347). Under the human-gated model that is
-correct: **let them publish with `ready-for-agent`, ask them not to use `/implement` when they
-finish, and then you add the matching `agent:*` label** to dispatch. There is no need to adapt
-the skills.
+These are Matt Pocock's HITL skills, vendored in `.agents/skills/` and run in a session, not in
+GHA. They label what they publish `ready-for-agent`, which here is the triage label a session
+grabs from, so there is no `agent:*` label to add afterwards. The repo's deltas on top of them
+are in [workflows.md](./workflows.md#prd-workflow).
 
 ## Secrets
 
@@ -243,9 +240,8 @@ Now the credential exists in exactly one place per push:
 
 The `GITHUB_TOKEN` grants were audited against real use at the same time: `contents: write`
 serves the `github.token` push fallback, `issues: write` the label and comment calls on issues,
-`pull-requests: write` the label, comment, reply and review calls on PRs, and the three
-`contents: read` workflows need no more than that (`agent-to-issues-prd` and
-`architecture-review` only check out; `ci`'s `actions-gate` also reads this repo through
+`pull-requests: write` the label, comment, reply and review calls on PRs, and the two
+`contents: read` workflows need no more than that (`architecture-review` only checks out; `ci`'s `actions-gate` also reads this repo through
 `GH_TOKEN` for zizmor's online audits). No key was found without a use, so none was dropped.
 
 `tests/afk/checkout-credentials.test.ts` holds the first bullet in place across every workflow
@@ -296,7 +292,6 @@ Every runner step carries **two** ceilings, and the order between them is load-b
 
 | Workflow              | Step `timeout-minutes` | `AGENT_BUDGET_MINUTES` |
 | --------------------- | ---------------------- | ---------------------- |
-| `agent-to-issues-prd` | 30                     | 25                     |
 | `agent-update-branch` | 30                     | 25                     |
 | `architecture-review` | 20 (spec §4.8)         | 15                     |
 
@@ -378,7 +373,7 @@ execute the shipped bash directly and the agent workflows snapshot and digest it
 ### How it is tested (with the first chaining workflow, #344+)
 
 There is no chaining workflow yet, so there is no degradation to exercise. Once the first one
-exists (e.g. To Issues → Implement), the verification is:
+exists (e.g. Label Behind PRs → Update Branch), the verification is:
 
 1. With the repo **without** `AGENT_PAT` loaded, trigger the step that adds the label-trigger.
 2. Confirm the label **appears** on the issue/PR (correct state).

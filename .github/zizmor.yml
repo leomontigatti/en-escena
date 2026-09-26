@@ -15,6 +15,5 @@ rules:
   # runners were retired (ADR-0016).
   adhoc-packages:
     ignore:
-      - agent-to-issues-prd.yml
       - agent-update-branch.yml
       - architecture-review.yml
