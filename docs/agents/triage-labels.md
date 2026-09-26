@@ -62,11 +62,8 @@ its PRD's priority, type and milestone, and a hand-written slice should carry th
 multiplies a PRD in any priority list, so add `no:parent-issue` for the PRD-level view:
 `gh issue list --label priority:next --search "no:parent-issue"`.
 
-> **`ready-for-agent` does not trigger the AFK workflows.** It is a triage state
-> ("specified and grabbable"). Agents trigger on the `agent:*` labels, which a
-> human adds by hand to dispatch (PRD → `agent:to-issues`, single issue →
-> `agent:implement`). Detail in
+> **`ready-for-agent` triggers nothing.** It is a triage state ("specified and
+> grabbable"): a local session picks the issue up from the dispatch queue above
+> (ADR-0016). The only `agent:*` label a human still applies to start a run is
+> `agent:to-issues` on a PRD. Detail in
 > [afk-setup.md → Dispatch](afk-setup.md#dispatch-from-ready-for-agent-triage-to-the-agent-trigger).
-> On a reviewed PR, two outcome labels tell you what kind of attention it needs:
-> `agent:needs-decision` (a call is yours; run `/review-triage`) and `agent:ready`
-> (nothing to decide; merge or arm auto-merge).

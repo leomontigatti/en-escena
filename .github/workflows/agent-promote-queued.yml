@@ -2,8 +2,11 @@
 #
 # When an issue closes, promote any `agent:queued` issue that declared it as a
 # blocker — but only once ALL that dependent's blockers have cleared — by
-# flipping it to `agent:implement`. The exit ramp from the queued state: humans
-# apply `agent:queued`, this workflow removes it.
+# flipping it to `ready-for-agent`. The exit ramp from the queued state: humans
+# apply `agent:queued`, this workflow removes it. The spec (§4.7) promoted to
+# the implement trigger; since implementation moved to local sessions
+# (ADR-0016) the destination is the triage label a session grabs from, which
+# triggers nothing, so the add needs no PAT.
 #
 # A `not planned` close still promotes nothing (spec §4.7), but it no longer does
 # so silently: the first step comments on the queued dependents it declines to
@@ -20,10 +23,6 @@ on:
     types: [closed]
 
 permissions:
-  # `contents: read` is the checkout's, not the label write's: a declared
-  # block sets every scope it omits to `none`, so without this line
-  # `actions/checkout` cannot clone the tree the label script ships in (#1029).
-  contents: read
   issues: write
 
 jobs:
@@ -34,16 +33,6 @@ jobs:
       GH_REPO: ${{ github.repository }}
       CLOSED_NUMBER: ${{ github.event.issue.number }}
     steps:
-      # The promote step runs `scripts/afk-add-label.sh` (#1029), so the repo has
-      # to be on disk. An `issues` event checks out the default branch, never a
-      # contributor's tree, and nothing here needs history.
-      - name: Check out the repository
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          # Per-command auth (#956): every `gh` call below is handed exactly the
-          # token it needs, so no credential belongs in `.git/config`.
-          persist-credentials: false
-
       # A not-planned close unblocks nothing — deliberately (a decision that was
       # deferred or rejected did not deliver what the dependent waits for). But
       # under the closure convention (docs/agents/issue-tracker.md) that is now
@@ -89,7 +78,6 @@ jobs:
       - name: Promote unblocked dependents
         if: github.event.issue.state_reason != 'not_planned'
         env:
-          AGENT_PAT: ${{ secrets.AGENT_PAT }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -140,7 +128,7 @@ jobs:
             if [ -n "$parent" ]; then
               echo "#$Y is a sub-issue of #$parent — refusing to promote."
               GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --remove-label "agent:queued" --add-label "agent:blocked"
-              GH_TOKEN="$GITHUB_TOKEN" gh issue comment "$Y" --body "This is a sub-issue of #$parent; label the parent PRD \`agent:implement\` instead of queueing the sub-issue."
+              GH_TOKEN="$GITHUB_TOKEN" gh issue comment "$Y" --body "This is a sub-issue of #$parent; queue the parent PRD instead of the sub-issue."
               continue
             fi
             if [ "$open_blockers" -gt 0 ]; then
@@ -157,24 +145,19 @@ jobs:
             fi
 
             GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --remove-label "agent:queued"
-            GH_TOKEN="$GITHUB_TOKEN" gh issue comment "$Y" --body "Unblocked by #$CLOSED_NUMBER closing — promoting to \`agent:implement\`."
+            GH_TOKEN="$GITHUB_TOKEN" gh issue comment "$Y" --body "Unblocked by #$CLOSED_NUMBER closing — promoting to \`ready-for-agent\`."
 
-            # PAT-or-fallback (§3.4), in the one place it lives: the script
-            # tries AGENT_PAT — the only token whose events wake Implement —
-            # falls back to `github.token`, and names a wholly refused add with
-            # `::error::` before exiting non-zero (#1029).
-            #
             # Accumulate and carry on: `agent:queued` is already off this issue,
             # so a refused add leaves it carrying neither label, but that costs
             # only itself. The rest of the list is still promotable, and the job
             # exits non-zero at the end with every stranded issue named.
-            if ! scripts/afk-add-label.sh "$Y" "agent:implement" "Implement" \
-              "it is now unlabelled and will not start."; then
+            if ! GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --add-label "ready-for-agent"; then
+              echo "::error::Could not label #$Y ready-for-agent; it is now unlabelled and will not be grabbed."
               unpromoted="$unpromoted $Y"
               continue
             fi
 
-            echo "Promoted #$Y to agent:implement."
+            echo "Promoted #$Y to ready-for-agent."
           done
 
           if [ -n "$unpromoted" ]; then

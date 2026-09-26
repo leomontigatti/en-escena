@@ -9,15 +9,7 @@ import { describe, expect, it } from "vitest";
 // prompt whose agent writes prose for the PR or for a commit now carries the
 // rule itself, so the convention does not depend on the precedent the agent
 // happens to read.
-const PROMPTS_THAT_WRITE_PROSE = [
-  "agent-write-pr",
-  "agent-write-prd-pr",
-  "agent-implement",
-  "agent-implement-prd",
-  "agent-implement-pr",
-  "agent-review",
-  "agent-update-branch",
-];
+const PROMPTS_THAT_WRITE_PROSE = ["agent-update-branch"];
 
 describe.each(PROMPTS_THAT_WRITE_PROSE)("%s/prompt.md", (prompt) => {
   const source = readFileSync(`.sandcastle/${prompt}/prompt.md`, "utf8");

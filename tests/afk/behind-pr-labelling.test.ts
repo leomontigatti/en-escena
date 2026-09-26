@@ -18,8 +18,8 @@ import {
   workflowText,
 } from "./pr-workflows.test-support";
 
-// Coverage for #1020: branch protection is strict, so every open `agent/*` PR is
-// behind `master` the moment the one below it merges. `agent-label-behind-prs.yml`
+// Coverage for #1020: branch protection is strict, so every open PR is behind
+// `master` the moment the one below it merges. `agent-label-behind-prs.yml`
 // turns each push to `master` into the `agent:update-branch` label that starts
 // Update Branch (§4.6) — the half of the loop a human used to do by hand, one
 // `gh pr update-branch` per PR.
@@ -32,7 +32,7 @@ import {
 
 const WORKFLOW = ".github/workflows/agent-label-behind-prs.yml";
 
-const script = stepRunBody(WORKFLOW, "Label every behind agent/* PR");
+const script = stepRunBody(WORKFLOW, "Label every behind PR");
 
 interface Pr {
   number: number;
@@ -175,7 +175,7 @@ function labelledNumbers(result: RunResult): string[] {
 }
 
 describe("the push-to-master labelling step (#1020)", () => {
-  it("labels every open agent/* PR that is behind", () => {
+  it("labels every open PR that is behind", () => {
     const result = runLabelling({
       answers: [
         [
@@ -222,7 +222,7 @@ describe("the push-to-master labelling step (#1020)", () => {
     });
 
     expect(labelledNumbers(result)).toEqual([]);
-    expect(result.stdout).toContain("No open agent/* PR is behind master");
+    expect(result.stdout).toContain("No open PR is behind master");
   });
 
   it("skips a PR whose run holds the lock, so the next push picks it up", () => {
@@ -266,7 +266,7 @@ describe("the push-to-master labelling step (#1020)", () => {
     expect(labelledNumbers(result)).toEqual([]);
   });
 
-  it("ignores branches outside agent/*, however behind they are", () => {
+  it("ignores the dependency bots' branches, which rebase themselves", () => {
     const result = runLabelling({
       answers: [
         [
@@ -276,12 +276,17 @@ describe("the push-to-master labelling step (#1020)", () => {
             headRefName: "renovate/vitest",
             mergeStateStatus: "BEHIND",
           },
+          {
+            number: 13,
+            headRefName: "dependabot/npm_and_yarn/vitest",
+            mergeStateStatus: "BEHIND",
+          },
         ],
       ],
       agentPat: "the-pat",
     });
 
-    expect(labelledNumbers(result)).toEqual([]);
+    expect(labelledNumbers(result)).toEqual(["11"]);
   });
 
   it("re-asks while mergeability is still UNKNOWN, then labels what resolved", () => {

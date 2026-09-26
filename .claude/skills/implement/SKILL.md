@@ -6,8 +6,8 @@ description: "Implementation workflow: explore, test-first at agreed seams, vali
 <!--
   Started as the `do-work` skill vendored from mattpocock/course-video-manager; renamed and
   reshaped after `implement` in mattpocock/skills (TDD through the `tdd` skill, a closing
-  `code-review`). Local, not pinned by skills-lock.json. The AFK implement runners follow the
-  same workflow from their own prompts. See docs/agents/afk-vendored-assets.md.
+  `code-review`). Local, not pinned by skills-lock.json. Since ADR-0016 this is the only
+  implementation workflow: the AFK implement runners were retired.
 -->
 
 # Implement

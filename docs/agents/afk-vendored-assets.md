@@ -1,5 +1,10 @@
 # AFK assets vendored from Matt Pocock
 
+> **Partly retired (ADR-0016).** The implement, review and write-PR runners and their
+> prompts are gone; implementation and review happen in local sessions. What remains is
+> To Issues, Update Branch, Promote Queued (now promoting to `ready-for-agent`) and
+> Architecture Review. The text below describes the vendoring as it was done.
+
 The AFK platform ("GitHub-Native Agent Platform") uses a set of assets from the public
 repo [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager)
 as its **source of truth**. This repo **vendors** them (a local, adapted copy) so the 8
@@ -305,7 +310,7 @@ it to the table, the command and `excludedYamlFiles`.
   realization. The runner ↔ orchestrator reconciliation is already complete via the phase
   tickets of map #319 (#344 for the orchestrator↔runner model, #347 for the cutover): the local
   Docker runner (`main.mts` + `*-prompt.md`) was retired and `.sandcastle/` today contains only
-  the AFK runners (`agent-*/`), their helpers (`lib/`, `run-with-retry.mts`,
-  `retry-feedback.mts`) and `CODING_STANDARDS.md`.
+  the surviving AFK runners (`agent-*/`), their helpers (`lib/`, `retry-feedback.mts`) and
+  `CODING_STANDARDS.md`.
 - The **prompts remain runner-neutral skeletons**: the "how the runner is invoked" half is made
   concrete when each workflow is wired.

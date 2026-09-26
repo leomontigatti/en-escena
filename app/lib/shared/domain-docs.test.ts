@@ -628,19 +628,13 @@ describe("domain documentation", () => {
       }
     });
 
-    // The map is restated in prose for the humans and AFK runners who have to
-    // obey it, and a runner that is told a stale mapping produces exactly the
-    // red PR it cannot diagnose. The copies are cheap to keep honest; only the
-    // JSON is authoritative.
+    // The map is restated in prose for the agents who have to obey it, and an
+    // agent that is told a stale mapping produces exactly the red PR it cannot
+    // diagnose. The copy is cheap to keep honest; only the JSON is authoritative.
     test("keeps every prose copy of the map naming the same docs and patterns", async () => {
       const docMap = await readDocMap();
       const mapped = docMap.flatMap(({ doc, code }) => [doc, ...code]);
-      const restatements = [
-        ".sandcastle/CODING_STANDARDS.md",
-        ".sandcastle/agent-implement/prompt.md",
-        ".sandcastle/agent-implement-prd/prompt.md",
-        "docs/agents/prompts/implement.prompt.md",
-      ];
+      const restatements = [".sandcastle/CODING_STANDARDS.md"];
 
       for (const path of restatements) {
         const contents = await readFile(path, "utf8");

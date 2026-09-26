@@ -1,5 +1,10 @@
 # AFK — operational setup (labels, secrets, degradation)
 
+> **Scope since ADR-0016 (2026-09-25).** The implement, review and write-PR runners are
+> retired; implementation and review happen in local sessions. What this document sets up
+> is the four workflows that remain: To Issues, Update Branch, Promote Queued and
+> Architecture Review. Paragraphs that describe the retired runners are marked or removed.
+
 Runbook for the infrastructure consumed by **all** the AFK workflows (Part 3 of the
 [spec](./afk-agent-platform-spec.md)). Spec §3.1 is the **source of truth** for _what_ is
 needed; this doc is the _how_ for this repo and the record of what is already provisioned.
@@ -21,9 +26,6 @@ deletes). The canonical meaning of each: spec §3.1 → "Labels (pre-create all 
 `pnpm check:labels` fails CI when a workflow or a Sandcastle runner names a label the file does
 not hold, which is how a typo in an `--add-label` is caught before the run that needs it.
 
-Two of them are **outcome labels**, added on 2026-09-17 (spec §4.4 amendment): `agent:ready`
-and `agent:needs-decision`, which Review puts on a PR it has finished with.
-
 > For `source:architecture-review` the spec says the Architecture Review workflow creates it
 > on-demand if missing; we pre-create it anyway so provenance is consistent from day zero.
 
@@ -38,39 +40,23 @@ Dispatch is **deliberately human** (it fits the PR-only + human-merge model of m
 decide _when_ each item runs by adding the label by hand after publishing it.
 
 - **PRD → sub-issues** (auto-split): put **`agent:to-issues`** on the PRD.
-- **Single issue → implementation**: put **`agent:implement`** on the issue (standalone, no
-  parent).
-- **Blocked item** you want to queue: put **`agent:queued`**; it auto-promotes to implementable
-  when its declared blockers close (native deps).
-
-### PR feedback round: the `/review-triage` skill
-
-Dispatching `agent:implement` **on a PR** is the same human call, with one extra lever: Implement
-PR only sees **unresolved** threads (plus every top-level comment and review summary, forever),
-so resolving a thread hides both the question and your answer to it. Resolve what is settled,
-leave a decision reply on what is not, then label.
-
-`/review-triage` (`.claude/skills/review-triage/`) does that pass: it classifies each item, puts
-the calls that are yours to you with options and a recommendation, and only then replies,
-resolves and labels. User-invoked — type it, nothing fires it for you. The cue to type it is
-**`agent:needs-decision`** on the PR; **`agent:ready`** means the review left nothing to decide,
-so the pass is skipped and the PR is merged or armed for auto-merge (`gh pr merge --squash
---auto`, once #1022 enables it on the repo). Arming is the session's act on your standing
-instruction; no workflow merges (spec §3.9). Between merges, a PR that falls behind `master`
-gets `agent:update-branch` from the push-to-master trigger (#1020) instead of from you.
+- **Single issue → implementation**: label it `ready-for-agent`; a local session grabs it
+  (ADR-0016). Nothing fires.
+- **Blocked item** you want to queue: put **`agent:queued`**; it auto-promotes to
+  `ready-for-agent` when its declared blockers close (native deps).
 
 ### The one trigger you never apply: `agent:update-branch` ([#1020](https://github.com/leomontigatti/en-escena/issues/1020))
 
-Branch protection requires an up-to-date branch, so every open `agent/*` PR is behind the moment
-the one below it merges. `.github/workflows/agent-label-behind-prs.yml` runs on **`push` to
-`master`** and applies `agent:update-branch` to each of them; `agent-update-branch` then does the
-merge exactly as it does for a label you applied by hand (spec §4.6). Nothing to dispatch, and
+Branch protection requires an up-to-date branch, so every open PR is behind the moment the one
+below it merges. `.github/workflows/agent-label-behind-prs.yml` runs on **`push` to `master`**
+and applies `agent:update-branch` to each of them; `agent-update-branch` then does the merge
+exactly as it does for a label you applied by hand (spec §4.6). Nothing to dispatch, and
 nothing to wait on — the driving session neither runs `gh pr update-branch` nor labels.
 
 What it deliberately leaves alone:
 
-- A PR **not** on an `agent/*` branch.
-- A PR whose base is **not** `master` — one stacked on another `agent/*` branch. This is the
+- A PR on a `renovate/*` or `dependabot/*` branch: the bot rebases its own.
+- A PR whose base is **not** `master` — one stacked on another branch. This is the
   intended behaviour, not a gap: such a PR is behind _its own_ base, not behind `master`, and
   merging `master` into it would be wrong. The cost is that a stacked chain is picked up one link
   at a time, as each link merges and the next PR's base flips to `master`.
@@ -114,8 +100,8 @@ Without it the platform **works but degrades** (see below). It is needed for two
 (spec §3.1/§3.4):
 
 1. **Chaining.** GitHub **suppresses** workflow triggers for events caused by `GITHUB_TOKEN`
-   (anti-loop). An `--add-label agent:implement` done with `GITHUB_TOKEN` leaves the label but
-   **does not fire** the Implement workflow. The PAT does fire it.
+   (anti-loop). An `--add-label agent:update-branch` done with `GITHUB_TOKEN` leaves the label
+   but **does not fire** the Update Branch workflow. The PAT does fire it.
 2. **Pushing to `.github/workflows/`.** Pushing changes to workflow files requires the
    `workflow` scope, which `GITHUB_TOKEN` does not have.
 
@@ -164,6 +150,9 @@ If `AGENT_PAT` is omitted: the platform keeps going, degraded. See the next sect
 
 ### Fork PRs never reach the runner ([#635](https://github.com/leomontigatti/en-escena/issues/635))
 
+> Written for three workflows-over-a-PR. Since ADR-0016 only Update Branch runs on
+> `pull_request_target`; Review and Implement PR below are historical, the guard is not.
+
 The token-free-agent rule above bounds _prompt injection_ — text the agent reads. It says
 nothing about code executing in the job, upstream of the agent. The three workflows-over-a-PR
 (`agent-review`, `agent-implement-pr`, `agent-update-branch`) run on `pull_request_target`,
@@ -198,6 +187,11 @@ Do not "fix" any of this by switching to `pull_request`: `pull_request_target` i
 is exactly when `agent:update-branch` is needed.
 
 ## Where the PAT is during a run ([#956](https://github.com/leomontigatti/en-escena/issues/956))
+
+> Written when the implement runners chained and pushed. Since ADR-0016 the only run that
+> pushes with the PAT is Update Branch, and Promote Queued no longer runs
+> `scripts/afk-add-label.sh`; the mentions of Implement, Implement PRD and Review below are
+> historical, the rule for any step that follows an agent session is not.
 
 The agent never holds a GitHub credential (spec §3, and `revokeGitHubToken()` for the runners
 that prefetch). That rule used to have a hole below the environment: every `actions/checkout`
@@ -296,36 +290,15 @@ add whose bin directory is off `PATH`, so a bare `pnpm add -g` exits 1 on the ru
 Pointing the global bin directory at `$PNPM_HOME` itself is what puts `claude` on `PATH` for
 the install step _and_ for the later runner step, which spawns a bare `claude`.
 
-**The `code-review` skill** (`agent-review.yml` only). Copied per run from the vendored
-`.agents/skills/code-review` **as it stands on `origin/master`** into `~/.claude/skills/`
-— outside the work tree, so the runner's commit step cannot sweep it into the PR branch.
-Reading it from the checked-out tree would be a hole: `pull_request_target` puts `head.sha`
-on disk, so a PR could edit the skill that reviews it.
-
-**The CI verdict** (`agent-review.yml` only). A `Wait for CI on the reviewed head` step polls
-the `CI` workflow run on `BRANCH_HEAD_SHA` — that workflow specifically, not "all checks",
-which would include the review's own run — and writes a block into `OUTPUT_DIR/ci_results.md`:
-`success`, `failure` with the failed job names and the tail of `gh run view --log-failed`, or
-`not finished`. The runner embeds it in the prompt, and the reviewer treats a CI failure as a
-correctness finding to fix in its commit: CI is the only place the full DB suite, `pnpm build`,
-`pnpm format:check` and the `check:*` scripts run. The wait gives up after **10 minutes** (CI
-takes ~3) and **never fails the review** — every error degrades to `not finished`.
-
 ## Wall-clock guardrails: `timeout-minutes` + `AGENT_BUDGET_MINUTES`
 
 Every runner step carries **two** ceilings, and the order between them is load-bearing:
 
-| Workflow                               | Step `timeout-minutes` | `AGENT_BUDGET_MINUTES` |
-| -------------------------------------- | ---------------------- | ---------------------- |
-| `agent-implement` (implement pass)     | 60                     | 50                     |
-| `agent-implement` (write-pr pass)      | 10                     | 8                      |
-| `agent-implement-pr`                   | 60                     | 50                     |
-| `agent-implement-prd` (implement pass) | 60                     | 50                     |
-| `agent-implement-prd` (write-prd-pr)   | 10                     | 8                      |
-| `agent-review`                         | 45                     | 40                     |
-| `agent-to-issues-prd`                  | 30                     | 25                     |
-| `agent-update-branch`                  | 30                     | 25                     |
-| `architecture-review`                  | 20 (spec §4.8)         | 15                     |
+| Workflow              | Step `timeout-minutes` | `AGENT_BUDGET_MINUTES` |
+| --------------------- | ---------------------- | ---------------------- |
+| `agent-to-issues-prd` | 30                     | 25                     |
+| `agent-update-branch` | 30                     | 25                     |
+| `architecture-review` | 20 (spec §4.8)         | 15                     |
 
 **Why both.** A step `timeout-minutes` expiry is the one failure mode that escapes the §3.7
 reporting machinery: Actions kills the process tree, so `runMain`'s catch never runs, no
@@ -361,18 +334,6 @@ screens and their tests outgrows 25 minutes: #917 committed in its 26th minute. 
 and review prompts state the budget (`{{WALL_CLOCK_BUDGET}}`, from `describeBudget()`, so it
 follows this table), and the implement prompts ask the agent to commit each green part as it goes, because the "Bank partial work"
 step can only push commits — uncommitted work dies with the runner.
-
-**Why `agent-review` gets more.** Its prompt delegates the analysis to the `code-review` skill,
-which fans out into parallel sub-agents, and the runner hands the agent a `--stat` summary
-instead of the full patch — so the agent spends its own time reading the diff per file. Measured
-review runs were 5-9 minutes end to end with a ~20 minute tail, already brushing the old 25.
-
-**Why `agent-implement-pr` gets 60 / 50 too.** It hands the agent `--stat` as Review does, but
-acts on comments that already name their paths, so it drills into a handful instead of surveying
-the whole diff; the run on #787 took 5m49s. What outgrows 25 minutes is the size of the round,
-not the reading: a review round on a whole-PRD PR carries several briefs, and #1185's round of
-seven ran past 25 twice (#1186). `tests/afk/implement-budgets.test.ts` holds the three implement
-passes at the same budget.
 
 **The invariant: the budget must stay strictly below the step's `timeout-minutes`.** If it is
 equal or larger, Actions wins the race and the guardrail buys nothing.

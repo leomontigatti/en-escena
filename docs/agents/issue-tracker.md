@@ -66,8 +66,7 @@ Rules:
   and only for them.** `--reason` cannot tell deferred from rejected from out of
   scope, so the comment is what separates them. "Built" needs no comment,
   because the overwhelmingly common way an issue gets built here is automatic:
-  a PR body carries `Closes #N` (mandated for every agent-written PR — see
-  [`prompts/write-pr.prompt.md`](./prompts/write-pr.prompt.md)) and GitHub closes
+  a PR body carries `Closes #N` (see [pull-requests.md](./pull-requests.md)) and GitHub closes
   the issue as `COMPLETED` on merge, linking the PR. Nobody runs `gh issue close`
   on that path and nothing could inject a comment into it. Requiring one would
   make the convention unfollowable exactly where it matters least: the merged PR
@@ -105,10 +104,10 @@ Check the code, or the closing discussion, before repeating the claim anywhere
 durable.
 
 The converse holds for PRD sub-issues: **an open sub-issue may already be
-implemented.** `agent-implement-prd.yml` implements one sub-issue per run onto a
-shared branch and leaves it open, marking it with an `Implemented in <sha>`
-comment; the PR closes the whole chain on merge. Open therefore means "not on
-`master` yet", which is the honest reading.
+implemented.** A session implements the sub-issues onto one shared branch and
+leaves each open, marking it with an `Implemented in <sha>` comment (the retired
+`agent-implement-prd.yml` did the same); the PR closes the whole chain on merge.
+Open therefore means "not on `master` yet", which is the honest reading.
 
 This is not hypothetical. `docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md:5-7`
 and `docs/adr/0014-arbitrary-amount-allocation-and-comprobante-amendments.md:32-34`
@@ -174,35 +173,33 @@ and commit that file on the session's own branch. There is no throwaway `researc
 A ticket that settles how something is built records its **test seams** (the public interfaces
 the behaviour will be tested through) in its resolution, and the map gists them under
 Decisions-so-far. They land in the exit PRD's **Testing Decisions**
-([PRD workflow](./workflows.md#prd-workflow)), which is where `agent:to-issues` and the implement
-agent read them: the `tdd` skill tests only at seams agreed up front, and a grilling session is
-the last point where a human can agree them.
+([PRD workflow](./workflows.md#prd-workflow)), which is where `agent:to-issues` and the
+implementing session read them: the `tdd` skill tests only at seams agreed up front, and a
+grilling session is the last point where a human can agree them.
 
 ### Exit shapes
 
-Close the map by choosing how the destination is filed. The choice decides how much the AFK
-platform costs to build it, because every PR pays a review run, a triage pass, an
-update-branch and a merge, while a PRD pays one review for the whole chain
-(`agent-implement-prd.yml`, spec §4.3). Measured on this repo: the seminars PRD #875 ran five
-sub-issues in under an hour onto one PR; the guardrails map #929 filed eleven blocked
-standalone issues and paid eleven review-and-merge cycles for the same serial order.
+Close the map by choosing how the destination is filed. The choice decides how many PRs
+the work costs, and every PR pays a review, a babysitting pass, an update-branch and a
+merge, while a PRD pays one of each for the whole chain. Measured on this repo when the AFK
+runners still implemented: the seminars PRD #875 ran five sub-issues in under an hour onto
+one PR; the guardrails map #929 filed eleven blocked standalone issues and paid eleven
+review-and-merge cycles for the same serial order.
 
 | Shape                                    | Use when                                                                                                                                                                         | Cost                                             |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| **One PRD with flat sub-issues**         | The slices are sequential, touch the same files, or none would be merged or reverted alone. **The default.**                                                                     | N implement runs, one review, one merge.         |
+| **One PRD with flat sub-issues**         | The slices are sequential, touch the same files, or none would be merged or reverted alone. **The default.**                                                                     | N slices in one session, one review, one merge.  |
 | **Independent, unblocked issues**        | Each slice can merge and revert alone, and reviewing them in parallel is wanted.                                                                                                 | N of everything, in parallel.                    |
 | **A chain of blocked standalone issues** | Only when a later issue must observe merged `master` (a docs pass describing gates that have to exist first). Then it is a PRD for the code plus **one** trailing blocked issue. | N of everything, serialised: the shape to avoid. |
 
 A large map may cut into two or three PRDs by theme, chained by blockers between the PRDs,
 when one diff would be too big to review well. The PRD is written per the
 [PRD workflow](./workflows.md#prd-workflow) and decomposed by `agent:to-issues` or by hand
-with `--parent`; either way the sub-issues stay flat, since Implement PRD refuses nested ones.
+with `--parent`; either way the sub-issues stay flat.
 
 ### Driving what the map produced
 
-A PRD needs nobody until its single review lands; then `review-triage` runs once. A chain of
-standalone issues needs `review-triage` once per PR, and its
-[Driving a chain](../../.claude/skills/review-triage/SKILL.md#driving-a-chain) section is the
-loop. Either way, the map issue is the durable state: post a two-line "State" comment on it at
-each merge (what landed, what is next and its label) so a fresh session, on any machine, starts
-from the record instead of from a summary.
+A session implements the PRD's sub-issues in list order onto one branch, or a chain of
+standalone issues one PR at a time. Either way, the map issue is the durable state: post a
+two-line "State" comment on it at each merge (what landed, what is next and its label) so a
+fresh session, on any machine, starts from the record instead of from a summary.
