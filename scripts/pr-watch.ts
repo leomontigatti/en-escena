@@ -411,11 +411,13 @@ function gh(args: string[]): string {
 }
 
 const THREADS_QUERY = `
-query($owner:String!,$repo:String!,$number:Int!){
+query($owner:String!,$repo:String!,$number:Int!,$after:String){
   repository(owner:$owner,name:$repo){ pullRequest(number:$number){
-    reviewThreads(first:100){ nodes{
-      id isResolved isOutdated path line originalLine
-      comments(first:20){ nodes{ author{login} body } } } } } } }`;
+    reviewThreads(first:100,after:$after){
+      pageInfo{ hasNextPage endCursor }
+      nodes{
+        id isResolved isOutdated path line originalLine
+        comments(first:20){ nodes{ author{login} body } } } } } } }`;
 
 type GraphqlThread = {
   id: string;
@@ -427,12 +429,12 @@ type GraphqlThread = {
   comments: { nodes: { author: { login: string } | null; body: string }[] };
 };
 
-function readSnapshot(number: number): PrSnapshot {
-  const fields =
-    "state,mergedAt,isDraft,headRefOid,baseRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup,comments";
-  const view = JSON.parse(gh(["pr", "view", String(number), "--json", fields]));
-  const threadData = JSON.parse(
-    gh([
+/** Every `reviewThreads` node, across as many pages as the PR has. */
+function readAllThreads(number: number): GraphqlThread[] {
+  const nodes: GraphqlThread[] = [];
+  let after: string | null = null;
+  for (;;) {
+    const args = [
       "api",
       "graphql",
       "-f",
@@ -443,8 +445,21 @@ function readSnapshot(number: number): PrSnapshot {
       "repo={repo}",
       "-F",
       `number=${number}`,
-    ]),
-  );
+    ];
+    if (after !== null) args.push("-f", `after=${after}`);
+    const page = JSON.parse(gh(args)).data.repository.pullRequest.reviewThreads;
+    nodes.push(...page.nodes);
+    if (!page.pageInfo.hasNextPage) break;
+    after = page.pageInfo.endCursor;
+  }
+  return nodes;
+}
+
+function readSnapshot(number: number): PrSnapshot {
+  const fields =
+    "state,mergedAt,isDraft,headRefOid,baseRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup,comments";
+  const view = JSON.parse(gh(["pr", "view", String(number), "--json", fields]));
+  const threadNodes = readAllThreads(number);
   const reviews: {
     user: { login: string } | null;
     commit_id: string;
@@ -470,10 +485,7 @@ function readSnapshot(number: number): PrSnapshot {
     mergeState: view.mergeStateStatus,
     reviewDecision: view.reviewDecision ?? "",
     rollup: view.statusCheckRollup ?? [],
-    threads: (
-      threadData.data.repository.pullRequest.reviewThreads
-        .nodes as GraphqlThread[]
-    ).map((thread) => ({
+    threads: threadNodes.map((thread) => ({
       id: thread.id,
       isResolved: thread.isResolved,
       isOutdated: thread.isOutdated,
