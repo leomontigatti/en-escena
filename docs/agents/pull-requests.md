@@ -87,15 +87,17 @@ change to motion or interaction carries a short GIF instead.
 
 ## Babysitting a PR
 
-When asked to see a PR through: read the checks and the review comments newer
-than the last push, verify each finding against the source, fix the real ones
-and answer the false positives with the reason. Say nothing when nothing is
-new. Stop when CI and the review are clean on the latest commit.
+Seeing a PR through CI and review is the `babysit-pr` skill: a background
+subagent waits on `pnpm pr:watch`, fixes the findings that hold, answers the
+rest with the reason, and stops at ready to merge. The merge stays the user's.
+In a stack, babysit once the whole stack is open: a babysit per layer spends
+checks on commits the next layer's push restarts.
 
 CodeRabbit is the second reviewer, configured by `.coderabbit.yaml`, which is
 read from the PR's head branch; its `base_branches` entry is what lets a PR
-stacked on a non-master branch be reviewed at all. On a public repository with
-fewer than ten stars its open-source tier reviews only on request, so after
-each push comment `@coderabbitai review` on the PR and wait for it before
-reading the findings. They are verified against the source like any other: it
-has the diff and the repo's standards, not the issue or the domain.
+stacked on a non-master branch be reviewed at all. It reviews each push on its
+own and reports through its `CodeRabbit` commit status; a pass with no findings
+posts no review, only its summary comment. When the status stays pending,
+`@coderabbitai review` asks again. Its findings are verified against the source
+like any other: it has the diff and the repo's standards, not the issue or the
+domain.

@@ -32,13 +32,14 @@ A request in the thread names the finish line and the allowed stops, so the
 session knows when it is done and when to ask:
 
 ```
-Implement #1234 and open the PR.
+Implement #1234, open the PR and babysit it.
 Done means: the acceptance criteria pass, a regression test cites the issue,
-CI is green. Stop only if the seams are unclear.
+and the PR is ready to merge. Stop only if the seams are unclear.
 ```
 
 The PR is reviewed in the session before it is opened (`implement` step 5) and
-babysat afterwards per [pull-requests.md](./pull-requests.md#babysitting-a-pr).
+babysat afterwards by a background subagent (`implement` step 7, per
+[pull-requests.md](./pull-requests.md#babysitting-a-pr)).
 
 ## Investigate before implementing
 
