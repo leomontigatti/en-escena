@@ -39,11 +39,16 @@ function isSlotChild(openingElement) {
 
 // `<input type="file" className="sr-only">` under a styled `<label>`: the
 // element is only the picker behind a drop zone, so it has no look to drift.
+// A `not-sr-only` under any variant (`sm:`, `focus:`) shows it again.
 function isVisuallyHidden(openingElement) {
   const attribute = openingElement.attributes.find(
     (item) => item.type === "JSXAttribute" && item.name.name === "className",
   );
-  return classTokens(attribute?.value).includes("sr-only");
+  const tokens = classTokens(attribute?.value);
+  return (
+    tokens.includes("sr-only") &&
+    !tokens.some((token) => token.split(":").pop() === "not-sr-only")
+  );
 }
 
 // The comprobante's printable view renders a whole `<html>` document with its

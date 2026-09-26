@@ -30,6 +30,7 @@ export function Violating() {
       <Button className={\`w-full focus-visible:ring-2\`}>Anillo</Button>
       <input type="file" name="photo" />
       <TableCell className="h-24 rounded-none">Sin datos</TableCell>
+      <input type="file" name="photo" className="sr-only sm:not-sr-only" />
     </form>
   );
 }
@@ -185,6 +186,11 @@ describe("ui oxlint plugin", () => {
         rule: "ui(no-restyle)",
         line: 19,
         message: expect.stringContaining("`rounded-none` restyles <TableCell>"),
+      },
+      {
+        rule: "ui(no-raw-form-element)",
+        line: 20,
+        message: expect.stringContaining("Use Input"),
       },
     ]);
   });
