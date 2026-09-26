@@ -126,6 +126,36 @@ export function createDancerDocumentStorage(
   };
 }
 
+/**
+ * Deletes document images no row points at any more — a photo the academy
+ * replaced or removed, or a document a merge discarded. It runs after the row
+ * is written, so a failure here cannot undo the save: reporting it as failed
+ * would be false. The cost is images left on the volume, and this line is the
+ * only thing that makes them locatable without walking the volume by hand —
+ * the same trade the choreography music replacement makes.
+ */
+export async function removeUnreferencedDocumentImages(input: {
+  dancerId: string;
+  storage?: DancerDocumentStorage;
+  storageKeys: string[];
+}) {
+  if (input.storageKeys.length === 0) {
+    return;
+  }
+
+  try {
+    await (
+      input.storage ?? createDefaultDancerDocumentStorage()
+    ).removeDocumentImages(input.storageKeys);
+  } catch (thrown) {
+    console.error("[storage:dancer-document:orphan]", {
+      dancerId: input.dancerId,
+      detail: thrown instanceof Error ? thrown.message : String(thrown),
+      storageKeys: input.storageKeys,
+    });
+  }
+}
+
 export type DancerDocumentStorage = ReturnType<
   typeof createDancerDocumentStorage
 >;

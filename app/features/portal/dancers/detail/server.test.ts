@@ -20,11 +20,16 @@ function createStorage(
   };
 }
 
+const stored = {
+  back: "dancers/back-existing.jpg",
+  front: "dancers/front-existing.jpg",
+};
+
 describe("portal dancer detail server", () => {
-  test("keeps submitted document keys and never touches the store when no file is uploaded", async () => {
+  test("keeps the stored keys, not the submitted ones, and never touches the store when no file is uploaded", async () => {
     const formData = new FormData();
-    formData.set("documentFrontImageStorageKey", "dancers/front-existing.jpg");
-    formData.set("documentBackImageStorageKey", "dancers/back-existing.jpg");
+    formData.set("documentFrontImageStorageKey", "academies/other/front.jpg");
+    formData.set("documentBackImageStorageKey", "academies/other/back.jpg");
 
     await expect(
       resolvePortalDancerDocumentImageStorageKeys({
@@ -32,6 +37,7 @@ describe("portal dancer detail server", () => {
         dancerId: "dancer_1",
         formData,
         storage: createStorage(),
+        stored,
       }),
     ).resolves.toEqual({
       ok: true,
@@ -39,10 +45,31 @@ describe("portal dancer detail server", () => {
         back: "dancers/back-existing.jpg",
         front: "dancers/front-existing.jpg",
       },
+      unreferencedKeys: [],
     });
   });
 
-  test("uploads a new document image and keeps the untouched side", async () => {
+  test("leaves a removed side empty and names its stored key", async () => {
+    const formData = new FormData();
+    formData.set("documentFrontImageStorageKey", "dancers/front-existing.jpg");
+    formData.set("documentBackImageStorageKey", "");
+
+    await expect(
+      resolvePortalDancerDocumentImageStorageKeys({
+        academyId: "academy_1",
+        dancerId: "dancer_1",
+        formData,
+        storage: createStorage(),
+        stored,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      keys: { back: "", front: "dancers/front-existing.jpg" },
+      unreferencedKeys: ["dancers/back-existing.jpg"],
+    });
+  });
+
+  test("uploads a new document image, keeps the untouched side and names the replaced key", async () => {
     const uploads: Array<{ side: string }> = [];
     const storage = createStorage({
       uploadDocumentImage: async (input) => {
@@ -69,6 +96,7 @@ describe("portal dancer detail server", () => {
         dancerId: "dancer_1",
         formData,
         storage,
+        stored,
       }),
     ).resolves.toEqual({
       ok: true,
@@ -76,6 +104,7 @@ describe("portal dancer detail server", () => {
         back: "dancers/back-existing.jpg",
         front: "academies/academy_1/dancers/dancer_1/document-front.png",
       },
+      unreferencedKeys: ["dancers/front-existing.jpg"],
     });
     expect(uploads).toEqual([{ side: "front" }]);
   });
@@ -108,6 +137,7 @@ describe("portal dancer detail server", () => {
         dancerId: "dancer_1",
         formData,
         storage,
+        stored,
       }),
     ).resolves.toEqual({
       ok: false,
@@ -136,6 +166,7 @@ describe("portal dancer detail server", () => {
         dancerId: "dancer_1",
         formData,
         storage,
+        stored,
       }),
     ).resolves.toEqual({
       ok: false,

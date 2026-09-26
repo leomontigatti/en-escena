@@ -21,7 +21,7 @@ import {
 import { formatSpanishList } from "@/lib/shared/text-normalization";
 import {
   type DancerDocumentStorage,
-  createDefaultDancerDocumentStorage,
+  removeUnreferencedDocumentImages,
 } from "@/lib/storage/dancer-documents.server";
 
 import {
@@ -149,40 +149,13 @@ export async function mergeRosterPeople(
     },
   );
 
-  if (discardedImageKeys.length > 0) {
-    await removeDiscardedDocumentImages({
-      dancerId: input.removedId,
-      storage: input.storage,
-      storageKeys: discardedImageKeys,
-    });
-  }
+  await removeUnreferencedDocumentImages({
+    dancerId: input.removedId,
+    storage: input.storage,
+    storageKeys: discardedImageKeys,
+  });
 
   return result;
-}
-
-/**
- * Runs after the commit, so a failure here cannot undo the merge: the row is
- * already gone and reporting the merge as failed would be false. The cost is
- * images left on the volume, and this line is the only thing that makes them
- * locatable without walking the volume by hand — the same trade the
- * choreography music replacement makes.
- */
-async function removeDiscardedDocumentImages(input: {
-  dancerId: string;
-  storage?: DancerDocumentStorage;
-  storageKeys: string[];
-}) {
-  try {
-    await (
-      input.storage ?? createDefaultDancerDocumentStorage()
-    ).removeDocumentImages(input.storageKeys);
-  } catch (thrown) {
-    console.error("[storage:dancer-document:orphan]", {
-      dancerId: input.dancerId,
-      detail: thrown instanceof Error ? thrown.message : String(thrown),
-      storageKeys: input.storageKeys,
-    });
-  }
 }
 
 const mergeDestinations = {

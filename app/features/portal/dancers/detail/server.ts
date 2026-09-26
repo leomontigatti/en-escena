@@ -7,6 +7,7 @@ import {
   type DancerDocumentStorage,
   createDefaultDancerDocumentStorage,
   loadDancerDocumentImageUrls,
+  removeUnreferencedDocumentImages,
 } from "@/lib/storage/dancer-documents.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { findDancerInscriptions } from "@/lib/dancers/inscriptions.server";
@@ -175,12 +176,18 @@ async function savePortalDancer({
     };
   }
 
+  const stored = await requirePortalDancer(academyId, dancerId);
+  const storage = createDefaultDancerDocumentStorage();
   const documentImageStorageKeys =
     await resolvePortalDancerDocumentImageStorageKeys({
       academyId: academyId,
       dancerId,
       formData,
-      storage: createDefaultDancerDocumentStorage(),
+      storage,
+      stored: {
+        back: stored.documentBackImageStorageKey,
+        front: stored.documentFrontImageStorageKey,
+      },
     });
 
   if (!documentImageStorageKeys.ok) {
@@ -221,6 +228,12 @@ async function savePortalDancer({
     };
   }
 
+  await removeUnreferencedDocumentImages({
+    dancerId,
+    storage,
+    storageKeys: documentImageStorageKeys.unreferencedKeys,
+  });
+
   return buildPortalDancerActionSuccess(
     "bailarin-guardado",
     result.recategorisedChoreographies,
@@ -250,70 +263,103 @@ async function requirePortalDancer(academyId: string, dancerId: string) {
   return dancer;
 }
 
+/**
+ * The document image keys to write, and the stored ones they leave behind.
+ * The key fields of the form only say whether the academy kept the photo or
+ * removed it: a kept photo keeps the key already on the row, so a key the
+ * browser sends is never written — it could point this dancer at any file on
+ * the volume. The stored key is also what finds a replaced file, which a merge
+ * can leave outside the dancer's own folder.
+ */
 export async function resolvePortalDancerDocumentImageStorageKeys(input: {
   academyId: string;
   dancerId: string;
   formData: FormData;
   storage: DancerDocumentStorage;
+  stored: { back: string | null; front: string | null };
 }): Promise<
-  | { ok: true; keys: { back: string; front: string } }
+  | {
+      ok: true;
+      keys: { back: string; front: string };
+      unreferencedKeys: string[];
+    }
   | { ok: false; message: string }
 > {
-  const frontImage = readOptionalFormFile(input.formData, "documentFrontImage");
-  const backImage = readOptionalFormFile(input.formData, "documentBackImage");
-  const frontStorageKey = await uploadOptionalDancerDocumentImage({
-    academyId: input.academyId,
-    dancerId: input.dancerId,
-    fallbackStorageKey: readFormString(
-      input.formData,
-      "documentFrontImageStorageKey",
-    ),
-    file: frontImage,
-    side: "front",
-    storage: input.storage,
-  });
+  const front = await resolveDocumentImageSide({ ...input, side: "front" });
 
-  if (!frontStorageKey.ok) {
-    return frontStorageKey;
+  if (!front.ok) {
+    return front;
   }
 
-  const backStorageKey = await uploadOptionalDancerDocumentImage({
-    academyId: input.academyId,
-    dancerId: input.dancerId,
-    fallbackStorageKey: readFormString(
-      input.formData,
-      "documentBackImageStorageKey",
-    ),
-    file: backImage,
-    side: "back",
-    storage: input.storage,
-  });
+  const back = await resolveDocumentImageSide({ ...input, side: "back" });
 
-  if (!backStorageKey.ok) {
-    return backStorageKey;
+  if (!back.ok) {
+    return back;
   }
 
   return {
     ok: true,
-    keys: {
-      back: backStorageKey.storageKey,
-      front: frontStorageKey.storageKey,
-    },
+    keys: { back: back.storageKey, front: front.storageKey },
+    unreferencedKeys: [back, front]
+      .map((side) => side.unreferencedKey)
+      .filter((key): key is string => key !== null),
   };
 }
 
-async function uploadOptionalDancerDocumentImage(input: {
+async function resolveDocumentImageSide(input: {
   academyId: string;
   dancerId: string;
-  fallbackStorageKey: string;
-  file: File | null;
+  formData: FormData;
+  side: DancerDocumentSide;
+  storage: DancerDocumentStorage;
+  stored: { back: string | null; front: string | null };
+}): Promise<
+  | { ok: true; storageKey: string; unreferencedKey: string | null }
+  | { ok: false; message: string }
+> {
+  const storedKey = input.stored[input.side];
+  const file = readOptionalFormFile(
+    input.formData,
+    input.side === "front" ? "documentFrontImage" : "documentBackImage",
+  );
+
+  if (!file) {
+    const kept =
+      readFormString(
+        input.formData,
+        input.side === "front"
+          ? "documentFrontImageStorageKey"
+          : "documentBackImageStorageKey",
+      ) !== "";
+
+    return kept
+      ? { ok: true, storageKey: storedKey ?? "", unreferencedKey: null }
+      : { ok: true, storageKey: "", unreferencedKey: storedKey };
+  }
+
+  const uploaded = await uploadDancerDocumentImage({ ...input, file });
+
+  if (!uploaded.ok) {
+    return uploaded;
+  }
+
+  return {
+    ok: true,
+    storageKey: uploaded.storageKey,
+    unreferencedKey:
+      storedKey !== null && storedKey !== uploaded.storageKey
+        ? storedKey
+        : null,
+  };
+}
+
+async function uploadDancerDocumentImage(input: {
+  academyId: string;
+  dancerId: string;
+  file: File;
   side: DancerDocumentSide;
   storage: DancerDocumentStorage;
 }): Promise<{ ok: true; storageKey: string } | { ok: false; message: string }> {
-  if (!input.file) {
-    return { ok: true, storageKey: input.fallbackStorageKey };
-  }
-
   const fieldLabel = input.side === "front" ? "frente" : "dorso";
 
   try {

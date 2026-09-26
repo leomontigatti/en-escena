@@ -39,6 +39,7 @@ import {
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
+const removeDocumentImagesMock = vi.hoisted(() => vi.fn());
 const uploadDocumentImageMock = vi.hoisted(() => vi.fn());
 
 // Only the factory is replaced: the shared read path and the key layout stay
@@ -49,6 +50,7 @@ vi.mock("@/lib/storage/dancer-documents.server", async (importOriginal) => ({
   >()),
   createDefaultDancerDocumentStorage: () => ({
     createDocumentImageSignedUrl: createDocumentImageSignedUrlMock,
+    removeDocumentImages: removeDocumentImagesMock,
     uploadDocumentImage: uploadDocumentImageMock,
   }),
 }));
@@ -57,7 +59,9 @@ installDatabaseTestHooks();
 
 beforeEach(() => {
   createDocumentImageSignedUrlMock.mockReset();
+  removeDocumentImagesMock.mockReset();
   uploadDocumentImageMock.mockReset();
+  vi.restoreAllMocks();
   createDocumentImageSignedUrlMock.mockImplementation(
     async (storageKey: string) => `signed:${storageKey}`,
   );
@@ -929,6 +933,123 @@ describe("handlePortalDancerDetailAction", () => {
     });
   });
 
+  // The key fields only say whether the academy kept or removed the photo: a
+  // key the browser sends is never written, or it could point this dancer at
+  // any file on the volume.
+  test("keeps the stored photo keys whatever key the form submits", async () => {
+    const { dancer, session } = await createDancerWithPhotos("Clave ajena");
+
+    const result = await saveDancerPhotos(session.cookie, dancer.id, {
+      documentBackImageStorageKey:
+        "academies/other/dancers/x/document-back.jpg",
+      documentFrontImageStorageKey:
+        "academies/other/dancers/x/document-front.jpg",
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    await expectPersistedDancer(dancer.id, {
+      documentBackImageStorageKey: dancer.documentBackImageStorageKey,
+      documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
+    });
+    expect(removeDocumentImagesMock).not.toHaveBeenCalled();
+  });
+
+  // A merge can leave a dancer's photo in another dancer's or another
+  // academy's folder; the replaced file is found by its stored key.
+  test("deletes a replaced photo by its stored key, even outside the dancer's folder", async () => {
+    const { dancer, session } = await createDancerWithPhotos("Reemplazo");
+    const formData = photoFormData(dancer);
+
+    formData.set(
+      "documentFrontImage",
+      new File(["front"], "frente.png", { type: "image/png" }),
+    );
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        formData,
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    await expectPersistedDancer(dancer.id, {
+      documentBackImageStorageKey: dancer.documentBackImageStorageKey,
+      documentFrontImageStorageKey: `academies/${session.academyId}/dancers/${dancer.id}/document-front.png`,
+    });
+    expect(removeDocumentImagesMock).toHaveBeenCalledWith([
+      dancer.documentFrontImageStorageKey,
+    ]);
+  });
+
+  test("deletes a photo's file when the academy removes it", async () => {
+    const { dancer, session } = await createDancerWithPhotos("Borrada");
+
+    const result = await saveDancerPhotos(session.cookie, dancer.id, {
+      documentBackImageStorageKey: "",
+      documentFrontImageStorageKey: "kept",
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    await expectPersistedDancer(dancer.id, {
+      documentBackImageStorageKey: null,
+      documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
+    });
+    expect(removeDocumentImagesMock).toHaveBeenCalledWith([
+      dancer.documentBackImageStorageKey,
+    ]);
+  });
+
+  test("keeps the save when deleting a removed photo fails, and logs it", async () => {
+    const { dancer, session } = await createDancerWithPhotos("Huerfana");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    removeDocumentImagesMock.mockRejectedValue(new Error("volume unavailable"));
+
+    const result = await saveDancerPhotos(session.cookie, dancer.id, {
+      documentBackImageStorageKey: "",
+      documentFrontImageStorageKey: "kept",
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    await expectPersistedDancer(dancer.id, {
+      documentBackImageStorageKey: null,
+    });
+    expect(errors).toHaveBeenCalledWith("[storage:dancer-document:orphan]", {
+      dancerId: dancer.id,
+      detail: "volume unavailable",
+      storageKeys: [dancer.documentBackImageStorageKey],
+    });
+  });
+
+  test("deletes nothing when the save is refused", async () => {
+    const { dancer, session } = await createDancerWithPhotos("Rechazada");
+    const formData = photoFormData(dancer, {
+      documentBackImageStorageKey: "",
+      documentFrontImageStorageKey: "",
+    });
+
+    formData.set("documentType", "");
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        formData,
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({ status: "error" });
+    await expectPersistedDancer(dancer.id, {
+      documentBackImageStorageKey: dancer.documentBackImageStorageKey,
+      documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
+    });
+    expect(removeDocumentImagesMock).not.toHaveBeenCalled();
+  });
+
   test("keeps submitted values and field errors when the document pair is partial", async () => {
     const session = await createAcademySession({
       email: "bailarines.partial@example.com",
@@ -1355,4 +1476,76 @@ async function expectCreated<TRecord extends { id: string }>(
   }
 
   return result.record;
+}
+
+/**
+ * A dancer whose photos sit in another dancer's folder, as a merge leaves the
+ * survivor that took the removed dancer's document.
+ */
+async function createDancerWithPhotos(academyName: string) {
+  const session = await createAcademySession({
+    email: `${academyName.toLowerCase().replace(/\s+/g, ".")}@example.com`,
+    academyName: `Academia ${academyName}`,
+  });
+  const [dancer] = await db
+    .insert(dancers)
+    .values({
+      academyId: session.academyId,
+      firstName: "Lola",
+      lastName: "Foto",
+      birthDate: "2012-05-06",
+      documentType: "dni",
+      documentNumber: "40111222",
+      documentBackImageStorageKey: `academies/${session.academyId}/dancers/merged-away/document-back.jpg`,
+      documentFrontImageStorageKey: `academies/${session.academyId}/dancers/merged-away/document-front.jpg`,
+    })
+    .returning();
+
+  return { dancer, session };
+}
+
+function photoFormData(
+  dancer: typeof dancers.$inferSelect,
+  keys: {
+    documentBackImageStorageKey?: string;
+    documentFrontImageStorageKey?: string;
+  } = {},
+) {
+  return dancerEditFormData({
+    birthDate: dancer.birthDate,
+    documentBackImageStorageKey:
+      keys.documentBackImageStorageKey ??
+      dancer.documentBackImageStorageKey ??
+      "",
+    documentFrontImageStorageKey:
+      keys.documentFrontImageStorageKey ??
+      dancer.documentFrontImageStorageKey ??
+      "",
+    documentNumber: dancer.documentNumber ?? "",
+    documentType: dancer.documentType ?? "",
+    firstName: dancer.firstName,
+    lastName: dancer.lastName,
+  });
+}
+
+function saveDancerPhotos(
+  cookie: string,
+  dancerId: string,
+  keys: {
+    documentBackImageStorageKey: string;
+    documentFrontImageStorageKey: string;
+  },
+) {
+  return db.query.dancers
+    .findFirst({ where: eq(dancers.id, dancerId) })
+    .then((dancer) =>
+      handlePortalDancerDetailAction({
+        request: createPortalPostRequest(
+          `http://localhost/portal/bailarines/${dancerId}`,
+          cookie,
+          photoFormData(dancer!, keys),
+        ),
+        params: { dancerId },
+      }),
+    );
 }

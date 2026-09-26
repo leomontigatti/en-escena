@@ -190,11 +190,17 @@ What a deploy does, for reference:
   because the edge must not cache PII in the first place.
 - Dancer documents on this volume are plaintext PII; encryption at rest is
   accepted debt, documented in [Backups](./backups.md#encryption-at-rest-accepted-debt).
-- Merging two dancers (`mergeRosterPeople`) deletes the removed dancer's
-  document images when the survivor keeps its own document. The delete runs
-  after the merge commits, so a failure cannot undo the merge: it is logged as
-  `[storage:dancer-document:orphan]` with the keys, and reconciliation is by
-  hand from that line, as for choreography music below.
+- A dancer's document image is deleted by the key stored on its row once the
+  row stops pointing at it: the academy replaced or removed the photo in the
+  portal, or a merge (`mergeRosterPeople`) discarded the removed dancer's
+  document. The stored key, not the dancer's folder, is what finds the file,
+  because a merge can leave a photo in another dancer's or another academy's
+  folder. The delete runs after the write, so a failure cannot undo the save:
+  it is logged as `[storage:dancer-document:orphan]` with the keys, and
+  reconciliation is by hand from that line, as for choreography music below.
+- The portal never writes a document image key the browser sends. The form's
+  key fields only say whether a photo was kept or removed; a kept photo keeps
+  the key already on the row.
 - There is **one** storage backend in the app. The Supabase and Backblaze
   in-app adapters were deleted in #571: they had no production caller and only
   made the storage layer read as though a live provider choice existed. The
