@@ -95,14 +95,22 @@ watcher reports `BEHIND` only once the round is otherwise clean, so this happens
 fixes.
 
 - **`BEHIND`**: `gh pr update-branch <n>`, which merges `master` in on GitHub when it merges
-  clean. If it refuses because of a conflict, handle it as `CONFLICTS`.
-- **`CONFLICTS`**: `git fetch origin master && git merge origin/master` on the head branch (a
-  merge, never a rebase), then call the Skill tool with "resolving-merge-conflicts". Run the
-  validation list, commit the merge, and push. A conflict inside an always-ask area of
-  [coderabbit-triage.md](coderabbit-triage.md) is an **ask**: abort the merge with
-  `git merge --abort` and go to step 5 as NEEDS YOU.
+  clean; then `git fetch origin <branch> && git merge --ff-only origin/<branch>` on the head
+  branch, so the local checkout matches the new head before returning to the watcher. If it
+  refuses because of a conflict, handle it as `CONFLICTS`.
+- **`CONFLICTS`**: for a standalone PR, `git fetch origin master && git merge origin/master` on
+  the head branch (a merge, never a rebase), then call the Skill tool with
+  "resolving-merge-conflicts". Run the validation list, commit the merge, and push. A conflict
+  inside an always-ask area of [coderabbit-triage.md](coderabbit-triage.md) is an **ask**: abort
+  the merge with `git merge --abort` and go to step 5 as NEEDS YOU. For a PR that is part of a
+  GitHub stack (see "Stacked PRs" in
+  [workflows.md](../../../docs/agents/workflows.md#stacked-prs)), never merge `master` into the
+  layer by hand: the fix is `gh stack rebase` and `gh stack push`, and that push is a force-push
+  the user signs off on first, so go straight to step 5 as NEEDS YOU naming the stack and the
+  rebase the user needs to run.
 
-Either one counts as a push toward the three. Then go back to step 2.
+Either one counts as a push toward the three: if this was the third push, step 5 as NEEDS YOU,
+listing what is still open; otherwise go back to step 2.
 
 ## 5. Report
 
