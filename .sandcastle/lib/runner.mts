@@ -41,7 +41,7 @@ export function createSandboxProvider() {
  *
  * §3.9's hard invariant is that the agent never mutates the tracker or the
  * remote, and the runners honour it by holding no token. A runner that
- * prefetches context (update-branch, architecture-review) cannot simply omit it: it needs
+ * prefetches context (architecture-review) cannot simply omit it: it needs
  * the token for its own read-only `gh` calls, and `noSandbox()` hands the agent
  * `{ ...process.env }`, so a step-level `GH_TOKEN` reaches the agent and its
  * `gh` calls *succeed* — silently, with the job's write permissions.
@@ -102,7 +102,7 @@ export function writeOutput(name: string, content: string): void {
 
 /**
  * Record a human-readable failure reason (spec §3.7) before exiting non-zero.
- * The orchestrator turns this into the `agent:blocked` comment.
+ * The orchestrator reports it: architecture-review writes it to the run summary.
  */
 export function writeFailure(reason: string): void {
   writeOutput("failure_reason.txt", reason.endsWith("\n") ? reason : `${reason}\n`);

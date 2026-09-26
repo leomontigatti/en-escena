@@ -344,13 +344,32 @@ describe("classify", () => {
     );
   });
 
-  test("waits on a branch that is behind or whose merge state is not computed yet", () => {
-    expect(classify(snapshot({ mergeState: "BEHIND" }), NOW)).toMatchObject({
-      verdict: "WAITING",
-    });
+  test("waits on a merge state that is not computed yet", () => {
     expect(classify(snapshot({ mergeState: "UNKNOWN" }), NOW)).toMatchObject({
       verdict: "WAITING",
     });
+  });
+
+  test("reports a branch behind its base only once nothing else is open", () => {
+    expect(classify(snapshot({ mergeState: "BEHIND" }), NOW)).toMatchObject({
+      verdict: "BEHIND",
+      exitCode: 8,
+      pending: [],
+    });
+    const behindWithAThread = snapshot({
+      mergeState: "BEHIND",
+      threads: [
+        {
+          id: "T_1",
+          path: "app/a.ts",
+          line: 1,
+          isResolved: false,
+          isOutdated: false,
+          comments: [{ author: "coderabbitai", body: "Fix it." }],
+        },
+      ],
+    });
+    expect(classify(behindWithAThread, NOW).verdict).toBe("THREADS");
   });
 
   test("reports unresolved threads, with failed checks alongside, once the round is complete", () => {

@@ -72,9 +72,9 @@ matches the task.
   Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
 - **Fallow** (commit gate via `pnpm check:fallow`, and investigation tool):
   [docs/agents/fallow.md](docs/agents/fallow.md).
-- **AFK platform** (three workflows remain: Update Branch, Promote Queued, Architecture
-  Review; the implement, review and To Issues runners were retired in ADR-0016). The
+- **AFK platform** (one workflow remains, Architecture Review; every other runner was
+  retired in ADR-0016 and its amendments). The
   vendored spec of the original 8 is [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md);
   what was adapted is in [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).
-- **AFK operational setup** (`agent:*` labels, secrets, degradation without a PAT; runbook
-  for spec §3.1/§3.4): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).
+- **AFK operational setup** (the Claude Code secret, the Architecture Review schedule;
+  runbook for spec §3.1): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).

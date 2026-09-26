@@ -39,7 +39,7 @@ const testFilePattern = /\.test\.(ts|mts)$/;
 const labelValue = String.raw`[A-Za-z0-9](?:[\w:,-]*[A-Za-z0-9])?(?![\w:<*,-])`;
 
 const referencePatterns: RegExp[] = [
-  // `--label needs-triage`, `--add-label "agent:blocked"`, `--label=bug,chore`,
+  // `--label needs-triage`, `--add-label "priority:next"`, `--label=bug,chore`,
   // and the argv form the Sandcastle runners pass to `gh`, where the flag and
   // its value are separate strings, often on separate lines.
   new RegExp(

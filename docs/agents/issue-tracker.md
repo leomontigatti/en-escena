@@ -74,13 +74,10 @@ Rules:
 - **A deferral must name its follow-up issue _and_ move its dependents.**
   `deferred to #712` is a deferral; "deferred" alone is indistinguishable from
   work that was done. Open the follow-up first, then close. And before closing,
-  re-point anything blocked on this issue at the follow-up:
-  [`agent-promote-queued.yml`](../../.github/workflows/agent-promote-queued.yml)
-  only promotes dependents when the blocker closes as something other than
-  `not_planned` (spec §4.7 — a decision that was deferred or rejected genuinely
-  did not deliver what the dependent is waiting for). So a deferral leaves every
-  `agent:queued` dependent queued. That is intended, not a bug; the workflow
-  comments on each dependent it declines to promote, but only the person closing
+  re-point anything blocked on this issue at the follow-up
+  (`gh issue edit <dependent> --add-blocked-by <follow-up>`): GitHub counts a
+  closed blocker as cleared however it closed, so a dependent left pointing at
+  the deferred issue reads as unblocked when it is not. Only the person closing
   can declare the follow-up as the new blocker.
 
 Everything is one command, so there is nothing to remember beyond the flag:
@@ -148,8 +145,8 @@ repo's deltas are in [workflows.md](./workflows.md#prd-workflow).
 --label ready-for-agent --label priority:<p> --label <type>`, body per the `to-spec` template.
 - **Tickets** are native sub-issues of the PRD, created in implementation order:
   `gh issue create --parent <PRD> ...`, with the PRD's priority, type and milestone plus
-  `ready-for-agent` ([triage-labels.md](./triage-labels.md)). No `agent:*` label: one session
-  works them in order, so `agent:queued` does not apply.
+  `ready-for-agent` ([triage-labels.md](./triage-labels.md)). One session works them in
+  order.
 - **Blocking** is GitHub's native dependency relation:
   `gh issue edit <ticket> --add-blocked-by <other>`, never only a "Blocked by #N" line in the
   body. The template's `## Blocked by` section still lists the same issues for the reader.
@@ -167,7 +164,7 @@ the destination takes when the map is reached.
   `gh issue create --parent <map> --label wayfinder:<type> ...`.
 - **Blocking** is GitHub's native dependency relation:
   `gh issue edit <ticket> --add-blocked-by <other>`. Never a "Blocked by #N" line in the
-  body; `agent-promote-queued.yml` reads only the native relation.
+  body; the frontier below reads only the native relation.
 - **The frontier** is the open, unassigned, unblocked children. List the children with
   `gh issue view <map> --json subIssues`, keep the open ones, then drop any whose
   `gh issue view <n> --json assignees,blockedBy` shows an assignee or a blocker still `OPEN`.
@@ -199,7 +196,7 @@ grilling session is the last point where a human can agree them.
 ### Exit shapes
 
 Close the map by choosing how the destination is filed. The choice decides how many PRs
-the work costs, and every PR pays a review, a babysitting pass, an update-branch and a
+the work costs, and every PR pays a review, a babysitting pass, a branch update and a
 merge, while a PRD pays one of each for the whole chain. Measured on this repo when the AFK
 runners still implemented: the seminars PRD #875 ran five sub-issues in under an hour onto
 one PR; the guardrails map #929 filed eleven blocked standalone issues and paid eleven

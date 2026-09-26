@@ -24,14 +24,11 @@ import {
 // the workflow files, rather than a copy that could drift away from them.
 
 /**
- * The workflows carrying the fallback. The label-triggered one reports by
- * labelling + commenting (§3.7); architecture-review is scheduled, so it has no
- * issue to label and reports into the run summary instead.
+ * The workflows carrying the fallback: architecture-review alone since the
+ * label-triggered runners were retired (ADR-0016). Kept as a list so a new
+ * runner's copy is held to the same guards.
  */
-const WORKFLOWS = [
-  ".github/workflows/agent-update-branch.yml",
-  ".github/workflows/architecture-review.yml",
-];
+const WORKFLOWS = [".github/workflows/architecture-review.yml"];
 
 const BLOCK_START = /^reason=\$\(cat "\$OUTPUT_DIR\/failure_reason\.txt"/;
 
@@ -44,9 +41,8 @@ const BLOCK_START = /^reason=\$\(cat "\$OUTPUT_DIR\/failure_reason\.txt"/;
  * keeps this test honest — it runs the exact lines that ship.
  */
 function extractReasonBlock(workflow: string): string {
-  // Update Branch reports a failure by labelling + commenting; architecture-review
-  // is scheduled and reports into the run summary, so its step is named
-  // differently. Match the prefix rather than tabulating both names.
+  // Match the prefix: the step's name says where the runner reports, which
+  // differs between a scheduled runner and a label-triggered one.
   const step = workflowSteps(workflow).find((candidate) =>
     candidate.name.startsWith("On failure"),
   );
@@ -64,14 +60,6 @@ function extractReasonBlock(workflow: string): string {
   );
 
   return lines.slice(start, end + 1).join("\n");
-}
-
-/** Executable lines only — the surrounding comments are workflow-specific. */
-function executableLines(block: string): string[] {
-  return block
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line !== "" && !line.startsWith("#"));
 }
 
 let outputDir: string;
@@ -107,23 +95,21 @@ function writeLog(name: string, contents: string, ageSeconds = 0): string {
 }
 
 describe("the failure_reason fallback shipped in the workflows", () => {
-  // One representative copy drives the behaviour cases; the suite below pins
-  // every workflow's copy to it, so covering one covers both.
-  const block = extractReasonBlock(".github/workflows/agent-update-branch.yml");
+  const block = extractReasonBlock(WORKFLOWS[0]);
 
   it("prefers failure_reason.txt when runMain managed to write one", () => {
     writeFileSync(
       join(outputDir, "failure_reason.txt"),
       "Error: prefetch blew up",
     );
-    writeLog("update-branch.agent.log", "log line that must not be used");
+    writeLog("architecture-review.agent.log", "log line that must not be used");
 
     expect(resolveReason(block)).toBe("Error: prefetch blew up");
   });
 
   it("falls back to the agent log tail when the step was killed before writing a reason", () => {
     writeLog(
-      "update-branch.agent.log",
+      "architecture-review.agent.log",
       "iteration 4\nrunning the test suite\n",
     );
 
@@ -136,7 +122,7 @@ describe("the failure_reason fallback shipped in the workflows", () => {
 
   it("caps the tail at 30 lines so the comment stays readable", () => {
     const lines = Array.from({ length: 100 }, (_, i) => `line ${i + 1}`);
-    writeLog("update-branch.agent.log", `${lines.join("\n")}\n`);
+    writeLog("architecture-review.agent.log", `${lines.join("\n")}\n`);
 
     const reason = resolveReason(block);
 
@@ -152,7 +138,7 @@ describe("the failure_reason fallback shipped in the workflows", () => {
   });
 
   it("ignores an empty log rather than reporting an empty reason", () => {
-    writeLog("update-branch.agent.log", "");
+    writeLog("architecture-review.agent.log", "");
 
     expect(resolveReason(block)).toBe(
       "(no reason file written — check workflow logs)",
@@ -160,8 +146,8 @@ describe("the failure_reason fallback shipped in the workflows", () => {
   });
 
   it("picks the newest log when a job ran more than one runner", () => {
-    writeLog("architecture-review.agent.log", "the older runner\n", 600);
-    writeLog("update-branch.agent.log", "the newer runner\n");
+    writeLog("older-runner.agent.log", "the older runner\n", 600);
+    writeLog("architecture-review.agent.log", "the newer runner\n");
 
     expect(resolveReason(block)).toContain("the newer runner");
   });
@@ -185,22 +171,6 @@ describe("the failure_reason fallback shipped in the workflows", () => {
       ).toMatch(/cut -d' ' -f2- \|\| true/);
     }
   });
-});
-
-describe("the fallback is the same in every workflow that has it", () => {
-  const reference = executableLines(extractReasonBlock(WORKFLOWS[0]));
-
-  it.each(WORKFLOWS.slice(1))(
-    "%s resolves the reason identically to the others",
-    (workflow) => {
-      // The block is duplicated on purpose: these steps run with a write token
-      // on `pull_request_target`, where the checkout is the PR head, so calling
-      // a script from the repo would execute PR-controlled code. Inline `run:`
-      // bash comes from the base ref instead. This test is what keeps the copies
-      // from drifting.
-      expect(executableLines(extractReasonBlock(workflow))).toEqual(reference);
-    },
-  );
 });
 
 /** A runner step and the two numbers that must stay ordered. */
@@ -256,7 +226,7 @@ describe("runner guardrails", () => {
 
   it("finds every runner step across the AFK workflows", () => {
     // One runner step per surviving workflow (ADR-0016).
-    expect(steps).toHaveLength(2);
+    expect(steps).toHaveLength(1);
   });
 
   it.each(
