@@ -30,7 +30,6 @@
     "check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts",
     "check:fallow": "fallow audit --quiet --gate-marker agent --base origin/master",
     "labels:sync": "node --import tsx scripts/sync-labels.ts",
-    "afk:watch": "node scripts/afk-watch.mjs",
     "pr:evidence": "node --import tsx scripts/pr-evidence.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -45,10 +44,7 @@
     "db:refresh:prod": "node scripts/refresh-local-db-from-production.mjs",
     "db:test:reset": "node --import tsx tests/db/reset-test-schema.ts",
     "db:studio": "node --env-file=.env node_modules/drizzle-kit/bin.cjs studio",
-    "setup:secrets": "bash scripts/setup-github-secrets.sh",
-    "agent:implement": "pnpm exec tsx .sandcastle/agent-implement/implement.mts",
-    "agent:write-pr": "pnpm exec tsx .sandcastle/agent-write-pr/write-pr.mts",
-    "agent:review": "pnpm exec tsx .sandcastle/agent-review/review.mts"
+    "setup:secrets": "bash scripts/setup-github-secrets.sh"
   },
   "dependencies": {
     "@arcasdk/core": "^2.0.2",

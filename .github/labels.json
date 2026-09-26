@@ -73,24 +73,14 @@
         "description": "AFK: PRD ready to be decomposed into sub-issues"
       },
       {
-        "name": "agent:implement",
-        "color": "0e8a16",
-        "description": "AFK: ready for an implement run"
-      },
-      {
         "name": "agent:queued",
         "color": "fbca04",
-        "description": "AFK: ready but waiting on declared blockers; auto-promotes. Human-applied only."
+        "description": "AFK: waiting on declared blockers; promoted to ready-for-agent when they close. Human-applied only."
       },
       {
         "name": "agent:in-progress",
         "color": "0052cc",
         "description": "AFK: run active (acts as a lock)"
-      },
-      {
-        "name": "agent:review",
-        "color": "5319e7",
-        "description": "AFK: PR ready for the automated review workflow"
       },
       {
         "name": "agent:blocked",
@@ -101,16 +91,6 @@
         "name": "agent:update-branch",
         "color": "d93f0b",
         "description": "AFK: the PR must be merged up with its base"
-      },
-      {
-        "name": "agent:ready",
-        "color": "0e8a16",
-        "description": "AFK: the review left nothing for a human; arm auto-merge or merge on green"
-      },
-      {
-        "name": "agent:needs-decision",
-        "color": "e99695",
-        "description": "AFK: the review left a call for a human; pick it up with /review-triage"
       }
     ],
     "wayfinder": [

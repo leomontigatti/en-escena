@@ -214,31 +214,15 @@ describe("stop-typecheck-lint.sh", () => {
     expect(pnpmCalls()).toEqual([]);
   });
 
-  it("skips every GitHub workflow outside the AFK implement allowlist", () => {
+  it("skips every GitHub workflow, since none authors app code (ADR-0016)", () => {
     change("app/routes/home.tsx");
 
-    for (const workflow of ["AFK Review", "AFK Triage", "CI"]) {
+    for (const workflow of ["AFK Update Branch", "AFK To Issues", "CI"]) {
       const result = runHook({
         env: { GITHUB_WORKFLOW: workflow, FAKE_TYPECHECK_FAILS: "1" },
       });
       expect(result.status, workflow).toBe(0);
     }
     expect(pnpmCalls()).toEqual([]);
-  });
-
-  it("still gates the three AFK implement runners", () => {
-    change("app/routes/home.tsx");
-
-    for (const workflow of [
-      "AFK Implement",
-      "AFK Implement PRD",
-      "AFK Implement PR",
-    ]) {
-      const result = runHook({
-        env: { GITHUB_WORKFLOW: workflow, FAKE_TYPECHECK_FAILS: "1" },
-      });
-      expect(result.status, workflow).toBe(2);
-    }
-    expect(pnpmCalls()).toEqual(["typecheck", "typecheck", "typecheck"]);
   });
 });

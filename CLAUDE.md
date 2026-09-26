@@ -12,7 +12,7 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   promises — and is not a style checker; formatting is Prettier's, unused code is
   `tsc`'s, and repo conventions belong to the `check:*` scripts.
 - **Every other command**: [docs/operations/scripts.md](docs/operations/scripts.md)
-  is the complete index of `pnpm` scripts — databases, backups, the AFK runners —
+  is the complete index of `pnpm` scripts — databases, backups, the AFK workflows —
   each with a link to its runbook. A command that is not there is not a script of
   this repo. Rows marked ⚠️ reach outside the repo or destroy local state; read
   the runbook before running one. Mind the neighbours: `pnpm db:refresh:prod`
@@ -20,12 +20,12 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   while `pnpm db:test:reset` resets the separate **test** database — "refresh the
   local db" means the first.
 - **Branches, worktrees and T3 Code threads** (each thread works in its own T3
-  worktree, `agent/` branches are reserved for GHA, link every PR to the thread):
+  worktree, link every PR to the thread):
   see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Investigate before implementing**: see the section of the same name in
   [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Implementing in a local session** (a feature, a fix, any code change): call the Skill tool
-  with "implement" before editing. Same workflow as the AFK implement runners.
+- **Implementing** (a feature, a fix, any code change) happens in a local session: call the
+  Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
   (canonical). Guide for the whole repo, not just for Sandcastle. Includes the code
   language convention (Spanish for what the user reads, English for everything else;
@@ -50,8 +50,9 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
 - **Fallow** (commit gate via `pnpm check:fallow`, and investigation tool):
   [docs/agents/fallow.md](docs/agents/fallow.md).
-- **AFK platform** (spec of the 8 workflows, source of truth; vendored from Matt Pocock):
-  [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md); what was
-  adapted is in [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).
+- **AFK platform** (four workflows remain: To Issues, Update Branch, Promote Queued,
+  Architecture Review; the implement and review runners were retired in ADR-0016). The
+  vendored spec of the original 8 is [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md);
+  what was adapted is in [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).
 - **AFK operational setup** (`agent:*` labels, secrets, degradation without a PAT; runbook
   for spec §3.1/§3.4): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).

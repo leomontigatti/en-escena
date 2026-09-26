@@ -28,8 +28,8 @@ function installingWorkflows(): string[] {
 }
 
 describe("the Claude Code CLI the runners install (#966)", () => {
-  it("is installed in the seven workflows that run an agent", () => {
-    expect(installingWorkflows().length).toBe(7);
+  it("is installed in the three workflows that run an agent", () => {
+    expect(installingWorkflows().length).toBe(3);
   });
 
   it("comes from the stable tag through pnpm, never from a global npm install", () => {
@@ -80,32 +80,13 @@ describe("the Claude Code CLI the runners install (#966)", () => {
   });
 });
 
-describe("where the review loads the `code-review` skill from (#966)", () => {
-  const reviewWorkflow = ".github/workflows/agent-review.yml";
-
-  it("never fetches it from the network at run time", () => {
+describe("what a run never fetches at run time (#966)", () => {
+  it("never pulls a skill from the network", () => {
     for (const file of workflowFiles()) {
       expect(
         workflowText(file),
         `${file}: \`npx skills@latest\` makes each run depend on whatever is published that day`,
       ).not.toMatch(/npx\s+(--yes\s+)?skills@latest/);
     }
-  });
-
-  it("copies the vendored skill out of origin/master, not out of the work tree", () => {
-    const text = workflowText(reviewWorkflow);
-
-    expect(text).toMatch(
-      /git archive origin\/master \.agents\/skills\/code-review/,
-    );
-    // The destination is outside the work tree, so a commit step cannot sweep
-    // the skill into the PR branch.
-    expect(text).toMatch(/skill="\$HOME\/\.claude\/skills\/code-review"/);
-  });
-
-  it("guarantees the origin/master ref the copy reads exists", () => {
-    expect(workflowText(reviewWorkflow)).toContain(
-      "git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master",
-    );
   });
 });

@@ -24,15 +24,11 @@ import {
 // the workflow files, rather than a copy that could drift away from them.
 
 /**
- * The workflows carrying the fallback. The six label-triggered ones report by
+ * The workflows carrying the fallback. The two label-triggered ones report by
  * labelling + commenting (§3.7); architecture-review is scheduled, so it has no
  * issue to label and reports into the run summary instead.
  */
 const WORKFLOWS = [
-  ".github/workflows/agent-implement.yml",
-  ".github/workflows/agent-implement-pr.yml",
-  ".github/workflows/agent-implement-prd.yml",
-  ".github/workflows/agent-review.yml",
   ".github/workflows/agent-to-issues-prd.yml",
   ".github/workflows/agent-update-branch.yml",
   ".github/workflows/architecture-review.yml",
@@ -49,7 +45,7 @@ const BLOCK_START = /^reason=\$\(cat "\$OUTPUT_DIR\/failure_reason\.txt"/;
  * keeps this test honest — it runs the exact lines that ship.
  */
 function extractReasonBlock(workflow: string): string {
-  // Six workflows report a failure by labelling + commenting; architecture-review
+  // Two workflows report a failure by labelling + commenting; architecture-review
   // is scheduled and reports into the run summary, so its step is named
   // differently. Match the prefix rather than tabulating both names.
   const step = workflowSteps(workflow).find((candidate) =>
@@ -113,21 +109,24 @@ function writeLog(name: string, contents: string, ageSeconds = 0): string {
 
 describe("the failure_reason fallback shipped in the workflows", () => {
   // One representative copy drives the behaviour cases; the suite below pins
-  // every workflow's copy to it, so covering one covers all seven.
-  const block = extractReasonBlock(".github/workflows/agent-review.yml");
+  // every workflow's copy to it, so covering one covers all three.
+  const block = extractReasonBlock(".github/workflows/agent-update-branch.yml");
 
   it("prefers failure_reason.txt when runMain managed to write one", () => {
     writeFileSync(
       join(outputDir, "failure_reason.txt"),
       "Error: prefetch blew up",
     );
-    writeLog("review.agent.log", "log line that must not be used");
+    writeLog("update-branch.agent.log", "log line that must not be used");
 
     expect(resolveReason(block)).toBe("Error: prefetch blew up");
   });
 
   it("falls back to the agent log tail when the step was killed before writing a reason", () => {
-    writeLog("review.agent.log", "iteration 4\nrunning the test suite\n");
+    writeLog(
+      "update-branch.agent.log",
+      "iteration 4\nrunning the test suite\n",
+    );
 
     const reason = resolveReason(block);
 
@@ -138,7 +137,7 @@ describe("the failure_reason fallback shipped in the workflows", () => {
 
   it("caps the tail at 30 lines so the comment stays readable", () => {
     const lines = Array.from({ length: 100 }, (_, i) => `line ${i + 1}`);
-    writeLog("review.agent.log", `${lines.join("\n")}\n`);
+    writeLog("update-branch.agent.log", `${lines.join("\n")}\n`);
 
     const reason = resolveReason(block);
 
@@ -154,7 +153,7 @@ describe("the failure_reason fallback shipped in the workflows", () => {
   });
 
   it("ignores an empty log rather than reporting an empty reason", () => {
-    writeLog("review.agent.log", "");
+    writeLog("update-branch.agent.log", "");
 
     expect(resolveReason(block)).toBe(
       "(no reason file written — check workflow logs)",
@@ -162,8 +161,8 @@ describe("the failure_reason fallback shipped in the workflows", () => {
   });
 
   it("picks the newest log when a job ran more than one runner", () => {
-    writeLog("implement.agent.log", "the older runner\n", 600);
-    writeLog("write-pr.agent.log", "the newer runner\n");
+    writeLog("to-issues.agent.log", "the older runner\n", 600);
+    writeLog("update-branch.agent.log", "the newer runner\n");
 
     expect(resolveReason(block)).toContain("the newer runner");
   });
@@ -257,9 +256,8 @@ describe("runner guardrails", () => {
   const steps = WORKFLOWS.flatMap(runnerSteps);
 
   it("finds every runner step across the AFK workflows", () => {
-    // `agent-implement` and `agent-implement-prd` each run two: the implement
-    // pass and the write-pr pass that follows it.
-    expect(steps).toHaveLength(9);
+    // One runner step per surviving workflow (ADR-0016).
+    expect(steps).toHaveLength(3);
   });
 
   it.each(

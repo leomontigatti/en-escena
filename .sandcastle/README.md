@@ -11,21 +11,17 @@ emits commits on the already-checked-out branch plus plain/JSON files under
 
 The legacy local Docker runner (`main.mts` and its `*-prompt.md` chain, driven
 by `pnpm sandcastle`) was **retired in the Fase 4 cutover** (issue #347). The
-development flow is now **AFK-on-GHA with human merge**: label an issue/PR to
-trigger the relevant workflow → the agent produces changes on a branch → a draft
-PR is opened → a human merges. Work can also be done manually (Claude Code on a
-branch/worktree → PR → human merge); that path stays available for iterating on
-the runners themselves.
+implement, review and write-PR runners were retired in **ADR-0016**: code is
+written and reviewed in local T3 Code sessions (the `implement` skill), and
+what remains on GitHub Actions is the work that needs no browser and no
+judgement about the product.
 
 ## Layout
 
-- `agent-implement/`, `agent-write-pr/`, `agent-review/`, `agent-implement-pr/`,
-  `agent-update-branch/`, `agent-architecture-review/`, `agent-to-issues/`,
-  `agent-implement-prd/`, `agent-write-prd-pr/` — one directory per runner,
-  invoked by the matching workflow.
+- `agent-to-issues/`, `agent-update-branch/`, `agent-architecture-review/` —
+  one directory per surviving runner, invoked by the matching workflow.
 - `lib/` — shared runner helpers (`runner.mts`, `run-with-extraction.mts`, …).
-- `run-with-retry.mts`, `retry-feedback.mts` — shared output/retry helpers used
-  by several runners.
+- `retry-feedback.mts` — shared output/retry helper.
 - `CODING_STANDARDS.md` — canonical coding standards for the whole repo (not
   just these runners); referenced from `CLAUDE.md`.
 

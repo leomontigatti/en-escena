@@ -49,11 +49,10 @@ if [ -n "${SKIP_STOP_CHECKS:-}" ]; then
   exit 0
 fi
 
+# No workflow on GitHub Actions authors app code since ADR-0016, so the gate
+# is a local-session concern only.
 if [ -n "${GITHUB_WORKFLOW:-}" ]; then
-  case "$GITHUB_WORKFLOW" in
-    "AFK Implement" | "AFK Implement PRD" | "AFK Implement PR") ;;
-    *) exit 0 ;;
-  esac
+  exit 0
 fi
 
 # Every failure below is fail-open on purpose: this hook blocks the end of a

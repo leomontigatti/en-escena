@@ -40,9 +40,9 @@ export function createSandboxProvider() {
  * Drop every GitHub credential from this process's environment.
  *
  * §3.9's hard invariant is that the agent never mutates the tracker or the
- * remote, and the runners honour it by holding no token — `agent-implement` and
- * `agent-implement-prd` simply omit `GH_TOKEN` from the workflow step. A runner
- * that prefetches context (review, implement-pr, update-branch) cannot: it needs
+ * remote, and the runners honour it by holding no token — `agent-to-issues`
+ * simply omits `GH_TOKEN` from the workflow step. A runner that prefetches
+ * context (update-branch) cannot: it needs
  * the token for its own read-only `gh` calls, and `noSandbox()` hands the agent
  * `{ ...process.env }`, so a step-level `GH_TOKEN` reaches the agent and its
  * `gh` calls *succeed* — silently, with the job's write permissions.
@@ -312,7 +312,7 @@ export interface RunnerContext {
    * budget count as success. A runner whose whole result is its commits can opt
    * in as is. One that needs structured output gets nothing back from a rejected
    * `run()`, so it must catch the late completion itself and recover its output
-   * from {@link CompletionWatch.text}, as Implement PR does; letting it reach
+   * from {@link CompletionWatch.text}, as the retired Implement PR did; letting it reach
    * `runMain` would pass a run that wrote no outputs.
    */
   readonly completion: CompletionWatch;
