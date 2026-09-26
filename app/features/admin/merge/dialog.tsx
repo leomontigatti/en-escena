@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { mergeSurvivorFieldName } from "@/lib/roster/roster-merge.shared";
+import { mergeSurvivorFieldName } from "@/lib/shared/merge";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
@@ -159,22 +159,31 @@ export function MergeDialog({
 /**
  * The dialog's open state on a detail page. A refused merge leaves the
  * operator on the same page with the same choice to make, so each refusal
- * opens the dialog again with its reason.
+ * opens the dialog again with its reason. The state belongs to one record: a
+ * merge redirects to the survivor's page, which is the same route component
+ * with another id, and the dialog must not follow the operator there.
  */
 export function useMergeDialogState(
+  recordId: string,
   actionData: { status: string; message?: string } | undefined,
 ) {
   const refusal =
     actionData?.status === "merge-refused" ? actionData.message : undefined;
-  const [open, setOpen] = useState(refusal !== undefined);
+  const [openFor, setOpenFor] = useState<string | null>(
+    refusal === undefined ? null : recordId,
+  );
 
   useEffect(() => {
     if (actionData?.status === "merge-refused") {
-      setOpen(true);
+      setOpenFor(recordId);
     }
-  }, [actionData]);
+  }, [actionData, recordId]);
 
-  return { onOpenChange: setOpen, open, refusal };
+  return {
+    onOpenChange: (open: boolean) => setOpenFor(open ? recordId : null),
+    open: openFor === recordId,
+    refusal,
+  };
 }
 
 /** The two lists every merge confirmation reads: what moves and what is lost. */

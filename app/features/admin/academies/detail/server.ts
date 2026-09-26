@@ -13,7 +13,7 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { readFormString } from "@/lib/shared/forms";
-import { mergeSurvivorFieldName } from "@/lib/roster/roster-merge.shared";
+import { mergeSurvivorFieldName } from "@/lib/shared/merge";
 
 import {
   academyDetailSchema,

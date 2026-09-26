@@ -1,10 +1,10 @@
 import { z } from "zod";
 import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-duplicates";
 import type {
-  MergeRefusedActionData,
   RosterMergeCandidate,
   RosterMergeEventInscriptions,
 } from "@/lib/roster/roster-merge.shared";
+import type { MergeRefusedActionData } from "@/lib/shared/merge";
 import {
   buildDancerBirthDateField,
   rosterDocumentImageFields,

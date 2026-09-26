@@ -6,7 +6,7 @@ import type {
   mergeAcademyIntent,
 } from "@/lib/academies/academy-merge.shared";
 import type { AcademyProfileField } from "@/lib/academies/academy-profile.server";
-import type { MergeRefusedActionData } from "@/lib/roster/roster-merge.shared";
+import type { MergeRefusedActionData } from "@/lib/shared/merge";
 import { argentinePhoneField } from "@/lib/shared/argentine-phone";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 

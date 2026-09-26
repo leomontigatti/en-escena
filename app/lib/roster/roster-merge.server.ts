@@ -14,12 +14,14 @@ import {
 } from "@/db/schema";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { readFormString } from "@/lib/shared/forms";
+import {
+  mergeSurvivorFieldName,
+  type MergeRefusedActionData,
+} from "@/lib/shared/merge";
 import { formatSpanishList } from "@/lib/shared/text-normalization";
 
 import {
   getRosterMergeKindCopy,
-  mergeSurvivorFieldName,
-  type MergeRefusedActionData,
   type RosterMergeCandidate,
   type RosterMergeEventInscriptions,
 } from "./roster-merge.shared";
@@ -35,6 +37,13 @@ export type MergeRosterPeopleResult =
       moved: { choreographyInscriptions: number; seminarInscriptions: number };
     }
   | { ok: false; message: string };
+
+/** The two people of one merge: the one removed and the one that stays. */
+type RosterMergePair = {
+  kind: RosterPersonKind;
+  removedId: string;
+  survivorId: string;
+};
 
 type LockedPerson = {
   id: string;
@@ -62,11 +71,9 @@ type LockedPerson = {
  * seminar: the two inscriptions cannot become one without moving money, so the
  * operator withdraws one first.
  */
-export async function mergeRosterPeople(input: {
-  kind: RosterPersonKind;
-  removedId: string;
-  survivorId: string;
-}): Promise<MergeRosterPeopleResult> {
+export async function mergeRosterPeople(
+  input: RosterMergePair,
+): Promise<MergeRosterPeopleResult> {
   const copy = getRosterMergeKindCopy(input.kind);
 
   if (input.removedId === input.survivorId) {
@@ -222,7 +229,7 @@ export async function loadRosterMergeOptions(input: {
 
 async function lockPeople(
   tx: Transaction,
-  input: { kind: RosterPersonKind; removedId: string; survivorId: string },
+  input: RosterMergePair,
 ): Promise<LockedPerson[]> {
   const table = input.kind === "dancer" ? dancers : professors;
 
@@ -243,7 +250,7 @@ async function lockPeople(
 
 async function findSharedChoreographies(
   tx: Transaction,
-  input: { kind: RosterPersonKind; removedId: string; survivorId: string },
+  input: RosterMergePair,
 ) {
   if (input.kind === "dancer") {
     const other = alias(choreographyDancers, "survivor_inscription");
@@ -292,10 +299,7 @@ async function findSharedChoreographies(
   return rows.map((row) => row.name);
 }
 
-async function findSharedSeminars(
-  tx: Transaction,
-  input: { kind: RosterPersonKind; removedId: string; survivorId: string },
-) {
+async function findSharedSeminars(tx: Transaction, input: RosterMergePair) {
   const personColumn =
     input.kind === "dancer" ? "dancerId" : ("professorId" as const);
   const other = alias(seminarInscriptions, "survivor_seminar_inscription");
@@ -318,10 +322,7 @@ async function findSharedSeminars(
   return rows.map((row) => row.instructorName);
 }
 
-async function moveInscriptions(
-  tx: Transaction,
-  input: { kind: RosterPersonKind; removedId: string; survivorId: string },
-) {
+async function moveInscriptions(tx: Transaction, input: RosterMergePair) {
   const choreographyInscriptions =
     input.kind === "dancer"
       ? await tx
@@ -360,12 +361,7 @@ async function moveInscriptions(
  */
 async function replaceRemovedPerson(
   tx: Transaction,
-  input: {
-    kind: RosterPersonKind;
-    removedId: string;
-    survivorId: string;
-    gainedDocument: boolean;
-  },
+  input: RosterMergePair & { gainedDocument: boolean },
 ) {
   const updatedAt = new Date();
 

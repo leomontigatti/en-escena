@@ -1,8 +1,5 @@
 import type { RosterPersonKind } from "./roster-person-status.shared";
 
-/** The form field that carries the person, or academy, that stays. */
-export const mergeSurvivorFieldName = "survivorId";
-
 export const rosterMergeIntents = {
   dancer: "merge-dancer",
   professor: "merge-professor",
@@ -20,15 +17,6 @@ export type RosterMergeEventInscriptions = {
   choreographies: number;
   eventName: string;
   seminars: number;
-};
-
-/**
- * A refused merge. Its own status, apart from the edit's `"error"`, because it
- * is shown in the merge dialog and must not be read as a rejected edit.
- */
-export type MergeRefusedActionData = {
-  status: "merge-refused";
-  message: string;
 };
 
 const kindCopy = {

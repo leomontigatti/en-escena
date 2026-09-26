@@ -59,7 +59,7 @@ export function AcademyDetailRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  const mergeDialog = useMergeDialogState(actionData);
+  const mergeDialog = useMergeDialogState(academy.id, actionData);
   const navigation = useNavigation();
   const isSaving = isRouteFormPending(navigation, {
     intent: updateAcademyIntent,

@@ -39,7 +39,7 @@ export function ProfessorDetailRouteView({
   // administrator to confirm.
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
-  const mergeDialog = useMergeDialogState(actionData);
+  const mergeDialog = useMergeDialogState(loaderData.professor.id, actionData);
 
   useServerActionToast(errorData, {
     toastId: "admin-professor-detail:error",
