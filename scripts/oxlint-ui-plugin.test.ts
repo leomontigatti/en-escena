@@ -14,6 +14,7 @@ const pluginPath = path.join(repoRoot, "scripts", "oxlint-ui-plugin.mjs");
 const violatingFixture = `
 import { Button } from "@/components/ui/button";
 import { Input } from "../components/ui/input";
+import { TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 export function Violating() {
@@ -27,6 +28,9 @@ export function Violating() {
       <Button className="h-12 w-full">Alto</Button>
       <Input className={cn("w-full", "rounded-none")} />
       <Button className={\`w-full focus-visible:ring-2\`}>Anillo</Button>
+      <input type="file" name="photo" />
+      <TableCell className="h-24 rounded-none">Sin datos</TableCell>
+      <input type="file" name="photo" className="sr-only sm:not-sr-only" />
     </form>
   );
 }
@@ -36,7 +40,18 @@ const compliantFixture = `
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "../components/ui/input";
+import { TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+
+export function PrintDocument() {
+  return (
+    <html lang="es">
+      <body>
+        <button type="button" id="print-button">Imprimir</button>
+      </body>
+    </html>
+  );
+}
 
 export function Compliant(props: { active: boolean; className?: string; extra: string }) {
   return (
@@ -52,6 +67,10 @@ export function Compliant(props: { active: boolean; className?: string; extra: s
         <button type="submit">Salir</button>
       </DropdownMenuItem>
       <div className="h-8 rounded-lg ring-2" />
+      <label>
+        <input type="file" name="photo" className="sr-only" />
+      </label>
+      <TableCell colSpan={3} className="h-24 text-center">Sin datos</TableCell>
     </form>
   );
 }
@@ -115,31 +134,68 @@ describe("ui oxlint plugin", () => {
   test("flags raw form elements and restyled ui components", () => {
     const diagnostics = lint(tempRoot, "app/features/violating.tsx");
 
-    expect(diagnostics.map(({ rule, line }) => ({ rule, line }))).toEqual([
-      { rule: "ui(no-raw-form-element)", line: 9 },
-      { rule: "ui(no-raw-form-element)", line: 10 },
-      { rule: "ui(no-raw-form-element)", line: 11 },
-      { rule: "ui(no-raw-form-element)", line: 12 },
-      { rule: "ui(no-raw-form-element)", line: 13 },
-      { rule: "ui(no-restyle)", line: 14 },
-      { rule: "ui(no-restyle)", line: 15 },
-      { rule: "ui(no-restyle)", line: 16 },
+    expect(diagnostics).toEqual([
+      {
+        rule: "ui(no-raw-form-element)",
+        line: 10,
+        message: expect.stringContaining("Use Button"),
+      },
+      {
+        rule: "ui(no-raw-form-element)",
+        line: 11,
+        message: expect.stringContaining("Use Select"),
+      },
+      {
+        rule: "ui(no-raw-form-element)",
+        line: 12,
+        message: expect.stringContaining("Use Textarea"),
+      },
+      {
+        rule: "ui(no-raw-form-element)",
+        line: 13,
+        message: expect.stringContaining("Use Input"),
+      },
+      {
+        rule: "ui(no-raw-form-element)",
+        line: 14,
+        message: expect.stringContaining("Use Checkbox"),
+      },
+      {
+        rule: "ui(no-restyle)",
+        line: 15,
+        message: expect.stringContaining("`h-12` restyles <Button>"),
+      },
+      {
+        rule: "ui(no-restyle)",
+        line: 16,
+        message: expect.stringContaining("`rounded-none` restyles <Input>"),
+      },
+      {
+        rule: "ui(no-restyle)",
+        line: 17,
+        message: expect.stringContaining(
+          "`focus-visible:ring-2` restyles <Button>",
+        ),
+      },
+      {
+        rule: "ui(no-raw-form-element)",
+        line: 18,
+        message: expect.stringContaining("Use Input"),
+      },
+      {
+        rule: "ui(no-restyle)",
+        line: 19,
+        message: expect.stringContaining("`rounded-none` restyles <TableCell>"),
+      },
+      {
+        rule: "ui(no-raw-form-element)",
+        line: 20,
+        message: expect.stringContaining("Use Input"),
+      },
     ]);
-    expect(diagnostics[0]?.message).toContain("Use Button");
-    expect(diagnostics[1]?.message).toContain("Use Select");
-    expect(diagnostics[2]?.message).toContain("Use Textarea");
-    expect(diagnostics[3]?.message).toContain("Use Input");
-    expect(diagnostics[4]?.message).toContain("Use Checkbox");
-    expect(diagnostics[5]?.message).toContain("`h-12` restyles <Button>");
-    expect(diagnostics[6]?.message).toContain(
-      "`rounded-none` restyles <Input>",
-    );
-    expect(diagnostics[7]?.message).toContain(
-      "`focus-visible:ring-2` restyles <Button>",
-    );
   });
 
-  test("stays silent on hidden inputs, variants, layout classes, slot children and dynamic classes", () => {
+  test("stays silent on hidden inputs, variants, layout classes, slot children, dynamic classes, visually hidden overlays, standalone documents and table cell heights", () => {
     expect(lint(tempRoot, "app/features/compliant.tsx")).toEqual([]);
   });
 
