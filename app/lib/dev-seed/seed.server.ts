@@ -17,15 +17,17 @@ import {
   user,
 } from "@/db/schema";
 import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { deleteSeededRows } from "@/lib/dev-seed/delete-seeded-rows.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { createDancerForAcademy } from "@/lib/portal/dancers.server";
 import { createAcademyProfessor } from "@/lib/portal/professors.server";
 
-// Local demo data for `pnpm db:seed`: two accounts that can sign in, three
-// events and a registrable catalog on the active one, so a browser session has
-// something to look at without a production dump (docs/local-auth.md).
+// Local demo data for `pnpm db:seed`: one account per role that can sign in,
+// three events and a registrable catalog on the active one, so a browser
+// session has something to look at without a production dump
+// (docs/local-auth.md).
 //
 // Re-running it resets the demo: every row hanging off the seeded accounts and
 // the seeded event names is deleted first, including whatever was created on
@@ -33,9 +35,16 @@ import { createAcademyProfessor } from "@/lib/portal/professors.server";
 
 export const DEV_SEED_ADMIN_EMAIL = "admin@enescena.local";
 export const DEV_SEED_ACADEMY_EMAIL = "academia@enescena.local";
+export const DEV_SEED_AUDITOR_EMAIL = "auditoria@enescena.local";
+export const DEV_SEED_JUDGE_EMAIL = "jurado@enescena.local";
 export const DEV_SEED_PASSWORD = "demo-en-escena";
 
-const seededEmails = [DEV_SEED_ADMIN_EMAIL, DEV_SEED_ACADEMY_EMAIL];
+const seededEmails = [
+  DEV_SEED_ADMIN_EMAIL,
+  DEV_SEED_ACADEMY_EMAIL,
+  DEV_SEED_AUDITOR_EMAIL,
+  DEV_SEED_JUDGE_EMAIL,
+];
 const seededEventNames = {
   active: "Evento Activo",
   future: "Evento Futuro",
@@ -60,6 +69,18 @@ export async function seedDevData(input: {
     email: DEV_SEED_ADMIN_EMAIL,
     name: "Administración Demo",
     role: "admin",
+  });
+  // The auditor and judge panels (`/auditoria`, `/juzgamiento`) are only
+  // reachable with these roles, so a browser check of their headers needs them.
+  await createVerifiedUser({
+    email: DEV_SEED_AUDITOR_EMAIL,
+    name: "Auditoría Demo",
+    role: "auditor",
+  });
+  await createVerifiedUser({
+    email: DEV_SEED_JUDGE_EMAIL,
+    name: "Jurado Demo",
+    role: "judge",
   });
   const academyUserId = await createVerifiedUser({
     email: DEV_SEED_ACADEMY_EMAIL,
@@ -103,7 +124,7 @@ export async function seedDevData(input: {
 async function createVerifiedUser(input: {
   email: string;
   name: string;
-  role: "academy" | "admin";
+  role: "academy" | InternalUserRole;
 }) {
   // Real Better Auth sign-up, so the password hash is the one sign-in checks.
   const { user: created } = await createAccessUser({

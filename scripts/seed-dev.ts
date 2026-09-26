@@ -3,6 +3,8 @@ import { assertLocalDatabaseUrl } from "@/lib/dev-seed/local-database-url";
 import {
   DEV_SEED_ACADEMY_EMAIL,
   DEV_SEED_ADMIN_EMAIL,
+  DEV_SEED_AUDITOR_EMAIL,
+  DEV_SEED_JUDGE_EMAIL,
   DEV_SEED_PASSWORD,
   seedDevData,
 } from "@/lib/dev-seed/seed.server";
@@ -22,6 +24,8 @@ try {
   console.log(`Seeded the local database. Password: ${DEV_SEED_PASSWORD}`);
   console.log(`  admin:   ${DEV_SEED_ADMIN_EMAIL}`);
   console.log(`  academy: ${DEV_SEED_ACADEMY_EMAIL}`);
+  console.log(`  auditor: ${DEV_SEED_AUDITOR_EMAIL}`);
+  console.log(`  judge:   ${DEV_SEED_JUDGE_EMAIL}`);
 } finally {
   await client.end();
 }
