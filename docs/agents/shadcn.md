@@ -61,7 +61,7 @@ overwrite is unsafe.
 | Component                                    | Divergence                                                                                                       |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `input`, `textarea`, `select`, `input-group` | focus ring uses `brand`, not `ring`                                                                              |
-| `button`                                     | `cursor-pointer`; `link` variant uses `text-brand`; extra `field` variant                                        |
+| `button`                                     | `cursor-pointer`; `link` variant uses `text-brand`; extra `field` variant (arrow cursor, brand focus ring)       |
 | `progress`                                   | indicator uses `bg-brand`                                                                                        |
 | `badge`, `alert`                             | extra `success` / `info` / `warning` variants, and borders upstream dropped                                      |
 | `avatar`                                     | `data-layout="overlap"` for avatar groups; `shape="square"` (see below)                                          |
