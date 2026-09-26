@@ -140,8 +140,11 @@ Local sessions run inside [T3 Code](https://github.com/pingdotgg/t3code). Every
 T3 thread gets its own git worktree and branch: `t3.json` at the repo root sets
 `defaultThreadEnvMode` to `worktree`, and its `runOnWorktreeCreate` script links
 `.env` from the main checkout, installs and generates route types before the
-agent starts. The main checkout stays on `master` and is nobody's working
-directory.
+agent starts. T3 runs that script only once it is imported (project settings →
+Actions → Import from t3.json), once per T3 install. A worktree with no `.env`
+means it was never imported; one with `.env` but no `node_modules` means the
+install step failed. The main checkout stays on
+`master` and is nobody's working directory.
 
 Rules for a session:
 
