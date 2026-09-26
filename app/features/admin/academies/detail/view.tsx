@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigation, useSubmit } from "react-router";
 
+import { useMergeDialogState } from "@/features/admin/merge/dialog";
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
@@ -33,6 +34,7 @@ import {
   type AcademyDetailFormValues,
   type AcademyDetailLoaderData,
 } from "./shared";
+import { AcademyMergeDialog } from "./merge-dialog";
 
 export function AcademyDetailRouteView({
   actionData,
@@ -57,14 +59,17 @@ export function AcademyDetailRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  const mergeDialog = useMergeDialogState(actionData);
   const navigation = useNavigation();
   const isSaving = isRouteFormPending(navigation, {
     intent: updateAcademyIntent,
   });
 
-  useServerActionToast(actionData, {
-    toastId: "administracion-academia:feedback",
-  });
+  // A refused merge is told in its dialog, not in a toast.
+  useServerActionToast(
+    actionData?.status === "merge-refused" ? undefined : actionData,
+    { toastId: "administracion-academia:feedback" },
+  );
 
   return (
     <AdminResourceLayout
@@ -76,6 +81,12 @@ export function AcademyDetailRouteView({
         canEdit ? (
           <ResourceActionsMenu contentClassName="w-48" size="icon">
             <DropdownMenuGroup>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => mergeDialog.onOpenChange(true)}
+              >
+                Fusionar
+              </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
                 onSelect={() => setIsDeleteDialogOpen(true)}
@@ -152,6 +163,11 @@ export function AcademyDetailRouteView({
           onOpenChange={setIsDeleteDialogOpen}
         />
       ) : null}
+      <AcademyMergeDialog
+        academy={academy}
+        merge={loaderData.merge}
+        {...mergeDialog}
+      />
     </AdminResourceLayout>
   );
 }

@@ -4,7 +4,7 @@ import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { RosterMergeDialog } from "@/components/admin/roster-merge-dialog";
+import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
 import type { RosterMergeCandidate } from "@/lib/roster/roster-merge.shared";
 import {
   clickReactDomButton,

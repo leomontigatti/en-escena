@@ -26,6 +26,7 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
       phone: "3415551234",
     },
     canEdit,
+    merge: null,
     selectedEventId: null,
   };
 }

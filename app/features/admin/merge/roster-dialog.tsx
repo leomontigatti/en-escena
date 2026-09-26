@@ -1,4 +1,4 @@
-import { MergeDialog, MergeSummary } from "@/components/admin/merge-dialog";
+import { MergeDialog, MergeSummary } from "@/features/admin/merge/dialog";
 import {
   describeRosterMerge,
   formatRosterMergeCandidateLabel,

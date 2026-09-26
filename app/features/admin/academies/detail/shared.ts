@@ -1,6 +1,12 @@
 import { z } from "zod";
 
+import type {
+  AcademyMergeCandidate,
+  AcademyMergeHoldings,
+  mergeAcademyIntent,
+} from "@/lib/academies/academy-merge.shared";
 import type { AcademyProfileField } from "@/lib/academies/academy-profile.server";
+import type { MergeRefusedActionData } from "@/lib/roster/roster-merge.shared";
 import { argentinePhoneField } from "@/lib/shared/argentine-phone";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
@@ -24,6 +30,11 @@ export type AcademyDetailLoaderData = {
     phone: string;
   };
   canEdit: boolean;
+  /** What the merge dialog offers; `null` for a read-only auditor. */
+  merge: {
+    candidates: AcademyMergeCandidate[];
+    holdings: AcademyMergeHoldings;
+  } | null;
   selectedEventId: string | null;
 };
 
@@ -49,4 +60,5 @@ export type AcademyDetailActionData =
       status: "error";
       intent: typeof deleteAcademyIntent;
       message: string;
-    };
+    }
+  | (MergeRefusedActionData & { intent: typeof mergeAcademyIntent });

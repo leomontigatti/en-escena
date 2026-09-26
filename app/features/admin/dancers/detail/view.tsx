@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { useMergeDialogState } from "@/components/admin/merge-dialog";
-import { RosterMergeDialog } from "@/components/admin/roster-merge-dialog";
+import { useMergeDialogState } from "@/features/admin/merge/dialog";
+import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 

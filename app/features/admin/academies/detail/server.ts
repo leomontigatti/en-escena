@@ -3,11 +3,17 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { deleteEmptyAcademy } from "@/lib/academies/academy-deletion.server";
+import {
+  loadAcademyMergeOptions,
+  mergeAcademies,
+} from "@/lib/academies/academy-merge.server";
+import { mergeAcademyIntent } from "@/lib/academies/academy-merge.shared";
 import { updateAcademyProfile } from "@/lib/academies/academy-profile.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { readFormString } from "@/lib/shared/forms";
+import { mergeSurvivorFieldName } from "@/lib/roster/roster-merge.shared";
 
 import {
   academyDetailSchema,
@@ -32,6 +38,10 @@ export async function loadAcademyDetail({
   return {
     academy,
     canEdit: currentUser.role === "admin",
+    merge:
+      currentUser.role === "admin"
+        ? await loadAcademyMergeOptions(academy.id)
+        : null,
     selectedEventId: eventContext.selectedEventId,
   };
 }
@@ -50,6 +60,10 @@ export async function handleAcademyDetailAction({
 
   if (intent === deleteAcademyIntent) {
     return await deleteAcademy({ academyId: academy.id, formData });
+  }
+
+  if (intent === mergeAcademyIntent) {
+    return await mergeAcademy({ academyId: academy.id, formData });
   }
 
   if (intent !== "" && intent !== updateAcademyIntent) {
@@ -137,6 +151,45 @@ async function deleteAcademy({
   throw await redirectWithFlashNotification(
     "/administracion/academias",
     "academia-eliminada",
+  );
+}
+
+/**
+ * The panel's answer to an academy that forked with people or money in it.
+ * The removed academy's page stops existing, so a merge redirects to the
+ * survivor with a flash; a refusal returns to the dialog as action data.
+ */
+async function mergeAcademy({
+  academyId,
+  formData,
+}: {
+  academyId: string;
+  formData: FormData;
+}): Promise<AcademyDetailActionData | never> {
+  if (readFormString(formData, "id") !== academyId) {
+    return {
+      status: "merge-refused",
+      intent: mergeAcademyIntent,
+      message: "Confirmá la fusión desde la ficha.",
+    };
+  }
+
+  const result = await mergeAcademies({
+    removedId: academyId,
+    survivorId: readFormString(formData, mergeSurvivorFieldName),
+  });
+
+  if (!result.ok) {
+    return {
+      status: "merge-refused",
+      intent: mergeAcademyIntent,
+      message: result.message,
+    };
+  }
+
+  throw await redirectWithFlashNotification(
+    `/administracion/academias/${result.survivor.id}`,
+    "academias-fusionadas",
   );
 }
 
