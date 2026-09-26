@@ -32,6 +32,9 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   `comprobante` as the only reserved term). The identifier → UI term mapping lives in
   [CONTEXT.md](CONTEXT.md).
 - **Style guide** (frontend/UI): [docs/agents/style-guide.md](docs/agents/style-guide.md).
+- **UI verification** (a rendered change is checked in a real browser with `playwright-cli`
+  against `pnpm db:seed` data, with before/after screenshots): see the section of the same
+  name in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **shadcn/ui** (upstream sync policy, and which local divergences are deliberate):
   [docs/agents/shadcn.md](docs/agents/shadcn.md). Read it before re-adding a component the
   CLI would overwrite.

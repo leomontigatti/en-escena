@@ -8,6 +8,9 @@ build
 tmp/
 .fallow/
 
+# playwright-cli scratch: snapshots, console logs, saved login state
+.playwright-cli/
+
 # ARCA: cache de Ticket de Acceso y output del spike (#428)
 .arca-ta/
 scripts/.arca-spike-output/
