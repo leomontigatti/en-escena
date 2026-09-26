@@ -260,7 +260,31 @@ disagreeing months later.
 
 A session never polls by hand. `gh pr checks <n> --watch` blocks until every
 check on the PR is terminal and exits non-zero when one failed; run it as a
-background command and act when it returns.
+background command and act when it returns. After a force-push, the run it
+watches may be the cancelled one; check the run id it reports against
+`gh run list --branch <branch>` before reading a cancelled `db-gate` as red.
+
+### Stacked PRs
+
+CI runs only on PRs whose base is `master`. A PR stacked on another branch gets
+no run of its own unless it is part of a GitHub stack: link the chain, bottom
+to top, with the `gh-stack` extension (`gh extension install github/gh-stack`,
+then `gh stack link <pr> <pr> ...`), and every layer is evaluated as if it
+targeted `master`, so `ci.yml` and `pr-title.yml` run for each one and their
+checks count towards branch protection. `gh workflow run ci.yml --ref <branch>`
+is the fallback for a single PR that is not stacked.
+
+Merging a stack is `gh stack merge <stack> --yes --squash`: one atomic
+operation from the bottom up, refused unless every layer is green and the stack
+is linear. The trunk moving, or a lower layer receiving a commit after the
+layer above it branched, breaks linearity; `gh stack checkout <stack>`,
+`gh stack rebase` and `gh stack push` restore it, and the push is a force-push
+of every rebased branch, which needs the user's sign-off first. Never merge a
+branch into a stacked layer by hand: a merge commit breaks linearity too.
+
+Merge a standalone PR with `gh pr merge --squash --delete-branch` only when its
+branch is a leaf. Deleting a branch that other open PRs use as their base
+closes those PRs.
 
 ### The actions gate
 
