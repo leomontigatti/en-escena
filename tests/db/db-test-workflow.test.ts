@@ -24,12 +24,6 @@ const readPackageScripts = async () => {
 const readCiWorkflow = async () =>
   await readFile(".github/workflows/ci.yml", "utf8");
 
-const deferredProjectSplitDocumentation = [
-  "Issue #128 update",
-  "No Vitest project split and no shared mode with `isolate: false` is adopted for",
-  "With no material time improvement",
-];
-
 const dbWorkflowScopeGuardrails = [
   "Use `pnpm test:db <path-to-db-test>` while iterating",
   "Run `pnpm test` before finishing",
@@ -43,13 +37,6 @@ const localAuthDatabaseModes = [
   "High-fidelity DB validation (`pnpm test:db:postgres`)",
   "requires local Postgres through",
   "`TEST_DATABASE_URL`.",
-];
-
-const requiredIsolatedTestExamples = [
-  "app/lib/academies/registration.server.db.test.ts",
-  "app/lib/auth/access-recovery.server.db.test.ts",
-  "app/lib/shared/email.server.test.ts",
-  "app/lib/auth/access-auth-provider.server.test.ts",
 ];
 
 describe("DB test workflow", () => {
@@ -90,21 +77,6 @@ describe("DB test workflow", () => {
     expect(postgresTestConfig?.fileParallelism).toBe(false);
     expect(postgresTestConfig?.maxWorkers).toBe(1);
     expect(postgresTestConfig?.setupFiles).toEqual(["./tests/db/setup.ts"]);
-  });
-
-  test("documents why Vitest project splitting stays deferred after the DB isolation rollout", async () => {
-    const speedPlan = await readFile(
-      "docs/agents/test-suite-speed-plan.md",
-      "utf8",
-    );
-
-    for (const requiredText of deferredProjectSplitDocumentation) {
-      expect(speedPlan).toContain(requiredText);
-    }
-
-    for (const testPath of requiredIsolatedTestExamples) {
-      expect(speedPlan).toContain(testPath);
-    }
   });
 
   test("documents the fast-vs-final DB validation workflow", async () => {

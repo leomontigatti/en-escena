@@ -44,7 +44,7 @@ export default mergeConfig(
       // Vitest 5 dropped `minWorkers` and `poolOptions`; `fileParallelism:
       // false` plus `maxWorkers: 1` is what keeps the suite serial within a
       // runner — every file shares one database (see
-      // `docs/agents/test-suite-speed-plan.md`).
+      // `docs/adr/0007-db-test-isolation-model.md`).
       maxWorkers: 1,
       setupFiles: ["./tests/db/setup.ts"],
       sequence: {
