@@ -22,9 +22,11 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { findEvaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.server";
 import {
   computeAutomaticOrder,
+  computeManualMove,
+  findFrozenChoreographyIds,
   isPresentationEligible,
-  movePosition,
   type PresentationOrderingRow,
+  type PresentationPlacement,
 } from "@/lib/presentations/ordering";
 import type { PresentationWarningRow } from "@/lib/presentations/warnings";
 
@@ -48,14 +50,21 @@ export type ParticipationRow = PresentationOrderingRow &
 /**
  * `notOrdered`: the event has no presentation yet, so there is no order to move
  * within. `stale`: the row's number is not the one the client moved it from.
+ * `frozenRow` and `frozenPosition`: the row, or the number it was sent to,
+ * belongs to a schedule that already has an evaluated presentation.
  */
 export type MovePresentationResult =
   | { ok: true; movedToOrderNumber: number }
-  | { ok: false; reason: "notFound" | "notOrdered" | "stale" };
+  | {
+      ok: false;
+      reason:
+        "frozenPosition" | "frozenRow" | "notFound" | "notOrdered" | "stale";
+    };
 
+/** `frozenCount`: the presentations the ordering left where they were. */
 export type AutomaticOrderingResult =
-  | { ok: true; orderedCount: number }
-  | { ok: false; reason: "evaluated" | "nothingToOrder" };
+  | { ok: true; frozenCount: number; orderedCount: number }
+  | { ok: false; reason: "nothingToOrder" };
 
 /**
  * Every choreography that is part of the order or can enter it: one that has a
@@ -160,14 +169,17 @@ export async function readParticipationRows(
 }
 
 /**
- * The whole event ordered again from the rule. It is one transaction over the
- * event row taken `FOR UPDATE` — the `event_sequence` precedent — so two
- * administrators pressing the action at once do not interleave.
+ * The event ordered again from the rule, around what already ran. It is one
+ * transaction over the event row taken `FOR UPDATE` — the `event_sequence`
+ * precedent — so two administrators pressing the action at once do not
+ * interleave.
  *
- * Existing presentations are updated in place, keeping their id and everything
- * hanging off it; the late eligible ones are inserted; nothing is deleted. A
- * number is not taken away from a choreography that fell below its deposit
- * after being numbered.
+ * Every numbered row of a schedule with an evaluated presentation keeps its
+ * number (`findFrozenChoreographyIds`); the rest are placed over the free
+ * positions. Existing presentations are updated in place, keeping their id and
+ * everything hanging off it; the late eligible ones are inserted; nothing is
+ * deleted. A number is not taken away from a choreography that fell below its
+ * deposit after being numbered.
  */
 export async function runAutomaticOrdering(
   eventId: string,
@@ -184,51 +196,77 @@ export async function runAutomaticOrdering(
     }
 
     const rows = await readParticipationRows(eventId, tx);
-    const evaluatedChoreographyIds = await findEvaluatedChoreographyIds(
-      rows
-        .filter((row) => row.presentationId !== null)
-        .map((row) => row.choreographyId),
-      tx,
-    );
-
-    if (evaluatedChoreographyIds.size > 0) {
-      return { ok: false, reason: "evaluated" };
-    }
-
-    const order = computeAutomaticOrder(rows);
+    const frozenChoreographyIds = await readFrozenChoreographyIds(rows, tx);
+    const order = computeAutomaticOrder(rows, frozenChoreographyIds);
 
     if (!order.ok) {
       return { ok: false, reason: order.reason };
     }
 
-    const rowByChoreographyId = new Map(
-      rows.map((row) => [row.choreographyId, row]),
-    );
+    await writePlacements(tx, eventId, rows, order.placements);
 
-    // The rows are renumbered in place, walking through states where two of
-    // them share a number: the unique constraint is deferred, so it is checked
-    // once, at commit, against the contiguous state written here.
-    let orderNumber = 0;
+    return {
+      ok: true,
+      frozenCount: order.frozenCount,
+      orderedCount: order.placements.length,
+    };
+  });
+}
 
-    for (const choreographyId of order.choreographyIds) {
-      orderNumber += 1;
-      const row = rowByChoreographyId.get(choreographyId);
+/**
+ * The frozen rows of the event, read under the caller's lock: the evaluated
+ * ids come from the same transaction, so a score saved while the order is
+ * being written is seen by it.
+ */
+export async function readFrozenChoreographyIds(
+  rows: ParticipationRow[],
+  executor: Executor = db,
+) {
+  const evaluatedChoreographyIds = await findEvaluatedChoreographyIds(
+    rows
+      .filter((row) => row.presentationId !== null)
+      .map((row) => row.choreographyId),
+    executor,
+  );
 
-      if (row?.presentationId) {
-        await tx
-          .update(presentations)
-          .set({ orderNumber, updatedAt: new Date() })
-          .where(eq(presentations.id, row.presentationId));
+  return findFrozenChoreographyIds(rows, evaluatedChoreographyIds);
+}
+
+/**
+ * The numbers written, in place where the presentation exists and as a new
+ * row where it does not. The rows walk through states where two of them share
+ * a number: the unique constraint is deferred, so it is checked once, at
+ * commit, against the state written here.
+ */
+async function writePlacements(
+  tx: Executor,
+  eventId: string,
+  rows: ParticipationRow[],
+  placements: PresentationPlacement[],
+) {
+  const rowByChoreographyId = new Map(
+    rows.map((row) => [row.choreographyId, row]),
+  );
+
+  for (const { choreographyId, orderNumber } of placements) {
+    const row = rowByChoreographyId.get(choreographyId);
+
+    if (row?.presentationId) {
+      if (row.orderNumber === orderNumber) {
         continue;
       }
 
       await tx
-        .insert(presentations)
-        .values({ choreographyId, eventId, orderNumber });
+        .update(presentations)
+        .set({ orderNumber, updatedAt: new Date() })
+        .where(eq(presentations.id, row.presentationId));
+      continue;
     }
 
-    return { ok: true, orderedCount: order.choreographyIds.length };
-  });
+    await tx
+      .insert(presentations)
+      .values({ choreographyId, eventId, orderNumber });
+  }
 }
 
 /** The reading order of the list: numbered first, then the rest. */
@@ -291,8 +329,9 @@ async function readActiveDancers(
  * when it no longer holds the move is refused and nothing is written, so two
  * administrators dragging at once never silently overwrite each other.
  *
- * A move always renumbers the whole event contiguously from 1, which is also
- * how the gaps left by a deleted choreography are closed.
+ * A move renumbers the rows that are not frozen over the free positions, which
+ * is also how the gaps left by a deleted choreography are closed; a frozen row
+ * never moves, and its number is never a target.
  */
 export async function movePresentation(input: {
   choreographyId: string;
@@ -312,16 +351,10 @@ export async function movePresentation(input: {
     }
 
     const rows = await readParticipationRows(input.eventId, tx);
-    const numbered = rows
-      .filter(
-        (row): row is ParticipationRow & { orderNumber: number } =>
-          row.orderNumber !== null,
-      )
-      .sort((left, right) => left.orderNumber - right.orderNumber);
 
     // Placing by hand is only offered once the event has been ordered: before
     // that there is no order for a number to mean anything against.
-    if (numbered.length === 0) {
+    if (!rows.some((row) => row.orderNumber !== null)) {
       return { ok: false, reason: "notOrdered" };
     }
 
@@ -339,52 +372,20 @@ export async function movePresentation(input: {
       return { ok: false, reason: "stale" };
     }
 
-    const orderedIds = movePosition(
-      numbered.map((candidate) => candidate.choreographyId),
+    const frozenChoreographyIds = await readFrozenChoreographyIds(rows, tx);
+    const move = computeManualMove(
+      rows,
+      frozenChoreographyIds,
       input.choreographyId,
-      input.toOrderNumber - 1,
-    );
-    const presentationIdByChoreography = new Map(
-      rows.map((candidate) => [
-        candidate.choreographyId,
-        candidate.presentationId,
-      ]),
-    );
-    const currentNumberByChoreography = new Map(
-      rows.map((candidate) => [
-        candidate.choreographyId,
-        candidate.orderNumber,
-      ]),
+      input.toOrderNumber,
     );
 
-    // The unique constraint is deferred, so the intermediate states this walks
-    // through are never checked — only the contiguous one it commits.
-    let orderNumber = 0;
-
-    for (const choreographyId of orderedIds) {
-      orderNumber += 1;
-      const presentationId = presentationIdByChoreography.get(choreographyId);
-
-      if (presentationId) {
-        if (currentNumberByChoreography.get(choreographyId) === orderNumber) {
-          continue;
-        }
-
-        await tx
-          .update(presentations)
-          .set({ orderNumber, updatedAt: new Date() })
-          .where(eq(presentations.id, presentationId));
-        continue;
-      }
-
-      await tx
-        .insert(presentations)
-        .values({ choreographyId, eventId: input.eventId, orderNumber });
+    if (!move.ok) {
+      return { ok: false, reason: move.reason };
     }
 
-    return {
-      ok: true,
-      movedToOrderNumber: orderedIds.indexOf(input.choreographyId) + 1,
-    };
+    await writePlacements(tx, input.eventId, rows, move.placements);
+
+    return { ok: true, movedToOrderNumber: move.movedToOrderNumber };
   });
 }

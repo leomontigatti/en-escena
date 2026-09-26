@@ -274,4 +274,32 @@ describe("derivePresentationWarnings", () => {
       "Fuera de su bloque",
     ]);
   });
+
+  test("marks an unnumbered row whose schedule already has an evaluated presentation", () => {
+    const dayTwo = {
+      id: "day-2",
+      name: "Sala A",
+      scheduledDate: "2026-05-02",
+      startTime: "10:00",
+    };
+    const warnings = derivePresentationWarnings(
+      [
+        row({ choreographyId: "scored", orderNumber: 1 }),
+        row({ choreographyId: "tail", orderNumber: 2 }),
+        row({ choreographyId: "late-day-one", orderNumber: null }),
+        row({
+          choreographyId: "late-day-two",
+          orderNumber: null,
+          schedule: dayTwo,
+        }),
+      ],
+      new Set(["scored", "tail"]),
+    );
+
+    expect(messagesOf(warnings, "late-day-one")).toEqual([
+      "Su cronograma ya fue evaluado: se ubicará después de los cronogramas ya evaluados",
+    ]);
+    expect(warnings.has("late-day-two")).toBe(false);
+    expect(warnings.has("tail")).toBe(false);
+  });
 });

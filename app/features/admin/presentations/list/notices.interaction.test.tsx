@@ -33,6 +33,7 @@ describe("OrderingConfirmationDialog", () => {
 
   async function renderDialog(
     onOpenChange: (open: boolean) => void = () => {},
+    frozenCount = 0,
   ) {
     const router = createMemoryRouter(
       [
@@ -40,7 +41,11 @@ describe("OrderingConfirmationDialog", () => {
           path: "/administracion/presentacion",
           action: async () => null,
           element: (
-            <OrderingConfirmationDialog open onOpenChange={onOpenChange} />
+            <OrderingConfirmationDialog
+              frozenCount={frozenCount}
+              open
+              onOpenChange={onOpenChange}
+            />
           ),
         },
       ],
@@ -69,6 +74,16 @@ describe("OrderingConfirmationDialog", () => {
       "Esta acción es irreversible y modifica cualquier orden manual realizado.",
     );
     expect(getButton("Ordenar").disabled).toBe(false);
+  });
+
+  test("says how many presentations stay where they are", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDialog(undefined, 40);
+
+    expect(document.body.textContent).toContain(
+      "40 presentaciones quedan fijas porque su cronograma ya fue evaluado.",
+    );
   });
 
   test("disables both answers while its own ordering is in flight", async () => {
@@ -115,7 +130,11 @@ describe("OrderingConfirmationDialog", () => {
               path: "/administracion/presentacion",
               action: async () => null,
               element: (
-                <OrderingConfirmationDialog open onOpenChange={onOpenChange} />
+                <OrderingConfirmationDialog
+                  frozenCount={0}
+                  open
+                  onOpenChange={onOpenChange}
+                />
               ),
             },
           ],
