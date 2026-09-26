@@ -7,7 +7,6 @@ import {
 import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
   createFilesystemSignedUrl,
-  fsList,
   fsRemove,
   fsUpload,
   getDefaultStorageUrlSigningSecret,
@@ -34,10 +33,6 @@ export type DancerDocumentStorageAdapter = {
     expiresInSeconds: number;
     key: string;
   }): Promise<string>;
-  list(input: {
-    bucket: string;
-    prefix: string;
-  }): Promise<Array<{ name: string }>>;
   remove(input: { bucket: string; keys: string[] }): Promise<void>;
   upload(input: {
     bucket: string;
@@ -92,11 +87,6 @@ export function createDancerDocumentStorage(
         input,
         resolution.extension,
       );
-      const keysToRemove = await listExistingDocumentImageSideKeys({
-        adapter,
-        input,
-        storageKey,
-      });
 
       await adapter.upload({
         bucket: policy.bucket,
@@ -108,19 +98,11 @@ export function createDancerDocumentStorage(
         },
       });
 
-      // Propagated on purpose, unlike choreography music: the row is written
-      // only after this returns, so aborting leaves the dancer pointing at the
-      // document it already had and the caller can say the save failed. A
-      // failed delete still orphans something — here it is the object just
-      // uploaded, not the one still in use. Choreography music cannot make that
-      // trade: its row already points at the new object by this point.
-      if (keysToRemove.length > 0) {
-        await adapter.remove({
-          bucket: policy.bucket,
-          keys: keysToRemove,
-        });
-      }
-
+      // Nothing is deleted here. The previous file is found by the key on the
+      // dancer's row, not by this folder — a merge can leave it elsewhere — and
+      // it goes only once the row points at the new one
+      // (`removeUnreferencedDocumentImages`), so a refused save never leaves
+      // the dancer pointing at a deleted file.
       return { ok: true, storageKey };
     },
   };
@@ -208,12 +190,6 @@ export function createFilesystemDancerDocumentStorage(deps: {
         now: now(),
         secret: deps.secret,
       }),
-    list: (input) =>
-      fsList({
-        baseDir: deps.baseDir,
-        bucket: input.bucket,
-        prefix: input.prefix,
-      }),
     remove: (input) =>
       fsRemove({
         baseDir: deps.baseDir,
@@ -228,24 +204,6 @@ export function createFilesystemDancerDocumentStorage(deps: {
         key: input.key,
       }),
   });
-}
-
-async function listExistingDocumentImageSideKeys(input: {
-  adapter: DancerDocumentStorageAdapter;
-  input: UploadDocumentImageInput;
-  storageKey: string;
-}) {
-  const folder = buildDancerDocumentImagesFolder(input.input);
-  const sideSegment = getDocumentImageSideSegment(input.input.side);
-  const files = await input.adapter.list({
-    bucket: getAssetKindPolicy(ASSET_KIND).bucket,
-    prefix: folder,
-  });
-
-  return files
-    .filter((file) => file.name.startsWith(`${sideSegment}.`))
-    .map((file) => `${folder}/${file.name}`)
-    .filter((key) => key !== input.storageKey);
 }
 
 // The extension is passed in rather than looked up again: only the accepted

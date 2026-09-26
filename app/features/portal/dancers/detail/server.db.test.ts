@@ -36,6 +36,9 @@ import {
   createScheduleForModalityFixture,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
+import { mergeAcademies } from "@/lib/academies/academy-merge.server";
+import { mergeRosterPeople } from "@/lib/roster/roster-merge.server";
+
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
@@ -1002,6 +1005,93 @@ describe("handlePortalDancerDetailAction", () => {
     ]);
   });
 
+  test("after a dancer merge, replacing the photo the survivor took deletes the removed dancer's file", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.fusion.foto@example.com",
+      academyName: "Academia Fusion Foto",
+    });
+    const [survivor, removed] = await db
+      .insert(dancers)
+      .values([
+        {
+          academyId: session.academyId,
+          firstName: "Lola",
+          lastName: "Queda",
+          birthDate: "2012-05-06",
+        },
+        {
+          academyId: session.academyId,
+          firstName: "Lola",
+          lastName: "Duplicada",
+          birthDate: "2012-05-06",
+        },
+      ])
+      .returning();
+    const removedFrontKey = `academies/${session.academyId}/dancers/${removed.id}/document-front.jpg`;
+
+    await db
+      .update(dancers)
+      .set({
+        documentFrontImageStorageKey: removedFrontKey,
+        documentNumber: "40111222",
+        documentType: "dni",
+      })
+      .where(eq(dancers.id, removed.id));
+    await expect(
+      mergeRosterPeople({
+        kind: "dancer",
+        removedId: removed.id,
+        survivorId: survivor.id,
+      }),
+    ).resolves.toMatchObject({ ok: true, gainedDocument: true });
+
+    await replaceFrontPhoto(session.cookie, survivor.id);
+
+    await expectPersistedDancer(survivor.id, {
+      documentFrontImageStorageKey: `academies/${session.academyId}/dancers/${survivor.id}/document-front.png`,
+    });
+    expect(removeDocumentImagesMock).toHaveBeenCalledWith([removedFrontKey]);
+  });
+
+  test("after an academy merge, replacing a moved dancer's photo deletes the file in the old academy's folder", async () => {
+    const removedAcademy = await createAcademySession({
+      email: "bailarines.fusion.academia.vieja@example.com",
+      academyName: "Academia Vieja",
+    });
+    const survivorAcademy = await createAcademySession({
+      email: "bailarines.fusion.academia.nueva@example.com",
+      academyName: "Academia Nueva",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: removedAcademy.academyId,
+        firstName: "Lola",
+        lastName: "Mudada",
+        birthDate: "2012-05-06",
+      })
+      .returning();
+    const oldFrontKey = `academies/${removedAcademy.academyId}/dancers/${dancer.id}/document-front.jpg`;
+
+    await db
+      .update(dancers)
+      .set({ documentFrontImageStorageKey: oldFrontKey })
+      .where(eq(dancers.id, dancer.id));
+    await expect(
+      mergeAcademies({
+        removedId: removedAcademy.academyId,
+        survivorId: survivorAcademy.academyId,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+
+    await replaceFrontPhoto(survivorAcademy.cookie, dancer.id);
+
+    await expectPersistedDancer(dancer.id, {
+      documentFrontImageStorageKey: `academies/${survivorAcademy.academyId}/dancers/${dancer.id}/document-front.png`,
+    });
+    expect(removeDocumentImagesMock).toHaveBeenCalledWith([oldFrontKey]);
+  });
+
   test("keeps the save when deleting a removed photo fails, and logs it", async () => {
     const { dancer, session } = await createDancerWithPhotos("Huerfana");
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1548,4 +1638,27 @@ function saveDancerPhotos(
         params: { dancerId },
       }),
     );
+}
+
+async function replaceFrontPhoto(cookie: string, dancerId: string) {
+  const dancer = await db.query.dancers.findFirst({
+    where: eq(dancers.id, dancerId),
+  });
+  const formData = photoFormData(dancer!);
+
+  formData.set(
+    "documentFrontImage",
+    new File(["front"], "frente.png", { type: "image/png" }),
+  );
+
+  const result = await handlePortalDancerDetailAction({
+    request: createPortalPostRequest(
+      `http://localhost/portal/bailarines/${dancerId}`,
+      cookie,
+      formData,
+    ),
+    params: { dancerId },
+  });
+
+  expect(result).toMatchObject({ status: "success" });
 }

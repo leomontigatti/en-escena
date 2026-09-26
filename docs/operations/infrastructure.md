@@ -246,12 +246,9 @@ longer exists.
   succeeds — the academy is not told a save failed when it did not — and the
   orphan is logged as `[storage:music:orphan]` with the key. There is no sweep
   that reclaims it: reconciliation is by hand, from that log line, and it has to
-  cover the B2 backup copy as well — see [Backups](./backups.md). The
-  divergence from dancer documents (`adapter.remove` there propagates) is
-  deliberate: that delete happens before the row is written, so aborting leaves
-  the dancer pointing at the document they already had and the failure can be
-  reported. A failed delete orphans an object either way — there it is the
-  just-uploaded object, here it is the one that was in use.
+  cover the B2 backup copy as well — see [Backups](./backups.md). Dancer
+  documents follow the same order: the upload deletes nothing, and the previous
+  image goes by its stored key only after the row is written.
 
 ### Event documents contract
 
@@ -303,9 +300,10 @@ own "Guardar".
   key, never a URL.
 - A replace uploads the new object **before** removing any sibling under the
   seminar's prefix with another extension, so a JPG replaced by a PNG leaves
-  exactly one object. The removal propagates, as it does for dancer documents:
-  the row is written only afterwards, so a failure leaves the seminar pointing
-  at the picture it already had.
+  exactly one object. The removal propagates: the row is written only
+  afterwards, so a failure leaves the seminar pointing at the picture it
+  already had. Dancer documents no longer work this way (see
+  [Storage](#storage)).
 - A removal deletes the object first and nulls the key second, and
   `removeInstructorPicture` tolerates an object that is already gone, so a retry
   converges. Deleting the seminar removes the object the same way.

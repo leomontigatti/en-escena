@@ -472,7 +472,6 @@ function createStorageAdapter(
 ): DancerDocumentStorageAdapter {
   return {
     createSignedUrl: async () => "https://example.test/signed",
-    list: async () => [],
     remove: async () => {},
     upload: async () => {},
     ...overrides,

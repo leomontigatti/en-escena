@@ -306,6 +306,20 @@ export async function resolvePortalDancerDocumentImageStorageKeys(input: {
   };
 }
 
+const documentImageFieldsBySide = {
+  back: {
+    file: "documentBackImage",
+    storageKey: "documentBackImageStorageKey",
+  },
+  front: {
+    file: "documentFrontImage",
+    storageKey: "documentFrontImageStorageKey",
+  },
+} as const satisfies Record<
+  DancerDocumentSide,
+  { file: string; storageKey: string }
+>;
+
 async function resolveDocumentImageSide(input: {
   academyId: string;
   dancerId: string;
@@ -318,19 +332,11 @@ async function resolveDocumentImageSide(input: {
   | { ok: false; message: string }
 > {
   const storedKey = input.stored[input.side];
-  const file = readOptionalFormFile(
-    input.formData,
-    input.side === "front" ? "documentFrontImage" : "documentBackImage",
-  );
+  const fields = documentImageFieldsBySide[input.side];
+  const file = readOptionalFormFile(input.formData, fields.file);
 
   if (!file) {
-    const kept =
-      readFormString(
-        input.formData,
-        input.side === "front"
-          ? "documentFrontImageStorageKey"
-          : "documentBackImageStorageKey",
-      ) !== "";
+    const kept = readFormString(input.formData, fields.storageKey) !== "";
 
     return kept
       ? { ok: true, storageKey: storedKey ?? "", unreferencedKey: null }
