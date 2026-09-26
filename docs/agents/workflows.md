@@ -795,9 +795,9 @@ wrong without it. If reading the relevant code answers the question, leave it ou
 - When a documented decision or constraint changes, rewrite or remove the affected text. Do not
   append a second account of the new behaviour. ADRs are the exception: they are records, so a
   change is a dated amendment section, and a reversal is a new ADR that supersedes.
-- Plans, research notes and scratch files stay out of the repo. The issue and the PR are the
-  record of the work ([pull-requests.md](./pull-requests.md#prd-prs)). A plan that has to
-  outlive one session is committed as `docs/plans/<kebab-name>.md`, never under `docs/agents/`,
+- A session's plan, research notes and scratch files stay out of the repo. The issue and the PR
+  are the record of the work ([pull-requests.md](./pull-requests.md#prd-prs)). Only a plan that
+  has to outlive its session is committed, as `docs/plans/<kebab-name>.md`, never under `docs/agents/`,
   and is deleted when its work lands: the decisions it produced move to an ADR or to the
   operative page that owns them. Research that is a durable primary source goes under
   `docs/research/` per [issue-tracker.md](./issue-tracker.md#research-tickets).
