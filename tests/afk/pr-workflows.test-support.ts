@@ -256,26 +256,6 @@ export function workflowSteps(file: string): WorkflowStep[] {
   return steps;
 }
 
-function concurrencyBlock(file: string): string {
-  const block = topLevelBlock(file, "concurrency");
-  if (!block) throw new Error(`${file}: no concurrency block`);
-  return block;
-}
-
-export function concurrencyGroup(file: string): string {
-  const block = concurrencyBlock(file);
-  const match = /^[ \t]+group:[ \t]*(.+?)[ \t]*$/m.exec(block);
-  if (!match) throw new Error(`${file}: no concurrency.group`);
-  return match[1].replace(/^["']|["']$/g, "");
-}
-
-export function cancelInProgress(file: string): string {
-  const block = concurrencyBlock(file);
-  const match = /^[ \t]+cancel-in-progress:[ \t]*(\S+)[ \t]*$/m.exec(block);
-  if (!match) throw new Error(`${file}: no cancel-in-progress`);
-  return match[1];
-}
-
 export interface JobCondition {
   /** The job id under `jobs:`. */
   job: string;

@@ -32,6 +32,8 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Implementing** (a feature, a fix, any code change) happens in a local session: call the
   Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
+  Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets`: see
+  "Where work starts" in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Documentation** (when a change needs a doc change, which is rarely, and where it goes):
   see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
@@ -61,8 +63,8 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
 - **Fallow** (commit gate via `pnpm check:fallow`, and investigation tool):
   [docs/agents/fallow.md](docs/agents/fallow.md).
-- **AFK platform** (four workflows remain: To Issues, Update Branch, Promote Queued,
-  Architecture Review; the implement and review runners were retired in ADR-0016). The
+- **AFK platform** (three workflows remain: Update Branch, Promote Queued, Architecture
+  Review; the implement, review and To Issues runners were retired in ADR-0016). The
   vendored spec of the original 8 is [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md);
   what was adapted is in [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).
 - **AFK operational setup** (`agent:*` labels, secrets, degradation without a PAT; runbook

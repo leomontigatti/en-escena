@@ -40,9 +40,8 @@ export function createSandboxProvider() {
  * Drop every GitHub credential from this process's environment.
  *
  * §3.9's hard invariant is that the agent never mutates the tracker or the
- * remote, and the runners honour it by holding no token — `agent-to-issues`
- * simply omits `GH_TOKEN` from the workflow step. A runner that prefetches
- * context (update-branch) cannot: it needs
+ * remote, and the runners honour it by holding no token. A runner that
+ * prefetches context (update-branch) cannot simply omit it: it needs
  * the token for its own read-only `gh` calls, and `noSandbox()` hands the agent
  * `{ ...process.env }`, so a step-level `GH_TOKEN` reaches the agent and its
  * `gh` calls *succeed* — silently, with the job's write permissions.

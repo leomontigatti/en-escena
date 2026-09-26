@@ -217,7 +217,11 @@ describe("stop-typecheck-lint.sh", () => {
   it("skips every GitHub workflow, since none authors app code (ADR-0016)", () => {
     change("app/routes/home.tsx");
 
-    for (const workflow of ["AFK Update Branch", "AFK To Issues", "CI"]) {
+    for (const workflow of [
+      "AFK Update Branch",
+      "AFK Architecture Review",
+      "CI",
+    ]) {
       const result = runHook({
         env: { GITHUB_WORKFLOW: workflow, FAKE_TYPECHECK_FAILS: "1" },
       });

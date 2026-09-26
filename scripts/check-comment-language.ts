@@ -113,6 +113,8 @@ export const excludedYamlFiles = [
   ".agents/skills/prototype/agents/openai.yaml",
   ".agents/skills/resolving-merge-conflicts/agents/openai.yaml",
   ".agents/skills/tdd/agents/openai.yaml",
+  ".agents/skills/to-spec/agents/openai.yaml",
+  ".agents/skills/to-tickets/agents/openai.yaml",
   ".agents/skills/wayfinder/agents/openai.yaml",
   ".agents/skills/writing-for-agents/agents/openai.yaml",
   "pnpm-lock.yaml",

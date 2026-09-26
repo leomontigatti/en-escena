@@ -24,12 +24,11 @@ import {
 // the workflow files, rather than a copy that could drift away from them.
 
 /**
- * The workflows carrying the fallback. The two label-triggered ones report by
+ * The workflows carrying the fallback. The label-triggered one reports by
  * labelling + commenting (§3.7); architecture-review is scheduled, so it has no
  * issue to label and reports into the run summary instead.
  */
 const WORKFLOWS = [
-  ".github/workflows/agent-to-issues-prd.yml",
   ".github/workflows/agent-update-branch.yml",
   ".github/workflows/architecture-review.yml",
 ];
@@ -45,7 +44,7 @@ const BLOCK_START = /^reason=\$\(cat "\$OUTPUT_DIR\/failure_reason\.txt"/;
  * keeps this test honest — it runs the exact lines that ship.
  */
 function extractReasonBlock(workflow: string): string {
-  // Two workflows report a failure by labelling + commenting; architecture-review
+  // Update Branch reports a failure by labelling + commenting; architecture-review
   // is scheduled and reports into the run summary, so its step is named
   // differently. Match the prefix rather than tabulating both names.
   const step = workflowSteps(workflow).find((candidate) =>
@@ -109,7 +108,7 @@ function writeLog(name: string, contents: string, ageSeconds = 0): string {
 
 describe("the failure_reason fallback shipped in the workflows", () => {
   // One representative copy drives the behaviour cases; the suite below pins
-  // every workflow's copy to it, so covering one covers all three.
+  // every workflow's copy to it, so covering one covers both.
   const block = extractReasonBlock(".github/workflows/agent-update-branch.yml");
 
   it("prefers failure_reason.txt when runMain managed to write one", () => {
@@ -161,7 +160,7 @@ describe("the failure_reason fallback shipped in the workflows", () => {
   });
 
   it("picks the newest log when a job ran more than one runner", () => {
-    writeLog("to-issues.agent.log", "the older runner\n", 600);
+    writeLog("architecture-review.agent.log", "the older runner\n", 600);
     writeLog("update-branch.agent.log", "the newer runner\n");
 
     expect(resolveReason(block)).toContain("the newer runner");
@@ -257,7 +256,7 @@ describe("runner guardrails", () => {
 
   it("finds every runner step across the AFK workflows", () => {
     // One runner step per surviving workflow (ADR-0016).
-    expect(steps).toHaveLength(3);
+    expect(steps).toHaveLength(2);
   });
 
   it.each(

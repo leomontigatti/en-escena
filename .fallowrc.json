@@ -3,7 +3,6 @@
   "entry": [
     "src/index.{ts,tsx,js,jsx}",
     "src/main.{ts,tsx,js,jsx}",
-    ".sandcastle/agent-to-issues/to-issues.mts",
     ".sandcastle/agent-update-branch/update-branch.mts",
     ".sandcastle/agent-architecture-review/architecture-review.mts"
   ],
