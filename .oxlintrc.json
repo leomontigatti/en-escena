@@ -75,12 +75,8 @@
     },
     {
       "files": [
-        "app/components/admin/shell.tsx",
-        "app/components/auth/access-ui.tsx",
-        "app/components/portal/ui.tsx",
         "app/components/shared/combobox-field.tsx",
         "app/components/shared/data-table-shell.tsx",
-        "app/components/shared/en-escena-avatar.tsx",
         "app/components/shared/home-access-card.tsx",
         "app/components/shared/multi-combobox.tsx",
         "app/features/admin/presentations/list/view.tsx",
