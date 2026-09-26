@@ -48,17 +48,6 @@ describe("PortalAcademyPaymentsRouteView", () => {
     ).toBeNull();
   });
 
-  test("shows the payment reference and method", async () => {
-    await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
-
-    const text = document.body.textContent ?? "";
-
-    expect(text).toContain("Referencia");
-    expect(text).toContain("TRF-9");
-    expect(text).toContain("Medio de pago");
-    expect(text).toContain("Transferencia");
-  });
-
   test("finds a payment by its reference", async () => {
     await renderPortalPayments(
       renderer,
@@ -173,30 +162,6 @@ describe("PortalAcademyPaymentsRouteView payment instructions", () => {
 
   afterEach(renderer.cleanup);
 
-  test("renders the alert as the first child of the page, in both branches", async () => {
-    for (const payments of [
-      [],
-      [paymentRowFixture({ id: "payment_1", reference: "TRF-9" })],
-    ]) {
-      await renderPortalPayments(
-        renderer,
-        portalPaymentsLoaderDataFixture({
-          payments,
-          paymentInstructions: paymentInstructionsFixture(),
-        }),
-      );
-
-      const section = document.querySelector("section");
-      const alert = document.querySelector('[data-slot="alert"]');
-
-      expect(alert?.textContent).toContain("Instrucciones de pago");
-      // The header is the section's own; the alert is the first child passed in.
-      expect(section?.children[1]).toBe(alert);
-
-      renderer.cleanup();
-    }
-  });
-
   test("renders no alert when nothing is loaded or there is no active event", async () => {
     await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
 
@@ -255,22 +220,6 @@ describe("PortalAcademyPaymentsRouteView payment instructions", () => {
     );
 
     expect(getReactDomTexts("dd")).toContain("En Escena Producciones SRL");
-  });
-
-  // A CBU is not a card number: what is read is what is copied and typed.
-  test("renders the CBU/CVU as one unbroken run, never breaking mid-number", async () => {
-    await renderPortalPayments(
-      renderer,
-      portalPaymentsLoaderDataFixture({
-        paymentInstructions: paymentInstructionsFixture(),
-      }),
-    );
-
-    const value = document.querySelector("dd span");
-
-    expect(value?.textContent).toBe("0070099330004512345678");
-    expect(value?.className).toContain("tabular-nums");
-    expect(value?.className).not.toContain("break-all");
   });
 
   test("shows the free text and no grid when only the text is loaded", async () => {

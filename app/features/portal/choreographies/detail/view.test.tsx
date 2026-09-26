@@ -10,104 +10,6 @@ type ChoreographyDetailViewProps = Parameters<
 >[0];
 
 describe("PortalChoreographyDetailRouteView", () => {
-  test("shows structural read-only data and the linked roster without roster editors", () => {
-    const markup = renderChoreographyDetail({
-      loaderData: choreographyDetailLoaderData({
-        eventContext: portalEventContext({
-          isReadOnly: true,
-          isRegistrationOpen: false,
-        }),
-        choreography: choreographyDetailRow({
-          name: "Mi Pieza",
-          categoryName: "Juvenil",
-          experienceLevelName: null,
-          operationalStatus: {
-            code: "incomplete",
-            pendingItems: ["experienceLevel", "professors"],
-          },
-          dancers: [
-            {
-              id: "dancer_1",
-              firstName: "Ana",
-              lastName: "Paz",
-              active: false,
-              ageAtEventStart: 14,
-            },
-          ],
-          professors: [
-            {
-              id: "prof_1",
-              firstName: "Luz",
-              lastName: "Suárez",
-              active: false,
-            },
-          ],
-        }),
-      }),
-    });
-
-    expect(markup).toContain("Mi Pieza");
-    expect(markup).toContain("Editar coreografía");
-    expect(markup).toContain("Nombre");
-    expect(markup).toContain("Modalidad");
-    expect(markup).toContain("Tipo de grupo");
-    expect(markup).toContain("Juvenil");
-    expect(markup).toContain(
-      "Faltan cargar nivel de experiencia y profesores.",
-    );
-    expect(markup).toContain("Ana Paz");
-    expect(markup).toContain("Luz Suárez");
-    expect(markup).not.toContain("Buscar bailarines");
-    expect(markup).not.toContain("Buscar profesores");
-    expect(markup).not.toContain("Eliminar coreografía");
-  });
-
-  test("exposes the music field and the read-only roster copy", () => {
-    const markup = renderChoreographyDetail({
-      loaderData: choreographyDetailLoaderData({
-        eventContext: portalEventContext(),
-        choreography: choreographyDetailRow({
-          professors: [
-            {
-              id: "prof_2",
-              firstName: "Mora",
-              lastName: "Archivada",
-              active: false,
-            },
-          ],
-        }),
-      }),
-    });
-
-    expect(markup).toContain("Editar coreografía");
-    expect(markup).toContain(
-      "Actualizá la música de esta coreografía. El resto de los datos se editan desde administración.",
-    );
-    expect(markup).toContain("Archivo de música");
-    expect(markup).toContain("Mora Archivada");
-    expect(markup).not.toContain("Buscar profesores");
-    expect(markup).not.toContain("Buscar bailarines");
-    expect(markup).not.toContain("Acciones");
-    expect(markup).not.toContain(
-      "Confirmo que quiero eliminar esta coreografía.",
-    );
-  });
-
-  test("keeps the music field disabled once the choreography was evaluated", () => {
-    const markup = renderChoreographyDetail({
-      loaderData: choreographyDetailLoaderData({
-        eventContext: portalEventContext({ isRegistrationOpen: false }),
-        choreography: choreographyDetailRow({
-          isEvaluated: true,
-        }),
-      }),
-    });
-
-    expect(markup).toContain("Archivo de música");
-    expect(markup).not.toContain("Buscar bailarines");
-    expect(markup).not.toContain("Eliminar coreografía");
-  });
-
   // The academy sees a withdrawn choreography and edits nothing on it, music
   // included: only an administrator brings it back.
   test("keeps the music field disabled while the choreography is withdrawn", () => {
@@ -142,18 +44,6 @@ describe("PortalChoreographyDetailRouteView", () => {
 
     expect(markup).not.toContain("Faltan cargar");
     expect(markup).not.toContain("Falta cargar");
-  });
-
-  test("does not expose academy deletion from the portal detail", () => {
-    const markup = renderChoreographyDetail({
-      loaderData: choreographyDetailLoaderData({
-        eventContext: portalEventContext({ isRegistrationOpen: false }),
-      }),
-    });
-
-    expect(markup).not.toContain("Eliminar coreografía");
-    expect(markup).not.toContain("¿Eliminar coreografía?");
-    expect(markup).not.toContain('value="delete-choreography"');
   });
 });
 

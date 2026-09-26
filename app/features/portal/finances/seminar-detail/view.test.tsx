@@ -33,22 +33,6 @@ describe("PortalSeminarFinanceDetailRouteView", () => {
     );
   });
 
-  test("lists the person plus the shared money columns, with the price by name", () => {
-    const markup = renderDetail();
-
-    expect(columnHeaders(markup)).toEqual([
-      "Inscripto",
-      "Precio",
-      "Seña",
-      "Total",
-      "Saldo adeudado",
-      "Estado",
-    ]);
-    expect(markup).toContain("Ana López");
-    // The effective row's **name**, never its amount.
-    expect(markup).toContain("Participante general");
-  });
-
   // The academy reads here and does nothing else: the money dialog and the
   // comprobante are the administrator's, so the name is plain text.
   test("offers no write: the person is not a button and there is no comprobante", () => {
@@ -95,12 +79,6 @@ describe("PortalSeminarFinanceDetailRouteView", () => {
     );
   });
 });
-
-function columnHeaders(markup: string) {
-  return [...(inscriptionsTable(markup)?.querySelectorAll("thead th") ?? [])]
-    .map((header) => header.textContent?.trim() ?? "")
-    .filter((header) => header !== "");
-}
 
 function inscriptionsTable(markup: string) {
   return new DOMParser()

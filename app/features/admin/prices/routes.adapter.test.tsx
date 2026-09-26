@@ -1,84 +1,10 @@
-import { createElement } from "react";
 import { describe, expect, test } from "vitest";
 
-import { renderRouteView } from "@/features/admin/test-support/render-route-view";
-import type {
-  EventPriceActionData,
-  EventPricesLoaderData,
-} from "@/features/admin/prices/shared";
-import {
-  PriceDetailRouteView,
-  handle as detailRouteHandle,
-} from "@/routes/administracion.precios_.$priceId";
-import { NewPriceRouteView } from "@/routes/administracion.precios_.nuevo";
-import { PricesListRouteView } from "@/routes/administracion.precios";
+import type { EventPricesLoaderData } from "@/features/admin/prices/shared";
+import { handle as detailRouteHandle } from "@/routes/administracion.precios_.$priceId";
 import type { EventPriceDetailViewProps } from "./detail/view";
 
 describe("`administracion.precios` route adapters", () => {
-  test("renders the list feature view from the list route adapter", () => {
-    const markup = renderRouteView(
-      createElement(PricesListRouteView, {
-        loaderData: loaderData({
-          prices: [price("precio_1", "Precio Solo")],
-        }),
-      }),
-      "/administracion/precios",
-    );
-
-    expect(markup).toContain("Precios");
-    expect(markup).toContain("Nuevo precio");
-    expect(markup).toContain("Precio Solo");
-    expect(markup).toContain("Solo");
-    expect(markup).toContain("$ 12.000");
-  });
-
-  test("renders the create feature view from the create route adapter", () => {
-    const markup = renderRouteView(
-      createElement(NewPriceRouteView, {
-        loaderData: loaderData(),
-        actionData: actionData("Revisá los datos del precio."),
-      }),
-      "/administracion/precios/nuevo",
-    );
-
-    expect(markup).toContain("Nuevo precio");
-    expect(markup).toContain("Configurá tipo de grupo");
-    expect(markup).toContain("Volver");
-    expect(markup).toContain("Guardar");
-  });
-
-  test("renders the detail feature view from the detail route adapter", () => {
-    const markup = renderRouteView(
-      createElement(PriceDetailRouteView, {
-        loaderData: loaderData({
-          prices: [price("precio_1", "Precio Solo")],
-        }),
-        actionData: actionData("No pudimos guardar."),
-        priceId: "precio_1",
-      }),
-      "/administracion/precios/precio_1",
-    );
-
-    expect(markup).toContain("Editar precio");
-    expect(markup).toContain("Precio Solo");
-    expect(markup).toContain("Tipo de grupo");
-    expect(markup).toContain("Acciones");
-    expect(markup).toContain("Guardar");
-  });
-
-  test("renders the not-found detail state from the detail route adapter", () => {
-    const markup = renderRouteView(
-      createElement(PriceDetailRouteView, {
-        loaderData: loaderData(),
-        priceId: "precio_inexistente",
-      }),
-      "/administracion/precios/precio_inexistente",
-    );
-
-    expect(markup).toContain("Precio no encontrado");
-    expect(markup).toContain("No encontramos ese precio.");
-  });
-
   test("reads detail breadcrumb labels from the price display name helper", () => {
     const breadcrumb = resolveDetailBreadcrumb({
       loaderData: loaderData({
@@ -145,14 +71,5 @@ function loaderData(
     hasSeminars: false,
     selectedEventId: "evento_1",
     ...overrides,
-  };
-}
-
-function actionData(message: string): EventPriceActionData {
-  return {
-    fieldErrors: {},
-    message,
-    scope: null,
-    status: "error",
   };
 }

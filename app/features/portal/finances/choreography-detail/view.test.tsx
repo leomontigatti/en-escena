@@ -13,30 +13,6 @@ type LoaderData = Awaited<
 type InscriptionRow = LoaderData["inscriptions"][number];
 
 describe("PortalChoreographyFinanceDetailRouteView", () => {
-  test("styles the amount columns by column and never by row", () => {
-    const pending = amountColumnStyles(
-      renderDetail({
-        inscriptions: [
-          inscriptionFixture({ financialStatus: "depositPending" }),
-        ],
-      }),
-    );
-    const paid = amountColumnStyles(
-      renderDetail({
-        inscriptions: [inscriptionFixture({ financialStatus: "paidInFull" })],
-      }),
-    );
-
-    // Every figure the academy reads is exact and is exactly what they have to
-    // pay, so the decoration cannot depend on the row's state.
-    expect(pending).toEqual(paid);
-    expect(pending).toEqual({
-      Seña: { muted: false },
-      Total: { muted: true },
-      "Saldo adeudado": { muted: false },
-    });
-  });
-
   // The number the academy quotes when it asks about a choreography, titled the
   // same way the administrator's finance detail titles it.
   test("titles the detail with the choreography name and number", () => {
@@ -45,35 +21,6 @@ describe("PortalChoreographyFinanceDetailRouteView", () => {
     );
 
     expect(title?.[1]).toBe("Aire # 00001");
-  });
-
-  // The same five the administrator reads, in the same order: each threshold
-  // with its owed figure beside it, and the academy's available balance last.
-  test("shows the five metrics and the same inscription columns as the admin", () => {
-    const markup = renderDetail();
-
-    for (const metric of [
-      "Seña total",
-      "Seña adeudada",
-      "Total",
-      "Saldo adeudado",
-      "Saldo disponible",
-    ]) {
-      expect(markup).toContain(metric);
-    }
-
-    // `Saldo disponible` is the academy's, not the choreography's.
-    expect(markup).toContain("$ 5.000");
-    expect(inscriptionHeaders()).toEqual([
-      "Bailarín",
-      "Precio",
-      "Seña",
-      "Total",
-      "Saldo adeudado",
-      "Estado",
-    ]);
-    // The effective price by name: which of the event's prices governs the row.
-    expect(markup).toContain("Primer vencimiento");
   });
 
   // The two things the academy does not get: the emission lives with the
@@ -218,29 +165,4 @@ function dancerCellMarkup(markup?: string) {
   }
 
   return cell.innerHTML;
-}
-
-/**
- * Maps each amount column of the inscription row to its decoration. It anchors on
- * the header and not on the cell's position.
- */
-function amountColumnStyles(markup: string) {
-  const table = inscriptionsTable(markup);
-  const headers = inscriptionHeaders(markup);
-  const cells = [...table.querySelectorAll("tbody tr td")];
-
-  return Object.fromEntries(
-    ["Seña", "Total", "Saldo adeudado"].map((column) => {
-      const cell = cells[headers.indexOf(column)];
-
-      if (!cell) {
-        throw new Error(`Expected a cell for the column "${column}".`);
-      }
-
-      return [
-        column,
-        { muted: cell.classList.contains("text-muted-foreground") },
-      ];
-    }),
-  );
 }

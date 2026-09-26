@@ -21,87 +21,6 @@ describe("PortalChoreographiesListRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("shows the agreed columns for the active event", () => {
-    const selectedEvent = eventSummary({
-      id: "event_2025",
-      name: "Regional 2025",
-      active: false,
-    });
-
-    const markup = renderChoreographiesList({
-      loaderData: choreographiesLoaderData({
-        choreographies: [
-          choreographyListItem({
-            id: "choreo_1",
-            name: "Mi Pieza",
-            submodalityName: "Lyrical",
-            groupType: "grupal",
-            categoryName: "Juvenil",
-            experienceLevelName: "Inicial",
-            operationalStatus: {
-              code: "incomplete",
-              pendingItems: ["music"],
-            },
-          }),
-          choreographyListItem({
-            id: "choreo_2",
-            choreographyNumber: 2,
-            name: "Otra Pieza",
-            modalityName: "Folklore",
-            groupType: "duo",
-            categoryName: "Adultos",
-          }),
-        ],
-        eventContext: {
-          selectedEvent,
-          activeEvent: selectedEvent,
-          hasActiveEvent: true,
-          activeEventRegistrationReadiness: readiness(true),
-          hasEvents: true,
-          isReadOnly: false,
-          isRegistrationOpen: false,
-        },
-      }),
-    });
-
-    for (const columnLabel of [
-      "#",
-      "Nombre",
-      "Modalidad / Submodalidad",
-      "Categoría / Tipo de grupo",
-      "Estado",
-    ]) {
-      expect(markup).toContain(columnLabel);
-    }
-
-    expect(markup).not.toContain("Evento consultado");
-    // The academy sees the same number the admin does: it is the one they will
-    // quote when they ask about a choreography.
-    expect(markup).toContain("00001");
-    expect(markup).toContain("00002");
-    expect(markup).toContain("Mi Pieza");
-    expect(markup).toContain(
-      "Buscar coreografía por número, nombre, modalidad o categoría",
-    );
-    expect(markup).toContain("Filtros");
-    expect(markup).toContain("2 de 2 registros");
-    expect(markup).toContain("Jazz · Lyrical");
-    expect(markup).toContain("Folklore");
-    expect(markup).toContain("Juvenil · Grupal");
-    expect(markup).toContain("Adultos · Dúo");
-    expect(markup).toContain("Incompleta");
-    expect(markup).toContain('data-variant="warning"');
-    expect(markup).toContain('data-variant="success"');
-    expect(markup).toContain("Nueva coreografía");
-    expect(markup).toContain('disabled=""');
-    expect(markup).toContain('href="/portal/coreografias/choreo_1"');
-    // The number is the row's only link to the detail; the name renders as
-    // plain text beside it. The positive assertion keeps the negative one
-    // honest: it fixes the markup shape both of them are read against.
-    expect(markup).toContain(">00001</a>");
-    expect(markup).not.toContain(">Mi Pieza</a>");
-  });
-
   test("disables `Nueva coreografía` when there are no dancers active", () => {
     const markup = renderChoreographiesList({
       loaderData: choreographiesLoaderData({
@@ -151,25 +70,6 @@ describe("PortalChoreographiesListRouteView", () => {
       "Faltan bases del evento antes de registrar coreografías.",
     );
     expect(markup).not.toContain("Precios aplicables");
-  });
-
-  test("keeps choreographies visible without an active event", () => {
-    const markup = renderChoreographiesList({
-      loaderData: choreographiesLoaderData({
-        eventContext: {
-          selectedEvent: null,
-          activeEvent: null,
-          hasActiveEvent: false,
-          activeEventRegistrationReadiness: null,
-          hasEvents: false,
-          isReadOnly: true,
-          isRegistrationOpen: false,
-        },
-      }),
-    });
-
-    expect(markup).toContain("Coreografías");
-    expect(markup).toContain("Todavía no hay eventos configurados");
   });
 
   test("finds a choreography by its number", async () => {

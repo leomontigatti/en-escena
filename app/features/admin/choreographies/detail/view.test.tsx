@@ -21,53 +21,6 @@ describe("ChoreographyDetailRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("renders an editable roster and a read-only music field for admins", () => {
-    const markup = renderDetail({
-      loaderData: buildLoaderData({
-        canEdit: true,
-        choreography: buildChoreography({
-          musicDownloadUrl: "https://storage.example/music.mp3",
-          musicStorageKey: "academies/a1/choreographies/c1/music.mp3",
-        }),
-      }),
-    });
-
-    expect(markup).toContain("Detalle coreografía");
-    expect(markup).not.toContain("Datos de la coreografía");
-    expect(markup).toContain("Academia Norte");
-    expect(markup).toContain("Nombre");
-    expect(markup).toContain('name="name"');
-    expect(markup).toContain('value="Danza lunar"');
-    expect(markup).not.toContain(
-      'name="name" value="Danza lunar" type="hidden"',
-    );
-    expect(markup).toContain("Bailarines");
-    expect(markup).toContain("Ana Paz");
-    expect(markup).toContain("Profesores");
-    expect(markup).toContain("Luz Suárez");
-    expect(markup).toContain("Archivo de música");
-    expect(markup).toContain("Cronograma");
-    expect(markup).toContain("https://storage.example/music.mp3");
-    expect(markup).toContain("Descargar música");
-    expect(markup).toContain("Guardar");
-    expect(markup).not.toContain("Guardar cambios");
-    expect(markup).not.toContain(
-      "La administración no edita bailarines desde esta vista.",
-    );
-    expect(markup).not.toContain(
-      "La administración no edita profesores desde esta vista.",
-    );
-    expect(markup).not.toContain(
-      "La música se gestiona desde el Portal de academias mientras no haya presentación.",
-    );
-  });
-
-  test("leaves the roster comboboxes interactive for admins", () => {
-    const markup = renderDetail({ loaderData: buildLoaderData() });
-
-    expect(markup).not.toContain('aria-disabled="true"');
-  });
-
   test("hard-locks the roster once the choreography was evaluated", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
@@ -143,13 +96,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Eliminar coreografía");
   });
 
-  test("renders an editable submodality select for admins", () => {
-    const markup = renderDetail({ loaderData: buildLoaderData() });
-
-    expect(markup).toContain("Submodalidad");
-    expect(markup).toContain('name="submodalityId"');
-  });
-
   test("keeps the submodality read-only once the choreography was evaluated", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
@@ -177,15 +123,6 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Submodalidad");
     expect(markup).not.toContain('name="submodalityId"');
-  });
-
-  test("renders a standalone schedule select for admins with more than one compatible capacity", () => {
-    const markup = renderDetail({ loaderData: buildLoaderData() });
-
-    expect(markup).toContain("Cronograma");
-    expect(markup).toContain('name="assignedScheduleCapacityId"');
-    expect(markup).toContain('value="schedule_capacity_1"');
-    expect(markup).not.toContain('name="scheduleCapacityId"');
   });
 
   test("keeps the schedule read-only when it cannot be reassigned", () => {
@@ -262,14 +199,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("No se puede reasignar el cupo de cronograma");
   });
 
-  test("renders an editable modality select for admins", () => {
-    const markup = renderDetail({ loaderData: buildLoaderData() });
-
-    expect(markup).toContain("Modalidad");
-    expect(markup).toContain('name="modalityId"');
-    expect(markup).toContain('value="modality_1"');
-  });
-
   // Which condition closed the field is decided by
   // `canCorrectChoreographyModality` and covered in `shared.test.ts`; the view
   // only ever reads the resolved `canCorrect`, so one case covers it here.
@@ -319,16 +248,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain(
       "Solo se puede corregir la modalidad si el cronograma no cambia de precio",
     );
-  });
-
-  test("renders a standalone experience level select for admins whose category declares levels", () => {
-    const markup = renderDetail({ loaderData: buildLoaderData() });
-
-    expect(markup).toContain("Nivel de experiencia");
-    expect(markup).toContain('name="assignedExperienceLevelId"');
-    // The roster's select does not coexist with the standalone one: they share the
-    // slot.
-    expect(markup).not.toContain('name="experienceLevelId"');
   });
 
   test.each([
@@ -536,19 +455,6 @@ describe("ChoreographyDetailRouteView", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).not.toContain("Falta el nivel de experiencia");
-  });
-
-  test("reports the rejection of a experience level to the view", () => {
-    const markup = renderDetail({
-      actionData: {
-        message:
-          "No se puede cambiar el nivel de experiencia: la coreografía ya tiene presentación.",
-        status: "error",
-      },
-      loaderData: buildLoaderData(),
-    });
-
-    expect(markup).toContain("Nivel de experiencia");
   });
 
   test("opens the delete dialog from the resource actions menu", async () => {

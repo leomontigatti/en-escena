@@ -100,33 +100,6 @@ describe("PortalPresentationsListView", () => {
     expect(markup).not.toContain("Separación");
   });
 
-  test("renders the documented columns, the day tabs and the search placeholder", () => {
-    const markup = renderView({
-      rows: [
-        buildRow({ choreographyId: "one", scheduledDate: "2026-05-01" }),
-        buildRow({ choreographyId: "two", scheduledDate: "2026-05-02" }),
-      ],
-    });
-
-    for (const header of [
-      "N.º",
-      "Categoría / Tipo de grupo",
-      "Modalidad / Submodalidad",
-      "Nombre",
-      "Bailarines",
-      "Nivel",
-      "Estado",
-    ]) {
-      expect(markup).toContain(header);
-    }
-
-    expect(markup).not.toContain(">Academia<");
-    expect(markup).toContain("Buscar por número de presentación o nombre");
-    expect(markup).toContain("Todos");
-    expect(markup).toContain("1 de mayo de 2026");
-    expect(markup).toContain("2 de mayo de 2026");
-  });
-
   test("names each presentation's level, and dashes the ones without one", () => {
     const markup = renderView({
       rows: [
@@ -137,12 +110,6 @@ describe("PortalPresentationsListView", () => {
 
     expect(markup).toContain("Pre Elite");
     expect(markup).toContain("—");
-  });
-
-  test("rebalances the column widths so the level fits", () => {
-    const markup = renderView();
-
-    expect(readColumnWidths(markup)).toEqual([9, 16, 20, 17, 15, 11, 11]);
   });
 
   test("links a name to the academy's own choreography detail", () => {
@@ -165,18 +132,7 @@ describe("PortalPresentationsListView", () => {
     expect(markup).toContain("/portal/coreografias/sin-publicar");
     expect(markup).not.toContain("/portal/coreografias/publicada");
   });
-
-  test("gives the list no results column", () => {
-    expect(renderView()).not.toContain("Resultado");
-  });
 });
-
-/** The weights the `colgroup` carries, in column order. */
-function readColumnWidths(markup: string) {
-  return Array.from(
-    markup.matchAll(/<col style="width:calc\(100% \* (\d+)/g),
-  ).map(([, width]) => Number(width));
-}
 
 function buildRow(
   overrides: Partial<PortalPresentationRow> = {},

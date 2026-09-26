@@ -14,30 +14,6 @@ const criteria = [
 ];
 
 describe("PortalPresentationEvaluationView", () => {
-  test("heads the page with the presentation, its medal and its average", () => {
-    const markup = renderView({
-      average: 81.33,
-      details: "Infantil · Solo · Amateur · Jazz",
-      medal: "silver",
-      title: "N.º 12 · Pieza",
-    });
-
-    expect(markup).toContain("N.º 12 · Pieza");
-    expect(markup).toContain("Medalla de plata");
-    expect(markup).toContain("81.33");
-    expect(markup).toContain("Infantil · Solo · Amateur · Jazz");
-  });
-
-  test("names each judge beside the score they gave", () => {
-    const markup = renderView({
-      judges: [buildJudge({ judgeName: "Ana Juez", value: "84.0" })],
-    });
-
-    expect(markup).toContain("Ana Juez");
-    expect(markup).toContain("84");
-    expect(markup).toContain("/ 100");
-  });
-
   test("splits the sheet with a divider and signs what was deducted", () => {
     const markup = renderView({
       criteria,

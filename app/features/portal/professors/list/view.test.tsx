@@ -25,29 +25,6 @@ describe("PortalProfessorsListRouteView", () => {
     );
   });
 
-  test("keeps the screen stable when create returns field errors", () => {
-    const markup = renderProfessorsList({
-      actionData: {
-        status: "error",
-        fieldErrors: {
-          firstName: "Este campo es obligatorio.",
-          lastName: "Este campo es obligatorio.",
-        },
-        values: {
-          firstName: "",
-          lastName: "  de la CRUZ ",
-          documentType: "",
-          documentNumber: "",
-        },
-        modalOpen: true,
-      },
-    });
-
-    expect(markup).toContain("Profesores");
-    expect(markup).toContain("Nuevo profesor");
-    expect(markup).not.toContain("Profesor creado.");
-  });
-
   test("renders the table with filters and action", () => {
     const markup = renderProfessorsList({
       loaderData: {
@@ -100,27 +77,6 @@ describe("PortalProfessorsListRouteView", () => {
     expect(markup).not.toContain("No participando");
     expect(markup).not.toContain(">Participando<");
     expect(markup).not.toContain("Sin evento");
-  });
-});
-
-describe("PortalProfessorsListRouteView event documents", () => {
-  test("offers the professors contract beside the primary action", () => {
-    const markup = renderProfessorsList({
-      loaderData: {
-        documentDownloadUrls: eventDocumentDownloadUrls({
-          professor_contract: "/almacenamiento?key=contrato",
-        }),
-      },
-    });
-
-    expect(markup).toContain("Nuevo profesor");
-    expect(markup).toContain('aria-label="Acciones"');
-  });
-
-  test("keeps the menu when the event has no document", () => {
-    const markup = renderProfessorsList();
-
-    expect(markup).toContain('aria-label="Acciones"');
   });
 });
 

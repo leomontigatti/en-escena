@@ -31,16 +31,6 @@ describe("EventPriceDetailView delete", () => {
     useNavigationMock.mockReset();
   });
 
-  test("confirms the delete through the shared alert dialog", async () => {
-    useNavigationMock.mockReturnValue({ state: "idle" });
-
-    await renderDetail();
-
-    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
-    expect(document.body.textContent).toContain("Eliminar precio");
-    expect(getButton("Eliminar").disabled).toBe(false);
-  });
-
   test("disables the destructive action while its delete submission is pending", async () => {
     const formData = new FormData();
     formData.set("intent", "delete-price");

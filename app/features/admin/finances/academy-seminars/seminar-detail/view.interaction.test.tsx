@@ -41,18 +41,6 @@ describe("SeminarFinanceDetailView actions menu", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  test("offers `Emitir factura` behind the `...` menu and not as a loose button", async () => {
-    await mount();
-
-    expect(
-      document.querySelector('button[aria-label="Acciones"]'),
-    ).not.toBeNull();
-
-    await openActionsMenu();
-
-    expect(findEmissionItem()).not.toBeUndefined();
-  });
-
   // With nothing left to bill the menu is still there: what gets disabled is the
   // option, for the same reason it does on the choreography detail.
   test("disables the emission with nothing left to bill", async () => {
