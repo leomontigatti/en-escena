@@ -23,12 +23,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Search, X } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { createContext, useContext, useId, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DataTablePagination,
@@ -37,6 +36,7 @@ import {
 import { DataTableFacetedFilterControl } from "@/components/shared/data-table-filters-trigger";
 import { toSortDirection } from "@/components/shared/data-table-helpers";
 import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
+import { SearchInput } from "@/components/shared/search-input";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
@@ -385,37 +385,18 @@ function DataTableToolbar({
   );
 }
 
-/** The search input, with the clear button it only grows once there is a query. */
+/** The search input, sized for the toolbar. */
 function DataTableSearchField({ search }: { search: DataTableSearchProps }) {
   return (
-    <label className="relative block sm:max-w-md sm:flex-1 lg:max-w-xl">
-      <Search
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-      />
-      <span className="sr-only">Buscar en la tabla</span>
-      <Input
-        type="text"
-        value={search.query}
-        onChange={(event) => search.onChange(event.target.value)}
+    <div className="sm:max-w-md sm:flex-1 lg:max-w-xl">
+      <SearchInput
+        aria-label="Buscar en la tabla"
         placeholder={search.placeholder}
-        className="pr-8 pl-8"
+        value={search.query}
+        onClear={search.onClear}
+        onValueChange={search.onChange}
       />
-      {search.query.length > 0 ? (
-        // Centered with auto margins, not a translate: the button's own pressed
-        // nudge is a translate too, and would replace the centering mid-click.
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          className="absolute inset-y-0 right-1 my-auto"
-          onClick={() => (search.onClear ?? (() => search.onChange("")))()}
-        >
-          <X aria-hidden="true" data-icon />
-          <span className="sr-only">Limpiar búsqueda</span>
-        </Button>
-      ) : null}
-    </label>
+    </div>
   );
 }
 
