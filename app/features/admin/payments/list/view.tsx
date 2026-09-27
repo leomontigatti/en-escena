@@ -22,6 +22,7 @@ import {
 } from "@/lib/finances/payment-methods";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { resolveSelectedPaymentTotals } from "@/lib/finances/selected-payment-totals";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { PaymentsListRow, PaymentsListLoaderData } from "./server";
 
@@ -106,6 +107,8 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
+const emptyPaymentsList = describeEmptyList("pagos");
+
 export function PaymentsListRouteView({
   loaderData,
 }: PaymentsListRouteViewProps) {
@@ -131,14 +134,14 @@ export function PaymentsListRouteView({
     selectedRowIds,
     summary: loaderData.summary,
   });
+  // The order and the page narrow nothing: a sort reorders the same rows, and
+  // a page past the last one is clamped.
   const shouldShowTable =
     loaderData.rows.length > 0 ||
     loaderData.hasAnyPayment ||
     loaderData.filters.query.length > 0 ||
     loaderData.filters.availability !== null ||
-    loaderData.filters.method !== null ||
-    loaderData.filters.page > 1 ||
-    loaderData.filters.order.direction !== "desc";
+    loaderData.filters.method !== null;
 
   return (
     <AdminResourceLayout
@@ -192,7 +195,7 @@ export function PaymentsListRouteView({
             onSelectedRowIdsChange={setSelectedRowIds}
             searchPlaceholder="Buscar pago por academia o número"
             initialSort={loaderData.filters.order}
-            emptyMessage="No hay pagos para mostrar."
+            emptyMessage={emptyPaymentsList.nothingMatched}
             currentPage={loaderData.filters.page}
             totalPages={loaderData.totalPages}
             totalRows={loaderData.totalCount}
@@ -200,7 +203,7 @@ export function PaymentsListRouteView({
         ) : (
           <AdminEmptyState
             icon={HandCoins}
-            title="Todavía no hay pagos registrados."
+            title={emptyPaymentsList.nothingYet}
             description="Cuando registres un pago lo vas a poder revisar acá."
           />
         )}

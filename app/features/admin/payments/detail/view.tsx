@@ -326,7 +326,7 @@ function EditablePaymentDetailForm({
         contentClassName="gap-5"
         footer={
           <>
-            <BackButton to={getPaymentsListUrl(loaderData.selectedEventId)} />
+            <BackButton to={"/administracion/pagos"} />
             <SubmitButton isPending={isPending} />
           </>
         }
@@ -351,9 +351,7 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
   return (
     <AdminResourceFormCard
       contentClassName="gap-5"
-      footer={
-        <BackButton to={getPaymentsListUrl(loaderData.selectedEventId)} />
-      }
+      footer={<BackButton to={"/administracion/pagos"} />}
     >
       <FieldGroup className="grid gap-5 md:grid-cols-2">
         <ReadOnlyField
@@ -377,10 +375,4 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
       </FieldGroup>
     </AdminResourceFormCard>
   );
-}
-
-function getPaymentsListUrl(selectedEventId: string | null) {
-  return selectedEventId
-    ? `/administracion/pagos?evento=${selectedEventId}`
-    : "/administracion/pagos";
 }

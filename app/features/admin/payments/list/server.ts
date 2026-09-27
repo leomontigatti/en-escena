@@ -1,5 +1,4 @@
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
-import { redirect } from "react-router";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, payments } from "@/db/schema";
@@ -8,6 +7,16 @@ import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { paymentAvailableAmountSql } from "@/lib/finances/payment-available-amount.server";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
 import { eventSequenceNumberDigits } from "@/lib/events/sequence-number";
+import { adminListPageSize } from "@/lib/admin/admin-list";
+import {
+  paginateList,
+  readListQuery,
+  type ListQuerySpec,
+} from "@/lib/list-query/list-query";
+import {
+  listSearchCondition,
+  redirectToCanonicalListUrl,
+} from "@/lib/list-query/list-query.server";
 
 type PaymentsListMethod = PaymentsListRow["paymentMethod"];
 type PaymentsListOrder = {
@@ -66,10 +75,9 @@ export type PaymentsListLoaderData = {
   totalPages: number;
 };
 
-const paymentsPageSize = 50;
-const defaultPaymentsOrder: PaymentsListOrder = {
-  columnId: "paymentDate",
-  direction: "desc",
+const paymentsListSpec: ListQuerySpec<PaymentsListOrder["columnId"]> = {
+  orderColumnIds: ["paymentDate"],
+  defaultOrder: { columnId: "paymentDate", direction: "desc" },
 };
 
 export async function loadPaymentsList(
@@ -111,8 +119,11 @@ export async function loadPaymentsList(
     .innerJoin(academies, eq(payments.academyId, academies.id))
     .where(where);
   const totalCount = Number(count);
-  const totalPages = Math.max(1, Math.ceil(totalCount / paymentsPageSize));
-  const page = Math.min(filters.page, totalPages);
+  const { limit, offset, page, totalPages } = paginateList({
+    page: filters.page,
+    pageSize: adminListPageSize,
+    totalCount,
+  });
   const normalizedFilters = { ...filters, page };
 
   const paymentRows = await db
@@ -130,21 +141,21 @@ export async function loadPaymentsList(
     .innerJoin(academies, eq(payments.academyId, academies.id))
     .where(where)
     .orderBy(...buildPaymentsOrderBy(normalizedFilters.order))
-    .limit(paymentsPageSize)
-    .offset((page - 1) * paymentsPageSize);
-  const canonicalSearch = buildCanonicalPaymentsSearch({
-    currentSearch: url.search,
-    filters: normalizedFilters,
-  });
-  const currentSearch = new URLSearchParams(url.search).toString();
+    .limit(limit)
+    .offset(offset);
 
-  if (canonicalSearch !== currentSearch) {
-    throw redirect(
-      canonicalSearch.length > 0
-        ? `${url.pathname}?${canonicalSearch}`
-        : url.pathname,
-    );
-  }
+  redirectToCanonicalListUrl(url, {
+    facets: {
+      medio: normalizedFilters.method,
+      disponible: normalizedFilters.availability,
+    },
+    query: {
+      order: normalizedFilters.order,
+      page: normalizedFilters.page,
+      search: normalizedFilters.query,
+    },
+    spec: paymentsListSpec,
+  });
 
   return {
     filters: normalizedFilters,
@@ -166,12 +177,14 @@ export async function loadPaymentsList(
 function readPaymentsListFilters(
   searchParams: URLSearchParams,
 ): PaymentsListFilters {
+  const listQuery = readListQuery(searchParams, paymentsListSpec);
+
   return {
     availability: readPaymentsListAvailability(searchParams.get("disponible")),
     method: readPaymentsListMethod(searchParams.get("medio")),
-    order: readPaymentsOrder(searchParams.get("orden")),
-    page: readPage(searchParams),
-    query: searchParams.get("busqueda")?.trim() ?? "",
+    order: listQuery.order,
+    page: listQuery.page,
+    query: listQuery.search,
   };
 }
 
@@ -185,35 +198,18 @@ function readPaymentsListMethod(value: string | null) {
   return paymentMethodValues.find((method) => method === value) ?? null;
 }
 
-function readPaymentsOrder(value: string | null): PaymentsListOrder {
-  return value === "paymentDate:asc"
-    ? { columnId: "paymentDate", direction: "asc" }
-    : defaultPaymentsOrder;
-}
-
-function readPage(searchParams: URLSearchParams) {
-  const value = Number(searchParams.get("pagina"));
-
-  return Number.isInteger(value) && value > 0 ? value : 1;
-}
-
 function buildPaymentsWhere(
   selectedEventId: string,
   filters: PaymentsListFilters,
 ) {
   const conditions: SQL[] = [eq(payments.eventId, selectedEventId)];
-  const query = filters.query.trim();
+  const searchCondition = listSearchCondition(filters.query, [
+    academies.name,
+    sql`lpad(cast(${payments.paymentNumber} as text), ${eventSequenceNumberDigits}, '0')`,
+  ]);
 
-  if (query.length > 0) {
-    conditions.push(
-      or(
-        ilike(academies.name, `%${query}%`),
-        ilike(
-          sql`lpad(cast(${payments.paymentNumber} as text), ${eventSequenceNumberDigits}, '0')`,
-          `%${query}%`,
-        ),
-      )!,
-    );
+  if (searchCondition) {
+    conditions.push(searchCondition);
   }
 
   if (filters.method !== null) {
@@ -245,48 +241,4 @@ function buildPaymentsOrderBy(order: PaymentsListOrder) {
       : desc(payments.paymentNumber);
 
   return [orderPaymentDate, orderPaymentNumber, desc(payments.id)];
-}
-
-function buildCanonicalPaymentsSearch(input: {
-  currentSearch: string;
-  filters: PaymentsListFilters;
-}) {
-  const searchParams = new URLSearchParams(input.currentSearch);
-
-  if (input.filters.query.length > 0) {
-    searchParams.set("busqueda", input.filters.query);
-  } else {
-    searchParams.delete("busqueda");
-  }
-
-  if (input.filters.method !== null) {
-    searchParams.set("medio", input.filters.method);
-  } else {
-    searchParams.delete("medio");
-  }
-
-  if (input.filters.availability !== null) {
-    searchParams.set("disponible", input.filters.availability);
-  } else {
-    searchParams.delete("disponible");
-  }
-
-  searchParams.delete("estado");
-
-  if (input.filters.order.direction === defaultPaymentsOrder.direction) {
-    searchParams.delete("orden");
-  } else {
-    searchParams.set(
-      "orden",
-      `${input.filters.order.columnId}:${input.filters.order.direction}`,
-    );
-  }
-
-  if (input.filters.page > 1) {
-    searchParams.set("pagina", String(input.filters.page));
-  } else {
-    searchParams.delete("pagina");
-  }
-
-  return searchParams.toString();
 }
