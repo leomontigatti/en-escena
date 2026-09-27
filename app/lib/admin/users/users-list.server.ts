@@ -1,57 +1,52 @@
-import { and, asc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import { INTERNAL_USER_ROLES } from "@/lib/auth/internal-user-roles";
+import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
-  INTERNAL_USER_ROLES,
-  type InternalUserRole,
-} from "@/lib/auth/internal-user-roles";
-
-export type UserListRole = "academy" | InternalUserRole;
-
-export type UserListState =
-  "active" | "mandatory-password-change" | "suspended";
-
-export type UserListStateFilter =
-  "active" | "mandatory-password-change" | "suspended";
-
-export type UserListType = "academy" | "internal";
-
-export type UserListFilters = {
-  archived: boolean;
-  query: string;
-  role: UserListRole | "all";
-  state: UserListStateFilter | "all";
-  type: UserListType | "all";
-};
-
-export type UserListItem = {
-  id: string;
-  academyName: string | null;
-  identifier: string;
-  mainRole: UserListRole;
-  name: string;
-  state: UserListState;
-  userType: UserListType;
-};
+  userListSpec,
+  type UserListFilters,
+  type UserListItem,
+  type UserListRole,
+  type UserListState,
+} from "@/lib/admin/users/users-list.shared";
+import { paginateList, readListQuery } from "@/lib/list-query/list-query";
+import { listSearchCondition } from "@/lib/list-query/list-query.server";
 
 export function readUserFilters(
   searchParams: URLSearchParams,
 ): UserListFilters {
-  const stateValue = searchParams.get("estado");
+  const listQuery = readListQuery(searchParams, userListSpec);
 
   return {
     archived: readArchivedFilter(searchParams.get("archivado")),
-    query: searchParams.get("busqueda")?.trim() ?? "",
+    page: listQuery.page,
+    query: listQuery.search,
     role: readRoleFilter(searchParams.get("rol")),
-    state: readStateFilter(stateValue),
+    state: readStateFilter(searchParams.get("estado")),
     type: readTypeFilter(searchParams.get("tipo")),
   };
 }
 
-export async function listUsers(input: {
+export async function listUsers(input: { filters: UserListFilters }): Promise<{
   filters: UserListFilters;
-}): Promise<UserListItem[]> {
+  items: UserListItem[];
+  totalCount: number;
+  totalPages: number;
+}> {
+  const where = buildUserWhere(input.filters);
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(user)
+    .leftJoin(academies, eq(academies.userId, user.id))
+    .where(where);
+  const totalCount = Number(count);
+  const { limit, offset, page, totalPages } = paginateList({
+    page: input.filters.page,
+    pageSize: adminListPageSize,
+    totalCount,
+  });
   const rows = await db
     .select({
       id: user.id,
@@ -66,14 +61,16 @@ export async function listUsers(input: {
     })
     .from(user)
     .leftJoin(academies, eq(academies.userId, user.id))
-    .where(buildUserWhere(input.filters))
+    .where(where)
     .orderBy(
       asc(sql`lower(coalesce(${academies.contactName}, ${user.name}))`),
       asc(sql`lower(coalesce(${user.internalUsername}, ${user.email}))`),
       asc(user.id),
-    );
+    )
+    .limit(limit)
+    .offset(offset);
 
-  return rows.map((row) => ({
+  const items = rows.map((row) => ({
     id: row.id,
     academyName: row.role === "academy" ? row.academyName : null,
     identifier: row.internalUsername ?? row.email,
@@ -81,8 +78,16 @@ export async function listUsers(input: {
     name:
       row.role === "academy" ? (row.academyContactName ?? row.name) : row.name,
     state: getUserListState(row),
-    userType: row.role === "academy" ? "academy" : "internal",
+    userType:
+      row.role === "academy" ? ("academy" as const) : ("internal" as const),
   }));
+
+  return {
+    filters: { ...input.filters, page },
+    items,
+    totalCount,
+    totalPages,
+  };
 }
 
 function getUserListState(row: {
@@ -108,19 +113,17 @@ function getUserListState(row: {
 function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
   const clauses: SQL<unknown>[] = [];
 
-  if (filters.query) {
-    const search = `%${filters.query}%`;
+  // Only an academy is found by email: an internal user's is a made-up
+  // credential nobody knows. See docs/domain/access.md.
+  const searchCondition = listSearchCondition(filters.query, [
+    user.name,
+    sql`case when ${user.role} = 'academy' then ${user.email} end`,
+    user.internalUsername,
+    academies.contactName,
+  ]);
 
-    clauses.push(
-      or(
-        ilike(user.name, search),
-        // Only an academy is found by email: an internal user's is a made-up
-        // credential nobody knows. See docs/domain/access.md.
-        and(eq(user.role, "academy"), ilike(user.email, search)),
-        ilike(user.internalUsername, search),
-        ilike(academies.contactName, search),
-      ) ?? sql`false`,
-    );
+  if (searchCondition) {
+    clauses.push(searchCondition);
   }
 
   if (filters.type === "academy") {
