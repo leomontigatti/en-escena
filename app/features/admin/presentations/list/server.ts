@@ -1,6 +1,6 @@
 import { data, redirect } from "react-router";
 
-import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
+import { foldSearchText } from "@/lib/list-query/list-query";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
@@ -395,11 +395,11 @@ function matchesPresentationQuery(item: PresentationListItem, query: string) {
     return true;
   }
 
-  const normalizedQuery = normalizeSearchValue(query);
+  const normalizedQuery = foldSearchText(query);
 
   return (
-    normalizeSearchValue(item.name).includes(normalizedQuery) ||
-    normalizeSearchValue(item.academyName).includes(normalizedQuery) ||
+    foldSearchText(item.name).includes(normalizedQuery) ||
+    foldSearchText(item.academyName).includes(normalizedQuery) ||
     formatEventSequenceNumber(item.choreographyNumber).includes(normalizedQuery)
   );
 }

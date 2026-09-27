@@ -21,8 +21,16 @@ import {
   type ChoreographyOperationalStatus,
 } from "@/lib/choreographies/operational-status";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
-import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
 import { isDateOnly } from "@/lib/shared/date-only";
+import { adminListPageSize } from "@/lib/admin/admin-list";
+import {
+  matchesListSearch,
+  paginateList,
+  readListFacet,
+  readListQuery,
+  type ListQuerySpec,
+} from "@/lib/list-query/list-query";
+import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
 type ChoreographyRow = {
   academyName: string;
@@ -126,23 +134,26 @@ export type ChoreographyListResult = {
   totalPages: number;
 };
 
-const choreographyPageSize = 50;
-const defaultChoreographyOrder: ChoreographyOrder = {
-  columnId: "numero",
-  direction: "asc",
+const choreographyListSpec: ListQuerySpec<ChoreographySortColumn> = {
+  orderColumnIds: ["numero", "academia", "nombre"],
+  defaultOrder: { columnId: "numero", direction: "asc" },
 };
 
 function readChoreographyFilters(
   searchParams: URLSearchParams,
 ): ChoreographyListFilters {
+  const listQuery = readListQuery(searchParams, choreographyListSpec);
+
   return {
-    category: readNonEmptySearchParam(searchParams.get("categoria")),
+    category: readListFacet(searchParams, "categoria"),
     groupType: readChoreographyGroupTypeFilter(searchParams.get("tipo-grupo")),
-    modalityId: readNonEmptySearchParam(searchParams.get("modalidad")),
-    order: readChoreographyOrder(searchParams.get("orden")),
-    page: readPage(searchParams),
-    query: searchParams.get("busqueda")?.trim() ?? "",
-    scheduleDate: readChoreographyScheduleDateFilter(searchParams.get("dia")),
+    modalityId: readListFacet(searchParams, "modalidad"),
+    order: listQuery.order,
+    page: listQuery.page,
+    query: listQuery.search,
+    scheduleDate: readChoreographyScheduleDateFilter(
+      readListFacet(searchParams, "dia"),
+    ),
     status: readChoreographyStatusFilter(searchParams.get("estado")),
   };
 }
@@ -206,10 +217,13 @@ export async function loadChoreographies(input: {
       compareChoreographies(firstRow, secondRow, filters.order),
     );
   const totalCount = filteredRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / choreographyPageSize));
-  const page = Math.min(filters.page, totalPages);
+  const { limit, offset, page, totalPages } = paginateList({
+    page: filters.page,
+    pageSize: adminListPageSize,
+    totalCount,
+  });
   const paginatedRows = filteredRows
-    .slice((page - 1) * choreographyPageSize, page * choreographyPageSize)
+    .slice(offset, offset + limit)
     .map(
       ({
         categoryId: _categoryId,
@@ -247,104 +261,25 @@ export async function loadChoreographyListRouteData(request: Request) {
     filters,
     selectedEventId: eventContext.selectedEventId,
   });
-  const canonicalSearch = buildCanonicalChoreographiesSearch({
-    currentSearch: url.search,
-    filters: listResult.filters,
-  });
-  const currentSearch = new URLSearchParams(url.search).toString();
+  const appliedFilters = listResult.filters;
 
-  if (canonicalSearch !== currentSearch) {
-    throw redirect(
-      canonicalSearch.length > 0
-        ? `${url.pathname}?${canonicalSearch}`
-        : url.pathname,
-    );
-  }
+  redirectToCanonicalListUrl(url, {
+    facets: {
+      estado: appliedFilters.status,
+      modalidad: appliedFilters.modalityId,
+      categoria: appliedFilters.category,
+      "tipo-grupo": appliedFilters.groupType,
+      dia: appliedFilters.scheduleDate,
+    },
+    query: {
+      order: appliedFilters.order,
+      page: appliedFilters.page,
+      search: appliedFilters.query,
+    },
+    spec: choreographyListSpec,
+  });
 
   return listResult;
-}
-
-function readPage(searchParams: URLSearchParams) {
-  const value = Number(searchParams.get("pagina"));
-
-  return Number.isInteger(value) && value > 0 ? value : 1;
-}
-
-function isDefaultChoreographyOrder(order: ChoreographyOrder) {
-  return (
-    order.columnId === defaultChoreographyOrder.columnId &&
-    order.direction === defaultChoreographyOrder.direction
-  );
-}
-
-function buildCanonicalChoreographiesSearch(input: {
-  currentSearch: string;
-  filters: ChoreographyListResult["filters"];
-}) {
-  const searchParams = new URLSearchParams(input.currentSearch);
-  const { filters } = input;
-
-  writeCanonicalSearchParam(
-    searchParams,
-    "busqueda",
-    filters.query.length > 0 ? filters.query : null,
-  );
-  writeCanonicalSearchParam(searchParams, "estado", filters.status);
-  writeCanonicalSearchParam(searchParams, "modalidad", filters.modalityId);
-  writeCanonicalSearchParam(searchParams, "categoria", filters.category);
-  writeCanonicalSearchParam(searchParams, "tipo-grupo", filters.groupType);
-  writeCanonicalSearchParam(searchParams, "dia", filters.scheduleDate);
-  writeCanonicalSearchParam(
-    searchParams,
-    "orden",
-    isDefaultChoreographyOrder(filters.order)
-      ? null
-      : `${filters.order.columnId}:${filters.order.direction}`,
-  );
-  writeCanonicalSearchParam(
-    searchParams,
-    "pagina",
-    filters.page > 1 ? String(filters.page) : null,
-  );
-
-  return searchParams.toString();
-}
-
-/**
- * A filter's canonical form is either its value or its absence: what is at its
- * default is never written, so one list state has one URL.
- */
-function writeCanonicalSearchParam(
-  searchParams: URLSearchParams,
-  key: string,
-  value: string | null,
-) {
-  if (value === null) {
-    searchParams.delete(key);
-
-    return;
-  }
-
-  searchParams.set(key, value);
-}
-
-function readChoreographyOrder(value: string | null): ChoreographyOrder {
-  switch (value) {
-    case "numero:asc":
-      return { columnId: "numero", direction: "asc" };
-    case "numero:desc":
-      return { columnId: "numero", direction: "desc" };
-    case "academia:asc":
-      return { columnId: "academia", direction: "asc" };
-    case "academia:desc":
-      return { columnId: "academia", direction: "desc" };
-    case "nombre:asc":
-      return { columnId: "nombre", direction: "asc" };
-    case "nombre:desc":
-      return { columnId: "nombre", direction: "desc" };
-    default:
-      return defaultChoreographyOrder;
-  }
 }
 
 async function hydrateChoreographies(
@@ -417,11 +352,7 @@ function readChoreographyStatusFilter(
 function readChoreographyScheduleDateFilter(
   value: string | null,
 ): ChoreographyScheduleDateFilter {
-  const scheduleDate = readNonEmptySearchParam(value);
-
-  return scheduleDate !== null && isDateOnly(scheduleDate)
-    ? scheduleDate
-    : null;
+  return value !== null && isDateOnly(value) ? value : null;
 }
 
 function readChoreographyGroupTypeFilter(
@@ -436,10 +367,6 @@ function readChoreographyGroupTypeFilter(
     default:
       return null;
   }
-}
-
-function readNonEmptySearchParam(value: string | null) {
-  return value?.trim().length ? value.trim() : null;
 }
 
 function buildChoreographyFacets(rows: ChoreographyRow[]) {
@@ -556,21 +483,15 @@ function matchesChoreographyStatus(
 
 /** What the search box asks, which is a different question from the panel's. */
 function matchesChoreographyQuery(row: HydratedChoreographyRow, query: string) {
-  if (query.length === 0) {
-    return true;
-  }
-
-  const normalizedQuery = normalizeSearchValue(query);
-
   // The number is compared already zero-padded, so `42`, `042` and `00042` all
   // find the same choreography. It stays an `includes` like the rest of the
   // search: an admin who only remembers the tail of the number types that and
   // still gets there.
-  return (
-    normalizeSearchValue(row.name).includes(normalizedQuery) ||
-    normalizeSearchValue(row.academyName).includes(normalizedQuery) ||
-    formatEventSequenceNumber(row.choreographyNumber).includes(normalizedQuery)
-  );
+  return matchesListSearch(query, [
+    row.name,
+    row.academyName,
+    formatEventSequenceNumber(row.choreographyNumber),
+  ]);
 }
 
 function compareChoreographies(

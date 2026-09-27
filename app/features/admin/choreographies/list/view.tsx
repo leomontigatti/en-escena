@@ -18,6 +18,7 @@ import {
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { loadChoreographies } from "./server";
 
@@ -27,6 +28,8 @@ type ChoreographyRow = LoaderData["choreographies"][number];
 type ChoreographiesListRouteViewProps = {
   loaderData: LoaderData;
 };
+
+const emptyChoreographyList = describeEmptyList("coreografías");
 
 const choreographyStatusFilterOptions = [
   { label: "Completa", value: "completa" },
@@ -157,7 +160,7 @@ export function ChoreographiesListRouteView({
         <ChoreographyTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
-          title="Todavía no hay coreografías para mostrar."
+          title={emptyChoreographyList.nothingYet}
           description="Cuando las academias registren coreografías para el evento activo, vas a poder revisarlas desde este listado."
         />
       )}
@@ -179,7 +182,7 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       facetedFilters={buildChoreographyFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildChoreographyInitialFilters(loaderData)}
       initialSort={loaderData.filters.order}
-      emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
+      emptyMessage={emptyChoreographyList.nothingMatched}
       currentPage={loaderData.filters.page}
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
@@ -196,25 +199,21 @@ function hasChoreographyTableContent(loaderData: LoaderData) {
 }
 
 /**
- * Whether the reader asked for this list rather than landed on it. An admin who
+ * Whether the reader narrowed this list rather than landed on it. An admin who
  * filtered their way to nothing is told nothing matched, and keeps the table to
  * undo it with; the empty state is for an event that has no choreographies yet.
+ * The order and the page narrow nothing — a sort reorders the same rows, and a
+ * page past the last one is clamped — so neither keeps the table up.
  */
 function hasNarrowedChoreographyList(filters: LoaderData["filters"]) {
   return (
     filters.query.length > 0 ||
-    filters.page > 1 ||
     filters.status !== null ||
     filters.modalityId !== null ||
     filters.category !== null ||
     filters.groupType !== null ||
-    filters.scheduleDate !== null ||
-    hasNonDefaultChoreographyOrder(filters.order)
+    filters.scheduleDate !== null
   );
-}
-
-function hasNonDefaultChoreographyOrder(order: LoaderData["filters"]["order"]) {
-  return order.direction === "desc" || order.columnId !== "academia";
 }
 
 function buildChoreographyFacetedFilters(
