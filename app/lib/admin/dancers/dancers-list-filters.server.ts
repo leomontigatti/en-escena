@@ -1,32 +1,32 @@
-import { and, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, sql, type SQL } from "drizzle-orm";
 
 import { academies, dancers } from "@/db/schema";
 import {
+  dancerListSpec,
   readDancerIdentificationFilter,
   readDancerParticipationFilter,
   type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
+import { readListQuery } from "@/lib/list-query/list-query";
+import { listSearchCondition } from "@/lib/list-query/list-query.server";
 import { readRosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
 import { rosterPersonStatusCondition } from "@/lib/roster/roster-person-status.server";
-import {
-  escapeForLike,
-  readDancerNameOrder,
-  readPage,
-} from "@/lib/admin/dancers/dancers.server.shared";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
 function readDancerFilters(searchParams: URLSearchParams): DancerListFilters {
+  const listQuery = readListQuery(searchParams, dancerListSpec);
+
   return {
-    nameOrder: readDancerNameOrder(searchParams.get("orden")),
+    order: listQuery.order,
     participation: readDancerParticipationFilter(
       searchParams.get("participando"),
     ),
-    query: searchParams.get("busqueda")?.trim() ?? "",
+    query: listQuery.search,
     status: readRosterPersonStatusFilter(searchParams),
     identification: readDancerIdentificationFilter(
       searchParams.get("identificacion"),
     ),
-    page: readPage(searchParams),
+    page: listQuery.page,
   };
 }
 
@@ -83,20 +83,17 @@ function buildDancerFilters(input: {
     `);
   }
 
-  if (input.filters.query.length > 0) {
-    const search = `%${escapeForLike(input.filters.query)}%`;
-    const searchCondition = or(
-      ilike(dancers.firstName, search),
-      ilike(dancers.lastName, search),
-      ilike(sql`${dancers.firstName} || ' ' || ${dancers.lastName}`, search),
-      ilike(sql`${dancers.lastName} || ' ' || ${dancers.firstName}`, search),
-      ilike(dancers.documentNumber, search),
-      ilike(academies.name, search),
-    );
+  const searchCondition = listSearchCondition(input.filters.query, [
+    dancers.firstName,
+    dancers.lastName,
+    sql`${dancers.firstName} || ' ' || ${dancers.lastName}`,
+    sql`${dancers.lastName} || ' ' || ${dancers.firstName}`,
+    dancers.documentNumber,
+    academies.name,
+  ]);
 
-    if (searchCondition) {
-      conditions.push(searchCondition);
-    }
+  if (searchCondition) {
+    conditions.push(searchCondition);
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;

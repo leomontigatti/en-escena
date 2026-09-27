@@ -21,11 +21,7 @@ import {
   experienceLevelLabels,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
-import {
-  toDancerIdentificationSearchValue,
-  toDancerParticipationSearchValue,
-} from "@/lib/admin/dancers/dancers.shared";
-import { toRosterPersonStatusSearchValue } from "@/lib/roster/roster-person-status.shared";
+import { buildDancerListSearch } from "@/lib/admin/dancers/dancers.shared";
 import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
@@ -99,9 +95,7 @@ describe("`/administracion/bailarines` route", () => {
     expect(loaderData).not.toHaveProperty("email");
     expect(loaderData).not.toHaveProperty("events");
     expect(markup).toContain("Bailarines");
-    expect(markup).toContain(
-      "No hay Bailarines que coincidan con la búsqueda.",
-    );
+    expect(markup).toContain("Todavía no hay bailarines.");
     expect(markup).not.toContain("Acciones");
   });
 
@@ -122,7 +116,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.bailarines@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines`,
     });
 
     await expect(loader(routeArgs(auditorRequest))).resolves.toMatchObject({
@@ -132,12 +126,12 @@ describe("`/administracion/bailarines` route", () => {
     const { request: academyRequest } = await createSignedInRequest({
       email: "academy.bailarines@example.com",
       role: "academy",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines`,
     });
     const { request: judgeRequest } = await createSignedInRequest({
       email: "judge.bailarines@example.com",
       role: "judge",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines`,
     });
 
     await expectThrownResponse(loader(routeArgs(academyRequest)), 403);
@@ -237,7 +231,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request: defaultRequest } = await createSignedInRequest({
       email: "admin.default.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines`,
     });
     const defaultData = await loader(routeArgs(defaultRequest));
 
@@ -261,7 +255,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.search.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&estado=todos&identificacion=incompleta&busqueda=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/bailarines?participando=no&estado=todos&identificacion=incompleta&busqueda=Academia+Sur`,
     });
     const searchData = await loader(routeArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
@@ -285,17 +279,23 @@ describe("`/administracion/bailarines` route", () => {
     const { request: legacySearchRequest } = await createSignedInRequest({
       email: "admin.search.legacy.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&q=Academia+Sur&page=2`,
+      requestUrl: `http://localhost/administracion/bailarines?q=Academia+Sur&page=2`,
     });
-    const legacySearchData = await loader(routeArgs(legacySearchRequest));
+    const legacySearchRedirect = await expectThrownResponse(
+      loader(routeArgs(legacySearchRequest)),
+      302,
+    );
 
-    expect(legacySearchData.filters.query).toBe("");
-    expect(legacySearchData.filters.page).toBe(1);
+    // `q` and `page` are not this product's vocabulary: they are dropped, not
+    // read.
+    expect(legacySearchRedirect.headers.get("Location")).toBe(
+      "/administracion/bailarines",
+    );
 
     const { request: emptySearchRequest } = await createSignedInRequest({
       email: "admin.empty.search.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&busqueda=No+existe`,
+      requestUrl: `http://localhost/administracion/bailarines?participando=no&busqueda=No+existe`,
     });
     const emptySearchData = await loader(routeArgs(emptySearchRequest));
     const emptySearchMarkup = renderRoute(emptySearchData);
@@ -303,16 +303,14 @@ describe("`/administracion/bailarines` route", () => {
     expect(emptySearchData.dancers).toHaveLength(0);
     expect(emptySearchMarkup).toContain('value="No existe"');
     expect(emptySearchMarkup).toContain(
-      "No hay Bailarines que coincidan con la búsqueda o los filtros.",
+      "No hay bailarines que coincidan con la búsqueda o los filtros.",
     );
-    expect(emptySearchMarkup).not.toContain(
-      "Todavía no hay Bailarines para mostrar.",
-    );
+    expect(emptySearchMarkup).not.toContain("Todavía no hay bailarines.");
 
     const { request: archivedRequest } = await createSignedInRequest({
       email: "admin.archived.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&estado=archivados&identificacion=todos`,
+      requestUrl: `http://localhost/administracion/bailarines?estado=archivados`,
     });
     const archivedData = await loader(routeArgs(archivedRequest));
     const archivedMarkup = renderRoute(archivedData);
@@ -327,7 +325,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request: pageTwoRequest } = await createSignedInRequest({
       email: "admin.pagination.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}&participando=no&pagina=2`,
+      requestUrl: `http://localhost/administracion/bailarines?participando=no&pagina=2`,
     });
     const pageTwoData = await loader(routeArgs(pageTwoRequest));
     const pageTwoMarkup = renderRoute(pageTwoData);
@@ -695,7 +693,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request: listRequest } = await createSignedInRequest({
       email: "admin.layout.bailarines.list@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/bailarines`,
     });
     const { request: detailRequest } = await createSignedInRequest({
       email: "admin.layout.bailarines.detail@example.com",
@@ -1898,44 +1896,10 @@ function renderRouteInAdminLayout({
 function buildListInitialEntry(
   loaderData: Parameters<typeof DancersListRouteView>[0]["loaderData"],
 ) {
-  const searchParams = new URLSearchParams();
-
-  if (loaderData.filters.query.length > 0) {
-    searchParams.set("busqueda", loaderData.filters.query);
-  }
-
-  if (loaderData.filters.nameOrder === "desc") {
-    searchParams.set("orden", "nombre:desc");
-  }
-
-  const participationValue = toDancerParticipationSearchValue(
-    loaderData.filters.participation,
+  const search = buildDancerListSearch(
+    loaderData.filters,
+    loaderData.selectedEventId,
   );
-
-  if (loaderData.selectedEventId && participationValue !== null) {
-    searchParams.set("participando", participationValue);
-  }
-
-  const statusValue = toRosterPersonStatusSearchValue(
-    loaderData.filters.status,
-  );
-
-  if (statusValue !== null) {
-    searchParams.set("estado", statusValue);
-  }
-
-  if (loaderData.filters.identification !== "all") {
-    searchParams.set(
-      "identificacion",
-      toDancerIdentificationSearchValue(loaderData.filters.identification),
-    );
-  }
-
-  if (loaderData.filters.page > 1) {
-    searchParams.set("pagina", String(loaderData.filters.page));
-  }
-
-  const search = searchParams.toString();
 
   return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
 }

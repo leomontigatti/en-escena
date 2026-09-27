@@ -144,7 +144,7 @@ export async function loadPaymentsList(
     .limit(limit)
     .offset(offset);
 
-  redirectToCanonicalListUrl(url, {
+  redirectToCanonicalListUrl(request, {
     facets: {
       medio: normalizedFilters.method,
       disponible: normalizedFilters.availability,

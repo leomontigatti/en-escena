@@ -263,7 +263,7 @@ export async function loadChoreographyListRouteData(request: Request) {
   });
   const appliedFilters = listResult.filters;
 
-  redirectToCanonicalListUrl(url, {
+  redirectToCanonicalListUrl(request, {
     facets: {
       estado: appliedFilters.status,
       modalidad: appliedFilters.modalityId,

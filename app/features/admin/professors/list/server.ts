@@ -6,6 +6,11 @@ import {
   readProfessorFilters,
 } from "@/lib/admin/professors/professors.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import {
+  professorListSpec,
+  toProfessorListFacets,
+} from "@/lib/admin/professors/professors.shared";
+import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
 export async function loadProfessorsList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
@@ -15,10 +20,24 @@ export async function loadProfessorsList(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const filters = readProfessorFilters(new URL(request.url).searchParams);
+  const url = new URL(request.url);
+  const filters = readProfessorFilters(url.searchParams);
   const listResult = await listProfessors({
     selectedEventId: eventContext.selectedEventId,
     filters,
+  });
+
+  redirectToCanonicalListUrl(url, {
+    facets: toProfessorListFacets(
+      listResult.filters,
+      eventContext.selectedEventId,
+    ),
+    query: {
+      order: listResult.filters.order,
+      page: listResult.filters.page,
+      search: listResult.filters.query,
+    },
+    spec: professorListSpec,
   });
 
   return {

@@ -48,24 +48,37 @@ export function listSearchCondition(
 
 /**
  * Sends the reader to the list's canonical address when the one they asked for
- * differs, so the address bar always shows exactly the query that was applied.
- * Called by a list loader once it knows what it applied — the clamped page
- * included — and a no-op when the address is already canonical.
+ * holds something else, so the address bar always shows exactly the query that
+ * was applied. Called by a list loader once it knows what it applied — the
+ * clamped page included.
+ *
+ * Only what the URL holds is compared, not the order it holds it in: the table
+ * writes each filter where the reader clicked it, and reordering that would
+ * cost a redirect per click for an address that already says the right thing.
  */
 export function redirectToCanonicalListUrl<TColumnId extends string>(
-  url: URL,
+  request: Request,
   input: AppliedListQuery<TColumnId>,
 ) {
+  const url = new URL(request.url);
   const canonicalSearch = buildCanonicalListSearch({
     ...input,
     currentSearch: url.search,
   });
 
-  if (canonicalSearch !== url.searchParams.toString()) {
+  if (sortSearch(canonicalSearch) !== sortSearch(url.search)) {
     throw redirect(
       canonicalSearch.length > 0
         ? `${url.pathname}?${canonicalSearch}`
         : url.pathname,
     );
   }
+}
+
+function sortSearch(search: string) {
+  const searchParams = new URLSearchParams(search);
+
+  searchParams.sort();
+
+  return searchParams.toString();
 }

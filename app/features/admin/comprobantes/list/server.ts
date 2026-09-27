@@ -181,7 +181,7 @@ export async function loadComprobantesList(
 
   // Retired facets (`academia`, `porcion`) are not declared, so old URLs drop
   // them on the way.
-  redirectToCanonicalListUrl(url, {
+  redirectToCanonicalListUrl(request, {
     facets: { estado: normalizedFilters.estado, tipo: normalizedFilters.tipo },
     query: {
       order: normalizedFilters.order,

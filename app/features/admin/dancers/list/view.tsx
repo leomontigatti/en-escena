@@ -10,11 +10,12 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
+  buildDancerListSearch,
   getDancerIdentificationBadgeVariant,
-  toDancerIdentificationSearchValue,
-  toDancerParticipationSearchValue,
+  toDancerListFacets,
   type DancerIdentificationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 import {
   getParticipationBadgeVariant,
   getParticipationLabel,
@@ -23,7 +24,6 @@ import {
 import {
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
-  toRosterPersonStatusSearchValue,
 } from "@/lib/roster/roster-person-status.shared";
 import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
 import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
@@ -37,6 +37,8 @@ type FacetedFilterGroup = DataTableFacetedFilter;
 export type DancersListRouteViewProps = {
   loaderData: LoaderData;
 };
+
+const emptyDancerList = describeEmptyList("bailarines");
 
 export function DancersListRouteView({
   loaderData,
@@ -57,12 +59,8 @@ export function DancersListRouteView({
         <DancerTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
-          title="No hay Bailarines que coincidan con la búsqueda."
-          description={
-            loaderData.selectedEventId
-              ? "Ajustá los filtros para revisar otros registros del Evento activo."
-              : "Cuando haya bailarines activos vas a poder revisarlos desde este listado."
-          }
+          title={emptyDancerList.nothingYet}
+          description="Cuando las academias registren bailarines vas a poder revisarlos desde este listado."
         />
       )}
     </AdminResourceLayout>
@@ -126,11 +124,8 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildDancerFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
-      initialSort={{
-        columnId: "nombre",
-        direction: loaderData.filters.nameOrder,
-      }}
-      emptyMessage="No hay Bailarines que coincidan con la búsqueda o los filtros."
+      initialSort={loaderData.filters.order}
+      emptyMessage={emptyDancerList.nothingMatched}
       currentPage={loaderData.filters.page}
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
@@ -245,42 +240,12 @@ function buildDancerDetailHref(loaderData: LoaderData, dancerId: string) {
 }
 
 function buildDetailSearch(loaderData: LoaderData) {
-  const searchParams = buildSearchParams(loaderData);
-  const search = searchParams.toString();
+  const search = buildDancerListSearch(
+    loaderData.filters,
+    loaderData.selectedEventId,
+  );
 
   return search.length > 0 ? `?${search}` : "";
-}
-
-function buildSearchParams(loaderData: LoaderData) {
-  const searchParams = new URLSearchParams();
-
-  if (loaderData.filters.query.length > 0) {
-    searchParams.set("busqueda", loaderData.filters.query);
-  }
-
-  if (loaderData.filters.nameOrder === "desc") {
-    searchParams.set("orden", "nombre:desc");
-  }
-
-  const values = getSelectedFilterValues(loaderData);
-
-  if (values.participando) {
-    searchParams.set("participando", values.participando);
-  }
-
-  if (values.estado) {
-    searchParams.set("estado", values.estado);
-  }
-
-  if (values.identificacion) {
-    searchParams.set("identificacion", values.identificacion);
-  }
-
-  if (loaderData.filters.page > 1) {
-    searchParams.set("pagina", String(loaderData.filters.page));
-  }
-
-  return searchParams;
 }
 
 function buildInitialFacetedFilterValues(loaderData: LoaderData) {
@@ -291,47 +256,26 @@ function buildInitialFacetedFilterValues(loaderData: LoaderData) {
 
 function getSelectedFilterValues(loaderData: LoaderData) {
   const values: Record<string, string> = {};
-  const participationValue = toDancerParticipationSearchValue(
-    loaderData.filters.participation,
-  );
-  const statusValue = toRosterPersonStatusSearchValue(
-    loaderData.filters.status,
-  );
-  const identificationValue = toDancerIdentificationSearchValue(
-    loaderData.filters.identification,
-  );
 
-  if (loaderData.selectedEventId !== null && participationValue !== null) {
-    values.participando = participationValue;
-  }
-
-  if (statusValue !== null) {
-    values.estado = statusValue;
-  }
-
-  if (identificationValue !== "todos") {
-    values.identificacion = identificationValue;
+  for (const [paramName, value] of Object.entries(
+    toDancerListFacets(loaderData.filters, loaderData.selectedEventId),
+  )) {
+    if (value !== null) {
+      values[paramName] = value;
+    }
   }
 
   return values;
 }
 
+/**
+ * Whether the reader narrowed this list rather than landed on it. The order
+ * and the page narrow nothing: a sort reorders the same rows, and a page past
+ * the last one is clamped.
+ */
 function hasActiveListFilters(loaderData: LoaderData) {
-  const participationValue = toDancerParticipationSearchValue(
-    loaderData.filters.participation,
-  );
-  const statusValue = toRosterPersonStatusSearchValue(
-    loaderData.filters.status,
-  );
-  const identificationValue = toDancerIdentificationSearchValue(
-    loaderData.filters.identification,
-  );
-
   return (
     loaderData.filters.query.length > 0 ||
-    loaderData.filters.page > 1 ||
-    (loaderData.selectedEventId !== null && participationValue !== null) ||
-    statusValue !== null ||
-    identificationValue !== "todos"
+    Object.keys(getSelectedFilterValues(loaderData)).length > 0
   );
 }

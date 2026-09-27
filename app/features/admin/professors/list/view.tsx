@@ -9,7 +9,11 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { toProfessorParticipationSearchValue } from "@/lib/admin/professors/professors.shared";
+import {
+  buildProfessorListSearch,
+  toProfessorListFacets,
+} from "@/lib/admin/professors/professors.shared";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 import {
   getParticipationBadgeVariant,
   getParticipationLabel,
@@ -18,7 +22,6 @@ import {
 import {
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
-  toRosterPersonStatusSearchValue,
 } from "@/lib/roster/roster-person-status.shared";
 import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
 
@@ -31,6 +34,8 @@ type FacetedFilterGroup = DataTableFacetedFilter;
 export type ProfessorsListRouteViewProps = {
   loaderData: LoaderData;
 };
+
+const emptyProfessorList = describeEmptyList("profesores");
 
 export function ProfessorsListRouteView({
   loaderData,
@@ -51,12 +56,8 @@ export function ProfessorsListRouteView({
         <ProfessorTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
-          title="Todavía no hay Profesores para mostrar."
-          description={
-            loaderData.selectedEventId
-              ? "Ajustá los filtros para revisar otros registros del Evento activo."
-              : "Cuando haya profesores activos vas a poder revisarlos desde este listado."
-          }
+          title={emptyProfessorList.nothingYet}
+          description="Cuando las academias registren profesores vas a poder revisarlos desde este listado."
         />
       )}
     </AdminResourceLayout>
@@ -117,11 +118,8 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildProfessorFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
-      initialSort={{
-        columnId: "nombre",
-        direction: loaderData.filters.nameOrder,
-      }}
-      emptyMessage="No hay Profesores que coincidan con la búsqueda o los filtros."
+      initialSort={loaderData.filters.order}
+      emptyMessage={emptyProfessorList.nothingMatched}
       currentPage={loaderData.filters.page}
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
@@ -188,31 +186,10 @@ function buildProfessorDetailHref(loaderData: LoaderData, professorId: string) {
 }
 
 function buildDetailSearch(loaderData: LoaderData) {
-  const searchParams = new URLSearchParams();
-
-  if (loaderData.filters.query.length > 0) {
-    searchParams.set("busqueda", loaderData.filters.query);
-  }
-
-  if (loaderData.filters.nameOrder === "desc") {
-    searchParams.set("orden", "nombre:desc");
-  }
-
-  const selectedFilters = getSelectedFilterValues(loaderData);
-
-  if (selectedFilters.participando) {
-    searchParams.set("participando", selectedFilters.participando);
-  }
-
-  if (selectedFilters.estado) {
-    searchParams.set("estado", selectedFilters.estado);
-  }
-
-  if (loaderData.filters.page > 1) {
-    searchParams.set("pagina", String(loaderData.filters.page));
-  }
-
-  const search = searchParams.toString();
+  const search = buildProfessorListSearch(
+    loaderData.filters,
+    loaderData.selectedEventId,
+  );
 
   return search.length > 0 ? `?${search}` : "";
 }
@@ -225,31 +202,26 @@ function buildInitialFacetedFilterValues(loaderData: LoaderData) {
 
 function getSelectedFilterValues(loaderData: LoaderData) {
   const values: Record<string, string> = {};
-  const statusValue = toRosterPersonStatusSearchValue(
-    loaderData.filters.status,
-  );
 
-  if (statusValue !== null) {
-    values.estado = statusValue;
-  }
-
-  const participationValue = toProfessorParticipationSearchValue(
-    loaderData.filters.participation,
-  );
-
-  if (loaderData.selectedEventId !== null && participationValue !== null) {
-    values.participando = participationValue;
+  for (const [paramName, value] of Object.entries(
+    toProfessorListFacets(loaderData.filters, loaderData.selectedEventId),
+  )) {
+    if (value !== null) {
+      values[paramName] = value;
+    }
   }
 
   return values;
 }
 
+/**
+ * Whether the reader narrowed this list rather than landed on it. The order
+ * and the page narrow nothing: a sort reorders the same rows, and a page past
+ * the last one is clamped.
+ */
 function hasActiveListFilters(loaderData: LoaderData) {
-  const selectedFilters = getSelectedFilterValues(loaderData);
-
   return (
     loaderData.filters.query.length > 0 ||
-    loaderData.filters.page > 1 ||
-    Object.keys(selectedFilters).length > 0
+    Object.keys(getSelectedFilterValues(loaderData)).length > 0
   );
 }

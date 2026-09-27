@@ -3,10 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import { getDancerVerificationStatus } from "@/lib/dancers/verification";
-import type {
-  DancerIdentificationStatus,
-  DancerNameOrder,
-} from "@/lib/admin/dancers/dancers.shared";
+import type { DancerIdentificationStatus } from "@/lib/admin/dancers/dancers.shared";
 import {
   buildDancerAnyEventParticipationSql,
   buildDancerEventParticipationSql,
@@ -29,27 +26,6 @@ export type DancerMutationRecord = {
   hasParticipatedInAnyEvent: boolean;
   identificationStatus: DancerIdentificationStatus;
 };
-
-export function readDancerNameOrder(value: string | null): DancerNameOrder {
-  return value === "nombre:desc" ? "desc" : "asc";
-}
-
-export function readPage(searchParams: URLSearchParams) {
-  const page = Number(searchParams.get("pagina"));
-
-  if (!Number.isInteger(page) || page < 1) {
-    return 1;
-  }
-
-  return page;
-}
-
-export function escapeForLike(value: string) {
-  return value
-    .replaceAll("\\", "\\\\")
-    .replaceAll("%", "\\%")
-    .replaceAll("_", "\\_");
-}
 
 export function toIdentificationStatus(input: {
   documentType: (typeof dancers.$inferSelect)["documentType"];

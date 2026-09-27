@@ -2,10 +2,9 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, dancers } from "@/db/schema";
-import {
-  dancerPageSize,
-  type DancerListFilters,
-} from "@/lib/admin/dancers/dancers.shared";
+import type { DancerListFilters } from "@/lib/admin/dancers/dancers.shared";
+import { adminListPageSize } from "@/lib/admin/admin-list";
+import { paginateList } from "@/lib/list-query/list-query";
 import { toIdentificationStatus } from "@/lib/admin/dancers/dancers.server.shared";
 import { toParticipationStatus } from "@/lib/participation/participation.shared";
 import { buildDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
@@ -34,13 +33,16 @@ async function listDancers(input: {
     .where(where);
 
   const totalCount = Number(count);
-  const totalPages = Math.max(1, Math.ceil(totalCount / dancerPageSize));
-  const page = Math.min(input.filters.page, totalPages);
+  const { limit, offset, page, totalPages } = paginateList({
+    page: input.filters.page,
+    pageSize: adminListPageSize,
+    totalCount,
+  });
   const participationSql = buildDancerEventParticipationSql(
     input.selectedEventId,
   );
   const orderByName =
-    input.filters.nameOrder === "desc"
+    input.filters.order.direction === "desc"
       ? [
           desc(sql`lower(${dancers.firstName})`),
           desc(sql`lower(${dancers.lastName})`),
@@ -68,8 +70,8 @@ async function listDancers(input: {
     .innerJoin(academies, eq(academies.id, dancers.academyId))
     .where(where)
     .orderBy(...orderByName, asc(dancers.id))
-    .limit(dancerPageSize)
-    .offset((page - 1) * dancerPageSize);
+    .limit(limit)
+    .offset(offset);
 
   return {
     filters: {
