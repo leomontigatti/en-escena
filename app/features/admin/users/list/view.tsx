@@ -19,7 +19,10 @@ import {
   buildUserListSearch,
   toUserListFacets,
 } from "@/lib/admin/users/users-list.shared";
-import { describeEmptyList } from "@/lib/list-query/list-query";
+import {
+  activeListFacets,
+  describeEmptyList,
+} from "@/lib/list-query/list-query";
 
 import type { loader } from "./server";
 
@@ -83,7 +86,7 @@ export function InternalUsersListRouteView({
 function hasActiveUserFilters(filters: UserListFilters) {
   return (
     filters.query.length > 0 ||
-    Object.values(toUserListFacets(filters)).some((value) => value !== null)
+    Object.keys(activeListFacets(toUserListFacets(filters))).length > 0
   );
 }
 
@@ -183,19 +186,9 @@ function UsersTable({
 function buildInitialUserFilterValues(
   filters: UserListFilters,
 ): Record<string, Record<string, string>> {
-  const values: Record<string, string> = {};
+  const values = activeListFacets(toUserListFacets(filters));
 
-  for (const [paramName, value] of Object.entries(toUserListFacets(filters))) {
-    if (value !== null) {
-      values[paramName] = value;
-    }
-  }
-
-  if (Object.keys(values).length === 0) {
-    return {};
-  }
-
-  return { filters: values };
+  return Object.keys(values).length > 0 ? { filters: values } : {};
 }
 
 function buildUserDetailHref(filters: UserListFilters, userId: string) {

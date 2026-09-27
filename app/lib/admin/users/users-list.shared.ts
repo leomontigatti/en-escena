@@ -52,10 +52,9 @@ export function toUserListFacets(filters: UserListFilters) {
   };
 }
 
-/** The list's canonical query string, carried to a user's detail and back. */
-export function buildUserListSearch(filters: UserListFilters) {
-  return buildCanonicalListSearch({
-    currentSearch: "",
+/** What the list applied, as its canonical address is written from it. */
+export function toUserAppliedListQuery(filters: UserListFilters) {
+  return {
     facets: toUserListFacets(filters),
     query: {
       order: userListSpec.defaultOrder,
@@ -63,5 +62,13 @@ export function buildUserListSearch(filters: UserListFilters) {
       search: filters.query,
     },
     spec: userListSpec,
+  };
+}
+
+/** The list's canonical query string, carried to a detail screen and back. */
+export function buildUserListSearch(filters: UserListFilters) {
+  return buildCanonicalListSearch({
+    ...toUserAppliedListQuery(filters),
+    currentSearch: "",
   });
 }

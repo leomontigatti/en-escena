@@ -2,10 +2,7 @@ import {
   listUsers,
   readUserFilters,
 } from "@/lib/admin/users/users-list.server";
-import {
-  toUserListFacets,
-  userListSpec,
-} from "@/lib/admin/users/users-list.shared";
+import { toUserAppliedListQuery } from "@/lib/admin/users/users-list.shared";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
@@ -14,15 +11,10 @@ export async function loader({ request }: { request: Request }) {
   const filters = readUserFilters(new URL(request.url).searchParams);
   const listResult = await listUsers({ filters });
 
-  redirectToCanonicalListUrl(request, {
-    facets: toUserListFacets(listResult.filters),
-    query: {
-      order: userListSpec.defaultOrder,
-      page: listResult.filters.page,
-      search: listResult.filters.query,
-    },
-    spec: userListSpec,
-  });
+  redirectToCanonicalListUrl(
+    request,
+    toUserAppliedListQuery(listResult.filters),
+  );
 
   return {
     canManage: appUser.role === "admin",

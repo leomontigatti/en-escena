@@ -44,13 +44,12 @@ export function toProfessorListFacets(
   };
 }
 
-/** The list's canonical query string, carried to a professor's detail and back. */
-export function buildProfessorListSearch(
+/** What the list applied, as its canonical address is written from it. */
+export function toProfessorAppliedListQuery(
   filters: ProfessorListFilters,
   selectedEventId: string | null,
 ) {
-  return buildCanonicalListSearch({
-    currentSearch: "",
+  return {
     facets: toProfessorListFacets(filters, selectedEventId),
     query: {
       order: filters.order,
@@ -58,6 +57,17 @@ export function buildProfessorListSearch(
       search: filters.query,
     },
     spec: professorListSpec,
+  };
+}
+
+/** The list's canonical query string, carried to a detail screen and back. */
+export function buildProfessorListSearch(
+  filters: ProfessorListFilters,
+  selectedEventId: string | null,
+) {
+  return buildCanonicalListSearch({
+    ...toProfessorAppliedListQuery(filters, selectedEventId),
+    currentSearch: "",
   });
 }
 

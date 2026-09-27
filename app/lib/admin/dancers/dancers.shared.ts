@@ -53,13 +53,12 @@ export function toDancerListFacets(
   };
 }
 
-/** The list's canonical query string, carried to a dancer's detail and back. */
-export function buildDancerListSearch(
+/** What the list applied, as its canonical address is written from it. */
+export function toDancerAppliedListQuery(
   filters: DancerListFilters,
   selectedEventId: string | null,
 ) {
-  return buildCanonicalListSearch({
-    currentSearch: "",
+  return {
     facets: toDancerListFacets(filters, selectedEventId),
     query: {
       order: filters.order,
@@ -67,6 +66,17 @@ export function buildDancerListSearch(
       search: filters.query,
     },
     spec: dancerListSpec,
+  };
+}
+
+/** The list's canonical query string, carried to a detail screen and back. */
+export function buildDancerListSearch(
+  filters: DancerListFilters,
+  selectedEventId: string | null,
+) {
+  return buildCanonicalListSearch({
+    ...toDancerAppliedListQuery(filters, selectedEventId),
+    currentSearch: "",
   });
 }
 

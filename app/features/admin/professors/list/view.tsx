@@ -13,7 +13,10 @@ import {
   buildProfessorListSearch,
   toProfessorListFacets,
 } from "@/lib/admin/professors/professors.shared";
-import { describeEmptyList } from "@/lib/list-query/list-query";
+import {
+  activeListFacets,
+  describeEmptyList,
+} from "@/lib/list-query/list-query";
 import {
   getParticipationBadgeVariant,
   getParticipationLabel,
@@ -201,17 +204,9 @@ function buildInitialFacetedFilterValues(loaderData: LoaderData) {
 }
 
 function getSelectedFilterValues(loaderData: LoaderData) {
-  const values: Record<string, string> = {};
-
-  for (const [paramName, value] of Object.entries(
+  return activeListFacets(
     toProfessorListFacets(loaderData.filters, loaderData.selectedEventId),
-  )) {
-    if (value !== null) {
-      values[paramName] = value;
-    }
-  }
-
-  return values;
+  );
 }
 
 /**

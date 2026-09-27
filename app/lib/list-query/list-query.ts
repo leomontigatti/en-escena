@@ -151,6 +151,23 @@ export type AppliedListQuery<TColumnId extends string> = {
 };
 
 /**
+ * The facets a list is narrowed by, without the ones at their default: what the
+ * filter panel shows as picked, and what a view asks to know whether the reader
+ * narrowed the list at all.
+ */
+export function activeListFacets(facets: Record<string, string | null>) {
+  const activeFacets: Record<string, string> = {};
+
+  for (const [paramName, value] of Object.entries(facets)) {
+    if (value !== null && value.length > 0) {
+      activeFacets[paramName] = value;
+    }
+  }
+
+  return activeFacets;
+}
+
+/**
  * The address a list's applied query lives at. It is written from what the
  * list applied rather than from what was asked, in one fixed order, with every
  * default left out, so one list state has one URL: a clamped page, a dropped

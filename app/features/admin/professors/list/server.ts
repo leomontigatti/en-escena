@@ -6,10 +6,7 @@ import {
   readProfessorFilters,
 } from "@/lib/admin/professors/professors.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import {
-  professorListSpec,
-  toProfessorListFacets,
-} from "@/lib/admin/professors/professors.shared";
+import { toProfessorAppliedListQuery } from "@/lib/admin/professors/professors.shared";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
 export async function loadProfessorsList(request: Request) {
@@ -26,18 +23,13 @@ export async function loadProfessorsList(request: Request) {
     filters,
   });
 
-  redirectToCanonicalListUrl(request, {
-    facets: toProfessorListFacets(
+  redirectToCanonicalListUrl(
+    request,
+    toProfessorAppliedListQuery(
       listResult.filters,
       eventContext.selectedEventId,
     ),
-    query: {
-      order: listResult.filters.order,
-      page: listResult.filters.page,
-      search: listResult.filters.query,
-    },
-    spec: professorListSpec,
-  });
+  );
 
   return {
     selectedEventId: eventContext.selectedEventId,
