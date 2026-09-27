@@ -1,17 +1,5 @@
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  exists,
-  ilike,
-  not,
-  or,
-  sql,
-  type SQL,
-} from "drizzle-orm";
+import { and, asc, desc, eq, exists, not, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { redirect } from "react-router";
 
 import { db } from "@/db";
 import { academies, choreographies, comprobantes, seminars } from "@/db/schema";
@@ -24,6 +12,16 @@ import {
 } from "@/lib/comprobantes/arca/factura-c";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
+import { adminListPageSize } from "@/lib/admin/admin-list";
+import {
+  paginateList,
+  readListQuery,
+  type ListQuerySpec,
+} from "@/lib/list-query/list-query";
+import {
+  listSearchCondition,
+  redirectToCanonicalListUrl,
+} from "@/lib/list-query/list-query.server";
 
 // A row of the global comprobantes list (#339 variant A, #483). It is read-only:
 // it exposes the already emitted fiscal snapshot (numbering, CAE, amount, date)
@@ -70,10 +68,9 @@ export type ComprobantesListLoaderData = {
   totalPages: number;
 };
 
-const comprobantesPageSize = 50;
-const defaultComprobantesOrder: ComprobantesListOrder = {
-  columnId: "fecha",
-  direction: "desc",
+const comprobantesListSpec: ListQuerySpec<ComprobantesListOrder["columnId"]> = {
+  orderColumnIds: ["fecha", "numero"],
+  defaultOrder: { columnId: "fecha", direction: "desc" },
 };
 
 /**
@@ -121,8 +118,11 @@ export async function loadComprobantesList(
     .leftJoin(seminars, eq(comprobantes.seminarId, seminars.id))
     .where(where);
   const totalCount = Number(count);
-  const totalPages = Math.max(1, Math.ceil(totalCount / comprobantesPageSize));
-  const page = Math.min(filters.page, totalPages);
+  const { limit, offset, page, totalPages } = paginateList({
+    page: filters.page,
+    pageSize: adminListPageSize,
+    totalCount,
+  });
   const normalizedFilters = { ...filters, page };
 
   const anchorRows = await db
@@ -156,8 +156,8 @@ export async function loadComprobantesList(
     .leftJoin(seminars, eq(comprobantes.seminarId, seminars.id))
     .where(where)
     .orderBy(...buildComprobantesOrderBy(normalizedFilters.order))
-    .limit(comprobantesPageSize)
-    .offset((page - 1) * comprobantesPageSize);
+    .limit(limit)
+    .offset(offset);
 
   const comprobanteRows: ComprobantesListRow[] = anchorRows.map(
     ({
@@ -179,19 +179,17 @@ export async function loadComprobantesList(
     }),
   );
 
-  const canonicalSearch = buildCanonicalComprobantesSearch({
-    currentSearch: url.search,
-    filters: normalizedFilters,
+  // Retired facets (`academia`, `porcion`) are not declared, so old URLs drop
+  // them on the way.
+  redirectToCanonicalListUrl(url, {
+    facets: { estado: normalizedFilters.estado, tipo: normalizedFilters.tipo },
+    query: {
+      order: normalizedFilters.order,
+      page: normalizedFilters.page,
+      search: normalizedFilters.query,
+    },
+    spec: comprobantesListSpec,
   });
-  const currentSearch = new URLSearchParams(url.search).toString();
-
-  if (canonicalSearch !== currentSearch) {
-    throw redirect(
-      canonicalSearch.length > 0
-        ? `${url.pathname}?${canonicalSearch}`
-        : url.pathname,
-    );
-  }
 
   return {
     filters: normalizedFilters,
@@ -224,11 +222,13 @@ function buildAnnulledExists(selectedEventId: string): SQL {
 function readComprobantesListFilters(
   searchParams: URLSearchParams,
 ): ComprobantesListFilters {
+  const listQuery = readListQuery(searchParams, comprobantesListSpec);
+
   return {
     estado: readEstado(searchParams.get("estado")),
-    order: readComprobantesOrder(searchParams.get("orden")),
-    page: readPage(searchParams),
-    query: searchParams.get("busqueda")?.trim() ?? "",
+    order: listQuery.order,
+    page: listQuery.page,
+    query: listQuery.search,
     tipo: readTipo(searchParams.get("tipo")),
   };
 }
@@ -241,49 +241,25 @@ function readTipo(value: string | null): ComprobanteTipoFacet | null {
   return value === "factura_c" || value === "nota_credito_c" ? value : null;
 }
 
-function readComprobantesOrder(value: string | null): ComprobantesListOrder {
-  const [columnId, direction] = value?.split(":") ?? [];
-
-  if (
-    (columnId === "fecha" || columnId === "numero") &&
-    (direction === "asc" || direction === "desc")
-  ) {
-    return { columnId, direction };
-  }
-
-  return defaultComprobantesOrder;
-}
-
-function readPage(searchParams: URLSearchParams) {
-  const value = Number(searchParams.get("pagina"));
-
-  return Number.isInteger(value) && value > 0 ? value : 1;
-}
-
 function buildComprobantesWhere(
   selectedEventId: string,
   filters: ComprobantesListFilters,
   isAnnulled: SQL,
 ) {
   const conditions: SQL[] = [eq(comprobantes.eventId, selectedEventId)];
-  const query = filters.query.trim();
+  // The two anchor readings: a choreography by name, a seminar by its
+  // instructor's name, which is how a seminar is named at all. The fiscal
+  // number `PPPP-NNNNNNNN` is reconstructed so it can be searched as the
+  // operator sees it (the same format as `formatComprobanteNumber`).
+  const searchCondition = listSearchCondition(filters.query, [
+    academies.name,
+    choreographies.name,
+    seminars.instructorName,
+    sql`lpad(cast(${comprobantes.ptoVta} as text), 4, '0') || '-' || lpad(cast(${comprobantes.cbteNro} as text), 8, '0')`,
+  ]);
 
-  if (query.length > 0) {
-    conditions.push(
-      or(
-        ilike(academies.name, `%${query}%`),
-        // The two anchor readings: a choreography by name, a seminar by its
-        // instructor's name, which is how a seminar is named at all.
-        ilike(choreographies.name, `%${query}%`),
-        ilike(seminars.instructorName, `%${query}%`),
-        // Fiscal number `PPPP-NNNNNNNN`, reconstructed so it can be searched as
-        // the operator sees it (the same format as `formatComprobanteNumber`).
-        ilike(
-          sql`lpad(cast(${comprobantes.ptoVta} as text), 4, '0') || '-' || lpad(cast(${comprobantes.cbteNro} as text), 8, '0')`,
-          `%${query}%`,
-        ),
-      )!,
-    );
+  if (searchCondition) {
+    conditions.push(searchCondition);
   }
 
   if (filters.estado === "anulada") {
@@ -319,53 +295,4 @@ function buildComprobantesOrderBy(order: ComprobantesListOrder) {
     direction(comprobantes.cbteNro),
     desc(comprobantes.id),
   ];
-}
-
-function buildCanonicalComprobantesSearch(input: {
-  currentSearch: string;
-  filters: ComprobantesListFilters;
-}) {
-  const searchParams = new URLSearchParams(input.currentSearch);
-
-  if (input.filters.query.length > 0) {
-    searchParams.set("busqueda", input.filters.query);
-  } else {
-    searchParams.delete("busqueda");
-  }
-
-  if (input.filters.estado !== null) {
-    searchParams.set("estado", input.filters.estado);
-  } else {
-    searchParams.delete("estado");
-  }
-
-  if (input.filters.tipo !== null) {
-    searchParams.set("tipo", input.filters.tipo);
-  } else {
-    searchParams.delete("tipo");
-  }
-
-  // Retired facets (ADR-0011): they are stripped from old URLs.
-  searchParams.delete("academia");
-  searchParams.delete("porcion");
-
-  if (
-    input.filters.order.columnId === defaultComprobantesOrder.columnId &&
-    input.filters.order.direction === defaultComprobantesOrder.direction
-  ) {
-    searchParams.delete("orden");
-  } else {
-    searchParams.set(
-      "orden",
-      `${input.filters.order.columnId}:${input.filters.order.direction}`,
-    );
-  }
-
-  if (input.filters.page > 1) {
-    searchParams.set("pagina", String(input.filters.page));
-  } else {
-    searchParams.delete("pagina");
-  }
-
-  return searchParams.toString();
 }

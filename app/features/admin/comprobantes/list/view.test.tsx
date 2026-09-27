@@ -132,4 +132,20 @@ describe("ComprobantesListRouteView", () => {
       'href="/administracion/finanzas/academy_1/seminarios/seminar_1"',
     );
   });
+
+  test("tells an event with no comprobantes apart from a search that matched none", () => {
+    const nothingYet = renderView(loaderData());
+    const nothingMatched = renderView(
+      loaderData({
+        filters: { ...loaderData().filters, query: "Zeta" },
+        hasAnyComprobante: true,
+      }),
+    );
+
+    expect(nothingYet).toContain("Todavía no hay comprobantes.");
+    expect(nothingMatched).toContain(
+      "No hay comprobantes que coincidan con la búsqueda o los filtros.",
+    );
+    expect(nothingMatched).not.toContain("Todavía no hay comprobantes.");
+  });
 });

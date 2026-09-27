@@ -30,6 +30,7 @@ import {
   formatComprobanteTipoInitials,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
 
@@ -156,18 +157,19 @@ export const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
+const emptyComprobantesList = describeEmptyList("comprobantes");
+
 export function ComprobantesListRouteView({
   loaderData,
 }: ComprobantesListRouteViewProps) {
+  // The order and the page narrow nothing: a sort reorders the same rows, and
+  // a page past the last one is clamped.
   const shouldShowTable =
     loaderData.rows.length > 0 ||
     loaderData.hasAnyComprobante ||
     loaderData.filters.query.length > 0 ||
     loaderData.filters.estado !== null ||
-    loaderData.filters.tipo !== null ||
-    loaderData.filters.page > 1 ||
-    loaderData.filters.order.columnId !== "fecha" ||
-    loaderData.filters.order.direction !== "desc";
+    loaderData.filters.tipo !== null;
 
   return (
     <AdminResourceLayout
@@ -195,7 +197,7 @@ export function ComprobantesListRouteView({
           layout="fit"
           searchPlaceholder="Buscar por academia, coreografía, instructor o número"
           initialSort={loaderData.filters.order}
-          emptyMessage="No hay comprobantes que coincidan con la búsqueda o los filtros."
+          emptyMessage={emptyComprobantesList.nothingMatched}
           currentPage={loaderData.filters.page}
           totalPages={loaderData.totalPages}
           totalRows={loaderData.totalCount}
@@ -203,7 +205,7 @@ export function ComprobantesListRouteView({
       ) : (
         <AdminEmptyState
           icon={ReceiptText}
-          title="Todavía no hay comprobantes emitidos."
+          title={emptyComprobantesList.nothingYet}
           description="Cuando administración emita comprobantes para el evento activo, van a aparecer acá."
         />
       )}

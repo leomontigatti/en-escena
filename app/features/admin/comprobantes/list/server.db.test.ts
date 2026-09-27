@@ -342,6 +342,53 @@ describe("loadComprobantesList", () => {
     expect(porNumero.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
   });
 
+  test("finds a comprobante whatever accents the search is typed with", async () => {
+    const event = await createEventRecord({ active: true });
+    const catalog = await createEventCatalog(event.id);
+    const pena = await seedChoreography({
+      academyName: "Academia Peña",
+      catalog,
+      email: `pena.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Canción",
+    });
+    await seedChoreography({
+      academyName: "Academia Beta",
+      catalog,
+      email: `beta.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Vals",
+    });
+    const factura = await recordComprobante(
+      facturaCInput({
+        choreographyId: pena.choreography.id,
+        eventId: event.id,
+      }),
+    );
+
+    for (const search of ["?busqueda=pena", "?busqueda=CANCION"]) {
+      const data = await loadComprobantesList(
+        await signedInAdminRequest(search),
+      );
+
+      expect(data.rows.map((row) => row.id)).toEqual([factura.id]);
+    }
+  });
+
+  test("redirects a page past the last one, and a retired facet, to the canonical URL", async () => {
+    await createEventRecord({ active: true });
+
+    const response = await expectThrownResponse(
+      loadComprobantesList(
+        await signedInAdminRequest("?porcion=sena&estado=vigente&pagina=4"),
+      ),
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      "/administracion/comprobantes?estado=vigente",
+    );
+  });
+
   test("reads a seminar comprobante by its anchor and finds it by instructor name", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
@@ -485,3 +532,16 @@ describe("loadComprobantesList", () => {
     expect(data.hasAnyComprobante).toBe(false);
   });
 });
+
+async function expectThrownResponse(promise: Promise<unknown>) {
+  try {
+    await promise;
+  } catch (error) {
+    expect(error).toBeInstanceOf(Response);
+    expect((error as Response).status).toBe(302);
+
+    return error as Response;
+  }
+
+  throw new Error("Expected a redirect.");
+}
