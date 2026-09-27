@@ -20,14 +20,13 @@ export async function loadProfessorsList(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const url = new URL(request.url);
-  const filters = readProfessorFilters(url.searchParams);
+  const filters = readProfessorFilters(new URL(request.url).searchParams);
   const listResult = await listProfessors({
     selectedEventId: eventContext.selectedEventId,
     filters,
   });
 
-  redirectToCanonicalListUrl(url, {
+  redirectToCanonicalListUrl(request, {
     facets: toProfessorListFacets(
       listResult.filters,
       eventContext.selectedEventId,
