@@ -1,6 +1,14 @@
 import { data, redirect } from "react-router";
 
-import { foldSearchText } from "@/lib/list-query/list-query";
+import { adminListPageSize } from "@/lib/admin/admin-list";
+import {
+  matchesListSearch,
+  paginateList,
+  readListFacet,
+  readListQuery,
+  type ListQuerySpec,
+} from "@/lib/list-query/list-query";
+import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
@@ -52,10 +60,10 @@ export type { PresentationListItem, PresentationListResult } from "./shared";
  * module only narrows it to what the reader asked for and names the result.
  */
 
-const participationPageSize = 50;
-const defaultPresentationOrder: PresentationOrder = {
-  columnId: "orden",
-  direction: "asc",
+/** The running order is the only sort, and its column is called `orden` too. */
+const presentationListSpec: ListQuerySpec<PresentationOrder["columnId"]> = {
+  orderColumnIds: ["orden"],
+  defaultOrder: { columnId: "orden", direction: "asc" },
 };
 
 export async function loadPresentationListRouteData(request: Request) {
@@ -66,13 +74,26 @@ export async function loadPresentationListRouteData(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const url = new URL(request.url);
-
-  return await loadPresentationList({
+  const result = await loadPresentationList({
     canOrder: user.role === "admin",
-    filters: readPresentationFilters(url.searchParams),
+    filters: readPresentationFilters(new URL(request.url).searchParams),
     selectedEventId: eventContext.selectedEventId,
   });
+
+  redirectToCanonicalListUrl(request, {
+    facets: {
+      dia: result.filters.day,
+      advertencias: result.filters.warnings,
+    },
+    query: {
+      order: result.filters.order,
+      page: result.filters.page,
+      search: result.filters.query,
+    },
+    spec: presentationListSpec,
+  });
+
+  return result;
 }
 
 async function loadPresentationList(input: {
@@ -130,9 +151,11 @@ async function loadPresentationList(input: {
     items.filter((item) => matchesPresentationFilters(item, filters)),
     filters.order,
   );
-  const totalCount = filteredItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / participationPageSize));
-  const page = Math.min(filters.page, totalPages);
+  const { limit, offset, page, totalPages } = paginateList({
+    page: filters.page,
+    pageSize: adminListPageSize,
+    totalCount: filteredItems.length,
+  });
 
   return {
     assignableJudges,
@@ -147,12 +170,9 @@ async function loadPresentationList(input: {
       0,
       ...items.map((item) => item.orderNumber ?? 0),
     ),
-    presentations: filteredItems.slice(
-      (page - 1) * participationPageSize,
-      page * participationPageSize,
-    ),
+    presentations: filteredItems.slice(offset, offset + limit),
     selectedEventId: input.selectedEventId,
-    totalCount,
+    totalCount: filteredItems.length,
     totalPages,
     unorderedCount: items.filter((item) => item.orderNumber === null).length,
     warnedCount: items.filter((item) => item.warnings.length > 0).length,
@@ -335,11 +355,13 @@ function movePresentationRefusal(
 function readPresentationFilters(
   searchParams: URLSearchParams,
 ): PresentationListFilters {
+  const listQuery = readListQuery(searchParams, presentationListSpec);
+
   return {
-    day: readNonEmptySearchParam(searchParams.get("dia")),
-    order: readPresentationOrder(searchParams.get("orden")),
-    page: readPage(searchParams),
-    query: searchParams.get("busqueda")?.trim() ?? "",
+    day: readListFacet(searchParams, "dia"),
+    order: listQuery.order,
+    page: listQuery.page,
+    query: listQuery.search,
     warnings: searchParams.get("advertencias") === "con" ? "con" : null,
   };
 }
@@ -391,17 +413,11 @@ function matchesPresentationFilters(
 }
 
 function matchesPresentationQuery(item: PresentationListItem, query: string) {
-  if (query.length === 0) {
-    return true;
-  }
-
-  const normalizedQuery = foldSearchText(query);
-
-  return (
-    foldSearchText(item.name).includes(normalizedQuery) ||
-    foldSearchText(item.academyName).includes(normalizedQuery) ||
-    formatEventSequenceNumber(item.choreographyNumber).includes(normalizedQuery)
-  );
+  return matchesListSearch(query, [
+    item.name,
+    item.academyName,
+    formatEventSequenceNumber(item.choreographyNumber),
+  ]);
 }
 
 /**
@@ -425,20 +441,4 @@ function sortPresentations(
 
     return factor * (left.orderNumber - right.orderNumber);
   });
-}
-
-function readPresentationOrder(value: string | null): PresentationOrder {
-  return value === "orden:desc"
-    ? { columnId: "orden", direction: "desc" }
-    : defaultPresentationOrder;
-}
-
-function readPage(searchParams: URLSearchParams) {
-  const value = Number(searchParams.get("pagina"));
-
-  return Number.isInteger(value) && value > 0 ? value : 1;
-}
-
-function readNonEmptySearchParam(value: string | null) {
-  return value?.trim().length ? value.trim() : null;
 }
