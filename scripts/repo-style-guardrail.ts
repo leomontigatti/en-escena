@@ -62,7 +62,26 @@ const rosterPersonSelectableExpressionPattern = new RegExp(
   "g",
 );
 
+/**
+ * `listQuery` —ui: "Consulta de lista"— is owned by `app/lib/list-query/`: the
+ * `busqueda`, `pagina` and `orden` URL parameters are read and written there,
+ * through `listQueryParamNames`, and nowhere else by name. Six lists once
+ * restated them six ways, which is why the boundary is gated.
+ *
+ * It matches URL-parameter use — a `URLSearchParams` call naming one, or one
+ * written into a query string — and not the bare word: `orden` is also the id
+ * of the running-order column, and a column id is not a parameter.
+ */
+const listQueryParameterPattern = new RegExp(
+  String.raw`(?<match>\.(?:get|getAll|set|delete|has|append)\(\s*(["'` +
+    "`" +
+    String.raw`])(?:busqueda|pagina|orden)\2` +
+    String.raw`|[?&](?:busqueda|pagina|orden)=)`,
+  "g",
+);
+
 type RepoStyleRule =
+  | "list-query-owns-parameter-names"
   | "no-tailwind-hardcoded-colors"
   | "prefer-gap-over-space"
   | "roster-person-status-owns-active-column"
@@ -70,6 +89,8 @@ type RepoStyleRule =
 
 /** Why each rule exists, so a failure explains itself where it is read. */
 const repoStyleRuleReasons: Record<RepoStyleRule, string> = {
+  "list-query-owns-parameter-names":
+    "Search, page and order are read through `readListQuery` and written through `buildCanonicalListSearch` or `listQueryParamNames` in `app/lib/list-query/`, never by parameter name here.",
   "no-tailwind-hardcoded-colors":
     "Colors come from the theme tokens, not from the Tailwind palette.",
   "prefer-gap-over-space":
@@ -142,6 +163,10 @@ const repoStyleExceptions: RepoStyleException[] = [
 ];
 
 const repoStyleRuleChecks: RepoStyleRuleCheck[] = [
+  {
+    pattern: listQueryParameterPattern,
+    rule: "list-query-owns-parameter-names",
+  },
   {
     pattern: hardcodedColorUtilityPattern,
     rule: "no-tailwind-hardcoded-colors",
