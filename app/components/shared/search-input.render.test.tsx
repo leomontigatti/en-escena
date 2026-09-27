@@ -64,6 +64,19 @@ describe("SearchInput", () => {
     expect(hasClearButton()).toBe(false);
   });
 
+  test("hides the clear button once the input is disabled, even with a query", async () => {
+    await renderer.renderAsync(
+      <SearchInput
+        placeholder="Buscar por nombre"
+        value="Paz"
+        disabled
+        onValueChange={() => {}}
+      />,
+    );
+
+    expect(hasClearButton()).toBe(false);
+  });
+
   test("clears through onClear when one is given", async () => {
     const onClear = vi.fn();
     const onValueChange = vi.fn();

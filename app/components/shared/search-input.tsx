@@ -39,7 +39,7 @@ function SearchInput({
         onChange={(event) => onValueChange(event.target.value)}
         {...props}
       />
-      {value.length > 0 ? (
+      {value.length > 0 && !props.disabled ? (
         <SearchInputClearButton
           onClear={onClear ?? (() => onValueChange(""))}
         />
