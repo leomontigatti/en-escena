@@ -69,7 +69,8 @@ The product is used on desktop. Design at **1440px** wide, and keep every
 screen working down to **1280px**, the floor: a 1366×768 laptop, or a
 1920×1080 one at Windows' 150% scaling, which is 1280 CSS pixels. At 1280 the
 admin sidebar leaves about 1000px of content, and that is the budget a table
-or a form row has to fit.
+or a form row has to fit. Nothing laid out beside the list may take from it:
+filters and actions sit above the table, never in a side panel.
 
 Below 1280 nothing is promised beyond not breaking: content may scroll
 sideways, but must not overlap or become unreachable. Do not put a `min-width`
