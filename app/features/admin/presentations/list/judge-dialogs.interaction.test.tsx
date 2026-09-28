@@ -306,6 +306,7 @@ function buildLoaderData(): PresentationListResult {
     totalCount: 2,
     totalPages: 1,
     unorderedCount: 1,
+    printableSchedules: [],
     warnedCount: 0,
   };
 }

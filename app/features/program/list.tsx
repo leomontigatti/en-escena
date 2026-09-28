@@ -108,8 +108,8 @@ export function ProgramList({
 }
 
 /**
- * The participation list's column order — the number, what the order groups by,
- * then who and what — with its weights minus the columns this surface lacks.
+ * The participation list's column order — the number, who dances, then what
+ * the order groups by — with its weights minus the columns this surface lacks.
  */
 function buildProgramColumns({
   choreographyPath,
@@ -130,43 +130,6 @@ function buildProgramColumns({
       // The only sortable column, as on the participation list.
       sortValue: (row) => row.orderNumber,
     },
-    {
-      id: "categoriaTipoGrupo",
-      header: "Categoría / Tipo de grupo",
-      width: 20,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.categoryName,
-            formatGroupTypeLabel(row.groupType),
-          )}
-        />
-      ),
-    },
-    {
-      id: "modalidadSubmodalidad",
-      header: "Modalidad / Submodalidad",
-      width: 21,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.modalityName,
-            row.submodalityName,
-          )}
-        />
-      ),
-    },
-    showAcademy
-      ? {
-          id: "academia",
-          header: "Academia",
-          width: 19,
-          className: "text-muted-foreground",
-          cell: (row) => <DataTableTruncatedText value={row.academyName} />,
-        }
-      : null,
     {
       id: "nombre",
       header: "Nombre",
@@ -194,6 +157,43 @@ function buildProgramColumns({
         ]
           .filter(Boolean)
           .join(" "),
+    },
+    showAcademy
+      ? {
+          id: "academia",
+          header: "Academia",
+          width: 19,
+          className: "text-muted-foreground",
+          cell: (row) => <DataTableTruncatedText value={row.academyName} />,
+        }
+      : null,
+    {
+      id: "modalidadSubmodalidad",
+      header: "Modalidad / Submodalidad",
+      width: 21,
+      className: "text-muted-foreground",
+      cell: (row) => (
+        <DataTableTruncatedText
+          value={formatPrimaryAndSecondaryValue(
+            row.modalityName,
+            row.submodalityName,
+          )}
+        />
+      ),
+    },
+    {
+      id: "categoriaTipoGrupo",
+      header: "Categoría / Tipo de grupo",
+      width: 20,
+      className: "text-muted-foreground",
+      cell: (row) => (
+        <DataTableTruncatedText
+          value={formatPrimaryAndSecondaryValue(
+            row.categoryName,
+            formatGroupTypeLabel(row.groupType),
+          )}
+        />
+      ),
     },
     {
       id: "bailarines",

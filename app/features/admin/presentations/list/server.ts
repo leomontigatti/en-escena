@@ -113,6 +113,7 @@ async function loadPresentationList(input: {
       hasPresentations: false,
       highestOrderNumber: 0,
       presentations: [],
+      printableSchedules: [],
       selectedEventId: null,
       totalCount: 0,
       totalPages: 1,
@@ -171,6 +172,7 @@ async function loadPresentationList(input: {
       ...items.map((item) => item.orderNumber ?? 0),
     ),
     presentations: filteredItems.slice(offset, offset + limit),
+    printableSchedules: listPrintableSchedules(rows),
     selectedEventId: input.selectedEventId,
     totalCount: filteredItems.length,
     totalPages,
@@ -350,6 +352,24 @@ function movePresentationRefusal(
     case "frozenPosition":
       return "Esa posición está fija: su cronograma ya fue evaluado.";
   }
+}
+
+/**
+ * The schedules with at least one presentation, once each, in day and time
+ * order: a schedule nobody presents in has nothing for the results print.
+ */
+function listPrintableSchedules(rows: ParticipationRow[]) {
+  const byId = new Map(
+    rows
+      .filter((row) => row.presentationId !== null)
+      .map((row) => [row.schedule.id, row.schedule]),
+  );
+
+  return [...byId.values()].sort(
+    (left, right) =>
+      left.scheduledDate.localeCompare(right.scheduledDate) ||
+      left.startTime.localeCompare(right.startTime),
+  );
 }
 
 function readPresentationFilters(

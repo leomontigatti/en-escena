@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { PeopleChecklistField } from "./people-checklist-field";
+import { ChecklistField } from "./checklist-field";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -25,12 +25,12 @@ function DancersChecklist({ initial = [] }: { initial?: string[] }) {
   submittedDancerIds = form.watch("dancerIds");
 
   return (
-    <PeopleChecklistField
+    <ChecklistField
       control={form.control}
       emptySelectionMessage="Todavía no seleccionaste bailarines."
       label="Bailarines"
       name="dancerIds"
-      people={[
+      options={[
         { value: "d1", label: "Abril Sosa" },
         { value: "d2", label: "Bea Lagos" },
         { value: "d3", label: "Camila Ríos" },
@@ -41,7 +41,7 @@ function DancersChecklist({ initial = [] }: { initial?: string[] }) {
 }
 
 function getRowNames() {
-  return getReactDomTexts('[data-slot="people-checklist-row"]');
+  return getReactDomTexts('[data-slot="checklist-row"]');
 }
 
 function getSearchInput() {
@@ -52,9 +52,7 @@ function getSearchInput() {
 
 async function clickRow(name: string) {
   const row = Array.from(
-    document.querySelectorAll<HTMLElement>(
-      '[data-slot="people-checklist-row"]',
-    ),
+    document.querySelectorAll<HTMLElement>('[data-slot="checklist-row"]'),
   ).find((candidate) => candidate.textContent === name);
 
   await updateReactDomForm(() => {
@@ -75,7 +73,7 @@ async function pickTab(name: string) {
   });
 }
 
-describe("PeopleChecklistField", () => {
+describe("ChecklistField", () => {
   test("checks and unchecks a person by tapping anywhere on the row", async () => {
     await renderer.renderAsync(<DancersChecklist />);
 

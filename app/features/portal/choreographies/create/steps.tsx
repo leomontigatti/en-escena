@@ -1,6 +1,6 @@
 import { AccessNotice } from "@/components/auth/access-ui";
 import { OptionCardsField } from "@/components/shared/option-cards-field";
-import { PeopleChecklistField } from "@/components/shared/people-checklist-field";
+import { ChecklistField } from "@/components/shared/checklist-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import {
   everyScheduleCapacityFullMessage,
@@ -101,13 +101,13 @@ function DancersStep({ loaderData, wizard }: StepProps) {
       {wizard.refusal ? (
         <AccessNotice variant="error">{wizard.refusal}</AccessNotice>
       ) : null}
-      <PeopleChecklistField
+      <ChecklistField
         control={wizard.form.control}
         emptySelectionMessage="Todavía no seleccionaste bailarines."
         label="Bailarines"
         name="dancerIds"
         onValueChange={wizard.resetResolution}
-        people={loaderData.activeDancers.map((dancer) => ({
+        options={loaderData.activeDancers.map((dancer) => ({
           value: dancer.id,
           label: `${dancer.firstName} ${dancer.lastName}`,
         }))}
@@ -201,12 +201,12 @@ function ProfessorsStep({ loaderData, wizard }: StepProps) {
         title="¿Quiénes la prepararon?"
         hint="Marcá a los profesores de la coreografía y tocá Siguiente."
       />
-      <PeopleChecklistField
+      <ChecklistField
         control={wizard.form.control}
         emptySelectionMessage="Todavía no seleccionaste profesores."
         label="Profesores"
         name="professorIds"
-        people={loaderData.activeProfessors.map((professor) => ({
+        options={loaderData.activeProfessors.map((professor) => ({
           value: professor.id,
           label: `${professor.firstName} ${professor.lastName}`,
         }))}

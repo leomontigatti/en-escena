@@ -77,7 +77,7 @@ describe("PublicProgramView", () => {
       "En Escena 2026 · sábado 2 de mayo 16:00 hs · Domingo tarde",
     );
     // The headings run once per schedule, and so do the print column headers.
-    expect(countOccurrences(markup, "Categoría</th>")).toBe(2);
+    expect(countOccurrences(markup, "Categoría / Tipo de grupo</th>")).toBe(2);
     expect(countOccurrences(markup, "break-before-page")).toBe(1);
     expect(markup).toContain("break-inside-avoid");
     expect(markup).toContain("@page { size: A4 landscape; margin: 0; }");
