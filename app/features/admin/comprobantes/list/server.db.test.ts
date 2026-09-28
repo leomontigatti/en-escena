@@ -345,24 +345,35 @@ describe("loadComprobantesList", () => {
   test("finds a comprobante whatever accents the search is typed with", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
-    const pena = await seedChoreography({
+    const accentedAcademy = await seedChoreography({
       academyName: "Academia Peña",
       catalog,
       email: `pena.${crypto.randomUUID()}@example.com`,
       eventId: event.id,
       name: "Canción",
     });
-    await seedChoreography({
+    const unrelatedAcademy = await seedChoreography({
       academyName: "Academia Beta",
       catalog,
       email: `beta.${crypto.randomUUID()}@example.com`,
       eventId: event.id,
       name: "Vals",
     });
-    const factura = await recordComprobante(
+    const comprobante = await recordComprobante(
       facturaCInput({
-        choreographyId: pena.choreography.id,
+        choreographyId: accentedAcademy.choreography.id,
         eventId: event.id,
+        cbteNro: 1,
+      }),
+    );
+    // A second comprobante that would also turn up if the search predicate
+    // were dropped, so a broken filter fails this test instead of passing it
+    // by having nothing else to exclude.
+    await recordComprobante(
+      facturaCInput({
+        choreographyId: unrelatedAcademy.choreography.id,
+        eventId: event.id,
+        cbteNro: 2,
       }),
     );
 
@@ -371,7 +382,7 @@ describe("loadComprobantesList", () => {
         await signedInAdminRequest(search),
       );
 
-      expect(data.rows.map((row) => row.id)).toEqual([factura.id]);
+      expect(data.rows.map((row) => row.id)).toEqual([comprobante.id]);
     }
   });
 

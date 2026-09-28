@@ -116,8 +116,8 @@ describe("admin payments list", () => {
       await listRequest("orden=paymentDate%3Aasc"),
     );
 
-    expect(newestFirst.rows.map((row) => row.paymentNumber)).toEqual([3, 2, 1]);
-    expect(oldestFirst.rows.map((row) => row.paymentNumber)).toEqual([1, 2, 3]);
+    expect(newestFirst.rows.map((row) => row.paymentNumber)).toEqual([2, 1, 3]);
+    expect(oldestFirst.rows.map((row) => row.paymentNumber)).toEqual([3, 1, 2]);
   });
 
   test("redirects a page past the last one, and the retired event parameter, to the canonical url", async () => {
@@ -167,14 +167,16 @@ async function buildPaymentsFixture() {
     .insert(payments)
     .values(
       [
-        { amount: 10000, paymentNumber: 1 },
-        { amount: 8000, paymentNumber: 2 },
-        { amount: 5000, paymentNumber: 3 },
+        // 1 and 2 share the newer date, so date ordering has to beat number
+        // ordering; 3 alone on the older date proves it can move a whole day
+        // in front of both.
+        { amount: 10000, paymentDate: "2026-03-16", paymentNumber: 1 },
+        { amount: 8000, paymentDate: "2026-03-16", paymentNumber: 2 },
+        { amount: 5000, paymentDate: "2026-03-15", paymentNumber: 3 },
       ].map((payment) => ({
         ...payment,
         academyId: academy.academy.id,
         eventId: event.id,
-        paymentDate: "2026-03-15",
         paymentMethod: "transferencia" as const,
       })),
     )

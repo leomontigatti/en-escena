@@ -16,7 +16,7 @@ installDatabaseTestHooks();
 describe("the participation list's query", () => {
   test("finds a presentation whatever accents the search is typed with", async () => {
     const fixture = await seedJudgingFixture();
-    const cancion = await fixture.addPresentation({
+    const accentedPresentation = await fixture.addPresentation({
       name: "Canción",
       orderNumber: 1,
     });
@@ -25,7 +25,7 @@ describe("the participation list's query", () => {
     const result = await loadTheList("?busqueda=CANCION");
 
     expect(result.presentations.map((row) => row.id)).toEqual([
-      cancion.choreographyId,
+      accentedPresentation.choreographyId,
     ]);
   });
 
