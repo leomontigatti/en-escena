@@ -884,8 +884,11 @@ The loop:
    A later session starts from `state-load .playwright-cli/academy-state.json` instead of the
    form. Refs (`e15`) change between snapshots; read them from the latest one.
 
-3. **Capture the before** during exploration, before editing: `goto` the screen and
-   `screenshot --filename=<what>-before.png`. After the edit there is no before left to take.
+3. **Capture the before** during exploration, before editing: `resize 1440 900`, `goto` the
+   screen and `screenshot --filename=<what>-before.png`. After the edit there is no before left
+   to take. Set the size rather than trusting the browser's default: 1440 is the design width
+   in [style-guide.md](./style-guide.md#viewports). When the change touches a table or a dense
+   row, also check it at `resize 1280 800`, the floor.
 4. Drive the flow: `goto`, `click`, `fill`, `select`, `press`, and `snapshot` (or `find "<text>"`)
    to confirm the result. Prefer the snapshot for asserting text and structure; it is what the
    page actually exposes.
