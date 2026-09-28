@@ -1,23 +1,13 @@
 /**
  * PROTOTYPE — throwaway, never merge. Lives on `prototype/table-filters-toolbar`.
  *
- * Question: what should replace the filters side panel? Four toolbar layouts,
- * switchable with `?variant=` on any list with filters (the admin choreographies list has
- * the most groups): `panel` is today's panel, kept for comparison; `A` one
- * button per group; `B` an always-visible row of selects; `C` an "Agregar
- * filtro" picker with the active filters as chips; `D` one box, search and
- * chips together: typing only fills it, Enter searches or applies the
- * highlighted filter value.
+ * Question: what should replace the filters side panel? One box that holds the
+ * search and the filters as chips (the Odoo shape the user picked), switchable
+ * with `?variant=` on any list with filters: `panel` is today's panel; `D` the
+ * box hand-rolled on a popover; `E` the same box on the app's `Combobox`.
+ * Typing only fills the box; Enter searches or applies the highlighted value.
  */
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ListFilter,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { Popover as PopoverPrimitive } from "radix-ui";
 import {
   useEffect,
@@ -29,6 +19,18 @@ import {
 import { useSearchParams } from "react-router";
 
 import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 
 const PopoverAnchor = PopoverPrimitive.Anchor;
@@ -37,13 +39,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/shared/utils";
 import type {
   DataTableFacetedFilter,
@@ -53,10 +48,8 @@ import { setFacetedFilterValue } from "@/components/shared/data-table-helpers";
 
 const VARIANTS = [
   { key: "panel", name: "Panel actual" },
-  { key: "A", name: "Botón por grupo" },
-  { key: "B", name: "Fila de selects" },
-  { key: "C", name: "Agregar filtro + chips" },
-  { key: "D", name: "Una caja, estilo Odoo" },
+  { key: "D", name: "Una caja, a mano" },
+  { key: "E", name: "Una caja, sobre Combobox" },
 ] as const;
 
 type VariantKey = (typeof VARIANTS)[number]["key"];
@@ -84,26 +77,6 @@ type ToolbarProps = {
 
 function optionLabel(group: DataTableFacetedFilter, value: string | undefined) {
   return group.options.find((option) => option.value === value)?.label;
-}
-
-function ClearAll({
-  selectedValues,
-  onChange,
-}: Pick<ToolbarProps, "selectedValues" | "onChange">) {
-  if (Object.keys(selectedValues).length === 0) {
-    return null;
-  }
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      onClick={() => onChange({})}
-    >
-      Limpiar filtros
-      <X data-icon="inline-end" />
-    </Button>
-  );
 }
 
 /** A searchable option list, shared by A and C. */
@@ -148,108 +121,6 @@ function OptionList({
             Sin resultados
           </p>
         ) : null}
-      </div>
-    </div>
-  );
-}
-
-/** A: every group is a button beside the search; its value shows on it. */
-function GroupButton({
-  group,
-  selectedValues,
-  onChange,
-}: { group: DataTableFacetedFilter } & Pick<
-  ToolbarProps,
-  "selectedValues" | "onChange"
->) {
-  const [open, setOpen] = useState(false);
-  const selected = selectedValues[group.id];
-  const label = optionLabel(group, selected);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant={label ? "secondary" : "outline"}
-          size="sm"
-          className="max-w-64"
-        >
-          {label ? (
-            <span className="truncate">
-              <span className="text-muted-foreground">{group.label}:</span>{" "}
-              {label}
-            </span>
-          ) : (
-            group.label
-          )}
-          <ChevronDown data-icon="inline-end" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-1">
-        <OptionList
-          group={group}
-          selected={selected}
-          onPick={(value) => {
-            onChange(setFacetedFilterValue(selectedValues, group.id, value));
-            setOpen(false);
-          }}
-        />
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function VariantA({ search, groups, selectedValues, onChange }: ToolbarProps) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="w-full sm:w-80">{search}</div>
-      {groups.map((group) => (
-        <GroupButton
-          key={group.id}
-          group={group}
-          selectedValues={selectedValues}
-          onChange={onChange}
-        />
-      ))}
-      <ClearAll selectedValues={selectedValues} onChange={onChange} />
-    </div>
-  );
-}
-
-/** B: the search on its own line, then every group as an open select. */
-function VariantB({ search, groups, selectedValues, onChange }: ToolbarProps) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="sm:max-w-md">{search}</div>
-      <div className="flex flex-wrap items-center gap-2">
-        {groups.map((group) => {
-          const selected = selectedValues[group.id] ?? "";
-          return (
-            <Select
-              key={group.id}
-              value={selected}
-              onValueChange={(value) =>
-                onChange(setFacetedFilterValue(selectedValues, group.id, value))
-              }
-            >
-              <SelectTrigger
-                size="sm"
-                className={cn("min-w-36", selected && "bg-secondary")}
-              >
-                <span className="text-muted-foreground">{group.label}:</span>
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                {group.options.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          );
-        })}
-        <ClearAll selectedValues={selectedValues} onChange={onChange} />
       </div>
     </div>
   );
@@ -302,117 +173,6 @@ function FilterChip({
       >
         <X />
       </Button>
-    </div>
-  );
-}
-
-/** "Agregar filtro": one popover, the group first, then its values. */
-function AddFilterButton({
-  groups,
-  selectedValues,
-  onChange,
-  compact = false,
-}: Pick<ToolbarProps, "groups" | "selectedValues" | "onChange"> & {
-  compact?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [groupId, setGroupId] = useState<string | null>(null);
-  const available = groups.filter((group) => !selectedValues[group.id]);
-  const group = groups.find((candidate) => candidate.id === groupId);
-  if (available.length === 0) return null;
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setGroupId(null);
-      }}
-    >
-      <PopoverTrigger asChild>
-        {compact ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Agregar filtro"
-          >
-            <ListFilter />
-          </Button>
-        ) : (
-          <Button type="button" variant="outline" size="sm">
-            <Plus data-icon="inline-start" />
-            Agregar filtro
-          </Button>
-        )}
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-1">
-        {group ? (
-          <div className="flex flex-col gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="justify-start text-muted-foreground"
-              onClick={() => setGroupId(null)}
-            >
-              <ChevronLeft data-icon="inline-start" />
-              {group.label}
-            </Button>
-            <OptionList
-              group={group}
-              selected={undefined}
-              onPick={(value) => {
-                onChange({ ...selectedValues, [group.id]: value });
-                setOpen(false);
-                setGroupId(null);
-              }}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col">
-            <p className="px-2 py-1.5 text-xs text-muted-foreground">
-              Filtrar por
-            </p>
-            {available.map((candidate) => (
-              <Button
-                key={candidate.id}
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="justify-between"
-                onClick={() => setGroupId(candidate.id)}
-              >
-                {candidate.label}
-                <ChevronRight data-icon="inline-end" />
-              </Button>
-            ))}
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/** C: search beside an "Agregar filtro" button; active filters as chips. */
-function VariantC({ search, groups, selectedValues, onChange }: ToolbarProps) {
-  const active = groups.filter((group) => selectedValues[group.id]);
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="w-full sm:w-80">{search}</div>
-      {active.map((group) => (
-        <FilterChip
-          key={group.id}
-          group={group}
-          selectedValues={selectedValues}
-          onChange={onChange}
-        />
-      ))}
-      <AddFilterButton
-        groups={groups}
-        selectedValues={selectedValues}
-        onChange={onChange}
-      />
-      <ClearAll selectedValues={selectedValues} onChange={onChange} />
     </div>
   );
 }
@@ -693,13 +453,263 @@ function VariantD({
   );
 }
 
+/**
+ * E: D rebuilt on the app's `Combobox` (Base UI). The box is `ComboboxChips`,
+ * each applied search or filter is a `ComboboxChip`, and the dropdown is a
+ * `ComboboxList`, so keyboard, focus and ARIA come from the primitive. Items
+ * and chips are string keys: `s:` searches the text, `g:<group>` opens a
+ * group, `v:<group>:<value>` applies a value; a chip is `c:search` or
+ * `c:<group>`.
+ */
+function VariantE({
+  searchProps,
+  groups,
+  selectedValues,
+  onChange,
+}: ToolbarProps) {
+  const anchorRef = useComboboxAnchor();
+  const eInputRef = useRef<HTMLInputElement>(null);
+  const [text, setText] = useState("");
+  const [open, setOpen] = useState(false);
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const query = searchProps?.query.trim() ?? "";
+  const clearSearch = () =>
+    (searchProps?.onClear ?? (() => searchProps?.onChange("")))();
+  const groupById = new Map(groups.map((group) => [group.id, group]));
+  const openGroup = openGroupId ? groupById.get(openGroupId) : undefined;
+  const needle = text.trim().toLowerCase();
+
+  const chips = [
+    ...(query ? ["c:search"] : []),
+    ...groups
+      .filter((group) => selectedValues[group.id])
+      .map((group) => `c:${group.id}`),
+  ];
+
+  const valueItems = (group: DataTableFacetedFilter) =>
+    group.options
+      .filter((option) => option.label.toLowerCase().includes(needle))
+      .map((option) => `v:${group.id}:${option.value}`);
+  const items = openGroup
+    ? valueItems(openGroup)
+    : needle.length === 0
+      ? groups.map((group) => `g:${group.id}`)
+      : ["s:", ...groups.flatMap(valueItems).slice(0, 8)];
+
+  const parseValueItem = (key: string) => {
+    const [, groupId, ...rest] = key.split(":");
+    const group = groupById.get(groupId);
+    const value = rest.join(":");
+    return { group, value, label: group ? optionLabel(group, value) : value };
+  };
+
+  const labelOf = (key: string) => {
+    if (key === "c:search") return `Búsqueda: ${query}`;
+    if (key.startsWith("c:")) {
+      const group = groupById.get(key.slice(2));
+      return group
+        ? `${group.label}: ${optionLabel(group, selectedValues[group.id])}`
+        : key;
+    }
+    if (key.startsWith("g:")) return groupById.get(key.slice(2))?.label ?? key;
+    if (key.startsWith("v:")) {
+      const { group, label } = parseValueItem(key);
+      return `${group?.label}: ${label}`;
+    }
+    return `Buscar «${text.trim()}»`;
+  };
+
+  const handleValueChange = (next: string[]) => {
+    const added = next.find((key) => !chips.includes(key));
+    const removed = chips.find((key) => !next.includes(key));
+    if (removed) {
+      if (removed === "c:search") clearSearch();
+      else
+        onChange(setFacetedFilterValue(selectedValues, removed.slice(2), ""));
+      return;
+    }
+    if (!added) return;
+    if (added.startsWith("g:")) {
+      setOpenGroupId(added.slice(2));
+      setText("");
+      setOpen(true);
+      return;
+    }
+    if (added === "s:") {
+      searchProps?.onChange(text.trim());
+    } else if (added.startsWith("v:")) {
+      const { group, value } = parseValueItem(added);
+      if (group) onChange({ ...selectedValues, [group.id]: value });
+    }
+    setText("");
+    setOpenGroupId(null);
+    setOpen(false);
+  };
+
+  return (
+    <Combobox
+      multiple
+      items={items}
+      filter={null}
+      autoHighlight
+      value={chips}
+      onValueChange={handleValueChange}
+      inputValue={text}
+      onInputValueChange={(value, details) => {
+        // Base UI empties the input after every pick; only typing is kept.
+        if (
+          details.reason === "input-change" ||
+          details.reason === "input-clear"
+        ) {
+          setText(value);
+        }
+      }}
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setOpenGroupId(null);
+      }}
+      itemToStringLabel={labelOf}
+    >
+      <ComboboxChips ref={anchorRef} className="w-fit max-w-full min-w-md py-1">
+        <Search className="size-4 shrink-0 text-muted-foreground" />
+        <ComboboxValue>
+          {chips.map((key) => (
+            <ComboboxChip
+              key={key}
+              className="cursor-pointer"
+              onClick={() => {
+                if (key === "c:search") return;
+                setOpenGroupId(key.slice(2));
+                setOpen(true);
+                eInputRef.current?.focus();
+              }}
+            >
+              <span className="font-normal text-muted-foreground">
+                {labelOf(key).split(": ")[0]}:
+              </span>
+              {labelOf(key).split(": ").slice(1).join(": ")}
+            </ComboboxChip>
+          ))}
+        </ComboboxValue>
+        {openGroup ? (
+          <span className="text-muted-foreground">{openGroup.label}:</span>
+        ) : null}
+        <ComboboxChipsInput
+          ref={eInputRef}
+          placeholder="Buscar o filtrar…"
+          className="min-w-40"
+          onKeyDown={(event) => {
+            // Backspace inside an opened group steps back out of it instead
+            // of removing the last chip.
+            if (event.key === "Backspace" && text === "" && openGroupId) {
+              (
+                event as unknown as { preventBaseUIHandler: () => void }
+              ).preventBaseUIHandler();
+              setOpenGroupId(null);
+            }
+          }}
+        />
+        {text || chips.length > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Limpiar búsqueda y filtros"
+            onClick={() => {
+              setText("");
+              clearSearch();
+              onChange({});
+            }}
+          >
+            <X />
+          </Button>
+        ) : null}
+      </ComboboxChips>
+      <ComboboxContent anchor={anchorRef}>
+        {openGroup ? (
+          <p className="px-3 pt-2 pb-1 text-xs text-muted-foreground">
+            {openGroup.label}
+          </p>
+        ) : needle.length === 0 ? (
+          <p className="px-3 pt-2 pb-1 text-xs text-muted-foreground">
+            Filtrar por
+          </p>
+        ) : null}
+        <ComboboxEmpty>Sin coincidencias.</ComboboxEmpty>
+        <ComboboxList>
+          {(key: string) => (
+            <ComboboxItem key={key} value={key}>
+              <EItemLabel
+                itemKey={key}
+                inGroup={Boolean(openGroup)}
+                text={text}
+                label={labelOf(key)}
+                isCurrent={
+                  key.startsWith("v:") &&
+                  (() => {
+                    const { group, value } = parseValueItem(key);
+                    return group ? selectedValues[group.id] === value : false;
+                  })()
+                }
+              />
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
+function EItemLabel({
+  itemKey,
+  text,
+  label,
+  isCurrent,
+  inGroup,
+}: {
+  inGroup: boolean;
+  itemKey: string;
+  text: string;
+  label: string;
+  isCurrent: boolean;
+}) {
+  if (itemKey === "s:") {
+    return (
+      <>
+        <Search />
+        Buscar <span className="font-medium">«{text.trim()}»</span>
+        <span className="text-muted-foreground">
+          en número, nombre o academia
+        </span>
+      </>
+    );
+  }
+  if (itemKey.startsWith("g:")) {
+    return (
+      <>
+        <span className="flex-1">{label}</span>
+        <ChevronRight className="text-muted-foreground" />
+      </>
+    );
+  }
+  const [groupLabel, ...rest] = label.split(": ");
+  return (
+    <>
+      {inGroup ? null : (
+        <span className="text-muted-foreground">{groupLabel}:</span>
+      )}
+      <span className="font-medium">{rest.join(": ")}</span>
+      {isCurrent ? <Check className="ml-auto" /> : null}
+    </>
+  );
+}
+
 export function PrototypeFiltersToolbar({
   variant,
   ...props
 }: ToolbarProps & { variant: Exclude<VariantKey, "panel"> }) {
-  if (variant === "A") return <VariantA {...props} />;
-  if (variant === "B") return <VariantB {...props} />;
-  if (variant === "C") return <VariantC {...props} />;
+  if (variant === "E") return <VariantE {...props} />;
   return <VariantD {...props} />;
 }
 
