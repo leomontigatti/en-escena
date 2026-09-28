@@ -53,6 +53,7 @@ export async function loadCreateChoreographyRouteData(request: Request) {
   }
 
   return {
+    academyId: academy.id,
     activeDancers,
     activeProfessors,
     eventId,

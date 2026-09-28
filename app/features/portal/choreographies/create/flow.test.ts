@@ -2,6 +2,10 @@ import { describe, expect, test } from "vitest";
 
 import {
   applyRegistrationResolution,
+  clampCreateChoreographyStep,
+  createChoreographyStepSlugs,
+  readCreateChoreographyStep,
+  restoreCreateChoreographyAnswers,
   canAdvanceFromScheduleStep,
   canAdvanceFromStep,
   CREATE_CHOREOGRAPHY_INTENT,
@@ -615,5 +619,144 @@ describe("applyRegistrationResolution", () => {
       experienceLevelId: "",
       scheduleCapacityId: "capacity_9",
     });
+  });
+});
+
+describe("the wizard step in the URL", () => {
+  test("reads each step from its Spanish slug, and anything else as the first step", () => {
+    expect(readCreateChoreographyStep("bailarines")).toBe("dancers");
+    expect(readCreateChoreographyStep("categoria")).toBe("category");
+    expect(readCreateChoreographyStep("profesores")).toBe("professors");
+    expect(readCreateChoreographyStep("resumen")).toBe("summary");
+    expect(readCreateChoreographyStep(null)).toBe("choreography");
+    expect(readCreateChoreographyStep("otra-cosa")).toBe("choreography");
+    expect(createChoreographyStepSlugs.dancers).toBe("bailarines");
+  });
+});
+
+describe("restoreCreateChoreographyAnswers", () => {
+  const options = {
+    activeDancers: [{ id: "dancer_1" }, { id: "dancer_2" }],
+    activeProfessors: [{ id: "professor_1" }],
+    registrationBaseOptions: {
+      modalities: [{ id: "modality_1", name: "Jazz" }],
+      submodalities: [
+        { id: "submodality_1", modalityId: "modality_1", name: "Lírico" },
+      ],
+    },
+  };
+
+  test("keeps the answers the page still offers", () => {
+    const stored = {
+      name: "Danza de la Luna",
+      modalityId: "modality_1",
+      submodalityId: "submodality_1",
+      dancerIds: ["dancer_2"],
+      professorIds: ["professor_1"],
+      experienceLevelId: "amateur",
+      scheduleCapacityId: "capacity_1",
+    };
+
+    expect(restoreCreateChoreographyAnswers(stored, options)).toEqual(stored);
+  });
+
+  test("drops the people, modality and submodality no longer offered", () => {
+    expect(
+      restoreCreateChoreographyAnswers(
+        {
+          name: "Danza de la Luna",
+          modalityId: "modality_gone",
+          submodalityId: "submodality_1",
+          dancerIds: ["dancer_1", "dancer_inactive"],
+          professorIds: ["professor_gone"],
+          experienceLevelId: "",
+          scheduleCapacityId: "",
+        },
+        options,
+      ),
+    ).toEqual({
+      name: "Danza de la Luna",
+      modalityId: "",
+      submodalityId: "",
+      dancerIds: ["dancer_1"],
+      professorIds: [],
+      experienceLevelId: "",
+      scheduleCapacityId: "",
+    });
+  });
+
+  test("gives nothing back for a value that is not the wizard's answers", () => {
+    expect(restoreCreateChoreographyAnswers(null, options)).toBeNull();
+    expect(restoreCreateChoreographyAnswers("texto", options)).toBeNull();
+    expect(
+      restoreCreateChoreographyAnswers({ name: 3, dancerIds: "x" }, options),
+    ).toBeNull();
+  });
+});
+
+describe("clampCreateChoreographyStep", () => {
+  const complete = {
+    name: "Danza de la Luna",
+    modalityId: "modality_1",
+    submodalityId: "",
+    dancerIds: ["dancer_1"],
+    professorIds: ["professor_1"],
+    experienceLevelId: "",
+    scheduleCapacityId: "",
+  };
+
+  test("lands on the first step whose answers are incomplete", () => {
+    expect(
+      clampCreateChoreographyStep({
+        canChooseSubmodality: false,
+        resolution: null,
+        step: "summary",
+        values: { ...complete, dancerIds: [] },
+      }),
+    ).toBe("dancers");
+    expect(
+      clampCreateChoreographyStep({
+        canChooseSubmodality: false,
+        resolution: null,
+        step: "dancers",
+        values: { ...complete, name: "" },
+      }),
+    ).toBe("choreography");
+  });
+
+  test("keeps the step when everything before it is answered", () => {
+    expect(
+      clampCreateChoreographyStep({
+        canChooseSubmodality: false,
+        resolution: buildAutoScheduleResolution(),
+        step: "summary",
+        values: complete,
+      }),
+    ).toBe("summary");
+  });
+
+  test("stops on the category step while the resolution leaves it unanswered", () => {
+    expect(
+      clampCreateChoreographyStep({
+        canChooseSubmodality: false,
+        resolution: buildScheduleResolution([
+          { id: "capacity_1", isFull: false },
+          { id: "capacity_2", isFull: false },
+        ]),
+        step: "summary",
+        values: complete,
+      }),
+    ).toBe("category");
+  });
+
+  test("moves past a category step the resolution no longer has", () => {
+    expect(
+      clampCreateChoreographyStep({
+        canChooseSubmodality: false,
+        resolution: buildAutoScheduleResolution(),
+        step: "category",
+        values: complete,
+      }),
+    ).toBe("professors");
   });
 });

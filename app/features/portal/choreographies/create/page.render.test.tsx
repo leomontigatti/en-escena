@@ -26,9 +26,11 @@ const renderer = createReactDomTestRenderer();
 
 afterEach(() => {
   renderer.cleanup();
+  window.sessionStorage.clear();
 });
 
 const loaderData: CreateChoreographyRouteData = {
+  academyId: "academy_1",
   eventId: "event_1",
   activeDancers: [
     { id: "dancer_1", firstName: "Ana", lastName: "Paz", active: true },
@@ -50,7 +52,10 @@ type StubAnswers = {
   resolve: unknown;
 };
 
-function renderPage(answers: StubAnswers) {
+function renderPage(
+  answers: StubAnswers,
+  initialEntry = "/portal/coreografias/crear",
+) {
   const submissions: FormData[] = [];
   const router = createMemoryRouter(
     [
@@ -76,7 +81,7 @@ function renderPage(answers: StubAnswers) {
       },
       { path: "/portal/coreografias", element: <p>Lista de coreografías</p> },
     ],
-    { initialEntries: ["/portal/coreografias/crear"] },
+    { initialEntries: [initialEntry] },
   );
 
   return { router, submissions };
@@ -369,5 +374,89 @@ describe("the choreography registration page", () => {
 
     expect(getHeading()).toBe("Revisá antes de guardar");
     expect(document.body.textContent).toContain("Danza de la Luna");
+  });
+
+  describe("across a reload", () => {
+    const storageKey = "registro-coreografia:academy_1:event_1";
+    const answers = {
+      name: "Danza de la Luna",
+      modalityId: "modality_1",
+      submodalityId: "submodality_1",
+      dancerIds: ["dancer_1"],
+      professorIds: ["professor_1"],
+      experienceLevelId: "",
+      scheduleCapacityId: "",
+    };
+
+    test("comes back to the step it was on with every answer, resolving the dancers again", async () => {
+      window.sessionStorage.setItem(storageKey, JSON.stringify(answers));
+      const { router, submissions } = renderPage(
+        { resolve: resolved(buildResolution()) },
+        "/portal/coreografias/crear?paso=profesores",
+      );
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(() => getHeading() === "¿Quiénes la prepararon?");
+
+      expect(submissions.at(0)?.get("intent")).toBe(
+        RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT,
+      );
+      expect(document.body.textContent).toContain("Seleccionados (1)");
+      expect(isNextDisabled()).toBe(false);
+    });
+
+    test("lands on the first step whose answers are incomplete", async () => {
+      window.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({ ...answers, dancerIds: ["dancer_gone"] }),
+      );
+      const { router } = renderPage(
+        { resolve: resolved(buildResolution()) },
+        "/portal/coreografias/crear?paso=resumen",
+      );
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(() => getHeading() === "¿Quiénes bailan?");
+
+      expect(router.state.location.search).toBe("?paso=bailarines");
+      expect(document.body.textContent).toContain("Seleccionados (0)");
+    });
+
+    test("goes back a step with the browser's back", async () => {
+      const { router } = renderPage({ resolve: resolved(buildResolution()) });
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(() => getHeading() === "La coreografía");
+
+      await fillFirstStep();
+      expect(router.state.location.search).toBe("?paso=bailarines");
+
+      await act(async () => {
+        await router.navigate(-1);
+      });
+
+      expect(getHeading()).toBe("La coreografía");
+      expect(
+        document.querySelector<HTMLInputElement>("input[name='name']")?.value,
+      ).toBe("Danza de la Luna");
+    });
+
+    test("forgets the answers once the choreography is saved", async () => {
+      const { router } = renderPage({ resolve: resolved(buildResolution()) });
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(() => getHeading() === "La coreografía");
+
+      await fillFirstStep();
+      expect(window.sessionStorage.getItem(storageKey)).toContain(
+        "Danza de la Luna",
+      );
+
+      await pickDancerAndResolve("¿Quiénes la prepararon?");
+      await clickLabel("Luz Suárez");
+      await goNext();
+      await clickReactDomButton("Guardar");
+      await waitFor(
+        () => router.state.location.pathname === "/portal/coreografias",
+      );
+
+      expect(window.sessionStorage.getItem(storageKey)).toBeNull();
+    });
   });
 });

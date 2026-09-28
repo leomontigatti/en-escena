@@ -1,3 +1,5 @@
+import type { ShouldRevalidateFunction } from "react-router";
+
 import type { PortalRouteHandle } from "@/components/portal/ui";
 import { CreateChoreographyPage } from "@/features/portal/choreographies/create/page";
 import {
@@ -26,6 +28,13 @@ export async function loader({ request }: { request: Request }) {
 export async function action({ request }: { request: Request }) {
   return await handleCreateChoreographyAction(request);
 }
+
+// The page's own posts, resolving the dancers and saving, change nothing its
+// loader reads: a refusal comes back as data, and a save leaves the page.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  defaultShouldRevalidate,
+  formMethod,
+}) => (formMethod ? false : defaultShouldRevalidate);
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
   return await recoverableClientAction(serverAction);

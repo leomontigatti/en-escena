@@ -18,10 +18,7 @@ export function CreateChoreographyPage({
 }: {
   loaderData: CreateChoreographyRouteData;
 }) {
-  const wizard = useCreateChoreographyWizard({
-    baseOptions: loaderData.registrationBaseOptions,
-    eventId: loaderData.eventId,
-  });
+  const wizard = useCreateChoreographyWizard(loaderData);
   const { currentStepIndex, steps, submission } = wizard;
 
   return (
@@ -39,10 +36,20 @@ export function CreateChoreographyPage({
       </header>
 
       <div className="flex flex-1 flex-col gap-5">
-        <CreateChoreographyStepContent
-          loaderData={loaderData}
-          wizard={wizard}
-        />
+        {wizard.isLoadingStep ? (
+          <div
+            aria-busy="true"
+            className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground"
+          >
+            <Spinner aria-hidden="true" />
+            Cargando la coreografía…
+          </div>
+        ) : (
+          <CreateChoreographyStepContent
+            loaderData={loaderData}
+            wizard={wizard}
+          />
+        )}
       </div>
 
       {submission.error ? (
@@ -60,7 +67,9 @@ export function CreateChoreographyPage({
       <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex items-center justify-between gap-3 bg-background px-4 py-3">
         {currentStepIndex === 0 ? (
           <Button asChild variant="outline">
-            <Link to="/portal/coreografias">Cancelar</Link>
+            <Link to="/portal/coreografias" onClick={wizard.clearAnswers}>
+              Cancelar
+            </Link>
           </Button>
         ) : (
           <Button type="button" variant="outline" onClick={wizard.goBack}>
@@ -79,7 +88,8 @@ function CreateChoreographyNextAction({
 }: {
   wizard: CreateChoreographyWizard;
 }) {
-  const { canAdvance, currentStep, isResolving, submission } = wizard;
+  const { canAdvance, currentStep, isLoadingStep, isResolving, submission } =
+    wizard;
 
   if (currentStep === "summary") {
     return (
@@ -101,7 +111,7 @@ function CreateChoreographyNextAction({
   return (
     <Button
       type="button"
-      disabled={!canAdvance || isResolving}
+      disabled={!canAdvance || isResolving || isLoadingStep}
       onClick={wizard.goNext}
     >
       Siguiente

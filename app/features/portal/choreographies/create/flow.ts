@@ -1,6 +1,8 @@
 import type { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
+import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
+
 import type { CreateChoreographyRegistrationResult } from "@/lib/choreographies/registration-confirmation.server";
 import {
   choreographyNameMaxLength,
@@ -114,6 +116,121 @@ function hasCategoryChoices(resolution: RegistrationResolution | null) {
     (resolution.experienceLevel.required ||
       resolution.schedule.status === "multiple")
   );
+}
+
+/** The steps in the URL, as the academy reads them: `?paso=bailarines`. */
+export const createChoreographyStepSlugs: Record<
+  CreateChoreographyStep,
+  string
+> = {
+  choreography: "coreografia",
+  dancers: "bailarines",
+  category: "categoria",
+  professors: "profesores",
+  summary: "resumen",
+};
+
+const everyCreateChoreographyStep = Object.keys(
+  createChoreographyStepSlugs,
+) as CreateChoreographyStep[];
+
+export function readCreateChoreographyStep(
+  slug: string | null,
+): CreateChoreographyStep {
+  return (
+    everyCreateChoreographyStep.find(
+      (step) => createChoreographyStepSlugs[step] === slug,
+    ) ?? "choreography"
+  );
+}
+
+/** Whether a step comes after the dancers, which is to say needs a resolution. */
+export function isAfterDancersStep(step: CreateChoreographyStep) {
+  return (
+    everyCreateChoreographyStep.indexOf(step) >
+    everyCreateChoreographyStep.indexOf("dancers")
+  );
+}
+
+/**
+ * The step a URL may show: the first one whose earlier answers are incomplete,
+ * or the step itself. A category step the resolution does not have gives way
+ * to the step after it.
+ */
+export function clampCreateChoreographyStep(input: {
+  canChooseSubmodality: boolean;
+  resolution: RegistrationResolution | null;
+  step: CreateChoreographyStep;
+  values: CreateChoreographyFormValues;
+}): CreateChoreographyStep {
+  const steps = getCreateChoreographySteps({ resolution: input.resolution });
+  const target =
+    everyCreateChoreographyStep
+      .slice(everyCreateChoreographyStep.indexOf(input.step))
+      .find((step) => steps.includes(step)) ?? "summary";
+
+  return (
+    steps
+      .slice(0, steps.indexOf(target))
+      .find((step) => !canAdvanceFromStep(step, input)) ?? target
+  );
+}
+
+const storedAnswersSchema = z.object({
+  name: z.string(),
+  modalityId: z.string(),
+  submodalityId: z.string().optional(),
+  dancerIds: z.array(z.string()),
+  professorIds: z.array(z.string()),
+  experienceLevelId: z.string().optional(),
+  scheduleCapacityId: z.string().optional(),
+});
+
+/**
+ * The answers a reload brings back, against what the page offers now: a
+ * dancer made inactive meanwhile, or a modality the event dropped, is gone.
+ * The level and schedule are kept as they are; the resolution run on the way
+ * back is what validates them.
+ */
+export function restoreCreateChoreographyAnswers(
+  stored: unknown,
+  options: {
+    activeDancers: readonly { id: string }[];
+    activeProfessors: readonly { id: string }[];
+    registrationBaseOptions: ChoreographyRegistrationBaseOptions;
+  },
+): CreateChoreographyFormValues | null {
+  const parsed = storedAnswersSchema.safeParse(stored);
+
+  if (!parsed.success) {
+    return null;
+  }
+
+  const answers = parsed.data;
+  const { modalities, submodalities } = options.registrationBaseOptions;
+  const modalityId = modalities.some((item) => item.id === answers.modalityId)
+    ? answers.modalityId
+    : "";
+  const submodalityId = submodalities.some(
+    (item) =>
+      item.id === answers.submodalityId && item.modalityId === modalityId,
+  )
+    ? (answers.submodalityId ?? "")
+    : "";
+
+  return {
+    name: answers.name,
+    modalityId,
+    submodalityId,
+    dancerIds: keepOffered(answers.dancerIds, options.activeDancers),
+    professorIds: keepOffered(answers.professorIds, options.activeProfessors),
+    experienceLevelId: answers.experienceLevelId ?? "",
+    scheduleCapacityId: answers.scheduleCapacityId ?? "",
+  };
+}
+
+function keepOffered(ids: string[], offered: readonly { id: string }[]) {
+  return ids.filter((id) => offered.some((person) => person.id === id));
 }
 
 export function canAdvanceFromStep(

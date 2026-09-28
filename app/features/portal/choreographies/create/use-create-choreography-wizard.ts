@@ -1,20 +1,32 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useFetcher } from "react-router";
+import { useFetcher, useSearchParams } from "react-router";
 
+import {
+  clearStoredAnswers,
+  getAnswersStorageKey,
+  readStoredAnswers,
+  writeStoredAnswers,
+} from "@/features/portal/choreographies/create/answers-storage";
+import type { CreateChoreographyRouteData } from "@/features/portal/choreographies/create/server";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import {
   applyRegistrationResolution,
   buildCreateChoreographyFormData,
   buildResolveChoreographyFormData,
   canAdvanceFromStep,
+  clampCreateChoreographyStep,
   createChoreographySchema,
+  createChoreographyStepSlugs,
   emptyCreateChoreographyValues,
   getCreateChoreographySteps,
   getOnlyOptionId,
   getSubmissionError,
   getSubmissionWarning,
+  isAfterDancersStep,
+  readCreateChoreographyStep,
+  restoreCreateChoreographyAnswers,
   type CalculationActionData,
   type CreateActionData,
   type CreateChoreographyForm,
@@ -22,28 +34,30 @@ import {
   type CreateChoreographyStep,
   type PortalResolvedRegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
-import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
+import {
+  isUnexpectedActionError,
+  type UnexpectedActionError,
+} from "@/lib/shared/recoverable-client-action";
 
 export type CreateChoreographyWizard = ReturnType<
   typeof useCreateChoreographyWizard
 >;
 
-export function useCreateChoreographyWizard({
-  baseOptions,
-  eventId,
-}: {
-  baseOptions: ChoreographyRegistrationBaseOptions;
-  eventId: string;
-}) {
+export function useCreateChoreographyWizard(
+  loaderData: CreateChoreographyRouteData,
+) {
+  const { eventId, registrationBaseOptions: baseOptions } = loaderData;
+  const storageKey = getAnswersStorageKey(loaderData);
   const form = useForm<CreateChoreographyFormValues>({
     resolver: zodResolver(createChoreographySchema),
     defaultValues: getInitialValues(baseOptions),
   });
+  const isRestored = useStoredAnswers({ form, loaderData, storageKey });
   const values = form.watch();
   const submodalities = getSubmodalitiesOf(baseOptions, values.modalityId);
   const canChooseSubmodality = submodalities.length > 0;
-  const [currentStep, setCurrentStep] =
-    useState<CreateChoreographyStep>("choreography");
+  const stepInUrl = useStepInUrl();
+  const currentStep = stepInUrl.step;
   const registration = useRegistrationResolution({
     eventId,
     form,
@@ -52,17 +66,32 @@ export function useCreateChoreographyWizard({
       baseOptions.modalities.find(
         (modality) => modality.id === values.modalityId,
       )?.name ?? null,
-    onAccepted: (resolution) => setCurrentStep(getStepAfterDancers(resolution)),
+    onAccepted: (resolution) => {
+      if (currentStep === "dancers") {
+        stepInUrl.show(getStepAfterDancers(resolution));
+      }
+    },
   });
   const submission = useChoreographySubmission({
     eventId,
     form,
     canChooseSubmodality,
+    storageKey,
   });
   const steps = getCreateChoreographySteps({
     resolution: registration.resolution,
   });
   const currentStepIndex = Math.max(0, steps.indexOf(currentStep));
+  const isWaitingForResolution =
+    isAfterDancersStep(currentStep) && registration.resolution === null;
+
+  useStepGuard({
+    canChooseSubmodality,
+    isRestored,
+    registration,
+    stepInUrl,
+    values,
+  });
 
   function goNext() {
     if (currentStep === "dancers") {
@@ -75,11 +104,11 @@ export function useCreateChoreographyWizard({
       return;
     }
 
-    setCurrentStep(steps[currentStepIndex + 1] ?? currentStep);
+    stepInUrl.show(steps[currentStepIndex + 1] ?? currentStep);
   }
 
   function goBack() {
-    setCurrentStep(steps[currentStepIndex - 1] ?? currentStep);
+    stepInUrl.show(steps[currentStepIndex - 1] ?? currentStep);
   }
 
   /** A modality comes with its only submodality, when it has just one. */
@@ -101,12 +130,14 @@ export function useCreateChoreographyWizard({
       values,
     }),
     chooseModality,
+    clearAnswers: () => clearStoredAnswers(storageKey),
     currentStep,
     currentStepIndex,
     form,
     goBack,
     goNext,
-    goTo: setCurrentStep,
+    goTo: stepInUrl.show,
+    isLoadingStep: !isRestored || isWaitingForResolution,
     isResolving: registration.isResolving,
     refusal: registration.refusal,
     resetResolution: registration.reset,
@@ -146,6 +177,135 @@ function getStepAfterDancers(resolution: PortalResolvedRegistrationResolution) {
 }
 
 /**
+ * The step is `?paso=` in the URL, one history entry per step, so a reload
+ * comes back to it and the phone's back gesture goes to the previous one.
+ */
+function useStepInUrl() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  function show(
+    step: CreateChoreographyStep,
+    options: { replace?: boolean } = {},
+  ) {
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current);
+
+        if (step === "choreography") {
+          params.delete(stepParamName);
+        } else {
+          params.set(stepParamName, createChoreographyStepSlugs[step]);
+        }
+
+        return params;
+      },
+      { replace: options.replace },
+    );
+  }
+
+  return {
+    show,
+    step: readCreateChoreographyStep(searchParams.get(stepParamName)),
+  };
+}
+
+const stepParamName = "paso";
+
+/**
+ * Brings back the answers a reload of the tab kept, once, then keeps every
+ * change. The restore waits for the browser because storage is not there on
+ * the server: the page shows no step until it has run.
+ */
+function useStoredAnswers({
+  form,
+  loaderData,
+  storageKey,
+}: {
+  form: CreateChoreographyForm;
+  loaderData: CreateChoreographyRouteData;
+  storageKey: string;
+}) {
+  const [isRestored, setIsRestored] = useState(false);
+  const hasRestoredRef = useRef(false);
+
+  useEffect(() => {
+    if (hasRestoredRef.current) {
+      return;
+    }
+
+    hasRestoredRef.current = true;
+
+    const restored = restoreCreateChoreographyAnswers(
+      readStoredAnswers(storageKey),
+      loaderData,
+    );
+
+    if (restored) {
+      form.reset(restored);
+    }
+
+    setIsRestored(true);
+  }, [form, loaderData, storageKey]);
+
+  useEffect(() => {
+    const subscription = form.watch((answers) =>
+      writeStoredAnswers(storageKey, answers),
+    );
+
+    return () => subscription.unsubscribe();
+  }, [form, storageKey]);
+
+  return isRestored;
+}
+
+/**
+ * Keeps the URL's step honest: it falls back to the first step whose answers
+ * are incomplete, and a step after the dancers is shown only once the dancers
+ * are resolved again, which a reload or the forward button can skip. A
+ * refusal on the way sends the academy to the dancers, where it is shown.
+ */
+function useStepGuard({
+  canChooseSubmodality,
+  isRestored,
+  registration,
+  stepInUrl,
+  values,
+}: {
+  canChooseSubmodality: boolean;
+  isRestored: boolean;
+  registration: ReturnType<typeof useRegistrationResolution>;
+  stepInUrl: ReturnType<typeof useStepInUrl>;
+  values: CreateChoreographyFormValues;
+}) {
+  const { step } = stepInUrl;
+
+  useEffect(() => {
+    if (!isRestored || registration.isResolving) {
+      return;
+    }
+
+    const target =
+      registration.refusal && isAfterDancersStep(step)
+        ? "dancers"
+        : clampCreateChoreographyStep({
+            canChooseSubmodality,
+            resolution: registration.resolution,
+            step,
+            values,
+          });
+
+    if (target !== step) {
+      stepInUrl.show(target, { replace: true });
+      return;
+    }
+
+    if (isAfterDancersStep(step) && !registration.resolution) {
+      registration.resolve();
+    }
+  });
+}
+
+/**
  * Asks the server which category the dancers put the choreography in. A refusal
  * stays on the dancers step as a notice, where the academy can fix the roster
  * or go back to the modality; an accepted resolution keeps the level and
@@ -164,11 +324,13 @@ function useRegistrationResolution({
   modalityName: string | null;
   onAccepted: (resolution: PortalResolvedRegistrationResolution) => void;
 }) {
-  const fetcher = useFetcher<CalculationActionData>();
+  const fetcher = useFetcher<CalculationActionData | UnexpectedActionError>();
   const [resolution, setResolution] =
     useState<PortalResolvedRegistrationResolution | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
-  const processedDataRef = useRef<CalculationActionData | undefined>(undefined);
+  const processedDataRef = useRef<
+    CalculationActionData | UnexpectedActionError | undefined
+  >(undefined);
 
   useEffect(() => {
     const data = fetcher.data;
@@ -179,11 +341,13 @@ function useRegistrationResolution({
 
     processedDataRef.current = data;
 
-    const outcome = applyRegistrationResolution({
-      ...readResolutionAnswers(form),
-      modalityName,
-      result: data.result,
-    });
+    const outcome = isUnexpectedActionError(data)
+      ? ({ status: "refused", message: data.message } as const)
+      : applyRegistrationResolution({
+          ...readResolutionAnswers(form),
+          modalityName,
+          result: data.result,
+        });
 
     if (outcome.status === "refused") {
       setResolution(null);
@@ -266,15 +430,27 @@ function useChoreographySubmission({
   canChooseSubmodality,
   eventId,
   form,
+  storageKey,
 }: {
   canChooseSubmodality: boolean;
   eventId: string;
   form: CreateChoreographyForm;
+  storageKey: string;
 }) {
   const fetcher = useFetcher<CreateActionData | UnexpectedActionError>();
 
+  // The answers leave storage with the save, so a saved choreography does not
+  // come back in the next registration; a refusal puts them back.
+  useEffect(() => {
+    if (fetcher.data) {
+      writeStoredAnswers(storageKey, form.getValues());
+    }
+  }, [fetcher.data, form, storageKey]);
+
   function confirm(acknowledgedDuplicateIds: string[] = []) {
     const values = form.getValues();
+
+    clearStoredAnswers(storageKey);
 
     void fetcher.submit(
       buildCreateChoreographyFormData({
