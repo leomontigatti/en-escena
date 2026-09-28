@@ -137,9 +137,15 @@ describe("`/administracion/usuarios` route", () => {
       userName: "Admin Legacy",
       internalUsername: "admin.legacy",
     });
-    const legacyQueryData = await loader(routeArgs(legacyQueryRequest.request));
+    const legacyQueryRedirect = await expectThrownResponse(
+      loader(routeArgs(legacyQueryRequest.request)),
+      302,
+    );
 
-    expect(legacyQueryData.filters.query).toBe("");
+    // `q` is not this product's vocabulary: it is dropped, not read.
+    expect(legacyQueryRedirect.headers.get("Location")).toBe(
+      "/administracion/usuarios",
+    );
 
     const byNameRequest = await createSignedInRequest({
       email: "admin.nombre.usuarios@example.com",

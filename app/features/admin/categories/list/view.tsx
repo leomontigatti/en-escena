@@ -17,6 +17,9 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { buildCreatePath, buildDetailPath } from "@/lib/shared/navigation";
+import { describeEmptyList } from "@/lib/list-query/list-query";
+
+const emptyCategoryList = describeEmptyList("categorías", "search-and-filters");
 
 type CategoriesListViewProps = {
   loaderData: CategoriesListLoaderData;
@@ -102,12 +105,12 @@ function CategoriesListView({ loaderData }: CategoriesListViewProps) {
           searchPlaceholder="Buscar categoría por nombre"
           textFilterColumnId="name"
           facetedFilters={categoryFacetedFilters}
-          emptyMessage="No hay categorías que coincidan con la búsqueda."
+          emptyMessage={emptyCategoryList.nothingMatched}
           initialSort={{ columnId: "ages", direction: "asc" }}
         />
       ) : (
         <AdminEmptyState
-          title="Todavía no hay categorías creadas."
+          title={emptyCategoryList.nothingYet}
           description="Creá la primera categoría para definir rangos de edad y aplicabilidad competitiva del evento activo."
         />
       )}

@@ -16,8 +16,8 @@ import {
   getActiveFacetedFilterValues,
   isFacetedFilterValue,
   mergeBaseFacetedFilterValues,
-  normalizeSearchValue,
 } from "@/components/shared/data-table-helpers";
+import { foldSearchText } from "@/lib/list-query/list-query";
 import type {
   DataTableColumn,
   DataTableFacetedFilter,
@@ -155,13 +155,12 @@ export function createDataTableColumns<TData>(
         return selectedValues.every((selectedValue) =>
           rowValues.some(
             (rowValue) =>
-              normalizeSearchValue(rowValue) ===
-              normalizeSearchValue(selectedValue),
+              foldSearchText(rowValue) === foldSearchText(selectedValue),
           ),
         );
       }
 
-      const normalizedQuery = normalizeSearchValue(String(filterValue));
+      const normalizedQuery = foldSearchText(String(filterValue));
 
       if (normalizedQuery.length === 0) {
         return true;
@@ -169,9 +168,7 @@ export function createDataTableColumns<TData>(
 
       const value = column.filterValue?.(row.original);
 
-      return value
-        ? normalizeSearchValue(value).includes(normalizedQuery)
-        : false;
+      return value ? foldSearchText(value).includes(normalizedQuery) : false;
     },
     sortingFn: (firstRow, secondRow) =>
       compareSortValues(
@@ -223,8 +220,7 @@ export function createDataTableColumns<TData>(
       return selectedValues.every((selectedValue) =>
         rowValues.some(
           (rowValue) =>
-            normalizeSearchValue(rowValue) ===
-            normalizeSearchValue(selectedValue),
+            foldSearchText(rowValue) === foldSearchText(selectedValue),
         ),
       );
     },
@@ -262,7 +258,7 @@ function getFacetedRowValues<TData>(
 export function createGlobalFilterFn<TData>(columns: DataTableColumn<TData>[]) {
   return (row: Row<TData>, _columnId: string, filterValue: unknown) =>
     columns.some((column) => {
-      const normalizedQuery = normalizeSearchValue(String(filterValue));
+      const normalizedQuery = foldSearchText(String(filterValue));
 
       if (normalizedQuery.length === 0) {
         return true;
@@ -270,9 +266,7 @@ export function createGlobalFilterFn<TData>(columns: DataTableColumn<TData>[]) {
 
       const value = column.filterValue?.(row.original);
 
-      return value
-        ? normalizeSearchValue(value).includes(normalizedQuery)
-        : false;
+      return value ? foldSearchText(value).includes(normalizedQuery) : false;
     });
 }
 

@@ -1144,26 +1144,6 @@ describe("DataTable server-side href helpers", () => {
     );
   });
 
-  test("keeps honoring per-view parameter name overrides", () => {
-    expect(
-      buildDataTablePageHref({
-        basePath: "/administracion/profesores",
-        currentSearch: "?page=2",
-        page: 3,
-        pageParamName: "page",
-      }),
-    ).toBe("/administracion/profesores?page=3");
-
-    expect(
-      buildDataTableSearchHref({
-        basePath: "/administracion/profesores",
-        currentSearch: "?pagina=2",
-        searchParamName: "q",
-        searchValue: "Ana",
-      }),
-    ).toBe("/administracion/profesores?q=Ana");
-  });
-
   test("builds sort targets by preserving active params and clearing page 1", () => {
     expect(
       buildDataTableSortHref({

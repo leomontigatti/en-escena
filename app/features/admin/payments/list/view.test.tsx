@@ -85,7 +85,7 @@ describe("PaymentsListRouteView", () => {
     expect(markup).toContain("Disponible");
     expect(markup).toContain("$ 0");
     // The table is what goes away, not the position above it.
-    expect(markup).toContain("Todavía no hay pagos registrados");
+    expect(markup).toContain("Todavía no hay pagos.");
   });
 
   // A filter that matched nothing must not fall back to the "no payments yet"
@@ -100,7 +100,10 @@ describe("PaymentsListRouteView", () => {
     );
 
     expect(markup).toContain("Total cobrado");
-    expect(markup).not.toContain("Todavía no hay pagos registrados");
+    expect(markup).toContain(
+      "No hay pagos que coincidan con la búsqueda o los filtros.",
+    );
+    expect(markup).not.toContain("Todavía no hay pagos.");
   });
 });
 

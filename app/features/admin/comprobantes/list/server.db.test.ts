@@ -342,6 +342,64 @@ describe("loadComprobantesList", () => {
     expect(porNumero.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
   });
 
+  test("finds a comprobante whatever accents the search is typed with", async () => {
+    const event = await createEventRecord({ active: true });
+    const catalog = await createEventCatalog(event.id);
+    const accentedAcademy = await seedChoreography({
+      academyName: "Academia Peña",
+      catalog,
+      email: `pena.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Canción",
+    });
+    const unrelatedAcademy = await seedChoreography({
+      academyName: "Academia Beta",
+      catalog,
+      email: `beta.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Vals",
+    });
+    const comprobante = await recordComprobante(
+      facturaCInput({
+        choreographyId: accentedAcademy.choreography.id,
+        eventId: event.id,
+        cbteNro: 1,
+      }),
+    );
+    // A second comprobante that would also turn up if the search predicate
+    // were dropped, so a broken filter fails this test instead of passing it
+    // by having nothing else to exclude.
+    await recordComprobante(
+      facturaCInput({
+        choreographyId: unrelatedAcademy.choreography.id,
+        eventId: event.id,
+        cbteNro: 2,
+      }),
+    );
+
+    for (const search of ["?busqueda=pena", "?busqueda=CANCION"]) {
+      const data = await loadComprobantesList(
+        await signedInAdminRequest(search),
+      );
+
+      expect(data.rows.map((row) => row.id)).toEqual([comprobante.id]);
+    }
+  });
+
+  test("redirects a page past the last one, and a retired facet, to the canonical URL", async () => {
+    await createEventRecord({ active: true });
+
+    const response = await expectThrownResponse(
+      loadComprobantesList(
+        await signedInAdminRequest("?porcion=sena&estado=vigente&pagina=4"),
+      ),
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      "/administracion/comprobantes?estado=vigente",
+    );
+  });
+
   test("reads a seminar comprobante by its anchor and finds it by instructor name", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
@@ -485,3 +543,16 @@ describe("loadComprobantesList", () => {
     expect(data.hasAnyComprobante).toBe(false);
   });
 });
+
+async function expectThrownResponse(promise: Promise<unknown>) {
+  try {
+    await promise;
+  } catch (error) {
+    expect(error).toBeInstanceOf(Response);
+    expect((error as Response).status).toBe(302);
+
+    return error as Response;
+  }
+
+  throw new Error("Expected a redirect.");
+}

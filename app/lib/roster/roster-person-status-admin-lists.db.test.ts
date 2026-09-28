@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
+import { expectThrownResponse } from "@/lib/test-support/http";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
@@ -24,16 +25,12 @@ installDatabaseTestHooks();
 
 let emailCounter = 0;
 
-async function adminRouteArgs(input: {
-  eventId: string;
-  pattern: string;
-  search: string;
-}) {
+async function adminRouteArgs(input: { pattern: string; search: string }) {
   emailCounter += 1;
   const { request } = await createSignedInAdminRequest({
     email: `admin.alta.${emailCounter}@example.com`,
     role: "admin",
-    requestUrl: `http://localhost${input.pattern}?evento=${input.eventId}${input.search}`,
+    requestUrl: `http://localhost${input.pattern}?${input.search.replace(/^&/, "")}`,
   });
 
   return {
@@ -45,20 +42,18 @@ async function adminRouteArgs(input: {
   };
 }
 
-async function loadDancers(input: { eventId: string; search: string }) {
+async function loadDancers(input: { search: string }) {
   return dancersLoader(
     await adminRouteArgs({
-      eventId: input.eventId,
       pattern: "/administracion/bailarines",
       search: input.search,
     }),
   );
 }
 
-async function loadProfessors(input: { eventId: string; search: string }) {
+async function loadProfessors(input: { search: string }) {
   return professorsLoader(
     await adminRouteArgs({
-      eventId: input.eventId,
       pattern: "/administracion/profesores",
       search: input.search,
     }),
@@ -76,10 +71,6 @@ function expectBadge(
 
 describe("`Estado de alta` on the two administrative lists", () => {
   test("answers the status parameter the same way for dancers and for professors", async () => {
-    const event = await createSavedEvent("Regional Alta", {
-      activate: true,
-      dates: createEventFixtureDates(2026),
-    });
     const academy = await createAcademyUser({
       academyName: "Academia Alta Listas",
       email: "academia.alta.listas@example.com",
@@ -118,16 +109,11 @@ describe("`Estado de alta` on the two administrative lists", () => {
       { expected: ["Ana Activa"], search: "" },
       { expected: ["Bea Archivada"], search: "&estado=archivados" },
       { expected: ["Ana Activa", "Bea Archivada"], search: "&estado=todos" },
-      // An unknown value falls back to the default, on both lists.
-      { expected: ["Ana Activa"], search: "&estado=activos" },
     ];
 
     for (const { expected, search } of cases) {
-      const dancersData = await loadDancers({ eventId: event.id, search });
-      const professorsData = await loadProfessors({
-        eventId: event.id,
-        search,
-      });
+      const dancersData = await loadDancers({ search });
+      const professorsData = await loadProfessors({ search });
       const dancerNames = dancersData.dancers.map(
         (dancer) => `${dancer.firstName} ${dancer.lastName}`,
       );
@@ -139,6 +125,28 @@ describe("`Estado de alta` on the two administrative lists", () => {
       expect(professorNames.sort()).toEqual(expected);
       expect(dancersData.filters.status).toBe(professorsData.filters.status);
     }
+
+    // An unknown value is a stale parameter like any other: both lists drop
+    // it and redirect to their plain canonical URL, the same way.
+    const dancersInvalid = await expectThrownResponse(
+      loadDancers({ search: "&estado=activos" }),
+      302,
+    );
+    const professorsInvalid = await expectThrownResponse(
+      loadProfessors({ search: "&estado=activos" }),
+      302,
+    );
+
+    expect(
+      new URL(dancersInvalid.headers.get("Location") ?? "", "http://localhost")
+        .search,
+    ).toBe("");
+    expect(
+      new URL(
+        professorsInvalid.headers.get("Location") ?? "",
+        "http://localhost",
+      ).search,
+    ).toBe("");
   });
 
   test("keeps `Estado de alta` independent from `Participación` and from `Verificación`", async () => {
@@ -183,7 +191,7 @@ describe("`Estado de alta` on the two administrative lists", () => {
     });
 
     async function listNames(search: string) {
-      const data = await loadDancers({ eventId: event.id, search });
+      const data = await loadDancers({ search });
 
       return {
         data,
@@ -192,7 +200,10 @@ describe("`Estado de alta` on the two administrative lists", () => {
     }
 
     // Archived, participating and verified: the three badges render together.
-    const everything = await listNames("&estado=todos&identificacion=todos");
+    // `identificacion` is left at its default (`all`, encoded by its
+    // absence): writing `todos` explicitly would be the stale-parameter case
+    // covered above, not this one.
+    const everything = await listNames("&estado=todos");
     const markup = renderToStaticMarkup(
       renderInDataRouter(
         "/administracion/bailarines",
@@ -209,18 +220,15 @@ describe("`Estado de alta` on the two administrative lists", () => {
     expectBadge(markup, { label: "Verificado", variant: "success" });
 
     // Filtering on one axis leaves the other two alone.
-    expect(
-      (await listNames("&estado=archivados&identificacion=todos")).ids,
-    ).toEqual([archivedDancer.id]);
+    expect((await listNames("&estado=archivados")).ids).toEqual([
+      archivedDancer.id,
+    ]);
     expect(
       (await listNames("&estado=todos&identificacion=verificados")).ids,
     ).toEqual([archivedDancer.id]);
-    expect(
-      (await listNames("&estado=todos&identificacion=todos&participando=si"))
-        .ids,
-    ).toEqual([archivedDancer.id]);
-    expect((await listNames("&identificacion=todos")).ids).toEqual([
-      activeDancer.id,
+    expect((await listNames("&estado=todos&participando=si")).ids).toEqual([
+      archivedDancer.id,
     ]);
+    expect((await listNames("")).ids).toEqual([activeDancer.id]);
   });
 });

@@ -121,8 +121,8 @@ describe("`/administracion/coreografias` route filters", () => {
     const filteredData = await loadRouteData({
       email: "admin.coreografias.filtros@example.com",
       requestUrl:
-        `http://localhost/administracion/coreografias?evento=${event.id}` +
-        `&estado=incompleta&modalidad=${contemporaryCatalog.modality.id}` +
+        `http://localhost/administracion/coreografias?estado=incompleta` +
+        `&modalidad=${contemporaryCatalog.modality.id}` +
         `&categoria=${contemporaryCatalog.category.id}&tipo-grupo=duo`,
     });
     const filteredMarkup = renderRoute({
@@ -158,25 +158,21 @@ describe("`/administracion/coreografias` route filters", () => {
 
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.filtro-estado@example.com",
-      eventId: event.id,
       expectedNames: ["Completa Jazz"],
       search: "&estado=completa",
     });
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.filtro-modalidad@example.com",
-      eventId: event.id,
       expectedNames: ["Trio Urbano"],
       search: `&modalidad=${urbanCatalog.modality.id}`,
     });
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.filtro-categoria@example.com",
-      eventId: event.id,
       expectedNames: ["Completa Jazz"],
       search: `&categoria=${jazzCatalog.category.id}`,
     });
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.filtro-tipo-grupo@example.com",
-      eventId: event.id,
       expectedNames: ["Trio Urbano"],
       search: "&tipo-grupo=trio",
     });
@@ -186,17 +182,18 @@ describe("`/administracion/coreografias` route filters", () => {
     // short, without the padding zeros.
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.busqueda-numero@example.com",
-      eventId: event.id,
       expectedNames: ["Duo Incompleto"],
       search: "&busqueda=00002",
     });
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.busqueda-numero-corto@example.com",
-      eventId: event.id,
       expectedNames: ["Trio Urbano"],
       search: "&busqueda=3",
     });
 
+    // `evento` is the selectable-event residue: the active event is resolved
+    // without it, so it is a stale parameter and the canonical URL drops it
+    // along with the invalid filters.
     const invalidResponse = await expectThrownResponse(
       loadRouteData({
         email: "admin.coreografias.filtros-invalidos@example.com",
@@ -209,7 +206,7 @@ describe("`/administracion/coreografias` route filters", () => {
     );
 
     expect(invalidResponse.headers.get("Location")).toBe(
-      `/administracion/coreografias?evento=${event.id}`,
+      "/administracion/coreografias",
     );
   });
 });
@@ -397,15 +394,12 @@ async function expectCreated<T extends { id: string }>(
 
 async function expectChoreographyNamesForSearch(input: {
   email: string;
-  eventId: string;
   expectedNames: string[];
   search: string;
 }) {
   const data = await loadRouteData({
     email: input.email,
-    requestUrl:
-      `http://localhost/administracion/coreografias?evento=${input.eventId}` +
-      input.search,
+    requestUrl: `http://localhost/administracion/coreografias?${input.search.replace(/^&/, "")}`,
   });
 
   expect(data.choreographies.map((row) => row.name)).toEqual(

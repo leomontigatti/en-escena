@@ -111,7 +111,7 @@ function buildListLoaderData() {
   return {
     selectedEventId: "event_1",
     filters: {
-      nameOrder: "asc",
+      order: { columnId: "nombre", direction: "asc" },
       participation: "all",
       query: "",
       status: "active",

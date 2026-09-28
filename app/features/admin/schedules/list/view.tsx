@@ -3,9 +3,15 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { buildCreatePath } from "@/lib/shared/navigation";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { ScheduleList } from "../list-table";
 import { basePath, type EventSchedulesListLoaderData } from "../shared";
+
+const emptyScheduleList = describeEmptyList(
+  "cronogramas",
+  "search-and-filters",
+);
 
 export type EventSchedulesListViewProps = {
   loaderData: EventSchedulesListLoaderData;
@@ -31,7 +37,7 @@ export function EventSchedulesListView({
         />
       ) : (
         <AdminEmptyState
-          title="Todavía no hay cronogramas creados."
+          title={emptyScheduleList.nothingYet}
           description="Creá el primer cronograma para definir cupo, hora y modalidades aceptadas del evento activo."
         />
       )}

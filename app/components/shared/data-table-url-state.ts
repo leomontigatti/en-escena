@@ -12,12 +12,12 @@ import type {
   DataTableFacetedFilterValue,
   DataTableSort,
 } from "@/components/shared/data-table.shared";
+import { dataTableSearchDebounceMs } from "@/components/shared/data-table.shared";
 import {
-  dataTablePageParamName,
-  dataTableSearchDebounceMs,
-  dataTableSearchParamName,
-  dataTableSortParamName,
-} from "@/components/shared/data-table.shared";
+  listQueryParamNames,
+  parseListOrder,
+  readListPage,
+} from "@/lib/list-query/list-query";
 import { useOptionalNavigation } from "@/lib/shared/forms";
 
 /**
@@ -36,18 +36,12 @@ export function useDataTableUrlState({
   initialFacetedFilterValue,
   initialSearchValue = "",
   initialSort,
-  pageParamName = dataTablePageParamName,
-  searchParamName = dataTableSearchParamName,
-  sortParamName = dataTableSortParamName,
 }: {
   basePath: string;
   facetedFilters: DataTableFacetedFilter[];
   initialFacetedFilterValue: DataTableFacetedFilterValue;
   initialSearchValue?: string;
   initialSort?: DataTableSort;
-  pageParamName?: string;
-  searchParamName?: string;
-  sortParamName?: string;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -74,37 +68,38 @@ export function useDataTableUrlState({
           basePath,
           currentSearch: headingSearch,
           groups: facetedFilters,
-          pageParamName,
           values,
         }),
       );
     },
-    page: readDataTablePage(location.search, pageParamName),
+    page: readListPage(new URLSearchParams(location.search)),
     setPage: (page: number) => {
       replaceHref(
         buildDataTablePageHref({
           basePath,
           currentSearch: headingSearch,
           page,
-          pageParamName,
         }),
       );
     },
     search:
-      new URLSearchParams(headingSearch).get(searchParamName) ??
+      new URLSearchParams(headingSearch).get(listQueryParamNames.search) ??
       initialSearchValue,
     setSearch: (searchValue: string) => {
       replaceHref(
         buildDataTableSearchHref({
           basePath,
           currentSearch: headingSearch,
-          pageParamName,
-          searchParamName,
           searchValue,
         }),
       );
     },
-    sort: readDataTableSort(location.search, sortParamName) ?? initialSort,
+    // An order naming neither a column nor a direction —a hand-edited URL— is
+    // the view's default order, as an absent one is.
+    sort:
+      parseListOrder(
+        new URLSearchParams(location.search).get(listQueryParamNames.order),
+      ) ?? initialSort,
     setSort: (sort: DataTableSort) => {
       replaceHref(
         buildDataTableSortHref({
@@ -112,8 +107,6 @@ export function useDataTableUrlState({
           columnId: sort.columnId,
           currentSearch: headingSearch,
           direction: sort.direction,
-          pageParamName,
-          sortParamName,
         }),
       );
     },
@@ -214,37 +207,4 @@ function readDataTableFacetedFilterValue(
   }
 
   return values;
-}
-
-/**
- * The sort travels as a column and direction pair. A parameter naming neither
- * — from a hand-edited URL — means the same as an absent one: the view's
- * default order.
- */
-function readDataTableSort(currentSearch: string, sortParamName: string) {
-  const rawSort = new URLSearchParams(currentSearch).get(sortParamName);
-
-  if (!rawSort) {
-    return undefined;
-  }
-
-  const separatorIndex = rawSort.lastIndexOf(":");
-  const columnId = rawSort.slice(0, separatorIndex);
-  const direction = rawSort.slice(separatorIndex + 1);
-
-  if (columnId.length === 0 || (direction !== "asc" && direction !== "desc")) {
-    return undefined;
-  }
-
-  return { columnId, direction } satisfies DataTableSort;
-}
-
-function readDataTablePage(
-  currentSearch: string,
-  pageParamName = dataTablePageParamName,
-) {
-  const rawPage = new URLSearchParams(currentSearch).get(pageParamName);
-  const page = Number(rawPage);
-
-  return Number.isInteger(page) && page >= 1 ? page : 1;
 }

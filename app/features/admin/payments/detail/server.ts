@@ -250,7 +250,7 @@ async function deletePayment(input: {
   // now. There is no blocking case: the deletion always proceeds.
   await db.delete(payments).where(eq(payments.id, input.paymentId));
 
-  throw redirect(`/administracion/pagos?evento=${payment.eventId}`);
+  throw redirect("/administracion/pagos");
 }
 
 function getPaymentFormValues(payment: {

@@ -36,6 +36,7 @@ import type { PresentationWarningKind } from "@/lib/presentations/warnings";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import { showToastMessage } from "@/lib/shared/toasts";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { JudgeAssignmentDialog } from "./judge-dialogs";
 import {
@@ -389,6 +390,12 @@ function PresentationOrderCell({
   );
 }
 
+/** The list's rows are choreographies, whether or not they are numbered yet. */
+const emptyPresentationList = describeEmptyList(
+  "coreografías",
+  "search-and-filters",
+);
+
 export function PresentationsListView({
   loaderData,
 }: PresentationsListViewProps) {
@@ -482,7 +489,7 @@ export function PresentationsListView({
               searchPlaceholder="Buscar por número de coreografía, nombre o academia"
               initialSearchValue={loaderData.filters.query}
               initialSort={loaderData.filters.order}
-              emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
+              emptyMessage={emptyPresentationList.nothingMatched}
               currentPage={loaderData.filters.page}
               totalPages={loaderData.totalPages}
               totalRows={loaderData.totalCount}
@@ -492,7 +499,7 @@ export function PresentationsListView({
       ) : (
         <AdminEmptyState
           icon={ListOrdered}
-          title="Todavía no hay coreografías para ordenar."
+          title={emptyPresentationList.nothingYet}
           description="Una coreografía entra en esta lista cuando cubre su seña. Cuando haya alguna, vas a poder ordenarlas acá."
         />
       )}

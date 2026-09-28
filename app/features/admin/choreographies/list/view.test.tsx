@@ -18,13 +18,13 @@ describe("ChoreographiesListRouteView", () => {
     expect(markup).toContain(
       "Activá un evento para consultar las coreografías registradas por las academias.",
     );
-    expect(markup).not.toContain("Todavía no hay coreografías para mostrar.");
+    expect(markup).not.toContain("Todavía no hay coreografías.");
   });
 
   test("shows the no-data empty state for the active event", () => {
     const markup = renderRoute();
 
-    expect(markup).toContain("Todavía no hay coreografías para mostrar.");
+    expect(markup).toContain("Todavía no hay coreografías.");
     expect(markup).toContain(
       "Cuando las academias registren coreografías para el evento activo, vas a poder revisarlas desde este listado.",
     );
@@ -162,7 +162,7 @@ describe("ChoreographiesListRouteView", () => {
     expect(markup).toContain(
       "No hay coreografías que coincidan con la búsqueda o los filtros.",
     );
-    expect(markup).not.toContain("Todavía no hay coreografías para mostrar.");
+    expect(markup).not.toContain("Todavía no hay coreografías.");
   });
 
   test("renders operational faceted filters with the approved URL values", () => {
@@ -242,7 +242,7 @@ function renderRoute(
             groupType: null,
             modalityId: null,
             order: {
-              columnId: "academia",
+              columnId: "numero",
               direction: "asc",
             },
             page: 1,
