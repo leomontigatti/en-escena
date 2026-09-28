@@ -23,7 +23,7 @@ This is an unattended run — there is no user to grill. Your job:
 # CONTEXT
 
 Read the repo's domain/architecture docs and ADRs before proposing: `CONTEXT.md`, `docs/adr/`,
-`docs/agents/domain.md`, and `.sandcastle/CODING_STANDARDS.md`. Treat recorded decisions (the
+`docs/agents/domain.md`, and `docs/agents/coding-standards.md`. Treat recorded decisions (the
 ADRs) as **binding** — do not propose anything that contradicts one.
 
 Call the Skill tool with "codebase-design" before exploring: it is the vocabulary (module,

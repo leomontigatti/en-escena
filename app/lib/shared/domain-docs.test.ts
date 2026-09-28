@@ -337,7 +337,7 @@ describe("domain documentation", () => {
   });
 
   test("documents the code language convention as a coding standard", async () => {
-    const standards = await readFile(".sandcastle/CODING_STANDARDS.md", "utf8");
+    const standards = await readFile("docs/agents/coding-standards.md", "utf8");
 
     for (const requirement of codeLanguageRequirements) {
       expect(standards).toContain(requirement);
@@ -634,7 +634,7 @@ describe("domain documentation", () => {
     test("keeps every prose copy of the map naming the same docs and patterns", async () => {
       const docMap = await readDocMap();
       const mapped = docMap.flatMap(({ doc, code }) => [doc, ...code]);
-      const restatements = [".sandcastle/CODING_STANDARDS.md"];
+      const restatements = ["docs/agents/coding-standards.md"];
 
       for (const path of restatements) {
         const contents = await readFile(path, "utf8");

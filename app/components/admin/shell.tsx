@@ -69,7 +69,7 @@ import {
 // The `Admin` in this file is not a surface prefix: it names the administration
 // shell, not a domain symbol on that surface. It is the declared exception to the
 // Unmarked = admin rule, not outstanding debt. See
-// .sandcastle/CODING_STANDARDS.md § Surface Prefix Rule.
+// docs/agents/coding-standards.md § Surface Prefix Rule.
 type AdminShellProps = {
   account: InternalAccount;
   events: EventOption[];

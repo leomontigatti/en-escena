@@ -1,72 +1,24 @@
-# `.sandcastle/` — AFK agent runners
+# `.sandcastle/` — the Architecture Review runner
 
-This directory holds the **AFK agent runners** invoked by the GitHub Actions
-workflow in `.github/workflows/architecture-review.yml`. It
-implements the **orchestrator↔runner split** of the AFK platform spec
+This directory holds the one surviving AFK agent runner: Architecture Review,
+invoked weekly by `.github/workflows/architecture-review.yml`. It implements the
+**orchestrator↔runner split** of the AFK platform spec
 (`docs/agents/afk-agent-platform-spec.md`, §3.8/§3.9): the workflow
-(orchestrator) owns every tracker/VCS mutation (labels, comments, push, PR,
-close) and prefetches context; each **runner holds no GitHub token** and only
-emits commits on the already-checked-out branch plus plain/JSON files under
-`OUTPUT_DIR`.
+(orchestrator) owns every tracker mutation and prefetches context; the runner
+holds no GitHub token and only emits plain/JSON files under `OUTPUT_DIR`.
 
-The legacy local Docker runner (`main.mts` and its `*-prompt.md` chain, driven
-by `pnpm sandcastle`) was **retired in the Fase 4 cutover** (issue #347). The
-implement, review, write-PR and To Issues runners were retired in
-**ADR-0016**: code is written and reviewed, and PRDs are sliced, in local T3
-Code sessions (the `implement` and `to-tickets` skills), and what remains on
-GitHub Actions is the work that needs no browser and no judgement about the
-product. The Update Branch runner was retired in ADR-0016's second amendment: a
-session babysitting its PR brings the branch up to date itself.
+Every other runner was retired in ADR-0016 and its amendments: code is written,
+reviewed and sliced into tickets in local T3 Code sessions. The rules those
+sessions follow live in `docs/agents/`, not here — the coding standards in
+`docs/agents/coding-standards.md` and the validation list in
+`docs/agents/validation.md`.
 
 ## Layout
 
-- `agent-architecture-review/` — the surviving runner, invoked by
-  `architecture-review.yml`.
-- `lib/` — shared runner helpers (`runner.mts`, `run-with-extraction.mts`, …).
-- `retry-feedback.mts` — shared output/retry helper.
-- `CODING_STANDARDS.md` — canonical coding standards for the whole repo (not
-  just these runners); referenced from `CLAUDE.md`.
+- `agent-architecture-review/` — the runner and its prompt.
+- `lib/` — runner helpers (`runner.mts`, `run-with-extraction.mts`, `gh.mts`, …).
+- `retry-feedback.mts` — the retry feedback `run-with-extraction.mts` builds.
 
-The runners run on the GitHub Actions host with `noSandbox()` (see
-`lib/runner.mts`); they need no local `.env` and no Docker image. Auth and
-tokens are provided by the workflow via GitHub Actions secrets — see
-`docs/agents/afk-setup.md`.
-
-## Validation Rules
-
-Runner prompts must preserve this repo's validation order:
-
-1. `pnpm format` when formatting needs to be applied, otherwise
-   `pnpm format:check` for final formatting verification
-2. `pnpm check:repo-styles` when the change adds or edits app UI code
-3. `pnpm check:file-tokens`
-4. `pnpm typecheck`
-5. `pnpm test` (unit/react plus the DB suite on in-process PGlite; also covers
-   database schema, repositories, loaders/actions that persist data, or
-   persistence-backed business rules)
-6. `pnpm build` when the change touches routing, server rendering, bundling,
-   CSS, or deployment behavior
-
-If a command fails, fix it and rerun that same command before starting the next
-validation command. Do not run `typecheck`, tests, DB tests, or build while
-formatting, `format:check`, repo-style checks, or file-token checks are still
-broken.
-
-`pnpm check:file-tokens` is strict for staged application source files. Split
-files at real module boundaries before committing instead of adding shallow
-pass-through wrappers to satisfy the token limit.
-
-During development, focused DB tests can target one file:
-
-```bash
-pnpm test:db app/lib/example.db.test.ts
-```
-
-Focused DB tests use the fast in-process PGlite harness. Run `pnpm test` before
-finishing database-backed work; it covers the unit suite and the full PGlite DB
-suite with no local Postgres. `pnpm test:db:postgres` is the high-fidelity
-real-Postgres path; CI runs the same suite sharded across `db-shard` behind the
-`db-gate` context (`ci.yml`, issues #305/#342/#962).
-
-Do not use `pnpm exec tsc` directly in this repo. `pnpm typecheck` generates
-React Router route types before running TypeScript.
+The runner runs on the GitHub Actions host with `noSandbox()` (see
+`lib/runner.mts`); it needs no local `.env` and no Docker image. Auth and tokens
+come from GitHub Actions secrets — see `docs/agents/afk-setup.md`.

@@ -9,7 +9,7 @@ import { collectSourceFiles } from "./source-files";
 //
 // #592 swept 2,198 lines of Spanish comments across 177 files and ~340 Spanish
 // test names to zero. Nothing kept them there: the rule lived only in
-// CODING_STANDARDS, and the reviews of #698 and #701 both found new Spanish
+// the coding standards, and the reviews of #698 and #701 both found new Spanish
 // comments defended with "the file around it is already Spanish". With the
 // baseline at zero this guardrail is the cheap half of that sweep — it runs over
 // the whole tree expecting zero, so it needs no diff scoping and no allowlist
@@ -26,7 +26,7 @@ import { collectSourceFiles } from "./source-files";
 //
 // #792 settled the licence the glossary grants. It is not an exemption: prose is
 // governed exactly like an identifier, so the only Spanish that survives bare in
-// a comment is CODING_STANDARDS' reserved list — `comprobante`, grown only by
+// a comment is the coding standards' reserved list — `comprobante`, grown only by
 // ADR. Everything else the glossary names is a violation, and naming it is done
 // the way the identifier rule already does it, by quoting or backticking it.
 //
@@ -286,7 +286,7 @@ const glossaryTermPattern = /—\s*ui:\s*"([^"]+)"/g;
 // because `cupo`, `cronograma`, `evento` and `saldo` carry neither a function
 // word nor an accent (#792).
 //
-// CODING_STANDARDS reserves exactly one term, and growing that list takes an
+// The coding standards reserve exactly one term, and growing that list takes an
 // ADR. `comprobante` stays Spanish everywhere; everything else the glossary
 // names is a violation in prose, quoted or backticked if it must be named.
 const reservedTerms = new Set(["comprobante"]);
@@ -447,7 +447,7 @@ function blankTo(match: string): string {
 /**
  * Blanks out the spans of a passage that are data rather than prose: quoted UI
  * copy, backticked code, route paths, URLs and the reserved terms.
- * CODING_STANDARDS calls these out by name — "Spanish inside a quoted string, a
+ * The coding standards call these out by name — "Spanish inside a quoted string, a
  * route path or a glossary `ui:` value is data, not prose, and stays Spanish".
  * Blanking to spaces of the same width keeps every offset and line break intact,
  * so a match still reports the line it was found on.
@@ -1324,7 +1324,7 @@ async function runCommentLanguageGuardrail(): Promise<void> {
         `- ${violation.filePath}:${violation.lineNumber} (${violation.kind}, matched ${violation.markers.join(", ")})\n  ${violation.text}`,
     ),
     "",
-    "Engineering prose is English (CODING_STANDARDS, 'Code Language'): Spanish is for what a user reads. The file around it being Spanish is not a reason — that argument is the one #592 retired.",
+    "Engineering prose is English (docs/agents/coding-standards.md, 'Code Language'): Spanish is for what a user reads. The file around it being Spanish is not a reason — that argument is the one #592 retired.",
     "Prose is governed like an identifier (#792): `comprobante` is the only Spanish that survives bare. Naming the Spanish term is still fine — mark it as the data it is. In code, double-quote UI copy and backtick a name; in markdown, backtick both.",
   ];
 

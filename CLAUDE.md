@@ -1,7 +1,7 @@
 # En Escena — guide for Claude Code
 
 Index of the repo's conventions. Every operative rule lives in its own file under
-`docs/agents/` (or `.sandcastle/`); this file only routes. The first section is
+`docs/agents/`; this file only routes. The first section is
 read at the start of every task; the second is reached when its leading word
 matches the task.
 
@@ -22,7 +22,7 @@ matches the task.
 - **Branches, worktrees and T3 Code threads** (each thread works in its own T3
   worktree, link every PR to the thread):
   see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Validation**: [docs/agents/workflows.md](docs/agents/workflows.md).
+- **Validation**: [docs/agents/validation.md](docs/agents/validation.md).
   Use `pnpm typecheck` (not `pnpm exec tsc`); a hook enforces it. Do not run
   `pnpm typecheck` in parallel with `pnpm build`. **The commands listed there are
   the whole validation surface — check the script index below before running one
@@ -32,11 +32,10 @@ matches the task.
   `app/components/ui` components — and is not a formatter; formatting is
   Prettier's, unused code is `tsc`'s, and repo conventions belong to the
   `check:*` scripts.
-- **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
-  (canonical). Guide for the whole repo, not just for Sandcastle. Includes the code
-  language convention (Spanish for what the user reads, English for everything else;
-  `comprobante` as the only reserved term). The identifier → UI term mapping lives in
-  [CONTEXT.md](CONTEXT.md).
+- **Coding standards**: [docs/agents/coding-standards.md](docs/agents/coding-standards.md),
+  including the code language convention (Spanish for what the user reads, English for
+  everything else; `comprobante` as the only reserved term). The identifier → UI term
+  mapping lives in [CONTEXT.md](CONTEXT.md).
 
 ## When routed
 

@@ -33,13 +33,13 @@ are only concrete references to this repo:
   DB-PGlite, `pnpm typecheck` runs typegen + `tsc --noEmit`).
 - **Concrete context docs**: `CONTEXT.md`, `docs/adr/` (binding ADRs) and
   [`domain.md`](./domain.md), instead of the source's generic `CONTEXT.md`/ADRs.
-- **Coding standards** pointing at `.sandcastle/CODING_STANDARDS.md` (canonical) and
+- **Coding standards** pointing at `docs/agents/coding-standards.md` (canonical) and
   [`style-guide.md`](./style-guide.md) for frontend/UI.
 - **English PR prose and commit messages.** The source leaves the language of the prose it asks
   for implicit, which is safe in a monolingual repo and ambiguous here: this product is Spanish
   and the history the agent reads for precedent is mostly Spanish commits. So every prompt whose
   agent writes prose that lands on a PR or in the history names the language itself and points at
-  `.sandcastle/CODING_STANDARDS.md` § Code Language, which is what actually decides it, with the
+  `docs/agents/coding-standards.md` § Code Language, which is what actually decides it, with the
   backtick exception for Spanish data. That is `write-pr` and `write-prd-pr` for `prTitle` and
   `prDescription`, and `implement`, `implement-prd`, `implement-pr`, `review` and `update-branch`
   for the commit subject and body. A gate on the PR title is tracked separately (#1007); until
@@ -227,7 +227,7 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   slice `to-tickets` publishes, and the wayfinder ticket that decided them
   ([`issue-tracker.md`](./issue-tracker.md#test-seams)). A runner that finds none chooses them
   and says so in the commit body. The validation cadence is the same in both places: typecheck
-  and single test files as you go, the [`VALIDATION.md`](../../.sandcastle/VALIDATION.md) list
+  and single test files as you go, the [`validation.md`](validation.md) list
   once at the end.
 - **The runtime prompts route to `codebase-design` and `domain-modeling`.** Nothing invoked
   either skill outside a wayfinder session, and a runner has nobody to type the slash command.
@@ -312,7 +312,8 @@ it to the table, the command and `excludedYamlFiles`.
   realization. The runner ↔ orchestrator reconciliation is already complete via the phase
   tickets of map #319 (#344 for the orchestrator↔runner model, #347 for the cutover): the local
   Docker runner (`main.mts` + `*-prompt.md`) was retired and `.sandcastle/` today contains only
-  the surviving AFK runners (`agent-*/`), their helpers (`lib/`, `retry-feedback.mts`) and
-  `CODING_STANDARDS.md`.
+  the surviving AFK runner (`agent-architecture-review/`) and its helpers (`lib/`,
+  `retry-feedback.mts`). The repo-wide coding standards and validation list that used to live
+  beside them moved to `docs/agents/`.
 - The **prompts remain runner-neutral skeletons**: the "how the runner is invoked" half is made
   concrete when each workflow is wired.
