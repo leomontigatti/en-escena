@@ -429,3 +429,102 @@ describe("serving objects from the volume", () => {
     expect(response.status).toBe(404);
   });
 });
+
+// An `<audio>` element seeks by asking for the bytes from a position onwards,
+// so the route answers a byte range with just that part of the object.
+describe("serving a byte range", () => {
+  const bucket = "en-escena-choreography-music";
+  const key = "academies/academy-1/choreographies/choreography-1/music.mp3";
+  let baseDir: string;
+
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), "en-escena-range-"));
+    await fsUpload({
+      baseDir,
+      bucket,
+      file: new Blob(["0123456789"], { type: "audio/mpeg" }),
+      key,
+    });
+  });
+
+  afterEach(async () => {
+    await rm(baseDir, { force: true, recursive: true });
+  });
+
+  function serve(range: string | null) {
+    return serveFilesystemObject({
+      baseDir,
+      now: 1_290_000,
+      params: new URLSearchParams({
+        bucket,
+        expires: "1300",
+        key,
+        token: mintStorageAccessToken({
+          bucket,
+          expiresAt: 1300,
+          key,
+          secret: SECRET,
+        }),
+      }),
+      range,
+      secret: SECRET,
+    });
+  }
+
+  test("serves the requested bytes as partial content", async () => {
+    const response = await serve("bytes=2-5");
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("Content-Range")).toBe("bytes 2-5/10");
+    expect(response.headers.get("Content-Length")).toBe("4");
+    expect(response.headers.get("Content-Type")).toBe("audio/mpeg");
+    expect(await response.text()).toBe("2345");
+  });
+
+  // What a browser sends when it seeks: a position, and whatever follows it.
+  test("serves the rest of the object from an open-ended range", async () => {
+    const response = await serve("bytes=7-");
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("Content-Range")).toBe("bytes 7-9/10");
+    expect(await response.text()).toBe("789");
+  });
+
+  test("stops a range that runs past the end at the last byte", async () => {
+    const response = await serve("bytes=8-99");
+
+    expect(response.headers.get("Content-Range")).toBe("bytes 8-9/10");
+    expect(await response.text()).toBe("89");
+  });
+
+  test("serves the last bytes of the object for a suffix range", async () => {
+    const response = await serve("bytes=-3");
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get("Content-Range")).toBe("bytes 7-9/10");
+    expect(await response.text()).toBe("789");
+  });
+
+  test("refuses a range that starts past the end, naming the size", async () => {
+    const response = await serve("bytes=10-");
+
+    expect(response.status).toBe(416);
+    expect(response.headers.get("Content-Range")).toBe("bytes */10");
+  });
+
+  // Several ranges at once is a multipart answer the player never asks for; the
+  // whole object is a valid reply to any range the route does not honour.
+  test("serves the whole object for a range it does not understand", async () => {
+    const response = await serve("bytes=0-1,4-5");
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("0123456789");
+  });
+
+  test("tells the browser it can ask for a range", async () => {
+    const response = await serve(null);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Accept-Ranges")).toBe("bytes");
+  });
+});

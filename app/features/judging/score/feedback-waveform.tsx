@@ -1,11 +1,9 @@
-import type { ReactNode } from "react";
-
 import { cn } from "@/lib/shared/utils";
 
 /**
- * The two pieces the `Devolución` recorder and its playback share: the row
- * they both sit in, and the bars inside it. The arithmetic behind the bars is
- * in app/lib/judging/feedback-waveform.ts.
+ * The bars the `Devolución` recorder and its playback both draw. The arithmetic
+ * behind them is in app/lib/judging/feedback-waveform.ts; the row they sit in
+ * is the shared player's (app/components/shared/audio-playback.tsx).
  */
 
 /**
@@ -39,23 +37,5 @@ export function Waveform({
         />
       ))}
     </div>
-  );
-}
-
-/** The pill both rows sit in, like the browser's own audio player. */
-export function MediaRow({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 rounded-full border py-1.5 pr-4 pl-2">
-      {children}
-    </div>
-  );
-}
-
-/** The position or elapsed time, against what it is out of. */
-export function MediaTime({ children }: { children: ReactNode }) {
-  return (
-    <span className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
-      {children}
-    </span>
   );
 }

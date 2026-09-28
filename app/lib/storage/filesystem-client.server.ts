@@ -249,6 +249,8 @@ export async function serveFilesystemObject(input: {
   baseDir: string;
   now: number;
   params: URLSearchParams;
+  /** The request's `Range` header, which an `<audio>` element sends to seek. */
+  range?: string | null;
   secret: string;
 }): Promise<Response> {
   const bucket = input.params.get("bucket");
@@ -307,7 +309,78 @@ export async function serveFilesystemObject(input: {
     headers["Content-Disposition"] = `inline; filename="${filename}"`;
   }
 
+  // A player seeks by asking for a range, so it has to know it may.
+  headers["Accept-Ranges"] = "bytes";
+
+  const range = input.range ? parseByteRange(input.range, bytes.length) : null;
+
+  if (range === "unsatisfiable") {
+    return new Response(null, {
+      headers: { "Content-Range": `bytes */${bytes.length}` },
+      status: 416,
+    });
+  }
+
+  if (range) {
+    headers["Content-Length"] = String(range.end - range.start + 1);
+    headers["Content-Range"] =
+      `bytes ${range.start}-${range.end}/${bytes.length}`;
+
+    return new Response(bytes.slice(range.start, range.end + 1), {
+      headers,
+      status: 206,
+    });
+  }
+
   return new Response(bytes, { headers, status: 200 });
+}
+
+type ByteRange = "unsatisfiable" | { end: number; start: number } | null;
+
+/**
+ * A single `bytes=start-end` range, inclusive on both ends as the header is.
+ * `null` is a header the route does not honour, answered with the whole
+ * object; several ranges at once land there, since no player asks for them.
+ */
+function parseByteRange(header: string, size: number): ByteRange {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+
+  if (!match || (!match[1] && !match[2])) {
+    return null;
+  }
+
+  return match[1]
+    ? resolveBoundedRange(Number(match[1]), match[2], size)
+    : resolveSuffixRange(Number(match[2]), size);
+}
+
+/** No start is a suffix: the last that many bytes. */
+function resolveSuffixRange(length: number, size: number): ByteRange {
+  return length > 0 && size > 0
+    ? { end: size - 1, start: Math.max(0, size - length) }
+    : "unsatisfiable";
+}
+
+/**
+ * An open end is what a browser sends to seek: from there to the last byte. An
+ * end past the object is cut to it, as the header's grammar allows.
+ */
+function resolveBoundedRange(
+  start: number,
+  last: string | undefined,
+  size: number,
+): ByteRange {
+  if (start >= size) {
+    return "unsatisfiable";
+  }
+
+  const end = last ? Number(last) : size - 1;
+
+  if (end < start) {
+    return null;
+  }
+
+  return { end: Math.min(end, size - 1), start };
 }
 
 /**

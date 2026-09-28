@@ -1,7 +1,7 @@
-import { Pause, Play, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import { AudioPlayback } from "@/components/shared/audio-playback";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -12,13 +12,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  emptyLevels,
-  formatDuration,
-  summarizePeaks,
-} from "@/lib/judging/feedback-waveform";
+import { emptyLevels, summarizePeaks } from "@/lib/judging/feedback-waveform";
 
-import { MediaRow, MediaTime, Waveform } from "./feedback-waveform";
+import { Waveform } from "./feedback-waveform";
 
 export const deleteFeedbackAudioTitle = "¿Eliminar la grabación?";
 
@@ -72,33 +68,9 @@ function useDecodedAudio(audioUrl: string) {
   return decoded;
 }
 
-/** Follows the element's position every frame while it plays, for a smooth bar. */
-function usePlaybackPosition(
-  audioRef: React.RefObject<HTMLAudioElement | null>,
-) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [positionMs, setPositionMs] = useState(0);
-
-  useEffect(() => {
-    if (!isPlaying) {
-      return;
-    }
-
-    let frame = requestAnimationFrame(function tick() {
-      setPositionMs((audioRef.current?.currentTime ?? 0) * 1000);
-      frame = requestAnimationFrame(tick);
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [audioRef, isPlaying]);
-
-  return { isPlaying, positionMs, setIsPlaying, setPositionMs };
-}
-
 /**
- * Listening back to a `Devolución`, in the row the recorder uses. There is no
- * scrubber: the object is served without range requests, so a seek would ask
- * for something the server cannot give.
+ * Listening back to a `Devolución`, in the row the recorder uses: the shared
+ * player with the take's waveform for a bar, and a delete for the judge.
  */
 export function FeedbackPlayback({
   audioUrl,
@@ -110,59 +82,24 @@ export function FeedbackPlayback({
   /** Without it the row only plays: administration listens, never deletes. */
   onDelete?: () => void;
 }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
   const decoded = useDecodedAudio(audioUrl);
-  const { isPlaying, positionMs, setIsPlaying, setPositionMs } =
-    usePlaybackPosition(audioRef);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const durationMs = decoded?.durationMs ?? 0;
-
-  function togglePlay() {
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-
-    if (audio.paused) {
-      // `play()` rejects on an autoplay-policy block or a decode failure, and
-      // the judge tapped `Escuchar` and would otherwise see nothing happen.
-      audio.play().catch(() => toast.error(playbackErrorMessage));
-    } else {
-      audio.pause();
-    }
-  }
 
   return (
-    <MediaRow>
-      <audio
-        ref={audioRef}
-        src={audioUrl}
-        preload="auto"
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onEnded={() => {
-          setIsPlaying(false);
-          setPositionMs(0);
-        }}
-      >
-        <track kind="captions" />
-      </audio>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={isPlaying ? "Pausar" : "Escuchar"}
-        onClick={togglePlay}
-      >
-        {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-      </Button>
-      <MediaTime>
-        {formatDuration(positionMs)} / {formatDuration(durationMs)}
-      </MediaTime>
-      <Waveform
-        levels={decoded?.levels ?? emptyLevels()}
-        activeRatio={durationMs > 0 ? positionMs / durationMs : 0}
-      />
+    <AudioPlayback
+      audioUrl={audioUrl}
+      durationMs={decoded?.durationMs}
+      errorMessage={playbackErrorMessage}
+      // The take is small, and loading it with the page means it still plays
+      // after its short-lived link has expired.
+      preload="auto"
+      renderTrack={({ durationMs, positionMs }) => (
+        <Waveform
+          levels={decoded?.levels ?? emptyLevels()}
+          activeRatio={durationMs > 0 ? positionMs / durationMs : 0}
+        />
+      )}
+    >
       {onDelete ? (
         <Button
           type="button"
@@ -190,10 +127,7 @@ export function FeedbackPlayback({
               type="button"
               variant="destructive"
               onClick={() => {
-                const audio = audioRef.current;
-                if (audio && !audio.paused) {
-                  audio.pause();
-                }
+                // Deleting unmounts the player, and a removed `<audio>` stops.
                 setIsDeleteOpen(false);
                 onDelete?.();
               }}
@@ -204,6 +138,6 @@ export function FeedbackPlayback({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </MediaRow>
+    </AudioPlayback>
   );
 }
