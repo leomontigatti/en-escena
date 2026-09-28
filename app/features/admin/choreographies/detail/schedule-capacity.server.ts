@@ -278,6 +278,16 @@ export async function updateChoreographyScheduleCapacity(input: {
       scheduleCapacityId: selectedOption.scheduleCapacityId,
       scheduleId: selectedOption.scheduleId,
       tx,
+      // Re-selecting the assignment is exempt: it stays offered even when it
+      // drifted out of compatibility, so the administrator can keep it while
+      // repairing something else. Any other option is rechecked under the lock.
+      accepts:
+        selectedOption.id === input.choreography.scheduleCapacityId
+          ? undefined
+          : {
+              modalityId: input.choreography.modalityId,
+              categoryId: input.choreography.categoryId,
+            },
     });
 
     if (!move.ok) {

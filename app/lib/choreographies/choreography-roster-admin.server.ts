@@ -31,7 +31,10 @@ import {
   reviveWithdrawnInscriptions,
 } from "@/lib/choreographies/inscription-withdrawal.server";
 import type { ResolvedRegistrationDancer } from "@/lib/choreographies/registration-resolution.server";
-import { guardAndLockScheduleCapacityMove } from "@/lib/choreographies/schedule-capacity-lock.server";
+import {
+  guardAndLockScheduleCapacityMove,
+  lockScheduleAcceptance,
+} from "@/lib/choreographies/schedule-capacity-lock.server";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -376,13 +379,34 @@ async function updateChoreographyDancers(input: {
         scheduleCapacityId: selectedSchedule.scheduleCapacityId,
         scheduleId: selectedSchedule.scheduleId,
         tx,
+        accepts: { modalityId: choreography.modalityId, categoryId },
       });
 
       if (!move.ok) {
         return {
           ok: false as const,
           code: "schedule-capacity" as const,
-          message: move.error,
+          message:
+            "incompatibility" in move
+              ? compatibleScheduleSelectionRequiredMessage
+              : move.error,
+        };
+      }
+    } else if (categoryId !== choreography.categoryId) {
+      // The roster moved the category and not the capacity: nothing is
+      // counted, but the schedule still has to accept the new category when
+      // this commits, so its row is locked before that is asked.
+      const acceptance = await lockScheduleAcceptance({
+        tx,
+        scheduleId: selectedSchedule.scheduleId,
+        accepts: { modalityId: choreography.modalityId, categoryId },
+      });
+
+      if (!acceptance.ok) {
+        return {
+          ok: false as const,
+          code: "schedule-capacity" as const,
+          message: compatibleScheduleSelectionRequiredMessage,
         };
       }
     }

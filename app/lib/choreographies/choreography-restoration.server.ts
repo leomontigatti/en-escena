@@ -7,9 +7,6 @@ import {
   dancers,
   events,
   scheduleCapacities,
-  scheduleCategories,
-  scheduleModalities,
-  schedules,
 } from "@/db/schema";
 import {
   getAgeAtDate,
@@ -17,8 +14,10 @@ import {
 } from "@/lib/choreographies/registration-resolution.server";
 import { selectScheduleCapacityForGroupType } from "@/lib/choreographies/schedule-capacity-options";
 import {
+  lockScheduleAcceptance,
   lockScheduleCapacityForAssignment,
   type ScheduleCapacityFullLimit,
+  type ScheduleCapacityLockFailure,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
 
 import { reviveWithdrawnInscriptions } from "./inscription-withdrawal.server";
@@ -127,23 +126,16 @@ export async function restoreChoreography(
       };
     }
 
-    // Locked before the schedule's accepted modalities and categories are
-    // read: an edit to either writes the schedules row too, so this lock makes
-    // that read see the edit whole or wait for it, never a slice of it.
-    await tx
-      .select({ id: schedules.id })
-      .from(schedules)
-      .where(eq(schedules.id, locked.scheduleId))
-      .for("update");
+    // Checked before the place is resolved, so a schedule that no longer
+    // accepts the choreography is reported as that and not as a missing place.
+    const acceptance = await lockScheduleAcceptance({
+      tx,
+      scheduleId: locked.scheduleId,
+      accepts: { modalityId: locked.modalityId, categoryId: locked.categoryId },
+    });
 
-    const incompatibility = await findScheduleIncompatibility(tx, locked);
-
-    if (incompatibility) {
-      return {
-        ok: false,
-        code: "schedule-incompatible",
-        error: restoreIncompatibleScheduleMessages[incompatibility],
-      };
+    if (!acceptance.ok) {
+      return toAcceptanceRefusal(acceptance);
     }
 
     // Where it returns to: the capacity it still names, or the place resolved
@@ -202,42 +194,19 @@ export async function restoreChoreography(
 }
 
 /**
- * Which of the choreography's modality and category its schedule no longer
- * accepts, modality first. A schedule with no accepted-category row accepts
- * every category.
+ * A schedule that no longer accepts the choreography is worded by which half
+ * it refuses; a schedule that is gone is a place problem like any other.
  */
-async function findScheduleIncompatibility(
-  tx: Transaction,
-  choreography: { categoryId: string; modalityId: string; scheduleId: string },
-): Promise<keyof typeof restoreIncompatibleScheduleMessages | null> {
-  const acceptedModalities = await tx
-    .select({ modalityId: scheduleModalities.modalityId })
-    .from(scheduleModalities)
-    .where(eq(scheduleModalities.scheduleId, choreography.scheduleId));
-
-  if (
-    !acceptedModalities.some(
-      (accepted) => accepted.modalityId === choreography.modalityId,
-    )
-  ) {
-    return "modality";
-  }
-
-  const acceptedCategories = await tx
-    .select({ categoryId: scheduleCategories.categoryId })
-    .from(scheduleCategories)
-    .where(eq(scheduleCategories.scheduleId, choreography.scheduleId));
-
-  if (
-    acceptedCategories.length > 0 &&
-    !acceptedCategories.some(
-      (accepted) => accepted.categoryId === choreography.categoryId,
-    )
-  ) {
-    return "category";
-  }
-
-  return null;
+function toAcceptanceRefusal(
+  acceptance: ScheduleCapacityLockFailure,
+): ChoreographyRestorationResult {
+  return "incompatibility" in acceptance
+    ? {
+        ok: false,
+        code: "schedule-incompatible",
+        error: restoreIncompatibleScheduleMessages[acceptance.incompatibility],
+      }
+    : { ok: false, code: "schedule-capacity", error: acceptance.error };
 }
 
 /**

@@ -2,12 +2,22 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
+import {
+  choreographies,
+  scheduleCategories,
+  schedules,
+  scheduleCapacities,
+} from "@/db/schema";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
-import { lockScheduleCapacityForAssignment } from "@/lib/choreographies/schedule-capacity-lock.server";
+import {
+  invalidScheduleEntryMessage,
+  lockScheduleAcceptance,
+  lockScheduleCapacityForAssignment,
+} from "@/lib/choreographies/schedule-capacity-lock.server";
 import {
   createAcademySession,
   createDancer,
+  createGrupalOnlyModalityFixture,
   createOpenEventCatalog,
   createProfessor,
   createScheduleForModalityFixture,
@@ -53,6 +63,104 @@ async function createSingleSlotRegistration(input: {
 }
 
 describe("schedule capacity lock", () => {
+  // The accepted modalities and categories are read after the schedule row is
+  // locked, the row a schedule edit locks before narrowing them, so a
+  // placement cannot land on a schedule an edit just stopped accepting it on.
+  test("refuses a choreography whose modality the locked schedule no longer accepts", async () => {
+    const { event, catalog } = await createOpenEventCatalog();
+    const otherModality = await createGrupalOnlyModalityFixture(event.id);
+
+    const result = await db.transaction((tx) =>
+      lockScheduleCapacityForAssignment({
+        tx,
+        scheduleId: catalog.schedule.id,
+        scheduleCapacityId: catalog.soloScheduleCapacity.id,
+        accepts: {
+          modalityId: otherModality.modality.id,
+          categoryId: catalog.childCategory.id,
+        },
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "invalid-schedule-capacity",
+      incompatibility: "modality",
+      error: invalidScheduleEntryMessage,
+    });
+  });
+
+  test("refuses a choreography whose category the locked schedule no longer accepts", async () => {
+    const { catalog } = await createOpenEventCatalog();
+    await db.insert(scheduleCategories).values({
+      scheduleId: catalog.schedule.id,
+      categoryId: catalog.teenCategory.id,
+    });
+
+    const result = await db.transaction((tx) =>
+      lockScheduleCapacityForAssignment({
+        tx,
+        scheduleId: catalog.schedule.id,
+        scheduleCapacityId: null,
+        accepts: {
+          modalityId: catalog.modality.id,
+          categoryId: catalog.childCategory.id,
+        },
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "invalid-schedule-capacity",
+      incompatibility: "category",
+      error: invalidScheduleEntryMessage,
+    });
+  });
+
+  test("locks a schedule that accepts the choreography without counting its places", async () => {
+    const { event, catalog } = await createOpenEventCatalog();
+    const otherModality = await createGrupalOnlyModalityFixture(event.id);
+    await db
+      .update(schedules)
+      .set({ totalCapacity: 1 })
+      .where(eq(schedules.id, catalog.schedule.id));
+    await db.insert(scheduleCategories).values({
+      scheduleId: catalog.schedule.id,
+      categoryId: catalog.childCategory.id,
+    });
+
+    const [accepted, category, modality] = await db.transaction(async (tx) => [
+      await lockScheduleAcceptance({
+        tx,
+        scheduleId: catalog.schedule.id,
+        accepts: {
+          modalityId: catalog.modality.id,
+          categoryId: catalog.childCategory.id,
+        },
+      }),
+      await lockScheduleAcceptance({
+        tx,
+        scheduleId: catalog.schedule.id,
+        accepts: {
+          modalityId: catalog.modality.id,
+          categoryId: catalog.teenCategory.id,
+        },
+      }),
+      await lockScheduleAcceptance({
+        tx,
+        scheduleId: catalog.schedule.id,
+        accepts: {
+          modalityId: otherModality.modality.id,
+          categoryId: catalog.childCategory.id,
+        },
+      }),
+    ]);
+
+    expect(accepted).toEqual({ ok: true });
+    expect(category).toMatchObject({ ok: false, incompatibility: "category" });
+    expect(modality).toMatchObject({ ok: false, incompatibility: "modality" });
+  });
+
   test("keeps the capacity available for the choreography that already occupies it", async () => {
     const { catalog, choreography } = await createSingleSlotRegistration({
       academyName: "Academia Cupo Excluido",
