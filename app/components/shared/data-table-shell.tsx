@@ -1,4 +1,9 @@
 import {
+  PrototypeFiltersToolbar,
+  PrototypeVariantSwitcher,
+  usePrototypeFilterVariant,
+} from "@/components/shared/data-table-filters.prototype";
+import {
   flexRender,
   type Column,
   type Header,
@@ -358,30 +363,61 @@ function DataTableToolbar({
   search: DataTableSearchProps;
 }) {
   const hasFacetedFilters = filters.groups.length > 0;
+  const prototypeVariant = usePrototypeFilterVariant();
 
   if (search.hidden && !hasFacetedFilters) {
     return null;
   }
 
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        {!search.hidden ? <DataTableSearchField search={search} /> : null}
-        {hasFacetedFilters ? (
-          <TooltipProvider>
-            <div className="flex flex-wrap justify-end gap-2">
-              <DataTableFacetedFilterControl
-                groups={filters.groups}
-                selectedValues={filters.getSelectedValues(
-                  dataTableFacetedFilterColumnId,
-                )}
-                onChange={filters.onChange}
+  if (hasFacetedFilters && prototypeVariant !== "panel") {
+    return (
+      <>
+        <PrototypeFiltersToolbar
+          variant={prototypeVariant}
+          search={
+            !search.hidden ? (
+              <SearchInput
+                aria-label="Buscar en la tabla"
+                placeholder={search.placeholder}
+                value={search.query}
+                onClear={search.onClear}
+                onValueChange={search.onChange}
               />
-            </div>
-          </TooltipProvider>
-        ) : null}
+            ) : null
+          }
+          groups={filters.groups}
+          selectedValues={filters.getSelectedValues(
+            dataTableFacetedFilterColumnId,
+          )}
+          onChange={filters.onChange}
+        />
+        <PrototypeVariantSwitcher />
+      </>
+    );
+  }
+
+  return (
+    <>
+      {hasFacetedFilters ? <PrototypeVariantSwitcher /> : null}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          {!search.hidden ? <DataTableSearchField search={search} /> : null}
+          {hasFacetedFilters ? (
+            <TooltipProvider>
+              <div className="flex flex-wrap justify-end gap-2">
+                <DataTableFacetedFilterControl
+                  groups={filters.groups}
+                  selectedValues={filters.getSelectedValues(
+                    dataTableFacetedFilterColumnId,
+                  )}
+                  onChange={filters.onChange}
+                />
+              </div>
+            </TooltipProvider>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

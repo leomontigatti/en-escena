@@ -61,10 +61,13 @@ export function redirectToCanonicalListUrl<TColumnId extends string>(
   input: AppliedListQuery<TColumnId>,
 ) {
   const url = new URL(request.url);
-  const canonicalSearch = buildCanonicalListSearch({
-    ...input,
-    currentSearch: url.search,
-  });
+  const canonicalParams = new URLSearchParams(
+    buildCanonicalListSearch({ ...input, currentSearch: url.search }),
+  );
+  // PROTOTYPE: keep the filters prototype's `?variant=` across the redirect.
+  const prototypeVariant = url.searchParams.get("variant");
+  if (prototypeVariant) canonicalParams.set("variant", prototypeVariant);
+  const canonicalSearch = canonicalParams.toString();
 
   if (sortSearch(canonicalSearch) !== sortSearch(url.search)) {
     throw redirect(
