@@ -464,10 +464,6 @@ export function haveSameValues(first: string[], second: string[]) {
   return first.every((value, index) => value === second[index]);
 }
 
-export function sortedIds(ids: string[]) {
-  return uniqueValues(ids).sort((first, second) => first.localeCompare(second));
-}
-
 export function categoryValues(input: ValidCategoryInput) {
   return {
     name: input.name,

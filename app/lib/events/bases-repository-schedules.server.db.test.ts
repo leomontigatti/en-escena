@@ -335,7 +335,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
+        "No se pueden editar fecha ni hora porque el cronograma tiene dependencias.",
     });
     await expect(
       deleteSchedule(block.id, { hasDependencies: async () => true }),
@@ -520,12 +520,14 @@ describe("`Bases del evento` repository", () => {
         scheduledDate: "2026-05-02",
         startTime: "09:00",
         totalCapacity: 20,
-        modalityIds: [jazz.id, urbanas.id],
+        modalityIds: [urbanas.id],
       }),
     ).resolves.toMatchObject({
       ok: false,
+      code: "schedule-has-dependencies",
       error:
-        "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
+        "No se pueden quitar modalidades con coreografías asignadas al cronograma: Jazz.",
+      fieldErrors: { modalityIds: "Ajustá las modalidades aceptadas." },
     });
     await expect(
       updateSchedule(occupiedBlock.id, {
@@ -576,6 +578,81 @@ describe("`Bases del evento` repository", () => {
         modalityIds: [jazz.id, urbanas.id],
       }),
     ).resolves.toMatchObject({ ok: true, record: { totalCapacity: 18 } });
+  });
+  // A schedule's modalities follow the accepted categories below: adding one
+  // only widens what the schedule accepts, and prices are keyed by schedule and
+  // group type, not by modality, so the one thing a removal can break is a
+  // choreography still occupying the schedule with that modality.
+  test("changes the accepted modalities of a schedule with dependencies unless an occupying choreography has the removed one", async () => {
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
+    const tango = await expectCreated(
+      createModality(event.id, { name: "Tango" }),
+    );
+    const academy = await createSavedAcademy();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id, urbanas.id, tango.id],
+      totalCapacity: 20,
+    });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      scheduleId: block.id,
+    });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: tango.id,
+      name: "Retirada",
+      scheduleId: block.id,
+      withdrawn: true,
+    });
+    const input = {
+      name: "Sábado mañana",
+      scheduledDate: "2026-05-02",
+      startTime: "09:00",
+      totalCapacity: 20,
+    };
+    const listModalityIds = async () =>
+      (await listSchedules(event.id))[0]?.modalityIds;
+
+    await expect(
+      updateSchedule(block.id, { ...input, modalityIds: [jazz.id] }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(listModalityIds()).resolves.toEqual([jazz.id]);
+    await expect(
+      updateScheduleWithEntries(block.id, {
+        ...input,
+        modalityIds: [jazz.id, urbanas.id],
+        scheduleCapacities: [],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(listModalityIds()).resolves.toHaveLength(2);
+    await expect(
+      updateScheduleWithEntries(block.id, {
+        ...input,
+        modalityIds: [urbanas.id],
+        scheduleCapacities: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "schedule-has-dependencies",
+      error:
+        "No se pueden quitar modalidades con coreografías asignadas al cronograma: Jazz.",
+      fieldErrors: { modalityIds: "Ajustá las modalidades aceptadas." },
+    });
+    await expect(
+      updateSchedule(block.id, {
+        ...input,
+        startTime: "10:00",
+        modalityIds: [jazz.id, urbanas.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "schedule-has-dependencies",
+      error:
+        "No se pueden editar fecha ni hora porque el cronograma tiene dependencias.",
+    });
   });
   // Accepted categories follow the total capacity precedent rather than the
   // frozen date, time and modalities: they may change freely as long as the
@@ -727,12 +804,14 @@ describe("`Bases del evento` repository", () => {
         scheduledDate: "2026-05-02",
         startTime: "09:00",
         totalCapacity: 20,
-        modalityIds: [jazz.id, urbanas.id],
+        modalityIds: [urbanas.id],
       }),
     ).resolves.toMatchObject({
       ok: false,
+      code: "schedule-has-dependencies",
       error:
-        "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
+        "No se pueden quitar modalidades con coreografías asignadas al cronograma: Jazz.",
+      fieldErrors: { modalityIds: "Ajustá las modalidades aceptadas." },
     });
   });
   // The switch is the administrator's and nobody else's: the repository never

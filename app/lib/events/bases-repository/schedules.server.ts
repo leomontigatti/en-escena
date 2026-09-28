@@ -16,7 +16,6 @@ import {
   scheduleCapacities,
   scheduleModalities,
   schedules,
-  sortedIds,
   toTitleCase,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
@@ -37,6 +36,11 @@ import {
   listExcludedOccupiedCategories,
   replaceScheduleCategories,
 } from "@/lib/events/bases-repository/schedule-categories.server";
+import {
+  getScheduleModalityValues,
+  groupScheduleModalities,
+  listExcludedOccupiedModalities,
+} from "@/lib/events/bases-repository/schedule-modalities.server";
 import {
   groupScheduleCapacities,
   releaseScheduleCapacityReferences,
@@ -263,7 +267,7 @@ export async function updateSchedule(
   input: ScheduleInput,
   dependencies: ScheduleDependencies = {},
 ): Promise<EventBasesMutationResult> {
-  const existing = await getScheduleWithModalityIds(scheduleId);
+  const existing = await getSchedule(scheduleId);
 
   if (!existing) {
     return eventBaseEntityNotFound("schedule");
@@ -318,7 +322,7 @@ export async function updateScheduleWithEntries(
   input: ScheduleWithEntriesInput,
   dependencies: ScheduleDependencies = {},
 ): Promise<EventBasesMutationResult> {
-  const existing = await getScheduleWithModalityIds(scheduleId);
+  const existing = await getSchedule(scheduleId);
 
   if (!existing) {
     return eventBaseEntityNotFound("schedule");
@@ -590,24 +594,10 @@ async function validateScheduleInput(
   return { ok: true, input: { ...input, name } };
 }
 
-async function getScheduleWithModalityIds(scheduleId: string) {
-  const schedule = await db.query.schedules.findFirst({
+async function getSchedule(scheduleId: string) {
+  return db.query.schedules.findFirst({
     where: eq(schedules.id, scheduleId),
   });
-
-  if (!schedule) {
-    return null;
-  }
-
-  const acceptedModalities = await db.query.scheduleModalities.findMany({
-    columns: { modalityId: true },
-    where: eq(scheduleModalities.scheduleId, scheduleId),
-  });
-
-  return {
-    ...schedule,
-    modalityIds: acceptedModalities.map((modality) => modality.modalityId),
-  };
 }
 
 async function scheduleHasScheduleCapacities(scheduleId: string) {
@@ -620,14 +610,15 @@ async function scheduleHasScheduleCapacities(scheduleId: string) {
 }
 
 /**
- * Date, time and accepted modalities freeze once the schedule has dependencies:
- * choreographies were placed and priced against them. The total capacity does
- * not — it may move freely as long as it still holds what already occupies the
- * schedule, which is the only thing a smaller number could break. The accepted
- * categories follow that same precedent: narrowing them is what turns an
- * existing schedule into "Función 1" once the older choreographies were moved
- * away, so it is refused only when a choreography still occupying the schedule
- * would be left out.
+ * Date and time freeze once the schedule has dependencies: choreographies were
+ * placed and priced against them. The accepted modalities and categories do
+ * not: adding either only widens what the schedule accepts, and prices are
+ * keyed by schedule and group type, not by modality or category. Narrowing
+ * them is what turns an existing schedule into "Función 1" once the older
+ * choreographies were moved away, so it is refused only when a choreography
+ * still occupying the schedule would be left out. The total capacity follows
+ * the same idea: it may move freely as long as it still holds what already
+ * occupies the schedule, which is the only thing a smaller number could break.
  */
 async function validateStructuralScheduleChanges(
   existing: ExistingSchedule,
@@ -642,7 +633,21 @@ async function validateStructuralScheduleChanges(
       ok: false,
       code: "schedule-has-dependencies",
       error:
-        "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
+        "No se pueden editar fecha ni hora porque el cronograma tiene dependencias.",
+    };
+  }
+
+  const excludedModalityNames = await listExcludedOccupiedModalities(
+    existing.id,
+    uniqueValues(input.modalityIds),
+  );
+
+  if (excludedModalityNames.length > 0) {
+    return {
+      ok: false,
+      code: "schedule-has-dependencies",
+      error: `No se pueden quitar modalidades con coreografías asignadas al cronograma: ${excludedModalityNames.join(", ")}.`,
+      fieldErrors: { modalityIds: "Ajustá las modalidades aceptadas." },
     };
   }
 
@@ -685,9 +690,7 @@ async function getScheduleOccupiedCount(scheduleId: string) {
   return readOccupiedCount(target);
 }
 
-type ExistingSchedule = typeof schedules.$inferSelect & {
-  modalityIds: string[];
-};
+type ExistingSchedule = typeof schedules.$inferSelect;
 
 function hasFrozenScheduleChanges(
   existing: ExistingSchedule,
@@ -695,41 +698,6 @@ function hasFrozenScheduleChanges(
 ) {
   return (
     existing.scheduledDate !== input.scheduledDate ||
-    existing.startTime !== normalizeTime(input.startTime) ||
-    sortedIds(existing.modalityIds).join("\0") !==
-      sortedIds(input.modalityIds).join("\0")
+    existing.startTime !== normalizeTime(input.startTime)
   );
-}
-
-function getScheduleModalityValues(scheduleId: string, modalityIds: string[]) {
-  return uniqueValues(modalityIds).map((modalityId) => ({
-    scheduleId,
-    modalityId,
-  }));
-}
-
-function groupScheduleModalities(
-  acceptedModalities: Array<{
-    scheduleId: string;
-    modalityId: string;
-    modalityName: string;
-  }>,
-) {
-  const modalitiesByScheduleId = new Map<
-    string,
-    Array<Pick<typeof modalities.$inferSelect, "id" | "name">>
-  >();
-
-  for (const modality of acceptedModalities) {
-    const scheduleEntries =
-      modalitiesByScheduleId.get(modality.scheduleId) ?? [];
-
-    scheduleEntries.push({
-      id: modality.modalityId,
-      name: modality.modalityName,
-    });
-    modalitiesByScheduleId.set(modality.scheduleId, scheduleEntries);
-  }
-
-  return modalitiesByScheduleId;
 }
