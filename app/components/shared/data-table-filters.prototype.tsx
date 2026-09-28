@@ -10,10 +10,11 @@
  */
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ListFilter,
-  Plus,
+  ListFilterPlus,
   Search,
   X,
 } from "lucide-react";
@@ -28,6 +29,14 @@ import {
 import { useSearchParams } from "react-router";
 
 import { Button } from "@/components/ui/button";
+import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Combobox,
   ComboboxChip,
@@ -57,7 +66,7 @@ import { setFacetedFilterValue } from "@/components/shared/data-table-helpers";
 
 const VARIANTS = [
   { key: "panel", name: "Panel actual" },
-  { key: "C", name: "Agregar filtro + chips" },
+  { key: "C", name: "Grupos de botones" },
   { key: "D", name: "Una caja, a mano" },
   { key: "E", name: "Una caja, sobre Combobox" },
 ] as const;
@@ -240,9 +249,14 @@ function AddFilterButton({
             <ListFilter />
           </Button>
         ) : (
-          <Button type="button" variant="outline" size="sm">
-            <Plus data-icon="inline-start" />
-            Agregar filtro
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Agregar filtro"
+            title="Agregar filtro"
+          >
+            <ListFilterPlus />
           </Button>
         )}
       </PopoverTrigger>
@@ -295,13 +309,69 @@ function AddFilterButton({
 }
 
 /** C: search beside an "Agregar filtro" button; active filters as chips. */
+/**
+ * An applied filter as a button group: the field as plain text, the value as
+ * a button that opens a single-choice menu, and a button that removes it.
+ */
+function FilterButtonGroup({
+  group,
+  selectedValues,
+  onChange,
+}: { group: DataTableFacetedFilter } & Pick<
+  ToolbarProps,
+  "selectedValues" | "onChange"
+>) {
+  const selected = selectedValues[group.id];
+  return (
+    <ButtonGroup>
+      <ButtonGroupText className="font-normal text-muted-foreground">
+        {group.label}
+      </ButtonGroupText>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="outline">
+            {optionLabel(group, selected)}
+            <ChevronDown data-icon="inline-end" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-48">
+          <DropdownMenuRadioGroup
+            value={selected}
+            onValueChange={(value) =>
+              onChange({ ...selectedValues, [group.id]: value })
+            }
+          >
+            {group.options.map((option) => (
+              <DropdownMenuRadioItem key={option.value} value={option.value}>
+                {option.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        aria-label={`Quitar filtro ${group.label}`}
+        onClick={() =>
+          onChange(setFacetedFilterValue(selectedValues, group.id, ""))
+        }
+      >
+        <X />
+      </Button>
+    </ButtonGroup>
+  );
+}
+
+/** C: search, then each applied filter as a button group, then "add". */
 function VariantC({ search, groups, selectedValues, onChange }: ToolbarProps) {
   const active = groups.filter((group) => selectedValues[group.id]);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="w-full sm:w-80">{search}</div>
       {active.map((group) => (
-        <FilterChip
+        <FilterButtonGroup
           key={group.id}
           group={group}
           selectedValues={selectedValues}
