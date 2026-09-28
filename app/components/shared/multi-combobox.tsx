@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   Combobox,
@@ -15,6 +15,10 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox";
 import { useComboboxDialogPortal } from "@/components/shared/combobox-dialog-portal";
+import {
+  SearchInputClearButton,
+  SearchInputIcon,
+} from "@/components/shared/search-input";
 import { cn } from "@/lib/shared/utils";
 
 export type MultiComboboxOption = {
@@ -72,6 +76,8 @@ type MultiComboboxViewModel<TOption extends MultiComboboxOption> = {
   getOption: (value: string) => TOption;
   getOptionLabel: (value: string) => string;
   listOptions: TOption[];
+  query: string;
+  setQuery: (query: string) => void;
 };
 
 const defaultAllSelectedMessage = "Ya seleccionaste todas las opciones.";
@@ -94,6 +100,8 @@ function MultiCombobox<TOption extends MultiComboboxOption>(
         multiple
         value={config.value}
         onValueChange={config.onValueChange}
+        inputValue={viewModel.query}
+        onInputValueChange={viewModel.setQuery}
       >
         <MultiComboboxChipsControl config={config} viewModel={viewModel} />
         <MultiComboboxPopover config={config} viewModel={viewModel} />
@@ -132,6 +140,9 @@ function useMultiComboboxViewModel<TOption extends MultiComboboxOption>(
 ): MultiComboboxViewModel<TOption> {
   const anchorRef = useComboboxAnchor();
   const dialogPortal = useComboboxDialogPortal(anchorRef);
+  // Held here, not left to Base UI, so the clear button can empty the search
+  // alone: `ComboboxClear` would drop every chip with it.
+  const [query, setQuery] = useState("");
   const optionByValue = new Map(
     config.options.map((option) => [option.value, option] as const),
   );
@@ -154,6 +165,8 @@ function useMultiComboboxViewModel<TOption extends MultiComboboxOption>(
     getOption,
     getOptionLabel,
     listOptions,
+    query,
+    setQuery,
   };
 }
 
@@ -323,7 +336,12 @@ function MultiComboboxPopover<TOption extends MultiComboboxOption>({
           disabled={config.options.length === 0}
           placeholder="Buscar"
           showTrigger={false}
-        />
+        >
+          <SearchInputIcon />
+          {viewModel.query.length > 0 ? (
+            <SearchInputClearButton onClear={() => viewModel.setQuery("")} />
+          ) : null}
+        </ComboboxInput>
       ) : null}
       <ComboboxEmpty>{viewModel.currentEmptyMessage}</ComboboxEmpty>
       <ComboboxList>
