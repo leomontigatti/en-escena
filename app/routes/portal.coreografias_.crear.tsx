@@ -1,7 +1,7 @@
-import { useLoaderData, useSearchParams } from "react-router";
+import { useLoaderData } from "react-router";
 
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import { PrototypeRosterStep } from "@/features/portal/choreographies/create/prototype-roster-step";
+import { PrototypeWizard } from "@/features/portal/choreographies/create/prototype-wizard";
 import { loadCreateChoreographyRouteData } from "@/features/portal/choreographies/create/server";
 
 export const handle = {
@@ -15,15 +15,15 @@ export async function loader({ request }: { request: Request }) {
   return await loadCreateChoreographyRouteData(request);
 }
 
-// PROTOTYPE: renders the throwaway dancers-step variants.
+// PROTOTYPE: renders the throwaway full-page wizard.
 export default function PortalCoreografiasCreateRoute() {
   const data = useLoaderData<typeof loader>();
-  const [searchParams] = useSearchParams();
 
   return (
-    <PrototypeRosterStep
+    <PrototypeWizard
+      baseOptions={data.registrationBaseOptions}
       dancers={data.activeDancers}
-      variant={searchParams.get("variant") ?? "A"}
+      professors={data.activeProfessors}
     />
   );
 }
