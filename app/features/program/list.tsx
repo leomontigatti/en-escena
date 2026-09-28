@@ -124,7 +124,7 @@ function buildProgramColumns({
     {
       id: "orden",
       header: "N.º",
-      width: 9,
+      width: 8,
       className: "font-medium tabular-nums",
       cell: formatProgramOrderNumber,
       // The only sortable column, as on the participation list.
@@ -133,7 +133,7 @@ function buildProgramColumns({
     {
       id: "categoriaTipoGrupo",
       header: "Categoría / Tipo de grupo",
-      width: 16,
+      width: 20,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -147,7 +147,7 @@ function buildProgramColumns({
     {
       id: "modalidadSubmodalidad",
       header: "Modalidad / Submodalidad",
-      width: 20,
+      width: 21,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -198,7 +198,7 @@ function buildProgramColumns({
     {
       id: "bailarines",
       header: "Bailarines",
-      width: showLevel ? 15 : 17,
+      width: showLevel ? 14 : 17,
       className: "text-muted-foreground",
       cell: (row) => <ProgramDancerNames row={row} />,
     },

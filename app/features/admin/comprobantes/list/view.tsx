@@ -49,7 +49,7 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",
     header: "Comprobante",
-    width: 14,
+    width: 15,
     className: "font-medium tabular-nums",
     cell: (row) => (
       <DataTableLink to={`/administracion/comprobantes/${row.id}`}>
@@ -74,7 +74,7 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "academia",
     header: "Academia",
-    width: 24,
+    width: 23,
     className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },

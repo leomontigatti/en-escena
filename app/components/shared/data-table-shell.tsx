@@ -464,7 +464,12 @@ function DataTableHeaderContent<TData>({
     ) : (
       flexRender(definition, header.getContext())
     );
-  const sortButtonClassName = cn("-ml-2 text-sm", isFit && "max-w-full");
+  // The `-ml-2` lines the label up with the cells below, so the button starts
+  // half a unit left of the content box and may end that far past `100%`.
+  const sortButtonClassName = cn(
+    "-ml-2 text-sm",
+    isFit && "max-w-[calc(100%+0.5rem)]",
+  );
 
   if (!header.column.getCanSort()) {
     return label;
