@@ -1,6 +1,6 @@
 /**
  * What the `Devolución` recorder and its playback both draw: loudness as a row
- * of bars, and the time readout under them. Kept apart from the components so
+ * of bars. Kept apart from the components so
  * the arithmetic — which needs neither an `AnalyserNode` nor an `AudioBuffer`,
  * only the numbers they hand over — can be read and tested without a browser.
  */
@@ -49,13 +49,4 @@ export function summarizePeaks(samples: Float32Array) {
   const loudest = Math.max(...peaks);
 
   return loudest > 0 ? peaks.map((peak) => peak / loudest) : peaks;
-}
-
-/** A position or a duration as the judge reads it, `3:00` at the cap. */
-export function formatDuration(ms: number) {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }

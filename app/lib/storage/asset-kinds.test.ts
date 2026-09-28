@@ -22,6 +22,15 @@ const assetKinds: AssetKind[] = [
 ];
 
 describe("asset kind policy", () => {
+  // The music player asks for the song in ranges as it plays and seeks, each
+  // one with the link the page was loaded with, so the link has to outlast a
+  // listening session rather than one download.
+  test("signs a music link for two hours", () => {
+    expect(assetKindPolicies.choreographyMusic.signedUrlExpiresInSeconds).toBe(
+      7200,
+    );
+  });
+
   // The volume layout and the B2 backup prefix are built from these names, so
   // renaming one is a migration, not a refactor (#571).
   test("pins the bucket of each asset kind", () => {

@@ -24,6 +24,12 @@ export type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
   onValidationErrorMessageChange?: (message: string | null) => void;
   /** Compact only: what the empty field reads, e.g. the accepted format. */
   placeholder?: string;
+  /**
+   * How a file is previewed: an image inside the dropzone, or a player under
+   * it (the dropzone is the picker's `<label>`, so a player inside it would
+   * open the picker on play). The stored file plays from `existingPreviewUrl`.
+   */
+  previewKind?: "audio" | "image";
   previewSelectedFile?: boolean;
   removeLabel?: string;
   /**
@@ -64,6 +70,7 @@ export type FileUploadControlConfig = {
   onValidationErrorChange?: (hasError: boolean) => void;
   onValidationErrorMessageChange?: (message: string | null) => void;
   placeholder: string;
+  previewKind: "audio" | "image";
   previewSelectedFile: boolean;
   removeLabel: string;
   replaceRequiresRemoval: boolean;

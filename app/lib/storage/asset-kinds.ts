@@ -46,7 +46,9 @@ export const assetKindPolicies = {
     },
     formatListLabel: "MP3, M4A, WAV u OGG",
     maxFileSizeBytes: 50 * BYTES_PER_MEGABYTE,
-    signedUrlExpiresInSeconds: 300,
+    // Longer than the other kinds: the player fetches the song in ranges while
+    // it plays and seeks, all with the link signed when the page loaded.
+    signedUrlExpiresInSeconds: 2 * 60 * 60,
     subjectLabel: "El archivo de música",
   },
   dancerDocumentImage: {

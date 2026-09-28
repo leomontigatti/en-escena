@@ -238,7 +238,13 @@ longer exists.
 - The `Coreografia` row stores only the current storage key, never a URL.
 - Accepted formats: MP3, M4A/AAC, WAV and OGG, up to **50 MB**. The limit is a
   product choice about upload sizes, not a plan ceiling.
-- Downloads go through a signed URL that expires after **300** seconds.
+- Downloads and the in-page player go through a signed URL that expires after
+  **7200** seconds. Longer than the other kinds: the player asks for the song in
+  byte ranges as it plays and seeks, all with the URL signed when the page
+  loaded, so the URL has to outlast a listening session.
+- The storage route answers a single byte range with `206 Partial Content`
+  (every kind, though only the players ask for one), which is what lets the
+  player seek.
 - Replacement uploads the new object **before** deleting the previous one, so a
   failed upload leaves the existing music intact.
 - The row is updated **before** the previous object is deleted, so a failed
@@ -341,8 +347,9 @@ written by `app/lib/judging/save-score.server.ts`, from the judge's own save.
   score was lost. There is no sweep that reclaims it; reconciliation is by hand,
   from that log line, and it has to cover the B2 backup copy as well — see
   [Backups](./backups.md).
-- `serveFilesystemObject` has **no Range support**. The player never seeks, so
-  none is needed; a scrubber may not be added without it.
+- `serveFilesystemObject` answers a single byte range with `206 Partial
+Content`, the same as every other kind, which is what lets the feedback
+  player's scrubber seek.
 - The bucket is backed up only because it is named in `STORAGE_BACKUP_BUCKETS`,
   which production sets and the backup scripts default — see
   [Backups](./backups.md#required-environment). A show's audio is all recorded in
