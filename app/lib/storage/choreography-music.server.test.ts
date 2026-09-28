@@ -179,7 +179,7 @@ describe("choreography music storage", () => {
     expect(calls).toEqual([
       {
         bucket: "en-escena-choreography-music",
-        expiresInSeconds: 300,
+        expiresInSeconds: 7200,
         key: "academies/academy-1/choreographies/choreography-1/music.mp3",
         type: "signed-url",
       },

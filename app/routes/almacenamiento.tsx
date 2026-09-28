@@ -16,6 +16,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     baseDir: getDefaultStorageVolumeDir(),
     now: Date.now(),
     params: url.searchParams,
+    range: request.headers.get("Range"),
     secret: getDefaultStorageUrlSigningSecret(),
   });
 }

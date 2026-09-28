@@ -71,6 +71,7 @@ overwrite is unsafe.
 | `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content                                                           |
 | `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger |
 | `dialog`                                     | `useLayerAbovePress` — see below                                                                                 |
+| `slider`                                     | `aria-label` is forwarded to each thumb, which is what carries `role="slider"`                                   |
 | all                                          | `font-heading` instead of upstream's `cn-font-heading`                                                           |
 
 Most of those rows are cosmetic. Two are load-bearing and will break behaviour
