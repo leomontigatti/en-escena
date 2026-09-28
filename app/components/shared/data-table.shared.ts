@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
 /**
  * How long both tables wait before writing a search to the address bar. Long
@@ -89,8 +90,16 @@ export type DataTableFacetedFilter<TId extends string = string> =
 
 export type DataTableFacetedFilterGroup<TId extends string = string> = {
   id: TId;
+  /** Drawn before the label of the group's applied filter. */
+  icon?: LucideIcon;
   label: string;
   options: DataTableFacetedFilterOption[];
+  /**
+   * How a picked value reads on its applied filter, for a group whose values
+   * the list already draws a particular way — a status as its badge. Without
+   * it the value reads as its label.
+   */
+  renderValue?: (option: DataTableFacetedFilterOption) => ReactNode;
 };
 
 /**

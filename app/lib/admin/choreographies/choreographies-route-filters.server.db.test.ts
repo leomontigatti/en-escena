@@ -149,9 +149,14 @@ describe("`/administracion/coreografias` route filters", () => {
       { label: "Juvenil", value: jazzCatalog.category.id },
       { label: "Senior", value: urbanCatalog.category.id },
     ]);
-    expect(filteredMarkup).toContain(
-      'aria-label="Filtros: Estado: Incompleta, Modalidad: Contemporáneo, Categoría: Adulto, Tipo de grupo: Dúo"',
-    );
+    for (const filter of [
+      "Estado: Incompleta",
+      "Modalidad: Contemporáneo",
+      "Categoría: Adulto",
+      "Tipo de grupo: Dúo",
+    ]) {
+      expect(filteredMarkup).toContain(`aria-label="${filter}"`);
+    }
     expect(filteredMarkup).toContain(
       `href="/administracion/coreografias?estado=incompleta&amp;modalidad=${contemporaryCatalog.modality.id}&amp;categoria=${contemporaryCatalog.category.id}&amp;tipo-grupo=duo"`,
     );

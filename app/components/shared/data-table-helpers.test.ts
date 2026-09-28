@@ -4,7 +4,6 @@ import {
   buildDataTableFilterHref,
   createColumnFilters,
   getActiveFacetedFilterValues,
-  getFacetedFilterSummary,
   getPaginationPages,
   getVisibleFacetedFilterValue,
   getServerSortDirection,
@@ -15,14 +14,6 @@ import {
 import type { DataTableFacetedFilter } from "@/components/shared/data-table.shared";
 
 describe("data-table helpers", () => {
-  const statusFilter: DataTableFacetedFilter = {
-    id: "estado",
-    label: "Estado",
-    options: [
-      { label: "Activos", value: "active" },
-      { label: "Archivados", value: "archived" },
-    ],
-  };
   const locationFilter: DataTableFacetedFilter = {
     id: "sede",
     label: "Sede",
@@ -148,23 +139,7 @@ describe("data-table helpers", () => {
     ).toEqual({});
   });
 
-  test("summarizes only active faceted filter labels", () => {
-    expect(
-      getFacetedFilterSummary([statusFilter, locationFilter], {
-        estado: "archived",
-        sede: "north",
-      }),
-    ).toBe("Estado: Archivados, Sede: Norte");
-  });
-
   test("keys faceted filter selections by group id and not by group label", () => {
-    expect(
-      getFacetedFilterSummary([statusFilter, locationFilter], {
-        Estado: "archived",
-        Sede: "north",
-      }),
-    ).toBe("");
-
     expect(
       buildDataTableFilterHref({
         basePath: "/administracion/precios",
@@ -173,6 +148,15 @@ describe("data-table helpers", () => {
         values: { sede: "north" },
       }),
     ).toBe("/administracion/precios?sede=north");
+
+    expect(
+      buildDataTableFilterHref({
+        basePath: "/administracion/precios",
+        currentSearch: "",
+        groups: [locationFilter],
+        values: { Sede: "north" },
+      }),
+    ).toBe("/administracion/precios");
   });
 
   test("replaces only the targeted server-side filter entry", () => {

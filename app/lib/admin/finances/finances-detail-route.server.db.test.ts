@@ -118,7 +118,7 @@ describe("`/administracion/finanzas` academy", () => {
     );
     expect(markup).toContain("Participando");
     expect(markup).toContain("No participando");
-    expect(markup).toContain('aria-label="Filtros"');
+    expect(markup).toContain('aria-label="Agregar filtro"');
     expect(markup).toMatch(/<button[^>]*>Nombre/);
     expect(markup).not.toMatch(/<button[^>]*>Contacto/);
     expect(markup).not.toMatch(/<button[^>]*>Estado/);

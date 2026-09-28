@@ -52,7 +52,7 @@ describe("PortalProfessorsListRouteView", () => {
       "Buscar profesor por nombre o número de documento",
     );
     expect(markup).toContain("Nuevo profesor");
-    expect(markup).toContain("Filtro");
+    expect(markup).toContain('aria-label="Agregar filtro"');
     expect(markup).toContain("1 de 2 registros");
     expect(markup).toContain("DNI 12345678");
     expect(markup).toContain("Completo");

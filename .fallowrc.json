@@ -48,6 +48,10 @@
       "exports": ["*"]
     },
     {
+      "file": "app/components/ui/button-group.tsx",
+      "exports": ["*"]
+    },
+    {
       "file": "app/components/ui/breadcrumb.tsx",
       "exports": ["*"]
     },

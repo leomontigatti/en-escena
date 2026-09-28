@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { AudioLines, Plus, Settings, Users } from "lucide-react";
 import { useEffect } from "react";
 import { Link } from "react-router";
 
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
+  getChoreographyStatusFilterBadgeVariant,
   notWithdrawnChoreographyStatusFilterValue,
   resolveChoreographyStatusBadge,
   withdrawnChoreographyStatusFilterValue,
@@ -220,6 +221,16 @@ export const portalChoreographyFacetedFilterIds = [
   "tipo-de-grupo",
 ] as const;
 
+/** How each `Estado` answer this list writes to the URL reads as a badge. */
+const statusFilterAnswers: Record<
+  string,
+  "complete" | "incomplete" | "withdrawn"
+> = {
+  complete: "complete",
+  incomplete: "incomplete",
+  [withdrawnChoreographyStatusFilterValue]: "withdrawn",
+};
+
 function buildChoreographyFacetedFilters(
   choreographies: PortalChoreographyListItem[],
 ): DataTableFacetedFiltersOf<typeof portalChoreographyFacetedFilterIds> {
@@ -235,9 +246,20 @@ function buildChoreographyFacetedFilters(
           value: withdrawnChoreographyStatusFilterValue,
         },
       ],
+      renderValue: (option) => (
+        <Badge
+          variant={getChoreographyStatusFilterBadgeVariant(
+            statusFilterAnswers[option.value] ?? "incomplete",
+          )}
+          className="font-normal"
+        >
+          {option.label}
+        </Badge>
+      ),
     },
     {
       id: "modalidad",
+      icon: AudioLines,
       label: "Modalidad",
       options: getUniqueSortedOptions(
         choreographies.map((choreography) => ({
@@ -248,6 +270,7 @@ function buildChoreographyFacetedFilters(
     },
     {
       id: "categoria",
+      icon: Settings,
       label: "Categoría",
       options: getUniqueSortedOptions(
         choreographies.map((choreography) => ({
@@ -258,6 +281,7 @@ function buildChoreographyFacetedFilters(
     },
     {
       id: "tipo-de-grupo",
+      icon: Users,
       label: "Tipo de grupo",
       options: [
         { label: "Solo", value: "solo" },

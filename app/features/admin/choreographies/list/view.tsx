@@ -1,3 +1,5 @@
+import { AudioLines, Clock, Settings, Users } from "lucide-react";
+
 import {
   AdminEmptyState,
   AdminResourceLayout,
@@ -11,6 +13,7 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
+  getChoreographyStatusFilterBadgeVariant,
   resolveChoreographyStatusBadge,
   withdrawnChoreographyStatusFilterValue,
   withdrawnChoreographyStatusLabel,
@@ -33,6 +36,16 @@ const emptyChoreographyList = describeEmptyList(
   "coreografías",
   "search-and-filters",
 );
+
+/** How each `Estado` answer this list writes to the URL reads as a badge. */
+const statusFilterAnswers: Record<
+  string,
+  "complete" | "incomplete" | "withdrawn"
+> = {
+  completa: "complete",
+  incompleta: "incomplete",
+  [withdrawnChoreographyStatusFilterValue]: "withdrawn",
+};
 
 const choreographyStatusFilterOptions = [
   { label: "Completa", value: "completa" },
@@ -227,24 +240,38 @@ function buildChoreographyFacetedFilters(
       id: "estado",
       label: "Estado",
       options: choreographyStatusFilterOptions,
+      renderValue: (option) => (
+        <Badge
+          variant={getChoreographyStatusFilterBadgeVariant(
+            statusFilterAnswers[option.value] ?? "incomplete",
+          )}
+          className="font-normal"
+        >
+          {option.label}
+        </Badge>
+      ),
     },
     {
       id: "modalidad",
+      icon: AudioLines,
       label: "Modalidad",
       options: loaderData.facets.modalities,
     },
     {
       id: "categoria",
+      icon: Settings,
       label: "Categoría",
       options: loaderData.facets.categories,
     },
     {
       id: "tipo-grupo",
+      icon: Users,
       label: "Tipo de grupo",
       options: choreographyGroupTypeFilterOptions,
     },
     {
       id: "dia",
+      icon: Clock,
       label: "Día",
       options: loaderData.facets.scheduleDates,
     },

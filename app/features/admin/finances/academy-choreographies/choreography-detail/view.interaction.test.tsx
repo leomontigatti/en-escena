@@ -19,6 +19,7 @@ import {
   openRadixSelect,
   selectRadixOption,
 } from "@/lib/test-support/radix-select";
+import { applyTableFilter } from "@/lib/test-support/data-table-filters";
 
 import { ChoreographyFinanceDetailView } from "./view";
 import type { loadChoreographyFinanceDetail } from "./server";
@@ -622,11 +623,10 @@ describe("inscriptions table filters", () => {
 
     // `Retirada` replaces the money status, so filtering by `Pagada` does not
     // bring the withdrawn one in even though its money is complete.
-    await selectStatusOption("Pagada");
+    await applyTableFilter("Estado", "Pagada");
     expect(renderedDancerNames()).toEqual(["Ana López"]);
 
-    await selectStatusOption("Pagada");
-    await selectStatusOption("Retirada");
+    await applyTableFilter("Estado", "Retirada");
     expect(renderedDancerNames()).toEqual(["Carla Díaz"]);
   });
 });
@@ -648,37 +648,6 @@ function renderedDancerNames() {
   return [
     ...document.querySelectorAll('[aria-label="Inscripciones"] tbody tr'),
   ].map((row) => row.querySelector("td")?.textContent?.trim() ?? "");
-}
-
-/** Opens the filters panel and picks an `Estado` option by its label. */
-async function selectStatusOption(label: string) {
-  const trigger = document.querySelector('button[aria-label^="Filtros"]');
-
-  if (!trigger) {
-    throw new Error("Expected the filters trigger to be rendered.");
-  }
-
-  if (!document.querySelector('[data-slot="filters-panel"]')) {
-    await updateReactDomForm(() => {
-      trigger.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-      );
-    });
-  }
-
-  const field = [...document.querySelectorAll("label[for]")].find(
-    (candidate) => candidate.textContent?.trim() === "Estado",
-  );
-  const picker = field
-    ? document.getElementById(field.getAttribute("for") ?? "")
-    : null;
-
-  if (!picker) {
-    throw new Error("Expected the panel to offer the `Estado` filter.");
-  }
-
-  await openRadixSelect(picker);
-  await selectRadixOption(label);
 }
 
 /** The price picker of the allocation shape, named by the one it is. */
