@@ -280,7 +280,7 @@ What the dialog announced is advisory.
 - The category step shows the category and group type the dancers resolve to, and asks the level and the schedule only when there is a choice; with neither, it is skipped. A resolution refused (no category fits, no schedule takes it) stays on the dancers step as a notice.
 - The page survives a reload of the tab: the step is `?paso=` in the URL and the answers stay in the tab's `sessionStorage`, keyed by academy and event, until the choreography is saved or the registration cancelled. A reload drops the people and options no longer offered, lands on the first step whose answers are incomplete, and resolves the dancers again before any step after them.
 - If category requires level, registration cannot advance or confirm until academy chooses one.
-- Professors are selected after the category step, before summary; empty professors are allowed and make choreography incomplete.
+- Professors are selected after the category step, before summary; registration requires at least one.
 - Registration summary shows operational data only, not price or financial info.
 - The summary lists every dancer and professor by name, with their count, and each answer has a way back to the step that gave it; the category has none, since it follows from the dancers.
 - Registration does not create dancers or professors inline.

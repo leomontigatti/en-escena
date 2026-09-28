@@ -17,6 +17,7 @@ import * as portalEventContextModule from "@/lib/portal/event-context.server";
 import * as portalProfessorsModule from "@/lib/portal/professors.server";
 import * as portalProfileModule from "@/lib/academies/academy-profile.server";
 import * as choreographyRegistrationModule from "@/lib/choreographies/registration-confirmation.server";
+import * as choreographyRosterOptionsModule from "@/lib/choreographies/choreography-roster-options.server";
 import { loader as adminLayoutLoader } from "@/routes/administracion";
 import { loader as adminDancersLoader } from "@/routes/administracion.bailarines";
 import { loader as adminModalitiesLoader } from "@/routes/administracion.modalidades";
@@ -639,15 +640,19 @@ export async function measureCriticalRequestBaseline(): Promise<
           "getPortalActiveEventReadinessContext",
           "eventContextMs",
         ),
-        trackAsync(portalDancersModule, "listDancersForAcademy", "mainQueryMs"),
         trackAsync(
-          portalProfessorsModule,
-          "listAcademyProfessors",
+          choreographyRosterOptionsModule,
+          "listDancerOptionsForChoreography",
+          "mainQueryMs",
+        ),
+        trackAsync(
+          choreographyRosterOptionsModule,
+          "listProfessorOptionsForChoreography",
           "mainQueryMs",
         ),
         trackAsync(
           eventBasesModule,
-          "getEventBases",
+          "getChoreographyRegistrationInitialOptions",
           "readinessConfigurationMs",
         ),
       ],
