@@ -17,7 +17,7 @@ reviews:
   path_instructions:
     - path: "**/*"
       instructions: >-
-        Review against .sandcastle/CODING_STANDARDS.md. Its code language rule:
+        Review against docs/agents/coding-standards.md. Its code language rule:
         Spanish only in user-facing strings (UI copy, page titles, URLs, route
         filenames, the body of a thrown Response); identifiers, comments, test
         names, thrown Error messages, docs, commits and PR text are English.

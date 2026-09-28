@@ -7,7 +7,7 @@ Domain glossary for dance competitions. Defines canonical terms; the detailed ru
 Each entry is keyed on the canonical English identifier —the name to use in
 code— followed by `ui:`, the canonical Spanish term the user sees in the
 interface and in URLs. It is the mapping table for the code language convention
-documented in [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md).
+documented in [docs/agents/coding-standards.md](docs/agents/coding-standards.md).
 
 Reading rules:
 

@@ -12,7 +12,7 @@ audit gate, a PR-title gate and two Claude hooks. This ADR records **why** those
 exist and why the alternatives were refused. It does **not** describe them: the
 current setup lives in [docs/agents/workflows.md](../agents/workflows.md) (how
 each gate is wired, and how to bump its pins) and in
-[.sandcastle/VALIDATION.md](../../.sandcastle/VALIDATION.md) (the ownership
+[docs/agents/validation.md](../agents/validation.md) (the ownership
 table, and what an agent runs before committing). Restating them here would
 reproduce the defect #625 diagnosed — two topically identical documents of which
 one is true.
@@ -58,7 +58,7 @@ No tests run on commit. The commit gate is formatting, the language check,
 more than a few seconds needs a stated reason to join them. A slow hook is
 bypassed with `--no-verify`, at which point it gates nothing; a fast one is
 simply tolerated. The expensive suites belong to CI, which runs them on its own
-runners in parallel — the arithmetic is in `.sandcastle/VALIDATION.md` § Why not
+runners in parallel — the arithmetic is in `docs/agents/validation.md` § Why not
 `pnpm test`.
 
 The same reasoning sets the agent validation surface. An agent has a 50-minute

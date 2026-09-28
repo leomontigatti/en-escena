@@ -16,7 +16,7 @@ let fixturePaymentNumber = 0;
  * It exists because the covered count is not a fact a suite can assert around by
  * mocking `covered-inscriptions.server`: that module is ours, and a suite that
  * stubs it stops seeing the rule it is testing against
- * (`.sandcastle/CODING_STANDARDS.md`, "Testing"). The price list the event needs
+ * (`docs/agents/coding-standards.md`, "Testing"). The price list the event needs
  * first comes from `createSeminarRegistrationPrices`.
  */
 export async function coverSeminarInscriptionDeposit(input: {

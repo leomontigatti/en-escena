@@ -269,7 +269,7 @@ reference order:
 2. ADR [0013: Exit Supabase](adr/0013-exit-supabase.md) is the accepted
    decision record: Better Auth is the credential provider. ADRs 0001 and 0006
    are historical and superseded.
-3. `.sandcastle/CODING_STANDARDS.md` controls test and implementation style.
+3. `docs/agents/coding-standards.md` controls test and implementation style.
 4. Vendored React/Vercel skills are supporting references when UI or route work
    is relevant: `react-best-practices`, `web-design-guidelines`,
    `composition-patterns` and `react-view-transitions`.

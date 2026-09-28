@@ -38,7 +38,7 @@ Validate as you go: `pnpm typecheck` and the single test file for the slice
 
 ## 3. Validate once at the end
 
-Run the list in [`.sandcastle/VALIDATION.md`](../../../.sandcastle/VALIDATION.md): `pnpm typecheck`,
+Run the list in [`docs/agents/validation.md`](../../../docs/agents/validation.md): `pnpm typecheck`,
 `pnpm lint`, `pnpm test:unit`, and `pnpm test:db <path>` for the DB test files you touched. Fix and
 re-run each until it is clean before moving to the next. CI owns the full `pnpm test`.
 
@@ -68,7 +68,7 @@ green tests.
 
 Commit to the current branch when the user asked for a commit or a PR, or the run is unattended;
 otherwise report the result and leave the tree for the user. Conventional-commit subject and body
-in English, per `.sandcastle/CODING_STANDARDS.md` § Code Language.
+in English, per `docs/agents/coding-standards.md` § Code Language.
 
 ## 7. Open the PR and hand it off
 
