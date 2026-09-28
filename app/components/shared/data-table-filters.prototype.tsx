@@ -230,7 +230,7 @@ function AddFilterButton({
         if (!next) setGroupId(null);
       }}
     >
-      <AddFilterTooltip enabled={!compact}>
+      <AddFilterTooltip enabled={!compact} popoverOpen={open}>
         <PopoverTrigger asChild>
           {compact ? (
             <Button
@@ -303,18 +303,41 @@ function AddFilterButton({
 
 /** C: search beside an "Agregar filtro" button; active filters as chips. */
 /** The add button's tooltip; D's compact trigger goes without. */
+/**
+ * The add button's tooltip; D's compact trigger goes without. Closing the
+ * popover hands focus back to the button, and a tooltip opens on focus, so it
+ * stays shut from the moment the popover opens until the pointer next enters.
+ */
 function AddFilterTooltip({
   enabled,
+  popoverOpen,
   children,
 }: {
   enabled: boolean;
+  popoverOpen: boolean;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+  const suppressedRef = useRef(false);
+  if (popoverOpen) suppressedRef.current = true;
   if (!enabled) return <>{children}</>;
   return (
     <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <Tooltip
+        open={open && !popoverOpen}
+        onOpenChange={(next) => {
+          if (next && suppressedRef.current) return;
+          setOpen(next);
+        }}
+      >
+        <TooltipTrigger
+          asChild
+          onPointerEnter={() => {
+            if (!popoverOpen) suppressedRef.current = false;
+          }}
+        >
+          {children}
+        </TooltipTrigger>
         <TooltipContent>Agregar filtro</TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -375,7 +398,7 @@ function FilterButtonGroup({
   const Icon = groupIcons[group.id];
   return (
     <ButtonGroup>
-      <ButtonGroupText className="font-normal">
+      <ButtonGroupText className="font-normal text-muted-foreground">
         {Icon ? <Icon /> : null}
         {group.label}
       </ButtonGroupText>
