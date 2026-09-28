@@ -346,6 +346,12 @@ export async function updateChoreographyModality(input: {
     // is rejected either way.
     const movesScheduleCapacity =
       selectedSchedule.id !== input.choreography.scheduleCapacityId;
+    // Staying on the same capacity still changes the modality and the
+    // category, so the schedule has to accept both either way.
+    const accepts = {
+      modalityId: selectedModality.id,
+      categoryId: resolvedCategoryId,
+    };
     const move = movesScheduleCapacity
       ? await guardAndLockScheduleCapacityMove({
           choreographyId: input.choreography.id,
@@ -355,12 +361,14 @@ export async function updateChoreographyModality(input: {
           scheduleCapacityId: selectedSchedule.scheduleCapacityId,
           scheduleId: selectedSchedule.scheduleId,
           tx,
+          accepts,
         })
       : await lockScheduleCapacityForAssignment({
           excludeChoreographyId: input.choreography.id,
           scheduleCapacityId: selectedSchedule.scheduleCapacityId,
           scheduleId: selectedSchedule.scheduleId,
           tx,
+          accepts,
         });
 
     if (!move.ok) {

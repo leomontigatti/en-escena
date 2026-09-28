@@ -198,6 +198,7 @@ export async function createChoreographyRegistration(
         tx,
         scheduleId: scheduleSelection.value.scheduleId,
         scheduleCapacityId: scheduleSelection.value.scheduleCapacityId,
+        accepts: { modalityId: input.modalityId, categoryId: category.id },
       });
 
       if (!scheduleLock.ok) {

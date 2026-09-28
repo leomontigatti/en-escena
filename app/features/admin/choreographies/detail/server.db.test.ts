@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -52,6 +52,7 @@ import {
   recordComprobante,
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
+import { invalidScheduleEntryMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
@@ -1208,6 +1209,56 @@ describe("administrative choreography detail server", () => {
             ),
           );
         expect(occupants).toHaveLength(1);
+      });
+
+      // The options are resolved before the transaction, so the destination
+      // is rechecked once the lock is held: an edit that stopped the schedule
+      // accepting the modality while the reassignment waited must refuse it.
+      test("refuses a destination whose schedule stopped accepting the modality while the reassignment waited", async () => {
+        const scenario = await createScheduleCapacityScenario({
+          academyName: "Academia Cronograma Editado",
+          slug: "cronograma.editado",
+        });
+        let reassignment: ReturnType<typeof scenario.reassignTo> | undefined;
+
+        await db.transaction(async (tx) => {
+          await tx
+            .select({ id: schedules.id })
+            .from(schedules)
+            .where(eq(schedules.id, scenario.target.schedule.id))
+            .for("update");
+          const [holder] = await tx.execute<{ pid: number }>(
+            sql`select pg_backend_pid() as pid`,
+          );
+
+          reassignment = scenario.reassignTo(
+            scenario.target.scheduleCapacity.id,
+          );
+          await waitForABackendBlockedBy(Number(holder?.pid));
+
+          await tx
+            .delete(scheduleModalities)
+            .where(
+              eq(scheduleModalities.scheduleId, scenario.target.schedule.id),
+            );
+        });
+
+        if (!reassignment) {
+          throw new Error("The reassignment never started.");
+        }
+
+        const result = await reassignment;
+        expect(
+          result instanceof Response || !("status" in result)
+            ? "unexpected"
+            : result,
+        ).toMatchObject({
+          message: invalidScheduleEntryMessage,
+          status: "error",
+        });
+        await expect(scenario.readAssignment()).resolves.toMatchObject({
+          scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+        });
       });
     },
   );
@@ -3393,4 +3444,20 @@ function facturaCInput(
     lines: [],
     ...rest,
   };
+}
+
+async function waitForABackendBlockedBy(holderPid: number) {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const [row] = await db.execute<{ blocked: number }>(
+      sql`select count(*)::int as blocked from pg_stat_activity where ${holderPid} = any(pg_blocking_pids(pid))`,
+    );
+
+    if (Number(row?.blocked ?? 0) > 0) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  throw new Error("The reassignment never waited on the schedule lock.");
 }
