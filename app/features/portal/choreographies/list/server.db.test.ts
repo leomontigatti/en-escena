@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  choreographies,
   choreographyDancers,
   choreographyProfessors,
   dancers,
@@ -16,12 +14,10 @@ import {
   createModality,
   createSubmodality,
 } from "@/lib/modalities/repository.server";
-import { createPrice } from "@/lib/prices/repository.server";
 import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
-import { openScheduleRegistration } from "@/lib/schedules/registration-open.server";
 import {
   expectCreated,
   fixedExperienceLevel,
@@ -31,34 +27,18 @@ import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate as date,
 } from "@/lib/events/saved-event-test-support.server";
-import { loadCreateChoreographyRouteData } from "@/features/portal/choreographies/create/server";
-import {
-  handlePortalChoreographiesListAction,
-  loadPortalChoreographiesList,
-} from "@/features/portal/choreographies/list/server";
-import { CREATE_CHOREOGRAPHY_INTENT } from "@/features/portal/choreographies/create/flow";
-import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
+import { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
-import {
-  createAcademySession,
-  createPortalPostRequest,
-  expectThrownResponse,
-} from "@/features/portal/test-support/db";
+import { createAcademySession } from "@/features/portal/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-// Offset from the moment the test runs, for the cases that need an event window
-// to be open (or closed) relative to now rather than on a fixed calendar date.
-function daysFromNow(days: number): Date {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-}
-
-describe("handlePortalChoreographiesListAction", () => {
+describe("loadPortalChoreographiesList", () => {
   test("exposes when there is no active event even if there are events to consult", async () => {
     const session = await createAcademySession({
       email: "coreografias.no-active-event@example.com",
@@ -145,7 +125,7 @@ describe("handlePortalChoreographiesListAction", () => {
     });
   });
 
-  test("keeps list loader focused and loads create options from the create resource", async () => {
+  test("keeps the create page's options out of the list loader", async () => {
     const session = await createAcademySession({
       email: "coreografias.crear@example.com",
       academyName: "Academia Crear Coreografía",
@@ -156,15 +136,6 @@ describe("handlePortalChoreographiesListAction", () => {
       endsAt: date("2026-07-03T12:00:00Z"),
     });
     await activateEvent(activeEvent.id);
-    const modality = await expectCreated(
-      createModality(activeEvent.id, { name: "Jazz" }),
-    );
-    const submodality = await expectCreated(
-      createSubmodality(activeEvent.id, {
-        modalityId: modality.id,
-        name: "Lyrical",
-      }),
-    );
     await db.insert(dancers).values({
       academyId: session.academyId,
       firstName: "Ana",
@@ -183,11 +154,6 @@ describe("handlePortalChoreographiesListAction", () => {
     });
 
     const listData = await loadPortalChoreographiesList(request);
-    const createOptionsData = await loadCreateChoreographyRouteData(
-      new Request("http://localhost/portal/coreografias/crear", {
-        headers: { cookie: session.cookie },
-      }),
-    );
 
     expect(listData).toMatchObject({
       activeDancerCount: 1,
@@ -196,20 +162,6 @@ describe("handlePortalChoreographiesListAction", () => {
     expect(listData).not.toHaveProperty("activeDancers");
     expect(listData).not.toHaveProperty("activeProfessors");
     expect(listData).not.toHaveProperty("registrationBaseOptions");
-    expect(createOptionsData).toMatchObject({
-      activeDancers: [expect.objectContaining({ firstName: "Ana" })],
-      activeProfessors: [expect.objectContaining({ firstName: "Luz" })],
-      registrationBaseOptions: {
-        modalities: [{ id: modality.id, name: "Jazz" }],
-        submodalities: [
-          {
-            id: submodality.id,
-            modalityId: modality.id,
-            name: "Lyrical",
-          },
-        ],
-      },
-    });
   });
 
   test("lists only the authenticated academy choreographies for the active event and derives operational pending items", async () => {
@@ -505,291 +457,7 @@ describe("handlePortalChoreographiesListAction", () => {
       ),
     ).toEqual({ "Pieza Retirada": true, "Pieza en Pie": false });
   });
-
-  test("creates a choreography and redirects back to the active-event list", async () => {
-    const scenario = await createRegistrationScenario({
-      email: "coreografias.create.owner@example.com",
-      academyName: "Academia Creadora",
-    });
-    const {
-      category,
-      dancer,
-      event,
-      level,
-      ownerSession,
-      professor,
-      scheduleCapacity,
-      modality,
-      submodality,
-    } = scenario;
-
-    const response = await expectThrownResponse(
-      handlePortalChoreographiesListAction(
-        createPortalPostRequest(
-          `http://localhost/portal/coreografias?evento=${event.id}`,
-          ownerSession.cookie,
-          choreographyFormData({
-            eventId: event.id,
-            name: " danza de la luna ",
-            modalityId: modality.id,
-            submodalityId: submodality.id,
-            dancerIds: [dancer.id],
-            professorIds: [professor.id],
-            experienceLevelId: level.id,
-            scheduleCapacityId: scheduleCapacity.id,
-          }),
-        ),
-      ),
-      302,
-    );
-
-    expect(response.headers.get("Location")).toBe(
-      "/portal/coreografias?creada=1",
-    );
-
-    const [storedChoreography] = await db.query.choreographies.findMany({
-      where: eq(choreographies.academyId, ownerSession.academyId),
-    });
-    expect(storedChoreography).toMatchObject({
-      eventId: event.id,
-      name: "Danza de la Luna",
-      categoryId: category.id,
-      experienceLevelId: level.id,
-      scheduleCapacityId: scheduleCapacity.id,
-    });
-
-    const storedDancers = await db.query.choreographyDancers.findMany({
-      where: eq(choreographyDancers.choreographyId, storedChoreography.id),
-    });
-    expect(storedDancers).toHaveLength(1);
-
-    const storedProfessors = await db.query.choreographyProfessors.findMany({
-      where: eq(choreographyProfessors.choreographyId, storedChoreography.id),
-    });
-    expect(storedProfessors).toHaveLength(1);
-  });
-
-  test("answers with the duplicate warning instead of creating, and creates once the academy sends the ids it saw", async () => {
-    const {
-      dancer,
-      event,
-      level,
-      modality,
-      ownerSession,
-      professor,
-      scheduleCapacity,
-      submodality,
-    } = await createRegistrationScenario({
-      email: "coreografias.create.duplicada@example.com",
-      academyName: "Academia Repetida",
-    });
-
-    function submitCreation(acknowledgedDuplicateIds: string[] = []) {
-      return handlePortalChoreographiesListAction(
-        createPortalPostRequest(
-          `http://localhost/portal/coreografias?evento=${event.id}`,
-          ownerSession.cookie,
-          choreographyFormData({
-            acknowledgedDuplicateIds,
-            eventId: event.id,
-            name: "Danza de la Luna",
-            modalityId: modality.id,
-            submodalityId: submodality.id,
-            dancerIds: [dancer.id],
-            professorIds: [professor.id],
-            experienceLevelId: level.id,
-            scheduleCapacityId: scheduleCapacity.id,
-          }),
-        ),
-      );
-    }
-
-    await expectThrownResponse(submitCreation(), 302);
-
-    const warned = await submitCreation();
-    const warning = expectDuplicateChoreographyWarning(warned);
-
-    expect(warning.matches).toMatchObject([
-      { choreographyNumber: 1, name: "Danza de la Luna" },
-    ]);
-    await expect(
-      db.query.choreographies.findMany({
-        where: eq(choreographies.academyId, ownerSession.academyId),
-      }),
-    ).resolves.toHaveLength(1);
-
-    await expectThrownResponse(
-      submitCreation(warning.matches.map((match) => match.id)),
-      302,
-    );
-
-    await expect(
-      db.query.choreographies.findMany({
-        where: eq(choreographies.academyId, ownerSession.academyId),
-      }),
-    ).resolves.toHaveLength(2);
-  });
 });
-
-function expectDuplicateChoreographyWarning(
-  data: Awaited<ReturnType<typeof handlePortalChoreographiesListAction>>,
-) {
-  if (
-    data.intent !== CREATE_CHOREOGRAPHY_INTENT ||
-    data.result.ok ||
-    data.result.code !== "duplicate-choreography"
-  ) {
-    throw new Error("Expected the duplicate choreography warning.");
-  }
-
-  return data.result.warning;
-}
-
-/**
- * An active event with everything registration needs — one modality, one
- * category, one schedule capacity with room, prices — plus a dancer and a
- * professor of the academy. Creating a choreography through the action takes
- * all of it, so the cases that differ only in what they submit share this.
- */
-async function createRegistrationScenario(session: {
-  academyName: string;
-  email: string;
-}) {
-  const ownerSession = await createAcademySession(session);
-  // Event dates anchored to the run, so the fixture never ages out.
-  const event = await createSavedEvent({
-    name: "Regional 2026",
-    startsAt: daysFromNow(2),
-    endsAt: daysFromNow(4),
-  });
-  await activateEvent(event.id);
-  const modality = await expectCreated(
-    createModality(event.id, { name: "Jazz" }),
-  );
-  const level = fixedExperienceLevel(event.id);
-  const submodality = await expectCreated(
-    createSubmodality(event.id, {
-      modalityId: modality.id,
-      name: "Lyrical",
-    }),
-  );
-  const category = await expectCreated(
-    createCategory(event.id, {
-      name: "Juvenil",
-      // The whole 1-100 range, because readiness refuses a ladder with a
-      // hole and the creation this test drives goes through that gate.
-      minAge: 1,
-      maxAge: 100,
-      groupTypes: ["solo"],
-      modalityIds: [modality.id],
-      experienceLevels: [level.id],
-    }),
-  );
-  const block = await expectCreated(
-    createSchedule(event.id, {
-      name: "Domingo mañana",
-      scheduledDate: "2026-05-03",
-      startTime: "10:00",
-      totalCapacity: 12,
-      modalityIds: [modality.id],
-    }),
-  );
-  const scheduleCapacity = await expectCreated(
-    createScheduleCapacity(block.id, {
-      groupType: "solo",
-      capacity: 8,
-    }),
-  );
-  await expectCreated(
-    createPrice(event.id, {
-      groupType: "solo",
-      amount: 15000,
-      paymentDeadline: null,
-      scheduleId: null,
-    }),
-  );
-  await expectCreated(
-    createPrice(event.id, {
-      groupType: "solo",
-      amount: 15000,
-      paymentDeadline: null,
-      scheduleId: block.id,
-    }),
-  );
-  // A `Cronograma` is born closed, and the portal only registers into an open
-  // one. Opening needs the bases above in place, so it comes last.
-  await expect(openScheduleRegistration(block.id)).resolves.toMatchObject({
-    ok: true,
-  });
-  const [dancer] = await db
-    .insert(dancers)
-    .values({
-      academyId: ownerSession.academyId,
-      firstName: "Ana",
-      lastName: "Paz",
-      birthDate: "2014-07-01",
-      active: true,
-    })
-    .returning();
-  const [professor] = await db
-    .insert(professors)
-    .values({
-      academyId: ownerSession.academyId,
-      firstName: "Luz",
-      lastName: "Suarez",
-      active: true,
-    })
-    .returning();
-
-  return {
-    block,
-    category,
-    dancer,
-    event,
-    level,
-    modality,
-    ownerSession,
-    professor,
-    scheduleCapacity,
-    submodality,
-  };
-}
-
-function choreographyFormData(input: {
-  acknowledgedDuplicateIds?: string[];
-  eventId: string;
-  name: string;
-  modalityId: string;
-  submodalityId: string;
-  dancerIds: string[];
-  professorIds: string[];
-  experienceLevelId: string;
-  scheduleCapacityId: string;
-}) {
-  const values = new FormData();
-
-  values.set("intent", "create-choreography");
-  values.set("eventId", input.eventId);
-  values.set("name", input.name);
-  values.set("modalityId", input.modalityId);
-  values.set("submodalityId", input.submodalityId);
-  values.set("experienceLevelId", input.experienceLevelId);
-  values.set("scheduleCapacityId", input.scheduleCapacityId);
-
-  for (const dancerId of input.dancerIds) {
-    values.append("dancerIds", dancerId);
-  }
-
-  for (const professorId of input.professorIds) {
-    values.append("professorIds", professorId);
-  }
-
-  for (const acknowledgedId of input.acknowledgedDuplicateIds ?? []) {
-    values.append(acknowledgedDuplicateIdsField, acknowledgedId);
-  }
-
-  return values;
-}
 
 async function createEventRecord(
   overrides: Partial<typeof events.$inferInsert> = {},

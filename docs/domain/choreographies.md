@@ -276,16 +276,18 @@ What the dialog announced is advisory.
 - Looking up available schedule capacities does not reserve capacity.
 - A schedule is compatible with a choreography when it accepts its modality **and** its accepted categories are either empty —which accepts every category— or contain the choreography's category. That is the whole rule, and every path that assigns or reassigns a schedule resolves it through the same place, so a modality run as two shows —one for the younger categories, one for the older ones— resolves each choreography to exactly one of them and the academy is never asked to choose.
 - Schedule resolution prefers a schedule capacity for the calculated group type. If a compatible schedule has no specific capacity for that group type, the schedule total capacity is a global fallback option.
-- Submodality step exists only when selected modality has submodalities.
+- Registration is its own page in the portal, not a dialog, in at most five steps: the choreography (name, modality, and the submodality only when the modality has any), the dancers, the category, the professors and the summary. A modality or submodality that is the only option comes chosen.
+- The category step shows the category and group type the dancers resolve to, and asks the level and the schedule only when there is a choice; with neither, it is skipped. A resolution refused (no category fits, no schedule takes it) stays on the dancers step as a notice.
+- The page survives a reload of the tab: the step is `?paso=` in the URL and the answers stay in the tab's `sessionStorage`, keyed by academy and event, until the choreography is saved or the registration cancelled. A reload drops the people and options no longer offered, lands on the first step whose answers are incomplete, and resolves the dancers again before any step after them.
 - If category requires level, registration cannot advance or confirm until academy chooses one.
-- Professors are selected after schedule and level, before summary; empty professors are allowed and make choreography incomplete.
+- Professors are selected after the category step, before summary; registration requires at least one.
 - Registration summary shows operational data only, not price or financial info.
-- Solo, duo and trio summaries list names and ages; group summaries show dancer count.
+- The summary lists every dancer and professor by name, with their count, and each answer has a way back to the step that gave it; the category has none, since it follows from the dancers.
 - Registration does not create dancers or professors inline.
 - Music file is not uploaded during initial registration; it remains pending operational data.
 - Backend revalidates the selected specific capacity when present and always revalidates schedule total capacity on confirmation.
-- Capacity options show their occupancy and full options are offered disabled, in the portal registration and in the administrative reassignment alike. The count is a snapshot that races with any other registration: the hint does not replace the backend revalidation.
-- If every compatible option is full, the registration schedule step replaces the select with a message explaining it, instead of offering a list with nothing selectable.
+- In the portal registration a schedule option says when it happens, never how many places it has left, and a full one is offered disabled. The administrative reassignment shows each option's occupancy too. Fullness is a snapshot that races with any other registration: the hint does not replace the backend revalidation.
+- If every compatible option is full, the registration's category step replaces the schedule options with a message explaining it, instead of offering a list with nothing selectable.
 - Confirmation **warns** when the academy already has, in the same event, a non-withdrawn choreography with the same name **and** the same cast, naming it by number and name; nothing is inserted until the academy continues. Same name with a different cast is not warned about, and neither is the same cast under a different name: two solos of different dancers share a piece name all the time, and one cast dancing two pieces is ordinary. See "Duplicate warnings" below.
 
 ## Duplicate warnings

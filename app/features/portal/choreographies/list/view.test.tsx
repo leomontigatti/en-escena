@@ -166,10 +166,11 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(markup).not.toContain("Completa");
   });
 
-  test("shows the enabled `Nueva coreografía` button for the active editable event", () => {
+  test("links `Nueva coreografía` to the registration page for the active editable event", () => {
     const markup = renderChoreographiesList();
 
     expect(markup).toContain("Nueva coreografía");
+    expect(markup).toContain('href="/portal/coreografias/crear"');
     expect(markup).not.toContain('disabled=""');
     expect(markup).toContain(
       "Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo.",
@@ -199,29 +200,9 @@ function buildChoreographiesRouter(
         element: (
           <PortalChoreographiesListRouteView
             created={input.created}
-            initialCreateDialogOpen={input.initialCreateDialogOpen}
             loaderData={loaderData}
           />
         ),
-      },
-      {
-        path: "/portal/coreografias/crear",
-        loader: async () => ({
-          eventId: loaderData.eventContext.selectedEvent?.id ?? "event_1",
-          activeDancers: [],
-          activeProfessors: [],
-          registrationBaseOptions: {
-            modalities: [{ id: "modality_1", name: "Jazz" }],
-            submodalities: [
-              {
-                id: "submodality_1",
-                name: "Lyrical",
-                modalityId: "modality_1",
-              },
-            ],
-          },
-        }),
-        element: null,
       },
     ],
     { initialEntries: [initialEntry] },

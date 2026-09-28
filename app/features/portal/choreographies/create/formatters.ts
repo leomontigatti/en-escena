@@ -70,23 +70,8 @@ export function formatScheduleSummary(
   return formatScheduleDateTime(selectedOption.schedule);
 }
 
-export function formatRosterSummary(
-  roster: SummaryPerson[],
-  noun: "bailarines" | "profesores",
-) {
-  if (roster.length === 0) {
-    if (noun === "profesores") {
-      return "Sin profesores seleccionados";
-    }
-
-    return "Sin bailarines seleccionados";
-  }
-
-  if (roster.length > 3) {
-    return `${roster.length} ${noun} seleccionados`;
-  }
-
-  return roster
+export function formatPeopleNames(people: SummaryPerson[]) {
+  return people
     .map((person) => `${person.firstName} ${person.lastName}`)
-    .join(" - ");
+    .join(", ");
 }

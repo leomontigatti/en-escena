@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useFetcher } from "react-router";
+import { useEffect } from "react";
+import { Link } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
@@ -12,8 +12,6 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CreateChoreographyDialog } from "@/features/portal/choreographies/create/dialog";
-import type { CreateChoreographyDialogLoaderData } from "@/features/portal/choreographies/create/server";
 import type { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
   notWithdrawnChoreographyStatusFilterValue,
@@ -34,7 +32,6 @@ import { showToastMessage } from "@/lib/shared/toasts";
 type PortalChoreographiesListRouteProps = {
   loaderData: Awaited<ReturnType<typeof loadPortalChoreographiesList>>;
   created?: boolean;
-  initialCreateDialogOpen?: boolean;
 };
 
 type PortalChoreographiesEventContext =
@@ -43,16 +40,12 @@ type PortalChoreographiesEventContext =
 export function PortalChoreographiesListRouteView({
   loaderData,
   created = false,
-  initialCreateDialogOpen = false,
 }: PortalChoreographiesListRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
   const creationAvailability = getPortalChoreographyCreationAvailability({
     activeDancerCount: loaderData.activeDancerCount,
     eventContext: loaderData.eventContext,
   });
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(
-    initialCreateDialogOpen,
-  );
 
   useEffect(() => {
     if (created) {
@@ -61,43 +54,27 @@ export function PortalChoreographiesListRouteView({
   }, [created]);
 
   return (
-    <>
-      <PortalListPage
-        titleId="coreografias-title"
-        title="Coreografías"
-        description="Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo."
-        action={
-          selectedEvent ? (
-            <Button
-              type="button"
-              disabled={!creationAvailability.canCreate}
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              <Plus aria-hidden="true" data-icon />
-              Nueva coreografía
-            </Button>
-          ) : null
-        }
-      >
-        {selectedEvent && loaderData.choreographies.length > 0 ? (
-          <ChoreographyTable choreographies={loaderData.choreographies} />
-        ) : (
-          <PortalEmptyState
-            title={getChoreographiesEmptyTitle(loaderData.eventContext)}
-            description={getChoreographiesEmptyDescription(
-              loaderData.eventContext,
-            )}
-          />
-        )}
-      </PortalListPage>
-
-      {isCreateModalOpen && selectedEvent ? (
-        <CreateChoreographyDialogLoader
-          eventId={selectedEvent.id}
-          onClose={() => setIsCreateModalOpen(false)}
+    <PortalListPage
+      titleId="coreografias-title"
+      title="Coreografías"
+      description="Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo."
+      action={
+        selectedEvent ? (
+          <NewChoreographyButton canCreate={creationAvailability.canCreate} />
+        ) : null
+      }
+    >
+      {selectedEvent && loaderData.choreographies.length > 0 ? (
+        <ChoreographyTable choreographies={loaderData.choreographies} />
+      ) : (
+        <PortalEmptyState
+          title={getChoreographiesEmptyTitle(loaderData.eventContext)}
+          description={getChoreographiesEmptyDescription(
+            loaderData.eventContext,
+          )}
         />
-      ) : null}
-    </>
+      )}
+    </PortalListPage>
   );
 }
 
@@ -346,43 +323,22 @@ function getChoreographiesEmptyDescription(
   return "Cuando administración cree un evento, vas a poder consultar las coreografías de tu academia desde esta sección.";
 }
 
-function CreateChoreographyDialogLoader({
-  eventId,
-  onClose,
-}: {
-  eventId: string;
-  onClose: () => void;
-}) {
-  const fetcher = useFetcher<CreateChoreographyDialogLoaderData>();
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || fetcher.data) {
-      return;
-    }
-
-    void fetcher.load("/portal/coreografias/crear");
-  }, [fetcher]);
-
-  if (!fetcher.data) {
+function NewChoreographyButton({ canCreate }: { canCreate: boolean }) {
+  if (!canCreate) {
     return (
-      <div
-        aria-busy="true"
-        aria-live="polite"
-        className="sr-only"
-        data-testid="create-choreography-dialog-loading"
-      >
-        Cargando opciones para crear la coreografía.
-      </div>
+      <Button type="button" disabled>
+        <Plus aria-hidden="true" data-icon />
+        Nueva coreografía
+      </Button>
     );
   }
 
   return (
-    <CreateChoreographyDialog
-      baseOptions={fetcher.data.registrationBaseOptions}
-      dancers={fetcher.data.activeDancers}
-      eventId={eventId}
-      professors={fetcher.data.activeProfessors}
-      onClose={onClose}
-    />
+    <Button asChild>
+      <Link to="/portal/coreografias/crear">
+        <Plus aria-hidden="true" data-icon />
+        Nueva coreografía
+      </Link>
+    </Button>
   );
 }

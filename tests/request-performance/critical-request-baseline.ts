@@ -17,6 +17,7 @@ import * as portalEventContextModule from "@/lib/portal/event-context.server";
 import * as portalProfessorsModule from "@/lib/portal/professors.server";
 import * as portalProfileModule from "@/lib/academies/academy-profile.server";
 import * as choreographyRegistrationModule from "@/lib/choreographies/registration-confirmation.server";
+import * as choreographyRosterOptionsModule from "@/lib/choreographies/choreography-roster-options.server";
 import { loader as adminLayoutLoader } from "@/routes/administracion";
 import { loader as adminDancersLoader } from "@/routes/administracion.bailarines";
 import { loader as adminModalitiesLoader } from "@/routes/administracion.modalidades";
@@ -37,11 +38,11 @@ import {
   action as portalBailarinDetailAction,
   loader as portalBailarinDetailLoader,
 } from "@/routes/portal.bailarines_.$dancerId";
+import { loader as portalCoreografiaLoader } from "@/routes/portal.coreografias";
 import {
-  action as portalCoreografiaAction,
-  loader as portalCoreografiaLoader,
-} from "@/routes/portal.coreografias";
-import { loader as portalCoreografiaCreateOptionsLoader } from "@/routes/portal.coreografias_.crear";
+  action as portalCoreografiaCreateAction,
+  loader as portalCoreografiaCreateOptionsLoader,
+} from "@/routes/portal.coreografias_.crear";
 import {
   action as portalCoreografiaDetailAction,
   loader as portalCoreografiaDetailLoader,
@@ -639,15 +640,19 @@ export async function measureCriticalRequestBaseline(): Promise<
           "getPortalActiveEventReadinessContext",
           "eventContextMs",
         ),
-        trackAsync(portalDancersModule, "listDancersForAcademy", "mainQueryMs"),
         trackAsync(
-          portalProfessorsModule,
-          "listAcademyProfessors",
+          choreographyRosterOptionsModule,
+          "listDancerOptionsForChoreography",
+          "mainQueryMs",
+        ),
+        trackAsync(
+          choreographyRosterOptionsModule,
+          "listProfessorOptionsForChoreography",
           "mainQueryMs",
         ),
         trackAsync(
           eventBasesModule,
-          "getEventBases",
+          "getChoreographyRegistrationInitialOptions",
           "readinessConfigurationMs",
         ),
       ],
@@ -659,7 +664,7 @@ export async function measureCriticalRequestBaseline(): Promise<
     await measureScenario({
       id: "portal-coreografias-create-action",
       kind: "action",
-      route: "/portal/coreografias",
+      route: "/portal/coreografias/crear",
       surface: "portal",
       setupSpies: [
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
@@ -670,9 +675,9 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
       ],
       run: () =>
-        portalCoreografiaAction({
+        portalCoreografiaCreateAction({
           request: fixture.portalPostRequest(
-            "/portal/coreografias",
+            "/portal/coreografias/crear",
             choreographyCreateFormData({
               eventId: fixture.activeEvent.id,
               name: "Nueva medición",

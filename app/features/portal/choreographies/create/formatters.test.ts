@@ -1,13 +1,13 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  formatRosterSummary,
+  formatPeopleNames,
   formatScheduleSummary,
 } from "@/features/portal/choreographies/create/formatters";
 import type { RegistrationResolution } from "@/features/portal/choreographies/create/flow";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 
-describe("choreography create dialog formatters", () => {
+describe("choreography creation summary formatters", () => {
   test("formats schedule and roster summaries for the confirmation step", () => {
     const autoScheduleResolution: RegistrationResolution = {
       category: { status: "resolved", id: "category_1", name: "Juvenil" },
@@ -51,16 +51,14 @@ describe("choreography create dialog formatters", () => {
       "1 de mayo de 2026 - 14:30 hs.",
     );
 
+    // The row's label carries the count, so every name is listed.
     expect(
-      formatRosterSummary(
-        [
-          { firstName: "Ana", lastName: "Paz" },
-          { firstName: "Luz", lastName: "Suárez" },
-          { firstName: "Mora", lastName: "Díaz" },
-          { firstName: "Tina", lastName: "Gil" },
-        ],
-        "bailarines",
-      ),
-    ).toBe("4 bailarines seleccionados");
+      formatPeopleNames([
+        { firstName: "Ana", lastName: "Paz" },
+        { firstName: "Luz", lastName: "Suárez" },
+        { firstName: "Mora", lastName: "Díaz" },
+        { firstName: "Tina", lastName: "Gil" },
+      ]),
+    ).toBe("Ana Paz, Luz Suárez, Mora Díaz, Tina Gil");
   });
 });

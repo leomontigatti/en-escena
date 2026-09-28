@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, MouseEvent, ReactNode } from "react";
 
 import {
   Field,
@@ -29,6 +29,12 @@ type SharedFieldLayoutProps = {
   label: ReactNode;
   labelAdornment?: ReactNode;
   labelClassName?: string;
+  /**
+   * For a control a click opens, such as a popover trigger: the label then only
+   * focuses it. Activating it would toggle the popover, and while it is open the
+   * label press first dismisses it as an outside press, so the click reopens it.
+   */
+  labelFocusesOnly?: boolean;
   orientation?: SharedFieldOrientation;
 };
 
@@ -45,6 +51,7 @@ function SharedFieldLayout({
   label,
   labelAdornment,
   labelClassName,
+  labelFocusesOnly = false,
   orientation,
 }: SharedFieldLayoutProps) {
   const descriptionId = description ? `${id}-description` : undefined;
@@ -67,7 +74,11 @@ function SharedFieldLayout({
       orientation={orientation}
     >
       <FieldLabelRow adornment={labelAdornment}>
-        <FieldLabel htmlFor={id} className={labelClassName}>
+        <FieldLabel
+          htmlFor={id}
+          className={labelClassName}
+          onClick={labelFocusesOnly ? focusLabelledControl : undefined}
+        >
           {label}
         </FieldLabel>
       </FieldLabelRow>
@@ -89,6 +100,11 @@ function SharedFieldLayout({
       </FieldContent>
     </Field>
   );
+}
+
+function focusLabelledControl(event: MouseEvent<HTMLLabelElement>) {
+  event.preventDefault();
+  document.getElementById(event.currentTarget.htmlFor)?.focus();
 }
 
 function dataFlag(value: boolean) {

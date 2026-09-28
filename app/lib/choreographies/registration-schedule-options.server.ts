@@ -1,5 +1,5 @@
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
-import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
+import { withScheduleCapacityFullness } from "@/lib/choreographies/schedule-capacity-options.server";
 import type {
   CompatibleScheduleCapacity,
   CompatibleScheduleCapacityResolution,
@@ -132,9 +132,9 @@ async function mapScheduleResolution(
   return {
     status: "multiple",
     canConfirm: true,
-    // The same options with occupancy that administration sees: the label is built
-    // by the shared builder so the two surfaces do not diverge.
-    options: await withScheduleCapacityOccupancy({
+    // Labelled by date and time only: the academy chooses by when, and a full
+    // option is marked, not explained. Administration keeps the occupancy.
+    options: await withScheduleCapacityFullness({
       options: scheduleResolution.options.map((option) => ({
         ...toScheduleOptionSummary(option),
         label: formatScheduleDateTime(option.schedule),
