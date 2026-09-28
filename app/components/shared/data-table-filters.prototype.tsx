@@ -9,14 +9,19 @@
  * Typing only fills the box; Enter searches or applies the highlighted value.
  */
 import {
+  AudioLines,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ListFilter,
   ListFilterPlus,
   Search,
+  Settings,
+  Trash2,
+  Users,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { Popover as PopoverPrimitive } from "radix-ui";
 import {
@@ -28,6 +33,7 @@ import {
 } from "react";
 import { useSearchParams } from "react-router";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import {
@@ -57,6 +63,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/shared/utils";
 import type {
   DataTableFacetedFilter,
@@ -96,26 +108,6 @@ type ToolbarProps = {
 
 function optionLabel(group: DataTableFacetedFilter, value: string | undefined) {
   return group.options.find((option) => option.value === value)?.label;
-}
-
-function ClearAll({
-  selectedValues,
-  onChange,
-}: Pick<ToolbarProps, "selectedValues" | "onChange">) {
-  if (Object.keys(selectedValues).length === 0) {
-    return null;
-  }
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      onClick={() => onChange({})}
-    >
-      Limpiar filtros
-      <X data-icon="inline-end" />
-    </Button>
-  );
 }
 
 /** A searchable option list, shared by A and C. */
@@ -238,28 +230,29 @@ function AddFilterButton({
         if (!next) setGroupId(null);
       }}
     >
-      <PopoverTrigger asChild>
-        {compact ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Agregar filtro"
-          >
-            <ListFilter />
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Agregar filtro"
-            title="Agregar filtro"
-          >
-            <ListFilterPlus />
-          </Button>
-        )}
-      </PopoverTrigger>
+      <AddFilterTooltip enabled={!compact}>
+        <PopoverTrigger asChild>
+          {compact ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Agregar filtro"
+            >
+              <ListFilter />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Agregar filtro"
+            >
+              <ListFilterPlus />
+            </Button>
+          )}
+        </PopoverTrigger>
+      </AddFilterTooltip>
       <PopoverContent align="end" className="w-64 p-1">
         {group ? (
           <div className="flex flex-col gap-1">
@@ -309,9 +302,66 @@ function AddFilterButton({
 }
 
 /** C: search beside an "Agregar filtro" button; active filters as chips. */
+/** The add button's tooltip; D's compact trigger goes without. */
+function AddFilterTooltip({
+  enabled,
+  children,
+}: {
+  enabled: boolean;
+  children: ReactNode;
+}) {
+  if (!enabled) return <>{children}</>;
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent>Agregar filtro</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+// PROTOTYPE: keyed by the choreographies list's group ids. The real build
+// would have each group carry its own icon and option renderer.
+const groupIcons: Record<string, LucideIcon> = {
+  modalidad: AudioLines,
+  categoria: Settings,
+  "tipo-grupo": Users,
+  dia: Clock,
+};
+
+const estadoBadgeVariants: Record<string, "success" | "warning" | "secondary"> =
+  {
+    completa: "success",
+    incompleta: "warning",
+    retirada: "secondary",
+  };
+
+function FilterValue({
+  group,
+  value,
+}: {
+  group: DataTableFacetedFilter;
+  value: string;
+}) {
+  const label = optionLabel(group, value);
+  if (group.id === "estado") {
+    return (
+      <Badge
+        variant={estadoBadgeVariants[value] ?? "secondary"}
+        className="font-normal"
+      >
+        {label}
+      </Badge>
+    );
+  }
+  return <>{label}</>;
+}
+
 /**
- * An applied filter as a button group: the field as plain text, the value as
- * a button that opens a single-choice menu, and a button that removes it.
+ * An applied filter as a button group: the field as text with its icon, the
+ * value as a button that opens a single-choice menu, and a button that
+ * removes it.
  */
 function FilterButtonGroup({
   group,
@@ -322,16 +372,17 @@ function FilterButtonGroup({
   "selectedValues" | "onChange"
 >) {
   const selected = selectedValues[group.id];
+  const Icon = groupIcons[group.id];
   return (
     <ButtonGroup>
-      <ButtonGroupText className="font-normal text-muted-foreground">
+      <ButtonGroupText className="font-normal">
+        {Icon ? <Icon /> : null}
         {group.label}
       </ButtonGroupText>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline">
-            {optionLabel(group, selected)}
-            <ChevronDown data-icon="inline-end" />
+            <FilterValue group={group} value={selected} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-48">
@@ -358,7 +409,7 @@ function FilterButtonGroup({
           onChange(setFacetedFilterValue(selectedValues, group.id, ""))
         }
       >
-        <X />
+        <Trash2 className="text-destructive" />
       </Button>
     </ButtonGroup>
   );
@@ -383,7 +434,6 @@ function VariantC({ search, groups, selectedValues, onChange }: ToolbarProps) {
         selectedValues={selectedValues}
         onChange={onChange}
       />
-      <ClearAll selectedValues={selectedValues} onChange={onChange} />
     </div>
   );
 }

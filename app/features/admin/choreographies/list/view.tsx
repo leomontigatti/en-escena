@@ -180,7 +180,7 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       // The widths above share the row out, so it cannot outgrow the page and
       // the list never asks the reader to scroll sideways.
       layout="fit"
-      searchPlaceholder="Buscar coreografía por número, nombre o academia"
+      searchPlaceholder="Buscar por número o nombre"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildChoreographyFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildChoreographyInitialFilters(loaderData)}
