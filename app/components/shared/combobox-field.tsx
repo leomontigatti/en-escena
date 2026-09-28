@@ -1,5 +1,6 @@
 import {
   useId,
+  useState,
   type ComponentProps,
   type ReactNode,
   type RefObject,
@@ -29,6 +30,10 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox";
 import { useComboboxDialogPortal } from "@/components/shared/combobox-dialog-portal";
+import {
+  SearchInputClearButton,
+  SearchInputIcon,
+} from "@/components/shared/search-input";
 import {
   SharedFieldLayout,
   type SharedFieldOrientation,
@@ -174,6 +179,9 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
 }) {
   const anchorRef = useComboboxAnchor();
   const dialogPortal = useComboboxDialogPortal(anchorRef);
+  // Held here, not left to Base UI, so the clear button can empty the search
+  // alone: `ComboboxClear` would clear the chosen value with it.
+  const [query, setQuery] = useState("");
   const flatOptions = groups
     ? groups.flatMap((group) => group.options)
     : options;
@@ -213,6 +221,8 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
         value={value}
         defaultValue={value}
         onValueChange={field.onChange}
+        inputValue={query}
+        onInputValueChange={setQuery}
       >
         <ComboboxFieldTrigger
           anchorRef={anchorRef}
@@ -227,12 +237,13 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
           {...dialogPortal}
           {...contentProps}
         >
-          <ComboboxInput
+          <ComboboxFieldSearchInput
             id={id}
-            aria-invalid={isInvalid ? true : undefined}
+            isInvalid={isInvalid}
             placeholder={inputPlaceholder}
-            showTrigger={false}
+            query={query}
             onBlur={field.onBlur}
+            onClear={() => setQuery("")}
           />
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
           <ComboboxList>
@@ -248,6 +259,35 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
         </ComboboxContent>
       </Combobox>
     </>
+  );
+}
+
+function ComboboxFieldSearchInput({
+  id,
+  isInvalid,
+  placeholder,
+  query,
+  onBlur,
+  onClear,
+}: {
+  id: string;
+  isInvalid: boolean;
+  placeholder?: string;
+  query: string;
+  onBlur: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <ComboboxInput
+      id={id}
+      aria-invalid={isInvalid ? true : undefined}
+      placeholder={placeholder}
+      showTrigger={false}
+      onBlur={onBlur}
+    >
+      <SearchInputIcon />
+      {query.length > 0 ? <SearchInputClearButton onClear={onClear} /> : null}
+    </ComboboxInput>
   );
 }
 
