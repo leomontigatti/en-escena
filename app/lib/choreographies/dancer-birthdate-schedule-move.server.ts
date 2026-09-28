@@ -1,6 +1,7 @@
 import type { db } from "@/db";
 import {
   guardAndLockScheduleCapacityMove,
+  lockScheduleAcceptance,
   type ReservedSchedulePlace,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
@@ -18,6 +19,7 @@ type DatabaseExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * that decide which shows can take it.
  */
 type CorrectedChoreographyPlacement = {
+  categoryId: string | null;
   choreographyId: string;
   eventId: string;
   groupType: ChoreographyGroupType;
@@ -73,12 +75,30 @@ export async function resolveDancerBirthDateScheduleDestination(input: {
     modalityId: input.choreography.modalityId,
   });
 
+  const accepts = {
+    modalityId: input.choreography.modalityId,
+    categoryId: input.categoryId,
+  };
+
   if (
     resolution.options.some(
       (option) => option.scheduleId === input.choreography.scheduleId,
     )
   ) {
-    return { ok: true, move: null };
+    // Staying put with a new category: the options above were read before any
+    // lock, so the schedule is locked and asked again before the new category
+    // is written onto it.
+    if (input.choreography.categoryId === input.categoryId) {
+      return { ok: true, move: null };
+    }
+
+    const acceptance = await lockScheduleAcceptance({
+      tx: input.executor,
+      scheduleId: input.choreography.scheduleId,
+      accepts,
+    });
+
+    return acceptance.ok ? { ok: true, move: null } : { ok: false };
   }
 
   if (resolution.status !== "auto") {
@@ -95,6 +115,7 @@ export async function resolveDancerBirthDateScheduleDestination(input: {
     scheduleCapacityId: destination.scheduleCapacityId,
     scheduleId: destination.scheduleId,
     tx: input.executor,
+    accepts,
   });
 
   if (!move.ok) {

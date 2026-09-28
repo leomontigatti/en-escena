@@ -1,7 +1,13 @@
 import { and, eq, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
+import {
+  choreographies,
+  scheduleCategories,
+  scheduleModalities,
+  schedules,
+  scheduleCapacities,
+} from "@/db/schema";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import { hasPriceDivergentInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 import type { ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
@@ -21,12 +27,36 @@ export const priceDivergenceScheduleCapacityMessage =
  */
 export type ScheduleCapacityFullLimit = "schedule-capacity" | "schedule-total";
 
+/**
+ * Which of the choreography's modality and category the locked schedule does
+ * not accept. The forms refuse either one with the same message, as they do
+ * when the selection was never compatible; restoring words the two apart.
+ */
+export type ScheduleIncompatibility = "modality" | "category";
+
+/**
+ * What the choreography being placed needs the schedule to accept. `null`
+ * category asks about the modality alone.
+ */
+export type ScheduleAcceptanceQuery = {
+  modalityId: string;
+  categoryId: string | null;
+};
+
+export type ScheduleIncompatibleFailure = {
+  ok: false;
+  code: "invalid-schedule-capacity";
+  incompatibility: ScheduleIncompatibility;
+  error: string;
+};
+
 export type ScheduleCapacityLockFailure =
   | {
       ok: false;
       code: "invalid-schedule-capacity";
       error: string;
     }
+  | ScheduleIncompatibleFailure
   | {
       ok: false;
       code: "schedule-capacity-full";
@@ -88,6 +118,7 @@ export async function guardAndLockScheduleCapacityMove(input: {
   scheduleId: string;
   scheduleCapacityId: string | null;
   reservedPlaces?: ReservedSchedulePlace[];
+  accepts?: ScheduleAcceptanceQuery;
 }): Promise<ScheduleCapacityMoveResult> {
   const diverges = await hasPriceDivergentInscription({
     choreographyId: input.choreographyId,
@@ -115,6 +146,7 @@ export async function guardAndLockScheduleCapacityMove(input: {
     scheduleCapacityId: input.scheduleCapacityId,
     excludeChoreographyId: input.choreographyId,
     reservedPlaces: input.reservedPlaces,
+    accepts: input.accepts,
   });
 }
 
@@ -133,6 +165,13 @@ export async function guardAndLockScheduleCapacityMove(input: {
  * `reservedPlaces` are the places the same pass already granted and has not
  * written yet; they count as occupied, because the choreography rows cannot
  * speak for them.
+ *
+ * `accepts`, when given, is checked against the schedule's accepted modalities
+ * and categories once the row is locked. A schedule edit locks the same row
+ * before narrowing them, so the answer holds until this transaction commits;
+ * the compatible options a caller resolved before the lock are only a
+ * snapshot. A caller leaves it out only where compatibility is not the
+ * question: a choreography staying on the slot it already occupies.
  */
 export async function lockScheduleCapacityForAssignment(input: {
   tx: Transaction;
@@ -140,6 +179,7 @@ export async function lockScheduleCapacityForAssignment(input: {
   scheduleCapacityId: string | null;
   excludeChoreographyId?: string;
   reservedPlaces?: ReservedSchedulePlace[];
+  accepts?: ScheduleAcceptanceQuery;
 }): Promise<ScheduleCapacityLockResult> {
   const { tx, excludeChoreographyId } = input;
   const reservedPlaces = input.reservedPlaces ?? [];
@@ -160,55 +200,25 @@ export async function lockScheduleCapacityForAssignment(input: {
     return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
   }
 
+  const incompatible = input.accepts
+    ? await checkScheduleAcceptance(tx, lockedSchedule.id, input.accepts)
+    : null;
+
+  if (incompatible) {
+    return incompatible;
+  }
+
   if (input.scheduleCapacityId) {
-    const [lockedScheduleCapacity] = await tx
-      .select({
-        id: scheduleCapacities.id,
-        capacity: scheduleCapacities.capacity,
-        scheduleId: scheduleCapacities.scheduleId,
-      })
-      .from(scheduleCapacities)
-      .where(eq(scheduleCapacities.id, input.scheduleCapacityId))
-      .for("update");
+    const capacityFailure = await lockSpecificScheduleCapacity({
+      tx,
+      scheduleId: lockedSchedule.id,
+      scheduleCapacityId: input.scheduleCapacityId,
+      excludedChoreographyFilter,
+      reservedPlaces,
+    });
 
-    if (!lockedScheduleCapacity) {
-      return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
-    }
-
-    // A capacity from another schedule would be counted against the wrong
-    // schedule's total and stored as a contradictory assignment, so the pair
-    // has to belong together before anything is locked in.
-    if (lockedScheduleCapacity.scheduleId !== lockedSchedule.id) {
-      return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
-    }
-
-    const [specificOccupancyRow] = await tx
-      .select({
-        occupiedCount: sql<number>`count(*)`,
-      })
-      .from(choreographies)
-      .where(
-        and(
-          eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
-          notWithdrawnChoreography(),
-          excludedChoreographyFilter,
-        ),
-      );
-
-    const specificOccupiedCount =
-      Number(specificOccupancyRow?.occupiedCount ?? 0) +
-      reservedPlaces.filter(
-        (place) => place.scheduleCapacityId === lockedScheduleCapacity.id,
-      ).length;
-
-    if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
-      return {
-        ok: false,
-        code: "schedule-capacity-full",
-        limit: "schedule-capacity",
-        error:
-          "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
-      };
+    if (capacityFailure) {
+      return capacityFailure;
     }
   }
 
@@ -253,9 +263,169 @@ export async function lockScheduleCapacityForAssignment(input: {
   };
 }
 
+/**
+ * Locks the capacity the selection targets and refuses it when it belongs to
+ * another schedule or has no place left; `null` when it can take one more.
+ */
+async function lockSpecificScheduleCapacity(input: {
+  tx: Transaction;
+  scheduleId: string;
+  scheduleCapacityId: string;
+  excludedChoreographyFilter: ReturnType<typeof ne> | undefined;
+  reservedPlaces: ReservedSchedulePlace[];
+}): Promise<ScheduleCapacityLockFailure | null> {
+  const [lockedScheduleCapacity] = await input.tx
+    .select({
+      id: scheduleCapacities.id,
+      capacity: scheduleCapacities.capacity,
+      scheduleId: scheduleCapacities.scheduleId,
+    })
+    .from(scheduleCapacities)
+    .where(eq(scheduleCapacities.id, input.scheduleCapacityId))
+    .for("update");
+
+  if (!lockedScheduleCapacity) {
+    return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
+  }
+
+  // A capacity from another schedule would be counted against the wrong
+  // schedule's total and stored as a contradictory assignment, so the pair
+  // has to belong together before anything is locked in.
+  if (lockedScheduleCapacity.scheduleId !== input.scheduleId) {
+    return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
+  }
+
+  const [specificOccupancyRow] = await input.tx
+    .select({
+      occupiedCount: sql<number>`count(*)`,
+    })
+    .from(choreographies)
+    .where(
+      and(
+        eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
+        notWithdrawnChoreography(),
+        input.excludedChoreographyFilter,
+      ),
+    );
+
+  const specificOccupiedCount =
+    Number(specificOccupancyRow?.occupiedCount ?? 0) +
+    input.reservedPlaces.filter(
+      (place) => place.scheduleCapacityId === lockedScheduleCapacity.id,
+    ).length;
+
+  if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
+    return {
+      ok: false,
+      code: "schedule-capacity-full",
+      limit: "schedule-capacity",
+      error: "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Locks the schedule row and checks that it accepts the choreography, with no
+ * place counted. For the writes that change a choreography's category while it
+ * stays on its schedule and slot: nothing about occupancy moves, but the
+ * category still has to be one the schedule accepts when the write commits.
+ */
+export async function lockScheduleAcceptance(input: {
+  tx: Transaction;
+  scheduleId: string;
+  accepts: ScheduleAcceptanceQuery;
+}): Promise<{ ok: true } | ScheduleCapacityLockFailure> {
+  const [lockedSchedule] = await input.tx
+    .select({ id: schedules.id })
+    .from(schedules)
+    .where(eq(schedules.id, input.scheduleId))
+    .for("update");
+
+  if (!lockedSchedule) {
+    return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
+  }
+
+  return (
+    (await checkScheduleAcceptance(
+      input.tx,
+      lockedSchedule.id,
+      input.accepts,
+    )) ?? { ok: true }
+  );
+}
+
+async function checkScheduleAcceptance(
+  tx: Transaction,
+  scheduleId: string,
+  accepts: ScheduleAcceptanceQuery,
+): Promise<ScheduleIncompatibleFailure | null> {
+  const incompatibility = await findScheduleIncompatibility(tx, {
+    scheduleId,
+    ...accepts,
+  });
+
+  return incompatibility ? toIncompatibleFailure(incompatibility) : null;
+}
+
+/**
+ * Which of the choreography's modality and category its schedule does not
+ * accept, modality first. A schedule with no accepted-category row accepts
+ * every category.
+ */
+async function findScheduleIncompatibility(
+  tx: Transaction,
+  choreography: ScheduleAcceptanceQuery & { scheduleId: string },
+): Promise<ScheduleIncompatibility | null> {
+  const acceptedModalities = await tx
+    .select({ modalityId: scheduleModalities.modalityId })
+    .from(scheduleModalities)
+    .where(eq(scheduleModalities.scheduleId, choreography.scheduleId));
+
+  if (
+    !acceptedModalities.some(
+      (accepted) => accepted.modalityId === choreography.modalityId,
+    )
+  ) {
+    return "modality";
+  }
+
+  if (choreography.categoryId === null) {
+    return null;
+  }
+
+  const acceptedCategories = await tx
+    .select({ categoryId: scheduleCategories.categoryId })
+    .from(scheduleCategories)
+    .where(eq(scheduleCategories.scheduleId, choreography.scheduleId));
+
+  if (
+    acceptedCategories.length > 0 &&
+    !acceptedCategories.some(
+      (accepted) => accepted.categoryId === choreography.categoryId,
+    )
+  ) {
+    return "category";
+  }
+
+  return null;
+}
+
+function toIncompatibleFailure(
+  incompatibility: ScheduleIncompatibility,
+): ScheduleIncompatibleFailure {
+  return {
+    ok: false,
+    code: "invalid-schedule-capacity",
+    incompatibility,
+    error: invalidScheduleEntryMessage,
+  };
+}
+
 function failure(
   code: "invalid-schedule-capacity",
   error: string,
-): ScheduleCapacityLockResult {
+): ScheduleCapacityLockFailure {
   return { ok: false, code, error };
 }
