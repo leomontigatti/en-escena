@@ -29,7 +29,7 @@ full list of sibling sub-issues — use it to understand what has shipped and wh
 
 Read the repo's domain/architecture docs before starting: `CONTEXT.md`, `docs/adr/`, and
 [`docs/agents/domain.md`](../domain.md). Follow the coding standards in
-`.sandcastle/CODING_STANDARDS.md`. Explore the parts of the repo relevant to this sub-issue —
+`docs/agents/coding-standards.md`. Explore the parts of the repo relevant to this sub-issue —
 especially nearby test files.
 
 # EXECUTION
@@ -47,4 +47,4 @@ workflow handles both.
 If you changed code mapped in `app/lib/shared/doc-map.json`, either update the document it
 maps to or add a `Doc-Change-Not-Needed: <reason>` trailer to a commit — CI's `docs-gate`
 fails the PR otherwise, and you cannot read check output. See
-`.sandcastle/CODING_STANDARDS.md`.
+`docs/agents/coding-standards.md`.

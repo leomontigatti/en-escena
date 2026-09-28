@@ -148,6 +148,46 @@ describe("repo style check", () => {
     expect(violations).toEqual([]);
   });
 
+  test("flags the list query parameters read or written outside their owner", async () => {
+    const tempRoot = await mkdtemp(
+      path.join(tmpdir(), "repo-style-guardrail-list-query-"),
+    );
+
+    try {
+      await writeFile(
+        path.join(tempRoot, "list.server.ts"),
+        [
+          'const page = Number(searchParams.get("pagina"));',
+          "searchParams.set('busqueda', query);",
+          "next.delete(`orden`);",
+          "const href = `/administracion/bailarines?busqueda=${query}`;",
+          'const back = "/administracion/pagos?medio=efectivo&pagina=2";',
+          'const column = { id: "orden", header: "Orden" };',
+          'const sort = { columnId: "orden", direction: "asc" };',
+          'const estado = searchParams.get("estado");',
+        ].join("\n"),
+      );
+
+      const violations = await checkRepoStyle({
+        rootDirectory: tempRoot,
+        files: [path.join(tempRoot, "list.server.ts")],
+      });
+
+      // Lines 6 and 7 name the running-order column, which is also called
+      // `orden`; line 8 is a facet, which each list owns.
+      expect(violations.map((violation) => violation.lineNumber)).toEqual([
+        1, 2, 3, 4, 5,
+      ]);
+      expect(
+        violations.every(
+          (violation) => violation.rule === "list-query-owns-parameter-names",
+        ),
+      ).toBe(true);
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
   test("explains why each rule exists when it fails", async () => {
     const tempRoot = await mkdtemp(
       path.join(tmpdir(), "repo-style-guardrail-reason-"),

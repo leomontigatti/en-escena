@@ -47,7 +47,7 @@ describe("`/administracion/coreografias` route", () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.coreografias@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/coreografias`,
     });
 
     await expect(loader(routeArgs(auditorRequest))).resolves.toMatchObject({
@@ -57,12 +57,12 @@ describe("`/administracion/coreografias` route", () => {
     const { request: academyRequest } = await createSignedInRequest({
       email: "academy.coreografias@example.com",
       role: "academy",
-      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/coreografias`,
     });
     const { request: judgeRequest } = await createSignedInRequest({
       email: "judge.coreografias@example.com",
       role: "judge",
-      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/coreografias`,
     });
 
     await expectThrownResponse(loader(routeArgs(academyRequest)), 403);
@@ -128,7 +128,7 @@ describe("`/administracion/coreografias` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.coreografias@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/coreografias`,
     });
 
     const loaderData = await loader(routeArgs(request));
@@ -228,7 +228,7 @@ describe("`/administracion/coreografias` route", () => {
     const { request: nameRequest } = await createSignedInRequest({
       email: "admin.coreografias.nombre@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}&busqueda=Luna`,
+      requestUrl: `http://localhost/administracion/coreografias?busqueda=Luna`,
     });
     const nameData = await loader(routeArgs(nameRequest));
     const nameMarkup = renderRoute({
@@ -250,7 +250,7 @@ describe("`/administracion/coreografias` route", () => {
     const { request: academyRequest } = await createSignedInRequest({
       email: "admin.coreografias.academia@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}&busqueda=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/coreografias?busqueda=Academia+Sur`,
     });
     const academyData = await loader(routeArgs(academyRequest));
 
@@ -261,7 +261,7 @@ describe("`/administracion/coreografias` route", () => {
     const { request: emptyRequest } = await createSignedInRequest({
       email: "admin.coreografias.vacia@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/coreografias?evento=${event.id}&busqueda=Tap`,
+      requestUrl: `http://localhost/administracion/coreografias?busqueda=Tap`,
     });
     const emptyData = await loader(routeArgs(emptyRequest));
     const emptyMarkup = renderRoute({
@@ -327,7 +327,7 @@ describe("`/administracion/coreografias` route", () => {
       submodalityId: jazzCatalog.submodality.id,
     });
 
-    const baseUrl = `http://localhost/administracion/coreografias?evento=${event.id}`;
+    const baseUrl = `http://localhost/administracion/coreografias`;
     const [
       defaultData,
       numberDescData,
@@ -342,23 +342,23 @@ describe("`/administracion/coreografias` route", () => {
       }),
       loadRouteData({
         email: "admin.coreografias.orden.numero-desc@example.com",
-        requestUrl: `${baseUrl}&orden=numero:desc`,
+        requestUrl: `${baseUrl}?orden=numero:desc`,
       }),
       loadRouteData({
         email: "admin.coreografias.orden.academia-asc@example.com",
-        requestUrl: `${baseUrl}&orden=academia:asc`,
+        requestUrl: `${baseUrl}?orden=academia:asc`,
       }),
       loadRouteData({
         email: "admin.coreografias.orden.academia-desc@example.com",
-        requestUrl: `${baseUrl}&orden=academia:desc`,
+        requestUrl: `${baseUrl}?orden=academia:desc`,
       }),
       loadRouteData({
         email: "admin.coreografias.orden.nombre-asc@example.com",
-        requestUrl: `${baseUrl}&orden=nombre:asc`,
+        requestUrl: `${baseUrl}?orden=nombre:asc`,
       }),
       loadRouteData({
         email: "admin.coreografias.orden.nombre-desc@example.com",
-        requestUrl: `${baseUrl}&orden=nombre:desc`,
+        requestUrl: `${baseUrl}?orden=nombre:desc`,
       }),
     ]);
 
@@ -422,8 +422,8 @@ describe("`/administracion/coreografias` route", () => {
       email: "admin.coreografias.canonica@example.com",
       role: "admin",
       requestUrl:
-        `http://localhost/administracion/coreografias?evento=${event.id}` +
-        "&busqueda=Pieza&orden=invalido&pagina=9",
+        "http://localhost/administracion/coreografias" +
+        "?busqueda=Pieza&orden=invalido&pagina=9",
     });
 
     const response = await expectThrownResponse(
@@ -432,18 +432,17 @@ describe("`/administracion/coreografias` route", () => {
     );
 
     expect(response.headers.get("Location")).toBe(
-      `/administracion/coreografias?evento=${event.id}&busqueda=Pieza&pagina=2`,
+      "/administracion/coreografias?busqueda=Pieza&pagina=2",
     );
   });
 
   test("removes invalid pagina values and omits pagina for the first page", async () => {
-    const event = await createSavedEvent();
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.pagina-invalida@example.com",
       role: "admin",
       requestUrl:
-        `http://localhost/administracion/coreografias?evento=${event.id}` +
-        "&busqueda=Bosque&pagina=0",
+        "http://localhost/administracion/coreografias" +
+        "?busqueda=Bosque&pagina=0",
     });
 
     const response = await expectThrownResponse(
@@ -452,7 +451,7 @@ describe("`/administracion/coreografias` route", () => {
     );
 
     expect(response.headers.get("Location")).toBe(
-      `/administracion/coreografias?evento=${event.id}&busqueda=Bosque`,
+      "/administracion/coreografias?busqueda=Bosque",
     );
   });
 
@@ -473,8 +472,8 @@ describe("`/administracion/coreografias` route", () => {
     const loaderData = await loadRouteData({
       email: "admin.coreografias.urls@example.com",
       requestUrl:
-        `http://localhost/administracion/coreografias?evento=${event.id}` +
-        "&busqueda=Pieza&orden=nombre:asc&pagina=2",
+        "http://localhost/administracion/coreografias" +
+        "?busqueda=Pieza&orden=nombre:asc&pagina=2",
     });
     const markup = renderRoute({
       childLoaderData: loaderData,

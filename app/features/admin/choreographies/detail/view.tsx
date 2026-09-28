@@ -476,18 +476,20 @@ function ChoreographyDetailForm({
               searchable
             />
 
-            {/* Download-only: the validation props a disabled input cannot act
-                on are deliberately absent (#571). */}
+            {/* Download and listen only: the validation props a disabled input
+                cannot act on are deliberately absent (#571). */}
             <FileUploadField
               control={form.control}
               disabled
               downloadLabel="Descargar música"
               downloadUrl={choreography.musicDownloadUrl}
+              existingPreviewUrl={choreography.musicDownloadUrl}
               fieldLabel="Archivo de música"
               fileInputName="musicFile"
               helperText={getAssetKindHelperText("choreographyMusic")}
               label="No hay música cargada"
               name="musicStorageKey"
+              previewKind="audio"
               previewSelectedFile={false}
               removeLabel="Borrar música"
               uploadedLabel="Archivo de música cargado"

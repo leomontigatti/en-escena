@@ -1,6 +1,14 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join } from "node:path";
+import type { FileHandle } from "node:fs/promises";
 
 // Storage lives on a Coolify volume co-located with the app in São Paulo. The
 // live byte store is this local volume; B2 is relegated to backups. Keys stay
@@ -249,6 +257,8 @@ export async function serveFilesystemObject(input: {
   baseDir: string;
   now: number;
   params: URLSearchParams;
+  /** The request's `Range` header, which an `<audio>` element sends to seek. */
+  range?: string | null;
   secret: string;
 }): Promise<Response> {
   const bucket = input.params.get("bucket");
@@ -279,35 +289,129 @@ export async function serveFilesystemObject(input: {
     return new Response("Forbidden", { status: 403 });
   }
 
-  let bytes: Uint8Array<ArrayBuffer> | null;
+  let target: string;
 
   try {
-    bytes = await fsReadObject({ baseDir: input.baseDir, bucket, key });
+    target = resolveObjectPath({ baseDir: input.baseDir, bucket, key });
   } catch {
     return new Response("Forbidden", { status: 403 });
   }
 
-  if (!bytes) {
-    return new Response("Not Found", { status: 404 });
+  let handle: FileHandle;
+
+  try {
+    handle = await open(target, "r");
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    return new Response("Forbidden", { status: 403 });
   }
 
-  // These bytes are now served from the app's own origin (previously they came
-  // from B2/Supabase, a separate origin). The stored Content-Type is derived
-  // from the client-declared upload type, so `nosniff` keeps a browser from
-  // reinterpreting an object as active content inside the app origin.
-  const headers: Record<string, string> = {
-    "Cache-Control": "private, no-store",
-    "Content-Type": getContentType(key),
-    "X-Content-Type-Options": "nosniff",
-  };
+  try {
+    const size = (await handle.stat()).size;
 
-  // `inline` rather than `attachment`: a PDF should open in the browser, and
-  // the name only decides what a save-as writes.
-  if (filename) {
-    headers["Content-Disposition"] = `inline; filename="${filename}"`;
+    // These bytes are now served from the app's own origin (previously they
+    // came from B2/Supabase, a separate origin). The stored Content-Type is
+    // derived from the client-declared upload type, so `nosniff` keeps a
+    // browser from reinterpreting an object as active content inside the app
+    // origin.
+    const headers: Record<string, string> = {
+      "Cache-Control": "private, no-store",
+      "Content-Type": getContentType(key),
+      "X-Content-Type-Options": "nosniff",
+    };
+
+    // `inline` rather than `attachment`: a PDF should open in the browser, and
+    // the name only decides what a save-as writes.
+    if (filename) {
+      headers["Content-Disposition"] = `inline; filename="${filename}"`;
+    }
+
+    // A player seeks by asking for a range, so it has to know it may.
+    headers["Accept-Ranges"] = "bytes";
+
+    const range = input.range ? parseByteRange(input.range, size) : null;
+
+    if (range === "unsatisfiable") {
+      return new Response(null, {
+        headers: { ...headers, "Content-Range": `bytes */${size}` },
+        status: 416,
+      });
+    }
+
+    if (range) {
+      const length = range.end - range.start + 1;
+      const buffer = Buffer.alloc(length);
+
+      // Only the requested slice is read off disk: a scrubber jumping around a
+      // long recording never pulls the whole object into memory just to answer
+      // one seek.
+      await handle.read(buffer, 0, length, range.start);
+
+      headers["Content-Length"] = String(length);
+      headers["Content-Range"] = `bytes ${range.start}-${range.end}/${size}`;
+
+      return new Response(buffer, { headers, status: 206 });
+    }
+
+    const data = await handle.readFile();
+
+    return new Response(data, { headers, status: 200 });
+  } catch {
+    return new Response("Forbidden", { status: 403 });
+  } finally {
+    await handle.close();
+  }
+}
+
+type ByteRange = "unsatisfiable" | { end: number; start: number } | null;
+
+/**
+ * A single `bytes=start-end` range, inclusive on both ends as the header is.
+ * `null` is a header the route does not honour, answered with the whole
+ * object; several ranges at once land there, since no player asks for them.
+ */
+function parseByteRange(header: string, size: number): ByteRange {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+
+  if (!match || (!match[1] && !match[2])) {
+    return null;
   }
 
-  return new Response(bytes, { headers, status: 200 });
+  return match[1]
+    ? resolveBoundedRange(Number(match[1]), match[2], size)
+    : resolveSuffixRange(Number(match[2]), size);
+}
+
+/** No start is a suffix: the last that many bytes. */
+function resolveSuffixRange(length: number, size: number): ByteRange {
+  return length > 0 && size > 0
+    ? { end: size - 1, start: Math.max(0, size - length) }
+    : "unsatisfiable";
+}
+
+/**
+ * An open end is what a browser sends to seek: from there to the last byte. An
+ * end past the object is cut to it, as the header's grammar allows.
+ */
+function resolveBoundedRange(
+  start: number,
+  last: string | undefined,
+  size: number,
+): ByteRange {
+  if (start >= size) {
+    return "unsatisfiable";
+  }
+
+  const end = last ? Number(last) : size - 1;
+
+  if (end < start) {
+    return null;
+  }
+
+  return { end: Math.min(end, size - 1), start };
 }
 
 /**

@@ -10,7 +10,7 @@ const repositoryRoot = path.resolve(currentDirectory, "../../../");
 const scannedDirectories = ["app", "tests"];
 const sourceFilePattern = /\.(ts|tsx)$/;
 
-// The Unmarked = admin rule (.sandcastle/CODING_STANDARDS.md § Surface Prefix
+// The Unmarked = admin rule (docs/agents/coding-standards.md § Surface Prefix
 // Rule) forbids marking admin's domain symbols. Loaders, handlers and hooks are
 // the ones that already came back marked once: #508 fixed `loadAdmin*` as the
 // single form and #527 had to undo it. That pattern is checked over every

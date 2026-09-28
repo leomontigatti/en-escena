@@ -18,7 +18,7 @@ describe("PresentationsListView", () => {
   test("shows the empty state when the event has nothing to order", () => {
     const markup = renderView({ hasAnyRow: false, presentations: [] });
 
-    expect(markup).toContain("Todavía no hay coreografías para ordenar.");
+    expect(markup).toContain("Todavía no hay coreografías.");
   });
 
   test("invites the administrator to order when nothing is numbered yet", () => {

@@ -12,12 +12,18 @@ import {
   seminarKindOptions,
 } from "@/lib/seminars/seminar-kinds";
 import { buildDetailPath } from "@/lib/shared/navigation";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import {
   formatAmount,
   formatPaymentDeadlineForTable,
 } from "../prices/view-shared";
 import { seminarPricesBasePath } from "./shared";
+
+const emptySeminarPriceList = describeEmptyList(
+  "precios de seminario",
+  "search-and-filters",
+);
 
 export const seminarPriceFacetedFilterIds = [
   "tipo-de-seminario",
@@ -123,7 +129,7 @@ export function SeminarPriceListTable({
       searchPlaceholder="Buscar precio por nombre"
       textFilterColumnId="name"
       facetedFilters={seminarPriceFacetedFilters}
-      emptyMessage="No hay precios que coincidan con la búsqueda."
+      emptyMessage={emptySeminarPriceList.nothingMatched}
       initialSort={{ columnId: "paymentDeadline", direction: "asc" }}
     />
   );

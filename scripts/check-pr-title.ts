@@ -17,7 +17,7 @@ import {
 // are already asked for by every prompt that writes a commit message, and the
 // history obeys them; the one title that did not (#824, `worktree shadcn
 // upstream sync`) is what this gate exists to catch. And engineering prose is
-// English (CODING_STANDARDS, "Code Language") — a rule `check:comment-language`
+// English (docs/agents/coding-standards.md, "Code Language") — a rule `check:comment-language`
 // holds everywhere except here, because a PR title is in no file it scans.
 //
 // The language half is that same detector, not a copy of it: the heuristics,
@@ -112,7 +112,7 @@ export function checkPrTitle(input: {
     violations.push({
       message:
         `The PR title's subject is not English (matched ${markers.join(", ")}): "${title}". ` +
-        "Engineering prose is English (CODING_STANDARDS, 'Code Language'); the scope is free-form and is not checked. " +
+        "Engineering prose is English (docs/agents/coding-standards.md, 'Code Language'); the scope is free-form and is not checked. " +
         "Naming a Spanish term is still fine — quote or backtick it, and it is the data it is. " +
         `Accepted: "${acceptedExample}".`,
       rule: "english subject",

@@ -14,6 +14,7 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
+import { AudioPlayback } from "@/components/shared/audio-playback";
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { Button } from "@/components/ui/button";
@@ -111,18 +112,78 @@ function FileUploadControl(props: FileUploadControlProps) {
   const config = getFileUploadControlConfig(props, generatedId);
   const state = useFileUploadControlState(config);
 
+  const audioUrl =
+    config.previewKind === "audio" ? state.displayedPreviewUrl : null;
+
   return (
     <div className="flex flex-col gap-2">
       <FileUploadHiddenInputs config={config} state={state} />
-      {config.variant === "compact" ? (
-        <FileUploadCompactControl config={config} state={state} />
-      ) : (
-        <div className="relative">
-          <FileUploadDropzone config={config} state={state} />
-          <FileUploadActions config={config} state={state} />
-        </div>
-      )}
+      {audioUrl ? (
+        <AudioPlayback
+          // A new file is a new player: nothing carries over from the last one.
+          key={audioUrl}
+          audioUrl={audioUrl}
+          errorMessage="No se pudo reproducir el archivo."
+        >
+          <FileUploadPlayerActions config={config} state={state} />
+        </AudioPlayback>
+      ) : null}
+      {/* With a file to play, the player takes the picker's place. The picker
+          stays mounted, hidden, because a picked file is submitted through
+          its input. */}
+      <div hidden={audioUrl !== null}>
+        {config.variant === "compact" ? (
+          <FileUploadCompactControl config={config} state={state} />
+        ) : (
+          <div className="relative">
+            <FileUploadDropzone config={config} state={state} />
+            <FileUploadActions config={config} state={state} />
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+/** Download and delete at the end of the player row, as the `Devolución` has. */
+function FileUploadPlayerActions({
+  config,
+  state,
+}: {
+  config: FileUploadControlConfig;
+  state: FileUploadControlState;
+}) {
+  // The download is the stored file. A picked one playing in its place has
+  // nothing to download, even while the form still holds the stored key for
+  // the replacement.
+  const downloadHref = state.selectedFileName ? null : state.downloadHref;
+
+  return (
+    <>
+      {downloadHref ? (
+        <Button asChild variant="ghost" size="icon">
+          <a
+            href={downloadHref}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={config.downloadLabel}
+          >
+            <Download aria-hidden="true" />
+          </a>
+        </Button>
+      ) : null}
+      {state.showsFileActions ? (
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          aria-label={config.removeLabel}
+          onClick={state.clearFile}
+        >
+          <Trash2 aria-hidden="true" />
+        </Button>
+      ) : null}
+    </>
   );
 }
 
@@ -147,6 +208,7 @@ function getFileUploadControlConfig(
     onValidationErrorChange,
     onValidationErrorMessageChange,
     placeholder = "",
+    previewKind = "image",
     previewSelectedFile = true,
     removeLabel = "Borrar imagen",
     replaceRequiresRemoval = false,
@@ -181,6 +243,7 @@ function getFileUploadControlConfig(
     onValidationErrorChange,
     onValidationErrorMessageChange,
     placeholder,
+    previewKind,
     previewSelectedFile,
     removeLabel,
     replaceRequiresRemoval,
@@ -532,7 +595,7 @@ function FileUploadDropzone({
       onDragOver={state.handleDragOver}
       onDrop={state.handleDrop}
     >
-      {state.displayedPreviewUrl ? (
+      {state.displayedPreviewUrl && config.previewKind === "image" ? (
         <FileUploadPreview state={state} />
       ) : (
         <FileUploadPlaceholder config={config} state={state} />
@@ -628,7 +691,7 @@ function getFileUploadDropzoneClassName(
 ) {
   return cn(
     "flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-input bg-background px-4 py-6 text-center transition-colors hover:bg-muted/50 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/50 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:bg-input/50 has-disabled:opacity-50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20",
-    state.displayedPreviewUrl && "px-3 py-3",
+    state.displayedPreviewUrl && config.previewKind === "image" && "px-3 py-3",
     config.disabled && "pr-9",
     config.className,
   );

@@ -1,7 +1,7 @@
 # CodeRabbit triage
 
 The rubric step 3 of [SKILL.md](SKILL.md) applies to every finding. CodeRabbit reads the diff and
-`.sandcastle/CODING_STANDARDS.md`; it has neither the issue nor the domain, so each claim is checked
+`docs/agents/coding-standards.md`; it has neither the issue nor the domain, so each claim is checked
 against the code before it is acted on.
 
 ## The three verbs

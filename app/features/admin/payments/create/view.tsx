@@ -79,7 +79,7 @@ export function NewPaymentRouteView({
           contentClassName="gap-5"
           footer={
             <>
-              <BackButton to={getPaymentsListUrl(loaderData.selectedEventId)} />
+              <BackButton to={"/administracion/pagos"} />
               <SubmitButton isPending={isPending} />
             </>
           }
@@ -95,10 +95,4 @@ export function NewPaymentRouteView({
       </form>
     </AdminResourceLayout>
   );
-}
-
-function getPaymentsListUrl(selectedEventId: string | null) {
-  return selectedEventId
-    ? `/administracion/pagos?evento=${selectedEventId}`
-    : "/administracion/pagos";
 }

@@ -19,9 +19,9 @@ describe("admin payments list", () => {
   // Three payments in the state the pool leaves them in: drained oldest-first,
   // so one is spent, one is partly drawn and the newest is untouched.
   test("reads what is still free on each payment and over the event", async () => {
-    const fixture = await buildPaymentsFixture();
+    await buildPaymentsFixture();
 
-    const loaderData = await loadPaymentsList(await listRequest(fixture));
+    const loaderData = await loadPaymentsList(await listRequest());
 
     expect(rowsByNumber(loaderData)).toEqual({
       1: { amount: 10000, availableAmount: 0 },
@@ -35,10 +35,10 @@ describe("admin payments list", () => {
   });
 
   test("narrows the list to the payments that still have money free", async () => {
-    const fixture = await buildPaymentsFixture();
+    await buildPaymentsFixture();
 
     const loaderData = await loadPaymentsList(
-      await listRequest(fixture, "disponible=con"),
+      await listRequest("disponible=con"),
     );
 
     expect(Object.keys(rowsByNumber(loaderData))).toEqual(["2", "3"]);
@@ -46,10 +46,10 @@ describe("admin payments list", () => {
   });
 
   test("narrows the list to the payments already fully applied", async () => {
-    const fixture = await buildPaymentsFixture();
+    await buildPaymentsFixture();
 
     const loaderData = await loadPaymentsList(
-      await listRequest(fixture, "disponible=sin"),
+      await listRequest("disponible=sin"),
     );
 
     expect(Object.keys(rowsByNumber(loaderData))).toEqual(["1"]);
@@ -59,16 +59,14 @@ describe("admin payments list", () => {
   // The cards answer for the event, so narrowing the list must not move them:
   // the reader consults the position and then filters down to it.
   test("keeps the summary on the whole event under any filter", async () => {
-    const fixture = await buildPaymentsFixture();
+    await buildPaymentsFixture();
 
     for (const search of [
       "disponible=con",
       "disponible=sin",
       "medio=efectivo",
     ]) {
-      const loaderData = await loadPaymentsList(
-        await listRequest(fixture, search),
-      );
+      const loaderData = await loadPaymentsList(await listRequest(search));
 
       expect(loaderData.summary).toEqual({
         availableAmount: 8000,
@@ -78,10 +76,10 @@ describe("admin payments list", () => {
   });
 
   test("keeps the availability filter in the canonical url", async () => {
-    const fixture = await buildPaymentsFixture();
+    await buildPaymentsFixture();
 
     const loaderData = await loadPaymentsList(
-      await listRequest(fixture, "disponible=con"),
+      await listRequest("disponible=con"),
     );
 
     expect(loaderData.filters.availability).toBe("con");
@@ -91,14 +89,48 @@ describe("admin payments list", () => {
   // unrecognised parameter is —by redirecting to the canonical url— so the
   // address bar never claims a narrowing that is not applied.
   test("drops an unknown availability value from the url", async () => {
+    await buildPaymentsFixture();
+
+    const redirect = await expectThrownRedirect(
+      await listRequest("disponible=quizas"),
+    );
+
+    expect(redirect.headers.get("location")).toBe("/administracion/pagos");
+  });
+
+  test("finds a payment whatever accents the search is typed with", async () => {
+    await buildPaymentsFixture();
+
+    const loaderData = await loadPaymentsList(
+      await listRequest("busqueda=ACAD%C3%89MIA+PAGOS"),
+    );
+
+    expect(loaderData.rows).toHaveLength(3);
+  });
+
+  test("sorts by payment date both ways, by number within a day", async () => {
+    await buildPaymentsFixture();
+
+    const newestFirst = await loadPaymentsList(await listRequest());
+    const oldestFirst = await loadPaymentsList(
+      await listRequest("orden=paymentDate%3Aasc"),
+    );
+
+    expect(newestFirst.rows.map((row) => row.paymentNumber)).toEqual([2, 1, 3]);
+    expect(oldestFirst.rows.map((row) => row.paymentNumber)).toEqual([3, 1, 2]);
+  });
+
+  test("redirects a page past the last one, and the retired event parameter, to the canonical url", async () => {
     const fixture = await buildPaymentsFixture();
 
     const redirect = await expectThrownRedirect(
-      await listRequest(fixture, "disponible=quizas"),
+      await listRequest(
+        `evento=${fixture.eventId}&medio=transferencia&pagina=9`,
+      ),
     );
 
     expect(redirect.headers.get("location")).toBe(
-      `/administracion/pagos?evento=${fixture.eventId}`,
+      "/administracion/pagos?medio=transferencia",
     );
   });
 });
@@ -135,14 +167,16 @@ async function buildPaymentsFixture() {
     .insert(payments)
     .values(
       [
-        { amount: 10000, paymentNumber: 1 },
-        { amount: 8000, paymentNumber: 2 },
-        { amount: 5000, paymentNumber: 3 },
+        // 1 and 2 share the newer date, so date ordering has to beat number
+        // ordering; 3 alone on the older date proves it can move a whole day
+        // in front of both.
+        { amount: 10000, paymentDate: "2026-03-16", paymentNumber: 1 },
+        { amount: 8000, paymentDate: "2026-03-16", paymentNumber: 2 },
+        { amount: 5000, paymentDate: "2026-03-15", paymentNumber: 3 },
       ].map((payment) => ({
         ...payment,
         academyId: academy.academy.id,
         eventId: event.id,
-        paymentDate: "2026-03-15",
         paymentMethod: "transferencia" as const,
       })),
     )
@@ -195,15 +229,12 @@ async function insertInscription(input: {
   return inscription;
 }
 
-async function listRequest(
-  fixture: { eventId: string },
-  search = "",
-): Promise<Request> {
-  const query = search.length > 0 ? `&${search}` : "";
+async function listRequest(search = ""): Promise<Request> {
+  const query = search.length > 0 ? `?${search}` : "";
   const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     role: "admin",
-    requestUrl: `http://localhost/administracion/pagos?evento=${fixture.eventId}${query}`,
+    requestUrl: `http://localhost/administracion/pagos${query}`,
   });
 
   return request;

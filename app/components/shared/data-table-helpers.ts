@@ -1,10 +1,9 @@
 import type { ColumnFiltersState, SortingState } from "@tanstack/react-table";
 
 import {
-  dataTablePageParamName,
-  dataTableSearchParamName,
-  dataTableSortParamName,
-} from "@/components/shared/data-table.shared";
+  formatListOrder,
+  listQueryParamNames,
+} from "@/lib/list-query/list-query";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
@@ -70,14 +69,6 @@ export function getNextServerSortDirection(
   currentDirection: DataTableSortDirection | false,
 ): DataTableSortDirection {
   return currentDirection === "asc" ? "desc" : "asc";
-}
-
-export function normalizeSearchValue(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLocaleLowerCase("es-AR")
-    .trim();
 }
 
 export function isFacetedFilterValue(
@@ -208,30 +199,25 @@ export function mergeServerFilterValues(
   return nextFilters;
 }
 
-function removePageSearchParam(
-  searchParams: URLSearchParams,
-  pageParamName = dataTablePageParamName,
-) {
-  searchParams.delete(pageParamName);
+function removePageSearchParam(searchParams: URLSearchParams) {
+  searchParams.delete(listQueryParamNames.page);
 }
 
 export function buildDataTablePageHref({
   basePath,
   currentSearch,
   page,
-  pageParamName = dataTablePageParamName,
 }: {
   basePath: string;
   currentSearch: string;
   page: number;
-  pageParamName?: string;
 }) {
   const searchParams = new URLSearchParams(currentSearch);
 
   if (page <= 1) {
-    searchParams.delete(pageParamName);
+    searchParams.delete(listQueryParamNames.page);
   } else {
-    searchParams.set(pageParamName, String(page));
+    searchParams.set(listQueryParamNames.page, String(page));
   }
 
   return buildTableHref(basePath, searchParams);
@@ -240,25 +226,21 @@ export function buildDataTablePageHref({
 export function buildDataTableSearchHref({
   basePath,
   currentSearch,
-  pageParamName = dataTablePageParamName,
-  searchParamName = dataTableSearchParamName,
   searchValue,
 }: {
   basePath: string;
   currentSearch: string;
-  pageParamName?: string;
-  searchParamName?: string;
   searchValue: string;
 }) {
   const searchParams = new URLSearchParams(currentSearch);
 
   if (searchValue.trim().length > 0) {
-    searchParams.set(searchParamName, searchValue.trim());
+    searchParams.set(listQueryParamNames.search, searchValue.trim());
   } else {
-    searchParams.delete(searchParamName);
+    searchParams.delete(listQueryParamNames.search);
   }
 
-  removePageSearchParam(searchParams, pageParamName);
+  removePageSearchParam(searchParams);
 
   return buildTableHref(basePath, searchParams);
 }
@@ -267,13 +249,11 @@ export function buildDataTableFilterHref({
   basePath,
   currentSearch,
   groups,
-  pageParamName = dataTablePageParamName,
   values,
 }: {
   basePath: string;
   currentSearch: string;
   groups: DataTableFacetedFilter[];
-  pageParamName?: string;
   values: DataTableFacetedFilterValue;
 }) {
   const searchParams = new URLSearchParams(currentSearch);
@@ -289,7 +269,7 @@ export function buildDataTableFilterHref({
     }
   }
 
-  removePageSearchParam(searchParams, pageParamName);
+  removePageSearchParam(searchParams);
 
   return buildTableHref(basePath, searchParams);
 }
@@ -299,20 +279,19 @@ export function buildDataTableSortHref({
   columnId,
   currentSearch,
   direction,
-  pageParamName = dataTablePageParamName,
-  sortParamName = dataTableSortParamName,
 }: {
   basePath: string;
   columnId: string;
   currentSearch: string;
   direction: DataTableSortDirection;
-  pageParamName?: string;
-  sortParamName?: string;
 }) {
   const searchParams = new URLSearchParams(currentSearch);
 
-  searchParams.set(sortParamName, `${columnId}:${direction}`);
-  removePageSearchParam(searchParams, pageParamName);
+  searchParams.set(
+    listQueryParamNames.order,
+    formatListOrder({ columnId, direction }),
+  );
+  removePageSearchParam(searchParams);
 
   return buildTableHref(basePath, searchParams);
 }

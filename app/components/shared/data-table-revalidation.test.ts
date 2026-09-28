@@ -100,16 +100,6 @@ describe("shouldRevalidateDataTableRoute", () => {
       }),
     ).toBe(false);
   });
-
-  test("honours the per-view parameter names a view renamed", () => {
-    expect(
-      decide({
-        currentSearch: "?p=2",
-        nextSearch: "?p=3",
-        pageParamName: "p",
-      }),
-    ).toBe(false);
-  });
 });
 
 describe("createDataTableShouldRevalidate", () => {
@@ -138,7 +128,6 @@ function decide({
   formMethod,
   nextPath = listPath,
   nextSearch,
-  pageParamName,
 }: {
   currentSearch: string;
   defaultShouldRevalidate?: boolean;
@@ -146,7 +135,6 @@ function decide({
   formMethod?: "GET" | "POST";
   nextPath?: string;
   nextSearch: string;
-  pageParamName?: string;
 }) {
   return shouldRevalidateDataTableRoute({
     currentUrl: buildUrl(listPath, currentSearch),
@@ -154,7 +142,6 @@ function decide({
     filterParamNames,
     formMethod,
     nextUrl: buildUrl(nextPath, nextSearch),
-    pageParamName,
   });
 }
 

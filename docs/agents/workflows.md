@@ -395,7 +395,7 @@ the rule name:
   in React. Object-property and argument positions stay checked.
 
 When a promise legitimately goes unawaited, the mark is `void`, and which promises
-may carry one is the `void` policy in `.sandcastle/VALIDATION.md`.
+may carry one is the `void` policy in `docs/agents/validation.md`.
 
 Fourteen files are exempt from `exhaustive-deps` via `overrides` in
 `.oxlintrc.json`. They use a deliberate `resetKey = JSON.stringify(values)` idiom
@@ -480,7 +480,7 @@ Hook guidance:
   so `comprobante` is the only Spanish that survives bare; naming the Spanish
   term is still fine, marked as data. In code, quoted copy and backticked names
   are data; in markdown, only backticked ones are. See the Code Language section
-  of `.sandcastle/CODING_STANDARDS.md`.
+  of `docs/agents/coding-standards.md`.
 - `pnpm check:fallow` is the Fallow audit on its `new-only` gate; see
   [fallow.md](fallow.md) for what it gates and what it costs.
 - `pnpm check:pr-title "<title>"` is the same language rule applied to a PR
@@ -801,7 +801,7 @@ Implementing a feature, fixing a bug or changing code in a local session follows
 call the Skill tool with "implement" before editing. It is the same workflow the AFK implement
 runners follow from their prompts — test-first through the `tdd` skill at the ticket's **Test
 seams**, typecheck and single test files as you go, the list in
-[`.sandcastle/VALIDATION.md`](../../.sandcastle/VALIDATION.md) once at the end, a browser check
+[`docs/agents/validation.md`](validation.md) once at the end, a browser check
 for rendered changes ([UI verification](#ui-verification)), then a review tiered by risk: the
 full two-axis `code-review` for money, results or judging, auth, migrations and `CONTEXT.md`
 terms, a single-agent readback for everything else.
@@ -831,7 +831,7 @@ wrong without it. If reading the relevant code answers the question, leave it ou
 - `docs/agents/` holds operative rules and the traps that are hard to discover from the source.
   `docs/domain/` holds the model, and `check:doc-map` fails a PR that changes mapped code without
   touching its page or carrying a `Doc-Change-Not-Needed: <reason>` commit trailer
-  ([CODING_STANDARDS.md](../../.sandcastle/CODING_STANDARDS.md#documentation-gate)).
+  ([coding-standards.md](coding-standards.md#documentation-gate)).
   `docs/adr/` holds decisions and their reasons.
 - Do not enumerate fields or functions, narrate control flow, keep file catalogs, or append PR
   summaries. Types, tests and code already record the implementation. A local explanation goes

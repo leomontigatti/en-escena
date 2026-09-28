@@ -7,7 +7,7 @@ Domain glossary for dance competitions. Defines canonical terms; the detailed ru
 Each entry is keyed on the canonical English identifier —the name to use in
 code— followed by `ui:`, the canonical Spanish term the user sees in the
 interface and in URLs. It is the mapping table for the code language convention
-documented in [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md).
+documented in [docs/agents/coding-standards.md](docs/agents/coding-standards.md).
 
 Reading rules:
 
@@ -101,6 +101,10 @@ _Avoid_: event configuration, settings, configuration
 **`listAction`** — ui: "Acción de lista"
 Administrative operation available from a list view and applied to one or more selected instances.
 _Avoid_: `instanceAction`, form editing
+
+**`listQuery`** — ui: "Consulta de lista"
+What a reader asks a list through its URL: a **`listSearch`** (ui: `Búsqueda`, the `busqueda` parameter), the list's own facets, a **`listOrder`** (ui: `Orden`, the `orden` parameter, one column and a direction written `columna:direccion`) and a **`listPage`** (ui: `Página`, the `pagina` parameter). It means the same on every list: the search ignores accents and case, a value at its default is absent from the address, and the address always shows the query the list applied. What each list offers as a facet belongs to the concept it filters, not to the list query.
+_Avoid_: `q`, `page` (not this product's parameters), filters (for the whole query)
 
 **`instanceAction`** — ui: "Acción de instancia"
 Administrative operation available inside the form or detail view of one concrete instance.

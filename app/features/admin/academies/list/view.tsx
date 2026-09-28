@@ -11,8 +11,11 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { loadAcademiesList } from "./server";
+
+const emptyAcademyList = describeEmptyList("academias", "search-and-filters");
 
 type LoaderData = Awaited<ReturnType<typeof loadAcademiesList>>;
 type AcademyRow = LoaderData["academies"][number];
@@ -94,12 +97,12 @@ export function AcademiesListRouteView({
           facetedFilters={academyFacetedFilters}
           getRowKey={(academy) => academy.id}
           searchPlaceholder="Buscar academia por nombre o contacto"
-          emptyMessage="No hay academias que coincidan con la búsqueda."
+          emptyMessage={emptyAcademyList.nothingMatched}
         />
       ) : (
         <AdminEmptyState
           icon={Building2}
-          title="Todavía no hay academias registradas."
+          title={emptyAcademyList.nothingYet}
           description="Cuando exista al menos una academia, va a aparecer en este listado."
         />
       )}

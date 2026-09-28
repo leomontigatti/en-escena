@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { findProfessorNameWarning } from "@/lib/roster/roster-name-duplicates.server";
@@ -11,11 +11,13 @@ import {
   user,
 } from "@/db/schema";
 import {
-  professorPageSize,
-  type ProfessorNameOrder,
+  professorListSpec,
   type ProfessorListFilters,
   readProfessorParticipationFilter,
 } from "@/lib/admin/professors/professors.shared";
+import { adminListPageSize } from "@/lib/admin/admin-list";
+import { paginateList, readListQuery } from "@/lib/list-query/list-query";
+import { listSearchCondition } from "@/lib/list-query/list-query.server";
 import {
   findProfessorDocumentConflict,
   writeProfessorGuardingDocument,
@@ -105,14 +107,16 @@ export type ProfessorMutationResult =
 export function readProfessorFilters(
   searchParams: URLSearchParams,
 ): ProfessorListFilters {
+  const listQuery = readListQuery(searchParams, professorListSpec);
+
   return {
-    nameOrder: readProfessorNameOrder(searchParams.get("orden")),
+    order: listQuery.order,
     participation: readProfessorParticipationFilter(
       searchParams.get("participando"),
     ),
-    query: searchParams.get("busqueda")?.trim() ?? "",
+    query: listQuery.search,
     status: readRosterPersonStatusFilter(searchParams),
-    page: readPage(searchParams),
+    page: listQuery.page,
   };
 }
 
@@ -138,13 +142,16 @@ export async function listProfessors(input: {
     .where(where);
 
   const totalCount = Number(count);
-  const totalPages = Math.max(1, Math.ceil(totalCount / professorPageSize));
-  const page = Math.min(input.filters.page, totalPages);
+  const { limit, offset, page, totalPages } = paginateList({
+    page: input.filters.page,
+    pageSize: adminListPageSize,
+    totalCount,
+  });
   const participationSql = buildProfessorEventParticipationSql(
     input.selectedEventId,
   );
   const orderByName =
-    input.filters.nameOrder === "desc"
+    input.filters.order.direction === "desc"
       ? [
           desc(sql`lower(${professors.firstName})`),
           desc(sql`lower(${professors.lastName})`),
@@ -169,8 +176,8 @@ export async function listProfessors(input: {
     .innerJoin(academies, eq(academies.id, professors.academyId))
     .where(where)
     .orderBy(...orderByName, asc(professors.id))
-    .limit(professorPageSize)
-    .offset((page - 1) * professorPageSize);
+    .limit(limit)
+    .offset(offset);
 
   return {
     filters: {
@@ -194,10 +201,6 @@ export async function listProfessors(input: {
     totalCount,
     totalPages,
   };
-}
-
-function readProfessorNameOrder(value: string | null): ProfessorNameOrder {
-  return value === "nombre:desc" ? "desc" : "asc";
 }
 
 export async function findProfessor(input: {
@@ -437,26 +440,17 @@ function buildProfessorWhere(input: {
     );
   }
 
-  if (input.filters.query.length > 0) {
-    const search = `%${escapeForLike(input.filters.query)}%`;
-    const searchCondition = or(
-      ilike(professors.firstName, search),
-      ilike(professors.lastName, search),
-      ilike(
-        sql`${professors.firstName} || ' ' || ${professors.lastName}`,
-        search,
-      ),
-      ilike(
-        sql`${professors.lastName} || ' ' || ${professors.firstName}`,
-        search,
-      ),
-      ilike(professors.documentNumber, search),
-      ilike(academies.name, search),
-    );
+  const searchCondition = listSearchCondition(input.filters.query, [
+    professors.firstName,
+    professors.lastName,
+    sql`${professors.firstName} || ' ' || ${professors.lastName}`,
+    sql`${professors.lastName} || ' ' || ${professors.firstName}`,
+    professors.documentNumber,
+    academies.name,
+  ]);
 
-    if (searchCondition) {
-      conditions.push(searchCondition);
-    }
+  if (searchCondition) {
+    conditions.push(searchCondition);
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
@@ -524,21 +518,4 @@ function toProfessorSnapshot(
     documentNumber: professor.documentNumber,
     active: professor.active,
   };
-}
-
-function readPage(searchParams: URLSearchParams) {
-  const page = Number(searchParams.get("pagina"));
-
-  if (!Number.isInteger(page) || page < 1) {
-    return 1;
-  }
-
-  return page;
-}
-
-function escapeForLike(value: string) {
-  return value
-    .replaceAll("\\", "\\\\")
-    .replaceAll("%", "\\%")
-    .replaceAll("_", "\\_");
 }

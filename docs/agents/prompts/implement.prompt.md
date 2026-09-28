@@ -21,7 +21,7 @@ too.
 
 Read the repo's domain/architecture docs before starting: `CONTEXT.md`, `docs/adr/`, and
 [`docs/agents/domain.md`](../domain.md). Follow the coding standards in
-`.sandcastle/CODING_STANDARDS.md` (and [`docs/agents/style-guide.md`](../style-guide.md) for
+`docs/agents/coding-standards.md` (and [`docs/agents/style-guide.md`](../style-guide.md) for
 frontend/UI). Explore the repo and fill your context with the parts relevant to this issue —
 especially test files that touch the area you'll change.
 
@@ -46,6 +46,6 @@ Make one or more commits on `{{BRANCH}}` with conventional-commit messages
   `app/lib/portal/choreography-music.server.ts` → `docs/operations/infrastructure.md`),
   either update that document or add a `Doc-Change-Not-Needed: <reason>` trailer to a
   commit. CI's `docs-gate` fails the PR otherwise, and you cannot read check output.
-  Check with `pnpm check:doc-map`; the rule is in `.sandcastle/CODING_STANDARDS.md`.
+  Check with `pnpm check:doc-map`; the rule is in `docs/agents/coding-standards.md`.
 - Do **not** push the branch — the workflow handles it.
 - Do **not** close the issue — the merged PR handles it.

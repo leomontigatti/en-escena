@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { buildCreatePath } from "@/lib/shared/navigation";
 import { useServerActionToast } from "@/lib/shared/toasts";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { SeminarPriceListTable } from "../../seminar-prices/list-table";
 import {
@@ -21,6 +22,12 @@ import {
 import { readMissingSeminarPriceCellsWarning } from "../../seminar-prices/view-shared";
 import { PriceListTable } from "../list-table";
 import { basePath, type EventPricesListLoaderData } from "../shared";
+
+const emptyPriceList = describeEmptyList("precios", "search-and-filters");
+const emptySeminarPriceList = describeEmptyList(
+  "precios de seminario",
+  "search-and-filters",
+);
 
 const choreographiesTabValue = "coreografias";
 
@@ -103,7 +110,7 @@ export function EventPricesListView({
             />
           ) : (
             <AdminEmptyState
-              title="Todavía no hay precios creados."
+              title={emptyPriceList.nothingYet}
               description="Creá el primer precio para definir importes base o específicos por cronograma del evento activo."
             />
           )}
@@ -116,7 +123,7 @@ export function EventPricesListView({
             />
           ) : (
             <AdminEmptyState
-              title="Todavía no hay precios de seminario creados."
+              title={emptySeminarPriceList.nothingYet}
               description="Creá los precios que comparten todos los seminarios del evento activo."
             />
           )}

@@ -1,6 +1,7 @@
 import { AlertCircleIcon, Check, Pause } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { MediaRow, MediaTime } from "@/components/shared/audio-playback";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
@@ -14,14 +15,11 @@ import {
   type TakeEvent,
   type TakeState,
 } from "@/lib/judging/feedback-take";
-import {
-  emptyLevels,
-  formatDuration,
-  micLevel,
-} from "@/lib/judging/feedback-waveform";
+import { emptyLevels, micLevel } from "@/lib/judging/feedback-waveform";
+import { formatDuration } from "@/lib/shared/format-duration";
 
 import { FeedbackPlayback } from "./feedback-playback";
-import { MediaRow, MediaTime, Waveform } from "./feedback-waveform";
+import { Waveform } from "./feedback-waveform";
 
 export const microphoneErrorMessage =
   "No se pudo usar el micrófono. Revisá el permiso del navegador y volvé a intentar.";

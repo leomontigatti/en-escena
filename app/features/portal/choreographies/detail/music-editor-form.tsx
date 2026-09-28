@@ -73,6 +73,18 @@ export function ChoreographyMusicEditorForm({
     }
   }, [actionData?.message, actionData?.status]);
 
+  // A replacement is stored under the same key, so nothing above sees it land.
+  // Each save starts the field over from the stored song instead: without it
+  // the saved file would still read as a picked one, and `Guardar` would offer
+  // to upload it again.
+  const [savedCount, setSavedCount] = useState(0);
+  useEffect(() => {
+    if (actionData?.status === "success") {
+      setSavedCount((count) => count + 1);
+      setSelectedMusicFileName(null);
+    }
+  }, [actionData]);
+
   const form = useForm<{ musicStorageKey: string }>({
     values: { musicStorageKey: selectedMusicStorageKey },
   });
@@ -117,6 +129,9 @@ export function ChoreographyMusicEditorForm({
       setSelectedMusicFileName(file?.name ?? null);
 
       if (file) {
+        // The picked file replaces the stored one on save, so the stored key
+        // goes back in, here and in the form, after a delete took it out.
+        setMusicStorageKey(choreography.musicStorageKey ?? "");
         form.setValue("musicStorageKey", choreography.musicStorageKey ?? "", {
           shouldDirty: true,
         });
@@ -176,6 +191,7 @@ export function ChoreographyMusicEditorForm({
             <ReadOnlyField label="Bailarines" value={dancerNames} />
             <ReadOnlyField label="Profesores" value={professorNames} />
             <FileUploadField
+              key={savedCount}
               control={form.control}
               name="musicStorageKey"
               fileInputName="musicFile"
@@ -185,8 +201,9 @@ export function ChoreographyMusicEditorForm({
               uploadedLabel="Archivo de música cargado"
               downloadLabel="Descargar música"
               downloadUrl={choreography.musicDownloadUrl}
+              existingPreviewUrl={choreography.musicDownloadUrl}
               {...getAssetUploadFieldProps("choreographyMusic")}
-              previewSelectedFile={false}
+              previewKind="audio"
               removeLabel="Borrar música"
               onSelectedFileChange={handleSelectedMusicFileChange}
               onStorageKeyChange={handleMusicStorageKeyChange}

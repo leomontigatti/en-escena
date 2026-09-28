@@ -20,7 +20,7 @@ code on this branch, and explain what you changed.
 # CONTEXT
 
 Read the repo's domain/architecture docs and coding standards before starting: `CONTEXT.md`,
-`docs/adr/`, [`docs/agents/domain.md`](../domain.md), `.sandcastle/CODING_STANDARDS.md`, and
+`docs/adr/`, [`docs/agents/domain.md`](../domain.md), `docs/agents/coding-standards.md`, and
 [`docs/agents/style-guide.md`](../style-guide.md).
 
 - `<linked-issue>` — the spec _(orchestrator embeds the fetched issue here)_.

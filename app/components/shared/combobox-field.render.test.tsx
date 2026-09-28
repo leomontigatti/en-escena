@@ -135,3 +135,51 @@ describe("ComboboxField with grouped options", () => {
     expect(getReactDomTexts('[role="option"]')).toEqual(["Fernanda Ledesma"]);
   });
 });
+
+// Clearing the search is not clearing the choice: the box empties and every
+// option is back, but what was picked stays picked.
+describe("ComboboxField search", () => {
+  test("clears the query without touching the value", async () => {
+    await renderer.renderAsync(<GroupedCombobox />);
+
+    await clickReactDomButton("Elegí una persona del plantel");
+    await clickReactDomOption("Abril Sosa");
+    await clickReactDomButton("Abril Sosa");
+
+    const input = document.querySelector<HTMLInputElement>(
+      'input[placeholder="Buscar por nombre"]',
+    );
+
+    await updateReactDomForm(() => {
+      setInputValue(input as HTMLInputElement, "Fernanda");
+    });
+
+    expect(getReactDomTexts('[role="option"]')).toEqual(["Fernanda Ledesma"]);
+
+    await clickReactDomButton("Limpiar búsqueda");
+
+    expect(input?.value).toBe("");
+    expect(getReactDomTexts('[role="option"]')).toEqual([
+      "Abril Sosa",
+      "Ezequiel Ipsale",
+      "Fernanda Ledesma",
+    ]);
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="person"]')?.value,
+    ).toBe("dancer:1");
+  });
+});
+
+async function clickReactDomOption(label: string) {
+  const option = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="option"]'),
+  ).find((candidate) => candidate.textContent === label);
+
+  if (!option) {
+    throw new Error(`Expected option "${label}" to be rendered.`);
+  }
+
+  await updateReactDomForm(() => {
+    option.click();
+  });
+}

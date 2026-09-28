@@ -83,9 +83,6 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
       noFacetedFilterValue,
     initialSearchValue,
     initialSort: props.initialSort,
-    pageParamName: props.pageParamName,
-    searchParamName: props.searchParamName,
-    sortParamName: props.sortParamName,
   });
   const { searchQuery, setSearchQuery } = useDebouncedDataTableSearch({
     search,

@@ -79,8 +79,6 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
         const nextHref = buildDataTableSearchHref({
           basePath: resolvedBasePath,
           currentSearch: headingSearch,
-          pageParamName: props.pageParamName,
-          searchParamName: props.searchParamName,
           searchValue,
         });
 
@@ -123,7 +121,6 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     headingHref,
     headingSearch,
     navigate,
-    pageParamName: props.pageParamName,
     resolvedBasePath,
     setColumnFilters,
   });
@@ -151,7 +148,6 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
         filteredRowCount: props.rows.length,
         hrefBuilder: createServerPageHrefBuilder({
           currentSearch: location.search,
-          pageParamName: props.pageParamName,
           resolvedBasePath,
         }),
         pageCount: props.totalPages,
@@ -170,10 +166,8 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
           getServerSortDirection(serverSort, columnId),
         getHref: createServerSortHrefBuilder({
           currentSearch: location.search,
-          pageParamName: props.pageParamName,
           resolvedBasePath,
           serverSort,
-          sortParamName: props.sortParamName,
         }),
       }}
       table={table}
@@ -398,7 +392,6 @@ function createServerFacetedFilterHandler({
   headingHref,
   headingSearch,
   navigate,
-  pageParamName,
   resolvedBasePath,
   setColumnFilters,
 }: {
@@ -407,7 +400,6 @@ function createServerFacetedFilterHandler({
   headingHref: string;
   headingSearch: string;
   navigate: ReturnType<typeof useNavigate>;
-  pageParamName?: string;
   resolvedBasePath: string;
   setColumnFilters: Dispatch<SetStateAction<ColumnFiltersState>>;
 }) {
@@ -422,7 +414,6 @@ function createServerFacetedFilterHandler({
       basePath: resolvedBasePath,
       currentSearch: headingSearch,
       groups: facetedFilters,
-      pageParamName,
       values,
     });
 
@@ -463,11 +454,9 @@ function getServerTableLoading({
 
 function createServerPageHrefBuilder({
   currentSearch,
-  pageParamName,
   resolvedBasePath,
 }: {
   currentSearch: string;
-  pageParamName?: string;
   resolvedBasePath: string;
 }) {
   return (page: number) =>
@@ -475,22 +464,17 @@ function createServerPageHrefBuilder({
       basePath: resolvedBasePath,
       currentSearch,
       page,
-      pageParamName,
     });
 }
 
 function createServerSortHrefBuilder({
   currentSearch,
-  pageParamName,
   resolvedBasePath,
   serverSort,
-  sortParamName,
 }: {
   currentSearch: string;
-  pageParamName?: string;
   resolvedBasePath: string;
   serverSort: SortingState[number] | undefined;
-  sortParamName?: string;
 }) {
   return (columnId: string) =>
     buildDataTableSortHref({
@@ -500,7 +484,5 @@ function createServerSortHrefBuilder({
       direction: getNextServerSortDirection(
         getServerSortDirection(serverSort, columnId),
       ),
-      pageParamName,
-      sortParamName,
     });
 }
