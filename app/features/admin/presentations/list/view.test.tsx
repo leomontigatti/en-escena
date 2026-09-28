@@ -241,6 +241,7 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
     totalCount: 1,
     totalPages: 1,
     unorderedCount: 0,
+    printableSchedules: [],
     warnedCount: 0,
     ...overrides,
   };

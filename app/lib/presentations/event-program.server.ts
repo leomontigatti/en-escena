@@ -100,7 +100,15 @@ export async function findPublishedProgramEvent(
 export async function readEventProgram(
   eventId: string,
   executor: Executor = db,
+  options: {
+    /**
+     * Which rows carry their dancers' names. The program's own rule unless a
+     * caller prints to a page with room for more, as the results print does.
+     */
+    namesDancersOf?: (groupType: ChoreographyGroupType) => boolean;
+  } = {},
 ): Promise<EventProgram> {
+  const namesDancersOf = options.namesDancersOf ?? listsDancerNames;
   const [rows, eventSchedules] = await Promise.all([
     executor
       .select({
@@ -152,7 +160,7 @@ export async function readEventProgram(
   const dancerNamesByChoreography = await readProgramDancerNames(
     executor,
     rows
-      .filter((row) => listsDancerNames(row.groupType as ChoreographyGroupType))
+      .filter((row) => namesDancersOf(row.groupType as ChoreographyGroupType))
       .map((row) => row.choreographyId),
   );
   const presentedScheduleIds = new Set(rows.map((row) => row.scheduleId));

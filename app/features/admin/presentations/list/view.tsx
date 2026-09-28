@@ -1,4 +1,4 @@
-import { ListOrdered, UserMinus, UserPlus } from "lucide-react";
+import { ListOrdered } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 
@@ -14,14 +14,9 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
-import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -38,7 +33,9 @@ import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-
 import { showToastMessage } from "@/lib/shared/toasts";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
+import { PresentationListActions } from "./actions-menu";
 import { JudgeAssignmentDialog } from "./judge-dialogs";
+import { ResultsPrintDialog } from "./results-print-dialog";
 import {
   OrderingConfirmationDialog,
   PresentationDayTabs,
@@ -126,18 +123,29 @@ function buildPresentationColumns({
       sortValue: (row) => row.orderNumber ?? Number.MAX_SAFE_INTEGER,
     },
     {
-      id: "categoriaTipoGrupo",
-      header: "Categoría / Tipo de grupo",
-      width: 20,
-      className: "text-muted-foreground",
+      id: "nombre",
+      header: "Nombre",
+      width: 14,
+      className: "font-medium",
+      // The choreography number is not a column of this list, so it travels in
+      // the truncation title: it stays searchable and the admin can still name
+      // the choreography to the academy.
       cell: (row) => (
         <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.categoryName,
-            formatGroupTypeLabel(row.groupType),
-          )}
-        />
+          value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
+        >
+          <DataTableLink to={presentationRowPath(row)}>
+            {row.name}
+          </DataTableLink>
+        </DataTableTruncatedText>
       ),
+    },
+    {
+      id: "academia",
+      header: "Academia",
+      width: 13,
+      className: "text-muted-foreground",
+      cell: (row) => <DataTableTruncatedText value={row.academyName} />,
     },
     {
       id: "modalidadSubmodalidad",
@@ -154,28 +162,17 @@ function buildPresentationColumns({
       ),
     },
     {
-      id: "academia",
-      header: "Academia",
-      width: 13,
+      id: "categoriaTipoGrupo",
+      header: "Categoría / Tipo de grupo",
+      width: 20,
       className: "text-muted-foreground",
-      cell: (row) => <DataTableTruncatedText value={row.academyName} />,
-    },
-    {
-      id: "nombre",
-      header: "Nombre",
-      width: 14,
-      className: "font-medium",
-      // The choreography number is not a column of this list, so it travels in
-      // the truncation title: it stays searchable and the admin can still name
-      // the choreography to the academy.
       cell: (row) => (
         <DataTableTruncatedText
-          value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
-        >
-          <DataTableLink to={presentationRowPath(row)}>
-            {row.name}
-          </DataTableLink>
-        </DataTableTruncatedText>
+          value={formatPrimaryAndSecondaryValue(
+            row.categoryName,
+            formatGroupTypeLabel(row.groupType),
+          )}
+        />
       ),
     },
     {
@@ -403,6 +400,8 @@ export function PresentationsListView({
   const [judgeDialogMode, setJudgeDialogMode] = useState<
     "assign" | "remove" | null
   >(null);
+  const [isResultsPrintDialogOpen, setIsResultsPrintDialogOpen] =
+    useState(false);
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const { isSortedByNumberAscending, moving, rows } =
     usePresentationMoving(loaderData);
@@ -422,40 +421,16 @@ export function PresentationsListView({
           "Activá un evento para numerar sus presentaciones y asignar jueces.",
       }}
       headerAction={
-        loaderData.canOrder && loaderData.hasAnyRow ? (
-          <ResourceActionsMenu>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                setIsOrderingDialogOpen(true);
-              }}
-            >
-              <ListOrdered aria-hidden="true" />
-              Ordenar automáticamente
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={selectedRows.length === 0}
-              onSelect={(event) => {
-                event.preventDefault();
-                setJudgeDialogMode("assign");
-              }}
-            >
-              <UserPlus aria-hidden="true" />
-              Asignar jueces
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={selectedRows.length === 0}
-              onSelect={(event) => {
-                event.preventDefault();
-                setJudgeDialogMode("remove");
-              }}
-            >
-              <UserMinus aria-hidden="true" />
-              Quitar jueces
-            </DropdownMenuItem>
-          </ResourceActionsMenu>
-        ) : undefined
+        <PresentationListActions
+          canOrderRows={loaderData.canOrder && loaderData.hasAnyRow}
+          canPrintResults={
+            loaderData.canOrder && loaderData.printableSchedules.length > 0
+          }
+          hasSelection={selectedRows.length > 0}
+          onJudges={setJudgeDialogMode}
+          onOrder={() => setIsOrderingDialogOpen(true)}
+          onPrintResults={() => setIsResultsPrintDialogOpen(true)}
+        />
       }
     >
       {loaderData.hasAnyRow ? (
@@ -508,6 +483,13 @@ export function PresentationsListView({
           frozenCount={loaderData.frozenCount}
           open={isOrderingDialogOpen}
           onOpenChange={setIsOrderingDialogOpen}
+        />
+      ) : null}
+      {isResultsPrintDialogOpen ? (
+        <ResultsPrintDialog
+          open
+          onOpenChange={setIsResultsPrintDialogOpen}
+          schedules={loaderData.printableSchedules}
         />
       ) : null}
       {loaderData.canOrder && judgeDialogMode !== null ? (

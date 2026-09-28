@@ -14,12 +14,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { matchesListSearch } from "@/lib/list-query/list-query";
 import { cn } from "@/lib/shared/utils";
 
-type ChecklistPerson = {
+type ChecklistOption = {
   value: string;
   label: string;
 };
 
-type PeopleChecklistFieldProps<
+type ChecklistFieldProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
 > = {
@@ -28,18 +28,19 @@ type PeopleChecklistFieldProps<
   label: string;
   name: TName;
   onValueChange?: () => void;
-  people: ChecklistPerson[];
+  options: ChecklistOption[];
   searchLabel: string;
 };
 
 type ChecklistTab = "todos" | "seleccionados";
 
 /**
- * Picks people from a list shown in place, not in a popover: a long roster
- * scrolls inside the list, so nothing covers the actions below it. The list
+ * Picks options from a list shown in place, not in a popover: a long list —
+ * an academy's dancers, an event's schedules — scrolls inside itself, so
+ * nothing covers the actions below it. The list
  * takes the height its parent leaves it, down to a floor.
  */
-function PeopleChecklistField<
+function ChecklistField<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
 >({
@@ -48,9 +49,9 @@ function PeopleChecklistField<
   label,
   name,
   onValueChange,
-  people,
+  options,
   searchLabel,
-}: PeopleChecklistFieldProps<TFieldValues, TName>) {
+}: ChecklistFieldProps<TFieldValues, TName>) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<ChecklistTab>("todos");
 
@@ -62,10 +63,10 @@ function PeopleChecklistField<
         const selected: string[] = Array.isArray(field.value)
           ? field.value
           : [];
-        const rows = people.filter(
-          (person) =>
-            (tab === "todos" || selected.includes(person.value)) &&
-            matchesListSearch(query, [person.label]),
+        const rows = options.filter(
+          (option) =>
+            (tab === "todos" || selected.includes(option.value)) &&
+            matchesListSearch(query, [option.label]),
         );
 
         function toggle(value: string) {
@@ -108,12 +109,12 @@ function PeopleChecklistField<
                     : "Sin resultados."}
                 </p>
               ) : null}
-              {rows.map((person) => (
-                <PeopleChecklistRow
-                  key={person.value}
-                  checked={selected.includes(person.value)}
-                  person={person}
-                  onToggle={() => toggle(person.value)}
+              {rows.map((option) => (
+                <ChecklistRow
+                  key={option.value}
+                  checked={selected.includes(option.value)}
+                  option={option}
+                  onToggle={() => toggle(option.value)}
                 />
               ))}
             </div>
@@ -125,18 +126,18 @@ function PeopleChecklistField<
   );
 }
 
-function PeopleChecklistRow({
+function ChecklistRow({
   checked,
   onToggle,
-  person,
+  option,
 }: {
   checked: boolean;
   onToggle: () => void;
-  person: ChecklistPerson;
+  option: ChecklistOption;
 }) {
   return (
     <div
-      data-slot="people-checklist-row"
+      data-slot="checklist-row"
       className={cn(
         "flex min-h-10 w-full items-center rounded-md px-3 hover:bg-muted/60",
         checked && "bg-primary/5",
@@ -144,10 +145,10 @@ function PeopleChecklistRow({
     >
       <Label className="flex flex-1 cursor-pointer items-center gap-3 self-stretch">
         <Checkbox checked={checked} onCheckedChange={onToggle} />
-        <span className="flex-1">{person.label}</span>
+        <span className="flex-1">{option.label}</span>
       </Label>
     </div>
   );
 }
 
-export { PeopleChecklistField };
+export { ChecklistField };
