@@ -59,10 +59,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
-  FiltersPanelProvider,
-  FiltersPanelRegion,
-} from "@/components/shared/filters-panel";
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -286,98 +282,92 @@ export function PortalShell({
       >
         Saltar al contenido principal
       </a>
-      <FiltersPanelProvider>
-        <SidebarProvider>
-          <Sidebar variant="inset">
-            <SidebarHeader>
-              <PortalActiveEventSummary eventContext={eventContext} />
-            </SidebarHeader>
+      <SidebarProvider>
+        <Sidebar variant="inset">
+          <SidebarHeader>
+            <PortalActiveEventSummary eventContext={eventContext} />
+          </SidebarHeader>
 
-            <SidebarContent>
-              <SidebarNavigationGroups
-                groups={navigationGroups}
-                rootPath="/portal"
-              />
-            </SidebarContent>
+          <SidebarContent>
+            <SidebarNavigationGroups
+              groups={navigationGroups}
+              rootPath="/portal"
+            />
+          </SidebarContent>
 
-            <SidebarFooter>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton size="lg">
-                        <Avatar shape="square">
-                          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                            {getUserInitials(displayName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-medium">
-                            {displayName}
-                          </span>
-                          <span className="truncate text-xs">
-                            {academyName}
-                          </span>
-                        </div>
-                        <ChevronsUpDown aria-hidden="true" />
-                      </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      side="top"
-                      align="end"
-                      className="w-(--radix-dropdown-menu-trigger-width)"
-                    >
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem asChild>
-                          <Link to="/portal/perfil">
-                            <User aria-hidden="true" />
-                            Perfil
-                          </Link>
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <LogoutMenuItem />
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          </Sidebar>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton size="lg">
+                      <Avatar shape="square">
+                        <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+                          {getUserInitials(displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-medium">
+                          {displayName}
+                        </span>
+                        <span className="truncate text-xs">{academyName}</span>
+                      </div>
+                      <ChevronsUpDown aria-hidden="true" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    side="top"
+                    align="end"
+                    className="w-(--radix-dropdown-menu-trigger-width)"
+                  >
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem asChild>
+                        <Link to="/portal/perfil">
+                          <User aria-hidden="true" />
+                          Perfil
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <LogoutMenuItem />
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
 
-          <SidebarInset>
-            <header className="flex shrink-0 flex-col border-b border-border bg-background">
-              <div className="flex min-h-16 items-center gap-2 px-4 py-4">
-                <SidebarTrigger className="-ml-1" />
-                <span className="mr-2 flex h-4 items-center">
-                  <Separator
-                    orientation="vertical"
-                    className="data-[orientation=vertical]:h-full"
-                  />
-                </span>
-                <PortalBreadcrumbs
-                  isHome={isHome}
-                  items={resolvedBreadcrumbItems}
+        <SidebarInset>
+          <header className="flex shrink-0 flex-col border-b border-border bg-background">
+            <div className="flex min-h-16 items-center gap-2 px-4 py-4">
+              <SidebarTrigger className="-ml-1" />
+              <span className="mr-2 flex h-4 items-center">
+                <Separator
+                  orientation="vertical"
+                  className="data-[orientation=vertical]:h-full"
                 />
-              </div>
-            </header>
+              </span>
+              <PortalBreadcrumbs
+                isHome={isHome}
+                items={resolvedBreadcrumbItems}
+              />
+            </div>
+          </header>
 
-            {/* A column down to the bottom edge, so a screen can grow to fill
+          {/* A column down to the bottom edge, so a screen can grow to fill
                 it: the choreography registration pins its actions there. */}
-            <main
-              id="contenido-principal"
-              className="flex flex-1 flex-col px-4 py-6"
-            >
-              <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6">
-                {children}
-              </div>
-            </main>
-          </SidebarInset>
-
-          <FiltersPanelRegion />
-        </SidebarProvider>
-      </FiltersPanelProvider>
+          <main
+            id="contenido-principal"
+            className="flex flex-1 flex-col px-4 py-6"
+          >
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6">
+              {children}
+            </div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
     </>
   );
 }
@@ -490,52 +480,6 @@ function PortalActiveEventSummary({
         </p>
       )}
     </>
-  );
-}
-
-type PortalEmptyListProps = {
-  title: string;
-  description: string;
-};
-
-function PortalEmptyList({ title, description }: PortalEmptyListProps) {
-  return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription className="leading-6">{description}</CardDescription>
-      </CardHeader>
-    </Card>
-  );
-}
-
-type PortalEmptyListSectionProps = {
-  title: string;
-  description: string;
-  emptyTitle: string;
-  emptyDescription: string;
-};
-
-export function PortalEmptyListSection({
-  title,
-  description,
-  emptyTitle,
-  emptyDescription,
-}: PortalEmptyListSectionProps) {
-  const titleId = `${title.toLowerCase()}-title`;
-
-  return (
-    <section className="mt-8" aria-labelledby={titleId}>
-      <div>
-        <p id={titleId} className="text-sm font-semibold text-foreground">
-          {title}
-        </p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          {description}
-        </p>
-      </div>
-      <PortalEmptyList title={emptyTitle} description={emptyDescription} />
-    </section>
   );
 }
 

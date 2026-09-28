@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { Archive } from "lucide-react";
 import { act, useEffect, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -20,6 +21,7 @@ import {
   ServerDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import type { DataTableFacetedFilter } from "@/components/shared/data-table.shared";
 import { dataTableSearchDebounceMs } from "@/components/shared/data-table.shared";
 import {
   clickReactDomButton,
@@ -27,9 +29,11 @@ import {
   setInputValue,
 } from "@/lib/test-support/react-dom";
 import {
-  openRadixSelect,
-  selectRadixOption,
-} from "@/lib/test-support/radix-select";
+  addTableFilter,
+  changeTableFilter,
+  getAppliedTableFilters,
+  removeTableFilter,
+} from "@/lib/test-support/data-table-filters";
 
 type Row = {
   id: string;
@@ -161,7 +165,7 @@ describe("DataTable", () => {
     );
 
     expect(markup).toContain('value="Ana"');
-    expect(markup).toContain('aria-label="Filtros: Estado: Archivados"');
+    expect(markup).toContain('aria-label="Estado: Archivados"');
     expect(markup).toContain(
       'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados&amp;orden=name%3Adesc"',
     );
@@ -210,7 +214,7 @@ describe("DataTable", () => {
     expect(markup).toContain("2 de 2 registros");
   });
 
-  test("applies client-side base faceted filters without showing an active filter badge", () => {
+  test("applies client-side base faceted filters without showing them as applied filters", () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter initialEntries={["/portal/profesores"]}>
         <ClientDataTable
@@ -251,8 +255,8 @@ describe("DataTable", () => {
     expect(markup).toContain("Ana Activa");
     expect(markup).not.toContain("Beto Archivado");
     expect(markup).toContain("1 de 2 registros");
-    expect(markup).toContain('aria-label="Filtros"');
-    expect(markup).not.toContain('aria-label="Filtros:');
+    expect(markup).toContain('aria-label="Agregar filtro"');
+    expect(markup).not.toContain("data-filter-group");
   });
 
   test("selects and deselects visible client-side rows from the header checkbox", async () => {
@@ -928,15 +932,41 @@ describe("ClientDataTable filters in the address bar", () => {
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersPanel();
-    await clickFilterOption("Estado", "Archivado");
+    await addTableFilter("Estado", "Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
     expect(getRenderedRowNames()).toContain("Coreografía 02");
     expect(getRenderedRowNames()).not.toContain("Coreografía 01");
   });
 
-  test("renders the list filtered by the address bar with the control showing the selection", async () => {
+  test("moves focus to the first value after the reader picks a group to add", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      facetedFilters: listFacetedFilters,
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const click = async (element: Element) => {
+      await act(async () => {
+        element.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+        await Promise.resolve();
+      });
+    };
+    await click(document.querySelector('button[aria-label="Agregar filtro"]')!);
+    const groupButton = [
+      ...document.querySelectorAll('[data-slot="popover-content"] button'),
+    ].find((button) => button.textContent?.trim() === "Estado")!;
+    await click(groupButton);
+
+    const firstValue = document.querySelector(
+      '[data-slot="popover-content"] .overflow-y-auto button',
+    );
+    expect(firstValue).not.toBeNull();
+    expect(document.activeElement).toBe(firstValue);
+  });
+
+  test("renders the list filtered by the address bar with the filter showing its value", async () => {
     const router = createListRouter(
       "/administracion/finanzas/academy_1?estado=archived",
       { facetedFilters: listFacetedFilters },
@@ -945,23 +975,67 @@ describe("ClientDataTable filters in the address bar", () => {
 
     expect(getRenderedRowNames()).toContain("Coreografía 02");
     expect(getRenderedRowNames()).not.toContain("Coreografía 01");
-    expect(getFiltersTrigger().getAttribute("aria-label")).toBe(
-      "Filtros: Estado: Archivado",
-    );
+    expect(getAppliedTableFilters()).toEqual(["Estado: Archivado"]);
   });
 
-  test("removes the parameter when the reader clears the filter", async () => {
+  test("changes the parameter when the reader picks another value", async () => {
     const router = createListRouter(
       "/administracion/finanzas/academy_1?estado=archived",
       { facetedFilters: listFacetedFilters },
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersPanel();
-    await clearFilters();
+    await changeTableFilter("Estado", "Activo");
+
+    expect(router.state.location.search).toBe("?estado=active");
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+    expect(getAppliedTableFilters()).toEqual(["Estado: Activo"]);
+  });
+
+  test("stops offering to add a filter once every group is applied", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?estado=archived",
+      { facetedFilters: listFacetedFilters },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(
+      document.querySelector('button[aria-label="Agregar filtro"]'),
+    ).toBeNull();
+  });
+
+  test("draws a group's icon beside its field and its values the way the group renders them", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?estado=archived",
+      {
+        facetedFilters: [
+          {
+            ...listFacetedFilters[0],
+            icon: Archive,
+            renderValue: (option) => <mark>{option.label}</mark>,
+          },
+        ],
+      },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const filter = document.querySelector('[data-filter-group="estado"]');
+    expect(filter?.querySelector("svg.lucide-archive")).not.toBeNull();
+    expect(filter?.querySelector("mark")?.textContent).toBe("Archivado");
+  });
+
+  test("removes the parameter when the reader removes the filter", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?estado=archived",
+      { facetedFilters: listFacetedFilters },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await removeTableFilter("Estado");
 
     expect(router.state.location.search).toBe("");
     expect(getRenderedRowNames()).toContain("Coreografía 01");
+    expect(getAppliedTableFilters()).toEqual([]);
   });
 
   test("replaces the history entry instead of pushing one", async () => {
@@ -970,8 +1044,7 @@ describe("ClientDataTable filters in the address bar", () => {
     });
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersPanel();
-    await clickFilterOption("Estado", "Archivado");
+    await addTableFilter("Estado", "Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
 
@@ -1006,9 +1079,7 @@ describe("ClientDataTable filters in the address bar", () => {
 
     expect(getRenderedRowNames()).toContain("Coreografía 02");
     expect(getRenderedRowNames()).not.toContain("Coreografía 01");
-    expect(getFiltersTrigger().getAttribute("aria-label")).toBe(
-      "Filtros: Estado: Archivado",
-    );
+    expect(getAppliedTableFilters()).toEqual(["Estado: Archivado"]);
   });
 });
 
@@ -1163,7 +1234,7 @@ describe("DataTable server-side href helpers", () => {
   });
 });
 
-const listFacetedFilters = [
+const listFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
@@ -1182,7 +1253,7 @@ function createListRouter(
     initialSort,
     selectableRows = false,
   }: {
-    facetedFilters?: typeof listFacetedFilters;
+    facetedFilters?: DataTableFacetedFilter[];
     initialFacetedFilterValues?: Record<string, Record<string, string>>;
     initialSort?: { columnId: string; direction: "asc" | "desc" };
     selectableRows?: boolean;
@@ -1449,51 +1520,4 @@ function getSortHeaderButton(header: string) {
   }
 
   return button;
-}
-
-function getFiltersTrigger() {
-  const trigger = Array.from(document.querySelectorAll("button")).find(
-    (button) =>
-      button.getAttribute("aria-label")?.startsWith("Filtros") ?? false,
-  );
-
-  if (!trigger) {
-    throw new Error("Expected the faceted filter trigger to be rendered.");
-  }
-
-  return trigger;
-}
-
-async function openFiltersPanel() {
-  await clickElement(getFiltersTrigger());
-}
-
-/** Picks an option out of the panel's picker for the given group. */
-async function clickFilterOption(groupLabel: string, optionLabel: string) {
-  const field = Array.from(document.querySelectorAll("label[for]")).find(
-    (candidate) => candidate.textContent?.trim() === groupLabel,
-  );
-  const trigger = field
-    ? document.getElementById(field.getAttribute("for") ?? "")
-    : null;
-
-  if (!trigger) {
-    throw new Error(`Expected the "${groupLabel}" filter to be offered.`);
-  }
-
-  await openRadixSelect(trigger);
-  await selectRadixOption(optionLabel);
-}
-
-/** The panel's footer action, which clears every group at once. */
-async function clearFilters() {
-  const button = Array.from(document.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.trim() === "Limpiar filtros",
-  );
-
-  if (!button) {
-    throw new Error("Expected the panel to offer clearing every filter.");
-  }
-
-  await clickElement(button);
 }

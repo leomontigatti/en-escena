@@ -274,7 +274,8 @@ describe("`/administracion/bailarines` route", () => {
     expect(searchMarkup).toContain("estado=todos");
     expect(searchMarkup).not.toContain("identificacion=todos");
     expect(searchMarkup).toContain("busqueda=Academia+Sur");
-    expect(searchMarkup).not.toContain(">Todos<");
+    // "Todos" for the status is an applied filter now, shown as its own group.
+    expect(searchMarkup).toContain('aria-label="Estado de alta: Todos"');
 
     const { request: legacySearchRequest } = await createSignedInRequest({
       email: "admin.search.legacy.dancers@example.com",

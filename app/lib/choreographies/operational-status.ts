@@ -180,6 +180,23 @@ export function resolveChoreographyStatusBadge(input: {
   };
 }
 
+/**
+ * The badge an answer of the `Estado` filter wears once applied, so the filter
+ * reads in the colour of the rows it keeps. The two lists name their answers
+ * differently in the URL, so each maps its own values onto these three.
+ */
+export function getChoreographyStatusFilterBadgeVariant(
+  answer: "complete" | "incomplete" | "withdrawn",
+) {
+  return resolveChoreographyStatusBadge({
+    isWithdrawn: answer === "withdrawn",
+    operationalStatus: {
+      code: answer === "complete" ? "complete" : "incomplete",
+      pendingItems: [],
+    },
+  }).variant;
+}
+
 /** What the `Estado` filter of both choreography lists calls a withdrawn row. */
 export const withdrawnChoreographyStatusFilterValue = "retirada";
 

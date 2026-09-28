@@ -299,7 +299,7 @@ describe("`/administracion/profesores` route", () => {
     expect(markup).not.toContain("Participando");
     expect(markup).not.toContain("No participando");
     expect(markup).not.toContain("Participación");
-    expect(markup).toContain("Filtros");
+    expect(markup).toContain('aria-label="Agregar filtro"');
   });
 
   test("renders a readonly professor detail with the single-card administrative layout", async () => {

@@ -39,18 +39,18 @@ describe("PaymentsListRouteView", () => {
     expect(markup).toContain("$ 0");
   });
 
-  // The facet's options only mount once the menu is opened, so what is asserted
-  // here is the wiring: a narrowed list says so on the filter trigger, which is
-  // what tells the reader the figures below are not the whole event.
+  // What is asserted here is the wiring: a narrowed list shows the filter it is
+  // narrowed by, which is what tells the reader the figures below are not the
+  // whole event.
   test("carries the availability filter into the facet", () => {
-    expect(render()).toContain('aria-label="Filtros"');
+    expect(render()).not.toContain("data-filter-group");
     expect(
       render(
         loaderDataFixture({
           filters: { ...filtersFixture(), availability: "con" },
         }),
       ),
-    ).toContain('aria-label="Filtros: Disponible: Con disponible"');
+    ).toContain('aria-label="Disponible: Con disponible"');
   });
 
   // The cards read the event, not the page and not the filtered set, so the

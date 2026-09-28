@@ -50,10 +50,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
-  FiltersPanelProvider,
-  FiltersPanelRegion,
-} from "@/components/shared/filters-panel";
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -240,118 +236,114 @@ export function AdminShell({
       >
         Saltar al contenido principal
       </a>
-      <FiltersPanelProvider>
-        <SidebarProvider>
-          <Sidebar variant="inset">
-            <SidebarHeader>
-              {showEventSelector ? (
-                <AdminActiveEventSummary
-                  events={events}
-                  selectedEventId={selectedEventId}
-                />
-              ) : (
-                <AdminBrandLink />
-              )}
-            </SidebarHeader>
-
-            <SidebarContent>
-              <SidebarNavigationGroups
-                groups={navigationGroups}
-                rootPath="/administracion"
+      <SidebarProvider>
+        <Sidebar variant="inset">
+          <SidebarHeader>
+            {showEventSelector ? (
+              <AdminActiveEventSummary
+                events={events}
+                selectedEventId={selectedEventId}
               />
-            </SidebarContent>
+            ) : (
+              <AdminBrandLink />
+            )}
+          </SidebarHeader>
 
-            <SidebarFooter>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton size="lg">
-                        <Avatar shape="square">
-                          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                            {getInternalAccountInitials(account.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-medium">
-                            {account.name}
-                          </span>
-                          <span className="truncate text-xs">
-                            {account.roleLabel}
-                          </span>
-                        </div>
-                        <ChevronsUpDown aria-hidden="true" />
-                      </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      side="top"
-                      align="end"
-                      className="w-(--radix-dropdown-menu-trigger-width)"
-                    >
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem disabled>
-                          Usuario: {account.username}
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <LogoutMenuItem />
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          </Sidebar>
+          <SidebarContent>
+            <SidebarNavigationGroups
+              groups={navigationGroups}
+              rootPath="/administracion"
+            />
+          </SidebarContent>
 
-          <SidebarInset>
-            <header className="flex shrink-0 flex-col border-b border-border bg-background">
-              <div className="flex min-h-16 items-center gap-2 px-4 py-4">
-                <SidebarTrigger className="-ml-1" />
-                <span className="mr-2 flex h-4 items-center">
-                  <Separator
-                    orientation="vertical"
-                    className="data-[orientation=vertical]:h-full"
-                  />
-                </span>
-                <Breadcrumb className="flex items-center">
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      {isHome ? (
-                        <BreadcrumbPage>Inicio</BreadcrumbPage>
-                      ) : (
-                        <BreadcrumbLink asChild>
-                          <Link to="/administracion">Inicio</Link>
-                        </BreadcrumbLink>
-                      )}
-                    </BreadcrumbItem>
-                    {isHome
-                      ? null
-                      : resolvedBreadcrumbItems.map((item, index) => {
-                          const isCurrent =
-                            index === resolvedBreadcrumbItems.length - 1;
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton size="lg">
+                      <Avatar shape="square">
+                        <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+                          {getInternalAccountInitials(account.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-medium">
+                          {account.name}
+                        </span>
+                        <span className="truncate text-xs">
+                          {account.roleLabel}
+                        </span>
+                      </div>
+                      <ChevronsUpDown aria-hidden="true" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    side="top"
+                    align="end"
+                    className="w-(--radix-dropdown-menu-trigger-width)"
+                  >
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem disabled>
+                        Usuario: {account.username}
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <LogoutMenuItem />
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
 
-                          return (
-                            <BreadcrumbSegment
-                              key={`${item.label}-${index}`}
-                              item={item}
-                              isCurrent={isCurrent}
-                            />
-                          );
-                        })}
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </div>
-            </header>
+        <SidebarInset>
+          <header className="flex shrink-0 flex-col border-b border-border bg-background">
+            <div className="flex min-h-16 items-center gap-2 px-4 py-4">
+              <SidebarTrigger className="-ml-1" />
+              <span className="mr-2 flex h-4 items-center">
+                <Separator
+                  orientation="vertical"
+                  className="data-[orientation=vertical]:h-full"
+                />
+              </span>
+              <Breadcrumb className="flex items-center">
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    {isHome ? (
+                      <BreadcrumbPage>Inicio</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <Link to="/administracion">Inicio</Link>
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                  {isHome
+                    ? null
+                    : resolvedBreadcrumbItems.map((item, index) => {
+                        const isCurrent =
+                          index === resolvedBreadcrumbItems.length - 1;
 
-            <main id="contenido-principal" className="flex-1 px-4 py-6">
-              <div className="mx-auto max-w-6xl">{children}</div>
-            </main>
-          </SidebarInset>
+                        return (
+                          <BreadcrumbSegment
+                            key={`${item.label}-${index}`}
+                            item={item}
+                            isCurrent={isCurrent}
+                          />
+                        );
+                      })}
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+          </header>
 
-          <FiltersPanelRegion />
-        </SidebarProvider>
-      </FiltersPanelProvider>
+          <main id="contenido-principal" className="flex-1 px-4 py-6">
+            <div className="mx-auto max-w-6xl">{children}</div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
     </>
   );
 }

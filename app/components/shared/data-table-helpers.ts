@@ -85,27 +85,6 @@ export function getActiveFacetedFilterValues(
   );
 }
 
-export function getFacetedFilterSummary(
-  groups: DataTableFacetedFilter[],
-  selectedValues: DataTableFacetedFilterValue,
-) {
-  const parts = groups.flatMap((group) => {
-    const selectedValue = selectedValues[group.id];
-
-    if (!selectedValue) {
-      return [];
-    }
-
-    const selectedOption = group.options.find(
-      (option) => option.value === selectedValue,
-    );
-
-    return selectedOption ? [`${group.label}: ${selectedOption.label}`] : [];
-  });
-
-  return parts.join(", ");
-}
-
 export function createColumnFilters(
   facetedFilterValues: Record<string, DataTableFacetedFilterValue>,
 ): ColumnFiltersState {

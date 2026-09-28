@@ -134,7 +134,7 @@ describe("ChoreographiesListRouteView", () => {
 
     expect(markup).toContain("Retirada");
     expect(markup).not.toContain("Completa");
-    expect(markup).toContain('aria-label="Filtros: Estado: Retirada"');
+    expect(markup).toContain('aria-label="Estado: Retirada"');
   });
 
   test("keeps filtered empty results inside the table when the active event has coreographies", () => {
@@ -191,8 +191,38 @@ describe("ChoreographiesListRouteView", () => {
       hasAnyChoreography: true,
     });
 
-    expect(markup).toContain(
-      'aria-label="Filtros: Estado: Incompleta, Modalidad: Contemporáneo, Categoría: Adulto, Tipo de grupo: Dúo, Día: 3 de octubre de 2026"',
+    for (const filter of [
+      "Estado: Incompleta",
+      "Modalidad: Contemporáneo",
+      "Categoría: Adulto",
+      "Tipo de grupo: Dúo",
+      "Día: 3 de octubre de 2026",
+    ]) {
+      expect(markup).toContain(`aria-label="${filter}"`);
+    }
+  });
+
+  test("reads an applied `Estado` filter as the badge its rows wear", () => {
+    const markup = renderRoute({
+      filters: {
+        category: null,
+        groupType: null,
+        modalityId: null,
+        order: { columnId: "academia", direction: "asc" },
+        page: 1,
+        query: "",
+        scheduleDate: null,
+        status: "incompleta",
+      },
+      hasAnyChoreography: true,
+    });
+    // The filter's markup up to its remove button, which ends the group.
+    const filter = markup.match(
+      /data-filter-group="estado"[\s\S]*?Quitar filtro Estado/,
+    )?.[0];
+
+    expect(filter).toMatch(
+      /data-slot="badge"[^>]*data-variant="warning"[^>]*>Incompleta</,
     );
   });
 
