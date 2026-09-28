@@ -404,6 +404,35 @@ describe("the choreography registration page", () => {
       expect(isNextDisabled()).toBe(false);
     });
 
+    test("resolves once and lands on the dancers step when the registration is refused", async () => {
+      window.sessionStorage.setItem(storageKey, JSON.stringify(answers));
+      const { router, submissions } = renderPage(
+        {
+          resolve: {
+            intent: RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT,
+            result: { ok: false, error: "No hay categoría compatible." },
+          },
+        },
+        "/portal/coreografias/crear?paso=profesores",
+      );
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(
+        () =>
+          document.body.textContent?.includes("No hay categoría compatible.") ??
+          false,
+      );
+
+      expect(getHeading()).toBe("¿Quiénes bailan?");
+      expect(router.state.location.search).toBe("?paso=bailarines");
+      expect(
+        submissions.filter(
+          (submission) =>
+            submission.get("intent") ===
+            RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT,
+        ),
+      ).toHaveLength(1);
+    });
+
     test("lands on the first step whose answers are incomplete", async () => {
       window.sessionStorage.setItem(
         storageKey,

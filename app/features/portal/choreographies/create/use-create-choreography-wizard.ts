@@ -280,7 +280,11 @@ function useStepGuard({
   const { step } = stepInUrl;
 
   useEffect(() => {
-    if (!isRestored || registration.isResolving) {
+    if (
+      !isRestored ||
+      registration.isResolving ||
+      registration.hasUnprocessedResult
+    ) {
       return;
     }
 
@@ -331,6 +335,12 @@ function useRegistrationResolution({
   const processedDataRef = useRef<
     CalculationActionData | UnexpectedActionError | undefined
   >(undefined);
+  // The effect below still has `resolution`/`refusal` from the render before
+  // this result arrived, so a guard reading them in the same commit (see
+  // useStepGuard) would resolve again on stale state; this flag tells it to
+  // wait one more render.
+  const hasUnprocessedResult =
+    fetcher.data !== undefined && processedDataRef.current !== fetcher.data;
 
   useEffect(() => {
     const data = fetcher.data;
@@ -392,6 +402,7 @@ function useRegistrationResolution({
   }
 
   return {
+    hasUnprocessedResult,
     isResolving: fetcher.state !== "idle",
     refusal,
     reset,
