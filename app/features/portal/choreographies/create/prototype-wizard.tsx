@@ -82,37 +82,18 @@ const sampleProfessors = [
   "Verónica Ledesma",
 ];
 
+// The real levels an event offers are a subset of these; they carry no
+// description, only the label.
 const fakeExperienceLevels = [
-  {
-    value: "inicial",
-    label: "Inicial",
-    description: "Hasta 2 años de estudio",
-  },
-  {
-    value: "intermedio",
-    label: "Intermedio",
-    description: "Entre 2 y 5 años de estudio",
-  },
-  { value: "avanzado", label: "Avanzado", description: "Más de 5 años" },
+  { value: "amateur", label: "Amateur" },
+  { value: "profesional", label: "Profesional" },
+  { value: "elite", label: "Elite" },
 ];
 
 const fakeSchedules = [
-  {
-    value: "sab-manana",
-    label: "Sábado 14 · mañana",
-    description: "Quedan 8 lugares",
-  },
-  {
-    value: "sab-tarde",
-    label: "Sábado 14 · tarde",
-    description: "Sin lugar",
-    disabled: true,
-  },
-  {
-    value: "dom-tarde",
-    label: "Domingo 15 · tarde",
-    description: "Quedan 3 lugares",
-  },
+  { value: "sab-manana", label: "Sábado 14 · mañana" },
+  { value: "sab-tarde", label: "Sábado 14 · tarde", disabled: true },
+  { value: "dom-tarde", label: "Domingo 15 · tarde" },
 ];
 
 const variants = [
@@ -258,10 +239,8 @@ export function PrototypeWizard({
             value={name}
             onChange={(event) => setName(event.target.value)}
             autoComplete="off"
+            placeholder="Una vez guardado no puede modificarse"
           />
-          <FieldDescription>
-            Una vez guardado no puede modificarse.
-          </FieldDescription>
         </Field>
         <SingleChoice
           id="prototipo-modalidad"
@@ -352,7 +331,7 @@ export function PrototypeWizard({
       <>
         <StepIntro
           title="Revisá antes de guardar"
-          hint="Tocá Cambiar para corregir un dato."
+          hint="Tocá el botón Cambiar para corregir alguno de los datos."
         />
         <AccessNotice variant={saved ? "success" : "info"}>
           {saved
