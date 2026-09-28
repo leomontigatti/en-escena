@@ -9,8 +9,11 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { formatLongBusinessDate } from "@/lib/shared/business-time-zone";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { EventsListLoaderData, EventListRow } from "./shared";
+
+const emptyEventList = describeEmptyList("eventos", "search");
 
 export type EventsListViewProps = {
   loaderData: EventsListLoaderData;
@@ -28,7 +31,7 @@ export function EventsListView({ loaderData }: EventsListViewProps) {
         <EventTable events={loaderData.events} />
       ) : (
         <AdminEmptyState
-          title="Todavía no hay eventos creados."
+          title={emptyEventList.nothingYet}
           description="Creá el primer evento para definir fechas, seña requerida y preparar la operación sin activarlo todavía."
         />
       )}
@@ -111,7 +114,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
       getRowKey={(event) => event.id}
       searchPlaceholder="Buscar evento por nombre"
       textFilterColumnId="name"
-      emptyMessage="No hay eventos que coincidan con la búsqueda."
+      emptyMessage={emptyEventList.nothingMatched}
       initialSort={{ columnId: "startsAt", direction: "desc" }}
     />
   );

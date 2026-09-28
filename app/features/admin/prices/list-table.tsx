@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { buildDetailPath } from "@/lib/shared/navigation";
 import { groupTypeOptions } from "@/lib/events/group-types";
 import type { PriceListItem } from "@/lib/events/bases.server";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { basePath } from "./shared";
 import {
@@ -17,6 +18,8 @@ import {
   getPriceDisplayName,
   getPriceName,
 } from "./view-shared";
+
+const emptyPriceList = describeEmptyList("precios", "search-and-filters");
 
 export const priceFacetedFilterIds = ["tipo-de-grupo", "cronograma"] as const;
 
@@ -101,7 +104,7 @@ export function PriceListTable({
       searchPlaceholder="Buscar precio por nombre"
       textFilterColumnId="name"
       facetedFilters={priceFacetedFilters}
-      emptyMessage="No hay precios que coincidan con la búsqueda."
+      emptyMessage={emptyPriceList.nothingMatched}
       initialSort={{ columnId: "paymentDeadline", direction: "asc" }}
     />
   );

@@ -41,7 +41,7 @@ export type DancersListRouteViewProps = {
   loaderData: LoaderData;
 };
 
-const emptyDancerList = describeEmptyList("bailarines");
+const emptyDancerList = describeEmptyList("bailarines", "search-and-filters");
 
 export function DancersListRouteView({
   loaderData,

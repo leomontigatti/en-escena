@@ -107,7 +107,7 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-const emptyPaymentsList = describeEmptyList("pagos");
+const emptyPaymentsList = describeEmptyList("pagos", "search-and-filters");
 
 export function PaymentsListRouteView({
   loaderData,

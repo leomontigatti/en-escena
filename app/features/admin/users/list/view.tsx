@@ -50,7 +50,7 @@ const roleFilterOptions = [
   { label: "Juez", value: "judge" },
 ] satisfies FilterSelectOption[];
 
-const emptyUserList = describeEmptyList("usuarios");
+const emptyUserList = describeEmptyList("usuarios", "search-and-filters");
 
 export function InternalUsersListRouteView({
   loaderData,

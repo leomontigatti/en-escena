@@ -391,7 +391,10 @@ function PresentationOrderCell({
 }
 
 /** The list's rows are choreographies, whether or not they are numbered yet. */
-const emptyPresentationList = describeEmptyList("coreografías");
+const emptyPresentationList = describeEmptyList(
+  "coreografías",
+  "search-and-filters",
+);
 
 export function PresentationsListView({
   loaderData,

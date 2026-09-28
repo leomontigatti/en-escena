@@ -29,7 +29,10 @@ type ChoreographiesListRouteViewProps = {
   loaderData: LoaderData;
 };
 
-const emptyChoreographyList = describeEmptyList("coreografías");
+const emptyChoreographyList = describeEmptyList(
+  "coreografías",
+  "search-and-filters",
+);
 
 const choreographyStatusFilterOptions = [
   { label: "Completa", value: "completa" },

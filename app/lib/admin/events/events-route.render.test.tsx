@@ -18,7 +18,7 @@ describe("`/administracion/eventos` route rendering", () => {
       events: [],
     });
 
-    expect(markup).toContain("Todavía no hay eventos creados.");
+    expect(markup).toContain("Todavía no hay eventos.");
     expect(markup).toContain("/administracion/eventos/nuevo");
     expect(markup).toContain("Nuevo evento");
     expect(markup).not.toContain('name="name"');

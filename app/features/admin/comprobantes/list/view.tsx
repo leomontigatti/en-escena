@@ -157,7 +157,10 @@ export const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
   },
 ];
 
-const emptyComprobantesList = describeEmptyList("comprobantes");
+const emptyComprobantesList = describeEmptyList(
+  "comprobantes",
+  "search-and-filters",
+);
 
 export function ComprobantesListRouteView({
   loaderData,

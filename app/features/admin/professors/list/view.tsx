@@ -38,7 +38,10 @@ export type ProfessorsListRouteViewProps = {
   loaderData: LoaderData;
 };
 
-const emptyProfessorList = describeEmptyList("profesores");
+const emptyProfessorList = describeEmptyList(
+  "profesores",
+  "search-and-filters",
+);
 
 export function ProfessorsListRouteView({
   loaderData,

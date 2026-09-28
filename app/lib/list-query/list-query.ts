@@ -255,12 +255,19 @@ export function escapeLikePattern(value: string) {
 
 /**
  * What an empty list says, in one wording on every list: nothing exists yet, or
- * something exists and the search or the filters matched none of it. The
- * resource is the lowercase plural the glossary gives the reader.
+ * something exists and the search —or the filters, on a list that has them—
+ * matched none of it. The resource is the lowercase plural the glossary gives
+ * the reader.
  */
-export function describeEmptyList(resourceName: string) {
+export function describeEmptyList(
+  resourceName: string,
+  narrowedBy: "search" | "search-and-filters",
+) {
+  const narrowing =
+    narrowedBy === "search" ? "la búsqueda" : "la búsqueda o los filtros";
+
   return {
-    nothingMatched: `No hay ${resourceName} que coincidan con la búsqueda o los filtros.`,
+    nothingMatched: `No hay ${resourceName} que coincidan con ${narrowing}.`,
     nothingYet: `Todavía no hay ${resourceName}.`,
   };
 }

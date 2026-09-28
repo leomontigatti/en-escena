@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   buildCanonicalListSearch,
+  describeEmptyList,
   paginateList,
   readListQuery,
 } from "@/lib/list-query/list-query";
@@ -151,5 +152,18 @@ describe("buildCanonicalListSearch", () => {
     expect(
       buildCanonicalListSearch({ ...input, currentSearch: canonicalSearch }),
     ).toBe(canonicalSearch);
+  });
+});
+
+describe("describeEmptyList", () => {
+  test("names the filters only on a list that has them", () => {
+    expect(describeEmptyList("categorías", "search-and-filters")).toEqual({
+      nothingMatched:
+        "No hay categorías que coincidan con la búsqueda o los filtros.",
+      nothingYet: "Todavía no hay categorías.",
+    });
+    expect(describeEmptyList("eventos", "search").nothingMatched).toBe(
+      "No hay eventos que coincidan con la búsqueda.",
+    );
   });
 });

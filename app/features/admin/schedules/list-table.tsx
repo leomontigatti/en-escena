@@ -7,6 +7,7 @@ import { buildDetailPath } from "@/lib/shared/navigation";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/shared/utils";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { ResourceBadge } from "./dialogs";
 import { basePath } from "./shared";
@@ -16,6 +17,11 @@ import {
   formatScheduleDateTimeLabel,
   formatScheduleRegistrationStateLabel,
 } from "./view-shared";
+
+const emptyScheduleList = describeEmptyList(
+  "cronogramas",
+  "search-and-filters",
+);
 
 export function ScheduleList({
   schedules,
@@ -92,7 +98,7 @@ export function ScheduleList({
       searchPlaceholder="Buscar cronograma por nombre"
       textFilterColumnId="name"
       facetedFilters={buildScheduleFacetedFilters(schedules)}
-      emptyMessage="No hay cronogramas que coincidan con la búsqueda."
+      emptyMessage={emptyScheduleList.nothingMatched}
       initialSort={{ columnId: "scheduledAt", direction: "asc" }}
     />
   );
