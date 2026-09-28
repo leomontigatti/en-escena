@@ -10,6 +10,9 @@ export type ScheduleCapacityOccupancy = {
   occupiedCount: number;
 };
 
+type ScheduleCapacityOccupancyExecutor =
+  Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
+
 export type ScheduleCapacityOccupancyTarget = {
   scheduleCapacityId: string | null;
   scheduleId: string;
@@ -28,8 +31,10 @@ export type ScheduleCapacityOccupancyTarget = {
  */
 export async function resolveScheduleCapacityOccupancies(input: {
   excludeChoreographyId?: string;
+  executor?: ScheduleCapacityOccupancyExecutor;
   targets: readonly ScheduleCapacityOccupancyTarget[];
 }): Promise<Map<string, ScheduleCapacityOccupancy>> {
+  const executor = input.executor ?? db;
   const occupancies = new Map<string, ScheduleCapacityOccupancy>();
   const scheduleIds = [
     ...new Set(input.targets.map((target) => target.scheduleId)),
@@ -51,12 +56,12 @@ export async function resolveScheduleCapacityOccupancies(input: {
     : undefined;
   const [scheduleRows, scheduleCapacityRows, scheduleCounts, capacityCounts] =
     await Promise.all([
-      db
+      executor
         .select({ id: schedules.id, totalCapacity: schedules.totalCapacity })
         .from(schedules)
         .where(inArray(schedules.id, scheduleIds)),
       scheduleCapacityIds.length > 0
-        ? db
+        ? executor
             .select({
               capacity: scheduleCapacities.capacity,
               id: scheduleCapacities.id,
@@ -66,11 +71,13 @@ export async function resolveScheduleCapacityOccupancies(input: {
         : [],
       countChoreographiesBySchedule({
         excludedChoreographyFilter,
+        executor,
         scheduleIds,
       }),
       scheduleCapacityIds.length > 0
         ? countChoreographiesByScheduleCapacity({
             excludedChoreographyFilter,
+            executor,
             scheduleCapacityIds,
           })
         : new Map<string, number>(),
@@ -133,8 +140,12 @@ export async function resolveScheduleCapacityOccupancies(input: {
  */
 export async function resolveOccupiedCounts(
   targets: readonly ScheduleCapacityOccupancyTarget[],
+  executor?: ScheduleCapacityOccupancyExecutor,
 ) {
-  const occupancies = await resolveScheduleCapacityOccupancies({ targets });
+  const occupancies = await resolveScheduleCapacityOccupancies({
+    executor,
+    targets,
+  });
 
   return (target: ScheduleCapacityOccupancyTarget) =>
     occupancies.get(toScheduleCapacityOccupancyKey(target))?.occupiedCount ?? 0;
@@ -164,10 +175,11 @@ export function toScheduleCapacityOccupancyKey(
  */
 async function countChoreographiesBySchedule(input: {
   excludedChoreographyFilter: ReturnType<typeof ne> | undefined;
+  executor: ScheduleCapacityOccupancyExecutor;
   scheduleIds: string[];
 }) {
   const effectiveScheduleId = sql<string>`coalesce(${scheduleCapacities.scheduleId}, ${choreographies.scheduleId})`;
-  const rows = await db
+  const rows = await input.executor
     .select({
       occupiedCount: sql<number>`count(*)`,
       scheduleId: effectiveScheduleId,
@@ -196,9 +208,10 @@ async function countChoreographiesBySchedule(input: {
 
 async function countChoreographiesByScheduleCapacity(input: {
   excludedChoreographyFilter: ReturnType<typeof ne> | undefined;
+  executor: ScheduleCapacityOccupancyExecutor;
   scheduleCapacityIds: string[];
 }) {
-  const rows = await db
+  const rows = await input.executor
     .select({
       occupiedCount: sql<number>`count(*)`,
       scheduleCapacityId: choreographies.scheduleCapacityId,

@@ -10,6 +10,7 @@ import {
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
 import type {
+  EventBasesExecutor,
   EventBasesTransaction,
   ScheduleAcceptedCategory,
 } from "@/lib/events/bases-repository/shared.server";
@@ -84,6 +85,7 @@ export async function everyCategorySharesAModality({
  * restructuring guard, this one only protects what still holds a place.
  */
 export async function listExcludedOccupiedCategories(
+  executor: EventBasesExecutor,
   scheduleId: string,
   categoryIds: string[],
 ) {
@@ -91,7 +93,7 @@ export async function listExcludedOccupiedCategories(
     return [];
   }
 
-  const excluded = await db
+  const excluded = await executor
     .selectDistinct({ name: categories.name })
     .from(choreographies)
     .innerJoin(categories, eq(choreographies.categoryId, categories.id))
