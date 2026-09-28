@@ -58,7 +58,10 @@ Closes #N
 
 One PR carries every sub-issue of a PRD. Its body is one paragraph saying what
 the PRD delivers, then `## Sub-issues` listing every sub-issue as a checkbox
-(number and title), then `Closes #<PRD>`. The PRD holds the rest. The session
+that carries its own keyword (`- [ ] Closes #N <title>`), then `Closes #<PRD>`.
+GitHub closes only the numbers that follow a closing keyword, and closing a
+parent does not close its sub-issues: a bare `- [x] #N` stays open after the
+merge. The PRD holds the rest. The session
 ticks each box when its slice lands on the branch, so the body is the progress
 record: a session that resumes the PR reads it there, not in the scrollback,
 and nothing is committed to the repository to track it.
