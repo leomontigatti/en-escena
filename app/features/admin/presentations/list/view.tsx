@@ -120,7 +120,7 @@ function buildPresentationColumns({
     {
       id: "orden",
       header: "N.º",
-      width: 9,
+      width: 8,
       className: "font-medium tabular-nums",
       cell: (row) => <PresentationOrderCell moving={moving} row={row} />,
       sortValue: (row) => row.orderNumber ?? Number.MAX_SAFE_INTEGER,
@@ -128,7 +128,7 @@ function buildPresentationColumns({
     {
       id: "categoriaTipoGrupo",
       header: "Categoría / Tipo de grupo",
-      width: 18,
+      width: 20,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -142,7 +142,7 @@ function buildPresentationColumns({
     {
       id: "modalidadSubmodalidad",
       header: "Modalidad / Submodalidad",
-      width: 18,
+      width: 21,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -156,14 +156,14 @@ function buildPresentationColumns({
     {
       id: "academia",
       header: "Academia",
-      width: 15,
+      width: 13,
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
     },
     {
       id: "nombre",
       header: "Nombre",
-      width: 16,
+      width: 14,
       className: "font-medium",
       // The choreography number is not a column of this list, so it travels in
       // the truncation title: it stays searchable and the admin can still name

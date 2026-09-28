@@ -70,7 +70,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "nombre",
     header: "Nombre",
-    width: 23,
+    width: 21,
     className: "font-medium",
     // The number is the row's only way into the detail. Linking the name too
     // gave one destination two targets, which reads as a choice and is not.
@@ -83,7 +83,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "academia",
     header: "Academia",
-    width: 23,
+    width: 21,
     className: "text-muted-foreground",
     cell: (choreography) => (
       <DataTableTruncatedText value={choreography.academyName} />
@@ -94,7 +94,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "modalidadSubmodalidad",
     header: "Modalidad / Submodalidad",
-    width: 18,
+    width: 21,
     className: "text-muted-foreground",
     cell: (choreography) => (
       <DataTableTruncatedText
@@ -108,7 +108,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "categoriaTipoGrupo",
     header: "Categoría / Tipo de grupo",
-    width: 19,
+    width: 20,
     className: "text-muted-foreground",
     cell: (choreography) => (
       <DataTableTruncatedText

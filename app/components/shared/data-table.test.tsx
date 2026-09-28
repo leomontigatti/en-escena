@@ -532,7 +532,12 @@ describe("DataTable fit layout", () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toMatch(/<a [^>]*max-w-full[^>]*><span title="Academia"/);
+    // The link is pulled half a unit left to line its label up with the cells,
+    // so it may run that half unit past the content box on the right: capped
+    // at `100%` it left that stretch empty and cut the label short of it.
+    expect(markup).toMatch(
+      /<a [^>]*max-w-\[calc\(100%\+0\.5rem\)\][^>]*><span title="Academia"/,
+    );
   });
 
   test("leaves a header whole in an auto table, where its column fits it", () => {
