@@ -939,6 +939,33 @@ describe("ClientDataTable filters in the address bar", () => {
     expect(getRenderedRowNames()).not.toContain("Coreografía 01");
   });
 
+  test("moves focus to the first value after the reader picks a group to add", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      facetedFilters: listFacetedFilters,
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const click = async (element: Element) => {
+      await act(async () => {
+        element.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+        await Promise.resolve();
+      });
+    };
+    await click(document.querySelector('button[aria-label="Agregar filtro"]')!);
+    const groupButton = [
+      ...document.querySelectorAll('[data-slot="popover-content"] button'),
+    ].find((button) => button.textContent?.trim() === "Estado")!;
+    await click(groupButton);
+
+    const firstValue = document.querySelector(
+      '[data-slot="popover-content"] .overflow-y-auto button',
+    );
+    expect(firstValue).not.toBeNull();
+    expect(document.activeElement).toBe(firstValue);
+  });
+
   test("renders the list filtered by the address bar with the filter showing its value", async () => {
     const router = createListRouter(
       "/administracion/finanzas/academy_1?estado=archived",

@@ -4,7 +4,7 @@ import {
   ListFilterPlus,
   Trash2,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Button } from "@/components/ui/button";
@@ -227,14 +227,24 @@ function FilterOptionList({
   onPick: (value: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  const hasSearch = group.options.length > searchableOptionCount;
   const needle = query.trim().toLocaleLowerCase("es");
   const options = group.options.filter((option) =>
     option.label.toLocaleLowerCase("es").includes(needle),
   );
 
+  // The group button that led here is gone, so focus would fall to the page:
+  // with no search box to take it, the first value does.
+  useEffect(() => {
+    if (!hasSearch) {
+      listRef.current?.querySelector("button")?.focus();
+    }
+  }, [hasSearch]);
+
   return (
     <>
-      {group.options.length > searchableOptionCount ? (
+      {hasSearch ? (
         <Input
           autoFocus
           aria-label={`Buscar ${group.label.toLocaleLowerCase("es")}`}
@@ -243,7 +253,7 @@ function FilterOptionList({
           onChange={(event) => setQuery(event.target.value)}
         />
       ) : null}
-      <div className="flex max-h-72 flex-col overflow-y-auto">
+      <div ref={listRef} className="flex max-h-72 flex-col overflow-y-auto">
         {options.map((option) => (
           <Button
             key={option.value}
