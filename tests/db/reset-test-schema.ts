@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import postgres from "postgres";
 
 import { getTestDatabaseUrl } from "./config";
+import { listSchemaEnumNames } from "./schema-enums";
 
 const testDatabaseLockKey = "en-escena-test-database";
 
@@ -68,7 +69,10 @@ async function dropExistingEnums(
       join pg_namespace n on n.oid = t.typnamespace
       where t.typtype = 'e'
         and n.nspname = 'public'
-        and t.typname like 'en\\_escena\\_%' escape '\\'
+        and (
+          t.typname like 'en\\_escena\\_%' escape '\\'
+          or t.typname = any(${listSchemaEnumNames()})
+        )
       order by t.typname
     `;
 
