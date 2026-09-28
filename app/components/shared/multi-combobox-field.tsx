@@ -89,6 +89,7 @@ function MultiComboboxField<
             id={id}
             label={label}
             labelClassName={labelClassName}
+            labelFocusesOnly
             orientation={orientation}
           >
             {({ describedBy, isInvalid }) => (
