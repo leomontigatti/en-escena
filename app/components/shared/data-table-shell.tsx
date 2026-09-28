@@ -385,6 +385,7 @@ function DataTableToolbar({
               />
             ) : null
           }
+          searchProps={search.hidden ? null : search}
           groups={filters.groups}
           selectedValues={filters.getSelectedValues(
             dataTableFacetedFilterColumnId,
