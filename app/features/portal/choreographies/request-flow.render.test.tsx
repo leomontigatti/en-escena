@@ -27,7 +27,6 @@ vi.mock("react-router", async () => {
 });
 
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
-import { PortalChoreographiesListRouteView } from "@/features/portal/choreographies/list/view";
 
 const renderer = createReactDomTestRenderer();
 
@@ -105,61 +104,6 @@ describe("choreographies request flow", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     expect(getButton("Guardar").disabled).toBe(true);
-  });
-
-  test("keeps the create modal open with recoverable save errors", async () => {
-    useActionDataMock.mockReturnValue(undefined);
-    useFetcherMock.mockReturnValueOnce({
-      data: buildCreateOptionsData(),
-      state: "idle",
-      load: vi.fn(),
-    });
-    useFetcherMock.mockReturnValueOnce({
-      data: undefined,
-      state: "idle",
-      submit: vi.fn(),
-    });
-    useFetcherMock.mockReturnValue({
-      data: {
-        intent: "create-choreography",
-        result: {
-          ok: false,
-          code: "schedule-capacity-full",
-          error:
-            "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
-        },
-      },
-      state: "idle",
-      submit: vi.fn(),
-    });
-    useNavigationMock.mockReturnValue({
-      formData: undefined,
-      state: "idle",
-    });
-    useSubmitMock.mockReturnValue(vi.fn());
-
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/portal/coreografias",
-          action: async () => null,
-          element: (
-            <PortalChoreographiesListRouteView
-              initialCreateDialogOpen
-              loaderData={buildListLoaderData()}
-            />
-          ),
-        },
-      ],
-      { initialEntries: ["/portal/coreografias"] },
-    );
-
-    await renderer.renderAsync(<RouterProvider router={router} />);
-
-    expect(document.body.textContent).toContain("Nueva coreografía");
-    expect(document.body.textContent).toContain(
-      "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
-    );
   });
 });
 
@@ -243,75 +187,4 @@ function buildDetailLoaderData() {
   } as unknown as Parameters<
     typeof PortalChoreographyDetailRouteView
   >[0]["loaderData"];
-}
-
-function buildListLoaderData() {
-  const eventSummary = {
-    id: "event_1",
-    name: "Regional 2026",
-    active: true,
-    startsAt: new Date("2026-05-01T12:00:00Z"),
-    endsAt: new Date("2026-05-03T12:00:00Z"),
-  };
-
-  return {
-    choreographies: [],
-    activeDancerCount: 1,
-    eventContext: {
-      selectedEvent: eventSummary,
-      activeEvent: eventSummary,
-      hasActiveEvent: true,
-      activeEventRegistrationReadiness: {
-        eventId: eventSummary.id,
-        isReady: true,
-        missingItems: [],
-      },
-      hasEvents: true,
-      isReadOnly: false,
-      isRegistrationOpen: true,
-    },
-  } as unknown as Parameters<
-    typeof PortalChoreographiesListRouteView
-  >[0]["loaderData"];
-}
-
-function buildCreateOptionsData() {
-  return {
-    eventId: "event_1",
-    activeDancers: [
-      {
-        id: "dancer_1",
-        firstName: "Ana",
-        lastName: "Paz",
-        active: true,
-        birthDate: "2014-01-01",
-        documentType: null,
-        documentNumber: null,
-        verificationStatus: "incomplete" as const,
-        participationStatus: "not-participating" as const,
-      },
-    ],
-    activeProfessors: [
-      {
-        id: "professor_1",
-        firstName: "Luz",
-        lastName: "Suárez",
-        active: true,
-        documentType: null,
-        documentNumber: null,
-        isIncomplete: true,
-        participationStatus: "not-participating" as const,
-      },
-    ],
-    registrationBaseOptions: {
-      modalities: [{ id: "modality_1", name: "Jazz" }],
-      submodalities: [
-        {
-          id: "submodality_1",
-          modalityId: "modality_1",
-          name: "Lyrical",
-        },
-      ],
-    },
-  };
 }

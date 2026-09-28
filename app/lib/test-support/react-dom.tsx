@@ -132,6 +132,7 @@ function getReactDomTexts(selector: string) {
 export {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
   getButton,
   getReactDomTexts,
   setInputValue,

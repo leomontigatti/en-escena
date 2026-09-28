@@ -1,11 +1,13 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  applyRegistrationResolution,
   canAdvanceFromScheduleStep,
+  canAdvanceFromStep,
   CREATE_CHOREOGRAPHY_INTENT,
   createChoreographySchema,
   getCreateChoreographySteps,
-  getFirstPostResolutionStepIndex,
+  getOnlyOptionId,
   buildCreateChoreographyFormData,
   getSubmissionError,
   getSubmissionWarning,
@@ -15,75 +17,39 @@ import {
 } from "@/features/portal/choreographies/create/flow";
 
 describe("choreography create flow helpers", () => {
-  test("keeps the expected step order and first post-resolution step", () => {
-    const resolution = {
-      categoryAgeBasis: 14,
-      category: {
-        status: "resolved" as const,
-        id: "category_1",
-        name: "Juvenil",
-      },
-      categoryCalculationMode: "oldest" as const,
-      dancers: [
-        {
-          id: "dancer_1",
-          firstName: "Ana",
-          lastName: "Paz",
-          birthDate: "2014-07-01",
-          ageAtEventStart: 11,
-        },
-      ],
-      experienceLevel: {
-        required: true as const,
-        options: [{ id: "amateur" as const, name: "Amateur" }],
-      },
-      groupType: "solo" as const,
-      schedule: {
-        status: "multiple" as const,
-        canConfirm: true as const,
-        options: [
-          {
-            id: "capacity_1",
-            isFull: false,
-            label: "3 de mayo de 2026 - 10:00 hs. · 2/8 ocupados",
-            scheduleId: "schedule_1",
-            scheduleCapacityId: "capacity_1",
-            capacity: 8,
-            groupType: "solo" as const,
-            usesGlobalCapacity: false,
-            schedule: {
-              id: "schedule_1",
-              name: "Domingo mañana",
-              scheduledDate: "2026-05-03",
-              startTime: "10:00",
-            },
-          },
-        ],
-      },
-    };
+  test("asks the category step only once a resolution gives a level or a schedule to choose", () => {
+    const multipleSchedules = buildScheduleResolution([
+      { id: "capacity_1", isFull: false },
+      { id: "capacity_2", isFull: false },
+    ]);
+    const onlySchedule = buildAutoScheduleResolution();
 
-    expect(
-      getCreateChoreographySteps({
-        canChooseSubmodality: true,
-        resolution,
-      }),
-    ).toEqual([
-      "name",
-      "modality",
-      "submodality",
+    expect(getCreateChoreographySteps({ resolution: null })).toEqual([
+      "choreography",
       "dancers",
-      "experienceLevel",
-      "schedule",
       "professors",
       "summary",
     ]);
-
     expect(
-      getFirstPostResolutionStepIndex({
-        canChooseSubmodality: true,
-        resolution,
+      getCreateChoreographySteps({ resolution: multipleSchedules }),
+    ).toEqual(["choreography", "dancers", "category", "professors", "summary"]);
+    expect(
+      getCreateChoreographySteps({
+        resolution: {
+          ...onlySchedule,
+          experienceLevel: {
+            required: true,
+            options: [{ id: "amateur", name: "Amateur" }],
+          },
+        },
       }),
-    ).toBe(4);
+    ).toEqual(["choreography", "dancers", "category", "professors", "summary"]);
+    expect(getCreateChoreographySteps({ resolution: onlySchedule })).toEqual([
+      "choreography",
+      "dancers",
+      "professors",
+      "summary",
+    ]);
   });
 
   test("requires at least one professor", () => {
@@ -128,6 +94,118 @@ describe("choreography create flow helpers", () => {
         }),
       ]),
     );
+  });
+});
+
+describe("canAdvanceFromStep", () => {
+  const values = {
+    name: "Danza de la Luna",
+    modalityId: "modality_1",
+    submodalityId: "",
+    dancerIds: ["dancer_1"],
+    professorIds: ["professor_1"],
+    experienceLevelId: "",
+    scheduleCapacityId: "",
+  };
+
+  test("asks the first step for a valid name, a modality and, when it has any, a submodality", () => {
+    const input = { canChooseSubmodality: false, resolution: null, values };
+
+    expect(canAdvanceFromStep("choreography", input)).toBe(true);
+    expect(
+      canAdvanceFromStep("choreography", {
+        ...input,
+        values: { ...values, name: "-" },
+      }),
+    ).toBe(false);
+    expect(
+      canAdvanceFromStep("choreography", {
+        ...input,
+        values: { ...values, modalityId: "" },
+      }),
+    ).toBe(false);
+    expect(
+      canAdvanceFromStep("choreography", {
+        ...input,
+        canChooseSubmodality: true,
+      }),
+    ).toBe(false);
+    expect(
+      canAdvanceFromStep("choreography", {
+        ...input,
+        canChooseSubmodality: true,
+        values: { ...values, submodalityId: "submodality_1" },
+      }),
+    ).toBe(true);
+  });
+
+  test("asks for at least one dancer and one professor", () => {
+    const input = { canChooseSubmodality: false, resolution: null, values };
+
+    expect(canAdvanceFromStep("dancers", input)).toBe(true);
+    expect(
+      canAdvanceFromStep("dancers", {
+        ...input,
+        values: { ...values, dancerIds: [] },
+      }),
+    ).toBe(false);
+    expect(canAdvanceFromStep("professors", input)).toBe(true);
+    expect(
+      canAdvanceFromStep("professors", {
+        ...input,
+        values: { ...values, professorIds: [] },
+      }),
+    ).toBe(false);
+  });
+
+  test("asks the category step for the level it requires and a schedule with room", () => {
+    const resolution: RegistrationResolution = {
+      ...buildScheduleResolution([
+        { id: "capacity_1", isFull: true },
+        { id: "capacity_2", isFull: false },
+      ]),
+      experienceLevel: {
+        required: true,
+        options: [{ id: "amateur", name: "Amateur" }],
+      },
+    };
+    const input = { canChooseSubmodality: false, resolution, values };
+
+    expect(
+      canAdvanceFromStep("category", {
+        ...input,
+        values: {
+          ...values,
+          experienceLevelId: "amateur",
+          scheduleCapacityId: "capacity_2",
+        },
+      }),
+    ).toBe(true);
+    expect(
+      canAdvanceFromStep("category", {
+        ...input,
+        values: { ...values, scheduleCapacityId: "capacity_2" },
+      }),
+    ).toBe(false);
+    expect(
+      canAdvanceFromStep("category", {
+        ...input,
+        values: { ...values, experienceLevelId: "amateur" },
+      }),
+    ).toBe(false);
+    expect(canAdvanceFromStep("category", { ...input, resolution: null })).toBe(
+      false,
+    );
+  });
+});
+
+describe("getOnlyOptionId", () => {
+  test("names the option when it is the only one, and nothing otherwise", () => {
+    expect(getOnlyOptionId([{ id: "modality_1" }])).toBe("modality_1");
+    expect(getOnlyOptionId([{ id: "modality_1" }, { id: "modality_2" }])).toBe(
+      "",
+    );
+    expect(getOnlyOptionId([])).toBe("");
   });
 });
 
@@ -178,6 +256,26 @@ describe("choreography schedule step advance rule", () => {
     ).toBe(false);
   });
 });
+
+function buildAutoScheduleResolution(): RegistrationResolution {
+  const onlyOption = buildScheduleResolution([
+    { id: "capacity_1", isFull: false },
+  ]).schedule.options.at(0);
+
+  if (!onlyOption) {
+    throw new Error("The fixture builds one schedule option.");
+  }
+
+  return {
+    ...buildScheduleResolution([]),
+    schedule: {
+      status: "auto",
+      canConfirm: true,
+      scheduleCapacityId: "capacity_1",
+      options: [onlyOption],
+    },
+  };
+}
 
 function buildScheduleResolution(
   options: { id: string; isFull: boolean }[],
@@ -366,5 +464,156 @@ describe("resolvePortalRegistrationCategory", () => {
     expect(
       resolvePortalRegistrationCategory({ resolution, modalityName: "Jazz" }),
     ).toEqual({ refused: false, resolution });
+  });
+});
+
+describe("applyRegistrationResolution", () => {
+  const answers = {
+    experienceLevelId: "amateur",
+    modalityName: "Jazz",
+    scheduleCapacityId: "capacity_2",
+  };
+
+  test("refuses with the server's message when the resolution failed", () => {
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        result: {
+          ok: false,
+          code: "event-not-found",
+          error: "No encontramos el evento.",
+        },
+      }),
+    ).toEqual({ status: "refused", message: "No encontramos el evento." });
+  });
+
+  test("refuses when no category fits the dancers", () => {
+    const resolution = buildScheduleResolution([
+      { id: "capacity_1", isFull: false },
+    ]);
+
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            category: { status: "pending", reason: "no-compatible-category" },
+          },
+        },
+      }),
+    ).toMatchObject({ status: "refused" });
+  });
+
+  test("refuses with the schedule's message when no schedule takes the choreography", () => {
+    const resolution = buildScheduleResolution([]);
+
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            schedule: {
+              status: "none",
+              canConfirm: false,
+              error: "No hay cronogramas con inscripciones abiertas.",
+              options: [],
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      status: "refused",
+      message: "No hay cronogramas con inscripciones abiertas.",
+    });
+  });
+
+  test("keeps the level and schedule already chosen while the new resolution still offers them", () => {
+    const resolution = buildScheduleResolution([
+      { id: "capacity_1", isFull: false },
+      { id: "capacity_2", isFull: false },
+    ]);
+
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            experienceLevel: {
+              required: true,
+              options: [{ id: "amateur", name: "Amateur" }],
+            },
+          },
+        },
+      }),
+    ).toMatchObject({
+      status: "resolved",
+      experienceLevelId: "amateur",
+      scheduleCapacityId: "capacity_2",
+    });
+  });
+
+  test("drops the level and schedule the new resolution no longer offers", () => {
+    const resolution = buildScheduleResolution([
+      { id: "capacity_1", isFull: false },
+    ]);
+
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            experienceLevel: {
+              required: true,
+              options: [{ id: "elite", name: "Elite" }],
+            },
+          },
+        },
+      }),
+    ).toMatchObject({
+      status: "resolved",
+      experienceLevelId: "",
+      scheduleCapacityId: "",
+    });
+  });
+
+  test("drops the level when the category requires none, and takes the only schedule", () => {
+    const resolution = buildScheduleResolution([]);
+    const onlyOption = buildScheduleResolution([
+      { id: "capacity_9", isFull: false },
+    ]).schedule.options.at(0);
+
+    if (!onlyOption) {
+      throw new Error("The fixture builds one schedule option.");
+    }
+
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            schedule: {
+              status: "auto",
+              canConfirm: true,
+              scheduleCapacityId: "capacity_9",
+              options: [onlyOption],
+            },
+          },
+        },
+      }),
+    ).toMatchObject({
+      status: "resolved",
+      experienceLevelId: "",
+      scheduleCapacityId: "capacity_9",
+    });
   });
 });

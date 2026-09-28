@@ -13,9 +13,9 @@ type LabeledScheduleCapacityOption = {
 
 /**
  * Adds occupancy to each option's label and marks the full ones. It is the only
- * place where capacity options with occupancy are built: administration and
- * portal registration both go through here so the two surfaces show the same
- * thing. A capacity that is never offered as an option carries no label to
+ * place where capacity options with occupancy are built, for administration:
+ * portal registration marks the full ones without saying how many places are
+ * left, through `withScheduleCapacityFullness` below. A capacity that is never offered as an option carries no label to
  * append the suffix to; `isScheduleCapacityFull` next door reads its fullness
  * without building one.
  *
@@ -50,6 +50,29 @@ export async function withScheduleCapacityOccupancy<
       label: appendScheduleOccupancySuffix(option.label, occupancy),
     };
   });
+}
+
+/**
+ * Marks the full options and leaves their labels alone. Portal registration
+ * offers schedules by when they happen: how many places are left is not the
+ * academy's to weigh, and a full one is only greyed out. It reads fullness the
+ * same way `withScheduleCapacityOccupancy` does, so the two surfaces agree on
+ * which options are full.
+ */
+export async function withScheduleCapacityFullness<
+  TOption extends LabeledScheduleCapacityOption,
+>(input: {
+  options: readonly TOption[];
+}): Promise<(TOption & { isFull: boolean })[]> {
+  const occupancies = await resolveScheduleCapacityOccupancies({
+    targets: input.options,
+  });
+
+  return input.options.map((option) => ({
+    ...option,
+    isFull:
+      occupancies.get(toScheduleCapacityOccupancyKey(option))?.isFull ?? false,
+  }));
 }
 
 /**

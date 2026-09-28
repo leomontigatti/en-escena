@@ -871,7 +871,9 @@ describe("choreography registration resolution", () => {
       },
     });
   });
-  test("labels the compatible capacities with their occupancy and marks the full ones", async () => {
+  // The academy chooses a schedule by when it happens: how many places are left
+  // is not its business, and a full one is only marked, never explained (#1241).
+  test("labels the compatible capacities by date and time only, and marks the full ones", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Ocupación Portal",
       email: "registro.coreografia.ocupacion@example.com",
@@ -945,12 +947,12 @@ describe("choreography registration resolution", () => {
             expect.objectContaining({
               id: catalog.soloScheduleCapacity.id,
               isFull: true,
-              label: expect.stringContaining("1/1 ocupados · sin cupo"),
+              label: expect.not.stringContaining("ocupados"),
             }),
             expect.objectContaining({
               id: freeSoloEntry.id,
               isFull: false,
-              label: "2 de mayo de 2026 - 18:00 hs. · 0/5 ocupados",
+              label: "2 de mayo de 2026 - 18:00 hs.",
             }),
           ]),
         },

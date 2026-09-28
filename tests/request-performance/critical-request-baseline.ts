@@ -37,11 +37,11 @@ import {
   action as portalBailarinDetailAction,
   loader as portalBailarinDetailLoader,
 } from "@/routes/portal.bailarines_.$dancerId";
+import { loader as portalCoreografiaLoader } from "@/routes/portal.coreografias";
 import {
-  action as portalCoreografiaAction,
-  loader as portalCoreografiaLoader,
-} from "@/routes/portal.coreografias";
-import { loader as portalCoreografiaCreateOptionsLoader } from "@/routes/portal.coreografias_.crear";
+  action as portalCoreografiaCreateAction,
+  loader as portalCoreografiaCreateOptionsLoader,
+} from "@/routes/portal.coreografias_.crear";
 import {
   action as portalCoreografiaDetailAction,
   loader as portalCoreografiaDetailLoader,
@@ -659,7 +659,7 @@ export async function measureCriticalRequestBaseline(): Promise<
     await measureScenario({
       id: "portal-coreografias-create-action",
       kind: "action",
-      route: "/portal/coreografias",
+      route: "/portal/coreografias/crear",
       surface: "portal",
       setupSpies: [
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
@@ -670,9 +670,9 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
       ],
       run: () =>
-        portalCoreografiaAction({
+        portalCoreografiaCreateAction({
           request: fixture.portalPostRequest(
-            "/portal/coreografias",
+            "/portal/coreografias/crear",
             choreographyCreateFormData({
               eventId: fixture.activeEvent.id,
               name: "Nueva medición",
