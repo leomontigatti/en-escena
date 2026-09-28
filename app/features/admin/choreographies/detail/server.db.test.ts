@@ -12,6 +12,7 @@ import {
   presentations,
   scheduleCapacities,
   scheduleCategories,
+  scheduleModalities,
   schedules,
   submodalities,
 } from "@/db/schema";
@@ -2702,6 +2703,98 @@ describe("administrative choreography detail server", () => {
         where: eq(choreographies.id, choreography.id),
       }),
     ).resolves.toMatchObject({ withdrawnAt: expect.any(Date) });
+  });
+
+  // A withdrawn choreography holds no place, so it does not stop the schedule
+  // from dropping its modality or its category. The restore is where that
+  // shows: it is refused rather than bringing the choreography back onto a
+  // schedule that no longer accepts it.
+  test("refuses to restore when the schedule no longer accepts its modality or category", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Restaurada Incompatible",
+      email: "admin.coreografias.restaurada.incompatible.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Fuera del cronograma",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 4000,
+      choreographyId: choreography.id,
+      eventId: event.id,
+    });
+
+    await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.restaurada.incompatible.retiro@example.com",
+      role: "admin",
+    });
+
+    const [tango] = await db
+      .insert(modalities)
+      .values({ eventId: event.id, name: `Tango ${event.id}` })
+      .returning();
+    await db
+      .insert(scheduleModalities)
+      .values({ modalityId: tango.id, scheduleId: catalog.schedule.id });
+    await db
+      .delete(scheduleModalities)
+      .where(eq(scheduleModalities.modalityId, catalog.modality.id));
+
+    const restore = (attempt: number) =>
+      submitDetailAction({
+        body: restoreFormData(),
+        choreographyId: choreography.id,
+        email: `admin.coreografias.restaurada.incompatible.accion${attempt}@example.com`,
+        role: "admin",
+      });
+
+    await expect(restore(1)).resolves.toEqual({
+      message:
+        "No se puede restaurar: el cronograma ya no acepta su modalidad. Volvé a agregarla al cronograma en las bases del evento.",
+      status: "error",
+    });
+
+    await db.insert(scheduleModalities).values({
+      modalityId: catalog.modality.id,
+      scheduleId: catalog.schedule.id,
+    });
+    await db.insert(scheduleCategories).values({
+      categoryId: catalog.categoryWithoutLevel.id,
+      scheduleId: catalog.schedule.id,
+    });
+
+    await expect(restore(2)).resolves.toEqual({
+      message:
+        "No se puede restaurar: el cronograma ya no acepta su categoría. Volvé a agregarla al cronograma en las bases del evento.",
+      status: "error",
+    });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { withdrawnAt: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({ withdrawnAt: expect.any(Date) });
+
+    await db.insert(scheduleCategories).values({
+      categoryId: catalog.categoryWithLevel.id,
+      scheduleId: catalog.schedule.id,
+    });
+
+    await expect(restore(3)).resolves.toMatchObject({ status: "success" });
   });
 
   // Restoring is an administrative correction on a withdrawn choreography, and

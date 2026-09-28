@@ -7,6 +7,8 @@ import {
   dancers,
   events,
   scheduleCapacities,
+  scheduleCategories,
+  scheduleModalities,
 } from "@/db/schema";
 import {
   getAgeAtDate,
@@ -25,7 +27,7 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type ChoreographyGroupType = (typeof choreographies.$inferSelect)["groupType"];
 
 export type ChoreographyRestorationFailureCode =
-  "not-withdrawn" | "schedule-capacity";
+  "not-withdrawn" | "schedule-capacity" | "schedule-incompatible";
 
 export type ChoreographyRestorationResult =
   | { ok: true }
@@ -37,6 +39,19 @@ export type ChoreographyRestorationResult =
 
 const notWithdrawnChoreographyMessage =
   "Esta coreografía no está retirada, así que no hay nada que restaurar.";
+
+/**
+ * A withdrawn choreography holds no place, so its schedule may stop accepting
+ * its modality or its category while it is away. The only lever is the
+ * schedule's own list: nothing but the restore is writable on a withdrawn
+ * choreography.
+ */
+const restoreIncompatibleScheduleMessages = {
+  category:
+    "No se puede restaurar: el cronograma ya no acepta su categoría. Volvé a agregarla al cronograma en las bases del evento.",
+  modality:
+    "No se puede restaurar: el cronograma ya no acepta su modalidad. Volvé a agregarla al cronograma en las bases del evento.",
+} as const;
 
 /**
  * Restoring words its own full-capacity refusals. The lock's messages were
@@ -66,6 +81,12 @@ const restoreFullPlaceMessages: Record<ScheduleCapacityFullLimit, string> = {
  * schedule; when it holds no capacity reference the placement inside that
  * schedule is resolved again, never the schedule itself.
  *
+ * The schedule must also still accept the choreography's modality and
+ * category: removing either from a schedule only looks at the choreographies
+ * holding a place there, so a withdrawn one can be left out. Restoring it then
+ * is refused rather than bringing back a choreography its own schedule would
+ * not take.
+ *
  * Nothing else is re-resolved. The price is already frozen by the money the
  * choreography holds, and an evaluated presentation cannot exist on a withdrawn
  * choreography, so there is no evaluation to deal with either. The one thing
@@ -79,7 +100,9 @@ export async function restoreChoreography(
   return await db.transaction(async (tx) => {
     const [locked] = await tx
       .select({
+        categoryId: choreographies.categoryId,
         groupType: choreographies.groupType,
+        modalityId: choreographies.modalityId,
         scheduleCapacityId: choreographies.scheduleCapacityId,
         scheduleId: choreographies.scheduleId,
         withdrawnAt: choreographies.withdrawnAt,
@@ -97,6 +120,16 @@ export async function restoreChoreography(
         ok: false,
         code: "not-withdrawn",
         error: notWithdrawnChoreographyMessage,
+      };
+    }
+
+    const incompatibility = await findScheduleIncompatibility(tx, locked);
+
+    if (incompatibility) {
+      return {
+        ok: false,
+        code: "schedule-incompatible",
+        error: restoreIncompatibleScheduleMessages[incompatibility],
       };
     }
 
@@ -153,6 +186,45 @@ export async function restoreChoreography(
 
     return { ok: true };
   });
+}
+
+/**
+ * Which of the choreography's modality and category its schedule no longer
+ * accepts, modality first. A schedule with no accepted-category row accepts
+ * every category.
+ */
+async function findScheduleIncompatibility(
+  tx: Transaction,
+  choreography: { categoryId: string; modalityId: string; scheduleId: string },
+): Promise<keyof typeof restoreIncompatibleScheduleMessages | null> {
+  const acceptedModalities = await tx
+    .select({ modalityId: scheduleModalities.modalityId })
+    .from(scheduleModalities)
+    .where(eq(scheduleModalities.scheduleId, choreography.scheduleId));
+
+  if (
+    !acceptedModalities.some(
+      (accepted) => accepted.modalityId === choreography.modalityId,
+    )
+  ) {
+    return "modality";
+  }
+
+  const acceptedCategories = await tx
+    .select({ categoryId: scheduleCategories.categoryId })
+    .from(scheduleCategories)
+    .where(eq(scheduleCategories.scheduleId, choreography.scheduleId));
+
+  if (
+    acceptedCategories.length > 0 &&
+    !acceptedCategories.some(
+      (accepted) => accepted.categoryId === choreography.categoryId,
+    )
+  ) {
+    return "category";
+  }
+
+  return null;
 }
 
 /**
