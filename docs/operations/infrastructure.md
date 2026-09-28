@@ -347,8 +347,9 @@ written by `app/lib/judging/save-score.server.ts`, from the judge's own save.
   score was lost. There is no sweep that reclaims it; reconciliation is by hand,
   from that log line, and it has to cover the B2 backup copy as well — see
   [Backups](./backups.md).
-- `serveFilesystemObject` has **no Range support**. The player never seeks, so
-  none is needed; a scrubber may not be added without it.
+- `serveFilesystemObject` answers a single byte range with `206 Partial
+Content`, the same as every other kind, which is what lets the feedback
+  player's scrubber seek.
 - The bucket is backed up only because it is named in `STORAGE_BACKUP_BUCKETS`,
   which production sets and the backup scripts default — see
   [Backups](./backups.md#required-environment). A show's audio is all recorded in
