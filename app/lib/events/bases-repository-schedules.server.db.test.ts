@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { schedules } from "@/db/schema";
+import { choreographies, schedules } from "@/db/schema";
 
 import {
   createCategory,
@@ -33,7 +33,10 @@ import {
   createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
@@ -876,6 +879,72 @@ describe("`Bases del evento` repository", () => {
       expect.objectContaining({ id: withEntries.id, registrationOpen: false }),
     ]);
   });
+
+  /**
+   * The edit locks the schedule row before it checks what the schedule still
+   * accepts, the same row restores and assignments lock before placing a
+   * choreography, so a choreography placed while the edit is in flight is seen
+   * by its check instead of being left on a schedule that no longer accepts it.
+   *
+   * The fast suite runs everything through a single PGlite connection, which
+   * serialises the transactions on its own, so this runs on Postgres only.
+   */
+  describe.skipIf(isPgliteTestBackend())(
+    "schedule edits under real contention",
+    () => {
+      test("refuses removing a modality a choreography placed during the edit has", async () => {
+        const { event, jazz, urbanas } = await createEventModalitiesFixture();
+        const academy = await createSavedAcademy();
+        const block = await createSavedSchedule(event.id, {
+          modalityIds: [jazz.id, urbanas.id],
+          totalCapacity: 20,
+        });
+        const otherBlock = await createSavedSchedule(event.id, {
+          name: "Sábado tarde",
+          startTime: "14:00",
+          modalityIds: [jazz.id],
+          totalCapacity: 20,
+        });
+        const choreography = await createChoreographyOnBases({
+          eventId: event.id,
+          academyId: academy.id,
+          modalityId: jazz.id,
+          scheduleId: otherBlock.id,
+        });
+
+        let edit: ReturnType<typeof updateSchedule> | undefined;
+
+        await db.transaction(async (tx) => {
+          await tx
+            .select({ id: schedules.id })
+            .from(schedules)
+            .where(eq(schedules.id, block.id))
+            .for("update");
+
+          edit = updateSchedule(block.id, {
+            name: "Sábado mañana",
+            scheduledDate: "2026-05-02",
+            startTime: "09:00",
+            totalCapacity: 20,
+            modalityIds: [urbanas.id],
+          });
+          await waitForABlockedBackend();
+
+          await tx
+            .update(choreographies)
+            .set({ scheduleId: block.id })
+            .where(eq(choreographies.id, choreography.id));
+        });
+
+        await expect(edit).resolves.toMatchObject({
+          ok: false,
+          code: "schedule-has-dependencies",
+          error:
+            "No se pueden quitar modalidades con coreografías asignadas al cronograma: Jazz.",
+        });
+      });
+    },
+  );
 });
 
 async function createSavedCategory(
@@ -902,4 +971,20 @@ async function createSavedCategory(
       experienceLevels: [],
     }),
   );
+}
+
+async function waitForABlockedBackend() {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const [row] = await db.execute<{ blocked: number }>(
+      sql`select count(*)::int as blocked from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'`,
+    );
+
+    if (Number(row?.blocked ?? 0) > 0) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  throw new Error("The schedule edit never waited on the schedule lock.");
 }

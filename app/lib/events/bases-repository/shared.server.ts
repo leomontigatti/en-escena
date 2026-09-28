@@ -546,8 +546,11 @@ export async function replaceCategoryRelations(
  * evidence rather than a path: it will not be performed, so it holds nothing
  * still and does not block editing the bases it points at.
  */
-export async function hasOccupyingChoreographies(filter: SQL | undefined) {
-  const [choreography] = await db
+export async function hasOccupyingChoreographies(
+  filter: SQL | undefined,
+  executor: EventBasesExecutor = db,
+) {
+  const [choreography] = await executor
     .select({ id: choreographies.id })
     .from(choreographies)
     .where(and(filter, notWithdrawnChoreography()))

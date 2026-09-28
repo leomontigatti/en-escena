@@ -3,20 +3,21 @@ import { and, asc, eq, notInArray } from "drizzle-orm";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import {
   choreographies,
-  db,
   modalities,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
+import type { EventBasesExecutor } from "@/lib/events/bases-repository/shared.server";
 
 /**
  * The names of the modalities a choreography occupying the schedule has, among
  * those `modalityIds` leaves out: the modalities an edit cannot remove.
  */
 export async function listExcludedOccupiedModalities(
+  executor: EventBasesExecutor,
   scheduleId: string,
   modalityIds: string[],
 ) {
-  const excluded = await db
+  const excluded = await executor
     .selectDistinct({ name: modalities.name })
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))

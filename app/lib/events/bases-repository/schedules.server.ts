@@ -22,7 +22,9 @@ import {
 import type {
   EventBaseFailure,
   EventBasesDeleteResult,
+  EventBasesExecutor,
   EventBasesMutationResult,
+  EventBasesTransaction,
   ScheduleDependencies,
   ScheduleInput,
   ScheduleListItem,
@@ -279,17 +281,18 @@ export async function updateSchedule(
     return validation;
   }
 
-  const structuralFailure = await validateStructuralScheduleChanges(
-    existing,
-    input,
-    dependencies.hasDependencies ?? scheduleHasOperationalDependencies,
-  );
-
-  if (structuralFailure) {
-    return structuralFailure;
-  }
-
   return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
+    const structuralFailure = await validateStructuralScheduleChangesLocked(
+      tx,
+      scheduleId,
+      input,
+      dependencies,
+    );
+
+    if (structuralFailure) {
+      return structuralFailure;
+    }
+
     const [record] = await tx
       .update(schedules)
       .set({
@@ -334,16 +337,6 @@ export async function updateScheduleWithEntries(
     return validation;
   }
 
-  const structuralFailure = await validateStructuralScheduleChanges(
-    existing,
-    input,
-    dependencies.hasDependencies ?? scheduleHasOperationalDependencies,
-  );
-
-  if (structuralFailure) {
-    return structuralFailure;
-  }
-
   const existingEntries = await db.query.scheduleCapacities.findMany({
     where: eq(scheduleCapacities.scheduleId, scheduleId),
   });
@@ -369,6 +362,17 @@ export async function updateScheduleWithEntries(
   }
 
   return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
+    const structuralFailure = await validateStructuralScheduleChangesLocked(
+      tx,
+      scheduleId,
+      input,
+      dependencies,
+    );
+
+    if (structuralFailure) {
+      return structuralFailure;
+    }
+
     const [record] = await tx
       .update(schedules)
       .set({
@@ -487,8 +491,11 @@ async function scheduleIsHeldOnlyByWithdrawnChoreographies(scheduleId: string) {
   );
 }
 
-async function scheduleHasOperationalDependencies(scheduleId: string) {
-  const price = await db.query.prices.findFirst({
+async function scheduleHasOperationalDependencies(
+  scheduleId: string,
+  executor: EventBasesExecutor = db,
+) {
+  const price = await executor.query.prices.findFirst({
     columns: { id: true },
     where: eq(prices.scheduleId, scheduleId),
   });
@@ -497,7 +504,10 @@ async function scheduleHasOperationalDependencies(scheduleId: string) {
     return true;
   }
 
-  return hasOccupyingChoreographies(eq(choreographies.scheduleId, scheduleId));
+  return hasOccupyingChoreographies(
+    eq(choreographies.scheduleId, scheduleId),
+    executor,
+  );
 }
 
 /**
@@ -610,6 +620,41 @@ async function scheduleHasScheduleCapacities(scheduleId: string) {
 }
 
 /**
+ * The structural validation below, run as one critical section with the edit's
+ * write. Restoring a choreography and every assignment path lock this same row
+ * before reading what the schedule accepts, so once the edit holds it no
+ * choreography can land between the check and the commit: without the lock, a
+ * choreography placed concurrently would be left on a schedule that no longer
+ * accepts its modality or category, or over a capacity smaller than its
+ * occupants. The row is re-read under the lock, so the check compares against
+ * the schedule as it stands, not as it was before the transaction.
+ */
+async function validateStructuralScheduleChangesLocked(
+  tx: EventBasesTransaction,
+  scheduleId: string,
+  input: ScheduleInput,
+  dependencies: ScheduleDependencies,
+): Promise<EventBaseFailure | null> {
+  const [locked] = await tx
+    .select()
+    .from(schedules)
+    .where(eq(schedules.id, scheduleId))
+    .for("update");
+
+  if (!locked) {
+    return eventBaseEntityNotFound("schedule");
+  }
+
+  return validateStructuralScheduleChanges(
+    tx,
+    locked,
+    input,
+    dependencies.hasDependencies ??
+      ((id) => scheduleHasOperationalDependencies(id, tx)),
+  );
+}
+
+/**
  * Date and time freeze once the schedule has dependencies: choreographies were
  * placed and priced against them. The accepted modalities and categories do
  * not: adding either only widens what the schedule accepts, and prices are
@@ -621,6 +666,7 @@ async function scheduleHasScheduleCapacities(scheduleId: string) {
  * occupies the schedule, which is the only thing a smaller number could break.
  */
 async function validateStructuralScheduleChanges(
+  tx: EventBasesTransaction,
   existing: ExistingSchedule,
   input: ScheduleInput,
   hasDependencies: (scheduleId: string) => boolean | Promise<boolean>,
@@ -638,6 +684,7 @@ async function validateStructuralScheduleChanges(
   }
 
   const excludedModalityNames = await listExcludedOccupiedModalities(
+    tx,
     existing.id,
     uniqueValues(input.modalityIds),
   );
@@ -652,6 +699,7 @@ async function validateStructuralScheduleChanges(
   }
 
   const excludedCategoryNames = await listExcludedOccupiedCategories(
+    tx,
     existing.id,
     uniqueValues(input.categoryIds ?? []),
   );
@@ -669,7 +717,7 @@ async function validateStructuralScheduleChanges(
     return null;
   }
 
-  const occupiedCount = await getScheduleOccupiedCount(existing.id);
+  const occupiedCount = await getScheduleOccupiedCount(tx, existing.id);
 
   if (input.totalCapacity < occupiedCount) {
     return {
@@ -683,9 +731,12 @@ async function validateStructuralScheduleChanges(
   return null;
 }
 
-async function getScheduleOccupiedCount(scheduleId: string) {
+async function getScheduleOccupiedCount(
+  tx: EventBasesTransaction,
+  scheduleId: string,
+) {
   const target = { scheduleCapacityId: null, scheduleId };
-  const readOccupiedCount = await resolveOccupiedCounts([target]);
+  const readOccupiedCount = await resolveOccupiedCounts([target], tx);
 
   return readOccupiedCount(target);
 }
