@@ -3,11 +3,20 @@
  *
  * Question: what should replace the filters side panel? One box that holds the
  * search and the filters as chips (the Odoo shape the user picked), switchable
- * with `?variant=` on any list with filters: `panel` is today's panel; `D` the
+ * with `?variant=` on any list with filters: `panel` is today's panel; `C` the
+ * search beside an "Agregar filtro" picker with the filters as chips; `D` the
  * box hand-rolled on a popover; `E` the same box on the app's `Combobox`.
  * Typing only fills the box; Enter searches or applies the highlighted value.
  */
-import { Check, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ListFilter,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { Popover as PopoverPrimitive } from "radix-ui";
 import {
   useEffect,
@@ -48,6 +57,7 @@ import { setFacetedFilterValue } from "@/components/shared/data-table-helpers";
 
 const VARIANTS = [
   { key: "panel", name: "Panel actual" },
+  { key: "C", name: "Agregar filtro + chips" },
   { key: "D", name: "Una caja, a mano" },
   { key: "E", name: "Una caja, sobre Combobox" },
 ] as const;
@@ -77,6 +87,26 @@ type ToolbarProps = {
 
 function optionLabel(group: DataTableFacetedFilter, value: string | undefined) {
   return group.options.find((option) => option.value === value)?.label;
+}
+
+function ClearAll({
+  selectedValues,
+  onChange,
+}: Pick<ToolbarProps, "selectedValues" | "onChange">) {
+  if (Object.keys(selectedValues).length === 0) {
+    return null;
+  }
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={() => onChange({})}
+    >
+      Limpiar filtros
+      <X data-icon="inline-end" />
+    </Button>
+  );
 }
 
 /** A searchable option list, shared by A and C. */
@@ -173,6 +203,117 @@ function FilterChip({
       >
         <X />
       </Button>
+    </div>
+  );
+}
+
+/** "Agregar filtro": one popover, the group first, then its values. */
+function AddFilterButton({
+  groups,
+  selectedValues,
+  onChange,
+  compact = false,
+}: Pick<ToolbarProps, "groups" | "selectedValues" | "onChange"> & {
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const available = groups.filter((group) => !selectedValues[group.id]);
+  const group = groups.find((candidate) => candidate.id === groupId);
+  if (available.length === 0) return null;
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setGroupId(null);
+      }}
+    >
+      <PopoverTrigger asChild>
+        {compact ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Agregar filtro"
+          >
+            <ListFilter />
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" size="sm">
+            <Plus data-icon="inline-start" />
+            Agregar filtro
+          </Button>
+        )}
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-1">
+        {group ? (
+          <div className="flex flex-col gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="justify-start text-muted-foreground"
+              onClick={() => setGroupId(null)}
+            >
+              <ChevronLeft data-icon="inline-start" />
+              {group.label}
+            </Button>
+            <OptionList
+              group={group}
+              selected={undefined}
+              onPick={(value) => {
+                onChange({ ...selectedValues, [group.id]: value });
+                setOpen(false);
+                setGroupId(null);
+              }}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">
+              Filtrar por
+            </p>
+            {available.map((candidate) => (
+              <Button
+                key={candidate.id}
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="justify-between"
+                onClick={() => setGroupId(candidate.id)}
+              >
+                {candidate.label}
+                <ChevronRight data-icon="inline-end" />
+              </Button>
+            ))}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** C: search beside an "Agregar filtro" button; active filters as chips. */
+function VariantC({ search, groups, selectedValues, onChange }: ToolbarProps) {
+  const active = groups.filter((group) => selectedValues[group.id]);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="w-full sm:w-80">{search}</div>
+      {active.map((group) => (
+        <FilterChip
+          key={group.id}
+          group={group}
+          selectedValues={selectedValues}
+          onChange={onChange}
+        />
+      ))}
+      <AddFilterButton
+        groups={groups}
+        selectedValues={selectedValues}
+        onChange={onChange}
+      />
+      <ClearAll selectedValues={selectedValues} onChange={onChange} />
     </div>
   );
 }
@@ -709,6 +850,7 @@ export function PrototypeFiltersToolbar({
   variant,
   ...props
 }: ToolbarProps & { variant: Exclude<VariantKey, "panel"> }) {
+  if (variant === "C") return <VariantC {...props} />;
   if (variant === "E") return <VariantE {...props} />;
   return <VariantD {...props} />;
 }
