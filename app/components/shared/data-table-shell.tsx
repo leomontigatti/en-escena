@@ -33,7 +33,7 @@ import {
   DataTablePagination,
   SortIcon,
 } from "@/components/shared/data-table-controls";
-import { DataTableFacetedFilterControl } from "@/components/shared/data-table-filters-trigger";
+import { DataTableFilters } from "@/components/shared/data-table-filters";
 import { toSortDirection } from "@/components/shared/data-table-helpers";
 import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
 import { SearchInput } from "@/components/shared/search-input";
@@ -57,7 +57,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/shared/utils";
 
 /** What the search box needs, and whether it is offered at all. */
@@ -364,23 +363,17 @@ function DataTableToolbar({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        {!search.hidden ? <DataTableSearchField search={search} /> : null}
-        {hasFacetedFilters ? (
-          <TooltipProvider>
-            <div className="flex flex-wrap justify-end gap-2">
-              <DataTableFacetedFilterControl
-                groups={filters.groups}
-                selectedValues={filters.getSelectedValues(
-                  dataTableFacetedFilterColumnId,
-                )}
-                onChange={filters.onChange}
-              />
-            </div>
-          </TooltipProvider>
-        ) : null}
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      {!search.hidden ? <DataTableSearchField search={search} /> : null}
+      {hasFacetedFilters ? (
+        <DataTableFilters
+          groups={filters.groups}
+          selectedValues={filters.getSelectedValues(
+            dataTableFacetedFilterColumnId,
+          )}
+          onChange={filters.onChange}
+        />
+      ) : null}
     </div>
   );
 }
@@ -388,7 +381,7 @@ function DataTableToolbar({
 /** The search input, sized for the toolbar. */
 function DataTableSearchField({ search }: { search: DataTableSearchProps }) {
   return (
-    <div className="sm:max-w-md sm:flex-1 lg:max-w-xl">
+    <div className="w-full sm:w-80">
       <SearchInput
         aria-label="Buscar en la tabla"
         placeholder={search.placeholder}

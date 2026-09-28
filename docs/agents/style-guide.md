@@ -391,22 +391,20 @@ Rules:
 - Use badges for states.
 - Use a per-row actions menu when there are more than two actions.
 - Show bulk actions only when there is an active selection.
-- Keep the search box and the toolbar actions at the top in a compact bar, and
-  put the faceted filters in the shell's filters panel behind the toolbar's
-  `Filtros` button — every group, not only the advanced ones. A list carries a
-  category's worth of options per group, and a compact bar can hold neither
-  those nor the count of groups a list has grown to.
-- Inside a shell, the panel pushes the list aside instead of covering it: no
-  overlay, nothing dimmed, and the table stays readable while it is being
-  filtered. Do not reach for a `Sheet` or a `Dialog` here — a component that
-  dims what it filters takes the list away at the moment the reader is judging
-  it. A table with no shell around it falls back to a panel that does lie over
-  the list, because there is nothing for it to push.
-- Offer a group as a `Select`, not a stack of radios, and clear it with a
-  per-group `Limpiar` rather than a synthetic `Todos` option — a group is free
-  to offer an option of its own by that name. This is the single-select case
-  only: a filter that takes several values at once is still a multi-select
-  `Combobox`, as the forms rules say.
+- Keep the search box and the faceted filters in one toolbar above the table.
+  Each applied filter is a button group: the field as muted text (with its
+  icon, when the group has one), the value as a button whose menu picks another
+  single value, and a trash button that removes it. The rest are added from the
+  "Agregar filtro" icon button, which hides once every group is applied. The
+  table keeps its full width: do not put filters in a panel, `Sheet` or
+  `Dialog` that takes room from the list or covers it.
+- Draw a value the way the list already draws it: a status reads as its badge
+  (`renderValue` on the group). Give a group the icon the sidebar uses for its
+  concept, so a field reads the same everywhere.
+- A value's menu has no search; the add picker offers one for a group of more
+  than seven values. This is the single-select case only: a filter that takes
+  several values at once is still a multi-select `Combobox`, as the forms rules
+  say.
 - Use a sticky header only on long lists.
 - Leave a list on the default `auto` layout unless it actually overflows. `auto`
   lets each column ask for the width it needs, and forcing a table with narrow

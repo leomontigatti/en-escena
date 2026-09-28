@@ -99,7 +99,7 @@ describe("PortalDancersListRouteView", () => {
       },
     });
 
-    expect(markup).toContain("Filtros");
+    expect(markup).toContain('aria-label="Agregar filtro"');
     expect(markup).toContain("1 de 2 registros");
     expect(markup).toContain('href="/portal/bailarines/dancer_active"');
     expect(markup).not.toContain('href="/portal/bailarines/dancer_archived"');
