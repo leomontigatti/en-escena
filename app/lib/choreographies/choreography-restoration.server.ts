@@ -9,6 +9,7 @@ import {
   scheduleCapacities,
   scheduleCategories,
   scheduleModalities,
+  schedules,
 } from "@/db/schema";
 import {
   getAgeAtDate,
@@ -85,7 +86,10 @@ const restoreFullPlaceMessages: Record<ScheduleCapacityFullLimit, string> = {
  * category: removing either from a schedule only looks at the choreographies
  * holding a place there, so a withdrawn one can be left out. Restoring it then
  * is refused rather than bringing back a choreography its own schedule would
- * not take.
+ * not take. The schedule row is locked before that check is read, the same row
+ * every accepted-modality and accepted-category edit writes through, so a
+ * narrowing that lands mid-restore is either fully visible to this check or
+ * still waiting behind this lock — never half-applied.
  *
  * Nothing else is re-resolved. The price is already frozen by the money the
  * choreography holds, and an evaluated presentation cannot exist on a withdrawn
@@ -122,6 +126,15 @@ export async function restoreChoreography(
         error: notWithdrawnChoreographyMessage,
       };
     }
+
+    // Locked before the schedule's accepted modalities and categories are
+    // read: an edit to either writes the schedules row too, so this lock makes
+    // that read see the edit whole or wait for it, never a slice of it.
+    await tx
+      .select({ id: schedules.id })
+      .from(schedules)
+      .where(eq(schedules.id, locked.scheduleId))
+      .for("update");
 
     const incompatibility = await findScheduleIncompatibility(tx, locked);
 
