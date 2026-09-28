@@ -920,6 +920,9 @@ describe("`Bases del evento` repository", () => {
             .from(schedules)
             .where(eq(schedules.id, block.id))
             .for("update");
+          const [holder] = await tx.execute<{ pid: number }>(
+            sql`select pg_backend_pid() as pid`,
+          );
 
           edit = updateSchedule(block.id, {
             name: "Sábado mañana",
@@ -928,7 +931,7 @@ describe("`Bases del evento` repository", () => {
             totalCapacity: 20,
             modalityIds: [urbanas.id],
           });
-          await waitForABlockedBackend();
+          await waitForABackendBlockedBy(Number(holder?.pid));
 
           await tx
             .update(choreographies)
@@ -973,10 +976,10 @@ async function createSavedCategory(
   );
 }
 
-async function waitForABlockedBackend() {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+async function waitForABackendBlockedBy(holderPid: number) {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
     const [row] = await db.execute<{ blocked: number }>(
-      sql`select count(*)::int as blocked from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'`,
+      sql`select count(*)::int as blocked from pg_stat_activity where ${holderPid} = any(pg_blocking_pids(pid))`,
     );
 
     if (Number(row?.blocked ?? 0) > 0) {
