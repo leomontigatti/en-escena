@@ -14,7 +14,15 @@ import type {
   UserListRole,
   UserListState,
   UserListType,
-} from "@/lib/admin/users/users-list.server";
+} from "@/lib/admin/users/users-list.shared";
+import {
+  buildUserListSearch,
+  toUserListFacets,
+} from "@/lib/admin/users/users-list.shared";
+import {
+  activeListFacets,
+  describeEmptyList,
+} from "@/lib/list-query/list-query";
 
 import type { loader } from "./server";
 
@@ -42,6 +50,8 @@ const roleFilterOptions = [
   { label: "Juez", value: "judge" },
 ] satisfies FilterSelectOption[];
 
+const emptyUserList = describeEmptyList("usuarios", "search-and-filters");
+
 export function InternalUsersListRouteView({
   loaderData,
 }: InternalUsersListRouteViewProps) {
@@ -58,34 +68,34 @@ export function InternalUsersListRouteView({
     >
       {loaderData.users.length > 0 ||
       hasActiveUserFilters(loaderData.filters) ? (
-        <UsersTable filters={loaderData.filters} users={loaderData.users} />
+        <UsersTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
-          title="No hay Usuarios para mostrar."
-          description="Probá con otra búsqueda o ajustá los filtros para revisar otros accesos."
+          title={emptyUserList.nothingYet}
+          description="Cuando se creen accesos internos o se registren academias, vas a poder revisarlos desde este listado."
         />
       )}
     </AdminResourceLayout>
   );
 }
 
+/**
+ * Whether the reader narrowed this list rather than landed on it. The page
+ * narrows nothing: a page past the last one is clamped.
+ */
 function hasActiveUserFilters(filters: UserListFilters) {
   return (
     filters.query.length > 0 ||
-    filters.archived ||
-    filters.role !== "all" ||
-    filters.state !== "all" ||
-    filters.type !== "all"
+    Object.keys(activeListFacets(toUserListFacets(filters))).length > 0
   );
 }
 
 function UsersTable({
-  filters,
-  users,
+  loaderData,
 }: {
-  filters: UserListFilters;
-  users: UserListItem[];
+  loaderData: InternalUsersListRouteViewProps["loaderData"];
 }) {
+  const { filters, users } = loaderData;
   const columns: DataTableColumn<UserListItem>[] = [
     {
       id: "name",
@@ -165,10 +175,10 @@ function UsersTable({
         },
       ]}
       initialFacetedFilterValues={buildInitialUserFilterValues(filters)}
-      emptyMessage="No hay Usuarios que coincidan con la búsqueda o los filtros."
-      currentPage={1}
-      totalPages={1}
-      totalRows={users.length}
+      emptyMessage={emptyUserList.nothingMatched}
+      currentPage={filters.page}
+      totalPages={loaderData.totalPages}
+      totalRows={loaderData.totalCount}
     />
   );
 }
@@ -176,61 +186,15 @@ function UsersTable({
 function buildInitialUserFilterValues(
   filters: UserListFilters,
 ): Record<string, Record<string, string>> {
-  const values: Record<string, string> = {};
+  const values = activeListFacets(toUserListFacets(filters));
 
-  if (filters.role !== "all") {
-    values.rol = filters.role;
-  }
-
-  if (filters.state !== "all") {
-    values.estado = filters.state;
-  }
-
-  if (filters.type !== "all") {
-    values.tipo = filters.type;
-  }
-
-  if (filters.archived) {
-    values.archivado = "si";
-  }
-
-  if (Object.keys(values).length === 0) {
-    return {};
-  }
-
-  return { filters: values };
+  return Object.keys(values).length > 0 ? { filters: values } : {};
 }
 
 function buildUserDetailHref(filters: UserListFilters, userId: string) {
-  return `/administracion/usuarios/${userId}${buildDetailSearch(filters)}`;
-}
+  const search = buildUserListSearch(filters);
 
-function buildDetailSearch(filters: UserListFilters) {
-  const searchParams = new URLSearchParams();
-
-  if (filters.query.length > 0) {
-    searchParams.set("busqueda", filters.query);
-  }
-
-  if (filters.state !== "all") {
-    searchParams.set("estado", filters.state);
-  }
-
-  if (filters.role !== "all") {
-    searchParams.set("rol", filters.role);
-  }
-
-  if (filters.type !== "all") {
-    searchParams.set("tipo", filters.type);
-  }
-
-  if (filters.archived) {
-    searchParams.set("archivado", "si");
-  }
-
-  const search = searchParams.toString();
-
-  return search.length > 0 ? `?${search}` : "";
+  return `/administracion/usuarios/${userId}${search.length > 0 ? `?${search}` : ""}`;
 }
 
 function getRoleLabel(role: UserListRole) {

@@ -6,8 +6,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographyProfessors, professors } from "@/db/schema";
-import { toProfessorParticipationSearchValue } from "@/lib/admin/professors/professors.shared";
-import { toRosterPersonStatusSearchValue } from "@/lib/roster/roster-person-status.shared";
+import { buildProfessorListSearch } from "@/lib/admin/professors/professors.shared";
 import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
@@ -51,7 +50,7 @@ describe("`/administracion/profesores` route", () => {
     expect(loaderData).not.toHaveProperty("email");
     expect(loaderData).not.toHaveProperty("events");
     expect(markup).toContain("Profesores");
-    expect(markup).toContain("Todavía no hay Profesores para mostrar.");
+    expect(markup).toContain("Todavía no hay profesores.");
     expect(markup).not.toContain("Acciones");
   });
 
@@ -60,7 +59,7 @@ describe("`/administracion/profesores` route", () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.profesores@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores`,
     });
 
     await expect(loader(routeArgs(auditorRequest))).resolves.toMatchObject({
@@ -70,12 +69,12 @@ describe("`/administracion/profesores` route", () => {
     const { request: academyRequest } = await createSignedInRequest({
       email: "academy.profesores@example.com",
       role: "academy",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores`,
     });
     const { request: judgeRequest } = await createSignedInRequest({
       email: "judge.profesores@example.com",
       role: "judge",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores`,
     });
 
     await expectThrownResponse(loader(routeArgs(academyRequest)), 403);
@@ -140,7 +139,7 @@ describe("`/administracion/profesores` route", () => {
     const { request: defaultRequest } = await createSignedInRequest({
       email: "admin.filtros@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores`,
     });
     const defaultData = await loader(routeArgs(defaultRequest));
 
@@ -157,7 +156,7 @@ describe("`/administracion/profesores` route", () => {
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.busqueda@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&busqueda=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/profesores?participando=no&busqueda=Academia+Sur`,
     });
     const searchData = await loader(routeArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
@@ -179,17 +178,23 @@ describe("`/administracion/profesores` route", () => {
     const { request: legacySearchRequest } = await createSignedInRequest({
       email: "admin.busqueda.legacy@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&q=Academia+Sur&page=2`,
+      requestUrl: `http://localhost/administracion/profesores?q=Academia+Sur&page=2`,
     });
-    const legacySearchData = await loader(routeArgs(legacySearchRequest));
+    const legacySearchRedirect = await expectThrownResponse(
+      loader(routeArgs(legacySearchRequest)),
+      302,
+    );
 
-    expect(legacySearchData.filters.query).toBe("");
-    expect(legacySearchData.filters.page).toBe(1);
+    // `q` and `page` are not this product's vocabulary: they are dropped, not
+    // read.
+    expect(legacySearchRedirect.headers.get("Location")).toBe(
+      "/administracion/profesores",
+    );
 
     const { request: emptySearchRequest } = await createSignedInRequest({
       email: "admin.busqueda.vacia@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&busqueda=No+existe`,
+      requestUrl: `http://localhost/administracion/profesores?participando=no&busqueda=No+existe`,
     });
     const emptySearchData = await loader(routeArgs(emptySearchRequest));
     const emptySearchMarkup = renderRoute(emptySearchData);
@@ -197,16 +202,14 @@ describe("`/administracion/profesores` route", () => {
     expect(emptySearchData.professors).toHaveLength(0);
     expect(emptySearchMarkup).toContain('value="No existe"');
     expect(emptySearchMarkup).toContain(
-      "No hay Profesores que coincidan con la búsqueda o los filtros.",
+      "No hay profesores que coincidan con la búsqueda o los filtros.",
     );
-    expect(emptySearchMarkup).not.toContain(
-      "Todavía no hay Profesores para mostrar.",
-    );
+    expect(emptySearchMarkup).not.toContain("Todavía no hay profesores.");
 
     const { request: archivedRequest } = await createSignedInRequest({
       email: "admin.archivados@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&estado=archivados`,
+      requestUrl: `http://localhost/administracion/profesores?estado=archivados`,
     });
     const archivedData = await loader(routeArgs(archivedRequest));
     const archivedMarkup = renderRoute(archivedData);
@@ -220,7 +223,7 @@ describe("`/administracion/profesores` route", () => {
     const { request: pageTwoRequest } = await createSignedInRequest({
       email: "admin.paginacion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}&participando=no&pagina=2`,
+      requestUrl: `http://localhost/administracion/profesores?participando=no&pagina=2`,
     });
     const pageTwoData = await loader(routeArgs(pageTwoRequest));
     const pageTwoMarkup = renderRoute(pageTwoData);
@@ -377,7 +380,7 @@ describe("`/administracion/profesores` route", () => {
     const { request: listRequest } = await createSignedInRequest({
       email: "admin.layout.list@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores?evento=${event.id}`,
+      requestUrl: `http://localhost/administracion/profesores`,
     });
     const { request: detailRequest } = await createSignedInRequest({
       email: "admin.layout.detail@example.com",
@@ -1281,56 +1284,12 @@ function renderRouteInAdminLayout({
 function buildListInitialEntry(
   loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
 ) {
-  const searchParams = new URLSearchParams();
-
-  if (loaderData.filters.query.length > 0) {
-    searchParams.set("busqueda", loaderData.filters.query);
-  }
-
-  if (loaderData.filters.nameOrder === "desc") {
-    searchParams.set("orden", "nombre:desc");
-  }
-
-  const values = getProfessorFilterValues(loaderData);
-
-  if (values.participando) {
-    searchParams.set("participando", values.participando);
-  }
-
-  if (values.estado) {
-    searchParams.set("estado", values.estado);
-  }
-
-  if (loaderData.filters.page > 1) {
-    searchParams.set("pagina", String(loaderData.filters.page));
-  }
-
-  const search = searchParams.toString();
+  const search = buildProfessorListSearch(
+    loaderData.filters,
+    loaderData.selectedEventId,
+  );
 
   return `/administracion/profesores${search.length > 0 ? `?${search}` : ""}`;
-}
-
-function getProfessorFilterValues(
-  loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
-) {
-  const values: Record<string, string> = {};
-  const statusValue = toRosterPersonStatusSearchValue(
-    loaderData.filters.status,
-  );
-
-  if (statusValue !== null) {
-    values.estado = statusValue;
-  }
-
-  const participationValue = toProfessorParticipationSearchValue(
-    loaderData.filters.participation,
-  );
-
-  if (loaderData.selectedEventId && participationValue !== null) {
-    values.participando = participationValue;
-  }
-
-  return values;
 }
 
 function createPostRequest(

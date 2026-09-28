@@ -3,9 +3,12 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { buildCreatePath } from "@/lib/shared/navigation";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { SeminarList } from "../list-table";
 import { basePath, type SeminarsListLoaderData } from "../shared";
+
+const emptySeminarList = describeEmptyList("seminarios", "search");
 
 export type SeminarsListViewProps = {
   loaderData: SeminarsListLoaderData;
@@ -34,7 +37,7 @@ export function SeminarsListView({ loaderData }: SeminarsListViewProps) {
         />
       ) : (
         <AdminEmptyState
-          title="Todavía no hay seminarios creados."
+          title={emptySeminarList.nothingYet}
           description="Creá el primer seminario para que las academias puedan inscribir a su elenco."
         />
       )}

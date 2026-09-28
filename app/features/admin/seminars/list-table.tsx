@@ -10,8 +10,11 @@ import {
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
 import { buildDetailPath } from "@/lib/shared/navigation";
 import { cn } from "@/lib/shared/utils";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { basePath } from "./shared";
+
+const emptySeminarList = describeEmptyList("seminarios", "search");
 
 export function SeminarList({
   seminars,
@@ -68,7 +71,7 @@ export function SeminarList({
       getRowKey={(seminar) => seminar.id}
       searchPlaceholder="Buscar seminario por instructor"
       textFilterColumnId="instructorName"
-      emptyMessage="No hay seminarios que coincidan con la búsqueda."
+      emptyMessage={emptySeminarList.nothingMatched}
       initialSort={{ columnId: "scheduledDate", direction: "asc" }}
     />
   );

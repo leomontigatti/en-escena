@@ -11,8 +11,11 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { formatAmount } from "@/lib/finances/formatters";
 import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { FinanceAccountRow, loadFinancesList } from "./server";
+
+const emptyAcademyList = describeEmptyList("academias", "search");
 
 type FinancesListLoaderData = Awaited<ReturnType<typeof loadFinancesList>>;
 
@@ -68,7 +71,7 @@ export function FinancesListRouteView({
             columnId: "academyName",
             direction: "asc",
           }}
-          emptyMessage="No hay cuentas corrientes para mostrar."
+          emptyMessage={emptyAcademyList.nothingMatched}
         />
       ) : (
         <AdminEmptyState

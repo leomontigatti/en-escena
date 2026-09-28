@@ -18,6 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
+import { listQueryParamNames } from "@/lib/list-query/list-query";
 
 import {
   orderAutomaticallyIntent,
@@ -107,7 +108,7 @@ function PresentationWarningsNotice({
       next.set("advertencias", "con");
     }
 
-    next.delete("pagina");
+    next.delete(listQueryParamNames.page);
     setSearchParams(next);
   };
 
@@ -149,7 +150,7 @@ export function PresentationDayTabs({
       next.set("dia", day);
     }
 
-    next.delete("pagina");
+    next.delete(listQueryParamNames.page);
     setSearchParams(next);
   };
 

@@ -1,10 +1,6 @@
 import type { ShouldRevalidateFunction } from "react-router";
 
-import {
-  dataTablePageParamName,
-  dataTableSearchParamName,
-  dataTableSortParamName,
-} from "@/components/shared/data-table.shared";
+import { listQueryParamNames } from "@/lib/list-query/list-query";
 
 type DataTableRevalidationParamNames = {
   /**
@@ -15,9 +11,6 @@ type DataTableRevalidationParamNames = {
    * why the rule asks the route to name them rather than guessing.
    */
   filterParamNames?: string[];
-  pageParamName?: string;
-  searchParamName?: string;
-  sortParamName?: string;
 };
 
 /**
@@ -42,9 +35,6 @@ export function shouldRevalidateDataTableRoute({
   filterParamNames = [],
   formMethod,
   nextUrl,
-  pageParamName = dataTablePageParamName,
-  searchParamName = dataTableSearchParamName,
-  sortParamName = dataTableSortParamName,
 }: DataTableRevalidationParamNames & {
   currentUrl: URL;
   defaultShouldRevalidate: boolean;
@@ -69,9 +59,9 @@ export function shouldRevalidateDataTableRoute({
   }
 
   const tableParamNames = new Set([
-    pageParamName,
-    searchParamName,
-    sortParamName,
+    listQueryParamNames.page,
+    listQueryParamNames.search,
+    listQueryParamNames.order,
     ...filterParamNames,
   ]);
 

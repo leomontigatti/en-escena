@@ -1,23 +1,84 @@
-import type { RosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
+import {
+  buildCanonicalListSearch,
+  type ListOrder,
+  type ListQuerySpec,
+} from "@/lib/list-query/list-query";
+import {
+  toRosterPersonStatusSearchValue,
+  type RosterPersonStatusFilter,
+} from "@/lib/roster/roster-person-status.shared";
 
-export const dancerPageSize = 50;
 export const dancerNotFoundMessage = "No encontramos ese Bailarín.";
 
 export type DancerParticipationFilter = "yes" | "no" | "all";
-export type DancerNameOrder = "asc" | "desc";
 export type DancerIdentificationFilter =
   "incomplete" | "unverified" | "verified" | "all";
 export type DancerIdentificationStatus =
   "incomplete" | "unverified" | "verified";
 
 export type DancerListFilters = {
-  nameOrder: DancerNameOrder;
+  order: ListOrder<"nombre">;
   participation: DancerParticipationFilter;
   query: string;
   status: RosterPersonStatusFilter;
   identification: DancerIdentificationFilter;
   page: number;
 };
+
+/** The dancer list sorts by name alone, ascending unless asked otherwise. */
+export const dancerListSpec: ListQuerySpec<"nombre"> = {
+  orderColumnIds: ["nombre"],
+  defaultOrder: { columnId: "nombre", direction: "asc" },
+};
+
+/**
+ * The list's facets as the URL writes them, each absent at its default.
+ * Participation only narrows the list while an event is active, so without one
+ * it is not written at all.
+ */
+export function toDancerListFacets(
+  filters: DancerListFilters,
+  selectedEventId: string | null,
+) {
+  return {
+    participando:
+      selectedEventId === null
+        ? null
+        : toDancerParticipationSearchValue(filters.participation),
+    identificacion:
+      filters.identification === "all"
+        ? null
+        : toDancerIdentificationSearchValue(filters.identification),
+    estado: toRosterPersonStatusSearchValue(filters.status),
+  };
+}
+
+/** What the list applied, as its canonical address is written from it. */
+export function toDancerAppliedListQuery(
+  filters: DancerListFilters,
+  selectedEventId: string | null,
+) {
+  return {
+    facets: toDancerListFacets(filters, selectedEventId),
+    query: {
+      order: filters.order,
+      page: filters.page,
+      search: filters.query,
+    },
+    spec: dancerListSpec,
+  };
+}
+
+/** The list's canonical query string, carried to a detail screen and back. */
+export function buildDancerListSearch(
+  filters: DancerListFilters,
+  selectedEventId: string | null,
+) {
+  return buildCanonicalListSearch({
+    ...toDancerAppliedListQuery(filters, selectedEventId),
+    currentSearch: "",
+  });
+}
 
 export function readDancerParticipationFilter(
   value: string | null,
@@ -63,9 +124,7 @@ export function toDancerParticipationSearchValue(
   }
 }
 
-export function toDancerIdentificationSearchValue(
-  value: DancerIdentificationFilter,
-) {
+function toDancerIdentificationSearchValue(value: DancerIdentificationFilter) {
   switch (value) {
     case "unverified":
       return "sin-verificar";

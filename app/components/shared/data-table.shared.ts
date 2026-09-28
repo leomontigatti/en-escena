@@ -1,15 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 
 /**
- * The shared query-parameter contract for both tables: Spanish names, so a URL
- * a reader shares or bookmarks reads like the rest of the product. Views only
- * pass the override props when they need a different name.
- */
-export const dataTablePageParamName = "pagina";
-export const dataTableSearchParamName = "busqueda";
-export const dataTableSortParamName = "orden";
-
-/**
  * How long both tables wait before writing a search to the address bar. Long
  * enough that a reader still typing writes nothing, short enough that the
  * address bar settles as soon as they stop.
@@ -131,9 +122,6 @@ export type DataTableBaseProps<TData> = {
   emptyMessage?: string;
   baseFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
   initialFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
-  pageParamName?: string;
-  searchParamName?: string;
-  sortParamName?: string;
 };
 
 /**

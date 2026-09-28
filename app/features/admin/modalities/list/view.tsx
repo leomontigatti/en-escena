@@ -9,6 +9,7 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { buildCreatePath, buildDetailPath } from "@/lib/shared/navigation";
+import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import {
   basePath,
@@ -16,6 +17,8 @@ import {
   type EventModalityRow,
   type EventSubmodalityRow,
 } from "../shared";
+
+const emptyModalityList = describeEmptyList("modalidades", "search");
 
 export type EventModalitiesListViewProps = {
   loaderData: EventModalitiesLoaderData;
@@ -42,7 +45,7 @@ export function EventModalitiesListView({
         />
       ) : (
         <AdminEmptyState
-          title="Todavía no hay modalidades creadas."
+          title={emptyModalityList.nothingYet}
           description="Creá la primera modalidad para organizar las coreografías del evento activo y agregar sus submodalidades desde el detalle."
         />
       )}
@@ -112,7 +115,7 @@ function ModalitiesTable({
       getRowKey={(modality) => modality.id}
       searchPlaceholder="Buscar modalidad por nombre"
       textFilterColumnId="name"
-      emptyMessage="No hay modalidades que coincidan con la búsqueda."
+      emptyMessage={emptyModalityList.nothingMatched}
       initialSort={{ columnId: "name", direction: "asc" }}
     />
   );

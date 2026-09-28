@@ -21,7 +21,9 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("loadChoreographyListRouteData", () => {
-  test("redirects invalid filters to the canonical list URL", async () => {
+  // `evento` is the selectable-event residue: the active event is resolved
+  // without it, so it is a stale parameter and the canonical URL drops it.
+  test("redirects invalid filters and stale parameters to the canonical list URL", async () => {
     const event = await createSavedEvent();
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.feature@example.com",
@@ -39,12 +41,62 @@ describe("loadChoreographyListRouteData", () => {
     );
 
     expect(response.headers.get("Location")).toBe(
-      `/administracion/coreografias?evento=${event.id}`,
+      "/administracion/coreografias",
     );
+  });
+
+  test("redirects a page past the last one to the last page", async () => {
+    await seedChoreographiesByDay();
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.pagina@example.com",
+      role: "admin",
+      requestUrl:
+        "http://localhost/administracion/coreografias?busqueda=noche&pagina=5",
+    });
+
+    const response = await expectThrownResponse(
+      loadChoreographyListRouteData(request),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      "/administracion/coreografias?busqueda=noche",
+    );
+  });
+
+  test("reads the order from the URL in the shared token shape", async () => {
+    await seedChoreographiesByDay();
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.orden@example.com",
+      role: "admin",
+      requestUrl:
+        "http://localhost/administracion/coreografias?orden=nombre%3Adesc",
+    });
+
+    const result = await loadChoreographyListRouteData(request);
+
+    expect(result.choreographies.map((row) => row.name)).toEqual([
+      "Coreografía del día anterior",
+      "Coreografía de la noche",
+      "Coreografía de la mañana",
+    ]);
   });
 });
 
 describe("loadChoreographies", () => {
+  test("finds a choreography whatever accents the search is typed with", async () => {
+    const { event, scheduledChoreographies } = await seedChoreographiesByDay();
+
+    const result = await loadChoreographies({
+      filters: buildFilters({ query: "COREOGRAFIA DE LA MANANA" }),
+      selectedEventId: event.id,
+    });
+
+    expect(result.choreographies.map((row) => row.name)).toEqual([
+      scheduledChoreographies.morning.name,
+    ]);
+  });
+
   // A day is not a schedule: an event may run several blocks on the same date,
   // and an admin looking at "that Saturday" wants all of them at once.
   test("gathers every schedule of a day behind a single day filter", async () => {
@@ -138,13 +190,12 @@ describe("loadChoreographies", () => {
   });
 
   test("keeps `retirada` in the canonical list URL", async () => {
-    const { event } = await seedWithdrawnChoreography();
+    await seedWithdrawnChoreography();
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.retiradas@example.com",
       role: "admin",
       requestUrl:
-        `http://localhost/administracion/coreografias?evento=${event.id}` +
-        "&estado=retirada",
+        "http://localhost/administracion/coreografias?estado=retirada",
     });
 
     const result = await loadChoreographyListRouteData(request);
