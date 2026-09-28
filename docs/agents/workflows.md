@@ -831,7 +831,7 @@ wrong without it. If reading the relevant code answers the question, leave it ou
 - `docs/agents/` holds operative rules and the traps that are hard to discover from the source.
   `docs/domain/` holds the model, and `check:doc-map` fails a PR that changes mapped code without
   touching its page or carrying a `Doc-Change-Not-Needed: <reason>` commit trailer
-  ([CODING_STANDARDS.md](coding-standards.md#documentation-gate)).
+  ([coding-standards.md](coding-standards.md#documentation-gate)).
   `docs/adr/` holds decisions and their reasons.
 - Do not enumerate fields or functions, narrate control flow, keep file catalogs, or append PR
   summaries. Types, tests and code already record the implementation. A local explanation goes

@@ -188,7 +188,7 @@ describe("comment-language guardrail (#592)", () => {
     ).toEqual(["comment"]);
   });
 
-  // The one term CODING_STANDARDS reserves, and the reason the list is not
+  // The one term the coding standards reserve, and the reason the list is not
   // empty: an empty reserved list has no escape valve and breaks quietly.
   test("leaves the reserved term alone, inflection included", () => {
     expect(

@@ -33,7 +33,7 @@ Rules:
   PRs. A PRD PR is the deliberate exception: one PR for the chain (see below).
 - **Anything the reviewer must do or decide goes first**, above the problem: a
   migration to run, a setting to change, a call that is theirs.
-- English, per [CODING_STANDARDS.md](coding-standards.md) §
+- English, per [coding-standards.md](coding-standards.md) §
   Code Language; Spanish only inside backticks, as data.
 
 Example:
