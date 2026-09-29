@@ -107,7 +107,9 @@ function useCategoryForm({
     [experienceLevels, groupTypes, maxAge, minAge, modalityIds, name],
   );
   const form = useForm<CategoryFormValues>({
-    defaultValues: saved,
+    // The first render, before the effect below runs, is also the one the
+    // server sends: a refused submission has to be in it.
+    defaultValues: submittedValues ?? saved,
     mode: "onSubmit",
     resolver: zodResolver(categoryFormSchema),
   });
