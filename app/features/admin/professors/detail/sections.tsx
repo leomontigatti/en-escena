@@ -61,17 +61,28 @@ export function ProfessorDetailAlerts({
   active,
   canEdit,
   isIncomplete,
+  nameWarning,
+  nameWarningFormId,
   onSelectIntent,
   participatingAlert,
 }: {
   active: boolean;
   canEdit: boolean;
   isIncomplete: boolean;
+  /** The same-name warning of the last save, answered through the edit form. */
+  nameWarning?: RosterNameWarning;
+  nameWarningFormId: string;
   onSelectIntent: (intent: ProfessorStatusIntent) => void;
   participatingAlert: string | null;
 }) {
   return (
     <AlertStack>
+      {nameWarning ? (
+        <RosterNameWarningNotice
+          formId={nameWarningFormId}
+          warning={nameWarning}
+        />
+      ) : null}
       {!active ? (
         <ArchivedPersonAlert
           personLabel="profesor"
@@ -132,8 +143,6 @@ export function ProfessorDetailForm({
           editForm={editForm}
           professor={professor}
         />
-
-        {nameWarning ? <RosterNameWarningNotice warning={nameWarning} /> : null}
       </AdminResourceFormCard>
 
       <FormActions

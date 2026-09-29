@@ -20,17 +20,17 @@ describe("AcademyNameWarningNotice", () => {
   async function renderNotice() {
     await renderer.renderAsync(
       <MemoryRouter>
-        <form>
-          <AcademyNameWarningNotice
-            matches={[
-              {
-                createdAt: new Date("2026-09-21T15:00:00.000Z"),
-                id: "academia-existente",
-                name: "Academia Existente",
-              },
-            ]}
-          />
-        </form>
+        <form id="registro-academia" />
+        <AcademyNameWarningNotice
+          formId="registro-academia"
+          matches={[
+            {
+              createdAt: new Date("2026-09-21T15:00:00.000Z"),
+              id: "academia-existente",
+              name: "Academia Existente",
+            },
+          ]}
+        />
       </MemoryRouter>,
     );
   }
@@ -51,7 +51,7 @@ describe("AcademyNameWarningNotice", () => {
     ).toEqual(["/ingresar", "/recuperar-acceso"]);
   });
 
-  test("continues the same submission carrying the ids the person saw", async () => {
+  test("continues the same submission carrying the ids the person saw, from outside the form", async () => {
     await renderNotice();
 
     const form = document.querySelector("form");
@@ -61,5 +61,6 @@ describe("AcademyNameWarningNotice", () => {
       new FormData(form as HTMLFormElement).getAll("acknowledgedDuplicateIds"),
     ).toEqual(["academia-existente"]);
     expect(getButton("Continuar de todos modos").type).toBe("submit");
+    expect(getButton("Continuar de todos modos").form).toBe(form);
   });
 });

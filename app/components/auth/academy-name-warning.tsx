@@ -4,14 +4,19 @@ import type { AcademyNameMatch } from "@/lib/academies/academy-name-duplicates";
 import { formatBusinessDate } from "@/lib/shared/business-time-zone";
 
 type AcademyNameWarningNoticeProps = {
+  formId: string;
   matches: readonly AcademyNameMatch[];
 };
 
 export function AcademyNameWarningNotice({
+  formId,
   matches,
 }: AcademyNameWarningNoticeProps) {
   return (
-    <DuplicateWarningPrompt matchIds={matches.map((match) => match.id)}>
+    <DuplicateWarningPrompt
+      formId={formId}
+      matchIds={matches.map((match) => match.id)}
+    >
       {matches.map((match) => (
         <p key={match.id}>
           Ya existe una academia llamada «{match.name}», registrada el{" "}

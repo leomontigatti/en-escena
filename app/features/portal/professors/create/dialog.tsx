@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
 import type { FetcherSubmitFunction } from "react-router";
 
@@ -52,6 +52,7 @@ export function CreateProfessorDialog({
   onOpenChange: (nextOpen: boolean) => void;
   submit: FetcherSubmitFunction;
 }) {
+  const formId = useId();
   const form = useForm<CreateProfessorFormValues>({
     resolver: zodResolver(createProfessorSchema),
     defaultValues: actionData?.values ?? emptyProfessorValues,
@@ -102,7 +103,15 @@ export function CreateProfessorDialog({
             </DialogDescription>
           </DialogHeader>
 
+          {actionData?.status === "warning" ? (
+            <RosterNameWarningNotice
+              formId={formId}
+              warning={actionData.warning}
+            />
+          ) : null}
+
           <form
+            id={formId}
             method="post"
             onSubmit={createValidatedReactRouterSubmitHandler(form, submit, {
               method: "post",
@@ -143,10 +152,6 @@ export function CreateProfessorDialog({
                 name="documentNumber"
               />
             </FieldGroup>
-
-            {actionData?.status === "warning" ? (
-              <RosterNameWarningNotice warning={actionData.warning} />
-            ) : null}
 
             <DialogFooter>
               <Button

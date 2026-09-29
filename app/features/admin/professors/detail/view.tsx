@@ -98,6 +98,8 @@ export function ProfessorDetailRouteView({
         active={professor.active}
         canEdit={loaderData.canEdit}
         isIncomplete={professor.isIncomplete}
+        nameWarning={nameWarning?.warning}
+        nameWarningFormId={editFormId}
         onSelectIntent={openStatusDialog}
         participatingAlert={viewState.participatingAlert}
       />

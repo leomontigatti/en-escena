@@ -113,6 +113,8 @@ export function DancerDetailAlerts({
   canVerifyIdentity,
   identificationAlert,
   identificationAlertVariant,
+  nameWarning,
+  nameWarningFormId,
   onSelectIntent,
   participatingAlert,
   recategorisedChoreographies,
@@ -124,44 +126,48 @@ export function DancerDetailAlerts({
   canVerifyIdentity: boolean;
   identificationAlert: string | null;
   identificationAlertVariant: "info" | "warning";
+  /** The same-name warning of the last save, answered through the edit form. */
+  nameWarning?: RosterNameWarning;
+  nameWarningFormId: string;
   onSelectIntent: (intent: DancerDialogIntent) => void;
   participatingAlert: string | null;
   recategorisedChoreographies: RecategorisedChoreography[];
 }) {
+  const onReactivate = canEdit
+    ? () => onSelectIntent("reactivate-dancer")
+    : undefined;
+  const verifyAction = canVerifyIdentity
+    ? { label: "Verificar", onClick: () => onSelectIntent("verify") }
+    : undefined;
+
   return (
     <AlertStack>
-      <RecategorisedChoreographiesAlert
-        buildChoreographyHref={(choreographyId) =>
-          choreographyDetailPath({ academyId, choreographyId })
-        }
-        choreographies={recategorisedChoreographies}
-        surface="admin"
-      />
+      {nameWarning ? (
+        <RosterNameWarningNotice
+          formId={nameWarningFormId}
+          warning={nameWarning}
+        />
+      ) : null}
+      {recategorisedChoreographies.length > 0 ? (
+        <RecategorisedChoreographiesAlert
+          buildChoreographyHref={(choreographyId) =>
+            choreographyDetailPath({ academyId, choreographyId })
+          }
+          choreographies={recategorisedChoreographies}
+          surface="admin"
+        />
+      ) : null}
       {!active ? (
         <ArchivedPersonAlert
           personLabel="bailarín"
-          onReactivate={
-            canEdit ? () => onSelectIntent("reactivate-dancer") : undefined
-          }
+          onReactivate={onReactivate}
         />
       ) : null}
       {participatingAlert ? (
         <RosterPersonParticipatingAlert message={participatingAlert} />
       ) : null}
       {identificationAlert ? (
-        <DancerAlert
-          variant={identificationAlertVariant}
-          action={
-            canVerifyIdentity
-              ? {
-                  label: "Verificar",
-                  onClick: () => {
-                    onSelectIntent("verify");
-                  },
-                }
-              : undefined
-          }
-        >
+        <DancerAlert variant={identificationAlertVariant} action={verifyAction}>
           {identificationAlert}
         </DancerAlert>
       ) : null}
@@ -219,8 +225,6 @@ export function DancerDetailForm({
           editForm={editForm}
           selectedEventId={selectedEventId}
         />
-
-        {nameWarning ? <RosterNameWarningNotice warning={nameWarning} /> : null}
       </AdminResourceFormCard>
 
       <FormActions

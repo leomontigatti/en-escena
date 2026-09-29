@@ -54,6 +54,7 @@ export function CreateDancerDialog({
   submit: FetcherSubmitFunction;
 }) {
   const birthDateId = useId();
+  const formId = useId();
   const form = useForm<CreateDancerFormValues>({
     resolver: zodResolver(buildCreateDancerSchema(eventStartDate)),
     defaultValues: actionData?.values ?? emptyDancerValues,
@@ -104,7 +105,15 @@ export function CreateDancerDialog({
             </DialogDescription>
           </DialogHeader>
 
+          {actionData?.status === "warning" ? (
+            <RosterNameWarningNotice
+              formId={formId}
+              warning={actionData.warning}
+            />
+          ) : null}
+
           <form
+            id={formId}
             method="post"
             onSubmit={createValidatedReactRouterSubmitHandler(form, submit, {
               method: "post",
@@ -153,10 +162,6 @@ export function CreateDancerDialog({
                 name="documentNumber"
               />
             </FieldGroup>
-
-            {actionData?.status === "warning" ? (
-              <RosterNameWarningNotice warning={actionData.warning} />
-            ) : null}
 
             <DialogFooter>
               <Button
