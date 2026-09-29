@@ -595,19 +595,19 @@ async function findRoutedChoreography(input: {
 }) {
   const { academyId, choreographyId } = input.params;
   const selectedEventId = input.selectedEventId;
-  const choreography =
-    academyId && choreographyId && selectedEventId
-      ? await findChoreographyDetail({ choreographyId, selectedEventId })
-      : null;
+  const notFound = new Response(choreographyNotFoundMessage, { status: 404 });
 
-  if (
-    !selectedEventId ||
-    !choreography ||
-    choreography.academyId !== academyId
-  ) {
-    throw new Response(choreographyNotFoundMessage, {
-      status: 404,
-    });
+  if (!academyId || !choreographyId || !selectedEventId) {
+    throw notFound;
+  }
+
+  const choreography = await findChoreographyDetail({
+    choreographyId,
+    selectedEventId,
+  });
+
+  if (!choreography || choreography.academyId !== academyId) {
+    throw notFound;
   }
 
   return { choreography, selectedEventId };
