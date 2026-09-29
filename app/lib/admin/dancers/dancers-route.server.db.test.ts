@@ -525,7 +525,7 @@ describe("`/administracion/bailarines` route", () => {
         // Deadline-less: it applies whatever the business date is, so the
         // expectation does not expire with the calendar.
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
 

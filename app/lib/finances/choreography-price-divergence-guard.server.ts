@@ -1,17 +1,13 @@
 import { eq, sql } from "drizzle-orm";
 
-import {
-  choreographyDancers,
-  events,
-  paymentAllocations,
-  prices,
-} from "@/db/schema";
+import { choreographyDancers, events, paymentAllocations } from "@/db/schema";
 import {
   calculateDepositAmount,
   hasCrossedDepositThreshold,
 } from "@/lib/finances/inscription-financial-status";
 import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
 import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
+import { loadEventPriceRows, type PriceRow } from "@/lib/prices/rows.server";
 
 import {
   type Executor,
@@ -52,9 +48,9 @@ export type DestinationPriceKey = {
  *
  * - An unresolvable price on both sides (`null → null`) **passes**: nothing
  *   changes. Any `null ↔ number` transition diverges, in either direction.
- * - A frozen inscription whose stored row is pinned to a schedule diverges when
- *   the destination's pricing schedule differs, even though both sides resolve
- *   to that same stored amount. The freeze promises the stored row is never
+ * - A frozen inscription whose stored row is a special one diverges when the
+ *   row does not cover the destination's pricing schedule, even though both
+ *   sides resolve to that same stored amount. The freeze promises the stored row is never
  *   rewritten, and `readInscriptionPriceOptions` only offers rows of the
  *   choreography's own schedule, so carrying the pinned row over would leave the
  *   inscription on a price the allocation dialog can no longer name.
@@ -127,9 +123,7 @@ export async function loadPriceDivergenceCheck(input: {
       columns: { requiredDepositPercentage: true },
       where: eq(events.id, choreography.eventId),
     }),
-    executor.query.prices.findMany({
-      where: eq(prices.eventId, choreography.eventId),
-    }),
+    loadEventPriceRows(executor, choreography.eventId),
   ]);
 
   if (!event) {
@@ -185,14 +179,14 @@ export async function loadPriceDivergenceCheck(input: {
 }
 
 /**
- * Whether the inscription is frozen against a row that belongs to a schedule
- * other than the destination's. Read off the **stored** row and its own
+ * Whether the inscription is frozen against a special row that does not cover
+ * the destination's schedule. A row shared by both schedules pins nothing. Read off the **stored** row and its own
  * threshold, the same pair `resolveEffectiveBasePriceRow` freezes on.
  */
 function isSchedulePinnedFrozenRow(input: {
   allocatedAmount: number;
   destinationScheduleId: string;
-  priceRows: Array<typeof prices.$inferSelect>;
+  priceRows: readonly PriceRow[];
   requiredDepositPercentage: number;
   selectedPriceId: string | null;
 }): boolean {
@@ -202,7 +196,7 @@ function isSchedulePinnedFrozenRow(input: {
       : (input.priceRows.find((price) => price.id === input.selectedPriceId) ??
         null);
 
-  if (stored === null || stored.scheduleId === null) {
+  if (stored === null || stored.scheduleIds.length === 0) {
     return false;
   }
 
@@ -214,7 +208,7 @@ function isSchedulePinnedFrozenRow(input: {
     }),
   });
 
-  return frozen && stored.scheduleId !== input.destinationScheduleId;
+  return frozen && !stored.scheduleIds.includes(input.destinationScheduleId);
 }
 
 /**

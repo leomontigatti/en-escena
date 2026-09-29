@@ -19,7 +19,11 @@ import type {
   EventPricesLoaderData,
 } from "@/features/admin/prices/shared";
 import type { PriceListItem } from "@/lib/events/bases.server";
-import { frozenPriceNotice, uncoveredPriceNotice } from "@/lib/prices/guards";
+import {
+  frozenPriceNotice,
+  frozenSpecialPriceNotice,
+  uncoveredPriceNotice,
+} from "@/lib/prices/guards";
 
 describe("EventPriceDetailRouteView", () => {
   let container: HTMLDivElement | null = null;
@@ -59,8 +63,7 @@ describe("EventPriceDetailRouteView", () => {
       id: "price_1",
       name: "Precio Solo",
       paymentDeadline: "2026-05-31",
-      scheduleId: null,
-      scheduleName: null,
+      schedules: [],
     });
     const secondPrice = createPrice({
       amount: 18000,
@@ -68,8 +71,7 @@ describe("EventPriceDetailRouteView", () => {
       id: "price_2",
       name: "Precio Duo",
       paymentDeadline: "2026-06-30",
-      scheduleId: "block_2",
-      scheduleName: "Noche",
+      schedules: [{ id: "block_2", name: "Noche" }],
     });
     const loaderData = createLoaderData({
       prices: [firstPrice, secondPrice],
@@ -90,7 +92,7 @@ describe("EventPriceDetailRouteView", () => {
     expect(readInputValue(container, "name")).toBe("Precio Solo");
     expect(readInputValue(container, "amount")).toBe("12000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-05-31");
-    expect(readInputValue(container, "scheduleId")).toBe("");
+    expect(readInputValues(container, "scheduleIds")).toEqual([]);
 
     await renderPriceDetailRoute({
       loaderData,
@@ -103,7 +105,7 @@ describe("EventPriceDetailRouteView", () => {
     expect(readInputValue(container, "name")).toBe("Precio Duo");
     expect(readInputValue(container, "amount")).toBe("18000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-06-30");
-    expect(readInputValue(container, "scheduleId")).toBe("block_2");
+    expect(readInputValues(container, "scheduleIds")).toEqual(["block_2"]);
   });
 
   test("locks a price inscriptions stored down to its name and says why above the form", async () => {
@@ -114,8 +116,7 @@ describe("EventPriceDetailRouteView", () => {
         id: "price_1",
         name: "Precio Solo",
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
-        scheduleName: null,
+        schedules: [],
       }),
       isReferenced: true,
     };
@@ -144,6 +145,57 @@ describe("EventPriceDetailRouteView", () => {
     ).toBe(true);
   });
 
+  test("shows every schedule a special price covers, and keeps them editable once an inscription stored it", async () => {
+    const price = createPrice({
+      amount: 12000,
+      groupType: "solo",
+      id: "price_1",
+      name: "Precio compartido",
+      paymentDeadline: "2026-05-31",
+      schedules: [
+        { id: "block_1", name: "Mañana" },
+        { id: "block_2", name: "Noche" },
+      ],
+    });
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await renderPriceDetailRoute({
+      loaderData: createLoaderData({ prices: [price] }),
+      priceId: price.id,
+      root,
+      EventPriceDetailRouteView,
+    });
+
+    expect(readInputValues(container, "scheduleIds")).toEqual([
+      "block_1",
+      "block_2",
+    ]);
+    expect(container.querySelector("form")?.textContent).toContain("Mañana");
+    expect(container.querySelector("form")?.textContent).toContain("Noche");
+    expect(readSchedulesFieldDisabled(container)).toBe(false);
+
+    await renderPriceDetailRoute({
+      loaderData: createLoaderData({
+        prices: [{ ...price, isReferenced: true }],
+      }),
+      priceId: price.id,
+      root,
+      EventPriceDetailRouteView,
+    });
+
+    // In use, the price is frozen except for its name and its schedules.
+    expect(container.textContent).toContain(frozenSpecialPriceNotice);
+    expect(readInputTypes(container, "amount")).toEqual(["hidden"]);
+    expect(readInputValues(container, "scheduleIds")).toEqual([
+      "block_1",
+      "block_2",
+    ]);
+    expect(readSchedulesFieldDisabled(container)).toBe(false);
+  });
+
   test("keeps the amount of the deadline-less price that holds registration open", async () => {
     const price = {
       ...createPrice({
@@ -152,8 +204,7 @@ describe("EventPriceDetailRouteView", () => {
         id: "price_1",
         name: "Precio Solo",
         paymentDeadline: "",
-        scheduleId: null,
-        scheduleName: null,
+        schedules: [],
       }),
       paymentDeadline: null,
       keepsRegistrationOpen: true,
@@ -190,8 +241,7 @@ describe("EventPriceDetailRouteView", () => {
           id: "price_1",
           name: "Precio Solo",
           paymentDeadline: "2026-05-31",
-          scheduleId: null,
-          scheduleName: null,
+          schedules: [],
         }),
         ...flags,
       };
@@ -218,8 +268,7 @@ describe("EventPriceDetailRouteView", () => {
       id: "price_1",
       name: "Precio Solo",
       paymentDeadline: "2026-11-10",
-      scheduleId: "block_1",
-      scheduleName: "Noche",
+      schedules: [{ id: "block_1", name: "Noche" }],
     });
 
     expect(getPriceDisplayName(price)).toBe("Precio Solo");
@@ -232,8 +281,7 @@ describe("EventPriceDetailRouteView", () => {
       id: "price_late",
       name: "Precio Junio",
       paymentDeadline: "2026-06-30",
-      scheduleId: null,
-      scheduleName: null,
+      schedules: [],
     });
     const earlyPrice = createPrice({
       amount: 12000,
@@ -241,8 +289,7 @@ describe("EventPriceDetailRouteView", () => {
       id: "price_early",
       name: "Precio Mayo",
       paymentDeadline: "2026-05-31",
-      scheduleId: null,
-      scheduleName: null,
+      schedules: [],
     });
     const loaderData = createLoaderData({
       prices: [latePrice, earlyPrice],
@@ -277,8 +324,7 @@ describe("EventPriceDetailRouteView", () => {
       id: "price_base",
       name: "",
       paymentDeadline: "2026-05-31",
-      scheduleId: null,
-      scheduleName: null,
+      schedules: [],
     });
     const unnamedSchedulePrice = createPrice({
       amount: 18000,
@@ -286,8 +332,7 @@ describe("EventPriceDetailRouteView", () => {
       id: "price_schedule",
       name: "",
       paymentDeadline: "2026-06-30",
-      scheduleId: "block_2",
-      scheduleName: "Noche",
+      schedules: [{ id: "block_2", name: "Noche" }],
     });
     const loaderData = createLoaderData({
       prices: [unnamedSchedulePrice, unnamedBasePrice],
@@ -458,6 +503,24 @@ function readInputTypes(container: HTMLElement, name: string) {
   ).map((input) => input.type);
 }
 
+function readSchedulesFieldDisabled(container: HTMLElement) {
+  const trigger = container.querySelector<HTMLElement>(
+    '[id^="price-schedules-"]',
+  );
+
+  if (!trigger) {
+    throw new Error("Could not find the schedules field.");
+  }
+
+  return trigger.hasAttribute("disabled");
+}
+
+function readInputValues(container: HTMLElement, name: string) {
+  return Array.from(
+    container.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`),
+  ).map((input) => input.value);
+}
+
 function readInputValue(container: HTMLElement, name: string) {
   const input = container.querySelector<HTMLInputElement>(
     `input[name="${name}"]`,
@@ -525,16 +588,14 @@ function createPrice({
   id,
   name,
   paymentDeadline,
-  scheduleId,
-  scheduleName,
+  schedules,
 }: {
   amount: number;
   groupType: PriceListItem["groupType"];
   id: string;
   name: string;
   paymentDeadline: string;
-  scheduleId: string | null;
-  scheduleName: string | null;
+  schedules: Array<{ id: string; name: string }>;
 }): PriceListItem {
   return {
     id,
@@ -543,17 +604,15 @@ function createPrice({
     groupType,
     amount,
     paymentDeadline,
-    scheduleId,
+    isSpecialPrice: schedules.length > 0,
+    scheduleIds: schedules.map((schedule) => schedule.id),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     isReferenced: false,
     keepsRegistrationOpen: false,
-    schedule: scheduleId
-      ? {
-          id: scheduleId,
-          name: scheduleName ?? "Cronograma",
-          scheduledDate: "2026-10-10",
-          startTime: "20:00",
-        }
-      : null,
+    schedules: schedules.map((schedule) => ({
+      ...schedule,
+      scheduledDate: "2026-10-10",
+      startTime: "20:00",
+    })),
   };
 }

@@ -263,22 +263,38 @@ decision rather than an oversight.
 - **The stored row is the one the administrator picked**, never one the system
   chose by date. An allocation write stores the row named in the dialog, and a
   preset stores its per-group-type choice. The only validation is membership of
-  the choreography's candidate set — same event, same group type, and either the
-  choreography's own schedule row or the general one — **with no date filter at
-  all**, so a row whose `paymentDeadline` has passed can be selected and stored.
+  the choreography's candidate set — same event, same group type, and either a
+  special row covering the choreography's own schedule or a general one — **with
+  no date filter at all**, so a row whose `paymentDeadline` has passed can be
+  selected and stored.
+- **A special price covers any number of schedules.** Its links live in
+  `price_schedule`, one row per schedule, and `price.isSpecialPrice` says which
+  tier the row belongs to; a general row has no links. `loadPriceRows`
+  (`app/lib/prices/rows.server.ts`) is the one reader, handing every consumer the
+  row with its `scheduleIds`. The retired `price.schedule_id` column is still in
+  the table, unread, until its contract step drops it.
+- **Which schedules a special price covers is not structure.** A price an
+  inscription stored is frozen except for its name and its schedules: adding a
+  schedule touches no stored inscription, and dropping one is refused, naming
+  it, while an inscription that stored the price sits on it — the rule a
+  schedule's modalities follow.
 - **A price row may carry no `paymentDeadline`.** That row is the one that
   applies once every dated row of its tier has expired: it survives the date
   filter and sorts last among the survivors, so it can only win when nothing
   dated is left. Adding one is a no-op until then. There can be at most one per
-  `(event, group type)` and one per `(event, group type, schedule)`, enforced by
-  `price_general_unique` and `price_specific_unique` — both created `NULLS NOT
-DISTINCT`, because two of them would otherwise be separated only by amount.
+  `(event, group type)` among the general rows and one per `(schedule, group
+type)` among the special ones, enforced by `price_general_unique` and
+  `price_schedule_tier_unique` — both `NULLS NOT DISTINCT`, because two of them
+  would otherwise be separated only by amount. The same holds for every dated
+  deadline: two special rows of one group type and deadline cannot cover the
+  same schedule, which is why `price_schedule` carries copies of the price's
+  group type and deadline, rewritten with the links on every save.
 - **The business date** — today in the business time zone, never a payment's date
   — appears only on the **read** path, and only inside
   `app/lib/finances/inscription-price.ts`, the single owner of applicable-row
   selection. `selectApplicableInscriptionPrice` resolves the currently
-  applicable row, preferring the row specific to the choreography's schedule and
-  group type, then the general row for that group type; both tiers go through
+  applicable row, preferring a special row of the choreography's group type
+  that covers its schedule, then the general row for that group type; both tiers go through
   `selectApplicablePriceCandidate`, which owns the deadline filter and the
   nearest-deadline / lowest-amount tie-break and has no dateless overload.
   `resolveApplicableInscriptionPrice` (`inscription-price.server.ts`) is the same
@@ -326,8 +342,9 @@ DISTINCT`, because two of them would otherwise be separated only by amount.
   computed from. So `Seña pendiente` next to a fixed price cannot happen, and
   `Señada` is a claim about the money against today's price rather than a claim
   that the price has stopped moving.
-- The picker is filtered to the choreography's group type and schedule and to
-  nothing else — no floor, no ceiling and no `paymentDeadline` — because offering
+- The picker is filtered to the choreography's group type and schedule — the
+  general rows and the special rows covering that schedule — and to nothing
+  else — no floor, no ceiling and no `paymentDeadline` — because offering
   a foreign row would be offering to create a forbidden state, whereas offering
   an expired one would not.
 - A price row that any inscription references **cannot be deleted**.

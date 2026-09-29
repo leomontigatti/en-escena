@@ -64,8 +64,8 @@ describe("event registration readiness from loaded bases", () => {
           groupType: "solo",
           amount: 14000,
           paymentDeadline: null,
-          scheduleId: null,
-          schedule: null,
+          scheduleIds: [],
+          schedules: [],
         },
       ],
     } as unknown as EventBases;
@@ -125,8 +125,8 @@ describe("event registration readiness from loaded bases", () => {
           groupType: "solo",
           amount: 14000,
           paymentDeadline: null,
-          scheduleId: null,
-          schedule: null,
+          scheduleIds: [],
+          schedules: [],
         },
       ],
     } as unknown as EventBases;
@@ -150,8 +150,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
     ]);
 
@@ -180,8 +180,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 12000,
         paymentDeadline: "2026-03-31",
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
       {
         id: "price_solo_late",
@@ -189,8 +189,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2026-04-30",
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
     ]);
 
@@ -217,8 +217,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 12000,
         paymentDeadline: "2026-03-31",
-        scheduleId: "schedule_sabado",
-        schedule: null,
+        scheduleIds: ["schedule_sabado"],
+        schedules: [],
       },
       {
         id: "price_solo_open",
@@ -226,8 +226,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 18000,
         paymentDeadline: null,
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
     ]);
 
@@ -266,8 +266,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
     ]);
 
@@ -295,8 +295,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 12000,
         paymentDeadline: "2026-03-31",
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
       {
         id: "price_solo_schedule_base",
@@ -304,14 +304,14 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 18000,
         paymentDeadline: null,
-        scheduleId: "schedule_sabado",
-        schedule: null,
+        scheduleIds: ["schedule_sabado"],
+        schedules: [],
       },
     ]);
 
-    // A caller that hands `selectApplicableInscriptionPrice` no scheduleId never reaches
-    // the schedule tier, so the deadline-less row on `schedule_sabado` leaves
-    // the path uncovered from 2026-04-01 on.
+    // A special row covers only the schedules it names, never the path as a
+    // whole, so the deadline-less row on `schedule_sabado` leaves the path
+    // uncovered from 2026-04-01 on.
     await expect(
       getEventRegistrationReadinessForBases("event_2026", eventBases, {
         referenceDate: "2026-06-01",
@@ -337,8 +337,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 12000,
         paymentDeadline: "2026-05-31",
-        scheduleId: "schedule_sabado",
-        schedule: null,
+        scheduleIds: ["schedule_sabado"],
+        schedules: [],
       },
       {
         id: "price_solo_general",
@@ -346,8 +346,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 18000,
         paymentDeadline: "2026-12-05",
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
     ]);
 
@@ -376,8 +376,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 12000,
         paymentDeadline: "2026-01-31",
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
       {
         id: "price_solo_schedule",
@@ -385,8 +385,8 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 18000,
         paymentDeadline: "2026-12-05",
-        scheduleId: "schedule_sabado",
-        schedule: null,
+        scheduleIds: ["schedule_sabado"],
+        schedules: [],
       },
     ]);
 
@@ -643,8 +643,8 @@ function buildLadderEventBases(
         groupType: "solo",
         amount: 14000,
         paymentDeadline: null,
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
     ],
   } as unknown as EventBases;
@@ -748,8 +748,8 @@ function buildTwoShowEventBases(input: {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: null,
-        scheduleId: null,
-        schedule: null,
+        scheduleIds: [],
+        schedules: [],
       },
     ],
   } as unknown as EventBases;

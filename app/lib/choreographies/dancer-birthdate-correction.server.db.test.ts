@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -9,7 +10,6 @@ import {
   choreographyDancers,
   events,
   modalities,
-  prices,
   scheduleCapacities,
   scheduleCategories,
   scheduleModalities,
@@ -486,14 +486,15 @@ async function createCorrectionCatalog(input: {
     scheduleId: schedule.id,
     modalityId: modality.id,
   });
-  await db.insert(prices).values({
-    eventId: event.id,
-    name: `${input.eventName} Precio`,
-    groupType,
-    amount: 10000,
-    paymentDeadline: "2026-05-31",
-    scheduleId: null,
-  });
+  await insertTestPrices([
+    {
+      eventId: event.id,
+      name: `${input.eventName} Precio`,
+      groupType,
+      amount: 10000,
+      paymentDeadline: "2026-05-31",
+    },
+  ]);
   const [scheduleCapacity] = await db
     .insert(scheduleCapacities)
     .values({

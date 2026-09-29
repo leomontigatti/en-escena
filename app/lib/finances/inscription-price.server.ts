@@ -4,6 +4,7 @@ import { prices } from "@/db/schema";
 import type { PriceResolutionResult } from "@/lib/events/bases-repository/shared.server";
 import { isGroupType } from "@/lib/events/group-types";
 import { selectApplicableInscriptionPrice } from "@/lib/finances/inscription-price";
+import { loadPriceRows } from "@/lib/prices/rows.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import type { Executor } from "./choreography-cobro-support.server";
@@ -34,12 +35,13 @@ export async function resolveApplicableInscriptionPrice(
     };
   }
 
-  const priceRows = await executor.query.prices.findMany({
-    where: and(
+  const priceRows = await loadPriceRows(
+    executor,
+    and(
       eq(prices.eventId, input.eventId),
       eq(prices.groupType, input.groupType),
     ),
-  });
+  );
   const price = selectApplicableInscriptionPrice({
     businessDate: getBusinessDateOnly(),
     key: {

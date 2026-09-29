@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { asc, eq, inArray } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -224,17 +225,15 @@ describe("payChoreographiesPreset", () => {
   // list showed the administrator. It is the dialog's default path.
   test("leaves every price alone when no row is picked", async () => {
     const fixture = await seedPresetFixture([20000]);
-    const [cheaper] = await db
-      .insert(prices)
-      .values({
+    const [cheaper] = await insertTestPrices([
+      {
         amount: 4000,
         eventId: fixture.eventId,
         groupType: "solo",
         name: "Precio Solo barato",
         paymentDeadline: "2026-12-31",
-        scheduleId: null,
-      })
-      .returning();
+      },
+    ]);
 
     await db
       .update(choreographyDancers)
@@ -272,17 +271,15 @@ describe("payChoreographiesPreset", () => {
 
   test("refuses a price that does not belong to the choreography", async () => {
     const fixture = await seedPresetFixture([10000]);
-    const [foreignPrice] = await db
-      .insert(prices)
-      .values({
+    const [foreignPrice] = await insertTestPrices([
+      {
         amount: 25000,
         eventId: fixture.eventId,
         groupType: "grupal",
         name: "Precio Grupal",
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
-      })
-      .returning();
+      },
+    ]);
 
     const result = await payChoreographiesPreset({
       academyId: fixture.academyId,
@@ -298,17 +295,15 @@ describe("payChoreographiesPreset", () => {
 
   test("applies the picked price to an inscription still below its deposit", async () => {
     const fixture = await seedPresetFixture([20000]);
-    const [cheaper] = await db
-      .insert(prices)
-      .values({
+    const [cheaper] = await insertTestPrices([
+      {
         amount: 8000,
         eventId: fixture.eventId,
         groupType: "solo",
         name: "Precio Solo temprano",
         paymentDeadline: "2026-02-28",
-        scheduleId: null,
-      })
-      .returning();
+      },
+    ]);
 
     // 1000 against the catalogue row's 3000 deposit: money on the inscription, and
     // nothing fixed by it. A preset may still say which row prices it.
@@ -347,17 +342,15 @@ describe("payChoreographiesPreset", () => {
 
   test("keeps the price of an inscription that already covers its deposit", async () => {
     const fixture = await seedPresetFixture([20000]);
-    const [cheaper] = await db
-      .insert(prices)
-      .values({
+    const [cheaper] = await insertTestPrices([
+      {
         amount: 8000,
         eventId: fixture.eventId,
         groupType: "solo",
         name: "Precio Solo temprano",
         paymentDeadline: "2026-02-28",
-        scheduleId: null,
-      })
-      .returning();
+      },
+    ]);
 
     await payChoreographiesPreset({
       academyId: fixture.academyId,

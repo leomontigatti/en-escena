@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -227,17 +228,15 @@ async function seedPriceLockFixture(input: {
     .set({ amount: input.currentAmount ?? 10000 })
     .where(eq(prices.eventId, event.id))
     .returning();
-  const [storedPrice] = await db
-    .insert(prices)
-    .values({
+  const [storedPrice] = await insertTestPrices([
+    {
       amount: input.storedAmount ?? 12000,
       eventId: event.id,
       groupType: "solo",
       name: "Precio Solo posterior",
       paymentDeadline: "2026-06-30",
-      scheduleId: null,
-    })
-    .returning();
+    },
+  ]);
 
   if (!currentPrice || !storedPrice) {
     throw new Error("Expected both price rows.");

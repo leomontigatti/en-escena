@@ -4,6 +4,7 @@ import { expect } from "vitest";
 import { db } from "@/db";
 import { prices } from "@/db/schema";
 import type { GroupType } from "@/lib/events/group-types";
+import { loadPriceRows } from "@/lib/prices/rows.server";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
@@ -25,7 +26,7 @@ type PriceDraft = {
   isSpecialPrice?: string;
   name: string;
   paymentDeadline: string;
-  scheduleId: string;
+  scheduleIds: string[];
 };
 
 type SignedInAdminRequestInput = Parameters<typeof createSignedInRequest>[0];
@@ -71,7 +72,7 @@ function buildPriceDraft(overrides: Partial<PriceDraft> = {}): PriceDraft {
     groupType: "solo",
     amount: "12000",
     paymentDeadline: "2026-05-31",
-    scheduleId: "",
+    scheduleIds: [],
     ...overrides,
   };
 }
@@ -119,22 +120,29 @@ export async function findSavedPriceById(priceId: string) {
   });
 }
 
+/**
+ * The saved price of a group type and deadline in one tier: the special price
+ * covering `scheduleId` when one is given, the general one otherwise.
+ */
 export async function findSavedPriceByScope(input: {
   groupType: GroupType;
   paymentDeadline: string | null;
   scheduleId?: string | null;
 }) {
-  return db.query.prices.findFirst({
-    where: and(
+  const rows = await loadPriceRows(
+    db,
+    and(
       eq(prices.groupType, input.groupType),
       input.paymentDeadline === null
         ? isNull(prices.paymentDeadline)
         : eq(prices.paymentDeadline, input.paymentDeadline),
-      input.scheduleId
-        ? eq(prices.scheduleId, input.scheduleId)
-        : isNull(prices.scheduleId),
     ),
-  });
+  );
+  const { scheduleId } = input;
+
+  return scheduleId
+    ? rows.find((row) => row.scheduleIds.includes(scheduleId))
+    : rows.find((row) => row.scheduleIds.length === 0);
 }
 
 export async function expectPriceSavedRedirect(response: Response) {
@@ -179,6 +187,6 @@ function formDataWithPrice(
     groupType: price.groupType,
     amount: price.amount,
     paymentDeadline: price.paymentDeadline,
-    scheduleId: price.scheduleId,
+    scheduleIds: price.scheduleIds,
   });
 }

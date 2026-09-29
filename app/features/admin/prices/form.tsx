@@ -3,6 +3,7 @@ import { useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
+import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -32,11 +33,7 @@ import {
   GuardedDeadlineField,
   GuardedSelectField,
 } from "./guarded-fields";
-import {
-  EMPTY_SCHEDULE_VALUE,
-  priceFormSchema,
-  type PriceFormValues,
-} from "./view-shared";
+import { priceFormSchema, type PriceFormValues } from "./view-shared";
 import { basePath } from "./shared";
 
 type PriceFormController = UseFormReturn<PriceFormValues>;
@@ -45,7 +42,7 @@ type PriceFormDefaultValueProps = {
   groupType?: string;
   name?: string | null;
   paymentDeadline?: string | null;
-  scheduleId?: string | null;
+  scheduleIds?: readonly string[];
   submittedValues?: PriceActionValues;
 };
 type PriceFormProps = {
@@ -63,7 +60,7 @@ function getPriceFormDefaultValues({
   groupType,
   name,
   paymentDeadline,
-  scheduleId,
+  scheduleIds = [],
   submittedValues,
 }: PriceFormDefaultValueProps): PriceFormValues {
   if (submittedValues) {
@@ -71,21 +68,21 @@ function getPriceFormDefaultValues({
       name: submittedValues.name,
       isSpecialPrice:
         submittedValues.isSpecialPrice === "true" ||
-        submittedValues.scheduleId.length > 0,
+        submittedValues.scheduleIds.length > 0,
       groupType: submittedValues.groupType,
       amount: submittedValues.amount,
       paymentDeadline: submittedValues.paymentDeadline,
-      scheduleId: submittedValues.scheduleId || EMPTY_SCHEDULE_VALUE,
+      scheduleIds: submittedValues.scheduleIds,
     };
   }
 
   return {
     name: name ?? "",
-    isSpecialPrice: Boolean(scheduleId),
+    isSpecialPrice: scheduleIds.length > 0,
     groupType: groupType ?? "",
     amount: amount ? String(amount) : "",
     paymentDeadline: paymentDeadline ?? "",
-    scheduleId: scheduleId ?? EMPTY_SCHEDULE_VALUE,
+    scheduleIds: [...scheduleIds],
   };
 }
 
@@ -99,9 +96,12 @@ export function usePriceForm({
   groupType,
   name,
   paymentDeadline,
-  scheduleId,
+  scheduleIds,
   submittedValues,
 }: PriceFormDefaultValueProps): PriceFormController {
+  // Keyed on the ids rather than the array, which a loader revalidation hands
+  // back as a new reference with the same schedules.
+  const scheduleIdsKey = scheduleIds?.join("\0");
   const saved = useMemo(
     () =>
       getPriceFormDefaultValues({
@@ -109,9 +109,9 @@ export function usePriceForm({
         groupType,
         name,
         paymentDeadline,
-        scheduleId,
+        scheduleIds: scheduleIdsKey ? scheduleIdsKey.split("\0") : [],
       }),
-    [amount, groupType, name, paymentDeadline, scheduleId],
+    [amount, groupType, name, paymentDeadline, scheduleIdsKey],
   );
   const submitted = useMemo(
     () =>
@@ -160,19 +160,20 @@ export function PriceForm({
       <FieldGroup>
         <NameField form={form} canEditStructure={guard.canEditStructure} />
         {values.isSpecialPrice ? (
-          <GuardedSelectField
-            fieldId={`price-schedule-${fieldIdSuffix}`}
-            form={form}
-            guard={guard}
-            label="Cronograma"
-            name="scheduleId"
+          // Not behind the structural lock: a price in use still takes
+          // schedules, and the server refuses dropping one its inscriptions
+          // sit on.
+          <MultiComboboxField
+            control={form.control}
+            emptyMessage="Sin cronogramas disponibles"
+            id={`price-schedules-${fieldIdSuffix}`}
+            inputName="scheduleIds"
+            label="Cronogramas"
+            name="scheduleIds"
             options={scheduleOptions}
-            placeholder="Elegí un cronograma"
-            value={values.scheduleId}
+            placeholder="Elegí cronogramas"
           />
-        ) : (
-          <input type="hidden" name="scheduleId" value="" />
-        )}
+        ) : null}
         <GuardedDeadlineField
           fieldId={`price-payment-deadline-${fieldIdSuffix}`}
           form={form}
@@ -340,7 +341,7 @@ function SpecialPriceSwitch({
       name="isSpecialPrice"
       onToggle={(checked) => {
         if (!checked) {
-          form.setValue("scheduleId", EMPTY_SCHEDULE_VALUE, {
+          form.setValue("scheduleIds", [], {
             shouldDirty: true,
             shouldValidate: true,
           });

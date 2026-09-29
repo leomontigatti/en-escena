@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -8,7 +9,6 @@ import {
   choreographyDancers,
   choreographyProfessors,
   modalities,
-  prices,
   presentations,
   scheduleCapacities,
   scheduleCategories,
@@ -3221,17 +3221,16 @@ async function insertSoloPrice(input: {
   eventId: string;
   scheduleId?: string;
 }) {
-  const [price] = await db
-    .insert(prices)
-    .values({
+  const [price] = await insertTestPrices([
+    {
       amount: input.amount,
       eventId: input.eventId,
       groupType: "solo",
       name: `Precio Solo ${input.amount} ${input.scheduleId ?? "general"}`,
       paymentDeadline: null,
-      scheduleId: input.scheduleId ?? null,
-    })
-    .returning();
+      scheduleIds: input.scheduleId ? [input.scheduleId] : [],
+    },
+  ]);
 
   return price;
 }

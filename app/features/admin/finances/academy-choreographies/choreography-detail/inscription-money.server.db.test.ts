@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -163,17 +164,15 @@ async function loadDetail(input: {
  * the crossing measured against?" an observable question.
  */
 async function insertLatePrice(eventId: string) {
-  const [price] = await db
-    .insert(prices)
-    .values({
+  const [price] = await insertTestPrices([
+    {
       amount: 12000,
       eventId,
       groupType: "solo",
       name: "Solo tardío",
       paymentDeadline: "2026-04-30",
-      scheduleId: null,
-    })
-    .returning();
+    },
+  ]);
 
   if (!price) {
     throw new Error("Expected a price row.");

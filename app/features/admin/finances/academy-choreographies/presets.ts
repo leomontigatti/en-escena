@@ -49,9 +49,9 @@ export function presetPriceFieldName(groupType: ChoreographyGroupType): string {
 }
 
 /**
- * A price row a preset may fix on an inscription. `scheduleId` travels because
- * the writer refuses a row bound to a schedule other than the choreography's,
- * so the picker has to apply the very same rule.
+ * A price row a preset may fix on an inscription. `scheduleIds` travels because
+ * the writer refuses a special row that does not cover the choreography's
+ * schedule, so the picker has to apply the very same rule.
  *
  * `depositAmount` travels already computed because the dialog projects what the
  * selection would owe against the picked row, and the percentage it comes from
@@ -63,28 +63,29 @@ export type PresetPriceOption = {
   id: string;
   name: string;
   paymentDeadline: string | null;
-  scheduleId: string | null;
+  scheduleIds: readonly string[];
 };
 
 /**
- * The rows offered for one group type of the selection. The writer refuses any
- * price tied to a schedule other than the choreography's, so a schedule-bound
- * row of another schedule is a guaranteed refusal and is never offered.
+ * The rows offered for one group type of the selection. The writer refuses a
+ * special row that does not cover the choreography's schedule, so such a row is
+ * a guaranteed refusal and is never offered.
  *
- * When the selection spans more than one schedule, the rows common to all of
- * them are the general ones, and those are the only ones offered: a pick has to
- * be satisfiable for every choreography the preset is about to write.
+ * A pick has to be satisfiable for every choreography the preset is about to
+ * write, so a special row is offered only when it covers every schedule of the
+ * selection; the general rows always are. A choreography with no schedule
+ * leaves only the general rows.
  */
 export function selectPresetPriceOptions(input: {
   options: PresetPriceOption[];
   scheduleIds: Array<string | null>;
 }): PresetPriceOption[] {
-  const scheduleIds = new Set(input.scheduleIds);
-  const commonScheduleId =
-    scheduleIds.size === 1 ? ([...scheduleIds][0] ?? null) : null;
-
   return input.options.filter(
     (option) =>
-      option.scheduleId === null || option.scheduleId === commonScheduleId,
+      option.scheduleIds.length === 0 ||
+      input.scheduleIds.every(
+        (scheduleId) =>
+          scheduleId !== null && option.scheduleIds.includes(scheduleId),
+      ),
   );
 }

@@ -7,7 +7,6 @@ import {
   choreographies,
   events,
   paymentAllocations,
-  prices,
   scheduleCapacities,
 } from "@/db/schema";
 import {
@@ -33,6 +32,7 @@ import {
 } from "@/lib/finances/operational-summary-calculations.server";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
+import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import {
   readAcademySeminarFinance,
   type SeminarOperationalFinanceRow,
@@ -178,9 +178,7 @@ async function readAcademyEventFinance(input: {
           ),
         )
         .orderBy(asc(choreographies.name), asc(choreographies.createdAt)),
-      executor.query.prices.findMany({
-        where: eq(prices.eventId, input.eventId),
-      }),
+      loadEventPriceRows(executor, input.eventId),
       readAcademySeminarFinance({
         academyIds: input.academyIds,
         eventId: input.eventId,

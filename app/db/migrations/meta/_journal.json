@@ -253,6 +253,13 @@
       "when": 1790283723215,
       "tag": "0035_drop_event_registration_window",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790704389952,
+      "tag": "0036_price_schedules",
+      "breakpoints": true
     }
   ]
 }

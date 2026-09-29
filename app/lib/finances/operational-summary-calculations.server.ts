@@ -1,4 +1,4 @@
-import { prices } from "@/db/schema";
+import type { PriceRow } from "@/lib/prices/rows.server";
 import {
   type ChoreographyFinancialStatus,
   deriveMinimumFinancialStatus,
@@ -12,7 +12,7 @@ import {
   sumOperationalFinanceAmounts,
 } from "@/lib/finances/operational-summary";
 
-export type FinancePriceRow = typeof prices.$inferSelect;
+export type FinancePriceRow = PriceRow;
 export type ChoreographyGroupType = "solo" | "duo" | "trio" | "grupal";
 
 /**

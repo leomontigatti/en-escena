@@ -1,18 +1,14 @@
-import { asc, and, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  choreographies,
-  events,
-  prices,
-  scheduleCapacities,
-} from "@/db/schema";
+import { choreographies, events, scheduleCapacities } from "@/db/schema";
 import {
   readFinanceAcademy,
   readFinanceAcademyId,
 } from "@/features/admin/finances/academy.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
+import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -203,18 +199,7 @@ async function readPresetPriceOptions(
       columns: { requiredDepositPercentage: true },
       where: eq(events.id, eventId),
     }),
-    db
-      .select({
-        amount: prices.amount,
-        groupType: prices.groupType,
-        id: prices.id,
-        name: prices.name,
-        paymentDeadline: prices.paymentDeadline,
-        scheduleId: prices.scheduleId,
-      })
-      .from(prices)
-      .where(eq(prices.eventId, eventId))
-      .orderBy(asc(prices.amount)),
+    loadEventPriceRows(db, eventId),
   ]);
 
   if (!event) {
@@ -223,7 +208,9 @@ async function readPresetPriceOptions(
 
   const optionsByGroupType: Record<string, PresetPriceOption[]> = {};
 
-  for (const row of rows) {
+  for (const row of [...rows].sort(
+    (left, right) => left.amount - right.amount,
+  )) {
     const bucket = (optionsByGroupType[row.groupType] ??= []);
 
     bucket.push({
@@ -235,7 +222,7 @@ async function readPresetPriceOptions(
       id: row.id,
       name: row.name,
       paymentDeadline: row.paymentDeadline,
-      scheduleId: row.scheduleId,
+      scheduleIds: row.scheduleIds,
     });
   }
 

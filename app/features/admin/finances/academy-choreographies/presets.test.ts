@@ -8,16 +8,20 @@ import { selectPresetPriceOptions, type PresetPriceOption } from "./presets";
  * is offering a guaranteed refusal.
  */
 describe("selectPresetPriceOptions", () => {
-  const general = priceOptionFixture({ id: "general", scheduleId: null });
+  const general = priceOptionFixture({ id: "general", scheduleIds: [] });
   const boundToFirst = priceOptionFixture({
     id: "first",
-    scheduleId: "schedule_1",
+    scheduleIds: ["schedule_1"],
   });
   const boundToSecond = priceOptionFixture({
     id: "second",
-    scheduleId: "schedule_2",
+    scheduleIds: ["schedule_2"],
   });
-  const options = [general, boundToFirst, boundToSecond];
+  const boundToBoth = priceOptionFixture({
+    id: "both",
+    scheduleIds: ["schedule_1", "schedule_2"],
+  });
+  const options = [general, boundToFirst, boundToSecond, boundToBoth];
 
   test("offers the general rows and the ones bound to the selection's schedule", () => {
     expect(
@@ -25,16 +29,16 @@ describe("selectPresetPriceOptions", () => {
         options,
         scheduleIds: ["schedule_1", "schedule_1"],
       }),
-    ).toEqual([general, boundToFirst]);
+    ).toEqual([general, boundToFirst, boundToBoth]);
   });
 
-  test("offers only the general rows when the selection spans two schedules", () => {
+  test("offers the general rows and the ones covering every schedule of the selection", () => {
     expect(
       selectPresetPriceOptions({
         options,
         scheduleIds: ["schedule_1", "schedule_2"],
       }),
-    ).toEqual([general]);
+    ).toEqual([general, boundToBoth]);
   });
 
   test("offers only the general rows to a choreography with no schedule", () => {
@@ -53,7 +57,7 @@ function priceOptionFixture(
     id: "price",
     name: "Precio",
     paymentDeadline: null,
-    scheduleId: null,
+    scheduleIds: [],
     ...overrides,
   };
 }

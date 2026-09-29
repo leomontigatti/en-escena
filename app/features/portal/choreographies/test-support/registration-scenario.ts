@@ -90,7 +90,7 @@ export async function createChoreographyRegistrationScenario(session: {
       groupType: "solo",
       amount: 15000,
       paymentDeadline: null,
-      scheduleId: null,
+      scheduleIds: [],
     }),
   );
   await expectCreated(
@@ -98,7 +98,7 @@ export async function createChoreographyRegistrationScenario(session: {
       groupType: "solo",
       amount: 15000,
       paymentDeadline: null,
-      scheduleId: block.id,
+      scheduleIds: [block.id],
     }),
   );
   // A `Cronograma` is born closed, and the portal only registers into an open

@@ -100,7 +100,7 @@ describe("event registration readiness", () => {
         groupType: "duo",
         amount: 15000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
 
@@ -149,7 +149,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
     await expectCreated(
@@ -242,7 +242,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
     await expectCreated(
@@ -250,7 +250,7 @@ describe("event registration readiness", () => {
         groupType: "duo",
         amount: 22000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
 
@@ -394,7 +394,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
 
@@ -489,7 +489,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2020-01-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
 
@@ -543,7 +543,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
     await expectCreated(
@@ -551,7 +551,7 @@ describe("event registration readiness", () => {
         groupType: "duo",
         amount: 22000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
 
@@ -564,7 +564,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 18000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
     await expectCreated(
@@ -572,7 +572,7 @@ describe("event registration readiness", () => {
         groupType: "duo",
         amount: 26000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
     await markEventRegistrationReadinessDirty(event.id);
@@ -636,7 +636,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
     await expectCreated(
@@ -644,7 +644,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 18000,
         paymentDeadline: null,
-        scheduleId: block.id,
+        scheduleIds: [block.id],
       }),
     );
 
@@ -717,7 +717,7 @@ describe("event registration readiness", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     );
 

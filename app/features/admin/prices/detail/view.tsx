@@ -39,7 +39,7 @@ export function EventPriceDetailView({
     groupType: price?.groupType,
     name: price?.name,
     paymentDeadline: price?.paymentDeadline,
-    scheduleId: price?.scheduleId,
+    scheduleIds: price?.scheduleIds,
     submittedValues: getPriceSubmittedValues(
       actionData,
       "update-price",
