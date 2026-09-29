@@ -9,6 +9,10 @@ sense after the submit**. That determines whether you stay or redirect, and by w
 medium the message travels. Do not re-derive the decision form by form: look the case
 up in the matrix below.
 
+This file starts at the submit. What a form submits and when (one save model,
+`Guardar`, confirmations) is
+[style-guide.md § Editing and saving](style-guide.md#editing-and-saving).
+
 ## Why "staying" is the default
 
 In React Router, an `action` that **returns without a `redirect`** automatically
