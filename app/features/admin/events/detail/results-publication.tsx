@@ -1,4 +1,4 @@
-import { Trophy } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -41,8 +41,8 @@ export function ResultsPublicationAlert({
   }
 
   return (
-    <Alert>
-      <Trophy aria-hidden="true" className="self-center !translate-y-0" />
+    <Alert variant="info">
+      <Info aria-hidden="true" />
       <AlertTitle>Resultados publicados</AlertTitle>
       <AlertDescription className="[&_p:not(:last-child)]:mb-1">
         <p>

@@ -45,8 +45,8 @@ export function ChoreographyDetailAlerts({
           the administrator may keep correcting it, and the only thing worth
           saying is that the correction can echo on the participation list. */}
       {choreography.isEvaluated ? (
-        <Alert variant="warning">
-          <TriangleAlert aria-hidden="true" />
+        <Alert variant="info">
+          <Info aria-hidden="true" />
           <AlertTitle>Esta coreografía ya fue evaluada</AlertTitle>
           <AlertDescription>{evaluatedChoreographyMessage}</AlertDescription>
         </Alert>

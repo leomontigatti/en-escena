@@ -1,4 +1,4 @@
-import { CircleAlert } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,8 @@ export function ArchivedPersonAlert({
   onReactivate,
 }: ArchivedPersonAlertProps) {
   return (
-    <Alert variant="destructive">
-      <CircleAlert aria-hidden="true" />
+    <Alert variant="info">
+      <Info aria-hidden="true" />
       <AlertDescription>{archivedPersonMessages[personLabel]}</AlertDescription>
       {onReactivate ? (
         <AlertAction className="top-1/2 -translate-y-1/2">

@@ -1,4 +1,4 @@
-import { Ban } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 
 import { PortalListPage } from "@/components/portal/ui";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -79,8 +79,8 @@ export function PortalPresentationEvaluationView({
       }
     >
       {loaderData.disqualified ? (
-        <Alert variant="destructive">
-          <Ban aria-hidden="true" />
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
           <AlertDescription>{disqualifiedEvaluationMessage}</AlertDescription>
         </Alert>
       ) : null}

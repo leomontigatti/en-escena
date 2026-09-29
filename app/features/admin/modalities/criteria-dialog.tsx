@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash } from "lucide-react";
+import { Info, Plus, Trash } from "lucide-react";
 import { useMemo } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 
@@ -125,7 +125,8 @@ export function SubmodalityCriteriaDialog({
             </DialogDescription>
           </DialogHeader>
           {locked ? (
-            <Alert variant="destructive">
+            <Alert variant="info">
+              <Info aria-hidden="true" />
               <AlertDescription>{lockedCriteriaCopy}</AlertDescription>
             </Alert>
           ) : null}

@@ -125,6 +125,19 @@ Rules:
 - Migrate existing callouts and empty states when the file is touched or in a
   dedicated pass.
 
+### Alert variants
+
+The variant says what kind of message it is, not how loud it should be:
+
+| Variant       | For                                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| `info`        | A state to know about, including a lock: why fields or actions are unavailable and what unlocks them |
+| `warning`     | Something the user should fix, or will regret if they go ahead                                       |
+| `destructive` | An error, or an action that cannot be undone                                                         |
+| `success`     | An outcome that stays on screen (toasts carry the rest)                                              |
+
+`default` is not used.
+
 ## States and badges
 
 Use `Badge` with the variants defined in `app/components/ui/badge.tsx`. The
