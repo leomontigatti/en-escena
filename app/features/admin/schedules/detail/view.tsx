@@ -1,6 +1,7 @@
 import { TriangleAlert } from "lucide-react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   scheduleRegistrationOpenRefusalMessage,
@@ -39,10 +40,6 @@ function ScheduleRegistrationOpenBlockersAlert({
 }: {
   blockers: ScheduleRegistrationOpenBlockers;
 }) {
-  if (blockers.length === 0) {
-    return null;
-  }
-
   return (
     <Alert variant="warning">
       <TriangleAlert
@@ -108,31 +105,36 @@ export function EventScheduleDetailView({
       }
     >
       {schedule ? (
-        <ScheduleFormPanel>
-          {schedule.registrationOpen ? null : (
-            <ScheduleRegistrationOpenBlockersAlert
-              blockers={loaderData.registrationOpenBlockers}
+        <>
+          <AlertStack>
+            {!schedule.registrationOpen &&
+            loaderData.registrationOpenBlockers.length > 0 ? (
+              <ScheduleRegistrationOpenBlockersAlert
+                blockers={loaderData.registrationOpenBlockers}
+              />
+            ) : null}
+          </AlertStack>
+          <ScheduleFormPanel>
+            <ScheduleForm
+              categories={loaderData.categories}
+              form={form}
+              formId="update-schedule-form"
+              id={schedule.id}
+              intent="update-schedule"
+              modalities={loaderData.modalities}
+              occupiedCount={schedule.occupiedCount}
+              scheduleCapacities={schedule.scheduleCapacities}
             />
-          )}
-          <ScheduleForm
-            categories={loaderData.categories}
-            form={form}
-            formId="update-schedule-form"
-            id={schedule.id}
-            intent="update-schedule"
-            modalities={loaderData.modalities}
-            occupiedCount={schedule.occupiedCount}
-            scheduleCapacities={schedule.scheduleCapacities}
-          />
-          <ScheduleFormActions
-            form={form}
-            formId="update-schedule-form"
-            pendingScope={{
-              intent: "update-schedule",
-              fields: { id: schedule.id },
-            }}
-          />
-        </ScheduleFormPanel>
+            <ScheduleFormActions
+              form={form}
+              formId="update-schedule-form"
+              pendingScope={{
+                intent: "update-schedule",
+                fields: { id: schedule.id },
+              }}
+            />
+          </ScheduleFormPanel>
+        </>
       ) : (
         <EmptyResourceState>
           No encontramos ese cronograma para este Evento.
