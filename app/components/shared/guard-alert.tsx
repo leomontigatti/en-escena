@@ -1,7 +1,7 @@
-import { InfoIcon } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 /**
  * Why a row's fields are locked, above the form card or the tabs and never
@@ -13,7 +13,8 @@ export function GuardAlert({ reason }: { reason: string | null }) {
     <AlertStack>
       {reason ? (
         <Alert variant="info">
-          <InfoIcon aria-hidden="true" />
+          <Info aria-hidden="true" />
+          <AlertTitle>Datos bloqueados</AlertTitle>
           <AlertDescription>{reason}</AlertDescription>
         </Alert>
       ) : null}

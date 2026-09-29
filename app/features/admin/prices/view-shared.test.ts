@@ -4,7 +4,6 @@ import type { PriceListItem } from "@/lib/events/bases.server";
 
 import {
   openEndedDeadlineLabel,
-  EMPTY_SCHEDULE_VALUE,
   formatPaymentDeadlineForTable,
   getPriceDisplayName,
   priceFormSchema,
@@ -20,7 +19,7 @@ function buildPriceFormValues(
     groupType: "solo",
     amount: "12000",
     paymentDeadline: "2026-05-31",
-    scheduleId: EMPTY_SCHEDULE_VALUE,
+    scheduleIds: [],
     ...overrides,
   };
 }
@@ -45,7 +44,7 @@ describe("priceFormSchema", () => {
 
     expect(result.success).toBe(false);
     expect(result.error?.issues.map((issue) => issue.path[0])).toEqual([
-      "scheduleId",
+      "scheduleIds",
     ]);
   });
 });
@@ -69,11 +68,12 @@ function buildPriceListItem(
     groupType: "solo",
     amount: 12000,
     paymentDeadline: "2026-05-31",
-    scheduleId: null,
+    isSpecialPrice: false,
+    scheduleIds: [],
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     isReferenced: false,
     keepsRegistrationOpen: false,
-    schedule: null,
+    schedules: [],
     ...overrides,
   };
 }
@@ -92,5 +92,30 @@ describe("getPriceDisplayName", () => {
     expect(getPriceDisplayName(buildPriceListItem())).toBe(
       "Solo - Precio base - hasta 31/5/26",
     );
+  });
+
+  test("names a special price by every schedule it covers", () => {
+    expect(
+      getPriceDisplayName(
+        buildPriceListItem({
+          isSpecialPrice: true,
+          scheduleIds: ["schedule_1", "schedule_2"],
+          schedules: [
+            {
+              id: "schedule_1",
+              name: "En Escena All",
+              scheduledDate: "2026-10-10",
+              startTime: "12:00",
+            },
+            {
+              id: "schedule_2",
+              name: "Acrobacias Aéreas",
+              scheduledDate: "2026-10-10",
+              startTime: "18:00",
+            },
+          ],
+        }),
+      ),
+    ).toBe("Solo - En Escena All, Acrobacias Aéreas - hasta 31/5/26");
   });
 });

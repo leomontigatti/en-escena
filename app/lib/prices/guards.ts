@@ -12,6 +12,10 @@
  */
 export const frozenPriceUpdateError =
   "Este precio está en uso. Solo podés cambiar el nombre.";
+// A special choreography price in use still takes and drops schedules, so its
+// refusal and its notice name that too.
+export const frozenSpecialPriceUpdateError =
+  "Este precio está en uso. Solo podés cambiar el nombre y los cronogramas.";
 export const frozenPriceDeleteError =
   "Este precio está en uso. No se puede borrar.";
 export const uncoveredPriceUpdateError =
@@ -24,6 +28,8 @@ export const uncoveredPriceDeleteError =
 // refusal above keeps naming only the action that was refused.
 export const frozenPriceNotice =
   "Este precio está en uso. Solo podés cambiar el nombre y no se puede borrar.";
+export const frozenSpecialPriceNotice =
+  "Este precio está en uso. Solo podés cambiar el nombre y los cronogramas, y no se puede borrar.";
 export const uncoveredPriceNotice =
   "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto, y no se puede borrar.";
 
@@ -33,6 +39,8 @@ export type PriceGuardFlags = {
   isReferenced: boolean;
   /** It is the deadline-less row that keeps registration open. */
   keepsRegistrationOpen: boolean;
+  /** A special choreography price; seminar prices never are. */
+  isSpecialPrice?: boolean;
 };
 
 /**
@@ -57,7 +65,9 @@ export function readPriceGuard(flags: PriceGuardFlags): PriceGuard {
     return {
       canEditAmount: false,
       canEditStructure: false,
-      reason: frozenPriceNotice,
+      reason: flags.isSpecialPrice
+        ? frozenSpecialPriceNotice
+        : frozenPriceNotice,
     };
   }
 

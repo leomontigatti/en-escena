@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { and, eq } from "drizzle-orm";
@@ -319,17 +320,15 @@ describe("`/administracion/finanzas` choreography detail", () => {
     });
     // A dearer row with a later deadline: stored without ever being the one
     // that applies today, so the two prices are told apart by their amount.
-    const [storedPrice] = await db
-      .insert(prices)
-      .values({
+    const [storedPrice] = await insertTestPrices([
+      {
         amount: 12000,
         eventId: event.id,
         groupType: "solo",
         name: "Precio Solo posterior",
         paymentDeadline: "2026-06-30",
-        scheduleId: null,
-      })
-      .returning();
+      },
+    ]);
     const [inscription] = await db
       .insert(choreographyDancers)
       .values({

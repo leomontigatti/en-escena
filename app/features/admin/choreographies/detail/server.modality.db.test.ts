@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -7,7 +8,6 @@ import {
   categoryModalities,
   choreographies,
   modalities,
-  prices,
   scheduleCapacities,
   scheduleModalities,
   schedules,
@@ -405,14 +405,16 @@ describe("administrative choreography modality correction", () => {
         totalCapacity: 10,
       })
       .returning();
-    await db.insert(prices).values({
-      amount: 30000,
-      eventId: scenario.event.id,
-      groupType: "solo",
-      name: "Precio Solo huérfano",
-      paymentDeadline: null,
-      scheduleId: orphanSchedule.id,
-    });
+    await insertTestPrices([
+      {
+        amount: 30000,
+        eventId: scenario.event.id,
+        groupType: "solo",
+        name: "Precio Solo huérfano",
+        paymentDeadline: null,
+        scheduleIds: [orphanSchedule.id],
+      },
+    ]);
 
     const detail = await scenario.loadDetail();
 
@@ -503,14 +505,13 @@ async function createModalityScenario(input: {
   // Deadline-less rows, so they are the ones that apply whatever day the suite
   // runs on, and the destination schedule carries a dearer one: with money on
   // the choreography, moving the schedule is what changes the price.
-  await db.insert(prices).values([
+  await insertTestPrices([
     {
       amount: 10000,
       eventId: event.id,
       groupType: "solo",
       name: `Precio Solo ${input.slug}`,
       paymentDeadline: null,
-      scheduleId: null,
     },
     {
       amount: 20000,
@@ -518,7 +519,7 @@ async function createModalityScenario(input: {
       groupType: "solo",
       name: `Precio Solo destino ${input.slug}`,
       paymentDeadline: null,
-      scheduleId: target.schedule.id,
+      scheduleIds: [target.schedule.id],
     },
   ]);
   await createSelectedPriceInscriptionForTest({

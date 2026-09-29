@@ -25,12 +25,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  choreographyDancers,
-  events,
-  paymentAllocations,
-  prices,
-} from "@/db/schema";
+import { choreographyDancers, events, paymentAllocations } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
@@ -40,6 +35,7 @@ import {
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
 import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
+import { loadEventPriceRows } from "@/lib/prices/rows.server";
 
 import {
   choreographyTarget,
@@ -115,7 +111,7 @@ export async function readInscriptionPriceOptions(input: {
       columns: { requiredDepositPercentage: true },
       where: eq(events.id, input.eventId),
     }),
-    db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) }),
+    loadEventPriceRows(db, input.eventId),
   ]);
 
   if (!event) {
@@ -128,7 +124,8 @@ export async function readInscriptionPriceOptions(input: {
     .filter(
       (price) =>
         price.groupType === choreographyRow.groupType &&
-        (price.scheduleId === null || price.scheduleId === scheduleId),
+        (price.scheduleIds.length === 0 ||
+          price.scheduleIds.includes(scheduleId)),
     )
     .map((price) => ({
       amount: price.amount,
@@ -173,7 +170,7 @@ export async function readInscriptionEffectivePrices(input: {
       columns: { requiredDepositPercentage: true },
       where: eq(events.id, input.eventId),
     }),
-    db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) }),
+    loadEventPriceRows(db, input.eventId),
     db
       .select({
         id: choreographyDancers.id,

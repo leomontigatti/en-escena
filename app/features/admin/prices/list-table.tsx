@@ -77,7 +77,10 @@ export function PriceListTable({
       header: "Filtros",
       cell: () => null,
       hidden: true,
-      filterValues: (price) => [price.groupType, price.schedule ? "yes" : "no"],
+      filterValues: (price) => [
+        price.groupType,
+        price.schedules.length > 0 ? "yes" : "no",
+      ],
     },
     {
       id: "paymentDeadline",

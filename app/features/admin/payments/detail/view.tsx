@@ -2,12 +2,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { useForm, useFormState } from "react-hook-form";
 import { useSubmit } from "react-router";
-import { Trash2 } from "lucide-react";
+import { Info, Trash2 } from "lucide-react";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FormActions } from "@/components/shared/form-actions";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/components/shared/read-only-field";
 import { MetricCard } from "@/components/shared/metric-card";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { formatAmount } from "@/lib/finances/formatters";
@@ -157,6 +159,19 @@ export function PaymentDetailRouteView({
         }
       >
         <div className="flex flex-1 flex-col gap-6">
+          <AlertStack>
+            {loaderData.canEdit && loaderData.allocatedAmount > 0 ? (
+              <Alert variant="info">
+                <Info aria-hidden="true" />
+                <AlertTitle>Academia bloqueada</AlertTitle>
+                <AlertDescription>
+                  El pago ya tiene dinero asignado a inscripciones de esta
+                  academia, así que no se puede cambiar. Para cambiarla, quitá
+                  primero el dinero asignado.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+          </AlertStack>
           {/* Above the form and alone: `Monto` is already a field a few
               centimetres below, and repeating it here would say the same number
               twice. This one is derived and cannot be edited, which is why it

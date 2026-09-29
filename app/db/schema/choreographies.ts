@@ -16,11 +16,11 @@ import {
   categories,
   events,
   modalities,
-  prices,
   scheduleCapacities,
   schedules,
   submodalities,
 } from "./events";
+import { prices } from "./prices";
 import { dancers, professors } from "./roster";
 
 export const categoryCalculationMode = pgEnum(

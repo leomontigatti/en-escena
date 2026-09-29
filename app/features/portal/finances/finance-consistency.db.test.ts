@@ -1,12 +1,8 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import {
-  payments,
-  choreographyDancers,
-  paymentAllocations,
-  prices,
-} from "@/db/schema";
+import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
 import { loadChoreographyFinanceDetail } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
 import {
   createChoreographyRecord,
@@ -49,27 +45,28 @@ describe("finance consistency across admin and portal surfaces", () => {
     });
     await activateEvent(event.id);
     const catalog = await createEventCatalog(event.id);
-    await db.insert(prices).values({
-      amount: 10000,
-      eventId: event.id,
-      groupType: "solo",
-      name: "Precio solo vigente",
-      paymentDeadline: "2026-12-31",
-      scheduleId: catalog.schedule.id,
-    });
+    await insertTestPrices([
+      {
+        amount: 10000,
+        eventId: event.id,
+        groupType: "solo",
+        name: "Precio solo vigente",
+        paymentDeadline: "2026-12-31",
+        scheduleIds: [catalog.schedule.id],
+      },
+    ]);
     // The earlier, more expensive row: the already collected inscriptions have
     // it selected, so their figures come from it and not from the current one.
-    const [earlierPrice] = await db
-      .insert(prices)
-      .values({
+    const [earlierPrice] = await insertTestPrices([
+      {
         amount: 12000,
         eventId: event.id,
         groupType: "solo",
         name: "Precio solo anterior",
         paymentDeadline: "2026-02-28",
-        scheduleId: catalog.schedule.id,
-      })
-      .returning();
+        scheduleIds: [catalog.schedule.id],
+      },
+    ]);
 
     async function createSoloChoreography(name: string, createdAt: string) {
       return await createChoreographyRecord({

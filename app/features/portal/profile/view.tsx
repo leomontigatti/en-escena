@@ -9,7 +9,7 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -102,6 +102,7 @@ export function PortalProfileRouteView({
       <AlertStack>
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Datos de la academia</AlertTitle>
           <AlertDescription>
             Para cambiar el nombre de la academia o el email de acceso,
             comunicate con nosotros.

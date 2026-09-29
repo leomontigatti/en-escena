@@ -98,6 +98,7 @@ export function DancerDetailRouteView({
         canEdit={loaderData.canEdit}
         canVerifyIdentity={viewState.canVerifyIdentity}
         identificationAlert={viewState.identificationAlert}
+        identificationAlertTitle={viewState.identificationAlertTitle}
         identificationAlertVariant={viewState.identificationAlertVariant}
         onSelectIntent={setDialogIntent}
         participatingAlert={viewState.participatingAlert}

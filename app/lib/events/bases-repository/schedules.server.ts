@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
+import { isScheduleCoveredByPrice } from "@/lib/events/bases-repository/price-schedules.server";
 import {
   choreographies,
   created,
@@ -11,7 +12,6 @@ import {
   isValidTime,
   modalities,
   normalizeTime,
-  prices,
   requiredFieldMessage,
   scheduleCapacities,
   scheduleModalities,
@@ -495,12 +495,7 @@ async function scheduleHasOperationalDependencies(
   scheduleId: string,
   executor: EventBasesExecutor = db,
 ) {
-  const price = await executor.query.prices.findFirst({
-    columns: { id: true },
-    where: eq(prices.scheduleId, scheduleId),
-  });
-
-  if (price) {
+  if (await isScheduleCoveredByPrice(executor, scheduleId)) {
     return true;
   }
 
@@ -520,11 +515,7 @@ async function scheduleHasOperationalDependencies(
  * error instead of a typed failure.
  */
 async function scheduleIsReferenced(scheduleId: string) {
-  const price = await db.query.prices.findFirst({
-    where: eq(prices.scheduleId, scheduleId),
-  });
-
-  if (price) {
+  if (await isScheduleCoveredByPrice(db, scheduleId)) {
     return true;
   }
 

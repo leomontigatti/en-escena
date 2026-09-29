@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -11,6 +11,7 @@ import {
   calculateDepositAmount,
   hasCrossedDepositThreshold,
 } from "@/lib/finances/inscription-financial-status";
+import { loadPriceRow, type PriceRow } from "@/lib/prices/rows.server";
 
 export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -20,7 +21,7 @@ export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
  */
 export type Executor = Transaction | typeof db;
 
-type FinancePriceRow = typeof prices.$inferSelect;
+type FinancePriceRow = PriceRow;
 
 /**
  * The result of a collection operation. When `ok` is `false`, `message` is text
@@ -83,14 +84,14 @@ export async function loadCandidatePriceRow(
     scheduleId: string;
   },
 ): Promise<FinancePriceRow | null> {
-  const price = await tx.query.prices.findFirst({
-    where: and(eq(prices.id, input.priceId), eq(prices.eventId, input.eventId)),
-  });
+  const price = await loadPriceRow(tx, input.priceId);
 
   if (
     !price ||
+    price.eventId !== input.eventId ||
     price.groupType !== input.groupType ||
-    (price.scheduleId !== null && price.scheduleId !== input.scheduleId)
+    (price.scheduleIds.length > 0 &&
+      !price.scheduleIds.includes(input.scheduleId))
   ) {
     return null;
   }

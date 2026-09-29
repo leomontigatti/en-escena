@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { and, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -9,7 +10,6 @@ import {
   choreographyDancers,
   choreographyProfessors,
   modalities,
-  prices,
   scheduleCapacities,
   scheduleCategories,
   scheduleModalities,
@@ -419,14 +419,16 @@ describe("saving a draft of the choreography detail", () => {
       .insert(scheduleCapacities)
       .values({ capacity: 5, groupType: "solo", scheduleId: otherSchedule.id })
       .returning();
-    await db.insert(prices).values({
-      amount: 30000,
-      eventId: scenario.event.id,
-      groupType: "solo",
-      name: "Precio Solo otro bloque",
-      paymentDeadline: null,
-      scheduleId: otherSchedule.id,
-    });
+    await insertTestPrices([
+      {
+        amount: 30000,
+        eventId: scenario.event.id,
+        groupType: "solo",
+        name: "Precio Solo otro bloque",
+        paymentDeadline: null,
+        scheduleIds: [otherSchedule.id],
+      },
+    ]);
 
     const byModality = await scenario.saveDraft(
       scenario.draft({
@@ -761,14 +763,16 @@ async function createTargetModality(
     .returning();
 
   if (options.soloPrice) {
-    await db.insert(prices).values({
-      amount: options.soloPrice,
-      eventId,
-      groupType: "solo",
-      name: `Precio Solo ${eventId}`,
-      paymentDeadline: null,
-      scheduleId: schedule.id,
-    });
+    await insertTestPrices([
+      {
+        amount: options.soloPrice,
+        eventId,
+        groupType: "solo",
+        name: `Precio Solo ${eventId}`,
+        paymentDeadline: null,
+        scheduleIds: [schedule.id],
+      },
+    ]);
   }
 
   return {

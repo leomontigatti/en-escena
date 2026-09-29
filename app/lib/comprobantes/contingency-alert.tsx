@@ -1,6 +1,6 @@
-import { AlertTriangle, CircleCheck } from "lucide-react";
+import { CircleAlert, CircleCheck } from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -46,7 +46,13 @@ export type ComprobanteContingency =
   // A re-verification found the comprobante and it was recorded. Terminal.
   | { status: "recovered" };
 
-export const contingencyRecoveredMessage =
+const contingencyTitles = {
+  "not-emitted": "No se emitió",
+  rejected: "Rechazado por ARCA",
+  unverified: "Sin confirmar en ARCA",
+} as const;
+
+const contingencyRecoveredMessage =
   "El comprobante ya estaba autorizado en ARCA. Lo recuperamos y quedó registrado.";
 
 // What to do with the button that triggers the destructive operation.
@@ -114,6 +120,7 @@ export function ContingencyAlert({
     return (
       <Alert variant="success">
         <CircleCheck aria-hidden="true" />
+        <AlertTitle>Comprobante recuperado</AlertTitle>
         <AlertDescription>{contingencyRecoveredMessage}</AlertDescription>
       </Alert>
     );
@@ -121,16 +128,22 @@ export function ContingencyAlert({
 
   return (
     <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
+      <CircleAlert aria-hidden="true" />
+      <AlertTitle>{contingencyTitles[contingency.status]}</AlertTitle>
       <AlertDescription>
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <span>{contingency.message}</span>
-            {contingency.status === "rejected"
-              ? [...contingency.errors, ...contingency.observaciones].map(
-                  (detail) => <span key={detail}>{detail}</span>,
-                )
-              : null}
+            {contingency.status === "rejected" &&
+            contingency.errors.length + contingency.observaciones.length > 0 ? (
+              <ul className="list-disc pl-5">
+                {[...contingency.errors, ...contingency.observaciones].map(
+                  (detail) => (
+                    <li key={detail}>{detail}</li>
+                  ),
+                )}
+              </ul>
+            ) : null}
           </div>
 
           {contingency.status === "unverified" ? (

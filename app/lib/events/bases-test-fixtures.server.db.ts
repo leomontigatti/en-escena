@@ -58,7 +58,7 @@ type SavedPriceFixtureInput = {
   groupType?: GroupType;
   name?: string;
   paymentDeadline?: string | null;
-  scheduleId?: string | null;
+  scheduleIds?: readonly string[];
 };
 
 let createdEventOffset = 0;
@@ -136,7 +136,7 @@ export async function createSavedPrice(
     groupType = "solo",
     name = "Precio base",
     paymentDeadline = "2026-05-31",
-    scheduleId = null,
+    scheduleIds = [],
   }: SavedPriceFixtureInput = {},
 ) {
   return await expectCreated(
@@ -145,7 +145,7 @@ export async function createSavedPrice(
       groupType,
       amount,
       paymentDeadline,
-      scheduleId,
+      scheduleIds,
     }),
   );
 }

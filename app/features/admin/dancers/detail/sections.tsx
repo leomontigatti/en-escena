@@ -1,12 +1,12 @@
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
-import { TriangleAlert } from "lucide-react";
 import type { SubmitEventHandler, ReactNode } from "react";
 
 import {
   AdminEmptyState,
   AdminResourceFormCard,
 } from "@/components/admin/resource-layout";
+import { alertVariantIcons } from "@/components/shared/alert-icons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
@@ -26,7 +26,12 @@ import {
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
@@ -112,6 +117,7 @@ export function DancerDetailAlerts({
   canEdit,
   canVerifyIdentity,
   identificationAlert,
+  identificationAlertTitle,
   identificationAlertVariant,
   onSelectIntent,
   participatingAlert,
@@ -123,26 +129,34 @@ export function DancerDetailAlerts({
   canEdit: boolean;
   canVerifyIdentity: boolean;
   identificationAlert: string | null;
+  identificationAlertTitle: string;
   identificationAlertVariant: "info" | "warning";
   onSelectIntent: (intent: DancerDialogIntent) => void;
   participatingAlert: string | null;
   recategorisedChoreographies: RecategorisedChoreography[];
 }) {
+  const onReactivate = canEdit
+    ? () => onSelectIntent("reactivate-dancer")
+    : undefined;
+  const verifyAction = canVerifyIdentity
+    ? { label: "Verificar", onClick: () => onSelectIntent("verify") }
+    : undefined;
+
   return (
     <AlertStack>
-      <RecategorisedChoreographiesAlert
-        buildChoreographyHref={(choreographyId) =>
-          choreographyDetailPath({ academyId, choreographyId })
-        }
-        choreographies={recategorisedChoreographies}
-        surface="admin"
-      />
+      {recategorisedChoreographies.length > 0 ? (
+        <RecategorisedChoreographiesAlert
+          buildChoreographyHref={(choreographyId) =>
+            choreographyDetailPath({ academyId, choreographyId })
+          }
+          choreographies={recategorisedChoreographies}
+          surface="admin"
+        />
+      ) : null}
       {!active ? (
         <ArchivedPersonAlert
           personLabel="bailarín"
-          onReactivate={
-            canEdit ? () => onSelectIntent("reactivate-dancer") : undefined
-          }
+          onReactivate={onReactivate}
         />
       ) : null}
       {participatingAlert ? (
@@ -150,17 +164,9 @@ export function DancerDetailAlerts({
       ) : null}
       {identificationAlert ? (
         <DancerAlert
+          action={verifyAction}
+          title={identificationAlertTitle}
           variant={identificationAlertVariant}
-          action={
-            canVerifyIdentity
-              ? {
-                  label: "Verificar",
-                  onClick: () => {
-                    onSelectIntent("verify");
-                  },
-                }
-              : undefined
-          }
         >
           {identificationAlert}
         </DancerAlert>
@@ -219,20 +225,18 @@ export function DancerDetailForm({
           editForm={editForm}
           selectedEventId={selectedEventId}
         />
-
-        {nameWarning ? <RosterNameWarningNotice warning={nameWarning} /> : null}
       </AdminResourceFormCard>
 
       <FormActions
         backTo={backToList}
         canEdit={canEdit}
-        // The warning carries the save of its own, so the footer must not
-        // offer a second one.
-        canSave={!nameWarning}
         hasChanges={editForm.hasChanges}
         isPending={isSaving}
         onDiscard={editForm.discard}
       />
+      {nameWarning ? (
+        <RosterNameWarningDialog formId={editFormId} warning={nameWarning} />
+      ) : null}
     </form>
   );
 }
@@ -403,6 +407,7 @@ function DancerIdentificationSection({
 function DancerAlert({
   action,
   children,
+  title,
   variant = "warning",
 }: {
   action?: {
@@ -410,11 +415,15 @@ function DancerAlert({
     onClick: () => void;
   };
   children: ReactNode;
+  title: string;
   variant?: "destructive" | "info" | "warning";
 }) {
+  const DancerAlertIcon = alertVariantIcons[variant];
+
   return (
     <Alert variant={variant}>
-      <TriangleAlert aria-hidden="true" />
+      <DancerAlertIcon aria-hidden="true" />
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription>{children}</AlertDescription>
       {action ? (
         <AlertAction className="top-1/2 -translate-y-1/2">

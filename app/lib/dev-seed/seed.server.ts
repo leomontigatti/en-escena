@@ -1,14 +1,17 @@
 import { addDays } from "date-fns/addDays";
 import { format } from "date-fns/format";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   categories,
   categoryModalities,
+  choreographies,
+  choreographyDancers,
   events,
   modalities,
+  presentations,
   prices,
   scheduleCapacities,
   scheduleModalities,
@@ -21,6 +24,11 @@ import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { deleteSeededRows } from "@/lib/dev-seed/delete-seeded-rows.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
+import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
+import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
+import { disqualifyPresentation } from "@/lib/judging/disqualification.server";
+import { assignJudges } from "@/lib/presentations/judge-assignments.server";
+import { runAutomaticOrdering } from "@/lib/presentations/participation.server";
 import { createDancerForAcademy } from "@/lib/portal/dancers.server";
 import { createAcademyProfessor } from "@/lib/portal/professors.server";
 
@@ -77,7 +85,7 @@ export async function seedDevData(input: {
     name: "Auditoría Demo",
     role: "auditor",
   });
-  await createVerifiedUser({
+  const judgeUserId = await createVerifiedUser({
     email: DEV_SEED_JUDGE_EMAIL,
     name: "Jurado Demo",
     role: "judge",
@@ -112,10 +120,22 @@ export async function seedDevData(input: {
   expectOk(await activateEvent(activeEvent.id), "activate the active event");
 
   const catalog = await createCatalog(activeEvent);
-  await createRosterAndChoreography({
+  const choreographyIds = await createRosterAndChoreographies({
     academyId: academy.id,
     eventId: activeEvent.id,
     catalog,
+  });
+  await coverDeposits({
+    academyId: academy.id,
+    eventId: activeEvent.id,
+    now: input.now,
+    priceId: catalog.priceId,
+  });
+  await freezeAfternoonSchedule({
+    choreographyId: choreographyIds.afternoon,
+    eventId: activeEvent.id,
+    judgeUserId,
+    scheduledDate: catalog.scheduledDate,
   });
 
   return { deactivatedEventNames: deactivated.map(({ name }) => name) };
@@ -193,37 +213,71 @@ async function createCatalog(event: { id: string; startsAt: Date }) {
       modalityId: modality.id,
     })),
   );
+  const scheduledDate = format(event.startsAt, "yyyy-MM-dd");
+  const [morningCapacity, afternoonCapacity] = await Promise.all(
+    [
+      { name: "Bloque mañana", startTime: "10:00" },
+      { name: "Bloque tarde", startTime: "16:00" },
+    ].map((schedule) =>
+      createSoloSchedule({
+        eventId,
+        modalityId: modality.id,
+        scheduledDate,
+        ...schedule,
+      }),
+    ),
+  );
+  const [price] = await db
+    .insert(prices)
+    .values({
+      eventId,
+      name: "Precio solista",
+      groupType: "solo",
+      amount: 25000,
+      paymentDeadline: null,
+    })
+    .returning();
+
+  return {
+    modality,
+    submodality,
+    morningCapacity,
+    afternoonCapacity,
+    priceId: price.id,
+    scheduledDate,
+  };
+}
+
+async function createSoloSchedule(input: {
+  eventId: string;
+  modalityId: string;
+  name: string;
+  scheduledDate: string;
+  startTime: string;
+}) {
   const [schedule] = await db
     .insert(schedules)
     .values({
-      eventId,
-      name: "Bloque mañana",
-      scheduledDate: format(event.startsAt, "yyyy-MM-dd"),
-      startTime: "10:00",
+      eventId: input.eventId,
+      name: input.name,
+      scheduledDate: input.scheduledDate,
+      startTime: input.startTime,
       totalCapacity: 20,
       registrationOpen: true,
     })
     .returning();
   await db
     .insert(scheduleModalities)
-    .values({ scheduleId: schedule.id, modalityId: modality.id });
+    .values({ scheduleId: schedule.id, modalityId: input.modalityId });
   const [scheduleCapacity] = await db
     .insert(scheduleCapacities)
     .values({ scheduleId: schedule.id, groupType: "solo", capacity: 10 })
     .returning();
-  await db.insert(prices).values({
-    eventId,
-    name: "Precio solista",
-    groupType: "solo",
-    amount: 25000,
-    paymentDeadline: null,
-    scheduleId: null,
-  });
 
-  return { modality, submodality, scheduleCapacity };
+  return scheduleCapacity;
 }
 
-async function createRosterAndChoreography(input: {
+async function createRosterAndChoreographies(input: {
   academyId: string;
   eventId: string;
   catalog: Awaited<ReturnType<typeof createCatalog>>;
@@ -255,7 +309,10 @@ async function createRosterAndChoreography(input: {
     );
   }
 
-  expectOk(
+  // Ana's in the morning block, Bea's in the afternoon: the afternoon one is
+  // judged below, and a judged choreography freezes its whole schedule, so
+  // keeping them apart leaves Ana's open to correction.
+  const morning = expectOk(
     await createChoreographyRegistration({
       academyId: input.academyId,
       eventId: input.eventId,
@@ -265,9 +322,110 @@ async function createRosterAndChoreography(input: {
       dancerIds: [dancerIds[0]],
       professorIds: [professorIds[0]],
       experienceLevelId: null,
-      scheduleCapacityId: input.catalog.scheduleCapacity.id,
+      scheduleCapacityId: input.catalog.morningCapacity.id,
     }),
-    "register the choreography",
+    "register the morning choreography",
+  );
+  const afternoon = expectOk(
+    await createChoreographyRegistration({
+      academyId: input.academyId,
+      eventId: input.eventId,
+      name: "Viento Sur",
+      modalityId: input.catalog.modality.id,
+      submodalityId: input.catalog.submodality.id,
+      dancerIds: [dancerIds[1]],
+      professorIds: [professorIds[1]],
+      experienceLevelId: null,
+      scheduleCapacityId: input.catalog.afternoonCapacity.id,
+    }),
+    "register the afternoon choreography",
+  );
+
+  return {
+    morning: morning.choreography.id,
+    afternoon: afternoon.choreography.id,
+  };
+}
+
+/**
+ * One payment covering every inscription past its deposit (30% of 25000).
+ * Crossing the deposit locks the inscription's price, the allocation locks the
+ * payment's academy, and a covered deposit is what makes a choreography
+ * eligible for a presentation number.
+ */
+async function coverDeposits(input: {
+  academyId: string;
+  eventId: string;
+  now: Date;
+  priceId: string;
+}) {
+  const perInscription = 10000;
+  const inscriptions = await db
+    .select({
+      choreographyId: choreographyDancers.choreographyId,
+      id: choreographyDancers.id,
+    })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .where(eq(choreographies.academyId, input.academyId));
+
+  await registerAcademyEventPayment({
+    academyId: input.academyId,
+    amount: perInscription * inscriptions.length,
+    eventId: input.eventId,
+    internalNote: null,
+    paymentDate: format(input.now, "yyyy-MM-dd"),
+    paymentMethod: "transferencia",
+    reference: null,
+  });
+
+  for (const inscription of inscriptions) {
+    expectOk(
+      await allocateToInscription({
+        academyId: input.academyId,
+        amount: perInscription,
+        choreographyId: inscription.choreographyId,
+        eventId: input.eventId,
+        inscriptionId: inscription.id,
+        priceId: input.priceId,
+      }),
+      "allocate a deposit",
+    );
+  }
+}
+
+/**
+ * Numbers the event and has the demo judge disqualify the afternoon
+ * choreography. A disqualification counts as evaluated, which freezes every
+ * number in that schedule with no scores to invent. Judges only write on the
+ * schedule's own day, so the write is dated then.
+ */
+async function freezeAfternoonSchedule(input: {
+  choreographyId: string;
+  eventId: string;
+  judgeUserId: string;
+  scheduledDate: string;
+}) {
+  expectOk(await runAutomaticOrdering(input.eventId), "order the event");
+  await assignJudges({
+    choreographyIds: [input.choreographyId],
+    judgeIds: [input.judgeUserId],
+  });
+  const [presentation] = await db
+    .select({ id: presentations.id })
+    .from(presentations)
+    .where(inArray(presentations.choreographyId, [input.choreographyId]));
+
+  expectOk(
+    await disqualifyPresentation({
+      judgeId: input.judgeUserId,
+      now: new Date(`${input.scheduledDate}T15:00:00Z`),
+      presentationId: presentation.id,
+    }),
+    "disqualify the afternoon presentation",
   );
 }
 

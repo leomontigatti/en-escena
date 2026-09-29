@@ -1,7 +1,7 @@
 import { Form, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { AcademyNameWarningNotice } from "@/components/auth/academy-name-warning";
+import { AcademyNameWarningDialog } from "@/components/auth/academy-name-warning";
 import { AccessHeader, AccessPage } from "@/components/auth/access-ui";
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
@@ -116,6 +116,8 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
   return await recoverableClientAction(serverAction);
 }
 
+const academyOnboardingFormId = "academy-onboarding-form";
+
 export default function AcademyOnboardingRoute() {
   const actionData = useActionData<typeof action>();
   const form = useAccessForm({
@@ -126,7 +128,7 @@ export default function AcademyOnboardingRoute() {
   const warning =
     actionData && "warning" in actionData ? actionData.warning : null;
 
-  // The duplicate-name warning is carried by the inline notice alone, so the
+  // The duplicate-name warning is carried by the dialog alone, so the
   // warning answer is kept out of the toast.
   const toastData =
     actionData && actionData.status !== "warning" ? actionData : null;
@@ -144,6 +146,7 @@ export default function AcademyOnboardingRoute() {
       />
 
       <Form
+        id={academyOnboardingFormId}
         method="post"
         noValidate
         className="mt-8"
@@ -175,15 +178,18 @@ export default function AcademyOnboardingRoute() {
             type="tel"
           />
 
-          {warning ? (
-            <AcademyNameWarningNotice matches={warning.matches} />
-          ) : (
-            <Button className="w-full" type="submit">
-              Crear academia
-            </Button>
-          )}
+          <Button className="w-full" type="submit">
+            Crear academia
+          </Button>
         </FieldGroup>
       </Form>
+
+      {warning ? (
+        <AcademyNameWarningDialog
+          formId={academyOnboardingFormId}
+          matches={warning.matches}
+        />
+      ) : null}
     </AccessPage>
   );
 }

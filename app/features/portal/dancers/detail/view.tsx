@@ -4,7 +4,7 @@ import { useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
@@ -24,7 +24,7 @@ import {
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -246,25 +246,24 @@ export function PortalDancerDetailRouteView({
                   />
                 </TabsContent>
               </Tabs>
-
-              {nameWarning ? (
-                <RosterNameWarningNotice warning={nameWarning.warning} />
-              ) : null}
             </form>
           </CardContent>
         </PortalDancerFormSection>
 
-        {/* The same-name warning holds `Guardar`: the notice in the form
-            carries its own way to continue, and what was typed stays guarded. */}
         <FormActions
           backTo="/portal/bailarines"
-          canSave={!nameWarning}
           form={portalDancerFormId}
           hasChanges={form.form.formState.isDirty}
           isPending={isSubmitting}
           onDiscard={form.discard}
           viewTransition
         />
+        {nameWarning ? (
+          <RosterNameWarningDialog
+            formId={portalDancerFormId}
+            warning={nameWarning.warning}
+          />
+        ) : null}
       </section>
 
       <PortalDancerStatusDialog
@@ -398,13 +397,15 @@ function PortalDancerAlertsSection({
         Alertas de la ficha del bailarín
       </h2>
       <AlertStack>
-        <RecategorisedChoreographiesAlert
-          buildChoreographyHref={(choreographyId) =>
-            `/portal/coreografias/${choreographyId}`
-          }
-          choreographies={recategorisedChoreographies}
-          surface="portal"
-        />
+        {recategorisedChoreographies.length > 0 ? (
+          <RecategorisedChoreographiesAlert
+            buildChoreographyHref={(choreographyId) =>
+              `/portal/coreografias/${choreographyId}`
+            }
+            choreographies={recategorisedChoreographies}
+            surface="portal"
+          />
+        ) : null}
         {!dancerActive ? (
           <ArchivedPersonAlert
             personLabel="bailarín"
@@ -417,6 +418,7 @@ function PortalDancerAlertsSection({
         {showsIdentificationAlert ? (
           <Alert variant="warning">
             <TriangleAlert aria-hidden="true" />
+            <AlertTitle>Faltan datos de identificación</AlertTitle>
             <AlertDescription>
               {formatIdentificationPendingAlert(identificationPendingItems)}
             </AlertDescription>
@@ -425,6 +427,7 @@ function PortalDancerAlertsSection({
         {showsPendingVerificationAlert ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
+            <AlertTitle>Identidad sin verificar</AlertTitle>
             <AlertDescription>
               La identidad del bailarín está sin verificar.
             </AlertDescription>
@@ -433,6 +436,7 @@ function PortalDancerAlertsSection({
         {showsVerifiedIdentityAlert ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
+            <AlertTitle>Identidad verificada</AlertTitle>
             <AlertDescription>
               La identidad del bailarín está verificada. Comunicate con nosotros
               si necesitás realizar algún cambio.

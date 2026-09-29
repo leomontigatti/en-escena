@@ -57,7 +57,7 @@ export type PriceActionValues = {
   groupType: string;
   amount: string;
   paymentDeadline: string;
-  scheduleId: string;
+  scheduleIds: string[];
 };
 
 export type SeminarPriceActionValues = {

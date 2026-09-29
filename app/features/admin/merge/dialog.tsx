@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircleIcon, Merge } from "lucide-react";
+import { CircleAlert, Merge } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -8,7 +8,8 @@ import {
   ComboboxField,
   type ComboboxFieldOption,
 } from "@/components/shared/combobox-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -128,12 +129,7 @@ export function MergeDialog({
 
           {survivorId ? renderSummary(survivorId) : null}
 
-          <Alert variant="destructive">
-            <AlertCircleIcon aria-hidden="true" />
-            <AlertDescription>
-              {refusal ?? "Esta acción es irreversible."}
-            </AlertDescription>
-          </Alert>
+          <MergeAlert refusal={refusal} />
 
           <DialogFooter>
             <DialogClose asChild>
@@ -219,5 +215,20 @@ export function MergeSummary({
         </ul>
       </div>
     </div>
+  );
+}
+
+/** Why the merge is refused, or the warning before one that cannot be undone. */
+function MergeAlert({ refusal }: { refusal?: string }) {
+  if (!refusal) {
+    return <IrreversibleActionAlert />;
+  }
+
+  return (
+    <Alert variant="destructive">
+      <CircleAlert aria-hidden="true" />
+      <AlertTitle>No se puede fusionar</AlertTitle>
+      <AlertDescription>{refusal}</AlertDescription>
+    </Alert>
   );
 }

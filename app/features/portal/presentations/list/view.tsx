@@ -3,7 +3,12 @@ import { Link } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ProgramList } from "@/features/program/list";
 
@@ -58,6 +63,7 @@ export function PortalPresentationsListView({
             {loaderData.programVisible ? null : (
               <Alert variant="info">
                 <Info aria-hidden="true" />
+                <AlertTitle>Programa sin publicar</AlertTitle>
                 <AlertDescription>
                   El programa del evento todavía no se publicó. Los números
                   pueden cambiar hasta que la organización lo publique.
@@ -68,6 +74,7 @@ export function PortalPresentationsListView({
             {belowDepositCount > 0 ? (
               <Alert variant="warning">
                 <TriangleAlert aria-hidden="true" />
+                <AlertTitle>Seña pendiente</AlertTitle>
                 <AlertDescription>
                   {belowDepositCount === 1
                     ? "Existe 1 coreografía con la seña pendiente."

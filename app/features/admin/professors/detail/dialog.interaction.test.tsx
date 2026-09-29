@@ -151,7 +151,7 @@ describe("ProfessorDetailRouteView dialogs", () => {
             message: "Revisá los datos del Profesor.",
             fieldErrors: {
               documentNumber:
-                "Ya existe un Profesor archivado con ese documento en la academia.",
+                "Ya existe un profesor archivado con ese documento en la academia.",
             },
             values: {
               firstName: "Ana",
@@ -171,7 +171,7 @@ describe("ProfessorDetailRouteView dialogs", () => {
 
     expect(documentField?.getAttribute("aria-invalid")).toBe("true");
     expect(document.body.textContent).toContain(
-      "Ya existe un Profesor archivado con ese documento en la academia.",
+      "Ya existe un profesor archivado con ese documento en la academia.",
     );
     expect(
       document.querySelector(

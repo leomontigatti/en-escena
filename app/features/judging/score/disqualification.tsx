@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { AlertCircleIcon } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,7 +104,8 @@ export function DisqualificationAction({
 export function DisqualifiedNotice() {
   return (
     <Alert variant="warning">
-      <AlertCircleIcon aria-hidden="true" />
+      <TriangleAlert aria-hidden="true" />
+      <AlertTitle>Presentación descalificada</AlertTitle>
       <AlertDescription>{disqualifiedNoticeMessage}</AlertDescription>
     </Alert>
   );

@@ -139,7 +139,7 @@ describe("handleCreateDancerAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín con ese documento en tu academia.",
+          "Ya existe un bailarín con ese documento en tu academia.",
       },
       duplicateDocumentDancerId: existing.id,
     });
@@ -176,7 +176,7 @@ describe("handleCreateDancerAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín archivado con ese documento en tu academia.",
+          "Ya existe un bailarín archivado con ese documento en tu academia.",
       },
       duplicateDocumentDancerId: archived.id,
     });
@@ -380,7 +380,7 @@ describe("handleCreateDancerAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín con ese documento en tu academia.",
+          "Ya existe un bailarín con ese documento en tu academia.",
       },
     });
   });
@@ -449,7 +449,7 @@ describe("handleCreateDancerAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín con ese documento en tu academia.",
+          "Ya existe un bailarín con ese documento en tu academia.",
       },
       duplicateDocumentDancerId: existing.id,
     });

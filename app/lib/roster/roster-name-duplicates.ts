@@ -33,7 +33,7 @@ export type RosterNameWarningActionData<Values> = {
  * (PRD #1090), and the copy says which.
  */
 export function rosterNameWarningMessage(warning: RosterNameWarning) {
-  const person = warning.kind === "dancer-name" ? "un Bailarín" : "un Profesor";
+  const person = warning.kind === "dancer-name" ? "un bailarín" : "un profesor";
   const traits =
     warning.kind === "dancer-name"
       ? "el mismo nombre y fecha de nacimiento"
@@ -41,5 +41,5 @@ export function rosterNameWarningMessage(warning: RosterNameWarning) {
   const academy = warning.scope === "portal" ? "tu academia" : "la academia";
   const names = warning.matches.map((match) => match.label).join(", ");
 
-  return `Ya existe ${person} con ${traits} en ${academy}: ${names}. ¿Es la misma persona?`;
+  return `Ya existe ${person} con ${traits} en ${academy}: ${names}.`;
 }

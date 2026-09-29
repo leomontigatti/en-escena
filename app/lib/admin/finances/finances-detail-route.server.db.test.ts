@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -199,17 +200,15 @@ describe("`/administracion/finanzas` academy", () => {
 
     // A price row already expired as of 01/06: it still rules because the
     // inscription has it selected.
-    const [selectedPrice] = await db
-      .insert(prices)
-      .values({
+    const [selectedPrice] = await insertTestPrices([
+      {
         amount: 12000,
         eventId: event.id,
         groupType: "solo",
         name: "Precio Solo seleccionado",
         paymentDeadline: "2026-03-31",
-        scheduleId: null,
-      })
-      .returning();
+      },
+    ]);
 
     const [inscription] = await db
       .insert(choreographyDancers)
@@ -319,14 +318,16 @@ describe("`/administracion/finanzas` academy", () => {
       academyName: "Academia Coreografias",
     });
     const catalog = await createEventCatalog(event.id);
-    await db.insert(prices).values({
-      amount: 10000,
-      eventId: event.id,
-      groupType: "solo",
-      name: "Precio Solo vigente",
-      paymentDeadline: "2026-12-31",
-      scheduleId: catalog.schedule.id,
-    });
+    await insertTestPrices([
+      {
+        amount: 10000,
+        eventId: event.id,
+        groupType: "solo",
+        name: "Precio Solo vigente",
+        paymentDeadline: "2026-12-31",
+        scheduleIds: [catalog.schedule.id],
+      },
+    ]);
     const aire = await createChoreographyRecord({
       academyId: academy.academy.id,
       categoryId: catalog.categoryWithLevel.id,

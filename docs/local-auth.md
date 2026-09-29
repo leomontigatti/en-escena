@@ -153,16 +153,23 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
 - `academia@enescena.local`: an academy user with its `Academia Demo`, landing
   on `/portal`.
 - `auditoria@enescena.local` and `jurado@enescena.local`: an auditor and a
-  judge, landing on `/auditoria` and `/juzgamiento`, with nothing assigned to
-  them.
+  judge, landing on `/auditoria` and `/juzgamiento`. The judge is assigned to
+  one presentation, which they disqualified.
 - All four are email-verified and share one password, `DEV_SEED_PASSWORD` in
   `app/lib/dev-seed/seed.server.ts`; the command prints it.
 - Three events: `Evento Activo` (active, 60 days out), `Evento Futuro` and
   `Evento Finalizado`. The active one has a catalog registrations accept: a
-  modality and submodality, two categories covering ages 1 to 100, a
-  schedule open for registrations with a solo capacity, and a solo price.
-- Two dancers and two professors in `Academia Demo`, and one choreography
-  registered on the active event.
+  modality and submodality, two categories covering ages 1 to 100, two
+  schedules on the same day (`Bloque mañana`, `Bloque tarde`) open for
+  registrations with a solo capacity each, and a solo price.
+- Two dancers and two professors in `Academia Demo`, and two choreographies on
+  the active event: `Luna de Papel` (Ana, morning) and `Viento Sur` (Bea,
+  afternoon).
+- One payment from `Academia Demo`, allocated past the deposit of both
+  inscriptions, so the payment's academy and each inscription's price show
+  their locks. The event is numbered, and `Viento Sur` is disqualified, which
+  counts as evaluated and freezes the afternoon schedule's numbers.
+  `Luna de Papel` stays open to correction.
 
 It writes to the `DATABASE_URL` in effect — the worktree's own database when
 `.env.local` exists (see [One database per worktree](#one-database-per-worktree)).

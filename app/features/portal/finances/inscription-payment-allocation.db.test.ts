@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
@@ -296,17 +297,15 @@ async function readPricePair(eventId: string) {
     throw new Error("Expected a price row.");
   }
 
-  const [otherPrice] = await db
-    .insert(prices)
-    .values({
+  const [otherPrice] = await insertTestPrices([
+    {
       amount: 20000,
       eventId,
       groupType: "solo",
       name: "Precio Solo tardío",
       paymentDeadline: null,
-      scheduleId: null,
-    })
-    .returning();
+    },
+  ]);
 
   if (!otherPrice) {
     throw new Error("Expected a second price row.");

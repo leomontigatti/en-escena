@@ -14,14 +14,14 @@ type Row = {
   amount: number;
   groupType: string;
   paymentDeadline: string | null;
-  scheduleId: string | null;
+  scheduleIds: string[];
 };
 
 function row(overrides: Partial<Row> & { id: string; amount: number }): Row {
   return {
     groupType: "solo",
     paymentDeadline: null,
-    scheduleId: null,
+    scheduleIds: [],
     ...overrides,
   };
 }
@@ -101,18 +101,18 @@ describe("selectApplicableInscriptionPrice", () => {
   const specific = row({
     id: "specific",
     amount: 9000,
-    scheduleId: "schedule_1",
+    scheduleIds: ["schedule_1"],
   });
   const otherGroupType = row({
     id: "duo",
     amount: 100,
     groupType: "duo",
-    scheduleId: "schedule_1",
+    scheduleIds: ["schedule_1"],
   });
   const otherSchedule = row({
     id: "other-schedule",
     amount: 100,
-    scheduleId: "schedule_2",
+    scheduleIds: ["schedule_2"],
   });
   const priceRows = [general, specific, otherGroupType, otherSchedule];
 
@@ -172,6 +172,28 @@ describe("selectApplicableInscriptionPrice", () => {
         priceRows,
       })?.id,
     ).toBe("general");
+  });
+
+  test("applies a special price to every schedule it names", () => {
+    const shared = row({
+      id: "shared",
+      amount: 8000,
+      scheduleIds: ["schedule_1", "schedule_3"],
+    });
+
+    for (const scheduleId of ["schedule_1", "schedule_3"]) {
+      expect(
+        selectApplicableInscriptionPrice({
+          businessDate: today,
+          key: {
+            choreographyScheduleId: scheduleId,
+            groupType: "solo",
+            scheduleCapacityScheduleId: null,
+          },
+          priceRows: [general, shared],
+        })?.id,
+      ).toBe("shared");
+    }
   });
 
   test("returns null when neither tier has an applicable row", () => {

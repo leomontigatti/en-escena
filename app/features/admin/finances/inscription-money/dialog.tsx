@@ -43,10 +43,12 @@
  * erred in, and far rarer.
  */
 
+import { Info } from "lucide-react";
 import { useState } from "react";
 
 import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -191,6 +193,8 @@ function AllocateMoneyDialog({
             name="intent"
             value={allocateInscriptionIntent}
           />
+          {isPriceLocked ? <LockedPriceAlert /> : null}
+
           <MoneyTargetFields
             inscription={inscription}
             targetKind={targetKind}
@@ -544,5 +548,24 @@ function ReleaseExcessDialog({
         </fetcher.Form>
       )}
     </MoneyDialog>
+  );
+}
+
+/**
+ * Why `Precio` is read-only: once the money on the inscription covers the
+ * deposit, its price is fixed. Taking money off below the deposit is what
+ * opens it again.
+ */
+function LockedPriceAlert() {
+  return (
+    <Alert variant="info">
+      <Info aria-hidden="true" />
+      <AlertTitle>Precio bloqueado</AlertTitle>
+      <AlertDescription>
+        El dinero asignado ya cubre la seña, así que el precio de la inscripción
+        queda fijo. Para cambiarlo, quitá dinero hasta quedar por debajo de la
+        seña.
+      </AlertDescription>
+    </Alert>
   );
 }

@@ -60,7 +60,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       price: {
         name: "Precio bloque",
         amount: "15000",
-        scheduleId: schedule.id,
+        scheduleIds: [schedule.id],
       },
     });
 
@@ -98,7 +98,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       price: {
         name: "Precio bloque",
         amount: "15000",
-        scheduleId: schedule.id,
+        scheduleIds: [schedule.id],
       },
     });
 
@@ -155,7 +155,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
         name: "Precio actualizado",
         amount: "12000",
         paymentDeadline: "2026-06-30",
-        scheduleId: "",
+        scheduleIds: [],
       },
     });
 
@@ -167,7 +167,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       name: "Precio actualizado",
       amount: 12000,
       paymentDeadline: "2026-06-30",
-      scheduleId: null,
+      isSpecialPrice: false,
     });
 
     const blockedDeleteRequest = await createDeletePriceAdminRequest({
@@ -369,7 +369,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
         isSpecialPrice: "",
         name: "Precio base",
         paymentDeadline: "2026-05-31",
-        scheduleId: "",
+        scheduleIds: [],
       },
     });
 
@@ -404,7 +404,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       price: {
         name: "Precio bloque",
         amount: "15000",
-        scheduleId: schedule.id,
+        scheduleIds: [schedule.id],
       },
     });
 
@@ -425,7 +425,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       groupType: "solo",
       amount: 15000,
       paymentDeadline: "2026-05-31",
-      scheduleId: schedule.id,
+      scheduleIds: [schedule.id],
     });
 
     const data = await loader(
@@ -455,7 +455,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
         name: "Precio actualizado",
         amount: "12000",
         paymentDeadline: "2026-06-30",
-        scheduleId: "",
+        scheduleIds: [],
       },
     });
 
@@ -472,7 +472,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       name: "Precio actualizado",
       amount: 12000,
       paymentDeadline: "2026-06-30",
-      scheduleId: null,
+      isSpecialPrice: false,
     });
 
     const deletePriceRequest = await createDeletePriceAdminRequest({

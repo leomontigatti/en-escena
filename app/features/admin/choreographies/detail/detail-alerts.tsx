@@ -45,8 +45,8 @@ export function ChoreographyDetailAlerts({
           the administrator may keep correcting it, and the only thing worth
           saying is that the correction can echo on the participation list. */}
       {choreography.isEvaluated ? (
-        <Alert variant="warning">
-          <TriangleAlert aria-hidden="true" />
+        <Alert variant="info">
+          <Info aria-hidden="true" />
           <AlertTitle>Esta coreografía ya fue evaluada</AlertTitle>
           <AlertDescription>{evaluatedChoreographyMessage}</AlertDescription>
         </Alert>
@@ -122,12 +122,13 @@ export function ChoreographyDetailAlerts({
 
       {/* The financial alert is not suppressed for the auditor: the reason for
           the block belongs to the choreography, not to the permissions of
-          whoever is looking. One block per line, with no title and no list: the
-          server's label is already the whole sentence, and two blocks are two
-          stacked alerts. */}
+          whoever is looking. One block per line, with no list: the server's label
+          is already the whole sentence, and two blocks are two stacked
+          alerts. */}
       {loaderData.scheduleCapacity.blockers.map((blocker) => (
         <Alert key={blocker.code} variant="warning">
           <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Cambios limitados por dinero asignado</AlertTitle>
           <AlertDescription>{blocker.label}</AlertDescription>
         </Alert>
       ))}
@@ -137,6 +138,7 @@ export function ChoreographyDetailAlerts({
       {loaderData.modality.blockers.map((blocker) => (
         <Alert key={blocker.code} variant="warning">
           <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Cambios limitados por dinero asignado</AlertTitle>
           <AlertDescription>{blocker.label}</AlertDescription>
         </Alert>
       ))}

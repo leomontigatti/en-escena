@@ -5,16 +5,24 @@ import {
 } from "@/lib/roster/roster-name-duplicates";
 
 /**
- * The form side of the same-name warning: who the academy already has, and a
- * submit that repeats the values carrying their ids.
+ * The confirmation a save asks for when the academy already has someone with
+ * that name: who they are, and a submit that repeats the values carrying their
+ * ids.
  */
-export function RosterNameWarningNotice({
+export function RosterNameWarningDialog({
+  formId,
   warning,
 }: {
+  formId: string;
   warning: RosterNameWarning;
 }) {
   return (
-    <DuplicateWarningPrompt matchIds={warning.matches.map((match) => match.id)}>
+    <DuplicateWarningPrompt
+      formId={formId}
+      matchIds={warning.matches.map((match) => match.id)}
+      title="¿Es la misma persona?"
+      warning={warning}
+    >
       <p>{rosterNameWarningMessage(warning)}</p>
     </DuplicateWarningPrompt>
   );
