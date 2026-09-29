@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -156,6 +156,57 @@ function ensure() {
   }
 }
 
+function pickPort(root: string, envLocalPath: string, database: string) {
+  const ownPort = existsSync(envLocalPath)
+    ? parseEnvPort(readFileSync(envLocalPath, "utf8"))
+    : undefined;
+  const claimed = new Set(
+    worktreePaths()
+      .filter((worktree) => path.resolve(worktree) !== path.resolve(root))
+      .map((worktree) => path.join(worktree, ENV_LOCAL))
+      .filter((file) => existsSync(file))
+      .map((file) => parseEnvPort(readFileSync(file, "utf8")))
+      .filter((port): port is number => port !== undefined),
+  );
+
+  return ownPort !== undefined && !claimed.has(ownPort)
+    ? ownPort
+    : choosePort(database, claimed);
+}
+
+function migrateAndSeed(options: {
+  envLocalPath: string;
+  databaseUrl: string;
+  port: number;
+  database: string;
+  created: boolean;
+}) {
+  const { envLocalPath, databaseUrl, port, database, created } = options;
+  const hadEnvLocal = existsSync(envLocalPath);
+
+  writeFileSync(envLocalPath, renderEnvLocal({ databaseUrl, port }));
+
+  const env = { DATABASE_URL: databaseUrl };
+
+  try {
+    run("pnpm", ["db:migrate"], env);
+
+    // Only a new database is seeded: re-running the command must not wipe what
+    // the session built on the demo data since.
+    if (created) {
+      run("pnpm", ["db:seed"], env);
+    }
+  } catch (error) {
+    // A half-set-up worktree must not look set up: `ensure` skips a worktree
+    // that has `.env.local`, so leave nothing behind for the next run to trust.
+    if (!hadEnvLocal) rmSync(envLocalPath, { force: true });
+    if (created) {
+      run("docker", ["exec", CONTAINER, "dropdb", "-U", "postgres", database]);
+    }
+    throw error;
+  }
+}
+
 function setUp(root: string) {
   if (isMainCheckout(root)) {
     console.log("This is the main checkout; it keeps the en-escena database.");
@@ -171,21 +222,7 @@ function setUp(root: string) {
   const database = worktreeDatabaseName(root);
   const databaseUrl = databaseUrlFor(baseUrl, database);
   const envLocalPath = path.join(root, ENV_LOCAL);
-  const ownPort = existsSync(envLocalPath)
-    ? parseEnvPort(readFileSync(envLocalPath, "utf8"))
-    : undefined;
-  const claimed = new Set(
-    worktreePaths()
-      .filter((worktree) => path.resolve(worktree) !== path.resolve(root))
-      .map((worktree) => path.join(worktree, ENV_LOCAL))
-      .filter((file) => existsSync(file))
-      .map((file) => parseEnvPort(readFileSync(file, "utf8")))
-      .filter((port): port is number => port !== undefined),
-  );
-  const port =
-    ownPort !== undefined && !claimed.has(ownPort)
-      ? ownPort
-      : choosePort(database, claimed);
+  const port = pickPort(root, envLocalPath, database);
 
   run("docker", ["compose", "up", "-d", "--wait", "postgres"]);
 
@@ -196,16 +233,7 @@ function setUp(root: string) {
     run("docker", ["exec", CONTAINER, "createdb", "-U", "postgres", database]);
   }
 
-  writeFileSync(envLocalPath, renderEnvLocal({ databaseUrl, port }));
-
-  const env = { DATABASE_URL: databaseUrl };
-  run("pnpm", ["db:migrate"], env);
-
-  // Only a new database is seeded: re-running the command must not wipe what
-  // the session built on the demo data since.
-  if (created) {
-    run("pnpm", ["db:seed"], env);
-  }
+  migrateAndSeed({ envLocalPath, databaseUrl, port, database, created });
 
   console.log(`\nDatabase: ${database}`);
   console.log(`Dev server: http://localhost:${port} (pnpm dev)`);
