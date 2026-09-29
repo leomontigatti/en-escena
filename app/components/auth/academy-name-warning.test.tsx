@@ -20,9 +20,9 @@ describe("AcademyNameWarningNotice", () => {
   async function renderNotice() {
     await renderer.renderAsync(
       <MemoryRouter>
-        <form id="registro-academia" />
+        <form id="academy-onboarding-form" />
         <AcademyNameWarningNotice
-          formId="registro-academia"
+          formId="academy-onboarding-form"
           matches={[
             {
               createdAt: new Date("2026-09-21T15:00:00.000Z"),

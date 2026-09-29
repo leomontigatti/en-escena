@@ -257,7 +257,11 @@ export function FeedbackRecorder({
       {message ? (
         <Alert variant="destructive">
           <CircleAlert aria-hidden="true" />
-          <AlertTitle>No se pudo guardar la devolución</AlertTitle>
+          <AlertTitle>
+            {take.error
+              ? "No se pudo usar el micrófono"
+              : "No se pudo guardar la devolución"}
+          </AlertTitle>
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}

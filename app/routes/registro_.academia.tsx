@@ -116,7 +116,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
   return await recoverableClientAction(serverAction);
 }
 
-const academyOnboardingFormId = "registro-academia-form";
+const academyOnboardingFormId = "academy-onboarding-form";
 
 export default function AcademyOnboardingRoute() {
   const actionData = useActionData<typeof action>();
