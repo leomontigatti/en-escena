@@ -131,7 +131,7 @@ describe("handleCreateProfessorAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Profesor con ese documento en tu academia.",
+          "Ya existe un profesor con ese documento en tu academia.",
       },
       duplicateDocumentProfessorId: existing.id,
     });
@@ -166,7 +166,7 @@ describe("handleCreateProfessorAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Profesor archivado con ese documento en tu academia.",
+          "Ya existe un profesor archivado con ese documento en tu academia.",
       },
       duplicateDocumentProfessorId: archived.id,
     });
@@ -227,7 +227,7 @@ describe("handleCreateProfessorAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Profesor con ese documento en tu academia.",
+          "Ya existe un profesor con ese documento en tu academia.",
       },
       duplicateDocumentProfessorId: existing.id,
     });
@@ -349,7 +349,7 @@ describe("handleCreateProfessorAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Profesor con ese documento en tu academia.",
+          "Ya existe un profesor con ese documento en tu academia.",
       },
     });
   });

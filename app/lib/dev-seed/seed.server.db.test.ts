@@ -5,14 +5,22 @@ import { db } from "@/db";
 import {
   academies,
   choreographies,
+  choreographyDancers,
   dancers,
   events,
+  payments,
   professors,
   user,
 } from "@/db/schema";
 import { signInAccessUser } from "@/lib/auth/access-auth.test-support";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { readInscriptionAllocatedAmount } from "@/lib/finances/allocation-pool.server";
+import { choreographyTarget } from "@/lib/finances/allocation-target.server";
+import {
+  readFrozenChoreographyIds,
+  readParticipationRows,
+} from "@/lib/presentations/participation.server";
 import {
   DEV_SEED_ACADEMY_EMAIL,
   DEV_SEED_ADMIN_EMAIL,
@@ -64,7 +72,7 @@ describe("dev seed", () => {
     }
   });
 
-  test("opens registrations on the active event and registers one choreography for the academy", async () => {
+  test("opens registrations on the active event and registers two choreographies for the academy", async () => {
     await seedDevData({ now });
 
     const seededEvents = await db.query.events.findMany({
@@ -98,7 +106,56 @@ describe("dev seed", () => {
       db.query.choreographies.findMany({
         where: eq(choreographies.academyId, academyId),
       }),
-    ).resolves.toEqual([expect.objectContaining({ eventId: activeEvent.id })]);
+    ).resolves.toEqual([
+      expect.objectContaining({ eventId: activeEvent.id }),
+      expect.objectContaining({ eventId: activeEvent.id }),
+    ]);
+  });
+
+  test("leaves a payment allocated past the deposit and a frozen presentation, so the lock alerts have data", async () => {
+    await seedDevData({ now });
+
+    const activeEvent = await db.query.events.findFirst({
+      where: eq(events.active, true),
+    });
+    const academy = await db.query.academies.findFirst({
+      where: eq(academies.name, "Academia Demo"),
+    });
+    if (!activeEvent || !academy) {
+      throw new Error("Expected the seed's active event and academy.");
+    }
+
+    // The payment detail locks its academy once money is allocated.
+    const academyPayments = await db.query.payments.findMany({
+      where: eq(payments.academyId, academy.id),
+    });
+    expect(academyPayments).toHaveLength(1);
+
+    // Every inscription covers the 30% deposit of its 25000 price, which locks
+    // the price in the money dialog and makes the choreography orderable.
+    const inscriptions = await db
+      .select({ id: choreographyDancers.id })
+      .from(choreographyDancers)
+      .innerJoin(
+        choreographies,
+        eq(choreographies.id, choreographyDancers.choreographyId),
+      )
+      .where(eq(choreographies.academyId, academy.id));
+    expect(inscriptions).toHaveLength(2);
+    for (const inscription of inscriptions) {
+      await expect(
+        readInscriptionAllocatedAmount(db, choreographyTarget(inscription.id)),
+      ).resolves.toBeGreaterThanOrEqual(7500);
+    }
+
+    // One schedule is evaluated, so its numbered presentation is frozen while
+    // the other choreography stays open to correction.
+    const rows = await readParticipationRows(activeEvent.id);
+    const frozen = await readFrozenChoreographyIds(rows);
+    const frozenNames = rows
+      .filter((row) => frozen.has(row.choreographyId))
+      .map((row) => row.name);
+    expect(frozenNames).toEqual(["Viento Sur"]);
   });
 
   test("re-running resets the demo to the same state, keeping events it does not own", async () => {

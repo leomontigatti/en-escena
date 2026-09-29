@@ -1,9 +1,15 @@
-import { AlertTriangle, Info, ListOrdered } from "lucide-react";
+import { Info, ListOrdered, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -48,6 +54,7 @@ export function PresentationNotices({
       {loaderData.hasPresentations ? null : (
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Sin números de presentación</AlertTitle>
           <AlertDescription>
             Las coreografías todavía no tienen un número de presentación
             asignado.
@@ -70,6 +77,7 @@ export function PresentationNotices({
       {loaderData.hasPresentations && loaderData.unorderedCount > 0 ? (
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Numeración incompleta</AlertTitle>
           <AlertDescription>
             {loaderData.unorderedCount === 1
               ? "Existe 1 coreografía sin número de presentación."
@@ -80,6 +88,7 @@ export function PresentationNotices({
       {needsNumberSortToDrag ? (
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Arrastre desactivado</AlertTitle>
           <AlertDescription>Ordená por número para arrastrar.</AlertDescription>
         </Alert>
       ) : null}
@@ -114,7 +123,8 @@ function PresentationWarningsNotice({
 
   return (
     <Alert variant="warning">
-      <AlertTriangle aria-hidden="true" />
+      <TriangleAlert aria-hidden="true" />
+      <AlertTitle>Presentaciones con advertencias</AlertTitle>
       <AlertDescription>
         {loaderData.warnedCount === 1
           ? "Existe 1 presentación con advertencias."
@@ -200,7 +210,7 @@ export function OrderingConfirmationDialog({
   });
   // The ordering stays on the list, so nothing navigates the dialog away: it
   // closes itself once its own submission settles. Leaving it open would sit an
-  // enabled `Ordenar` in front of the administrator after the order was already
+  // enabled `Confirmar` in front of the administrator after the order was already
   // written, and a second press would throw away the manual moves the first one
   // just made.
   const wasPending = useRef(false);
@@ -235,20 +245,17 @@ export function OrderingConfirmationDialog({
         {frozenCount > 0 ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
+            <AlertTitle>Presentaciones fijas</AlertTitle>
             <AlertDescription>
-              {frozenCount === 1
-                ? "1 presentación queda fija porque su cronograma ya fue evaluado."
-                : `${frozenCount} presentaciones quedan fijas porque su cronograma ya fue evaluado.`}
+              Las presentaciones de un cronograma ya evaluado no cambian de
+              número.
             </AlertDescription>
           </Alert>
         ) : null}
-        <Alert variant="destructive">
-          <AlertTriangle aria-hidden="true" />
-          <AlertDescription>
-            Esta acción es irreversible y modifica cualquier orden manual
-            realizado.
-          </AlertDescription>
-        </Alert>
+        <IrreversibleActionAlert>
+          Esta acción es irreversible y modifica cualquier orden manual
+          realizado.
+        </IrreversibleActionAlert>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <form method="post">
@@ -261,7 +268,7 @@ export function OrderingConfirmationDialog({
               {isPending ? (
                 <Spinner aria-hidden="true" data-icon="inline-start" />
               ) : null}
-              Ordenar
+              Confirmar
             </Button>
           </form>
         </AlertDialogFooter>

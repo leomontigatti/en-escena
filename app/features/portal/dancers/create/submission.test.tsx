@@ -86,7 +86,7 @@ describe("dancer create submissions", () => {
             status: "error",
             fieldErrors: {
               documentNumber:
-                "Ya existe un Bailarín archivado con ese documento en tu academia.",
+                "Ya existe un bailarín archivado con ese documento en tu academia.",
             },
             values: {
               firstName: "Ana",
@@ -109,7 +109,7 @@ describe("dancer create submissions", () => {
     expect(documentField?.value).toBe("30111222");
     expect(documentField?.getAttribute("aria-invalid")).toBe("true");
     expect(document.body.textContent).toContain(
-      "Ya existe un Bailarín archivado con ese documento en tu academia.",
+      "Ya existe un bailarín archivado con ese documento en tu academia.",
     );
     expect(
       document.querySelector<HTMLAnchorElement>(
@@ -158,7 +158,7 @@ describe("dancer create submissions", () => {
     );
 
     expect(document.body.textContent).toContain(
-      "Ya existe un Bailarín con el mismo nombre y fecha de nacimiento en tu academia: Ana Paz. ¿Es la misma persona?",
+      "Ya existe un bailarín con el mismo nombre y fecha de nacimiento en tu academia: Ana Paz.",
     );
     expect(
       document.querySelector<HTMLInputElement>(

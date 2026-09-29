@@ -86,7 +86,7 @@ describe("the portal dancer detail as one draft", () => {
     expect(isSaveEnabled()).toBe(false);
   });
 
-  test("holds `Guardar` behind the same-name warning, and still guards what was typed", async () => {
+  test("asks about the same-name warning in a dialog, leaves `Guardar` on after Cancelar, and still guards what was typed", async () => {
     await renderDancerPage({
       actionData: {
         status: "warning",
@@ -107,8 +107,13 @@ describe("the portal dancer detail as one draft", () => {
       },
     });
 
-    expect(isSaveEnabled()).toBe(false);
+    expect(findDialog()?.textContent).toContain("¿Es la misma persona?");
     expect(findButton("Continuar de todos modos")).toBeDefined();
+
+    await clickReactDomButton("Cancelar");
+
+    expect(findButton("Continuar de todos modos")).toBeUndefined();
+    expect(isSaveEnabled()).toBe(true);
 
     await clickLink("Volver");
 

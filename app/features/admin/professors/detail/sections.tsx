@@ -1,4 +1,4 @@
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { TriangleAlert } from "lucide-react";
 import type { SubmitEventHandler } from "react";
@@ -17,7 +17,7 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 
 import {
@@ -86,7 +86,10 @@ export function ProfessorDetailAlerts({
       {isIncomplete ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
-          <AlertDescription>Faltan datos de identificación.</AlertDescription>
+          <AlertTitle>Faltan datos de identificación</AlertTitle>
+          <AlertDescription>
+            Completá el tipo y el número de documento.
+          </AlertDescription>
         </Alert>
       ) : null}
     </AlertStack>
@@ -132,20 +135,18 @@ export function ProfessorDetailForm({
           editForm={editForm}
           professor={professor}
         />
-
-        {nameWarning ? <RosterNameWarningNotice warning={nameWarning} /> : null}
       </AdminResourceFormCard>
 
       <FormActions
         backTo={backToList}
         canEdit={canEdit}
-        // The warning carries the save of its own, so the footer must not
-        // offer a second one.
-        canSave={!nameWarning}
         hasChanges={editForm.hasChanges}
         isPending={isSaving}
         onDiscard={editForm.discard}
       />
+      {nameWarning ? (
+        <RosterNameWarningDialog formId={editFormId} warning={nameWarning} />
+      ) : null}
     </form>
   );
 }

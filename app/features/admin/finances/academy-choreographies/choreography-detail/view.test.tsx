@@ -209,7 +209,7 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).not.toContain("tentativ");
   });
 
-  test("alerts about the over-allocation without a title and without naming dancers", () => {
+  test("alerts about the over-allocation under a fixed title, without naming dancers", () => {
     const alert = anomalyAlert(
       renderDetail({
         choreography: choreographyFixture({
@@ -222,8 +222,10 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(alert.textContent).toContain(
       "Hay inscripciones con más dinero asignado que su total",
     );
-    // Generic: no title, and no listing or counting of dancers.
-    expect(alert.querySelector('[data-slot="alert-title"]')).toBeNull();
+    // Generic: a fixed title, and no listing or counting of dancers.
+    expect(alert.querySelector('[data-slot="alert-title"]')?.textContent).toBe(
+      "Dinero asignado de más",
+    );
     expect(alert.textContent).not.toContain("Ana López");
     expect(alert.textContent).not.toContain("$");
   });

@@ -1,7 +1,7 @@
 import { TriangleAlert } from "lucide-react";
 import { Form } from "react-router";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +57,7 @@ export function DancerConfirmationDialog({
           {birthDateMayNeedRecalculation ? (
             <Alert variant="warning">
               <TriangleAlert aria-hidden="true" />
+              <AlertTitle>Revisá las categorías</AlertTitle>
               <AlertDescription>
                 Si cambiás la fecha de nacimiento, las coreografías vinculadas
                 pueden requerir recalcular categoría desde el flujo de

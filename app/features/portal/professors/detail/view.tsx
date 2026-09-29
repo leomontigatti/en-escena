@@ -5,7 +5,7 @@ import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
 
 import { FormActions } from "@/components/shared/form-actions";
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
@@ -17,7 +17,7 @@ import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -204,25 +204,24 @@ export function PortalProfessorDetailRouteView({
                   name="documentNumber"
                 />
               </FieldGroup>
-
-              {nameWarning ? (
-                <RosterNameWarningNotice warning={nameWarning.warning} />
-              ) : null}
             </form>
           </CardContent>
         </Card>
 
-        {/* The same-name warning holds `Guardar`: the notice in the form
-            carries its own way to continue, and what was typed stays guarded. */}
         <FormActions
           backTo="/portal/profesores"
-          canSave={!nameWarning}
           form={professorDetailFormId}
           hasChanges={form.form.formState.isDirty}
           isPending={isSubmitting}
           onDiscard={form.discard}
           viewTransition
         />
+        {nameWarning ? (
+          <RosterNameWarningDialog
+            formId={professorDetailFormId}
+            warning={nameWarning.warning}
+          />
+        ) : null}
       </section>
 
       <ProfessorStatusDialog
@@ -262,7 +261,10 @@ function PortalProfessorAlertsSection({
       {isIncomplete ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
-          <AlertDescription>Faltan datos de identificación.</AlertDescription>
+          <AlertTitle>Faltan datos de identificación</AlertTitle>
+          <AlertDescription>
+            Completá el tipo y el número de documento.
+          </AlertDescription>
         </Alert>
       ) : null}
     </AlertStack>

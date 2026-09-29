@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { Check, Copy, Landmark } from "lucide-react";
+import { Check, Copy, Info } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export function PortalPaymentInstructionsAlert({
 }) {
   return (
     <Alert variant="info">
-      <Landmark aria-hidden="true" />
+      <Info aria-hidden="true" />
       <AlertTitle>Instrucciones de pago</AlertTitle>
       {/* `mt-2`: the alert's own row gap suits a one-line notice and crowds a grid. */}
       <AlertDescription className="mt-2 flex flex-col gap-4">

@@ -165,7 +165,7 @@ describe("PortalSeminarDetailRouteView", () => {
     );
 
     expect(document.body.textContent).toContain(
-      "Cupo completo: podés inscribir igual, pero la seña de una nueva inscripción no se cubre hasta que se libere un lugar.",
+      "Cupo completoPodés inscribir igual, pero la seña de una nueva inscripción no se cubre hasta que se libere un lugar.",
     );
     expect(findByText("button", "Inscribir")).toBeDefined();
   });

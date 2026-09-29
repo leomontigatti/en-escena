@@ -1,3 +1,4 @@
+import { CircleAlert } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -7,7 +8,7 @@ import {
   useDiscardGuard,
 } from "@/components/shared/discard-guard";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -109,6 +110,8 @@ export function InternalUserResetPasswordDialog({
           </DialogHeader>
           {error ? (
             <Alert variant="destructive">
+              <CircleAlert aria-hidden="true" />
+              <AlertTitle>No se pudo restablecer la contraseña</AlertTitle>
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           ) : null}

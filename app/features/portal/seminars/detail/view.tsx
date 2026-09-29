@@ -14,7 +14,7 @@ import {
 } from "@/components/shared/data-table";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -104,6 +104,7 @@ export function PortalSeminarDetailRouteView({
           {closedReason ? (
             <Alert variant="warning">
               <TriangleAlert aria-hidden="true" />
+              <AlertTitle>Inscripciones cerradas</AlertTitle>
               <AlertDescription>
                 {seminar.hasStarted
                   ? `${closedReason} Ya no se puede inscribir ni dar de baja.`
@@ -116,9 +117,10 @@ export function PortalSeminarDetailRouteView({
           {seminar.isFull && !seminar.hasStarted ? (
             <Alert variant="info">
               <Info aria-hidden="true" />
+              <AlertTitle>Cupo completo</AlertTitle>
               <AlertDescription>
-                Cupo completo: podés inscribir igual, pero la seña de una nueva
-                inscripción no se cubre hasta que se libere un lugar.
+                Podés inscribir igual, pero la seña de una nueva inscripción no
+                se cubre hasta que se libere un lugar.
               </AlertDescription>
             </Alert>
           ) : null}

@@ -73,16 +73,16 @@ describe("OrderingConfirmationDialog", () => {
     expect(document.body.textContent).toContain(
       "Esta acción es irreversible y modifica cualquier orden manual realizado.",
     );
-    expect(getButton("Ordenar").disabled).toBe(false);
+    expect(getButton("Confirmar").disabled).toBe(false);
   });
 
-  test("says how many presentations stay where they are", async () => {
+  test("says the presentations of an evaluated schedule keep their number", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
     await renderDialog(undefined, 40);
 
     expect(document.body.textContent).toContain(
-      "40 presentaciones quedan fijas porque su cronograma ya fue evaluado.",
+      "Las presentaciones de un cronograma ya evaluado no cambian de número.",
     );
   });
 
@@ -91,7 +91,7 @@ describe("OrderingConfirmationDialog", () => {
 
     await renderDialog();
 
-    expect(getButton("Ordenar").disabled).toBe(true);
+    expect(getButton("Confirmar").disabled).toBe(true);
     expect(getButton("Cancelar").disabled).toBe(true);
   });
 
@@ -106,11 +106,11 @@ describe("OrderingConfirmationDialog", () => {
 
     await renderDialog();
 
-    expect(getButton("Ordenar").disabled).toBe(false);
+    expect(getButton("Confirmar").disabled).toBe(false);
   });
 
   // The ordering stays on the list, so nothing navigates the dialog away. Left
-  // open, it would sit an enabled `Ordenar` in front of the administrator after
+  // open, it would sit an enabled `Confirmar` in front of the administrator after
   // the order was already written, and a second press would throw away the
   // manual moves the first one just made.
   test("closes itself once its ordering settles", async () => {

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher, useSearchParams } from "react-router";
 
@@ -480,10 +480,17 @@ function useChoreographySubmission({
     );
   }
 
+  // One object per server answer: the duplicate dialog reopens on a new
+  // warning, so a re-render must not hand it a fresh one.
+  const warning = useMemo(
+    () => getSubmissionWarning(fetcher.data),
+    [fetcher.data],
+  );
+
   return {
     confirm,
     error: getSubmissionError(fetcher.data),
     isSubmitting: fetcher.state !== "idle",
-    warning: getSubmissionWarning(fetcher.data),
+    warning,
   };
 }

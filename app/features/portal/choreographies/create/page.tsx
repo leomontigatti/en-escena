@@ -53,13 +53,19 @@ export function CreateChoreographyPage({
       </div>
 
       {submission.error ? (
-        <AccessNotice variant="error">{submission.error}</AccessNotice>
+        <AccessNotice
+          title="No se pudo registrar la coreografía"
+          variant="error"
+        >
+          {submission.error}
+        </AccessNotice>
       ) : null}
 
       {submission.warning ? (
         <ChoreographyDuplicateWarning
           isSubmitting={submission.isSubmitting}
           message={submission.warning.message}
+          warning={submission.warning}
           onContinue={() => submission.confirm(submission.warning?.matchIds)}
         />
       ) : null}

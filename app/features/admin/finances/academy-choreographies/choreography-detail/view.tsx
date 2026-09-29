@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { CircleAlert, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -11,7 +11,7 @@ import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
@@ -122,7 +122,8 @@ function ChoreographyAlerts({
       {overAllocated ? <OverAllocatedAlert /> : null}
       {missingPrice ? (
         <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Coreografía sin precio</AlertTitle>
           <AlertDescription>
             Esta coreografía no tiene un precio configurado: no se puede
             calcular lo que adeuda ni cobrarla.
@@ -151,7 +152,8 @@ function ChoreographyAlerts({
 function OverAllocatedAlert() {
   return (
     <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
+      <CircleAlert aria-hidden="true" />
+      <AlertTitle>Dinero asignado de más</AlertTitle>
       <AlertDescription>
         Hay inscripciones con más dinero asignado que su total. Podés corregirlo
         desde la lista de inscripciones.
