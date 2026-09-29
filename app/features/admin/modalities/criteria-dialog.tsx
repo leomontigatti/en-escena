@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 
 import {
@@ -36,6 +36,7 @@ import {
   createValidatedRouteSubmitHandler,
   useOptionalFormAction,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 
 import type {
@@ -97,7 +98,11 @@ export function SubmodalityCriteriaDialog({
   const { discardDialogProps, requestClose } = useDiscardGuard({
     isAudioDirty: false,
     isFormDirty: form.formState.isDirty,
-    onClose: () => onOpenChange(false),
+    // A discarded draft is not what the dialog shows when it opens again.
+    onClose: () => {
+      form.reset();
+      onOpenChange(false);
+    },
   });
 
   return (
@@ -289,9 +294,8 @@ function useSubmodalityCriteriaForm(
     resolver: zodResolver(submodalityCriteriaFormSchema),
   });
 
-  useEffect(() => {
-    form.reset(defaultValues);
-  }, [defaultValues, form]);
+  // Compared by content: the caller filters the criteria on every render.
+  useSavedFormValues(form, defaultValues);
 
   return form;
 }

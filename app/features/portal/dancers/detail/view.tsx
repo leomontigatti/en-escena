@@ -254,11 +254,11 @@ export function PortalDancerDetailRouteView({
           </CardContent>
         </PortalDancerFormSection>
 
-        {/* The same-name warning takes `Guardar` away: the notice in the form
-            carries its own way to continue. */}
+        {/* The same-name warning holds `Guardar`: the notice in the form
+            carries its own way to continue, and what was typed stays guarded. */}
         <FormActions
           backTo="/portal/bailarines"
-          canEdit={!nameWarning}
+          canSave={!nameWarning}
           form={portalDancerFormId}
           hasChanges={form.form.formState.isDirty}
           isPending={isSubmitting}

@@ -178,6 +178,9 @@ describe("SubmodalityCriteriaDialog", () => {
     await clickReactDomButton("Descartar", { exact: true });
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+    // The dialog stays mounted behind its trigger, so it opens again clean.
+    expect(getMaximumInput(0).value).toBe("100");
+    expect(getButton("Guardar").disabled).toBe(true);
   });
 
   test("appends an empty criterion, which starts out of the total", async () => {

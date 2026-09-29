@@ -86,7 +86,7 @@ describe("the portal dancer detail as one draft", () => {
     expect(isGuardarEnabled()).toBe(false);
   });
 
-  test("hides `Guardar` behind the same-name warning", async () => {
+  test("holds `Guardar` behind the same-name warning, and still guards what was typed", async () => {
     await renderDancerPage({
       actionData: {
         status: "warning",
@@ -107,8 +107,12 @@ describe("the portal dancer detail as one draft", () => {
       },
     });
 
-    expect(findButton("Guardar", { exact: true })).toBeUndefined();
+    expect(isGuardarEnabled()).toBe(false);
     expect(findButton("Continuar de todos modos")).toBeDefined();
+
+    await clickLink("Volver");
+
+    expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
   });
 });
 
