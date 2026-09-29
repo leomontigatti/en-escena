@@ -21,59 +21,144 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("loadChoreographyListRouteData", () => {
+  test("lists only the choreographies of the academy in the URL", async () => {
+    const { academy, catalog, event } = await seedChoreographiesByDay();
+    const otherAcademy = await createAcademyRecord({
+      academyName: "Academia Vecina",
+      email: "coreografias.vecina@example.com",
+    });
+    await createScheduledChoreography({
+      academyId: otherAcademy.id,
+      catalog,
+      eventId: event.id,
+      name: "Coreografía de la vecina",
+      scheduleId: catalog.schedule.id,
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.academia@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias/${academy.id}`,
+    });
+
+    const result = await loadChoreographyListRouteData({
+      request,
+      params: { academyId: academy.id },
+    });
+
+    expect(result.academy).toEqual({
+      id: academy.id,
+      name: "Academia del Día",
+    });
+    expect(result.choreographies.map((row) => row.name)).toEqual([
+      "Coreografía de la mañana",
+      "Coreografía de la noche",
+      "Coreografía del día anterior",
+    ]);
+  });
+
+  test("answers 404 for an academy that does not exist", async () => {
+    await createSavedEvent();
+    const academyId = crypto.randomUUID();
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.sin-academia@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias/${academyId}`,
+    });
+
+    await expectThrownResponse(
+      loadChoreographyListRouteData({ request, params: { academyId } }),
+      404,
+    );
+  });
+
+  // Deleting an academy's last choreography lands here, and so does an academy
+  // link followed after switching events: the academy exists, it just has
+  // nothing in this event.
+  test("keeps an academy with nothing in the event as an empty list", async () => {
+    await createSavedEvent();
+    const academy = await createAcademyRecord({
+      academyName: "Academia Vacía",
+      email: "coreografias.vacia@example.com",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.vacia@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias/${academy.id}`,
+    });
+
+    const result = await loadChoreographyListRouteData({
+      request,
+      params: { academyId: academy.id },
+    });
+
+    expect(result.academy.name).toBe("Academia Vacía");
+    expect(result.hasAnyChoreography).toBe(false);
+  });
+
   // `evento` is the selectable-event residue: the active event is resolved
   // without it, so it is a stale parameter and the canonical URL drops it.
   test("redirects invalid filters and stale parameters to the canonical list URL", async () => {
     const event = await createSavedEvent();
+    const academy = await createAcademyRecord({
+      academyName: "Academia Canónica",
+      email: "coreografias.canonica@example.com",
+    });
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.feature@example.com",
       role: "admin",
       requestUrl:
-        `http://localhost/administracion/coreografias?evento=${event.id}` +
+        `http://localhost/administracion/coreografias/${academy.id}?evento=${event.id}` +
         "&estado=pendiente&modalidad=modalidad_invalida" +
         "&categoria=categoria_invalida&tipo-grupo=pareja&dia=2026-13-40" +
         "&pagina=2",
     });
 
     const response = await expectThrownResponse(
-      loadChoreographyListRouteData(request),
+      loadChoreographyListRouteData({
+        request,
+        params: { academyId: academy.id },
+      }),
       302,
     );
 
     expect(response.headers.get("Location")).toBe(
-      "/administracion/coreografias",
+      `/administracion/coreografias/${academy.id}`,
     );
   });
 
   test("redirects a page past the last one to the last page", async () => {
-    await seedChoreographiesByDay();
+    const { academy } = await seedChoreographiesByDay();
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.pagina@example.com",
       role: "admin",
-      requestUrl:
-        "http://localhost/administracion/coreografias?busqueda=noche&pagina=5",
+      requestUrl: `http://localhost/administracion/coreografias/${academy.id}?busqueda=noche&pagina=5`,
     });
 
     const response = await expectThrownResponse(
-      loadChoreographyListRouteData(request),
+      loadChoreographyListRouteData({
+        request,
+        params: { academyId: academy.id },
+      }),
       302,
     );
 
     expect(response.headers.get("Location")).toBe(
-      "/administracion/coreografias?busqueda=noche",
+      `/administracion/coreografias/${academy.id}?busqueda=noche`,
     );
   });
 
   test("reads the order from the URL in the shared token shape", async () => {
-    await seedChoreographiesByDay();
+    const { academy } = await seedChoreographiesByDay();
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.orden@example.com",
       role: "admin",
-      requestUrl:
-        "http://localhost/administracion/coreografias?orden=nombre%3Adesc",
+      requestUrl: `http://localhost/administracion/coreografias/${academy.id}?orden=nombre%3Adesc`,
     });
 
-    const result = await loadChoreographyListRouteData(request);
+    const result = await loadChoreographyListRouteData({
+      request,
+      params: { academyId: academy.id },
+    });
 
     expect(result.choreographies.map((row) => row.name)).toEqual([
       "Coreografía del día anterior",
@@ -85,10 +170,12 @@ describe("loadChoreographyListRouteData", () => {
 
 describe("loadChoreographies", () => {
   test("finds a choreography whatever accents the search is typed with", async () => {
-    const { event, scheduledChoreographies } = await seedChoreographiesByDay();
+    const { academy, event, scheduledChoreographies } =
+      await seedChoreographiesByDay();
 
     const result = await loadChoreographies({
       filters: buildFilters({ query: "COREOGRAFIA DE LA MANANA" }),
+      academy,
       selectedEventId: event.id,
     });
 
@@ -100,10 +187,12 @@ describe("loadChoreographies", () => {
   // A day is not a schedule: an event may run several blocks on the same date,
   // and an admin looking at "that Saturday" wants all of them at once.
   test("gathers every schedule of a day behind a single day filter", async () => {
-    const { event, scheduledChoreographies } = await seedChoreographiesByDay();
+    const { academy, event, scheduledChoreographies } =
+      await seedChoreographiesByDay();
 
     const result = await loadChoreographies({
       filters: buildFilters({ scheduleDate: "2026-05-02" }),
+      academy,
       selectedEventId: event.id,
     });
 
@@ -114,10 +203,11 @@ describe("loadChoreographies", () => {
   });
 
   test("offers the days in calendar order", async () => {
-    const { event } = await seedChoreographiesByDay();
+    const { academy, event } = await seedChoreographiesByDay();
 
     const result = await loadChoreographies({
       filters: buildFilters(),
+      academy,
       selectedEventId: event.id,
     });
 
@@ -131,10 +221,12 @@ describe("loadChoreographies", () => {
   // the same fix list as an incomplete one: no new filter value, the existing
   // `incompleta` gathers it.
   test("gathers the mis-filed choreographies under the incomplete filter", async () => {
-    const { event, misfiled, wellFiled } = await seedMisfiledChoreographies();
+    const { academy, event, misfiled, wellFiled } =
+      await seedMisfiledChoreographies();
 
     const result = await loadChoreographies({
       filters: buildFilters({ status: "incompleta" }),
+      academy,
       selectedEventId: event.id,
     });
     const misfiledRow = result.choreographies.find(
@@ -158,19 +250,23 @@ describe("loadChoreographies", () => {
   // The list answers "what is going to be performed", so a choreography that
   // was withdrawn is out of it until the reader asks for it by name.
   test("hides the withdrawn choreographies until `Retirada` is picked", async () => {
-    const { event, withdrawn, performing } = await seedWithdrawnChoreography();
+    const { academy, event, withdrawn, performing } =
+      await seedWithdrawnChoreography();
 
     const [unfiltered, withdrawnOnly, complete] = await Promise.all([
       loadChoreographies({
         filters: buildFilters(),
+        academy,
         selectedEventId: event.id,
       }),
       loadChoreographies({
         filters: buildFilters({ status: "retirada" }),
+        academy,
         selectedEventId: event.id,
       }),
       loadChoreographies({
         filters: buildFilters({ status: "completa" }),
+        academy,
         selectedEventId: event.id,
       }),
     ]);
@@ -190,15 +286,17 @@ describe("loadChoreographies", () => {
   });
 
   test("keeps `retirada` in the canonical list URL", async () => {
-    await seedWithdrawnChoreography();
+    const { academy } = await seedWithdrawnChoreography();
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.retiradas@example.com",
       role: "admin",
-      requestUrl:
-        "http://localhost/administracion/coreografias?estado=retirada",
+      requestUrl: `http://localhost/administracion/coreografias/${academy.id}?estado=retirada`,
     });
 
-    const result = await loadChoreographyListRouteData(request);
+    const result = await loadChoreographyListRouteData({
+      request,
+      params: { academyId: academy.id },
+    });
 
     expect(result.filters.status).toBe("retirada");
   });
@@ -208,10 +306,11 @@ describe("loadChoreographies", () => {
   test.each(["2026-05-09", "sin-asignar"])(
     "drops the day `%s`, which the event does not hold",
     async (scheduleDate) => {
-      const { event } = await seedChoreographiesByDay();
+      const { academy, event } = await seedChoreographiesByDay();
 
       const result = await loadChoreographies({
         filters: buildFilters({ scheduleDate }),
+        academy,
         selectedEventId: event.id,
       });
 
@@ -284,6 +383,8 @@ async function seedChoreographiesByDay() {
   });
 
   return {
+    academy,
+    catalog,
     event,
     scheduledChoreographies: { evening, morning },
   };
@@ -338,7 +439,7 @@ async function seedMisfiledChoreographies() {
     professorId: professor.id,
   });
 
-  return { event, misfiled, wellFiled };
+  return { academy, event, misfiled, wellFiled };
 }
 
 /**
@@ -375,7 +476,7 @@ async function seedWithdrawnChoreography() {
 
   await withdrawChoreographyForTest(withdrawn.id);
 
-  return { event, performing, withdrawn };
+  return { academy, event, performing, withdrawn };
 }
 
 async function createScheduleOnDay(input: {

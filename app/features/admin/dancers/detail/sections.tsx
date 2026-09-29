@@ -38,6 +38,8 @@ import {
   DancerTextField,
   type DancerEditFormController,
 } from "./form";
+import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
+
 import {
   type DancerDetailLoaderData,
   type DancerDialogIntent,
@@ -45,6 +47,8 @@ import {
 } from "./shared";
 
 export type InscriptionsSectionProps = {
+  /** The dancer's academy, which each choreography's admin address is under. */
+  academyId: string;
   inscriptions: DancerDetailLoaderData["dancer"]["inscriptions"];
   selectedEventId: string | null;
 };
@@ -104,6 +108,7 @@ export function DancerDetailHeaderActions({
 }
 
 export function DancerDetailAlerts({
+  academyId,
   active,
   canEdit,
   canVerifyIdentity,
@@ -113,6 +118,8 @@ export function DancerDetailAlerts({
   participatingAlert,
   recategorisedChoreographies,
 }: {
+  /** The dancer's academy, which each choreography's admin address is under. */
+  academyId: string;
   active: boolean;
   canEdit: boolean;
   canVerifyIdentity: boolean;
@@ -125,6 +132,9 @@ export function DancerDetailAlerts({
   return (
     <AlertStack>
       <RecategorisedChoreographiesAlert
+        buildChoreographyHref={(choreographyId) =>
+          choreographyDetailPath({ academyId, choreographyId })
+        }
         choreographies={recategorisedChoreographies}
         surface="admin"
       />
@@ -303,6 +313,7 @@ function DancerDetailTabs({
       </TabsContent>
       <TabsContent value="inscripciones" className="pt-2">
         <InscriptionsSection
+          academyId={dancer.academy.id}
           inscriptions={dancer.inscriptions}
           selectedEventId={selectedEventId}
         />
@@ -512,6 +523,7 @@ function DancerAlert({
 }
 
 export function InscriptionsSection({
+  academyId,
   inscriptions,
   selectedEventId,
 }: InscriptionsSectionProps) {
@@ -536,7 +548,7 @@ export function InscriptionsSection({
   return (
     <DancerInscriptionsTable
       buildChoreographyHref={(choreographyId) =>
-        `/administracion/coreografias/${choreographyId}`
+        choreographyDetailPath({ academyId, choreographyId })
       }
       inscriptions={inscriptions}
     />

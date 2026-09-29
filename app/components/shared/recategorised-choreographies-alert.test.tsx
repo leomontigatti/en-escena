@@ -12,6 +12,11 @@ function render(
   return renderToStaticMarkup(
     <MemoryRouter>
       <RecategorisedChoreographiesAlert
+        buildChoreographyHref={(choreographyId) =>
+          surface === "admin"
+            ? `/administracion/coreografias/academy-1/${choreographyId}`
+            : `/portal/coreografias/${choreographyId}`
+        }
         choreographies={choreographies}
         surface={surface}
       />
@@ -37,13 +42,20 @@ describe("RecategorisedChoreographiesAlert", () => {
     expect(render("admin", [])).toBe("");
   });
 
-  test("links each choreography to its detail, per surface", () => {
+  test("links each choreography where the caller says", () => {
     expect(render("admin", [moved])).toContain(
-      'href="/administracion/coreografias/choreography-1"',
+      'href="/administracion/coreografias/academy-1/choreography-1"',
     );
     expect(render("portal", [moved])).toContain(
       'href="/portal/coreografias/choreography-1"',
     );
+  });
+
+  test("sets each choreography on a bullet of its own", () => {
+    const markup = render("portal", [moved, cleared]);
+
+    expect(markup).toMatch(/<ul class="[^"]*list-disc[^"]*"/);
+    expect(markup.match(/<li>/g)).toHaveLength(2);
   });
 
   test("tells the administrator they can pick the missing level", () => {

@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { SquareArrowOutUpRight } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { Form, useNavigation, useSubmit } from "react-router";
+import { Form, Link, useNavigation, useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
@@ -29,6 +30,7 @@ import {
   type JudgeSheetFormValues,
 } from "@/features/judging/score/form-shared";
 import { ScoreInputField } from "@/features/judging/score/score-input-field";
+import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { medalLabels } from "@/lib/judging/medal";
@@ -78,10 +80,24 @@ export function PresentationScoresView({
       description={describePresentation(presentation)}
       requireSelectedEvent={false}
       title={presentation.name}
-      action={{
-        label: "Ver la coreografía",
-        to: `/administracion/coreografias/${presentation.choreographyId}`,
-      }}
+      // A link and not the header's button: `action` draws a Plus, which reads
+      // as creating something, and this only leaves for the choreography.
+      headerAction={
+        <Button asChild variant="link">
+          <Link
+            to={choreographyDetailPath({
+              academyId: presentation.academyId,
+              choreographyId: presentation.choreographyId,
+            })}
+          >
+            <SquareArrowOutUpRight
+              aria-hidden="true"
+              data-icon="inline-start"
+            />
+            Ver la coreografía
+          </Link>
+        </Button>
+      }
     >
       <ResultCard canEdit={canEdit} presentation={presentation} />
       {presentation.criteria.length === 0 ? (

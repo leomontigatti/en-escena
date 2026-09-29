@@ -12,9 +12,13 @@ import {
   toChoreographyDetailViewActionData,
 } from "@/features/admin/choreographies/detail/shared";
 import { ChoreographyDetailRouteView as ChoreographyDetailView } from "@/features/admin/choreographies/detail/view";
+import {
+  academyChoreographiesPath,
+  choreographyAcademiesPath,
+} from "@/lib/choreographies/admin-paths";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
-import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
+import type { Route } from "./+types/administracion.coreografias_.$academyId_.$choreographyId";
 
 type LoaderData = ChoreographyDetailLoaderData;
 type ActionData = Awaited<ReturnType<typeof action>>;
@@ -30,7 +34,16 @@ export const meta: Route.MetaFunction = () => [
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Coreografías", to: "/administracion/coreografias" },
+    { label: "Coreografías", to: choreographyAcademiesPath },
+    (match) => {
+      const data = match.data as LoaderData | undefined;
+      return data?.choreography
+        ? {
+            label: data.choreography.academyName,
+            to: academyChoreographiesPath(data.choreography.academyId),
+          }
+        : null;
+    },
     (match) => {
       const data = match.data as LoaderData | undefined;
       return data?.choreography ? { label: data.choreography.name } : null;

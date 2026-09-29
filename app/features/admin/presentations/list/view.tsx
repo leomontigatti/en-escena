@@ -130,15 +130,21 @@ function buildPresentationColumns({
       // The choreography number is not a column of this list, so it travels in
       // the truncation title: it stays searchable and the admin can still name
       // the choreography to the academy.
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
-        >
-          <DataTableLink to={presentationRowPath(row)}>
-            {row.name}
-          </DataTableLink>
-        </DataTableTruncatedText>
-      ),
+      cell: (row) => {
+        const rowPath = presentationRowPath(row);
+
+        return (
+          <DataTableTruncatedText
+            value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
+          >
+            {rowPath ? (
+              <DataTableLink to={rowPath}>{row.name}</DataTableLink>
+            ) : (
+              row.name
+            )}
+          </DataTableTruncatedText>
+        );
+      },
     },
     {
       id: "academia",

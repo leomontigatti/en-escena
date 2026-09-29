@@ -72,6 +72,14 @@ const migratedAdminRouteAudits = [
     "@/features/admin/choreographies/",
   ),
   migratedAdminRoute(
+    "administracion.coreografias_.$academyId.tsx",
+    "@/features/admin/choreographies/",
+  ),
+  migratedAdminRoute(
+    "administracion.coreografias_.$academyId_.$choreographyId.tsx",
+    "@/features/admin/choreographies/",
+  ),
+  migratedAdminRoute(
     "administracion.cronogramas.tsx",
     "@/features/admin/schedules/",
   ),

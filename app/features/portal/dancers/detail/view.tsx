@@ -395,6 +395,9 @@ function PortalDancerAlertsSection({
       </h2>
       <AlertStack>
         <RecategorisedChoreographiesAlert
+          buildChoreographyHref={(choreographyId) =>
+            `/portal/coreografias/${choreographyId}`
+          }
           choreographies={recategorisedChoreographies}
           surface="portal"
         />

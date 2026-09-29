@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -6,7 +6,6 @@ import {
   academies,
   categories,
   choreographies,
-  choreographyProfessors,
   modalities,
   schedules,
   submodalities,
@@ -16,7 +15,10 @@ import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
 import {
-  deriveChoreographyOperationalStatus,
+  deriveAdminOperationalStatuses,
+  operationalStatusColumns,
+} from "@/features/admin/choreographies/operational-status.server";
+import {
   withdrawnChoreographyStatusFilterValue,
   type ChoreographyOperationalStatus,
 } from "@/lib/choreographies/operational-status";
@@ -33,7 +35,6 @@ import {
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
 type ChoreographyRow = {
-  academyName: string;
   categoryAgeBasis: number | null;
   categoryId: string;
   categoryMaxAge: number;
@@ -92,7 +93,7 @@ type HydratedChoreographyRow = ChoreographyListItem & {
   scheduleDate: string;
 };
 
-type ChoreographySortColumn = "numero" | "academia" | "nombre";
+type ChoreographySortColumn = "numero" | "nombre";
 
 type ChoreographyOrder = {
   columnId: ChoreographySortColumn;
@@ -100,7 +101,6 @@ type ChoreographyOrder = {
 };
 
 export type ChoreographyListItem = {
-  academyName: string;
   categoryName: string;
   choreographyNumber: number;
   groupType: ChoreographyGroupType;
@@ -125,6 +125,7 @@ type ChoreographyFacets = {
 };
 
 export type ChoreographyListResult = {
+  academy: ChoreographyListAcademy;
   choreographies: ChoreographyListItem[];
   facets: ChoreographyFacets;
   filters: ChoreographyListFilters;
@@ -134,8 +135,16 @@ export type ChoreographyListResult = {
   totalPages: number;
 };
 
+/** The academy the list is scoped to, which titles the page. */
+type ChoreographyListAcademy = {
+  id: string;
+  name: string;
+};
+
+const academyNotFoundMessage = "No encontramos esa academia.";
+
 const choreographyListSpec: ListQuerySpec<ChoreographySortColumn> = {
-  orderColumnIds: ["numero", "academia", "nombre"],
+  orderColumnIds: ["numero", "nombre"],
   defaultOrder: { columnId: "numero", direction: "asc" },
 };
 
@@ -159,11 +168,13 @@ function readChoreographyFilters(
 }
 
 export async function loadChoreographies(input: {
+  academy: ChoreographyListAcademy;
   filters: ChoreographyListFilters;
   selectedEventId: string | null;
 }): Promise<ChoreographyListResult> {
   if (input.selectedEventId === null) {
     return {
+      academy: input.academy,
       choreographies: [],
       facets: {
         categories: [],
@@ -181,32 +192,30 @@ export async function loadChoreographies(input: {
   const selectedEventId = input.selectedEventId;
   const rows = await db
     .select({
-      academyName: academies.name,
-      categoryAgeBasis: choreographies.categoryAgeBasis,
+      ...operationalStatusColumns,
       categoryId: choreographies.categoryId,
-      categoryMaxAge: categories.maxAge,
-      categoryMinAge: categories.minAge,
       choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
-      experienceLevelId: choreographies.experienceLevelId,
-      categoryExperienceLevels: categories.experienceLevels,
       groupType: choreographies.groupType,
       id: choreographies.id,
       modalityId: choreographies.modalityId,
       modalityName: modalities.name,
-      musicStorageKey: choreographies.musicStorageKey,
       name: choreographies.name,
       scheduleDate: schedules.scheduledDate,
       submodalityName: submodalities.name,
       withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
-    .innerJoin(academies, eq(choreographies.academyId, academies.id))
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
     .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
-    .where(eq(choreographies.eventId, selectedEventId));
+    .where(
+      and(
+        eq(choreographies.eventId, selectedEventId),
+        eq(choreographies.academyId, input.academy.id),
+      ),
+    );
   const hasAnyChoreography = rows.length > 0;
   const facets = buildChoreographyFacets(rows);
   const filters = normalizeChoreographyFilters(input.filters, facets);
@@ -234,6 +243,7 @@ export async function loadChoreographies(input: {
     );
 
   return {
+    academy: input.academy,
     choreographies: paginatedRows,
     facets,
     filters: {
@@ -247,7 +257,11 @@ export async function loadChoreographies(input: {
   };
 }
 
-export async function loadChoreographyListRouteData(request: Request) {
+export async function loadChoreographyListRouteData(input: {
+  request: Request;
+  params: { academyId?: string };
+}) {
+  const { request } = input;
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadEventContext(request);
 
@@ -255,9 +269,11 @@ export async function loadChoreographyListRouteData(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
+  const academy = await readChoreographyListAcademy(input.params);
   const url = new URL(request.url);
   const filters = readChoreographyFilters(url.searchParams);
   const listResult = await loadChoreographies({
+    academy,
     filters,
     selectedEventId: eventContext.selectedEventId,
   });
@@ -282,29 +298,31 @@ export async function loadChoreographyListRouteData(request: Request) {
   return listResult;
 }
 
+/**
+ * The academy in the URL, or its 404. An academy with nothing in the event is
+ * still found: the list is empty, not missing.
+ */
+async function readChoreographyListAcademy(params: { academyId?: string }) {
+  const academy = params.academyId
+    ? await db.query.academies.findFirst({
+        columns: { id: true, name: true },
+        where: eq(academies.id, params.academyId),
+      })
+    : undefined;
+
+  if (!academy) {
+    throw new Response(academyNotFoundMessage, { status: 404 });
+  }
+
+  return academy;
+}
+
 async function hydrateChoreographies(
   rows: ChoreographyRow[],
 ): Promise<HydratedChoreographyRow[]> {
-  if (rows.length === 0) {
-    return [];
-  }
+  const statusedRows = await deriveAdminOperationalStatuses(rows);
 
-  const choreographyIds = rows.map((row) => row.id);
-  const [professorRows] = await Promise.all([
-    db
-      .select({
-        choreographyId: choreographyProfessors.choreographyId,
-      })
-      .from(choreographyProfessors)
-      .where(inArray(choreographyProfessors.choreographyId, choreographyIds)),
-  ]);
-
-  const choreographyIdsWithProfessors = new Set(
-    professorRows.map((row) => row.choreographyId),
-  );
-
-  return rows.map((row) => ({
-    academyName: row.academyName,
+  return statusedRows.map(({ operationalStatus, row }) => ({
     categoryId: row.categoryId,
     categoryName: row.categoryName,
     choreographyNumber: row.choreographyNumber,
@@ -315,17 +333,7 @@ async function hydrateChoreographies(
     modalityName: row.modalityName,
     name: row.name,
     scheduleDate: row.scheduleDate,
-    operationalStatus: deriveChoreographyOperationalStatus({
-      categoryExperienceLevels: row.categoryExperienceLevels,
-      experienceLevelId: row.experienceLevelId,
-      hasMusic: row.musicStorageKey !== null,
-      hasProfessors: choreographyIdsWithProfessors.has(row.id),
-      placementCheck: {
-        categoryAgeBasis: row.categoryAgeBasis,
-        categoryMaxAge: row.categoryMaxAge,
-        categoryMinAge: row.categoryMinAge,
-      },
-    }),
+    operationalStatus,
     submodalityName: row.submodalityName,
   }));
 }
@@ -489,7 +497,6 @@ function matchesChoreographyQuery(row: HydratedChoreographyRow, query: string) {
   // still gets there.
   return matchesListSearch(query, [
     row.name,
-    row.academyName,
     formatEventSequenceNumber(row.choreographyNumber),
   ]);
 }
@@ -508,41 +515,15 @@ function compareChoreographies(
     );
   }
 
-  if (order.columnId === "nombre") {
-    const comparison = compareText(firstRow.name, secondRow.name);
+  // Two choreographies of one academy may share a name: the number breaks the
+  // tie, in reading order whichever way the names run.
+  const comparison = compareText(firstRow.name, secondRow.name);
 
-    if (comparison !== 0) {
-      return applySortDirection(comparison, order.direction);
-    }
-
-    const academyComparison = compareText(
-      firstRow.academyName,
-      secondRow.academyName,
-    );
-
-    if (academyComparison !== 0) {
-      return academyComparison;
-    }
-
-    return firstRow.id.localeCompare(secondRow.id, "es-AR");
+  if (comparison !== 0) {
+    return applySortDirection(comparison, order.direction);
   }
 
-  const academyComparison = compareText(
-    firstRow.academyName,
-    secondRow.academyName,
-  );
-
-  if (academyComparison !== 0) {
-    return applySortDirection(academyComparison, order.direction);
-  }
-
-  const nameComparison = compareText(firstRow.name, secondRow.name);
-
-  if (nameComparison !== 0) {
-    return nameComparison;
-  }
-
-  return firstRow.id.localeCompare(secondRow.id, "es-AR");
+  return firstRow.choreographyNumber - secondRow.choreographyNumber;
 }
 
 function compareText(firstValue: string, secondValue: string) {

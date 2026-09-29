@@ -115,6 +115,7 @@ export function DancerDetailRouteView({
     >
       <section className="flex flex-col gap-6">
         <DancerDetailAlerts
+          academyId={dancer.academy.id}
           active={dancer.active}
           canEdit={loaderData.canEdit}
           canVerifyIdentity={viewState.canVerifyIdentity}

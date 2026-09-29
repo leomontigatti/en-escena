@@ -2,7 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import * as adminAcademies from "@/routes/administracion.academias";
 import * as adminCategories from "@/routes/administracion.categorias";
-import * as adminChoreographies from "@/routes/administracion.coreografias";
+import * as adminChoreographyAcademies from "@/routes/administracion.coreografias";
+import * as adminAcademyChoreographies from "@/routes/administracion.coreografias_.$academyId";
 import * as adminComprobantes from "@/routes/administracion.comprobantes";
 import * as adminDancers from "@/routes/administracion.bailarines";
 import * as adminEvents from "@/routes/administracion.eventos";
@@ -30,6 +31,10 @@ import * as portalProfessors from "@/routes/portal.profesores";
 const browserPaginatedRoutes: { name: string; routeModule: object }[] = [
   { name: "administración · academias", routeModule: adminAcademies },
   { name: "administración · categorías", routeModule: adminCategories },
+  {
+    name: "administración · coreografías por academia",
+    routeModule: adminChoreographyAcademies,
+  },
   { name: "administración · cronogramas", routeModule: adminSchedules },
   { name: "administración · eventos", routeModule: adminEvents },
   { name: "administración · finanzas", routeModule: adminFinances },
@@ -54,7 +59,10 @@ const browserPaginatedRoutes: { name: string; routeModule: object }[] = [
 const serverPaginatedRoutes: { name: string; routeModule: object }[] = [
   { name: "administración · bailarines", routeModule: adminDancers },
   { name: "administración · comprobantes", routeModule: adminComprobantes },
-  { name: "administración · coreografías", routeModule: adminChoreographies },
+  {
+    name: "administración · coreografías de una academia",
+    routeModule: adminAcademyChoreographies,
+  },
   { name: "administración · pagos", routeModule: adminPayments },
   { name: "administración · profesores", routeModule: adminProfessors },
   { name: "administración · usuarios", routeModule: adminUsers },
