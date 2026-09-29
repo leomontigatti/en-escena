@@ -11,7 +11,7 @@ import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
@@ -123,6 +123,7 @@ function ChoreographyAlerts({
       {missingPrice ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Coreografía sin precio</AlertTitle>
           <AlertDescription>
             Esta coreografía no tiene un precio configurado: no se puede
             calcular lo que adeuda ni cobrarla.
@@ -152,6 +153,7 @@ function OverAllocatedAlert() {
   return (
     <Alert variant="destructive">
       <CircleAlert aria-hidden="true" />
+      <AlertTitle>Dinero asignado de más</AlertTitle>
       <AlertDescription>
         Hay inscripciones con más dinero asignado que su total. Podés corregirlo
         desde la lista de inscripciones.

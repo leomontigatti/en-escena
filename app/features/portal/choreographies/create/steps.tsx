@@ -99,7 +99,9 @@ function DancersStep({ loaderData, wizard }: StepProps) {
         hint="Marcá a todos los bailarines de la coreografía y tocá Siguiente."
       />
       {wizard.refusal ? (
-        <AccessNotice variant="error">{wizard.refusal}</AccessNotice>
+        <AccessNotice title="No se puede continuar" variant="error">
+          {wizard.refusal}
+        </AccessNotice>
       ) : null}
       <ChecklistField
         control={wizard.form.control}
@@ -179,7 +181,7 @@ function ScheduleChoice({
 
   if (isEveryScheduleCapacityOptionFull(options)) {
     return (
-      <AccessNotice variant="info">
+      <AccessNotice title="Sin lugar en los cronogramas" variant="info">
         {everyScheduleCapacityFullMessage}
       </AccessNotice>
     );

@@ -2,7 +2,7 @@ import { Check, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -189,6 +189,7 @@ export function FinancePresetDialog({
           {owed.status === "incomplete" ? (
             <Alert variant="warning">
               <TriangleAlert aria-hidden="true" />
+              <AlertTitle>Deuda incompleta</AlertTitle>
               <AlertDescription>
                 Alguna inscripción todavía no tiene precio, así que la cifra que
                 ves no es toda la deuda. Elegí un precio arriba para
@@ -385,6 +386,11 @@ function PresetPriceField({
     return (
       <Alert variant="warning">
         <TriangleAlert aria-hidden="true" />
+        <AlertTitle>
+          {spansSeveralSchedules
+            ? "Sin precio en común"
+            : "Sin precios cargados"}
+        </AlertTitle>
         <AlertDescription>
           {spansSeveralSchedules
             ? `Las coreografías de ${formatGroupTypeLabel(groupType)} que elegiste están en cronogramas distintos y no comparten ninguna fila de precio. Cada inscripción queda con el precio que ya le rige.`

@@ -11,7 +11,7 @@ import {
   DiscardChangesDialog,
   useDiscardGuard,
 } from "@/components/shared/discard-guard";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -190,6 +190,7 @@ export function FetcherError({
   return (
     <Alert variant="destructive">
       <CircleAlert aria-hidden="true" />
+      <AlertTitle>No se pudo guardar</AlertTitle>
       <AlertDescription>{data.message}</AlertDescription>
     </Alert>
   );

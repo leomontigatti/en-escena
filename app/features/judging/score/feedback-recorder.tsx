@@ -2,7 +2,7 @@ import { Check, CircleAlert, Pause } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { MediaRow, MediaTime } from "@/components/shared/audio-playback";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
 import type { RecordedTake } from "@/lib/judging/feedback-audio-field";
@@ -257,6 +257,7 @@ export function FeedbackRecorder({
       {message ? (
         <Alert variant="destructive">
           <CircleAlert aria-hidden="true" />
+          <AlertTitle>No se pudo guardar la devolución</AlertTitle>
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}

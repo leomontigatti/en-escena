@@ -6,7 +6,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { buildCreatePath } from "@/lib/shared/navigation";
@@ -75,6 +75,7 @@ export function EventPricesListView({
         {missingCellsWarning ? (
           <Alert variant="warning">
             <TriangleAlert aria-hidden="true" />
+            <AlertTitle>Precios de seminario incompletos</AlertTitle>
             <AlertDescription>{missingCellsWarning}</AlertDescription>
           </Alert>
         ) : null}

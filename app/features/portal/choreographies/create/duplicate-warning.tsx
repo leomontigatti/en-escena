@@ -18,7 +18,9 @@ export function ChoreographyDuplicateWarning({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <AccessNotice variant="warning">{message}</AccessNotice>
+      <AccessNotice title="Posible duplicado" variant="warning">
+        {message}
+      </AccessNotice>
 
       <Button
         type="button"

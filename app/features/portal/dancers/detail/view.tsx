@@ -25,7 +25,7 @@ import {
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -426,6 +426,7 @@ function PortalDancerAlertsSection({
         {showsIdentificationAlert ? (
           <Alert variant="warning">
             <TriangleAlert aria-hidden="true" />
+            <AlertTitle>Faltan datos de identificación</AlertTitle>
             <AlertDescription>
               {formatIdentificationPendingAlert(identificationPendingItems)}
             </AlertDescription>
@@ -434,6 +435,7 @@ function PortalDancerAlertsSection({
         {showsPendingVerificationAlert ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
+            <AlertTitle>Identidad sin verificar</AlertTitle>
             <AlertDescription>
               La identidad del bailarín está sin verificar.
             </AlertDescription>
@@ -442,6 +444,7 @@ function PortalDancerAlertsSection({
         {showsVerifiedIdentityAlert ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
+            <AlertTitle>Identidad verificada</AlertTitle>
             <AlertDescription>
               La identidad del bailarín está verificada. Comunicate con nosotros
               si necesitás realizar algún cambio.

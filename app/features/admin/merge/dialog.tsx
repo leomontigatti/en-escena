@@ -8,7 +8,7 @@ import {
   ComboboxField,
   type ComboboxFieldOption,
 } from "@/components/shared/combobox-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -128,12 +128,7 @@ export function MergeDialog({
 
           {survivorId ? renderSummary(survivorId) : null}
 
-          <Alert variant="destructive">
-            <CircleAlert aria-hidden="true" />
-            <AlertDescription>
-              {refusal ?? "Esta acción es irreversible."}
-            </AlertDescription>
-          </Alert>
+          <MergeNotice refusal={refusal} />
 
           <DialogFooter>
             <DialogClose asChild>
@@ -219,5 +214,19 @@ export function MergeSummary({
         </ul>
       </div>
     </div>
+  );
+}
+
+function MergeNotice({ refusal }: { refusal?: string }) {
+  return (
+    <Alert variant="destructive">
+      <CircleAlert aria-hidden="true" />
+      <AlertTitle>
+        {refusal ? "No se puede fusionar" : "Acción irreversible"}
+      </AlertTitle>
+      <AlertDescription>
+        {refusal ?? "Esta acción es irreversible."}
+      </AlertDescription>
+    </Alert>
   );
 }

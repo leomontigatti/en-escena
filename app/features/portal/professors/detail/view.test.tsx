@@ -32,7 +32,7 @@ describe("PortalProfessorDetailRouteView", () => {
       "Este profesor está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
     );
     expect(markup).toContain("Reactivar");
-    expect(markup).toContain("Faltan datos de identificación.");
+    expect(markup).toContain("Faltan datos de identificación");
     expect(markup).not.toContain("validar la identificación");
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Apellido");

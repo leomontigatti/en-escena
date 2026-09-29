@@ -1,6 +1,11 @@
 import { Info } from "lucide-react";
 
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 type ArchivedPersonAlertProps = {
@@ -15,6 +20,11 @@ const archivedPersonMessages = {
     "Este profesor está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
 } as const;
 
+const archivedPersonTitles = {
+  bailarín: "Bailarín archivado",
+  profesor: "Profesor archivado",
+} as const;
+
 export function ArchivedPersonAlert({
   personLabel,
   onReactivate,
@@ -22,6 +32,7 @@ export function ArchivedPersonAlert({
   return (
     <Alert variant="info">
       <Info aria-hidden="true" />
+      <AlertTitle>{archivedPersonTitles[personLabel]}</AlertTitle>
       <AlertDescription>{archivedPersonMessages[personLabel]}</AlertDescription>
       {onReactivate ? (
         <AlertAction className="top-1/2 -translate-y-1/2">

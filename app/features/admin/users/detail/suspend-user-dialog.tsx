@@ -1,7 +1,7 @@
 import { TriangleAlert, UserX } from "lucide-react";
 import { Form } from "react-router";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -52,6 +52,7 @@ export function SuspendUserDialog({
         </AlertDialogHeader>
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Suspender no borra datos</AlertTitle>
           <AlertDescription>
             Conserva su historial y sus asignaciones de juez.
           </AlertDescription>

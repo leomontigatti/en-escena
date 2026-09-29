@@ -53,7 +53,12 @@ export function CreateChoreographyPage({
       </div>
 
       {submission.error ? (
-        <AccessNotice variant="error">{submission.error}</AccessNotice>
+        <AccessNotice
+          title="No se pudo registrar la coreografía"
+          variant="error"
+        >
+          {submission.error}
+        </AccessNotice>
       ) : null}
 
       {submission.warning ? (

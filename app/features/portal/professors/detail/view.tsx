@@ -18,7 +18,7 @@ import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -269,7 +269,10 @@ function PortalProfessorAlertsSection({
       {isIncomplete ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
-          <AlertDescription>Faltan datos de identificación.</AlertDescription>
+          <AlertTitle>Faltan datos de identificación</AlertTitle>
+          <AlertDescription>
+            Completá el tipo y el número de documento.
+          </AlertDescription>
         </Alert>
       ) : null}
     </AlertStack>

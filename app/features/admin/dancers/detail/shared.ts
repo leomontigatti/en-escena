@@ -127,6 +127,7 @@ export type DancerDetailViewState = {
   canVerifyIdentity: boolean;
   editConsequence: DancerEditConsequence;
   identificationAlert: string | null;
+  identificationAlertTitle: string;
   identificationAlertVariant: "info" | "warning";
   /**
    * Why the archive action is unavailable, or `null` when it is available.
@@ -369,6 +370,9 @@ export function buildDancerDetailViewState({
   const identificationAlert = getIdentificationAlert(
     dancer.identificationStatus,
   );
+  const identificationAlertTitle = getIdentificationAlertTitle(
+    dancer.identificationStatus,
+  );
   const identificationAlertVariant =
     dancer.identificationStatus === "unverified" ? "info" : "warning";
   const birthDateMayNeedRecalculation =
@@ -381,6 +385,7 @@ export function buildDancerDetailViewState({
     canVerifyIdentity,
     editConsequence: dancer.editConsequence,
     identificationAlert,
+    identificationAlertTitle,
     identificationAlertVariant,
     participatingAlert: archiveAvailability.participatingAlert,
     shouldConfirmSave:
@@ -401,6 +406,19 @@ export function getSaveConsequenceMessage(
       return "Este bailarín tiene su identidad verificada y ya participó de un evento. Al guardar, la verificación quedará sin efecto y los cambios pueden afectar registros existentes.";
     case null:
       return null;
+  }
+}
+
+function getIdentificationAlertTitle(
+  identificationStatus: DancerDetailLoaderData["dancer"]["identificationStatus"],
+) {
+  switch (identificationStatus) {
+    case "incomplete":
+      return "Verificación incompleta";
+    case "unverified":
+      return "Lista para verificar";
+    case "verified":
+      return "Identidad verificada";
   }
 }
 

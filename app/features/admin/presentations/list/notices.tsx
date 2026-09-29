@@ -3,7 +3,12 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -48,6 +53,7 @@ export function PresentationNotices({
       {loaderData.hasPresentations ? null : (
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Sin números de presentación</AlertTitle>
           <AlertDescription>
             Las coreografías todavía no tienen un número de presentación
             asignado.
@@ -70,6 +76,7 @@ export function PresentationNotices({
       {loaderData.hasPresentations && loaderData.unorderedCount > 0 ? (
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Numeración incompleta</AlertTitle>
           <AlertDescription>
             {loaderData.unorderedCount === 1
               ? "Existe 1 coreografía sin número de presentación."
@@ -80,6 +87,7 @@ export function PresentationNotices({
       {needsNumberSortToDrag ? (
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Arrastre desactivado</AlertTitle>
           <AlertDescription>Ordená por número para arrastrar.</AlertDescription>
         </Alert>
       ) : null}
@@ -115,6 +123,7 @@ function PresentationWarningsNotice({
   return (
     <Alert variant="warning">
       <TriangleAlert aria-hidden="true" />
+      <AlertTitle>Presentaciones con advertencias</AlertTitle>
       <AlertDescription>
         {loaderData.warnedCount === 1
           ? "Existe 1 presentación con advertencias."
@@ -235,6 +244,7 @@ export function OrderingConfirmationDialog({
         {frozenCount > 0 ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
+            <AlertTitle>Presentaciones fijas</AlertTitle>
             <AlertDescription>
               {frozenCount === 1
                 ? "1 presentación queda fija porque su cronograma ya fue evaluado."
@@ -244,6 +254,7 @@ export function OrderingConfirmationDialog({
         ) : null}
         <Alert variant="destructive">
           <CircleAlert aria-hidden="true" />
+          <AlertTitle>Acción irreversible</AlertTitle>
           <AlertDescription>
             Esta acción es irreversible y modifica cualquier orden manual
             realizado.

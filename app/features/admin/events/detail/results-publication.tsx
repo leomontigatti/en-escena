@@ -44,17 +44,16 @@ export function ResultsPublicationAlert({
     <Alert variant="info">
       <Info aria-hidden="true" />
       <AlertTitle>Resultados publicados</AlertTitle>
-      <AlertDescription className="[&_p:not(:last-child)]:mb-1">
-        <p>
-          Las academias ven los resultados de{" "}
-          {formatPresentationCount(publishedCount)}, publicados{" "}
-          {formatResultsPublicationMoment(publishedAt)}.
-        </p>
+      <AlertDescription>
+        Las academias ven los resultados de{" "}
+        {formatPresentationCount(publishedCount)}, publicados{" "}
+        {formatResultsPublicationMoment(publishedAt)}.
         {pendingCount > 0 ? (
-          <p>
+          <>
+            {" "}
             Hay {formatPendingEvaluations(pendingCount)} desde entonces: usá
             &quot;Actualizar resultados&quot; para sumarlas.
-          </p>
+          </>
         ) : null}
       </AlertDescription>
     </Alert>

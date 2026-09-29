@@ -157,6 +157,12 @@ table (`AccessNotice` in `app/components/auth/access-ui.tsx` is the model).
 
 ### Alert content
 
+Every `Alert` has an `AlertTitle` and an `AlertDescription`. The title says
+what is going on in a few words; the description gives the detail and what to
+do. A lead line that introduces a list is the title, and the list is the
+description. Do not restyle a span into a headline or tighten the description's
+paragraph spacing: the title is the headline.
+
 A list inside an alert is a bulleted `ul` (`list-disc pl-5`) inside the
 `AlertDescription`.
 

@@ -453,7 +453,7 @@ describe("`/administracion/profesores` route", () => {
     expect(markup).toContain(
       "Este profesor está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
     );
-    expect(markup).toContain("Faltan datos de identificación.");
+    expect(markup).toContain("Faltan datos de identificación");
     expect(markup).not.toContain("Identificación incompleta");
     expect(markup).toContain("Reactivar");
   });

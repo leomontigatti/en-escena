@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -132,6 +132,7 @@ export function PrivateAccessHeader({ account }: PrivateAccessHeaderProps) {
 
 type AccessNoticeProps = {
   children: ReactNode;
+  title: string;
   variant: AccessNoticeVariant;
 };
 
@@ -144,12 +145,13 @@ const accessNoticeIcons = {
   warning: TriangleAlert,
 } as const;
 
-export function AccessNotice({ children, variant }: AccessNoticeProps) {
+export function AccessNotice({ children, title, variant }: AccessNoticeProps) {
   const Icon = accessNoticeIcons[variant];
 
   return (
     <Alert variant={variant === "error" ? "destructive" : variant}>
       <Icon aria-hidden="true" />
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription aria-live="polite">{children}</AlertDescription>
     </Alert>
   );

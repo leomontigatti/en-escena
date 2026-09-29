@@ -6,7 +6,7 @@ import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatDancerName } from "@/lib/finances/formatters";
 import {
   inscriptionFinanceColumns,
@@ -81,6 +81,7 @@ function ChoreographyAlerts({
       {missingPrice ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Coreografía sin precio</AlertTitle>
           <AlertDescription>
             Esta coreografía todavía no tiene un precio configurado: hasta que
             administración lo cargue no se puede calcular lo que adeuda.
@@ -104,6 +105,7 @@ function OverAllocatedAlert() {
   return (
     <Alert variant="destructive">
       <CircleAlert aria-hidden="true" />
+      <AlertTitle>Dinero asignado de más</AlertTitle>
       <AlertDescription>
         Hay inscripciones con más dinero asignado que su total. Escribile a
         administración para que lo corrija.

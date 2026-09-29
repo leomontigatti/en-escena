@@ -10,7 +10,7 @@ import {
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -127,6 +127,7 @@ export function SubmodalityCriteriaDialog({
           {locked ? (
             <Alert variant="info">
               <Info aria-hidden="true" />
+              <AlertTitle>Criterios bloqueados</AlertTitle>
               <AlertDescription>{lockedCriteriaCopy}</AlertDescription>
             </Alert>
           ) : null}

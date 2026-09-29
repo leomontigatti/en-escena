@@ -17,7 +17,7 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 
 import {
@@ -97,7 +97,10 @@ export function ProfessorDetailAlerts({
       {isIncomplete ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
-          <AlertDescription>Faltan datos de identificación.</AlertDescription>
+          <AlertTitle>Faltan datos de identificación</AlertTitle>
+          <AlertDescription>
+            Completá el tipo y el número de documento.
+          </AlertDescription>
         </Alert>
       ) : null}
     </AlertStack>

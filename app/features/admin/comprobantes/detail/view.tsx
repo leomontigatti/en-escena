@@ -8,7 +8,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -316,6 +316,7 @@ function AnnulDialog({
           {genericError ? (
             <Alert variant="destructive">
               <CircleAlert aria-hidden="true" />
+              <AlertTitle>No se pudo anular el comprobante</AlertTitle>
               <AlertDescription>{genericError}</AlertDescription>
             </Alert>
           ) : null}

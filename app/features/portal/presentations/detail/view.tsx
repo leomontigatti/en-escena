@@ -1,7 +1,7 @@
 import { TriangleAlert } from "lucide-react";
 
 import { PortalListPage } from "@/components/portal/ui";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -81,6 +81,7 @@ export function PortalPresentationEvaluationView({
       {loaderData.disqualified ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Presentación descalificada</AlertTitle>
           <AlertDescription>{disqualifiedEvaluationMessage}</AlertDescription>
         </Alert>
       ) : null}

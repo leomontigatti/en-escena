@@ -11,7 +11,7 @@ import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
@@ -161,6 +161,7 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
       {overAllocated ? (
         <Alert variant="destructive">
           <CircleAlert aria-hidden="true" />
+          <AlertTitle>Dinero asignado de más</AlertTitle>
           <AlertDescription>
             Hay inscripciones con más dinero asignado que su total. Podés
             corregirlo desde la lista de inscripciones.
@@ -170,6 +171,7 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
       {isFull ? (
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Seminario sin lugares</AlertTitle>
           <AlertDescription>
             El seminario no tiene lugares disponibles: las inscripciones con la
             seña cubierta ya ocupan el cupo. Podés asignar dinero igual, pero
@@ -181,6 +183,7 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
       {missingPrice ? (
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Inscripciones sin precio</AlertTitle>
           <AlertDescription>
             Hay inscripciones sin un precio de seminario que las alcance: no se
             puede calcular lo que adeudan ni cobrarlas.

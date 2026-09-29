@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { CircleAlert, TriangleAlert } from "lucide-react";
 
 import { DestroyButton } from "@/components/shared/action-buttons";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -78,19 +78,18 @@ function DeleteDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        <Alert variant={isBlocked ? "warning" : "destructive"}>
-          {isBlocked ? (
+        {isBlocked ? (
+          <Alert variant="warning">
             <TriangleAlert aria-hidden="true" />
-          ) : (
-            <CircleAlert aria-hidden="true" />
-          )}
-          <AlertDescription>
-            {isBlocked
-              ? (blockedDescription ??
-                "Esta acción no está disponible para este registro.")
-              : "Esta acción es irreversible."}
-          </AlertDescription>
-        </Alert>
+            <AlertTitle>Acción no disponible</AlertTitle>
+            <AlertDescription>
+              {blockedDescription ??
+                "Esta acción no está disponible para este registro."}
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <IrreversibleActionAlert />
+        )}
         {details ? (
           <div
             data-slot="delete-dialog-details"
@@ -122,3 +121,13 @@ function DeleteDialog({
 }
 
 export { DeleteDialog };
+
+function IrreversibleActionAlert() {
+  return (
+    <Alert variant="destructive">
+      <CircleAlert aria-hidden="true" />
+      <AlertTitle>Acción irreversible</AlertTitle>
+      <AlertDescription>Esta acción es irreversible.</AlertDescription>
+    </Alert>
+  );
+}

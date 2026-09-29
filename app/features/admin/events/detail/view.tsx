@@ -15,7 +15,7 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -138,8 +138,10 @@ function EventRegistrationReadinessAlert({
   return (
     <Alert variant="warning">
       <TriangleAlert aria-hidden="true" />
-      <AlertDescription className="[&_p:not(:last-child)]:mb-1">
-        <p>Este evento no está listo para inscribir coreografías.</p>
+      <AlertTitle>
+        Este evento no está listo para inscribir coreografías.
+      </AlertTitle>
+      <AlertDescription>
         <ul className="list-disc pl-5">
           {summarizeMissingItems(readiness.missingItems).map((item) => (
             <li key={item.message}>

@@ -26,7 +26,12 @@ import {
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
@@ -112,6 +117,7 @@ export function DancerDetailAlerts({
   canEdit,
   canVerifyIdentity,
   identificationAlert,
+  identificationAlertTitle,
   identificationAlertVariant,
   nameWarning,
   nameWarningFormId,
@@ -125,6 +131,7 @@ export function DancerDetailAlerts({
   canEdit: boolean;
   canVerifyIdentity: boolean;
   identificationAlert: string | null;
+  identificationAlertTitle: string;
   identificationAlertVariant: "info" | "warning";
   /** The same-name warning of the last save, answered through the edit form. */
   nameWarning?: RosterNameWarning;
@@ -167,7 +174,11 @@ export function DancerDetailAlerts({
         <RosterPersonParticipatingAlert message={participatingAlert} />
       ) : null}
       {identificationAlert ? (
-        <DancerAlert variant={identificationAlertVariant} action={verifyAction}>
+        <DancerAlert
+          action={verifyAction}
+          title={identificationAlertTitle}
+          variant={identificationAlertVariant}
+        >
           {identificationAlert}
         </DancerAlert>
       ) : null}
@@ -413,6 +424,7 @@ const dancerAlertIcons = {
 function DancerAlert({
   action,
   children,
+  title,
   variant = "warning",
 }: {
   action?: {
@@ -420,6 +432,7 @@ function DancerAlert({
     onClick: () => void;
   };
   children: ReactNode;
+  title: string;
   variant?: "destructive" | "info" | "warning";
 }) {
   const DancerAlertIcon = dancerAlertIcons[variant];
@@ -427,6 +440,7 @@ function DancerAlert({
   return (
     <Alert variant={variant}>
       <DancerAlertIcon aria-hidden="true" />
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription>{children}</AlertDescription>
       {action ? (
         <AlertAction className="top-1/2 -translate-y-1/2">
