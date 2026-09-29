@@ -11,11 +11,13 @@ pnpm db:refresh:prod
 ```
 
 The script fetches the newest Coolify backup artifact from `rylai` over `scp`,
-replaces the local `en-escena` database with it, prints the migration journal and
+replaces the local database `DATABASE_URL` names with it — the worktree's own
+from `.env.local` ([one database per worktree](../local-auth.md#one-database-per-worktree)),
+`en-escena` in the main checkout — prints the migration journal and
 basic row counts, and removes the local copy. Pass `-- --keep-dump` when you need
 to inspect the artifact after the restore.
 
-At a terminal it asks for confirmation — type `en-escena` — because there the
+At a terminal it asks for confirmation — type the database name — because there the
 command may be a slip. Run non-interactively (an agent, a script, a piped shell)
 it goes ahead without asking: the request was already explicit, and there is
 nobody to answer a prompt. No flag is needed either way. `en-escena-test` is

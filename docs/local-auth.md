@@ -60,6 +60,25 @@ Start it with:
 docker compose up -d postgres
 ```
 
+### One database per worktree
+
+The container is shared by every checkout, but each worktree gets its own
+database in it, `en-escena-wt-<worktree>`, created on first use: the first
+`pnpm dev`, `pnpm db:seed` or `pnpm db:migrate` in a worktree without
+`.env.local` creates, migrates and seeds it, and writes a gitignored `.env.local` with its `DATABASE_URL` and a
+dev server `PORT` no other worktree claims (`APP_URL` and `BETTER_AUTH_URL`
+follow the port). `react-router dev` and every `db:*` script load `.env.local`
+over the `.env` linked from the main checkout, so a session's seed, migrations,
+refresh and screenshots touch only its own data, and a thread that never needs
+data (grilling, research, review) never gets a database. `pnpm db:worktree`
+runs the same setup by hand; re-running it is safe: it migrates, and seeds only
+a database it just created. The dev server holds its port strictly and fails when another process
+has it, rather than moving to a port the session did not expect.
+
+`pnpm worktree:sweep` removes finished worktrees and drops their databases (see
+[workflows.md](agents/workflows.md#branches-worktrees-and-t3-code-threads)). The main checkout keeps
+`en-escena`; `TEST_DATABASE_URL` and the storage directory stay shared.
+
 After changing the schema, generate a migration and apply pending migrations to
 the local `DATABASE_URL`:
 
@@ -152,6 +171,8 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   counts as evaluated and freezes the afternoon schedule's numbers.
   `Luna de Papel` stays open to correction.
 
+It writes to the `DATABASE_URL` in effect — the worktree's own database when
+`.env.local` exists (see [One database per worktree](#one-database-per-worktree)).
 Re-running it resets the demo: everything hanging off those two emails and
 those three event names is deleted first — including what was created on them
 through the UI — and created again. Only one event can be active, so any other

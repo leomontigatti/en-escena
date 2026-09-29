@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import readline from "node:readline/promises";
 
 const LOCAL_CONTAINER = "en-escena-postgres";
-const LOCAL_DATABASE = "en-escena";
 const POSTGRES_IMAGE = "postgres:17-alpine";
 const DUMP_DIR = resolve("tmp/db-dumps");
 const CONTAINER_DUMP_PATH = "/tmp/en-escena-prod-refresh.dump";
@@ -20,7 +19,9 @@ const REMOTE_BACKUP_DIR =
   process.env.BACKUP_DIR ?? "/data/coolify/backups/databases";
 
 async function main() {
-  console.log("This will replace the local en-escena database.");
+  const LOCAL_DATABASE = localDatabaseName(process.env.DATABASE_URL);
+
+  console.log(`This will replace the local ${LOCAL_DATABASE} database.`);
   console.log("No production credentials and no live database access.");
   console.log("");
 
@@ -320,6 +321,30 @@ export function artifactOnDateCommand(remoteBackupDir, isoDate) {
 // shows instead of just saying no.
 export function availableDatesCommand(remoteBackupDir) {
   return `find '${remoteBackupDir}' -type f -name 'pg-dump-*.dmp' -printf '%TY-%Tm-%Td\\n' | sort -ru`;
+}
+
+// The database `DATABASE_URL` names, so a worktree with its own (`pnpm
+// db:worktree`) refreshes that one and leaves every other session's alone. The
+// name is interpolated into SQL below, hence the narrow shape.
+export function localDatabaseName(databaseUrl) {
+  if (!databaseUrl) {
+    return "en-escena";
+  }
+
+  const url = new URL(databaseUrl);
+  const name = decodeURIComponent(url.pathname.slice(1));
+
+  if (!["localhost", "127.0.0.1"].includes(url.hostname)) {
+    throw new Error(
+      `Refusing to refresh ${url.hostname}: not a local database.`,
+    );
+  }
+
+  if (!/^[a-z0-9_-]+$/.test(name)) {
+    throw new Error(`Unexpected local database name: ${name}`);
+  }
+
+  return name;
 }
 
 // BACKUP_ON reaches a remote shell inside single quotes, so a stray quote would
