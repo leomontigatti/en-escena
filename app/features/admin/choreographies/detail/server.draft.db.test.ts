@@ -609,12 +609,15 @@ async function createDraftScenario(input: {
     const { request } = await createSignedInAdminRequest({
       body,
       email: nextEmail(),
-      requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,
+      requestUrl: `http://localhost/administracion/coreografias/${choreography.academyId}/${choreography.id}`,
       role: "admin",
     });
 
     return await handleChoreographyDetailAction({
-      params: { choreographyId: choreography.id },
+      params: {
+        academyId: choreography.academyId,
+        choreographyId: choreography.id,
+      },
       request,
     });
   }

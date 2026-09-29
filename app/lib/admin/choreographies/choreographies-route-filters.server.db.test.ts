@@ -28,7 +28,7 @@ import {
   ChoreographiesListRouteView,
   handle,
   loader,
-} from "@/routes/administracion.coreografias";
+} from "@/routes/administracion.coreografias_.$academyId";
 import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
@@ -38,7 +38,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("`/administracion/coreografias` route filters", () => {
+describe("`/administracion/coreografias/:academyId` route filters", () => {
   test("supports operational filters, event-wide facets, and invalid URL canonicalization", async () => {
     const event = await createSavedEvent();
     const otherEvent = await createInactiveEvent("Regional 2025");
@@ -71,9 +71,10 @@ describe("`/administracion/coreografias` route filters", () => {
       groupType: "grupal",
     });
     const professor = await createProfessor(academyNorth.academy.id);
+    const academyId = academyNorth.academy.id;
 
     await createChoreographyRecord({
-      academyId: academyNorth.academy.id,
+      academyId,
       categoryId: jazzCatalog.category.id,
       eventId: event.id,
       experienceLevelId: jazzCatalog.level.id,
@@ -86,7 +87,7 @@ describe("`/administracion/coreografias` route filters", () => {
       submodalityId: jazzCatalog.submodality.id,
     });
     await createChoreographyRecord({
-      academyId: academySouth.academy.id,
+      academyId,
       categoryId: contemporaryCatalog.category.id,
       eventId: event.id,
       experienceLevelId: contemporaryCatalog.level.id,
@@ -97,7 +98,7 @@ describe("`/administracion/coreografias` route filters", () => {
       submodalityId: contemporaryCatalog.submodality.id,
     });
     await createChoreographyRecord({
-      academyId: academySouth.academy.id,
+      academyId,
       categoryId: urbanCatalog.category.id,
       eventId: event.id,
       groupType: "trio",
@@ -106,8 +107,20 @@ describe("`/administracion/coreografias` route filters", () => {
       scheduleCapacityId: urbanCatalog.scheduleCapacity.id,
       submodalityId: urbanCatalog.submodality.id,
     });
+    // Another academy's choreography is outside every list and facet below.
     await createChoreographyRecord({
       academyId: academySouth.academy.id,
+      categoryId: jazzCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: jazzCatalog.level.id,
+      groupType: "solo",
+      modalityId: jazzCatalog.modality.id,
+      name: "Completa Ajena",
+      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
+      submodalityId: jazzCatalog.submodality.id,
+    });
+    await createChoreographyRecord({
+      academyId,
       categoryId: otherEventCatalog.category.id,
       eventId: otherEvent.id,
       experienceLevelId: otherEventCatalog.level.id,
@@ -119,16 +132,17 @@ describe("`/administracion/coreografias` route filters", () => {
     });
 
     const filteredData = await loadRouteData({
+      academyId,
       email: "admin.coreografias.filtros@example.com",
       requestUrl:
-        `http://localhost/administracion/coreografias?estado=incompleta` +
+        `http://localhost/administracion/coreografias/${academyId}?estado=incompleta` +
         `&modalidad=${contemporaryCatalog.modality.id}` +
         `&categoria=${contemporaryCatalog.category.id}&tipo-grupo=duo`,
     });
     const filteredMarkup = renderRoute({
       childLoaderData: filteredData,
       initialEntry:
-        `/administracion/coreografias?estado=incompleta&modalidad=${contemporaryCatalog.modality.id}` +
+        `/administracion/coreografias/${academyId}?estado=incompleta&modalidad=${contemporaryCatalog.modality.id}` +
         `&categoria=${contemporaryCatalog.category.id}&tipo-grupo=duo`,
       parentLoaderData: {
         events: [{ id: event.id, name: event.name, active: true }],
@@ -158,39 +172,45 @@ describe("`/administracion/coreografias` route filters", () => {
       expect(filteredMarkup).toContain(`aria-label="${filter}"`);
     }
     expect(filteredMarkup).toContain(
-      `href="/administracion/coreografias?estado=incompleta&amp;modalidad=${contemporaryCatalog.modality.id}&amp;categoria=${contemporaryCatalog.category.id}&amp;tipo-grupo=duo"`,
+      `href="/administracion/coreografias/${academyId}?estado=incompleta&amp;modalidad=${contemporaryCatalog.modality.id}&amp;categoria=${contemporaryCatalog.category.id}&amp;tipo-grupo=duo"`,
     );
 
     await expectChoreographyNamesForSearch({
+      academyId,
       email: "admin.coreografias.filtro-estado@example.com",
       expectedNames: ["Completa Jazz"],
       search: "&estado=completa",
     });
     await expectChoreographyNamesForSearch({
+      academyId,
       email: "admin.coreografias.filtro-modalidad@example.com",
       expectedNames: ["Trio Urbano"],
       search: `&modalidad=${urbanCatalog.modality.id}`,
     });
     await expectChoreographyNamesForSearch({
+      academyId,
       email: "admin.coreografias.filtro-categoria@example.com",
       expectedNames: ["Completa Jazz"],
       search: `&categoria=${jazzCatalog.category.id}`,
     });
     await expectChoreographyNamesForSearch({
+      academyId,
       email: "admin.coreografias.filtro-tipo-grupo@example.com",
       expectedNames: ["Trio Urbano"],
       search: "&tipo-grupo=trio",
     });
 
-    // The event's three choreographies were numbered 1, 2 and 3 in creation
-    // order. The search accepts the number both as displayed and written
-    // short, without the padding zeros.
+    // The academy's three event choreographies were numbered 1, 2 and 3 in
+    // creation order. The search accepts the number both as displayed and
+    // written short, without the padding zeros.
     await expectChoreographyNamesForSearch({
+      academyId,
       email: "admin.coreografias.busqueda-numero@example.com",
       expectedNames: ["Duo Incompleto"],
       search: "&busqueda=00002",
     });
     await expectChoreographyNamesForSearch({
+      academyId,
       email: "admin.coreografias.busqueda-numero-corto@example.com",
       expectedNames: ["Trio Urbano"],
       search: "&busqueda=3",
@@ -201,9 +221,10 @@ describe("`/administracion/coreografias` route filters", () => {
     // along with the invalid filters.
     const invalidResponse = await expectThrownResponse(
       loadRouteData({
+        academyId,
         email: "admin.coreografias.filtros-invalidos@example.com",
         requestUrl:
-          `http://localhost/administracion/coreografias?evento=${event.id}` +
+          `http://localhost/administracion/coreografias/${academyId}?evento=${event.id}` +
           "&estado=pendiente&modalidad=modalidad_invalida" +
           "&categoria=categoria_invalida&tipo-grupo=pareja&pagina=2",
       }),
@@ -211,28 +232,32 @@ describe("`/administracion/coreografias` route filters", () => {
     );
 
     expect(invalidResponse.headers.get("Location")).toBe(
-      "/administracion/coreografias",
+      `/administracion/coreografias/${academyId}`,
     );
   });
 });
 
-async function loadRouteData(input: { email: string; requestUrl: string }) {
+async function loadRouteData(input: {
+  academyId: string;
+  email: string;
+  requestUrl: string;
+}) {
   const { request } = await createSignedInRequest({
     email: input.email,
     role: "admin",
     requestUrl: input.requestUrl,
   });
 
-  return await loader(routeArgs(request));
+  return await loader(routeArgs(request, input.academyId));
 }
 
-function routeArgs(request: Request) {
+function routeArgs(request: Request, academyId: string) {
   return {
     request,
-    params: {},
+    params: { academyId },
     context: {},
     url: new URL(request.url),
-    pattern: "/administracion/coreografias",
+    pattern: "/administracion/coreografias/:academyId",
   };
 }
 
@@ -249,7 +274,7 @@ function renderRoute(input: {
     childHandle: handle,
     childId: "coreografias",
     childLoaderData: input.childLoaderData,
-    childPath: "coreografias",
+    childPath: "coreografias/:academyId",
     initialEntry: input.initialEntry,
     parentLoaderData: input.parentLoaderData,
   });
@@ -398,13 +423,15 @@ async function expectCreated<T extends { id: string }>(
 }
 
 async function expectChoreographyNamesForSearch(input: {
+  academyId: string;
   email: string;
   expectedNames: string[];
   search: string;
 }) {
   const data = await loadRouteData({
+    academyId: input.academyId,
     email: input.email,
-    requestUrl: `http://localhost/administracion/coreografias?${input.search.replace(/^&/, "")}`,
+    requestUrl: `http://localhost/administracion/coreografias/${input.academyId}?${input.search.replace(/^&/, "")}`,
   });
 
   expect(data.choreographies.map((row) => row.name)).toEqual(

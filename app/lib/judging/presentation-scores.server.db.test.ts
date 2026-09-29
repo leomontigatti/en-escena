@@ -47,6 +47,7 @@ describe("a presentation's scores, as administration reads them", () => {
     });
 
     expect(view?.name).toBe("Primera");
+    expect(view?.academyId).toBe(fixture.academy.academy.id);
     expect(view?.academyName).toBe(fixture.academy.academy.name);
     expect(view?.choreographyId).toBe(presentation.choreographyId);
     expect(view?.criteria).toEqual([]);

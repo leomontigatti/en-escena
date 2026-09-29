@@ -221,15 +221,15 @@ export function formatAutomaticOrderingMessage(input: {
 }
 
 /**
- * Where the row's name leads. A presentation the panel has already judged is
- * read through its scores and not through its choreography: during the show
- * that is what an administrator opens a row for, and the scores view links on
- * to the choreography for the rest.
+ * Where the row's name leads, if anywhere. A presentation the panel has
+ * already judged is read through its scores, which link on to the
+ * choreography; one still waiting for the panel has nothing of its own to
+ * open, so its name is plain text.
  */
 export function presentationRowPath(row: PresentationListItem) {
   if (row.evaluationStatus !== "pending" && row.presentationId !== null) {
     return `/administracion/presentacion/${row.presentationId}/puntajes`;
   }
 
-  return `/administracion/coreografias/${row.id}`;
+  return null;
 }

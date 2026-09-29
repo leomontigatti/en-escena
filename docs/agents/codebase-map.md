@@ -156,14 +156,15 @@ password reset flows.
 
 ## Admin Choreographies
 
-Use for the operational admin list of choreographies for the active event.
+Use for the admin choreographies of the active event: the academy list, each
+academy's operational list, and the choreography detail under it.
 
 - Domain: `docs/domain/choreographies.md`, `docs/domain/events.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
-- Routes: `app/routes/administracion.coreografias.tsx`
-- Feature modules: `app/features/admin/choreographies/list/`
-- Shared modules: `app/lib/admin/choreographies/` stays as the persistence and filter boundary because it is still useful beyond the route adapter.
-- Tests: `app/features/admin/choreographies/list/server.db.test.ts`, `app/features/admin/choreographies/list/view.test.tsx`, `app/lib/admin/choreographies/choreographies-route.server.db.test.ts`, `app/lib/admin/choreographies/choreographies-route-filters.server.db.test.ts`
+- Routes: `app/routes/administracion.coreografias.tsx` (academies), `app/routes/administracion.coreografias_.$academyId.tsx` (one academy's list), `app/routes/administracion.coreografias_.$academyId_.$choreographyId.tsx` (detail)
+- Feature modules: `app/features/admin/choreographies/academies/`, `app/features/admin/choreographies/list/`, `app/features/admin/choreographies/detail/`, `app/features/admin/choreographies/operational-status.server.ts` (the status both lists count)
+- Shared modules: `app/lib/choreographies/admin-paths.ts` builds every admin choreography address, all of which carry the academy. `app/lib/admin/choreographies/` stays as the persistence and filter boundary because it is still useful beyond the route adapter.
+- Tests: `app/features/admin/choreographies/academies/server.db.test.ts`, `app/features/admin/choreographies/academies/view.test.tsx`, `app/features/admin/choreographies/list/server.db.test.ts`, `app/features/admin/choreographies/list/view.test.tsx`, `app/lib/admin/choreographies/choreographies-route.server.db.test.ts`, `app/lib/admin/choreographies/choreographies-route-filters.server.db.test.ts`
 
 ## Admin Roster
 

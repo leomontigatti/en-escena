@@ -151,6 +151,31 @@ Use a single primary action per visual zone. Destructive actions must have clear
 text and a confirmation when the effect is irreversible. Icon-only buttons must
 have an accessible name and a tooltip when the icon is not obvious.
 
+Rules:
+
+- Page and form buttons use the default size. `sm` is for buttons inside a table
+  row or an alert.
+- A leading icon takes `data-icon="inline-start"`, which gives it the button's
+  icon padding; a bare `data-icon` skips it.
+- An icon repeats what the label says. `Check` is for saving, `Trash2` for
+  deleting; a destructive action other than a delete carries its own icon or
+  none. `Cancelar` has no icon.
+- Delete reads `Eliminar` with `Trash2`, on a button, a menu item and the
+  confirmation alike. The record is already named by the page.
+- Obvious icons need no tooltip: `Trash2`, `X`, play and pause, `Download`,
+  `Copy` and a drag handle. Every other icon-only button gets one. Text cut by
+  truncation keeps a native `title` instead.
+
+### Actions menu
+
+A record's actions live in `ResourceActionsMenu`, the `⋯` button, whether on a
+detail page's header or on a table row.
+
+- Keep the trigger at its default size (`icon-lg`).
+- Menu items are text only.
+- Put a `DropdownMenuSeparator` before the destructive items, so they sit last
+  and apart.
+
 ## Pending, loading and transitions
 
 Pending feedback must be specific to the operation. Do not use a global spinner
@@ -234,6 +259,32 @@ Rules:
 - Migrate existing native selects and textareas when the file is touched or in a
   dedicated pass.
 - In long forms, split into sections with a small title. Avoid nested cards.
+- A row repeater (a `useFieldArray` of short rows) shows its column labels once,
+  above the first row, and keeps an `sr-only` label on each row's fields.
+
+### Form layout
+
+A form page is one `AdminResourceFormCard` holding the whole form, with no card
+header. Alerts about the form sit above the card.
+
+- Lay the fields out in `FieldGroup className="grid gap-5 md:grid-cols-2"`. A
+  field that needs the width spans both columns.
+- The card has no maximum width. It fills the shell like the alerts, tabs and
+  tables around it, so the page keeps one edge.
+- The actions go in a footer pinned to the bottom of the viewport, so they stay
+  in reach on a long form and rest on the bottom edge of a short page. It sits
+  below the card, not inside it: `Card` clips its overflow, which stops a
+  `sticky` child from sticking. The shared `BackButton` (`Volver`) sits on the
+  left and the shared `SubmitButton` (`Guardar`) on the right, with
+  `Descartar cambios` beside it when [Editing and saving](#editing-and-saving)
+  asks for it.
+- A detail page in edit mode swaps `Volver` for `Cancelar`, which leaves edit
+  mode without saving.
+- A form in a `Dialog` is one column, with `Cancelar` and then the primary action
+  on the right of the footer.
+- The portal's `Nueva coreografía` wizard is the exception: one column,
+  `max-w-2xl` and its own sticky bar, because it walks through one step at a
+  time.
 
 ## Editing and saving
 
@@ -419,6 +470,12 @@ centralizes `isPending` (disables + spinner on the destructive button), the
 title/description) and the `details` slot. Do not duplicate that logic or
 hand-roll a `Dialog` for deleting.
 
+Both keep their default width: no `size` prop, no `max-w-*`. The one exception
+is an `AlertDialog` that carries a list, a preview or an alert, such as the
+withdrawn dancers a save names: it widens with `className="sm:max-w-lg"`, the
+`Dialog` width, so each line fits on one. `DeleteDialog` keeps the default
+even with its alert and `details`.
+
 ## Navigation
 
 Each context uses a shell matching its operational intensity.
@@ -436,14 +493,50 @@ Do not use a hero as the main structure of operational navigation.
 Rules:
 
 - Use `Sidebar` for the admin panel's main navigation.
-- Use `Breadcrumb` for hierarchy and location within deep routes.
+- Use `Breadcrumb` for hierarchy and location within deep routes. The last
+  crumb repeats the page title: `Nueva categoría`, not `Nueva`.
 - Use `Tabs` for secondary navigation between sibling views. If `Tabs` is not
   installed and the case needs it, add it before creating custom markup. Do not
   use them to split one form whose fields affect each other
   ([Editing and saving](#editing-and-saving)).
+- `Tabs` take `variant="line"`.
+- Tabs that switch between subsets of the same data (`Coreografías` /
+  `Seminarios`) keep the active tab in the URL, replacing the history entry, so
+  a reload or a shared link lands on the same tab. The parameter names what the
+  tab picks: `?tipo=` for `Coreografías` / `Seminarios`, `?dia=` for a day.
+- Tabs that split one record into sections keep their state local. When they
+  hold form fields, the form submits from its React Hook Form values
+  (`createValidatedRouteFormDataSubmitHandler`): Radix unmounts the hidden
+  panel, so a submit built from the DOM drops that tab's fields.
 - Use `DropdownMenu` for contextual actions.
 - Do not build navigation with hand-styled buttons or links when an equivalent
   shadcn component exists.
+
+## Page header
+
+Every page opens with its surface's shared header: `AdminResourceLayout` in the
+admin panel, the portal's shared header in the academy portal (`PortalListPage`
+on a list).
+
+- The title is an `h2` on every page, detail pages included, and a description
+  always follows it.
+- A detail page's title is the record's name (`Luna de Papel`), not its type
+  (`Detalle coreografía`).
+- The actions slot holds the list's create button (`action`, which always draws
+  `Plus`), the detail page's `⋯` menu ([Actions menu](#actions-menu)), or
+  nothing. Any other link or button goes through `headerAction` or the menu.
+
+## Detail pages
+
+A record's detail page shows its data as locked inputs (`disabled`, with the
+lock icon), in the same grid as its edit form, so viewing and editing look
+alike. Pages about money, scores or documents use `MetricCard`s and tables
+instead.
+
+- When the record's state locks fields, an `Alert` above the form says why and
+  what unlocks them.
+- Every shared field draws the lock icon when disabled, `TextareaField`
+  included. A `Switch` does not: its disabled look already reads as locked.
 
 ## Tables and lists
 

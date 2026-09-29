@@ -149,7 +149,7 @@ describe("PresentationsListView", () => {
     ).toContain("—");
   });
 
-  test("leads a judged row's name to its scores and the rest to the choreography", () => {
+  test("leads a judged row's name to its scores and leaves a pending one unlinked", () => {
     expect(
       renderView({
         presentations: [
@@ -160,9 +160,11 @@ describe("PresentationsListView", () => {
         ],
       }),
     ).toContain('href="/administracion/presentacion/presentation-9/puntajes"');
-    expect(renderView()).toContain(
-      'href="/administracion/coreografias/choreography-1"',
-    );
+    const pending = renderView();
+
+    expect(pending).toContain(">Pieza<");
+    expect(pending).not.toContain('href="/administracion/coreografias');
+    expect(pending).not.toContain('href="/administracion/presentacion/');
   });
 
   test("locks the number and hides the grip of a frozen row", () => {

@@ -32,6 +32,7 @@ import {
 describe("InscriptionsSection", () => {
   test("shows an empty state when there is no event active", () => {
     const markup = renderSection({
+      academyId: "academy-1",
       inscriptions: [],
       selectedEventId: null,
     });
@@ -44,6 +45,7 @@ describe("InscriptionsSection", () => {
 
   test("shows an empty state when the dancer has no inscriptions in the event active", () => {
     const markup = renderSection({
+      academyId: "academy-1",
       inscriptions: [],
       selectedEventId: "event-1",
     });
@@ -56,6 +58,7 @@ describe("InscriptionsSection", () => {
 
   test("shows active-event inscriptions with the finance columns and values", () => {
     const markup = renderSection({
+      academyId: "academy-1",
       selectedEventId: "event-1",
       inscriptions: [
         {
@@ -73,7 +76,9 @@ describe("InscriptionsSection", () => {
 
     expect(markup).toContain("Coreografía");
     expect(markup).toContain("00012");
-    expect(markup).toContain('href="/administracion/coreografias/choreo-1"');
+    expect(markup).toContain(
+      'href="/administracion/coreografias/academy-1/choreo-1"',
+    );
     expect(markup).toContain("Categoría / Tipo de grupo");
     expect(markup).toContain("Precio base");
     expect(markup).toContain("Descuento");

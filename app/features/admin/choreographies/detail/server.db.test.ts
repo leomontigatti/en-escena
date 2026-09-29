@@ -142,6 +142,9 @@ describe("administrative choreography detail server", () => {
       id: activeChoreography.id,
       name: "Activa",
     });
+    expect(adminData.backToList).toBe(
+      `/administracion/coreografias/${owner.academyId}`,
+    );
 
     await expectThrownResponse(
       loadDetail({
@@ -167,6 +170,58 @@ describe("administrative choreography detail server", () => {
       }),
       404,
     );
+  });
+
+  // The academy is part of the address: a choreography reached through another
+  // academy's URL is not there, for reading or for writing.
+  test("answers 404 when the academy in the URL does not own the choreography", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Dueña",
+      email: "admin.coreografias.duena.academia@example.com",
+    });
+    const stranger = await createAcademySession({
+      academyName: "Academia Ajena",
+      email: "admin.coreografias.ajena.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithoutLevel.id,
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      name: "De otra academia",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+    await expectThrownResponse(
+      loadDetail({
+        academyId: stranger.academyId,
+        choreographyId: choreography.id,
+        email: "admin.coreografias.ajena@example.com",
+        role: "admin",
+      }),
+      404,
+    );
+    await expectThrownResponse(
+      submitDetailAction({
+        academyId: stranger.academyId,
+        body: deleteFormData(),
+        choreographyId: choreography.id,
+        email: "admin.coreografias.ajena.accion@example.com",
+        role: "admin",
+      }),
+      404,
+    );
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { name: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ name: "De otra academia" });
   });
 
   test("renames active-event choreographies for admins and refuses auditors", async () => {
@@ -272,11 +327,15 @@ describe("administrative choreography detail server", () => {
       throw new Error("Expected redirect response.");
     }
     expect(response.status).toBe(302);
-    await expectFlashRedirect(response, "/administracion/coreografias", {
-      id: "route-notification:coreografia-eliminada",
-      message: "Coreografía eliminada.",
-      variant: "success",
-    });
+    await expectFlashRedirect(
+      response,
+      `/administracion/coreografias/${owner.academyId}`,
+      {
+        id: "route-notification:coreografia-eliminada",
+        message: "Coreografía eliminada.",
+        variant: "success",
+      },
+    );
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, choreography.id),
@@ -409,11 +468,15 @@ describe("administrative choreography detail server", () => {
     if (!(response instanceof Response)) {
       throw new Error("Expected redirect response.");
     }
-    await expectFlashRedirect(response, "/administracion/coreografias", {
-      id: "route-notification:coreografia-retirada",
-      message: "Coreografía retirada. Su dinero sigue asignado.",
-      variant: "success",
-    });
+    await expectFlashRedirect(
+      response,
+      `/administracion/coreografias/${invoiced.academyId}`,
+      {
+        id: "route-notification:coreografia-retirada",
+        message: "Coreografía retirada. Su dinero sigue asignado.",
+        variant: "success",
+      },
+    );
 
     const withdrawn = await db.query.choreographies.findFirst({
       where: eq(choreographies.id, invoiced.id),
@@ -3330,39 +3393,60 @@ async function loadDeleteBlockers(choreographyId: string) {
 }
 
 async function loadDetail(input: {
+  /** The academy in the URL; the choreography's own unless a test says otherwise. */
+  academyId?: string;
   choreographyId: string;
   email: string;
   role: "academy" | "admin" | "auditor" | "judge";
 }) {
+  const params = await readDetailParams(input);
   const { request } = await createSignedInAdminRequest({
     email: input.email,
-    requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
+    requestUrl: `http://localhost/administracion/coreografias/${params.academyId}/${params.choreographyId}`,
     role: input.role,
   });
 
-  return await loadChoreographyDetailRouteData({
-    params: { choreographyId: input.choreographyId },
-    request,
-  });
+  return await loadChoreographyDetailRouteData({ params, request });
 }
 
 async function submitDetailAction(input: {
+  /** The academy in the URL; the choreography's own unless a test says otherwise. */
+  academyId?: string;
   body: FormData;
   choreographyId: string;
   email: string;
   role: "academy" | "admin" | "auditor" | "judge";
 }) {
+  const params = await readDetailParams(input);
   const { request } = await createSignedInAdminRequest({
     body: input.body,
     email: input.email,
-    requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
+    requestUrl: `http://localhost/administracion/coreografias/${params.academyId}/${params.choreographyId}`,
     role: input.role,
   });
 
-  return await handleChoreographyDetailAction({
-    params: { choreographyId: input.choreographyId },
-    request,
+  return await handleChoreographyDetailAction({ params, request });
+}
+
+async function readDetailParams(input: {
+  academyId?: string;
+  choreographyId: string;
+}) {
+  if (input.academyId !== undefined) {
+    return { academyId: input.academyId, choreographyId: input.choreographyId };
+  }
+
+  const choreography = await db.query.choreographies.findFirst({
+    columns: { academyId: true },
+    where: eq(choreographies.id, input.choreographyId),
   });
+
+  // A choreography that does not exist keeps a well-formed URL, so the route
+  // answers its own 404 rather than the fixture failing first.
+  return {
+    academyId: choreography?.academyId ?? crypto.randomUUID(),
+    choreographyId: input.choreographyId,
+  };
 }
 
 function deleteFormData() {
