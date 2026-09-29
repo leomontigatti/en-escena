@@ -3,6 +3,7 @@ node_modules
 build
 .react-router
 .env
+.env.local
 .DS_Store
 .firecrawl
 tmp/
