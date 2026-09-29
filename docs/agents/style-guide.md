@@ -284,8 +284,6 @@ header. Alerts about the form sit above the card.
   left and the shared `SubmitButton` (`Guardar`) on the right, with
   `Descartar cambios` beside it when [Editing and saving](#editing-and-saving)
   asks for it.
-- A detail page in edit mode swaps `Volver` for `Cancelar`, which leaves edit
-  mode without saving.
 - A form in a `Dialog` is one column, with `Cancelar` and then the primary action
   on the right of the footer.
 - The portal's `Nueva coreografía` wizard is the exception: one column,
@@ -312,10 +310,22 @@ Rules:
   ([Atlassian, Inline edit](https://atlassian.design/patterns/inline-edit)). A
   field whose change recalculates others, or has consequences, never saves on
   its own.
+- No edit mode. A detail page shows its fields editable in place, and a user
+  who may not edit sees them disabled with only `Volver`. There is no `Editar`
+  button, no `?modo=` parameter and no `Cancelar` in the footer.
 - `Guardar` stays disabled until something differs from what is saved, and while
-  a submit or a preview is in flight. A form that edits more than one field also
-  offers `Descartar cambios` beside it, and warns before leaving the screen with
-  unsaved changes.
+  a submit or a preview is in flight. After a server error it stays enabled: the
+  action refills the form with what was typed, which reads as unchanged. A
+  successful save starts a clean draft from what was saved. Create forms follow
+  the same rule, measured against their empty defaults.
+- A form that edits more than one field offers `Descartar cambios` beside
+  `Guardar` while it has changes, and it resets the form without leaving.
+- A form with unsaved changes asks before it is left, through the shared
+  `DiscardChangesDialog`. On a page the guard sits on the router (`useBlocker`
+  plus `beforeunload`), not on `Volver`: the sidebar, the breadcrumbs, the
+  browser's back and a closing tab are ways out too. `Volver` stays the same
+  plain link. The save's own submission is never asked about. In a `Dialog`,
+  `Cancelar`, the close button and Esc go through `useDiscardGuard`.
 - Fields that affect each other stay on one screen, visible together. Do not
   split them across `Tabs`, steps or dialogs: a change in one tab that rewrites a
   field in another is a change the user does not see
