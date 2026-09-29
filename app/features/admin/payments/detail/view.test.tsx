@@ -73,6 +73,9 @@ describe("PaymentDetailRouteView", () => {
 
     expect(document.body.textContent).toContain("Eliminar pago");
     expect(document.body.textContent).toContain("Esta acción es irreversible.");
+    expect(document.body.textContent).toContain(
+      "El saldo disponible de la academia baja por el monto del pago.",
+    );
     expect(document.body.textContent).not.toContain("Motivo");
     expect(
       document.querySelector(
@@ -104,6 +107,14 @@ describe("PaymentDetailRouteView", () => {
             uncrossingInscriptionCount: 0,
           },
           {
+            allocatedAmount: 2500,
+            id: "cho_3",
+            kind: "choreography",
+            name: "Coreografía Tres",
+            resultingStatus: "depositMet",
+            uncrossingInscriptionCount: 1,
+          },
+          {
             allocatedAmount: 9000,
             id: "sem_1",
             kind: "seminar",
@@ -118,18 +129,24 @@ describe("PaymentDetailRouteView", () => {
 
     // The money leaves the pool: the copy cannot promise it returns to the
     // available balance, because the payment backing it goes with it.
-    expect(text).toContain("Ese dinero sale del pool");
-    expect(text).not.toContain("volver al saldo disponible");
+    expect(text).toContain(
+      "Ese dinero no vuelve al saldo disponible de la academia.",
+    );
+    expect(text).not.toContain("pool");
 
     expect(text).toContain("Coreografía Uno");
     expect(text).toContain("$ 4.000");
-    expect(text).toContain("2 inscripciones dejan de cumplir un umbral");
-    expect(text).toContain("queda Seña pendiente");
+    expect(text).toContain("2 inscripciones se verían afectadas.");
+    expect(text).toContain("La coreografía quedaría con la seña pendiente.");
+    expect(text).not.toContain("umbral");
 
     // With nothing uncrossed, no resulting state is named.
     expect(text).toContain("Coreografía Dos");
     expect(text).toContain("$ 1.500");
     expect(text).not.toContain("0 inscripciones");
+
+    expect(text).toContain("1 inscripción se vería afectada.");
+    expect(text).toContain("La coreografía quedaría señada.");
 
     // The seminar is in the same list, named by its instructor, and what it
     // loses is places rather than a threshold.

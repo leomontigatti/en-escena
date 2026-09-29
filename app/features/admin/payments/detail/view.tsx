@@ -30,7 +30,7 @@ import {
   PaymentAcademyField,
   PaymentFields,
 } from "@/features/admin/payments/form-fields";
-import { formatInscriptionFinancialStatus } from "@/lib/finances/choreography-financial-status";
+import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 import { paymentMethodOptions } from "@/lib/finances/payment-methods";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
@@ -181,8 +181,8 @@ export function PaymentDetailRouteView({
         <DeleteDialog
           description={
             loaderData.affectedUnits.length > 0
-              ? "El pago y sus asignaciones se eliminan juntos. Ese dinero sale del pool: no vuelve al saldo disponible de la academia."
-              : "El pago sale del pool: el saldo disponible de la academia baja por su monto."
+              ? "El pago y sus asignaciones se eliminan juntos. Ese dinero no vuelve al saldo disponible de la academia."
+              : "El saldo disponible de la academia baja por el monto del pago."
           }
           details={
             loaderData.affectedUnits.length > 0 ? (
@@ -206,8 +206,8 @@ export function PaymentDetailRouteView({
  * the deletion takes out of it and what its inscriptions lose. None of it
  * blocks: the deletion always proceeds, so the list informs rather than warns.
  *
- * The two kinds lose different things. A choreography names the threshold its
- * inscriptions stop meeting, and only when something actually un-crosses: with
+ * The two kinds lose different things. A choreography names how many of its
+ * inscriptions fall and the status it would be left with, and only when something actually un-crosses: with
  * nothing un-crossing there is no new state to announce, and naming the one it
  * already had would read as a consequence of deleting the payment. A seminar
  * names the **places** it gives back, because there covering the deposit is what
@@ -234,6 +234,16 @@ function AffectedUnitsList({ units }: { units: LoaderData["affectedUnits"] }) {
   );
 }
 
+/**
+ * Worded as a sentence rather than the status badge's label: the dialog warns
+ * about what would happen, so it speaks in the conditional.
+ */
+const resultingChoreographyStatusSentences = {
+  depositPending: "La coreografía quedaría con la seña pendiente.",
+  depositMet: "La coreografía quedaría señada.",
+  paidInFull: "La coreografía quedaría pagada.",
+} as const satisfies Record<ChoreographyFinancialStatus, string>;
+
 function AffectedUnitConsequence({
   unit,
 }: {
@@ -253,10 +263,9 @@ function AffectedUnitConsequence({
     unit.resultingStatus !== null ? (
     <span className="text-xs text-muted-foreground">
       {unit.uncrossingInscriptionCount === 1
-        ? "1 inscripción deja de cumplir un umbral"
-        : `${unit.uncrossingInscriptionCount} inscripciones dejan de cumplir un umbral`}
-      {" · queda "}
-      {formatInscriptionFinancialStatus(unit.resultingStatus)}
+        ? "1 inscripción se vería afectada."
+        : `${unit.uncrossingInscriptionCount} inscripciones se verían afectadas.`}{" "}
+      {resultingChoreographyStatusSentences[unit.resultingStatus]}
     </span>
   ) : null;
 }
