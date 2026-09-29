@@ -473,7 +473,8 @@ hand-roll a `Dialog` for deleting.
 Both keep their default width: no `size` prop, no `max-w-*`. The one exception
 is an `AlertDialog` that carries a list, a preview or an alert, such as the
 withdrawn dancers a save names: it widens with `className="sm:max-w-lg"`, the
-`Dialog` width, so each line fits on one.
+`Dialog` width, so each line fits on one. `DeleteDialog` keeps the default
+even with its alert and `details`.
 
 ## Navigation
 
