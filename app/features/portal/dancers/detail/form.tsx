@@ -1,12 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import type { SubmitFunction } from "react-router";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
+import {
+  createValidatedReactRouterSubmitHandler,
+  useSavedFormValues,
+} from "@/lib/shared/forms";
 
 import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
@@ -31,12 +34,19 @@ type PortalDancerTextFieldName =
   | "firstName"
   | "lastName";
 
+/**
+ * `savedValues` is what the dancer holds and what "changed" is measured
+ * against; `values` is what the form shows, which after a refused save is what
+ * was typed, which still reads as changed ({@link useSavedFormValues}).
+ */
 export function usePortalDancerForm({
   eventStartDate,
+  savedValues,
   submit,
   values,
 }: {
   eventStartDate: string | null;
+  savedValues: PortalDancerFormValues;
   submit: SubmitFunction;
   values: PortalDancerFormValues;
 }) {
@@ -47,21 +57,10 @@ export function usePortalDancerForm({
       resolver: zodResolver(buildPortalDancerSchema(eventStartDate)),
     },
   );
-
-  useEffect(() => {
-    form.reset(values);
-  }, [
-    form,
-    values.birthDate,
-    values.documentBackImageStorageKey,
-    values.documentFrontImageStorageKey,
-    values.documentNumber,
-    values.documentType,
-    values.firstName,
-    values.lastName,
-  ]);
+  useSavedFormValues(form, savedValues, values);
 
   return {
+    discard: () => form.reset(savedValues),
     eventStartDate,
     form,
     handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {

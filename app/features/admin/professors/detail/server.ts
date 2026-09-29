@@ -25,7 +25,6 @@ import {
 
 import {
   buildBackToListHref,
-  buildModeHref,
   buildProfessorActionError,
   buildProfessorActionSuccess,
   buildProfessorEditSchema,
@@ -54,17 +53,11 @@ export async function loadProfessorDetail(input: {
     throw new Response(professorNotFoundMessage, { status: 404 });
   }
 
-  const url = new URL(input.request.url);
-
   return {
     canEdit: user.role === "admin",
     selectedEventId: eventContext.selectedEventId,
     professor,
     backToList: buildBackToListHref(input.request.url),
-    editHref: buildModeHref(url, "editar"),
-    cancelHref: buildModeHref(url, null),
-    isEditing:
-      user.role === "admin" && url.searchParams.get("modo") === "editar",
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "professor",
       personId: professorId,

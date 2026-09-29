@@ -63,14 +63,16 @@ function CategoryDetailView({
       headerAction={category ? <CategoryActions category={category} /> : null}
     >
       {category ? (
-        <AdminResourceFormCard>
-          <CategoryForm
-            form={form}
-            formId="update-category-form"
-            id={category.id}
-            intent="update-category"
-            modalities={loaderData.modalities}
-          />
+        <>
+          <AdminResourceFormCard>
+            <CategoryForm
+              form={form}
+              formId="update-category-form"
+              id={category.id}
+              intent="update-category"
+              modalities={loaderData.modalities}
+            />
+          </AdminResourceFormCard>
           <CategoryFormActions
             form={form}
             formId="update-category-form"
@@ -79,7 +81,7 @@ function CategoryDetailView({
               fields: { id: category.id },
             }}
           />
-        </AdminResourceFormCard>
+        </>
       ) : (
         <EmptyResourceState>No encontramos esa categoría.</EmptyResourceState>
       )}

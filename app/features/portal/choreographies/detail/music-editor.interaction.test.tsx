@@ -140,4 +140,32 @@ describe("replacing a choreography's music", () => {
     ).not.toBeNull();
     expect(getButton("Guardar").disabled).toBe(true);
   });
+
+  test("puts the stored song back on `Descartar cambios`", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          element: <MusicEditorRoute />,
+          loader: loaderData,
+          path: "/portal/coreografias/choreo_1",
+        },
+      ],
+      { initialEntries: ["/portal/coreografias/choreo_1"] },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getButton("Guardar").disabled).toBe(true);
+    expect(document.body.textContent).not.toContain("Descartar cambios");
+
+    await clickReactDomButton("Borrar música");
+
+    expect(getButton("Guardar").disabled).toBe(false);
+
+    await clickReactDomButton("Descartar cambios");
+
+    expect(getButton("Guardar").disabled).toBe(true);
+    expect(
+      document.querySelector('a[aria-label="Descargar música"]'),
+    ).not.toBeNull();
+  });
 });

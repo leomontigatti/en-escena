@@ -36,10 +36,7 @@ export const professorFieldNames = [
 
 export type ProfessorDetailLoaderData = {
   backToList: string;
-  cancelHref: string;
   canEdit: boolean;
-  editHref: string;
-  isEditing: boolean;
   /**
    * Answered by `hasActiveEventParticipation`, the same reader the guard in
    * `setRosterPersonStatus` asks — see the dancer twin.
@@ -202,29 +199,10 @@ export function buildBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
   const searchParams = new URLSearchParams(url.search);
 
-  searchParams.delete("modo");
   searchParams.delete("evento");
   const search = searchParams.toString();
 
   return `/administracion/profesores${search.length > 0 ? `?${search}` : ""}`;
-}
-
-export function buildModeHref(url: URL, mode: "editar" | null) {
-  const searchParams = new URLSearchParams(url.search);
-
-  searchParams.delete("evento");
-
-  if (mode === null) {
-    searchParams.delete("modo");
-  } else {
-    searchParams.set("modo", mode);
-  }
-
-  const search = searchParams.toString();
-
-  return `/administracion/profesores/${readProfessorIdFromPath(url.pathname)}${
-    search.length > 0 ? `?${search}` : ""
-  }`;
 }
 
 // In-place editing on the detail does not redirect: it returns
@@ -386,12 +364,6 @@ function validateDocumentPair(
       message: "Ingresá el número de documento.",
     });
   }
-}
-
-function readProfessorIdFromPath(pathname: string) {
-  const segments = pathname.split("/").filter(Boolean);
-
-  return segments.at(-1) ?? "";
 }
 
 function readFormString(formData: FormData, key: string) {

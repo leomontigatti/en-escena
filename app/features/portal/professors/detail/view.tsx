@@ -1,10 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
 
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
@@ -28,10 +28,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
+import {
+  createValidatedReactRouterSubmitHandler,
+  useSavedFormValues,
+} from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 import {
@@ -75,16 +78,17 @@ export function PortalProfessorDetailRouteView({
     nameWarning,
     success: successData,
   } = splitPortalProfessorActionData(actionDataOverride);
-  const formValues = actionData?.values ??
-    nameWarning?.values ?? {
-      firstName: loaderData.professor.firstName,
-      lastName: loaderData.professor.lastName,
-      documentType: loaderData.professor.documentType ?? "",
-      documentNumber: loaderData.professor.documentNumber ?? "",
-    };
+  const savedValues: ProfessorFormValues = {
+    firstName: loaderData.professor.firstName,
+    lastName: loaderData.professor.lastName,
+    documentType: loaderData.professor.documentType ?? "",
+    documentNumber: loaderData.professor.documentNumber ?? "",
+  };
+  const formValues = actionData?.values ?? nameWarning?.values ?? savedValues;
   const submit = useSubmit();
   const navigation = useNavigation();
   const form = useProfessorForm({
+    savedValues,
     submit,
     values: formValues,
   });
@@ -121,7 +125,7 @@ export function PortalProfessorDetailRouteView({
   return (
     <>
       <section
-        className="flex flex-col gap-6"
+        className="flex flex-1 flex-col gap-6"
         aria-labelledby="profesor-detail-title"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -206,16 +210,19 @@ export function PortalProfessorDetailRouteView({
               ) : null}
             </form>
           </CardContent>
-          <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
-            <BackButton to="/portal/profesores" viewTransition />
-            {nameWarning ? null : (
-              <SubmitButton
-                form={professorDetailFormId}
-                isPending={isSubmitting}
-              />
-            )}
-          </CardFooter>
         </Card>
+
+        {/* The same-name warning takes `Guardar` away: the notice in the form
+            carries its own way to continue. */}
+        <FormActions
+          backTo="/portal/profesores"
+          canEdit={!nameWarning}
+          form={professorDetailFormId}
+          hasChanges={form.form.formState.isDirty}
+          isPending={isSubmitting}
+          onDiscard={form.discard}
+          viewTransition
+        />
       </section>
 
       <ProfessorStatusDialog
@@ -262,10 +269,17 @@ function PortalProfessorAlertsSection({
   );
 }
 
+/**
+ * `savedValues` is what "changed" is measured against; `values` is what the
+ * form shows, which after a refused save is what was typed and still reads as
+ * changed ({@link useSavedFormValues}).
+ */
 function useProfessorForm({
+  savedValues,
   submit,
   values,
 }: {
+  savedValues: ProfessorFormValues;
   submit: SubmitFunction;
   values: ProfessorFormValues;
 }) {
@@ -274,18 +288,10 @@ function useProfessorForm({
     mode: "onSubmit",
     resolver: zodResolver(professorSchema),
   });
-
-  useEffect(() => {
-    form.reset(values);
-  }, [
-    form,
-    values.documentNumber,
-    values.documentType,
-    values.firstName,
-    values.lastName,
-  ]);
+  useSavedFormValues(form, savedValues, values);
 
   return {
+    discard: () => form.reset(savedValues),
     form,
     handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
       method: "post",

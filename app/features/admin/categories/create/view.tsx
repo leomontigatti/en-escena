@@ -40,12 +40,12 @@ export function CategoryCreateView({
           intent="create-category"
           modalities={loaderData.modalities}
         />
-        <CategoryFormActions
-          form={form}
-          formId="create-category-form"
-          pendingScope={{ intent: "create-category" }}
-        />
       </AdminResourceFormCard>
+      <CategoryFormActions
+        form={form}
+        formId="create-category-form"
+        pendingScope={{ intent: "create-category" }}
+      />
     </AdminResourceLayout>
   );
 }

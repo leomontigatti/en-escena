@@ -1,17 +1,16 @@
 import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
-import { Check, Pencil, TriangleAlert } from "lucide-react";
-import type { FormEventHandler, ReactNode } from "react";
-import { Link } from "react-router";
+import { TriangleAlert } from "lucide-react";
+import type { SubmitEventHandler, ReactNode } from "react";
 
 import {
   AdminEmptyState,
   AdminResourceFormCard,
 } from "@/components/admin/resource-layout";
-import { BackButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
+import { FormActions } from "@/components/shared/form-actions";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
 import {
@@ -170,89 +169,82 @@ export function DancerDetailAlerts({
   );
 }
 
-export function DancerDetailCard({
+/**
+ * The whole page form: the card of fields and the pinned footer under it. Whoever
+ * may edit gets the fields editable in place; anyone else sees them disabled with
+ * only `Volver`.
+ */
+export function DancerDetailForm({
   backToList,
-  cancelHref,
   canEdit,
   dancer,
   documentImageUrls,
   editForm,
   editFormId,
-  editHref,
-  isEditing,
+  isSaving,
   nameWarning,
-  onConfirmSave,
   onSubmit,
   selectedEventId,
-  shouldConfirmSave,
 }: {
   backToList: string;
-  cancelHref: string;
   canEdit: boolean;
   dancer: DancerDetailLoaderData["dancer"];
   documentImageUrls: DancerDetailLoaderData["documentImageUrls"];
   editForm: DancerEditFormController;
   editFormId: string;
-  editHref: string;
-  isEditing: boolean;
+  isSaving: boolean;
   nameWarning?: RosterNameWarning;
-  onConfirmSave: () => void;
-  onSubmit: FormEventHandler<HTMLFormElement>;
+  onSubmit: SubmitEventHandler<HTMLFormElement>;
   selectedEventId: string | null;
-  shouldConfirmSave: boolean;
 }) {
   return (
-    <AdminResourceFormCard
-      footer={
-        <DancerDetailFooterActions
-          backToList={backToList}
-          canEdit={canEdit}
-          cancelHref={cancelHref}
-          editFormId={editFormId}
-          editHref={editHref}
-          // The warning carries the save of its own, so the footer must not
-          // offer a second one.
-          isEditing={isEditing && !nameWarning}
-          onConfirmSave={onConfirmSave}
-          shouldConfirmSave={shouldConfirmSave}
-        />
-      }
+    <form
+      id={editFormId}
+      method="post"
+      noValidate
+      className="flex flex-1 flex-col gap-6"
+      onSubmit={onSubmit}
     >
-      <form
-        id={editFormId}
-        method="post"
-        noValidate
-        onSubmit={onSubmit}
-        className="flex flex-col gap-6"
-      >
-        <input type="hidden" name="intent" value="update-dancer" />
+      <input type="hidden" name="intent" value="update-dancer" />
+      <AdminResourceFormCard>
         <DancerAdministrativeDataSection
+          canEdit={canEdit}
           dancer={dancer}
           editForm={editForm}
-          isEditing={isEditing}
         />
         <DancerDetailTabs
+          canEdit={canEdit}
           dancer={dancer}
           documentImageUrls={documentImageUrls}
           editForm={editForm}
-          isEditing={isEditing}
           selectedEventId={selectedEventId}
         />
 
         {nameWarning ? <RosterNameWarningNotice warning={nameWarning} /> : null}
-      </form>
-    </AdminResourceFormCard>
+      </AdminResourceFormCard>
+
+      <FormActions
+        backTo={backToList}
+        canEdit={canEdit}
+        // The warning carries the save of its own, so the footer must not
+        // offer a second one.
+        canSave={!nameWarning}
+        hasChanges={editForm.hasChanges}
+        isPending={isSaving}
+        onDiscard={editForm.discard}
+      />
+    </form>
   );
 }
 
 function DancerAdministrativeDataSection({
   dancer,
   editForm,
-  isEditing,
+  canEdit,
 }: {
+  canEdit: boolean;
   dancer: DancerDetailLoaderData["dancer"];
   editForm: DancerEditFormController;
-  isEditing: boolean;
 }) {
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
@@ -261,7 +253,7 @@ function DancerAdministrativeDataSection({
         label="Academia"
         value={dancer.academy.name}
       />
-      {isEditing ? (
+      {canEdit ? (
         <>
           <DancerTextField
             form={editForm.form}
@@ -288,13 +280,13 @@ function DancerDetailTabs({
   dancer,
   documentImageUrls,
   editForm,
-  isEditing,
+  canEdit,
   selectedEventId,
 }: {
   dancer: DancerDetailLoaderData["dancer"];
   documentImageUrls: DancerDetailLoaderData["documentImageUrls"];
   editForm: DancerEditFormController;
-  isEditing: boolean;
+  canEdit: boolean;
   selectedEventId: string | null;
 }) {
   return (
@@ -308,7 +300,7 @@ function DancerDetailTabs({
           dancer={dancer}
           documentImageUrls={documentImageUrls}
           editForm={editForm}
-          isEditing={isEditing}
+          canEdit={canEdit}
         />
       </TabsContent>
       <TabsContent value="inscripciones" className="pt-2">
@@ -326,16 +318,16 @@ function DancerIdentificationSection({
   dancer,
   documentImageUrls,
   editForm,
-  isEditing,
+  canEdit,
 }: {
   dancer: DancerDetailLoaderData["dancer"];
   documentImageUrls: DancerDetailLoaderData["documentImageUrls"];
   editForm: DancerEditFormController;
-  isEditing: boolean;
+  canEdit: boolean;
 }) {
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
-      {isEditing ? (
+      {canEdit ? (
         <>
           <DancerBirthDateField
             eventStartDate={editForm.eventStartDate}
@@ -405,93 +397,6 @@ function DancerIdentificationSection({
         </>
       )}
     </FieldGroup>
-  );
-}
-
-function DancerDetailFooterActions({
-  backToList,
-  canEdit,
-  cancelHref,
-  editFormId,
-  editHref,
-  isEditing,
-  onConfirmSave,
-  shouldConfirmSave,
-}: {
-  backToList: string;
-  canEdit: boolean;
-  cancelHref: string;
-  editFormId: string;
-  editHref: string;
-  isEditing: boolean;
-  onConfirmSave: () => void;
-  shouldConfirmSave: boolean;
-}) {
-  return (
-    <>
-      {isEditing ? (
-        <Button asChild variant="outline">
-          <Link to={cancelHref}>Cancelar</Link>
-        </Button>
-      ) : (
-        <BackButton to={backToList} />
-      )}
-      <DancerPrimaryFooterAction
-        canEdit={canEdit}
-        editFormId={editFormId}
-        editHref={editHref}
-        isEditing={isEditing}
-        onConfirmSave={onConfirmSave}
-        shouldConfirmSave={shouldConfirmSave}
-      />
-    </>
-  );
-}
-
-function DancerPrimaryFooterAction({
-  canEdit,
-  editFormId,
-  editHref,
-  isEditing,
-  onConfirmSave,
-  shouldConfirmSave,
-}: {
-  canEdit: boolean;
-  editFormId: string;
-  editHref: string;
-  isEditing: boolean;
-  onConfirmSave: () => void;
-  shouldConfirmSave: boolean;
-}) {
-  if (!canEdit) {
-    return null;
-  }
-
-  if (!isEditing) {
-    return (
-      <Button asChild>
-        <Link to={editHref}>
-          <Pencil aria-hidden="true" data-icon="inline-start" />
-          Editar
-        </Link>
-      </Button>
-    );
-  }
-
-  if (shouldConfirmSave) {
-    return (
-      <Button type="button" onClick={onConfirmSave}>
-        <Check aria-hidden="true" data-icon="inline-start" />
-        Guardar
-      </Button>
-    );
-  }
-
-  return (
-    <Button type="submit" form={editFormId}>
-      <Check aria-hidden="true" data-icon="inline-start" />
-      Guardar
-    </Button>
   );
 }
 

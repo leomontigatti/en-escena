@@ -30,11 +30,18 @@ type EventDocumentSummary =
   EventDetailLoaderData["documents"][EventDocumentKind];
 
 export type EventDocumentsController = {
+  /**
+   * Puts the documents back as saved: the kept flags reset, the chosen files
+   * dropped. A native file input can only be cleared by remounting it, which
+   * `resetCount` in the fields' keys does.
+   */
+  discard: () => void;
   form: UseFormReturn<EventDocumentsFormValues>;
   /** Whether "Guardar" has anything to do about the documents. */
   hasPendingChanges: boolean;
   /** Documents the save is about to delete, for the confirmation dialog. */
   removedKinds: EventDocumentKind[];
+  resetCount: number;
   selectedKinds: EventDocumentKind[];
   /**
    * A chosen file is browser state the upload field owns, so the card can only
@@ -68,6 +75,7 @@ export function useEventDocumentsForm(
     values,
   });
   const [selectedKinds, setSelectedKinds] = useState<EventDocumentKind[]>([]);
+  const [resetCount, setResetCount] = useState(0);
   const keptValues = useWatch({ control: form.control });
   const setSelectedKind = useCallback(
     (kind: EventDocumentKind, isSelected: boolean) => {
@@ -100,10 +108,19 @@ export function useEventDocumentsForm(
       !selectedKinds.includes(kind),
   );
 
+  const { reset } = form;
+  const discard = useCallback(() => {
+    reset();
+    setSelectedKinds([]);
+    setResetCount((count) => count + 1);
+  }, [reset]);
+
   return {
+    discard,
     form,
     hasPendingChanges: selectedKinds.length > 0 || removedKinds.length > 0,
     removedKinds,
+    resetCount,
     selectedKinds,
     setSelectedKind,
   };
@@ -135,8 +152,8 @@ export function EventDocumentsFields({
         <EventDocumentField
           // Remounts once the save lands, which is what clears the native file
           // input: nothing else can, and a stale one would re-upload on the
-          // next save.
-          key={`${kind}:${documents[kind]?.uploadedAt ?? ""}`}
+          // next save. `Descartar cambios` remounts them the same way.
+          key={`${kind}:${documents[kind]?.uploadedAt ?? ""}:${controller.resetCount}`}
           controller={controller}
           document={documents[kind]}
           kind={kind}

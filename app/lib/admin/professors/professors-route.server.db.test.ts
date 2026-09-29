@@ -13,6 +13,7 @@ import {
 } from "@/lib/admin/test-support/db";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
@@ -457,7 +458,7 @@ describe("`/administracion/profesores` route", () => {
     expect(markup).toContain("Reactivar");
   });
 
-  test("shows explicit edit controls only for admin users", async () => {
+  test("shows the editable form to admins and only Volver to auditors", async () => {
     const academy = await createAcademyUser({
       email: "admin.controles.academia@example.com",
       academyName: "Academia Controles",
@@ -474,11 +475,6 @@ describe("`/administracion/profesores` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
-    const { request: adminEditRequest } = await createSignedInRequest({
-      email: "admin.edicion@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
-    });
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.controles@example.com",
       role: "auditor",
@@ -489,22 +485,17 @@ describe("`/administracion/profesores` route", () => {
       await detailLoader(detailRouteArgs(adminRequest, professor.id)),
       professor.id,
     );
-    const adminEditMarkup = renderDetailRoute(
-      await detailLoader(detailRouteArgs(adminEditRequest, professor.id)),
-      professor.id,
-    );
     const auditorMarkup = renderDetailRoute(
       await detailLoader(detailRouteArgs(auditorRequest, professor.id)),
       professor.id,
     );
 
-    expect(adminMarkup).toContain("Editar");
+    expect(adminMarkup).toContain("Guardar");
     expect(adminMarkup).toContain("Acciones");
-    expect(adminMarkup).not.toContain("Guardar");
-    expect(adminEditMarkup).toContain("Guardar");
-    expect(adminEditMarkup).toContain("Cancelar");
-    expect(adminEditMarkup).toContain("Acciones");
+    expect(adminMarkup).not.toContain("Editar");
+    expect(adminMarkup).not.toContain("Cancelar");
     expect(auditorMarkup).not.toContain("Editar");
+    expect(auditorMarkup).not.toContain("Cancelar");
     expect(auditorMarkup).not.toContain("Guardar");
     expect(auditorMarkup).not.toContain("Acciones");
   });
@@ -524,7 +515,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.render.rhf.profesores@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const markup = renderDetailRoute(
@@ -540,7 +531,7 @@ describe("`/administracion/profesores` route", () => {
     expect(markup).not.toContain('name="correctionReason"');
   });
 
-  test("keeps the detail route in edit mode with submitted values after a correction-reason error", async () => {
+  test("keeps the submitted values in the form after a correction-reason error", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.dialogo.profesores.academia@example.com",
@@ -562,7 +553,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.dialogo.profesores@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
     });
     const loaderData = await detailLoader(
       detailRouteArgs(request, professor.id),
@@ -587,7 +578,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     expect(markup).toContain("Guardar");
-    expect(markup).toContain("Cancelar");
+    expect(markup).not.toContain("Cancelar");
     expect(markup).toContain('name="firstName"');
     expect(markup).toContain('value="Mora"');
     expect(markup).toContain('value="Dialogo"');
@@ -609,7 +600,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.mutacion@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
     });
 
     const result = await detailAction(
@@ -655,7 +646,7 @@ describe("`/administracion/profesores` route", () => {
       const { request } = await createSignedInRequest({
         email: `${role}.profesores@example.com`,
         role,
-        requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+        requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
       });
 
       await expectThrownResponse(
@@ -702,7 +693,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.motivo.evento@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
     });
 
     const result = await detailAction(
@@ -747,7 +738,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.motivo.historial@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const result = await detailAction(
@@ -790,7 +781,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.homonimo@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const result = await detailAction(
@@ -837,7 +828,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.homonimo.ok@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const result = await detailAction(
@@ -880,7 +871,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.duplicado@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const result = await detailAction(
@@ -927,7 +918,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.documento.numero.profesores@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
     });
 
     const result = await detailAction(
@@ -975,7 +966,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.archivo@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
     });
 
     const archiveResult = await detailAction(
@@ -1018,7 +1009,7 @@ describe("`/administracion/profesores` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.archivo.libre@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
     });
 
     const archiveResult = await detailAction(
@@ -1214,11 +1205,8 @@ function renderDetailRoute(
   professorId: string,
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: [`/administracion/profesores/${professorId}`],
-      },
+    renderInDataRouter(
+      `/administracion/profesores/${professorId}`,
       createElement(ProfessorDetailRouteView, { loaderData }),
     ),
   );
@@ -1232,11 +1220,8 @@ function renderDetailRouteWithActionData({
   professorId: string;
 }) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: [`/administracion/profesores/${professorId}`],
-      },
+    renderInDataRouter(
+      `/administracion/profesores/${professorId}`,
       createElement(ProfessorDetailRouteView, {
         actionData,
         loaderData,

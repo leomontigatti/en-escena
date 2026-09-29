@@ -40,12 +40,12 @@ export function EventPriceCreateView({
           intent="create-price"
           schedules={loaderData.schedules}
         />
-        <PriceFormActions
-          form={form}
-          formId={createPriceFormId}
-          pendingScope={{ intent: "create-price" }}
-        />
       </PriceFormPanel>
+      <PriceFormActions
+        form={form}
+        formId={createPriceFormId}
+        pendingScope={{ intent: "create-price" }}
+      />
     </AdminResourceLayout>
   );
 }

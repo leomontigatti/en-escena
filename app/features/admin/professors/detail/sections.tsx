@@ -1,12 +1,11 @@
 import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
-import { Check, Pencil, TriangleAlert } from "lucide-react";
-import type { FormEventHandler } from "react";
-import { Link } from "react-router";
+import { TriangleAlert } from "lucide-react";
+import type { SubmitEventHandler } from "react";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { BackButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { FormActions } from "@/components/shared/form-actions";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import {
@@ -19,7 +18,6 @@ import {
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 
 import {
@@ -95,71 +93,70 @@ export function ProfessorDetailAlerts({
   );
 }
 
-export function ProfessorDetailCard({
+/**
+ * The whole page form: the card of fields and the pinned footer under it. Whoever
+ * may edit gets the fields editable in place; anyone else sees them disabled with
+ * only `Volver`.
+ */
+export function ProfessorDetailForm({
   backToList,
-  cancelHref,
   canEdit,
   editForm,
   editFormId,
-  editHref,
-  isEditing,
+  isSaving,
   nameWarning,
   onSubmit,
   professor,
 }: {
   backToList: string;
-  cancelHref: string;
   canEdit: boolean;
   editForm: ProfessorEditFormController;
   editFormId: string;
-  editHref: string;
-  isEditing: boolean;
+  isSaving: boolean;
   nameWarning?: RosterNameWarning;
-  onSubmit: FormEventHandler<HTMLFormElement>;
+  onSubmit: SubmitEventHandler<HTMLFormElement>;
   professor: ProfessorDetailLoaderData["professor"];
 }) {
   return (
-    <AdminResourceFormCard
-      footer={
-        <ProfessorDetailFooterActions
-          backToList={backToList}
-          canEdit={canEdit}
-          cancelHref={cancelHref}
-          editFormId={editFormId}
-          editHref={editHref}
-          // The warning carries the save of its own, so the footer must not
-          // offer a second one.
-          isEditing={isEditing && !nameWarning}
-        />
-      }
+    <form
+      id={editFormId}
+      method="post"
+      noValidate
+      className="flex flex-1 flex-col gap-6"
+      onSubmit={onSubmit}
     >
-      <form
-        id={editFormId}
-        method="post"
-        noValidate
-        onSubmit={onSubmit}
-        className="flex flex-col gap-6"
-      >
-        <input type="hidden" name="intent" value="update-professor" />
+      <input type="hidden" name="intent" value="update-professor" />
+      <AdminResourceFormCard>
         <ProfessorAdministrativeDataSection
+          canEdit={canEdit}
           editForm={editForm}
-          isEditing={isEditing}
           professor={professor}
         />
 
         {nameWarning ? <RosterNameWarningNotice warning={nameWarning} /> : null}
-      </form>
-    </AdminResourceFormCard>
+      </AdminResourceFormCard>
+
+      <FormActions
+        backTo={backToList}
+        canEdit={canEdit}
+        // The warning carries the save of its own, so the footer must not
+        // offer a second one.
+        canSave={!nameWarning}
+        hasChanges={editForm.hasChanges}
+        isPending={isSaving}
+        onDiscard={editForm.discard}
+      />
+    </form>
   );
 }
 
 function ProfessorAdministrativeDataSection({
   editForm,
-  isEditing,
+  canEdit,
   professor,
 }: {
   editForm: ProfessorEditFormController;
-  isEditing: boolean;
+  canEdit: boolean;
   professor: ProfessorDetailLoaderData["professor"];
 }) {
   return (
@@ -169,7 +166,7 @@ function ProfessorAdministrativeDataSection({
         label="Academia"
         value={professor.academy.name}
       />
-      {isEditing ? (
+      {canEdit ? (
         <>
           <ProfessorTextField
             form={editForm.form}
@@ -219,73 +216,5 @@ function ProfessorAdministrativeDataSection({
         </>
       )}
     </FieldGroup>
-  );
-}
-
-function ProfessorDetailFooterActions({
-  backToList,
-  canEdit,
-  cancelHref,
-  editFormId,
-  editHref,
-  isEditing,
-}: {
-  backToList: string;
-  canEdit: boolean;
-  cancelHref: string;
-  editFormId: string;
-  editHref: string;
-  isEditing: boolean;
-}) {
-  return (
-    <>
-      {isEditing ? (
-        <Button asChild variant="outline">
-          <Link to={cancelHref}>Cancelar</Link>
-        </Button>
-      ) : (
-        <BackButton to={backToList} />
-      )}
-      <ProfessorPrimaryFooterAction
-        canEdit={canEdit}
-        editFormId={editFormId}
-        editHref={editHref}
-        isEditing={isEditing}
-      />
-    </>
-  );
-}
-
-function ProfessorPrimaryFooterAction({
-  canEdit,
-  editFormId,
-  editHref,
-  isEditing,
-}: {
-  canEdit: boolean;
-  editFormId: string;
-  editHref: string;
-  isEditing: boolean;
-}) {
-  if (!canEdit) {
-    return null;
-  }
-
-  if (!isEditing) {
-    return (
-      <Button asChild>
-        <Link to={editHref}>
-          <Pencil aria-hidden="true" data-icon="inline-start" />
-          Editar
-        </Link>
-      </Button>
-    );
-  }
-
-  return (
-    <Button type="submit" form={editFormId}>
-      <Check aria-hidden="true" data-icon="inline-start" />
-      Guardar
-    </Button>
   );
 }

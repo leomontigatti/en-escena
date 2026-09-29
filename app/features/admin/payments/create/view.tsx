@@ -1,12 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { FormActions } from "@/components/shared/form-actions";
 import { FieldGroup } from "@/components/ui/field";
 import {
   PaymentAcademyField,
@@ -16,7 +16,7 @@ import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
   useOptionalNavigation,
-  useResetFormValues,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -44,18 +44,18 @@ export function NewPaymentRouteView({
   const isPending = isRouteFormPending(navigation, {
     intent: createPaymentIntent,
   });
-  const values = actionData?.values ?? loaderData.values;
   const form = useForm<
     CreatePaymentFormValues,
     unknown,
     CreatePaymentSubmissionValues
   >({
-    defaultValues: values,
+    defaultValues: loaderData.values,
     mode: "onSubmit",
     resolver: zodResolver(createPaymentSchema),
   });
   const submit = useSubmit();
-  useResetFormValues(form.reset, values);
+  const { isDirty } = useFormState({ control: form.control });
+  useSavedFormValues(form, loaderData.values, actionData?.values);
 
   useServerActionToast(actionData);
 
@@ -72,18 +72,11 @@ export function NewPaymentRouteView({
       <form
         method="post"
         noValidate
+        className="flex flex-1 flex-col gap-6"
         onSubmit={createValidatedRouteFormDataSubmitHandler(form, submit)}
       >
         <input type="hidden" name="intent" value={createPaymentIntent} />
-        <AdminResourceFormCard
-          contentClassName="gap-5"
-          footer={
-            <>
-              <BackButton to={"/administracion/pagos"} />
-              <SubmitButton isPending={isPending} />
-            </>
-          }
-        >
+        <AdminResourceFormCard contentClassName="gap-5">
           <FieldGroup className="grid gap-5 md:grid-cols-2">
             <PaymentAcademyField
               academies={loaderData.academies}
@@ -92,6 +85,12 @@ export function NewPaymentRouteView({
             <PaymentFields control={form.control} />
           </FieldGroup>
         </AdminResourceFormCard>
+        <FormActions
+          backTo="/administracion/pagos"
+          hasChanges={isDirty}
+          isPending={isPending}
+          onDiscard={() => form.reset()}
+        />
       </form>
     </AdminResourceLayout>
   );

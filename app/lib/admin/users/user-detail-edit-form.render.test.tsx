@@ -7,6 +7,7 @@ const reactRouterMocks = vi.hoisted(() => ({
   useFormAction: vi.fn(),
   useNavigation: vi.fn(),
   useSubmit: vi.fn(),
+  useBlocker: vi.fn(() => ({ state: "unblocked" })),
 }));
 
 vi.mock("react-router", async () => {
@@ -30,6 +31,7 @@ vi.mock("react-router", async () => {
     useFormAction: reactRouterMocks.useFormAction,
     useNavigation: reactRouterMocks.useNavigation,
     useSubmit: reactRouterMocks.useSubmit,
+    useBlocker: reactRouterMocks.useBlocker,
   };
 });
 
@@ -41,6 +43,7 @@ import type {
 } from "@/lib/admin/users/user-detail.shared";
 import {
   createReactDomTestRenderer,
+  findButton,
   getButton,
   setInputValue,
   updateReactDomForm,
@@ -67,6 +70,23 @@ describe("InternalUserEditCard", () => {
     });
 
     expect(getButton("Guardar").disabled).toBe(false);
+  });
+
+  test("discards the changes back to the saved values", async () => {
+    renderIdleCard();
+
+    expect(findButton("Descartar cambios")).toBeUndefined();
+
+    await updateReactDomForm(() => {
+      setInputValue(getInput("name"), "Ana Jueza");
+    });
+    await updateReactDomForm(() => {
+      getButton("Descartar cambios").click();
+    });
+
+    expect(getInput("name").value).toBe("Ana Juez");
+    expect(getButton("Guardar").disabled).toBe(true);
+    expect(findButton("Descartar cambios")).toBeUndefined();
   });
 
   test("asks for no email", () => {
@@ -117,7 +137,7 @@ describe("InternalUserEditCard", () => {
 
     renderer.render(
       <InternalUserEditCard
-        cancelHref="/administracion/usuarios"
+        backToList="/administracion/usuarios"
         user={buildUser()}
       />,
     );
@@ -160,10 +180,11 @@ describe("InternalUserEditCard", () => {
       resetPasswordValues: { temporaryPassword: "" },
     });
 
-    // The refusal refills the form with what was typed, so nothing is dirty —
-    // but the retry has to stay available.
+    // The refusal refills the form with what was typed, which still differs
+    // from what is saved, so the retry and the discard stay available.
     expect(getInput("name").value).toBe("Ana Jueza");
     expect(getButton("Guardar").disabled).toBe(false);
+    expect(getButton("Descartar cambios")).toBeDefined();
   });
 
   test("keeps its own values when another intent on the route fails", () => {
@@ -204,7 +225,7 @@ describe("InternalUserEditCard", () => {
     renderer.render(
       <InternalUserEditCard
         actionData={actionData}
-        cancelHref="/administracion/usuarios"
+        backToList="/administracion/usuarios"
         user={user}
       />,
     );

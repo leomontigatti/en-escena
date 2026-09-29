@@ -45,12 +45,12 @@ export function SeminarPriceCreateView({
           formId={createSeminarPriceFormId}
           intent="create-seminar-price"
         />
-        <SeminarPriceFormActions
-          form={form}
-          formId={createSeminarPriceFormId}
-          pendingScope={{ intent: "create-seminar-price" }}
-        />
       </SeminarPriceFormPanel>
+      <SeminarPriceFormActions
+        form={form}
+        formId={createSeminarPriceFormId}
+        pendingScope={{ intent: "create-seminar-price" }}
+      />
     </AdminResourceLayout>
   );
 }

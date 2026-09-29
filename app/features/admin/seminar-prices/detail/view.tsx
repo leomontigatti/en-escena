@@ -81,15 +81,15 @@ export function SeminarPriceDetailView({
               id={seminarPrice.id}
               intent="update-seminar-price"
             />
-            <SeminarPriceFormActions
-              form={form}
-              formId="update-seminar-price-form"
-              pendingScope={{
-                intent: "update-seminar-price",
-                fields: { id: seminarPrice.id },
-              }}
-            />
           </SeminarPriceFormPanel>
+          <SeminarPriceFormActions
+            form={form}
+            formId="update-seminar-price-form"
+            pendingScope={{
+              intent: "update-seminar-price",
+              fields: { id: seminarPrice.id },
+            }}
+          />
         </>
       ) : (
         <EmptyResourceState>

@@ -40,12 +40,12 @@ export function EventModalityCreateView({
           formId="create-modality-form"
           intent="create-modality"
         />
-        <ModalityFormActions
-          form={form}
-          formId="create-modality-form"
-          pendingScope={{ intent: "create-modality" }}
-        />
       </ModalityFormPanel>
+      <ModalityFormActions
+        form={form}
+        formId="create-modality-form"
+        pendingScope={{ intent: "create-modality" }}
+      />
     </AdminResourceLayout>
   );
 }

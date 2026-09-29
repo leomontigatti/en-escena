@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { BackButton } from "@/components/shared/action-buttons";
+import { FormActions } from "@/components/shared/form-actions";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
@@ -13,9 +13,16 @@ import {
   type DetailUser,
 } from "@/lib/admin/users/user-detail.shared";
 
-export function InternalUserDetailCard({ user }: { user: DetailUser }) {
+/** What someone who may not manage users sees: the fields, and only `Volver`. */
+export function InternalUserDetailCard({
+  backToList,
+  user,
+}: {
+  backToList: string;
+  user: DetailUser;
+}) {
   return (
-    <UserFormCard>
+    <ReadOnlyUserPage backToList={backToList}>
       <ReadOnlyField label="Nombre" value={user.name} />
       <ReadOnlyField
         label="Nombre de usuario interno"
@@ -31,7 +38,7 @@ export function InternalUserDetailCard({ user }: { user: DetailUser }) {
         options={detailUserStateOptions}
         value={user.state}
       />
-    </UserFormCard>
+    </ReadOnlyUserPage>
   );
 }
 
@@ -43,26 +50,39 @@ export function AcademyUserFormCard({
   user: DetailUser;
 }) {
   return (
-    <UserFormCard footer={<BackButton to={backToList} />}>
+    <ReadOnlyUserPage backToList={backToList}>
       <ReadOnlyField label="Nombre" value={user.name} />
       <ReadOnlyField label="Correo de acceso" value={user.email ?? ""} />
       <ReadOnlyField label="Tipo" value="Usuario de academia" />
       <ReadOnlyField label="Academia" value={user.academyName ?? ""} />
-    </UserFormCard>
+    </ReadOnlyUserPage>
   );
 }
 
-export function UserFormCard({
+function ReadOnlyUserPage({
+  backToList,
   children,
-  footer,
-  title,
 }: {
+  backToList: string;
   children: ReactNode;
-  footer?: ReactNode;
-  title?: string;
 }) {
   return (
-    <AdminResourceFormCard footer={footer} title={title}>
+    <div className="flex flex-1 flex-col gap-6">
+      <UserFormCard>{children}</UserFormCard>
+      <FormActions
+        backTo={backToList}
+        canEdit={false}
+        hasChanges={false}
+        isPending={false}
+        onDiscard={() => {}}
+      />
+    </div>
+  );
+}
+
+export function UserFormCard({ children }: { children: ReactNode }) {
+  return (
+    <AdminResourceFormCard>
       <FieldGroup className="grid gap-5 md:grid-cols-2">{children}</FieldGroup>
     </AdminResourceFormCard>
   );

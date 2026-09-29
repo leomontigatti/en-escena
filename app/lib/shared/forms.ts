@@ -21,32 +21,35 @@ export function readFormString(formData: FormData, name: string) {
   return typeof value === "string" ? value : "";
 }
 
-export function useResetFormValues<TValues>(
-  reset: (values: TValues) => void,
-  values: TValues,
+/**
+ * Fills the form with what is saved, and on top of it what a refused save sent
+ * back. The saved values stay the form's defaults in that case, so the refill
+ * still reads as a change: `Guardar` stays on and `Descartar cambios` (a
+ * `form.reset()`) returns to what is saved. A create form passes its empty
+ * values as `saved`.
+ *
+ * The values are compared by content, so callers may build them on every render.
+ */
+export function useSavedFormValues<
+  TFieldValues extends FieldValues,
+  TTransformed extends FieldValues | undefined,
+>(
+  form: UseFormReturn<TFieldValues, unknown, TTransformed>,
+  saved: TFieldValues,
+  submitted?: TFieldValues | null,
 ) {
-  const resetKey = JSON.stringify(values);
+  const savedKey = JSON.stringify(saved);
+  const submittedKey = JSON.stringify(submitted ?? null);
 
   useEffect(() => {
-    reset(values);
-  }, [reset, resetKey, values]);
-}
+    form.reset(JSON.parse(savedKey) as TFieldValues);
 
-export function createValidatedNativeSubmitHandler<
-  TFieldValues extends FieldValues,
->(
-  form: Pick<UseFormReturn<TFieldValues>, "handleSubmit">,
-): SubmitEventHandler<HTMLFormElement> {
-  return (event) => {
-    event.preventDefault();
+    const refused = JSON.parse(submittedKey) as TFieldValues | null;
 
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<TFieldValues> = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  };
+    if (refused) {
+      form.reset(refused, { keepDefaultValues: true });
+    }
+  }, [form, savedKey, submittedKey]);
 }
 
 // The only two options any caller of the handlers below actually sets. Derived

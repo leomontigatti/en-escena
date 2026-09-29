@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 
-import { MemoryRouter } from "react-router";
+import type { ReactNode } from "react";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 import {
@@ -30,11 +31,11 @@ describe("dancer detail submissions", () => {
     portalSubmissionRouterMocks.useSubmit.mockReturnValue(vi.fn());
 
     await renderPortalSubmission(
-      <MemoryRouter initialEntries={["/portal/bailarines/dancer_1"]}>
+      <DataRouter>
         <PortalDancerDetailRouteView
           loaderData={buildDancerDetailLoaderData()}
         />
-      </MemoryRouter>,
+      </DataRouter>,
     );
 
     const submitButton = getButton("Guardar");
@@ -56,7 +57,7 @@ describe("dancer detail submissions", () => {
     portalSubmissionRouterMocks.useSubmit.mockReturnValue(vi.fn());
 
     await renderPortalSubmission(
-      <MemoryRouter initialEntries={["/portal/bailarines/dancer_1"]}>
+      <DataRouter>
         <PortalDancerDetailRouteView
           loaderData={buildDancerDetailLoaderData()}
           actionData={{
@@ -78,7 +79,7 @@ describe("dancer detail submissions", () => {
             duplicateDocumentDancerId: "dancer_archived_1",
           }}
         />
-      </MemoryRouter>,
+      </DataRouter>,
     );
 
     const documentField = getDocumentNumberField();
@@ -97,6 +98,16 @@ describe("dancer detail submissions", () => {
     );
   });
 });
+
+// The page's leave guard needs a data router.
+function DataRouter({ children }: { children: ReactNode }) {
+  const router = createMemoryRouter(
+    [{ element: children, path: "/portal/bailarines/:dancerId" }],
+    { initialEntries: ["/portal/bailarines/dancer_1"] },
+  );
+
+  return <RouterProvider router={router} />;
+}
 
 function getDocumentNumberField() {
   const field = document.querySelector<HTMLInputElement>(

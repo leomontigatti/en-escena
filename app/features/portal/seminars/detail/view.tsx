@@ -19,7 +19,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -273,6 +272,8 @@ function RegisterInscriptionDialog({
   });
   const groups = toPortalSeminarPersonGroups(people);
 
+  // The only thing the dialog holds is a pick from the roster, with no typed
+  // text to lose, so closing it never asks.
   return (
     <Dialog open onOpenChange={(nextOpen) => (nextOpen ? null : onClose())}>
       <DialogContent
@@ -318,12 +319,18 @@ function RegisterInscriptionDialog({
           </FieldGroup>
 
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isSubmitting}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <SubmitButton isPending={isSubmitting} />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={onClose}
+            >
+              Cancelar
+            </Button>
+            <SubmitButton
+              disabled={form.watch("person") === ""}
+              isPending={isSubmitting}
+            />
           </DialogFooter>
         </form>
       </DialogContent>

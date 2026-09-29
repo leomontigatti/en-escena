@@ -3,6 +3,10 @@ import { Plus, Trash } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 
+import {
+  DiscardChangesDialog,
+  useDiscardGuard,
+} from "@/components/shared/discard-guard";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
@@ -90,81 +94,99 @@ export function SubmodalityCriteriaDialog({
   const watchedCriteria = form.watch("criteria");
   const addingTotal = sumAddingCriteriaMaxima(watchedCriteria ?? []);
   const totalInvalid = fields.length > 0 && addingTotal !== addingCriteriaTotal;
+  const { discardDialogProps, requestClose } = useDiscardGuard({
+    isAudioDirty: false,
+    isFormDirty: form.formState.isDirty,
+    onClose: () => onOpenChange(false),
+  });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{`Criterios de ${submodality.name}`}</DialogTitle>
-          <DialogDescription>
-            {fields.length === 0 ? emptyCriteriaCopy : null}
-          </DialogDescription>
-        </DialogHeader>
-        {locked ? (
-          <Alert variant="destructive">
-            <AlertDescription>{lockedCriteriaCopy}</AlertDescription>
-          </Alert>
-        ) : null}
-        <form
-          id={`submodality-criteria-form-${submodality.id}`}
-          method="post"
-          className="flex w-full flex-col gap-4"
-          onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
-        >
-          <input
-            type="hidden"
-            name="intent"
-            value="save-submodality-criteria"
-          />
-          <input type="hidden" name="id" value={submodality.id} />
-          <input type="hidden" name="modalityId" value={modalityId} />
-          <FieldSet>
-            <ul className="flex flex-col gap-3">
-              {fields.map((field, index) => (
-                <li key={field.fieldId}>
-                  <CriterionFields
-                    disabled={locked}
-                    form={form}
-                    index={index}
-                    onRemove={() => remove(index)}
-                  />
-                </li>
-              ))}
-            </ul>
-            <AddingTotalCounter invalid={totalInvalid} total={addingTotal} />
-          </FieldSet>
-        </form>
-        <DialogFooter className="sm:justify-between">
-          {locked ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => append({ kind: "adds", maximum: "", name: "" })}
-            >
-              <Plus aria-hidden="true" />
-              Agregar criterio
-            </Button>
-          )}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {locked ? "Cerrar" : "Cancelar"}
-            </Button>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) {
+            onOpenChange(true);
+          } else {
+            requestClose();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{`Criterios de ${submodality.name}`}</DialogTitle>
+            <DialogDescription>
+              {fields.length === 0 ? emptyCriteriaCopy : null}
+            </DialogDescription>
+          </DialogHeader>
+          {locked ? (
+            <Alert variant="destructive">
+              <AlertDescription>{lockedCriteriaCopy}</AlertDescription>
+            </Alert>
+          ) : null}
+          <form
+            id={`submodality-criteria-form-${submodality.id}`}
+            method="post"
+            className="flex w-full flex-col gap-4"
+            onSubmit={createValidatedRouteSubmitHandler(
+              form,
+              submit,
+              formAction,
+            )}
+          >
+            <input
+              type="hidden"
+              name="intent"
+              value="save-submodality-criteria"
+            />
+            <input type="hidden" name="id" value={submodality.id} />
+            <input type="hidden" name="modalityId" value={modalityId} />
+            <FieldSet>
+              <ul className="flex flex-col gap-3">
+                {fields.map((field, index) => (
+                  <li key={field.fieldId}>
+                    <CriterionFields
+                      disabled={locked}
+                      form={form}
+                      index={index}
+                      onRemove={() => remove(index)}
+                    />
+                  </li>
+                ))}
+              </ul>
+              <AddingTotalCounter invalid={totalInvalid} total={addingTotal} />
+            </FieldSet>
+          </form>
+          <DialogFooter className="sm:justify-between">
             {locked ? null : (
               <Button
-                type="submit"
-                form={`submodality-criteria-form-${submodality.id}`}
+                type="button"
+                variant="outline"
+                onClick={() => append({ kind: "adds", maximum: "", name: "" })}
               >
-                Guardar
+                <Plus aria-hidden="true" />
+                Agregar criterio
               </Button>
             )}
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={requestClose}>
+                {locked ? "Cerrar" : "Cancelar"}
+              </Button>
+              {locked ? null : (
+                <Button
+                  type="submit"
+                  disabled={!form.formState.isDirty}
+                  form={`submodality-criteria-form-${submodality.id}`}
+                >
+                  Guardar
+                </Button>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <DiscardChangesDialog {...discardDialogProps} />
+    </>
   );
 }
 

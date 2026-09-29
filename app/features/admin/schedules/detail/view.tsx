@@ -108,22 +108,24 @@ export function EventScheduleDetailView({
       }
     >
       {schedule ? (
-        <ScheduleFormPanel>
-          {schedule.registrationOpen ? null : (
-            <ScheduleRegistrationOpenBlockersAlert
-              blockers={loaderData.registrationOpenBlockers}
+        <>
+          <ScheduleFormPanel>
+            {schedule.registrationOpen ? null : (
+              <ScheduleRegistrationOpenBlockersAlert
+                blockers={loaderData.registrationOpenBlockers}
+              />
+            )}
+            <ScheduleForm
+              categories={loaderData.categories}
+              form={form}
+              formId="update-schedule-form"
+              id={schedule.id}
+              intent="update-schedule"
+              modalities={loaderData.modalities}
+              occupiedCount={schedule.occupiedCount}
+              scheduleCapacities={schedule.scheduleCapacities}
             />
-          )}
-          <ScheduleForm
-            categories={loaderData.categories}
-            form={form}
-            formId="update-schedule-form"
-            id={schedule.id}
-            intent="update-schedule"
-            modalities={loaderData.modalities}
-            occupiedCount={schedule.occupiedCount}
-            scheduleCapacities={schedule.scheduleCapacities}
-          />
+          </ScheduleFormPanel>
           <ScheduleFormActions
             form={form}
             formId="update-schedule-form"
@@ -132,7 +134,7 @@ export function EventScheduleDetailView({
               fields: { id: schedule.id },
             }}
           />
-        </ScheduleFormPanel>
+        </>
       ) : (
         <EmptyResourceState>
           No encontramos ese cronograma para este Evento.

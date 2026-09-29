@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { useSubmit } from "react-router";
 import { Trash2 } from "lucide-react";
 
@@ -8,8 +8,8 @@ import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { FormActions } from "@/components/shared/form-actions";
 import {
   ReadOnlyDateField,
   ReadOnlyField,
@@ -37,7 +37,7 @@ import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
   useOptionalNavigation,
-  useResetFormValues,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -156,7 +156,7 @@ export function PaymentDetailRouteView({
           ) : null
         }
       >
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-1 flex-col gap-6">
           {/* Above the form and alone: `Monto` is already a field a few
               centimetres below, and repeating it here would say the same number
               twice. This one is derived and cannot be edited, which is why it
@@ -309,48 +309,48 @@ function EditablePaymentDetailForm({
   const isPending = isRouteFormPending(navigation, {
     intent: updatePaymentIntent,
   });
-  const values =
+  const submittedValues =
     actionData?.status === "error" && actionData.intent === updatePaymentIntent
       ? actionData.values
-      : loaderData.values;
+      : undefined;
   const form = useForm<
     CreatePaymentFormValues,
     unknown,
     CreatePaymentSubmissionValues
   >({
-    defaultValues: values,
+    defaultValues: loaderData.values,
     mode: "onSubmit",
     resolver: zodResolver(createPaymentSchema),
   });
   const submit = useSubmit();
-  useResetFormValues(form.reset, values);
+  const { isDirty } = useFormState({ control: form.control });
+  useSavedFormValues(form, loaderData.values, submittedValues);
 
   return (
     <form
       method="post"
       noValidate
+      className="flex flex-1 flex-col gap-6"
       onSubmit={createValidatedRouteFormDataSubmitHandler(form, submit)}
     >
       <input type="hidden" name="intent" value={updatePaymentIntent} />
-      <AdminResourceFormCard
-        contentClassName="gap-5"
-        footer={
-          <>
-            <BackButton to={"/administracion/pagos"} />
-            <SubmitButton isPending={isPending} />
-          </>
-        }
-      >
+      <AdminResourceFormCard contentClassName="gap-5">
         <FieldGroup className="grid gap-5 md:grid-cols-2">
           <PaymentAcademyField
             academies={loaderData.academies}
             control={form.control}
             disabled={loaderData.allocatedAmount > 0}
-            value={values.academyId}
+            value={loaderData.values.academyId}
           />
           <PaymentFields control={form.control} />
         </FieldGroup>
       </AdminResourceFormCard>
+      <FormActions
+        backTo="/administracion/pagos"
+        hasChanges={isDirty}
+        isPending={isPending}
+        onDiscard={() => form.reset()}
+      />
     </form>
   );
 }
@@ -359,30 +359,39 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
   const payment = loaderData.payment;
 
   return (
-    <AdminResourceFormCard
-      contentClassName="gap-5"
-      footer={<BackButton to={"/administracion/pagos"} />}
-    >
-      <FieldGroup className="grid gap-5 md:grid-cols-2">
-        <ReadOnlyField
-          className="md:col-span-2"
-          label="Academia"
-          value={payment.academyName}
-        />
-        <ReadOnlyDateField label="Fecha de pago" value={payment.paymentDate} />
-        <ReadOnlyField label="Referencia" value={payment.reference ?? ""} />
-        <ReadOnlyField label="Monto" value={formatAmount(payment.amount)} />
-        <ReadOnlySelectField
-          label="Medio de pago"
-          options={paymentMethodOptions}
-          value={payment.paymentMethod}
-        />
-        <ReadOnlyTextareaField
-          className="md:col-span-2"
-          label="Nota interna"
-          value={payment.internalNote ?? ""}
-        />
-      </FieldGroup>
-    </AdminResourceFormCard>
+    <div className="flex flex-1 flex-col gap-6">
+      <AdminResourceFormCard contentClassName="gap-5">
+        <FieldGroup className="grid gap-5 md:grid-cols-2">
+          <ReadOnlyField
+            className="md:col-span-2"
+            label="Academia"
+            value={payment.academyName}
+          />
+          <ReadOnlyDateField
+            label="Fecha de pago"
+            value={payment.paymentDate}
+          />
+          <ReadOnlyField label="Referencia" value={payment.reference ?? ""} />
+          <ReadOnlyField label="Monto" value={formatAmount(payment.amount)} />
+          <ReadOnlySelectField
+            label="Medio de pago"
+            options={paymentMethodOptions}
+            value={payment.paymentMethod}
+          />
+          <ReadOnlyTextareaField
+            className="md:col-span-2"
+            label="Nota interna"
+            value={payment.internalNote ?? ""}
+          />
+        </FieldGroup>
+      </AdminResourceFormCard>
+      <FormActions
+        backTo="/administracion/pagos"
+        canEdit={false}
+        hasChanges={false}
+        isPending={false}
+        onDiscard={() => undefined}
+      />
+    </div>
   );
 }

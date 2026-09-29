@@ -7,7 +7,7 @@ import { DancerDetailRouteView } from "@/routes/administracion.bailarines_.$danc
 type DetailRouteViewProps = Parameters<typeof DancerDetailRouteView>[0];
 
 describe("DancerDetailRouteView", () => {
-  test("renders the readonly ficha for auditors without edit actions", () => {
+  test("renders the ficha for auditors with disabled fields and only Volver", () => {
     const markup = renderDetailView({
       loaderData: createLoaderData({ canEdit: false }),
     });
@@ -23,29 +23,32 @@ describe("DancerDetailRouteView", () => {
     );
     expect(markup).toContain("Volver");
     expect(markup).not.toContain("Editar");
+    expect(markup).not.toContain("Cancelar");
+    expect(markup).not.toContain("Guardar");
+    expect(markup).not.toContain("Descartar cambios");
     expect(markup).not.toContain("Acciones");
     expect(markup).not.toContain("Verificar");
   });
 
-  test("renders edit controls and save/cancel actions in edit mode", () => {
+  test("renders the fields editable in place with Guardar and no edit mode", () => {
     const markup = renderDetailView({
-      loaderData: createLoaderData({ isEditing: true }),
+      loaderData: createLoaderData(),
     });
 
     expect(markup).toContain('name="firstName" value="Julia"');
     expect(markup).toContain('name="lastName" value="Detalle"');
     expect(markup).toContain('name="birthDate" value="2012-07-12"');
     expect(markup).toContain('name="documentNumber" value="12345678"');
-    expect(markup).toContain("Cancelar");
     expect(markup).toContain("Guardar");
-    expect(markup).not.toContain(">Editar<");
+    expect(markup).not.toContain("Cancelar");
+    expect(markup).not.toContain("Editar");
   });
 
   // The refusal itself lands on the field through an effect, which server
   // rendering never runs; the link to the match is what this markup shows.
   test("links to the dancer already holding the document", () => {
     const markup = renderDetailView({
-      loaderData: createLoaderData({ isEditing: true }),
+      loaderData: createLoaderData(),
       actionData: {
         status: "error",
         message: "Revisá los datos del Bailarín.",
@@ -74,7 +77,7 @@ describe("DancerDetailRouteView", () => {
 
   test("shows the same-name warning with the continue action and the ids", () => {
     const markup = renderDetailView({
-      loaderData: createLoaderData({ isEditing: true }),
+      loaderData: createLoaderData(),
       actionData: {
         status: "warning",
         warning: {
@@ -123,7 +126,6 @@ function createLoaderData(
   return {
     activeEventStartDate: "2026-09-25",
     backToList: "/administracion/bailarines",
-    cancelHref: "/administracion/bailarines/dancer-1",
     canEdit: true,
     dancer: {
       academy: {
@@ -156,8 +158,6 @@ function createLoaderData(
       back: null,
       front: null,
     },
-    editHref: "/administracion/bailarines/dancer-1?modo=editar",
-    isEditing: false,
     isParticipatingInActiveEvent: false,
     merge: null,
     selectedEventId: null,

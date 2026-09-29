@@ -1,13 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
-import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { useSavedFormValues } from "@/lib/shared/forms";
 
 import {
   buildDancerUpdateSchema,
@@ -22,33 +22,33 @@ type DancerEditFormReturn = UseFormReturn<
   DancerEditFormValues
 >;
 
+/**
+ * The form is measured against what is saved, not against what the server last
+ * sent back. A refused save refills the fields with what was typed, and those
+ * values go in as the current ones with the saved values kept as the defaults:
+ * the form still reads as changed, so `Guardar` stays on and the guard keeps
+ * asking. A successful save revalidates the loader, and the new saved values
+ * reset the form to clean.
+ */
 export function useDancerEditForm({
   actionData,
   eventStartDate,
-  values,
+  savedValues,
+  submittedValues,
 }: {
   actionData?: DancerActionError;
   eventStartDate: string | null;
-  values: DancerEditFormValues;
+  savedValues: DancerEditFormValues;
+  submittedValues: DancerEditFormValues | null;
 }) {
   const form = useForm<DancerEditFormValues, unknown, DancerEditFormValues>({
-    defaultValues: values,
+    // The effect below corrects the defaults; this only keeps the first render
+    // (and a server render) showing what was typed.
+    defaultValues: submittedValues ?? savedValues,
     mode: "onSubmit",
     resolver: zodResolver(buildDancerUpdateSchema(eventStartDate)),
   });
-
-  useEffect(() => {
-    form.reset(values);
-  }, [
-    form,
-    values.birthDate,
-    values.documentBackImageStorageKey,
-    values.documentFrontImageStorageKey,
-    values.documentNumber,
-    values.documentType,
-    values.firstName,
-    values.lastName,
-  ]);
+  useSavedFormValues(form, savedValues, submittedValues);
 
   const documentConflictDescription = useRosterDocumentConflictField({
     actionData,
@@ -58,10 +58,11 @@ export function useDancerEditForm({
   });
 
   return {
+    discard: () => form.reset(savedValues),
     documentConflictDescription,
     eventStartDate,
     form,
-    handleSubmit: createValidatedNativeSubmitHandler(form),
+    hasChanges: form.formState.isDirty,
   };
 }
 

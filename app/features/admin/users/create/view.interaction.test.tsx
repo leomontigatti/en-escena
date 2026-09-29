@@ -34,6 +34,7 @@ vi.mock("react-router", async () => {
 });
 
 import { NewInternalUserRouteView } from "@/features/admin/users/create/view";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -129,7 +130,12 @@ describe("NewInternalUserRouteView interactions", () => {
     });
     reactRouterMocks.useSubmit.mockReturnValue(vi.fn());
 
-    renderer.render(<NewInternalUserRouteView />);
+    renderer.render(
+      renderInDataRouter(
+        "/administracion/usuarios/nuevo",
+        <NewInternalUserRouteView />,
+      ),
+    );
 
     expect(getButton("Guardar").disabled).toBe(true);
   });
@@ -141,7 +147,12 @@ describe("NewInternalUserRouteView interactions", () => {
     reactRouterMocks.useNavigation.mockReturnValue({ state: "idle" });
     reactRouterMocks.useSubmit.mockReturnValue(submitSpy);
 
-    renderer.render(<NewInternalUserRouteView />);
+    renderer.render(
+      renderInDataRouter(
+        "/administracion/usuarios/nuevo",
+        <NewInternalUserRouteView />,
+      ),
+    );
   }
 });
 
