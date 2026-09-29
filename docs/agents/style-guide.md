@@ -235,6 +235,51 @@ Rules:
   dedicated pass.
 - In long forms, split into sections with a small title. Avoid nested cards.
 
+## Editing and saving
+
+How an edit screen saves decides the shape of its form, so settle it before
+laying the fields out. What happens after the submit (stay or redirect, which
+toast) is [form-feedback.md](form-feedback.md).
+
+Rules:
+
+- One save model per form. A form either waits for `Guardar` or saves each field
+  on its own, never both: a select that writes on change beside fields that wait
+  for `Guardar` is the case to avoid
+  ([Primer, Saving](https://primer.style/product/ui-patterns/saving/)).
+- Default to an explicit `Guardar`. Selects, comboboxes, multi-selects, checkbox
+  lists and file fields wait for it: arrowing through a select already picks an
+  option, and a screen reader user can only hear the options by picking them.
+- Save on change only a single field that nothing else on the screen depends on,
+  with its own confirm and cancel
+  ([Atlassian, Inline edit](https://atlassian.design/patterns/inline-edit)). A
+  field whose change recalculates others, or has consequences, never saves on
+  its own.
+- `Guardar` stays disabled until something differs from what is saved, and while
+  a submit or a preview is in flight. A form with more than a couple of fields
+  also offers `Descartar cambios` beside it, and warns before leaving the screen
+  with unsaved changes.
+- Fields that affect each other stay on one screen, visible together. Do not
+  split them across `Tabs`, steps or dialogs: a change in one tab that rewrites a
+  field in another is a change the user does not see
+  ([NN/g, Tabs, Used Right](https://www.nngroup.com/articles/tabs-used-right/)).
+- When a change makes the server recalculate other fields, preview it: send the
+  draft through a fetcher, show the pending state on the fields that will change
+  ([Pending](#pending-loading-and-transitions)), and update them in place. The
+  preview writes nothing. The action re-checks everything when `Guardar` writes,
+  because the preview is older than the write.
+- Confirm on `Guardar` only when the save has consequences beyond the fields the
+  user edited, such as withdrawn dancers, a deleted presentation, a moved
+  schedule or a price change. Name each one in the `AlertDialog`
+  (`Bea Lagos (queda retirada)`, not `algunos bailarines`). A save without consequences goes
+  straight through: a dialog on every save teaches people to click past it
+  ([NN/g, Confirmation dialogs](https://www.nngroup.com/articles/confirmation-dialog/)).
+- An action `intent` is a server boundary: one operation with its own checks and
+  transaction. It does not decide how the screen splits into forms. One
+  `Guardar` may submit a draft that the action applies as several operations in
+  one transaction. Two intents are no reason for two forms, or for locking one
+  part of the screen while another has unsaved changes.
+
 ## React Hook Form
 
 Use React Hook Form for forms with client validation, controlled components,
@@ -391,7 +436,9 @@ Rules:
 - Use `Sidebar` for the admin panel's main navigation.
 - Use `Breadcrumb` for hierarchy and location within deep routes.
 - Use `Tabs` for secondary navigation between sibling views. If `Tabs` is not
-  installed and the case needs it, add it before creating custom markup.
+  installed and the case needs it, add it before creating custom markup. Do not
+  use them to split one form whose fields affect each other
+  ([Editing and saving](#editing-and-saving)).
 - Use `DropdownMenu` for contextual actions.
 - Do not build navigation with hand-styled buttons or links when an equivalent
   shadcn component exists.
