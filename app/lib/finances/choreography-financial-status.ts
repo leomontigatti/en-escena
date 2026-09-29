@@ -37,12 +37,6 @@ export const inscriptionFinancialStatusOptions = [
   value: InscriptionFinancialStatus;
 }>;
 
-export function formatInscriptionFinancialStatus(
-  value: InscriptionFinancialStatus,
-) {
-  return inscriptionFinancialStatusLabels[value];
-}
-
 /**
  * `Retirada` is a separate derived axis —like `Facturada`—, not a fourth value
  * of the status enum, so it has its own label and its own variant. Neutral on
