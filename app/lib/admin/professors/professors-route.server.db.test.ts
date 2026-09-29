@@ -891,7 +891,7 @@ describe("`/administracion/profesores` route", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Profesor con ese documento en la academia.",
+          "Ya existe un profesor con ese documento en la academia.",
       },
     });
   });
@@ -938,7 +938,7 @@ describe("`/administracion/profesores` route", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Profesor con ese documento en la academia.",
+          "Ya existe un profesor con ese documento en la academia.",
       },
       duplicateDocumentProfessorId: existing.id,
     });

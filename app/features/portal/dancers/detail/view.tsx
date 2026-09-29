@@ -4,8 +4,7 @@ import { useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
-import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
@@ -164,7 +163,6 @@ export function PortalDancerDetailRouteView({
         <PortalDancerAlertsSection
           dancerActive={loaderData.dancer.active}
           identificationPendingItems={viewModel.identificationPendingItems}
-          nameWarning={nameWarning?.warning}
           onReactivate={() => {
             setStatusDialogIntent("reactivate-dancer");
           }}
@@ -252,17 +250,20 @@ export function PortalDancerDetailRouteView({
           </CardContent>
         </PortalDancerFormSection>
 
-        {/* The same-name warning holds `Guardar`: the notice above
-            the form carries its own way to continue, and what was typed stays guarded. */}
         <FormActions
           backTo="/portal/bailarines"
-          canSave={!nameWarning}
           form={portalDancerFormId}
           hasChanges={form.form.formState.isDirty}
           isPending={isSubmitting}
           onDiscard={form.discard}
           viewTransition
         />
+        {nameWarning ? (
+          <RosterNameWarningDialog
+            formId={portalDancerFormId}
+            warning={nameWarning.warning}
+          />
+        ) : null}
       </section>
 
       <PortalDancerStatusDialog
@@ -371,7 +372,6 @@ function PortalDancerIdentificationFields({
 function PortalDancerAlertsSection({
   dancerActive,
   identificationPendingItems,
-  nameWarning,
   onReactivate,
   participatingAlert,
   recategorisedChoreographies,
@@ -381,8 +381,6 @@ function PortalDancerAlertsSection({
 }: {
   dancerActive: boolean;
   identificationPendingItems: DancerIdentificationPendingItem[];
-  /** The same-name warning of the last save, answered through the form below. */
-  nameWarning?: RosterNameWarning;
   onReactivate: () => void;
   participatingAlert: string | null;
   recategorisedChoreographies: RecategorisedChoreography[];
@@ -399,12 +397,6 @@ function PortalDancerAlertsSection({
         Alertas de la ficha del bailarín
       </h2>
       <AlertStack>
-        {nameWarning ? (
-          <RosterNameWarningNotice
-            formId={portalDancerFormId}
-            warning={nameWarning}
-          />
-        ) : null}
         {recategorisedChoreographies.length > 0 ? (
           <RecategorisedChoreographiesAlert
             buildChoreographyHref={(choreographyId) =>

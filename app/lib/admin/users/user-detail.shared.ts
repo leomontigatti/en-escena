@@ -210,7 +210,7 @@ export function getDetailDescription(
   canManage: boolean,
 ) {
   if (userType === "academy") {
-    return "Consultá la identidad de acceso de la Academia en modo solo lectura.";
+    return "Consultá la identidad de acceso de la academia en modo solo lectura.";
   }
 
   if (canManage) {

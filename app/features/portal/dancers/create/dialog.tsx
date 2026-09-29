@@ -14,7 +14,7 @@ import {
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
@@ -106,7 +106,7 @@ export function CreateDancerDialog({
           </DialogHeader>
 
           {actionData?.status === "warning" ? (
-            <RosterNameWarningNotice
+            <RosterNameWarningDialog
               formId={formId}
               warning={actionData.warning}
             />
@@ -172,12 +172,10 @@ export function CreateDancerDialog({
               >
                 Cancelar
               </Button>
-              {actionData?.status === "warning" ? null : (
-                <SubmitButton
-                  disabled={!form.formState.isDirty}
-                  isPending={isSubmitting}
-                />
-              )}
+              <SubmitButton
+                disabled={!form.formState.isDirty}
+                isPending={isSubmitting}
+              />
             </DialogFooter>
           </form>
         </DialogContent>

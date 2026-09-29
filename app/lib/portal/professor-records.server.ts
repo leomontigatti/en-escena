@@ -233,7 +233,7 @@ function professorDocumentConflictMessage(options: {
   archived: boolean;
   scope: RosterScope;
 }) {
-  const person = options.archived ? "un Profesor archivado" : "un Profesor";
+  const person = options.archived ? "un profesor archivado" : "un profesor";
   const academy = options.scope === "portal" ? "tu academia" : "la academia";
 
   return `Ya existe ${person} con ese documento en ${academy}.`;

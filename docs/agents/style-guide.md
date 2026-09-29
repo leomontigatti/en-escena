@@ -314,10 +314,6 @@ header. Alerts about the form sit above the card.
   Guard each alert where it is used (`condition ? <SomeAlert /> : null`). The
   stack only drops `null` and `false` children, so an alert component that
   returns `null` by itself still counts and leaves the gap.
-- An alert that carries a control of the form, like the same-name warning's
-  `Continuar de todos modos`, still sits above the card: its button and hidden
-  inputs reach the form through the `form` attribute (`form={formId}`). In a
-  dialog it goes at the top of the body, under the header.
 - Lay the fields out in `FieldGroup className="grid gap-5 md:grid-cols-2"`. A
   field that needs the width spans both columns.
 - The card has no maximum width. It fills the shell like the alerts, tabs and

@@ -1,4 +1,4 @@
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { TriangleAlert } from "lucide-react";
 import type { SubmitEventHandler } from "react";
@@ -61,28 +61,17 @@ export function ProfessorDetailAlerts({
   active,
   canEdit,
   isIncomplete,
-  nameWarning,
-  nameWarningFormId,
   onSelectIntent,
   participatingAlert,
 }: {
   active: boolean;
   canEdit: boolean;
   isIncomplete: boolean;
-  /** The same-name warning of the last save, answered through the edit form. */
-  nameWarning?: RosterNameWarning;
-  nameWarningFormId: string;
   onSelectIntent: (intent: ProfessorStatusIntent) => void;
   participatingAlert: string | null;
 }) {
   return (
     <AlertStack>
-      {nameWarning ? (
-        <RosterNameWarningNotice
-          formId={nameWarningFormId}
-          warning={nameWarning}
-        />
-      ) : null}
       {!active ? (
         <ArchivedPersonAlert
           personLabel="profesor"
@@ -151,13 +140,13 @@ export function ProfessorDetailForm({
       <FormActions
         backTo={backToList}
         canEdit={canEdit}
-        // The warning carries the save of its own, so the footer must not
-        // offer a second one.
-        canSave={!nameWarning}
         hasChanges={editForm.hasChanges}
         isPending={isSaving}
         onDiscard={editForm.discard}
       />
+      {nameWarning ? (
+        <RosterNameWarningDialog formId={editFormId} warning={nameWarning} />
+      ) : null}
     </form>
   );
 }

@@ -1,4 +1,4 @@
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import type { SubmitEventHandler, ReactNode } from "react";
 
@@ -119,8 +119,6 @@ export function DancerDetailAlerts({
   identificationAlert,
   identificationAlertTitle,
   identificationAlertVariant,
-  nameWarning,
-  nameWarningFormId,
   onSelectIntent,
   participatingAlert,
   recategorisedChoreographies,
@@ -133,9 +131,6 @@ export function DancerDetailAlerts({
   identificationAlert: string | null;
   identificationAlertTitle: string;
   identificationAlertVariant: "info" | "warning";
-  /** The same-name warning of the last save, answered through the edit form. */
-  nameWarning?: RosterNameWarning;
-  nameWarningFormId: string;
   onSelectIntent: (intent: DancerDialogIntent) => void;
   participatingAlert: string | null;
   recategorisedChoreographies: RecategorisedChoreography[];
@@ -149,12 +144,6 @@ export function DancerDetailAlerts({
 
   return (
     <AlertStack>
-      {nameWarning ? (
-        <RosterNameWarningNotice
-          formId={nameWarningFormId}
-          warning={nameWarning}
-        />
-      ) : null}
       {recategorisedChoreographies.length > 0 ? (
         <RecategorisedChoreographiesAlert
           buildChoreographyHref={(choreographyId) =>
@@ -241,13 +230,13 @@ export function DancerDetailForm({
       <FormActions
         backTo={backToList}
         canEdit={canEdit}
-        // The warning carries the save of its own, so the footer must not
-        // offer a second one.
-        canSave={!nameWarning}
         hasChanges={editForm.hasChanges}
         isPending={isSaving}
         onDiscard={editForm.discard}
       />
+      {nameWarning ? (
+        <RosterNameWarningDialog formId={editFormId} warning={nameWarning} />
+      ) : null}
     </form>
   );
 }

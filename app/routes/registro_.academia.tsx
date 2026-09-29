@@ -1,7 +1,7 @@
 import { Form, redirect, useActionData } from "react-router";
 import { z } from "zod";
 
-import { AcademyNameWarningNotice } from "@/components/auth/academy-name-warning";
+import { AcademyNameWarningDialog } from "@/components/auth/academy-name-warning";
 import { AccessHeader, AccessPage } from "@/components/auth/access-ui";
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
@@ -128,7 +128,7 @@ export default function AcademyOnboardingRoute() {
   const warning =
     actionData && "warning" in actionData ? actionData.warning : null;
 
-  // The duplicate-name warning is carried by the notice alone, so the
+  // The duplicate-name warning is carried by the dialog alone, so the
   // warning answer is kept out of the toast.
   const toastData =
     actionData && actionData.status !== "warning" ? actionData : null;
@@ -144,15 +144,6 @@ export default function AcademyOnboardingRoute() {
         title="Completá los datos de tu academia"
         description="Tu correo ya quedó confirmado. Ahora cargá los datos de la academia para entrar al portal."
       />
-
-      {warning ? (
-        <div className="mt-6">
-          <AcademyNameWarningNotice
-            formId={academyOnboardingFormId}
-            matches={warning.matches}
-          />
-        </div>
-      ) : null}
 
       <Form
         id={academyOnboardingFormId}
@@ -187,14 +178,18 @@ export default function AcademyOnboardingRoute() {
             type="tel"
           />
 
-          {/* The warning carries the submit of its own. */}
-          {warning ? null : (
-            <Button className="w-full" type="submit">
-              Crear academia
-            </Button>
-          )}
+          <Button className="w-full" type="submit">
+            Crear academia
+          </Button>
         </FieldGroup>
       </Form>
+
+      {warning ? (
+        <AcademyNameWarningDialog
+          formId={academyOnboardingFormId}
+          matches={warning.matches}
+        />
+      ) : null}
     </AccessPage>
   );
 }

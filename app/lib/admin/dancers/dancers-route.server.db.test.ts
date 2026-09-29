@@ -1106,7 +1106,7 @@ describe("`/administracion/bailarines` route", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín con ese documento en la academia.",
+          "Ya existe un bailarín con ese documento en la academia.",
       },
     });
   });
@@ -1156,7 +1156,7 @@ describe("`/administracion/bailarines` route", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín con ese documento en la academia.",
+          "Ya existe un bailarín con ese documento en la academia.",
       },
       duplicateDocumentDancerId: existing.id,
     });

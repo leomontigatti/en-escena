@@ -11,7 +11,7 @@ describe("rosterNameWarningMessage", () => {
         scope: "portal",
       }),
     ).toBe(
-      "Ya existe un Bailarín con el mismo nombre y fecha de nacimiento en tu academia: Ana Paz. ¿Es la misma persona?",
+      "Ya existe un bailarín con el mismo nombre y fecha de nacimiento en tu academia: Ana Paz.",
     );
   });
 
@@ -23,7 +23,7 @@ describe("rosterNameWarningMessage", () => {
         scope: "admin",
       }),
     ).toBe(
-      "Ya existe un Bailarín con el mismo nombre y fecha de nacimiento en la academia: Ana Paz. ¿Es la misma persona?",
+      "Ya existe un bailarín con el mismo nombre y fecha de nacimiento en la academia: Ana Paz.",
     );
   });
 
@@ -35,7 +35,7 @@ describe("rosterNameWarningMessage", () => {
         scope: "portal",
       }),
     ).toBe(
-      "Ya existe un Profesor con el mismo nombre en tu academia: Ana Paz. ¿Es la misma persona?",
+      "Ya existe un profesor con el mismo nombre en tu academia: Ana Paz.",
     );
   });
 

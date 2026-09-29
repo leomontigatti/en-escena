@@ -248,7 +248,7 @@ function dancerDocumentConflictMessage(options: {
   archived: boolean;
   scope: RosterScope;
 }) {
-  const person = options.archived ? "un Bailarín archivado" : "un Bailarín";
+  const person = options.archived ? "un bailarín archivado" : "un bailarín";
   const academy = options.scope === "portal" ? "tu academia" : "la academia";
 
   return `Ya existe ${person} con ese documento en ${academy}.`;

@@ -13,7 +13,7 @@ import {
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
@@ -104,7 +104,7 @@ export function CreateProfessorDialog({
           </DialogHeader>
 
           {actionData?.status === "warning" ? (
-            <RosterNameWarningNotice
+            <RosterNameWarningDialog
               formId={formId}
               warning={actionData.warning}
             />
@@ -162,12 +162,10 @@ export function CreateProfessorDialog({
               >
                 Cancelar
               </Button>
-              {actionData?.status === "warning" ? null : (
-                <SubmitButton
-                  disabled={!form.formState.isDirty}
-                  isPending={isSubmitting}
-                />
-              )}
+              <SubmitButton
+                disabled={!form.formState.isDirty}
+                isPending={isSubmitting}
+              />
             </DialogFooter>
           </form>
         </DialogContent>

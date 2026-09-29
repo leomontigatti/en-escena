@@ -3,19 +3,21 @@ import { DuplicateWarningPrompt } from "@/components/shared/duplicate-warning-pr
 import type { AcademyNameMatch } from "@/lib/academies/academy-name-duplicates";
 import { formatBusinessDate } from "@/lib/shared/business-time-zone";
 
-type AcademyNameWarningNoticeProps = {
+type AcademyNameWarningDialogProps = {
   formId: string;
   matches: readonly AcademyNameMatch[];
 };
 
-export function AcademyNameWarningNotice({
+export function AcademyNameWarningDialog({
   formId,
   matches,
-}: AcademyNameWarningNoticeProps) {
+}: AcademyNameWarningDialogProps) {
   return (
     <DuplicateWarningPrompt
       formId={formId}
       matchIds={matches.map((match) => match.id)}
+      title="¿Es tu academia?"
+      warning={matches}
     >
       {matches.map((match) => (
         <p key={match.id}>

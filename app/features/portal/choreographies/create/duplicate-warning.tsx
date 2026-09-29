@@ -1,4 +1,4 @@
-import { AccessNotice } from "@/components/auth/access-ui";
+import { DuplicateWarningDialog } from "@/components/shared/duplicate-warning-prompt";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -11,25 +11,24 @@ export function ChoreographyDuplicateWarning({
   isSubmitting,
   message,
   onContinue,
+  warning,
 }: {
   isSubmitting: boolean;
   message: string;
   onContinue: () => void;
+  warning: object;
 }) {
   return (
-    <div className="flex flex-col gap-4">
-      <AccessNotice title="Posible duplicado" variant="warning">
-        {message}
-      </AccessNotice>
-
-      <Button
-        type="button"
-        disabled={isSubmitting}
-        variant="outline"
-        onClick={onContinue}
-      >
-        Continuar de todos modos
-      </Button>
-    </div>
+    <DuplicateWarningDialog
+      title="¿Es la misma coreografía?"
+      warning={warning}
+      continueButton={
+        <Button type="button" disabled={isSubmitting} onClick={onContinue}>
+          Continuar de todos modos
+        </Button>
+      }
+    >
+      {message}
+    </DuplicateWarningDialog>
   );
 }

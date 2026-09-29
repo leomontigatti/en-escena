@@ -100,8 +100,6 @@ export function DancerDetailRouteView({
         identificationAlert={viewState.identificationAlert}
         identificationAlertTitle={viewState.identificationAlertTitle}
         identificationAlertVariant={viewState.identificationAlertVariant}
-        nameWarning={nameWarning?.warning}
-        nameWarningFormId={editFormId}
         onSelectIntent={setDialogIntent}
         participatingAlert={viewState.participatingAlert}
         recategorisedChoreographies={

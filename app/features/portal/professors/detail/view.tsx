@@ -5,8 +5,7 @@ import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
 
 import { FormActions } from "@/components/shared/form-actions";
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
-import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
@@ -158,7 +157,6 @@ export function PortalProfessorDetailRouteView({
 
         <PortalProfessorAlertsSection
           isIncomplete={loaderData.professor.isIncomplete}
-          nameWarning={nameWarning?.warning}
           onReactivate={() => {
             setStatusDialogIntent(reactivateProfessorIntent);
           }}
@@ -210,17 +208,20 @@ export function PortalProfessorDetailRouteView({
           </CardContent>
         </Card>
 
-        {/* The same-name warning holds `Guardar`: the notice above
-            the form carries its own way to continue, and what was typed stays guarded. */}
         <FormActions
           backTo="/portal/profesores"
-          canSave={!nameWarning}
           form={professorDetailFormId}
           hasChanges={form.form.formState.isDirty}
           isPending={isSubmitting}
           onDiscard={form.discard}
           viewTransition
         />
+        {nameWarning ? (
+          <RosterNameWarningDialog
+            formId={professorDetailFormId}
+            warning={nameWarning.warning}
+          />
+        ) : null}
       </section>
 
       <ProfessorStatusDialog
@@ -237,26 +238,17 @@ export function PortalProfessorDetailRouteView({
 
 function PortalProfessorAlertsSection({
   isIncomplete,
-  nameWarning,
   onReactivate,
   participatingAlert,
   professorActive,
 }: {
   isIncomplete: boolean;
-  /** The same-name warning of the last save, answered through the form below. */
-  nameWarning?: RosterNameWarning;
   onReactivate: () => void;
   participatingAlert: string | null;
   professorActive: boolean;
 }) {
   return (
     <AlertStack>
-      {nameWarning ? (
-        <RosterNameWarningNotice
-          formId={professorDetailFormId}
-          warning={nameWarning}
-        />
-      ) : null}
       {!professorActive ? (
         <ArchivedPersonAlert
           personLabel="profesor"

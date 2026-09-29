@@ -7,7 +7,7 @@ import { PortalDancerDetailRouteView } from "@/features/portal/dancers/detail/vi
 type DancerDetailViewProps = Parameters<typeof PortalDancerDetailRouteView>[0];
 
 describe("PortalDancerDetailRouteView", () => {
-  test("shows the same-name warning with the continue action and the ids", () => {
+  test("keeps what was typed when a save is warned about a same-name match", () => {
     const markup = renderDancerDetail({
       actionData: {
         status: "warning",
@@ -28,13 +28,9 @@ describe("PortalDancerDetailRouteView", () => {
       },
     });
 
-    expect(markup).toContain(
-      "Ya existe un Bailarín con el mismo nombre y fecha de nacimiento en tu academia: Ana Paz. ¿Es la misma persona?",
-    );
-    expect(markup).toContain(
-      'name="acknowledgedDuplicateIds" value="dancer_twin_1"',
-    );
-    expect(markup).toContain("Continuar de todos modos");
+    // The confirmation is a portalled dialog, which static markup never
+    // renders; DuplicateWarningPrompt's own test and the portal dancer
+    // draft test cover it.
     expect(markup).toContain('name="firstName" value="Ana"');
   });
 

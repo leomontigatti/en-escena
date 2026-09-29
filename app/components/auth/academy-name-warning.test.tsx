@@ -8,9 +8,9 @@ import {
   getButton,
 } from "@/lib/test-support/react-dom";
 
-import { AcademyNameWarningNotice } from "./academy-name-warning";
+import { AcademyNameWarningDialog } from "./academy-name-warning";
 
-describe("AcademyNameWarningNotice", () => {
+describe("AcademyNameWarningDialog", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -21,7 +21,7 @@ describe("AcademyNameWarningNotice", () => {
     await renderer.renderAsync(
       <MemoryRouter>
         <form id="academy-onboarding-form" />
-        <AcademyNameWarningNotice
+        <AcademyNameWarningDialog
           formId="academy-onboarding-form"
           matches={[
             {
