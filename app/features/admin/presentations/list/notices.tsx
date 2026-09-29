@@ -210,7 +210,7 @@ export function OrderingConfirmationDialog({
   });
   // The ordering stays on the list, so nothing navigates the dialog away: it
   // closes itself once its own submission settles. Leaving it open would sit an
-  // enabled `Ordenar` in front of the administrator after the order was already
+  // enabled `Confirmar` in front of the administrator after the order was already
   // written, and a second press would throw away the manual moves the first one
   // just made.
   const wasPending = useRef(false);
@@ -268,7 +268,7 @@ export function OrderingConfirmationDialog({
               {isPending ? (
                 <Spinner aria-hidden="true" data-icon="inline-start" />
               ) : null}
-              Ordenar
+              Confirmar
             </Button>
           </form>
         </AlertDialogFooter>
