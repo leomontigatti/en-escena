@@ -501,8 +501,9 @@ Rules:
   ([Editing and saving](#editing-and-saving)).
 - `Tabs` take `variant="line"`.
 - Tabs that switch between subsets of the same data (`Coreografías` /
-  `Seminarios`) keep the active tab in the URL as `?seccion=`, replacing the
-  history entry, so a reload or a shared link lands on the same tab.
+  `Seminarios`) keep the active tab in the URL, replacing the history entry, so
+  a reload or a shared link lands on the same tab. The parameter names what the
+  tab picks: `?tipo=` for `Coreografías` / `Seminarios`, `?dia=` for a day.
 - Tabs that split one record into sections keep their state local. When they
   hold form fields, the form submits from its React Hook Form values
   (`createValidatedRouteFormDataSubmitHandler`): Radix unmounts the hidden
