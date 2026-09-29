@@ -201,7 +201,18 @@ function migrateAndSeed(options: {
     // that has `.env.local`, so leave nothing behind for the next run to trust.
     if (!hadEnvLocal) rmSync(envLocalPath, { force: true });
     if (created) {
-      run("docker", ["exec", CONTAINER, "dropdb", "-U", "postgres", database]);
+      try {
+        run("docker", [
+          "exec",
+          CONTAINER,
+          "dropdb",
+          "-U",
+          "postgres",
+          database,
+        ]);
+      } catch (cleanupError) {
+        console.error(`Could not drop ${database}: ${String(cleanupError)}`);
+      }
     }
     throw error;
   }
