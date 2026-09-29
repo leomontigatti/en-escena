@@ -207,9 +207,10 @@ export function PaymentDetailRouteView({
  * blocks: the deletion always proceeds, so the list informs rather than warns.
  *
  * The two kinds lose different things. A choreography names how many of its
- * inscriptions fall and the status it would be left with, and only when something actually un-crosses: with
- * nothing un-crossing there is no new state to announce, and naming the one it
- * already had would read as a consequence of deleting the payment. A seminar
+ * inscriptions fall and the status it would be left with, and only when
+ * something actually un-crosses: with nothing un-crossing there is no new state
+ * to announce, and naming the one it already had would read as a consequence of
+ * deleting the payment. A seminar
  * names the **places** it gives back, because there covering the deposit is what
  * took the place.
  */
