@@ -1,6 +1,7 @@
 import { TriangleAlert } from "lucide-react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   scheduleRegistrationOpenRefusalMessage,
@@ -39,10 +40,6 @@ function ScheduleRegistrationOpenBlockersAlert({
 }: {
   blockers: ScheduleRegistrationOpenBlockers;
 }) {
-  if (blockers.length === 0) {
-    return null;
-  }
-
   return (
     <Alert variant="warning">
       <TriangleAlert
@@ -109,12 +106,15 @@ export function EventScheduleDetailView({
     >
       {schedule ? (
         <>
-          <ScheduleFormPanel>
-            {schedule.registrationOpen ? null : (
+          <AlertStack>
+            {!schedule.registrationOpen &&
+            loaderData.registrationOpenBlockers.length > 0 ? (
               <ScheduleRegistrationOpenBlockersAlert
                 blockers={loaderData.registrationOpenBlockers}
               />
-            )}
+            ) : null}
+          </AlertStack>
+          <ScheduleFormPanel>
             <ScheduleForm
               categories={loaderData.categories}
               form={form}

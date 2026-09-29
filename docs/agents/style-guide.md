@@ -267,6 +267,12 @@ Rules:
 A form page is one `AdminResourceFormCard` holding the whole form, with no card
 header. Alerts about the form sit above the card.
 
+- Wrap the alerts above the card in `AlertStack`
+  (`app/components/shared/alert-stack.tsx`): it spaces them and renders nothing
+  when none shows, so an empty wrapper never opens a gap under the header.
+  Guard each alert where it is used (`condition ? <SomeAlert /> : null`). The
+  stack only drops `null` and `false` children, so an alert component that
+  returns `null` by itself still counts and leaves the gap.
 - Lay the fields out in `FieldGroup className="grid gap-5 md:grid-cols-2"`. A
   field that needs the width spans both columns.
 - The card has no maximum width. It fills the shell like the alerts, tabs and

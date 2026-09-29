@@ -234,7 +234,9 @@ function EditEventPanel({
         {!registrationReadiness.isReady ? (
           <EventRegistrationReadinessAlert readiness={registrationReadiness} />
         ) : null}
-        <ResultsPublicationAlert publication={resultsPublication} />
+        {resultsPublication.publishedAt ? (
+          <ResultsPublicationAlert publication={resultsPublication} />
+        ) : null}
       </AlertStack>
       <form
         ref={removal.formRef}
