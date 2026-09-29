@@ -85,17 +85,6 @@ export function PresentationNotices({
           </AlertDescription>
         </Alert>
       ) : null}
-      {loaderData.frozenCount > 0 ? (
-        <Alert variant="info">
-          <Info aria-hidden="true" />
-          <AlertTitle>Presentaciones fijas</AlertTitle>
-          <AlertDescription>
-            {loaderData.frozenCount === 1
-              ? "1 presentación queda fija porque su cronograma ya fue evaluado: su número no se puede cambiar."
-              : `${loaderData.frozenCount} presentaciones quedan fijas porque su cronograma ya fue evaluado: sus números no se pueden cambiar.`}
-          </AlertDescription>
-        </Alert>
-      ) : null}
       {needsNumberSortToDrag ? (
         <Alert variant="info">
           <Info aria-hidden="true" />
@@ -258,9 +247,8 @@ export function OrderingConfirmationDialog({
             <Info aria-hidden="true" />
             <AlertTitle>Presentaciones fijas</AlertTitle>
             <AlertDescription>
-              {frozenCount === 1
-                ? "1 presentación queda fija porque su cronograma ya fue evaluado."
-                : `${frozenCount} presentaciones quedan fijas porque su cronograma ya fue evaluado.`}
+              Las presentaciones de un cronograma ya evaluado no cambian de
+              número.
             </AlertDescription>
           </Alert>
         ) : null}
