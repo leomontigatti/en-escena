@@ -884,16 +884,20 @@ The loop:
    A later session starts from `state-load .playwright-cli/academy-state.json` instead of the
    form. Refs (`e15`) change between snapshots; read them from the latest one.
 
-3. **Capture the before** during exploration, before editing: `goto` the screen and
-   `screenshot --filename=<what>-before.png`. After the edit there is no before left to take.
+3. **Capture the before** during exploration, before editing: `resize 1440 900`, `goto` the
+   screen and `screenshot --filename=<what>-before.png`. After the edit there is no before left
+   to take. Set the size rather than trusting the browser's default: 1440 is the design width
+   in [style-guide.md](./style-guide.md#viewports). When the change touches a table or a dense
+   row, also check it at `resize 1280 800`, the floor.
 4. Drive the flow: `goto`, `click`, `fill`, `select`, `press`, and `snapshot` (or `find "<text>"`)
    to confirm the result. Prefer the snapshot for asserting text and structure; it is what the
    page actually exposes.
 5. Diagnose from the page, not from guesses: `console` for errors, `requests` then
    `request <n>` or `response-body <n>` for the network. Fix the source and go back to step 4.
    A first load may log `504 (Outdated Optimize Dep)` while Vite pre-bundles; `reload` once.
-6. **Capture the after** at the end, once the change is final: `screenshot
---filename=<what>-after.png`, same screen, same account.
+6. **Capture the after** at the end, once the change is final: `resize 1440 900` again if the
+   1280 check changed it, then `screenshot --filename=<what>-after.png`, same screen, same
+   account, same size as the before.
 7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server. A
    session left open holds a Chromium for up to an hour.
 

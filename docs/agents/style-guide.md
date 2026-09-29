@@ -60,8 +60,27 @@ only for layout.
 Use operational shells for the academy portal, the admin panel and judging.
 Centered screens are reserved for authentication, errors and exceptional states.
 
-Prioritize tables for operational lists on desktop. Use cards for mobile or
-simple repeated elements. Avoid dashboards with a large hero.
+Prioritize tables for operational lists. Use cards for the mobile surfaces
+below or for simple repeated elements. Avoid dashboards with a large hero.
+
+## Viewports
+
+The product is used on desktop. Design at **1440px** wide, and keep every
+screen working down to **1280px**, the floor: a 1366×768 laptop, or a
+1920×1080 one at Windows' 150% scaling, which is 1280 CSS pixels. At 1280 the
+admin sidebar leaves about 1000px of content, and that is the budget a table
+or a form row has to fit. Nothing laid out beside the list may take from it:
+filters and actions sit above the table, never in a side panel.
+
+Below 1280 nothing is promised beyond not breaking: content may scroll
+sideways, but must not overlap or become unreachable. Do not put a `min-width`
+on the page to enforce the floor; it breaks the mobile surfaces and browser
+zoom.
+
+Only the public program is designed for phones. Judging is not, and waits for
+a remake. Every other surface is desktop-only: responsive prefixes that keep a
+form usable on a narrow window are fine, but do not design a mobile layout for
+a screen that is not on this list.
 
 ## Base components
 
@@ -379,8 +398,8 @@ Rules:
 
 ## Tables and lists
 
-Use tables as the default pattern for operational lists on desktop, especially in
-administration. On mobile, adapt to compact cards or stacked lists.
+Use tables as the default pattern for operational lists, especially in
+administration. On a mobile surface, adapt to compact cards or stacked lists.
 
 Rules:
 
@@ -413,6 +432,9 @@ Rules:
 - Reach for `layout="fit"` on a list that does overflow, which in practice means
   one with several free-text columns. Give every column a `width`, and cut the
   long cells with `DataTableTruncatedText` rather than letting them wrap.
+  Tune the weights so every header fits at the 1280px floor, taking the room
+  from the free-text columns that truncate anyway: a share that fits at 1280
+  only grows wider above it.
 - A `width` is a share of the row, not a percentage: the table divides each
   column by the total. Do not make them add up to 100 — the selection checkbox
   is a column the view never declares, and a budget balanced to 100% would
