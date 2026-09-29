@@ -1,20 +1,15 @@
-import { Check, RotateCcw, Trash2 } from "lucide-react";
+import { Check, RotateCcw, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
-import {
-  AdminResourceFormCard,
-  AdminResourceLayout,
-} from "@/components/admin/resource-layout";
+import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { DiscardChangesDialog } from "@/components/shared/discard-guard";
 import { FileUploadField } from "@/components/shared/file-upload-field";
-import { getAssetKindHelperText } from "@/lib/storage/asset-kinds";
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
-import { ReadOnlyField } from "@/components/shared/read-only-field";
+import { PinnedActions } from "@/components/shared/pinned-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { TextInputField } from "@/components/shared/text-input-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,37 +21,34 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { useServerActionToast } from "@/lib/shared/toasts";
+import { getAssetKindHelperText } from "@/lib/storage/asset-kinds";
 
 import { ChoreographyDetailAlerts } from "./detail-alerts";
+import { ConfirmDraftDialog } from "./draft-confirm-dialog";
 import {
-  DependentFieldSlot,
-  ModalityExperienceLevelField,
-  ModalityField,
-  ModalityScheduleCapacityField,
-  ModalitySubmodalityField,
-} from "./modality-fields";
-import { RosterExperienceLevelSlot, RosterScheduleSlot } from "./roster-fields";
-import { getWithdrawnDancers } from "./roster-form-state";
+  ChoreographyClassificationFields,
+  ChoreographyPeopleFields,
+} from "./draft-fields";
+import type { ChoreographyDetailLoaderData } from "./server";
 import {
   deleteChoreographyIntent,
   formatChoreographyRemovalDescription,
   restoreChoreographyDescription,
   restoreChoreographyIntent,
-  updateChoreographyRosterIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
 } from "./shared";
-import { SubmodalityField } from "./reassignment-fields";
-import { useChoreographyDetailForms } from "./use-choreography-detail-forms";
-import type { ChoreographyDetailLoaderData } from "./server";
+import { useChoreographyDraft } from "./use-choreography-draft";
+import { useUnsavedChangesGuard } from "./use-unsaved-changes-guard";
 
 type ChoreographyDetailRouteViewProps = {
   actionData?: ChoreographyViewActionData;
@@ -95,7 +87,7 @@ export function ChoreographyDetailRouteView({
       title={`Detalle coreografía # ${formatEventSequenceNumber(
         loaderData.choreography.choreographyNumber,
       )}`}
-      description="Revisá la coreografía registrada para el evento activo."
+      description="Revisá y/o modificá la información y el elenco de la coreografía registrada."
       headerAction={
         // The menu survives the withdrawal even though `canEdit` does not: it
         // is where `Restaurar coreografía` lives, the one action left.
@@ -108,7 +100,7 @@ export function ChoreographyDetailRouteView({
         ) : null
       }
     >
-      <ChoreographyDetailForm actionData={actionData} loaderData={loaderData} />
+      <ChoreographyDetailForm loaderData={loaderData} />
 
       {loaderData.restoration.canRestore ? (
         <RestoreChoreographyDialog
@@ -265,357 +257,110 @@ function RestoreChoreographyDialog({
   );
 }
 
+/**
+ * The detail as one form with one draft and one `Guardar`: nothing writes until
+ * it is pressed, and it writes everything together.
+ */
 function ChoreographyDetailForm({
-  actionData,
   loaderData,
 }: {
-  actionData?: ChoreographyViewActionData;
   loaderData: ChoreographyDetailLoaderData;
 }) {
-  const choreography = loaderData.choreography;
-  const {
-    canSubmitRoster,
-    experienceLevelSlot,
-    footer,
-    form,
-    hasPendingScheduleCapacity,
-    intent,
-    isRosterEditDisabled,
-    modality,
-    noCompatibleCategory,
-    pendingSave,
-    roster,
-    rosterScheduleOptions,
-    scheduleCapacity,
-  } = useChoreographyDetailForms({ actionData, loaderData });
-  const submit = useSubmit();
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-
-  const withdrawnDancers = getWithdrawnDancers({
-    dancers: choreography.dancers,
-    watchedDancerIds: roster.watchedDancerIds,
-  });
-
-  const handleConfirm = form.handleSubmit((values) => {
-    setIsConfirmOpen(false);
-
-    const formData = new FormData();
-    formData.set("intent", intent);
-    formData.set("name", values.name);
-
-    if (intent === updateChoreographyRosterIntent) {
-      for (const dancerId of values.dancerIds) {
-        formData.append("dancerIds", dancerId);
-      }
-      for (const professorId of values.professorIds) {
-        formData.append("professorIds", professorId);
-      }
-      formData.set("experienceLevelId", values.experienceLevelId);
-      formData.set("scheduleCapacityId", values.scheduleCapacityId);
-    }
-
-    void submit(formData, { method: "post" });
+  const draft = useChoreographyDraft(loaderData);
+  const discardDialog = useUnsavedChangesGuard({
+    isDirty: draft.isDirty,
+    isSaving: draft.isSaving,
   });
 
   return (
     <>
-      <ChoreographyDetailAlerts
-        groupType={roster.derivedResolution.groupType}
-        loaderData={loaderData}
-        noCompatibleCategory={noCompatibleCategory}
-      />
+      <ChoreographyDetailAlerts loaderData={loaderData} />
 
       <form
         method="post"
         noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-
-          // The modality correction and the capacity reassignment write on
-          // their own: the confirmation dialog enumerates roster consequences
-          // neither of them has.
-          if (pendingSave === "modality") {
-            void modality.save();
-            return;
-          }
-
-          if (pendingSave === "schedule-capacity") {
-            scheduleCapacity.save();
-            return;
-          }
-
-          if (canSubmitRoster) {
-            setIsConfirmOpen(true);
-          }
-        }}
+        className="flex flex-1 flex-col gap-6"
+        onSubmit={(event) => void draft.requestSave(event)}
       >
-        <AdminResourceFormCard
-          footer={
-            <FormActions
-              backToList={loaderData.backToList}
-              canEdit={loaderData.canEdit}
-              canSubmit={footer.canSubmit}
-              isPending={footer.isPending}
-            />
-          }
-        >
-          <FieldGroup className="grid gap-5 md:grid-cols-2">
-            <ReadOnlyField
-              className="md:col-span-2"
-              label="Academia"
-              value={choreography.academyName}
-            />
-            {loaderData.canEdit ? (
-              <TextInputField
-                className="md:col-span-2"
-                control={form.control}
-                disabled={isRosterEditDisabled}
-                label="Nombre"
-                name="name"
+        <Card>
+          <CardContent className="flex flex-col gap-6">
+            <FieldGroup className="grid gap-5 md:grid-cols-2">
+              <ChoreographyClassificationFields
+                draft={draft}
+                loaderData={loaderData}
               />
-            ) : (
-              <ReadOnlyField
-                className="md:col-span-2"
-                label="Nombre"
-                value={choreography.name}
-              />
-            )}
-            <ModalityField loaderData={loaderData} modality={modality} />
-            <DependentFieldSlot
-              modality={modality}
-              resolved={(resolution) => (
-                <ModalitySubmodalityField
-                  modality={modality}
-                  resolution={resolution}
-                />
-              )}
-              saved={(disabled) => (
-                <SubmodalityField disabled={disabled} loaderData={loaderData} />
-              )}
-            />
-            {/* A saved choreography always has a category; the field only
-                reads empty while an edit in progress resolves to none, and the
-                page alert says so and blocks the save. */}
-            <ReadOnlyField
-              label="Categoría"
-              value={
-                modality.categoryLabel ??
-                roster.derivedResolution.categoryName ??
-                ""
-              }
-            />
-            <ReadOnlyField
-              label="Tipo de grupo"
-              value={formatGroupTypeLabel(roster.derivedResolution.groupType)}
-            />
-            {/* Which roster control fills this slot when the correction is
-                not pending is its own rule: see `getExperienceLevelSlotState`. */}
-            <DependentFieldSlot
-              modality={modality}
-              resolved={(resolution) => (
-                <ModalityExperienceLevelField
-                  modality={modality}
-                  resolution={resolution}
-                />
-              )}
-              saved={(disabled) => (
-                <RosterExperienceLevelSlot
-                  control={form.control}
-                  disabled={disabled || hasPendingScheduleCapacity}
-                  experienceLevelSlot={experienceLevelSlot}
-                  loaderData={loaderData}
-                  options={roster.derivedResolution.experienceLevelOptions}
-                />
-              )}
-            />
-            {/* Without a pending correction the roster select takes over: a
-                group type change clears the capacity and the replacement is
-                chosen together with the confirmation. */}
-            <DependentFieldSlot
-              modality={modality}
-              resolved={(resolution) => (
-                <ModalityScheduleCapacityField
-                  modality={modality}
-                  resolution={resolution}
-                />
-              )}
-              saved={(disabled) => (
-                <RosterScheduleSlot
-                  control={form.control}
-                  disabled={disabled}
-                  loaderData={loaderData}
-                  options={rosterScheduleOptions}
-                  scheduleCapacity={scheduleCapacity}
-                />
-              )}
-            />
-          </FieldGroup>
+            </FieldGroup>
+            <ChoreographyPeopleFields draft={draft} loaderData={loaderData} />
+            <ChoreographyMusicField loaderData={loaderData} />
+          </CardContent>
+        </Card>
 
-          <FieldGroup>
-            <MultiComboboxField
-              control={form.control}
-              disabled={!roster.canEditRoster || isRosterEditDisabled}
-              emptyMessage="Sin bailarines disponibles"
-              inputName="dancerIds"
-              label="Bailarines"
-              name="dancerIds"
-              options={loaderData.availableDancers.map(toPersonOption)}
-              placeholder="Buscar bailarines"
-              searchable
-            />
-
-            <MultiComboboxField
-              control={form.control}
-              disabled={!roster.canEditRoster || isRosterEditDisabled}
-              emptyMessage="Sin profesores disponibles"
-              inputName="professorIds"
-              label="Profesores"
-              name="professorIds"
-              options={loaderData.availableProfessors.map(toPersonOption)}
-              placeholder="Buscar profesores"
-              searchable
-            />
-
-            {/* Download and listen only: the validation props a disabled input
-                cannot act on are deliberately absent (#571). */}
-            <FileUploadField
-              control={form.control}
-              disabled
-              downloadLabel="Descargar música"
-              downloadUrl={choreography.musicDownloadUrl}
-              existingPreviewUrl={choreography.musicDownloadUrl}
-              fieldLabel="Archivo de música"
-              fileInputName="musicFile"
-              helperText={getAssetKindHelperText("choreographyMusic")}
-              label="No hay música cargada"
-              name="musicStorageKey"
-              previewKind="audio"
-              previewSelectedFile={false}
-              removeLabel="Borrar música"
-              uploadedLabel="Archivo de música cargado"
-              variant="compact"
-            />
-          </FieldGroup>
-        </AdminResourceFormCard>
+        <PinnedActions>
+          <BackButton to={loaderData.backToList} />
+          {loaderData.canEdit ? (
+            <div className="flex items-center gap-3">
+              {draft.isDirty ? (
+                <Button type="button" variant="outline" onClick={draft.discard}>
+                  <Undo2 aria-hidden="true" data-icon="inline-start" />
+                  Descartar cambios
+                </Button>
+              ) : null}
+              <Button type="submit" disabled={!draft.canSave}>
+                {draft.isSaving ? (
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
+                ) : (
+                  <Check aria-hidden="true" data-icon="inline-start" />
+                )}
+                Guardar
+              </Button>
+            </div>
+          ) : null}
+        </PinnedActions>
       </form>
 
-      <ConfirmEditDialog
-        onConfirm={handleConfirm}
-        onOpenChange={setIsConfirmOpen}
-        open={isConfirmOpen}
-        withdrawnDancers={withdrawnDancers}
+      <ConfirmDraftDialog
+        consequences={draft.preview.current?.consequences ?? null}
+        {...draft.confirm}
       />
+      <DiscardChangesDialog {...discardDialog} />
     </>
   );
 }
 
 /**
- * The roster save confirms first: unlike the modality correction, it can retire
- * inscriptions, and the dialog is where that consequence is enumerated.
+ * Download and listen only: the music is the academy's to upload, from the
+ * portal. The validation props a disabled input cannot act on are deliberately
+ * absent (#571).
  */
-function ConfirmEditDialog({
-  onConfirm,
-  onOpenChange,
-  open,
-  withdrawnDancers,
+function ChoreographyMusicField({
+  loaderData,
 }: {
-  onConfirm: () => void;
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-  withdrawnDancers: Array<{ id: string; name: string }>;
+  loaderData: ChoreographyDetailLoaderData;
 }) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar edición</AlertDialogTitle>
-          <AlertDialogDescription>
-            Vas a guardar los cambios de esta coreografía. Revisá que el elenco
-            sea correcto antes de confirmar.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {withdrawnDancers.length > 0 ? (
-          <WithdrawalConsequences dancers={withdrawnDancers} />
-        ) : null}
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>
-            Confirmar edición
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
+  const { choreography } = loaderData;
+  const form = useForm({
+    values: { musicStorageKey: choreography.musicStorageKey ?? "" },
+  });
 
-/**
- * Removing a dancer who holds allocated money or a comprobante line does not
- * delete the inscription: it withdraws it. The dialog spells that consequence
- * out only when there is evidence; without it the removal is a delete and
- * there is nothing to warn about.
- */
-function WithdrawalConsequences({
-  dancers,
-}: {
-  dancers: Array<{ id: string; name: string }>;
-}) {
   return (
-    <div className="text-sm text-muted-foreground">
-      <p>
-        {dancers.length === 1
-          ? "Esta inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: queda retirada."
-          : "Estas inscripciones tienen dinero asignado o un comprobante emitido, así que no se borran: quedan retiradas."}
-      </p>
-      <ul className="mt-2 list-disc pl-5">
-        {dancers.map((dancer) => (
-          <li key={dancer.id}>{dancer.name}</li>
-        ))}
-      </ul>
-      <p className="mt-2">
-        Conservan el dinero que tienen asignado y siguen en el comprobante.
-        Volver a agregar al bailarín las reactiva.
-      </p>
-    </div>
+    <FileUploadField
+      control={form.control}
+      disabled
+      downloadLabel="Descargar música"
+      downloadUrl={choreography.musicDownloadUrl}
+      existingPreviewUrl={choreography.musicDownloadUrl}
+      fieldLabel="Archivo de música"
+      fileInputName="musicFile"
+      helperText={getAssetKindHelperText("choreographyMusic")}
+      label="No hay música cargada"
+      name="musicStorageKey"
+      previewKind="audio"
+      previewSelectedFile={false}
+      removeLabel="Borrar música"
+      uploadedLabel="Archivo de música cargado"
+      variant="compact"
+    />
   );
-}
-
-function FormActions({
-  backToList,
-  canEdit,
-  canSubmit,
-  isPending,
-}: {
-  backToList: string;
-  canEdit: boolean;
-  canSubmit: boolean;
-  isPending: boolean;
-}) {
-  return (
-    <>
-      <BackButton to={backToList} />
-      {canEdit ? (
-        <Button type="submit" disabled={!canSubmit}>
-          {isPending ? (
-            <Spinner aria-hidden="true" data-icon="inline-start" />
-          ) : (
-            <Check aria-hidden="true" data-icon="inline-start" />
-          )}
-          Guardar
-        </Button>
-      ) : null}
-    </>
-  );
-}
-
-function toPersonOption(person: {
-  firstName: string;
-  id: string;
-  lastName: string;
-}) {
-  return {
-    label: `${person.firstName} ${person.lastName}`,
-    value: person.id,
-  };
 }
 
 function BlockedDeleteReasons({

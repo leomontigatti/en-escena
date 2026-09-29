@@ -6,12 +6,12 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
-import type {
-  ChoreographyDetailLoaderData,
-  ChoreographyRosterResolutionData,
-} from "@/features/admin/choreographies/detail/server";
-import { resolveChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
-import type { ChoreographyDancerScheduleChoice } from "@/lib/choreographies/choreography-roster.shared";
+import {
+  getChoreographyDraftClassificationKey,
+  getChoreographyDraftPreviewKey,
+  type ChoreographyDraftPreview,
+} from "@/features/admin/choreographies/detail/draft.shared";
+import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 type DetailViewProps = Parameters<typeof ChoreographyDetailRouteView>[0];
@@ -21,7 +21,7 @@ describe("ChoreographyDetailRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("hard-locks the roster once the choreography was evaluated", () => {
+  test("announces the evaluation lock", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         choreography: buildChoreography({ isEvaluated: true }),
@@ -32,7 +32,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain(
       "Esta coreografía ya fue evaluada y no puede modificarse.",
     );
-    expect(markup).toContain('aria-disabled="true"');
   });
 
   // Holding a number is not a lock: the administrator keeps correcting the
@@ -49,7 +48,6 @@ describe("ChoreographyDetailRouteView", () => {
       "tiene número de presentación y modificarla puede necesitar atención",
     );
     expect(markup).not.toContain("Esta coreografía ya fue evaluada");
-    expect(markup).not.toContain('aria-disabled="true"');
   });
 
   test("announces neither alert on a choreography that is neither numbered nor evaluated", () => {
@@ -80,71 +78,16 @@ describe("ChoreographyDetailRouteView", () => {
       loaderData: buildLoaderData({
         canEdit: false,
         choreography: buildChoreography({ isWithdrawn: true }),
-        experienceLevel: { canReassign: false },
-        modality: { blockers: [], canCorrect: false, options: [] },
         restoration: { canRestore: true },
-        scheduleCapacity: { blockers: [], canReassign: false, options: [] },
       }),
     });
 
     expect(markup).not.toContain("Guardar");
+    expect(markup).not.toContain('name="name"');
     expect(markup).not.toContain('name="submodalityId"');
-    expect(markup).not.toContain('name="assignedScheduleCapacityId"');
+    expect(markup).not.toContain('name="scheduleCapacityId"');
     expect(markup).not.toContain('name="modalityId"');
-    expect(markup).not.toContain("Buscar bailarines");
-    expect(markup).not.toContain("Buscar profesores");
     expect(markup).not.toContain("Eliminar coreografía");
-  });
-
-  test("keeps the submodality read-only once the choreography was evaluated", () => {
-    const markup = renderDetail({
-      loaderData: buildLoaderData({
-        choreography: buildChoreography({ isEvaluated: true }),
-      }),
-    });
-
-    expect(markup).toContain("Submodalidad");
-    expect(markup).not.toContain('name="submodalityId"');
-  });
-
-  test("keeps the submodality read-only when the modality has no submodalities", () => {
-    const markup = renderDetail({
-      loaderData: buildLoaderData({ submodalityOptions: [] }),
-    });
-
-    expect(markup).toContain("Submodalidad");
-    expect(markup).not.toContain('name="submodalityId"');
-  });
-
-  test("keeps the submodality read-only for auditors", () => {
-    const markup = renderDetail({
-      loaderData: buildLoaderData({ canEdit: false }),
-    });
-
-    expect(markup).toContain("Submodalidad");
-    expect(markup).not.toContain('name="submodalityId"');
-  });
-
-  test("keeps the schedule read-only when it cannot be reassigned", () => {
-    const markup = renderDetail({
-      loaderData: buildLoaderData({
-        scheduleCapacity: {
-          blockers: [],
-          canReassign: false,
-          options: [
-            {
-              id: "schedule_capacity_1",
-              isFull: false,
-              label: "1 de mayo de 2026 - 14:00 hs.",
-            },
-          ],
-        },
-      }),
-    });
-
-    expect(markup).toContain("Cronograma");
-    expect(markup).toContain("1 de mayo de 2026 - 14:00 hs.");
-    expect(markup).not.toContain('name="assignedScheduleCapacityId"');
   });
 
   test("reports the price blocker in the page alert instead of on the field", () => {
@@ -158,14 +101,6 @@ describe("ChoreographyDetailRouteView", () => {
                 "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y no hay cronogramas alternativos que mantengan el precio.",
             },
           ],
-          canReassign: false,
-          options: [
-            {
-              id: "schedule_capacity_1",
-              isFull: false,
-              label: "1 de mayo de 2026 - 14:00 hs.",
-            },
-          ],
         },
       }),
     });
@@ -173,7 +108,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain(
       "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado",
     );
-    expect(markup).not.toContain('name="assignedScheduleCapacityId"');
   });
 
   test("shows the price alert to auditors too", () => {
@@ -184,8 +118,6 @@ describe("ChoreographyDetailRouteView", () => {
           blockers: [
             { code: "price-filtered-options", label: "Hay dinero asignado." },
           ],
-          canReassign: false,
-          options: [],
         },
       }),
     });
@@ -197,26 +129,6 @@ describe("ChoreographyDetailRouteView", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).not.toContain("No se puede reasignar el cupo de cronograma");
-  });
-
-  // Which condition closed the field is decided by
-  // `canCorrectChoreographyModality` and covered in `shared.test.ts`; the view
-  // only ever reads the resolved `canCorrect`, so one case covers it here.
-  test("keeps the modality read-only when the correction is closed", () => {
-    const markup = renderDetail({
-      loaderData: buildLoaderData({
-        canEdit: true,
-        modality: {
-          blockers: [],
-          canCorrect: false,
-          options: [],
-        },
-      }),
-    });
-
-    expect(markup).toContain("Modalidad");
-    expect(markup).toContain("Jazz");
-    expect(markup).not.toContain('name="modalityId"');
   });
 
   test("announces the deposit as a blocker-in-waiting for the modality, auditors included", () => {
@@ -231,7 +143,6 @@ describe("ChoreographyDetailRouteView", () => {
                 "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
             },
           ],
-          canCorrect: false,
           options: [],
         },
       }),
@@ -250,38 +161,6 @@ describe("ChoreographyDetailRouteView", () => {
     );
   });
 
-  test.each([
-    ["the user is not an admin", { canEdit: false }],
-    [
-      "the choreography was evaluated",
-      { choreography: buildChoreography({ isEvaluated: true }) },
-    ],
-    [
-      "the resolved category declares no levels",
-      {
-        choreography: buildChoreography({
-          experienceLevelId: null,
-          experienceLevelName: null,
-          experienceLevelOptions: [],
-          requiresExperienceLevel: false,
-        }),
-      },
-    ],
-  ])(
-    "keeps the experience level read-only when %s",
-    (_cause, overrides: Partial<ChoreographyDetailLoaderData>) => {
-      const markup = renderDetail({
-        loaderData: buildLoaderData({
-          experienceLevel: { canReassign: false },
-          ...overrides,
-        }),
-      });
-
-      expect(markup).toContain("Nivel de experiencia");
-      expect(markup).not.toContain('name="assignedExperienceLevelId"');
-    },
-  );
-
   test("reads a category without levels as `No aplica`, not as a missing value", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
@@ -291,7 +170,6 @@ describe("ChoreographyDetailRouteView", () => {
           experienceLevelOptions: [],
           requiresExperienceLevel: false,
         }),
-        experienceLevel: { canReassign: false },
       }),
     });
 
@@ -311,7 +189,6 @@ describe("ChoreographyDetailRouteView", () => {
             pendingItems: ["experienceLevel"],
           },
         }),
-        experienceLevel: { canReassign: false },
       }),
     });
 
@@ -331,7 +208,6 @@ describe("ChoreographyDetailRouteView", () => {
             pendingItems: ["experienceLevel"],
           },
         }),
-        experienceLevel: { canReassign: false },
       }),
     });
 
@@ -444,7 +320,6 @@ describe("ChoreographyDetailRouteView", () => {
             pendingItems: ["experienceLevel"],
           },
         }),
-        experienceLevel: { canReassign: false },
       }),
     });
 
@@ -536,25 +411,36 @@ describe("ChoreographyDetailRouteView", () => {
   });
 
   /**
-   * The roster select replaces the standalone reassignment while a dancer change
-   * is pending, and only appears once the server resolves that change. The test
-   * reaches it through the UI to pin that it labels through the shared builder —
-   * occupancy included, full capacity disabled — instead of rebuilding the label on
-   * its own, which is what made it diverge from the portal and from the
-   * standalone reassignment.
+   * The capacity select labels through the shared builder, occupancy included
+   * and a full capacity disabled, so it cannot drift from the portal's.
    */
-  test("labels the roster schedule select with the shared occupancy format", async () => {
-    await renderDetailIntoDocument({
-      loaderData: buildLoaderData({
-        availableDancers: [
-          { active: true, firstName: "Ana", id: "dancer_1", lastName: "Paz" },
-          { active: true, firstName: "Eva", id: "dancer_2", lastName: "Ruiz" },
-        ],
-      }),
-      rosterResolution: buildRosterResolution(),
-    });
+  test("labels the capacity select with the shared occupancy format", async () => {
+    const loaderData = buildLoaderData();
 
-    await addDancerToRoster("Eva Ruiz");
+    await renderDetailIntoDocument({
+      loaderData: {
+        ...loaderData,
+        draft: {
+          ...loaderData.draft,
+          scheduleCapacity: {
+            options: [
+              {
+                id: "schedule_capacity_1",
+                isFull: false,
+                label: "1 de mayo de 2026 - 14:00 hs. · 1/5 ocupados",
+              },
+              {
+                id: "schedule_capacity_2",
+                isFull: true,
+                label:
+                  "2 de mayo de 2026 - 10:00 hs. · 5/5 ocupados · sin cupo",
+              },
+            ],
+            selectedId: "schedule_capacity_1",
+          },
+        },
+      },
+    });
 
     expect(readScheduleCapacityOptions()).toEqual([
       {
@@ -596,7 +482,6 @@ describe("ChoreographyDetailRouteView", () => {
     input: Partial<DetailViewProps> & {
       initialDeleteDialogOpen?: boolean;
       initialRestoreDialogOpen?: boolean;
-      rosterResolution?: ChoreographyRosterResolutionData;
     } = {},
   ) {
     const loaderData = input.loaderData ?? buildLoaderData();
@@ -604,7 +489,7 @@ describe("ChoreographyDetailRouteView", () => {
       [
         {
           path: "/administracion/coreografias/choreo_1",
-          action: async () => input.rosterResolution ?? null,
+          action: async () => null,
           element: (
             <ChoreographyDetailRouteView
               actionData={input.actionData}
@@ -651,6 +536,8 @@ function renderDetail(
 function buildLoaderData(
   overrides: Partial<ChoreographyDetailLoaderData> = {},
 ): ChoreographyDetailLoaderData {
+  const choreography = overrides.choreography ?? buildChoreography();
+
   return {
     availableDancers: [
       { active: true, firstName: "Ana", id: "dancer_1", lastName: "Paz" },
@@ -660,21 +547,18 @@ function buildLoaderData(
     ],
     backToList: "/administracion/coreografias",
     canEdit: true,
-    choreography: buildChoreography(),
+    choreography,
     deletion: {
       canDelete: true,
       blockers: [],
       outcome: "deleted",
     },
-    experienceLevel: {
-      canReassign: true,
-    },
+    draft: buildSavedPreview(choreography),
     restoration: {
       canRestore: false,
     },
     modality: {
       blockers: [],
-      canCorrect: true,
       options: [
         { hasCompatibleScheduleCapacity: true, id: "modality_1", name: "Jazz" },
         {
@@ -689,94 +573,54 @@ function buildLoaderData(
         },
       ],
     },
-    scheduleCapacity: {
-      blockers: [],
-      canReassign: true,
-      options: [
-        {
-          id: "schedule_capacity_1",
-          isFull: false,
-          label: "1 de mayo de 2026 - 14:00 hs. · 1/5 ocupados",
-        },
-        {
-          id: "schedule_capacity_2",
-          isFull: false,
-          label: "2 de mayo de 2026 - 10:00 hs. · 0/5 ocupados",
-        },
-      ],
-    },
+    scheduleCapacity: { blockers: [] },
     selectedEventId: "event_1",
-    submodalityOptions: [{ id: "submodality_1", name: "Lyrical" }],
     ...overrides,
   };
 }
 
-function buildRosterResolution(): ChoreographyRosterResolutionData {
+/** What the loader previews for the choreography as saved. */
+function buildSavedPreview(
+  choreography: ChoreographyDetailLoaderData["choreography"],
+): ChoreographyDraftPreview {
   return {
-    intent: resolveChoreographyRosterIntent,
-    result: {
-      ok: true,
-      resolution: {
-        groupType: "duo",
-        categoryId: "category_1",
-        categoryName: "Juvenil",
-        experienceLevel: { required: false, options: [] },
-        schedule: {
-          status: "multiple",
-          canSave: true,
-          selectedScheduleCapacityId: null,
-          options: [
-            buildRosterScheduleChoice({
-              id: "schedule_capacity_1",
-              isFull: false,
-              label: "1 de mayo de 2026 - 14:00 hs. · 1/5 ocupados",
-              scheduleId: "schedule_1",
-              scheduledDate: "2026-05-01",
-              startTime: "14:00:00",
-            }),
-            buildRosterScheduleChoice({
-              id: "schedule_capacity_2",
-              isFull: true,
-              label: "2 de mayo de 2026 - 10:00 hs. · 5/5 ocupados · sin cupo",
-              scheduleId: "schedule_2",
-              scheduledDate: "2026-05-02",
-              startTime: "10:00:00",
-            }),
-          ],
+    blockers: [],
+    category: { id: choreography.categoryId, name: choreography.categoryName },
+    consequences: {
+      category: null,
+      groupType: null,
+      price: null,
+      scheduleCapacity: null,
+      withdrawnDancers: [],
+    },
+    experienceLevel: {
+      options: choreography.experienceLevelOptions,
+      required: choreography.requiresExperienceLevel,
+    },
+    classificationKey: getChoreographyDraftClassificationKey({
+      dancerIds: choreography.dancers.map((dancer) => dancer.id),
+      modalityId: choreography.modalityId,
+    }),
+    groupType: choreography.groupType,
+    key: getChoreographyDraftPreviewKey({
+      dancerIds: choreography.dancers.map((dancer) => dancer.id),
+      modalityId: choreography.modalityId,
+      scheduleCapacityId: choreography.scheduleCapacityId,
+    }),
+    scheduleCapacity: {
+      options: [
+        {
+          id: choreography.scheduleCapacityId,
+          isFull: false,
+          label: choreography.scheduleLabel,
         },
-      },
+      ],
+      selectedId: choreography.scheduleCapacityId,
     },
-  };
-}
-
-/**
- * `label` carries the occupancy suffix the shared builder composes, so it never
- * matches what re-formatting `schedule` would produce. The two still describe
- * the same slot: a fixture that disagreed with itself would read as a slip.
- */
-function buildRosterScheduleChoice(input: {
-  id: string;
-  isFull: boolean;
-  label: string;
-  scheduleId: string;
-  scheduledDate: string;
-  startTime: string;
-}): ChoreographyDancerScheduleChoice {
-  return {
-    id: input.id,
-    isFull: input.isFull,
-    label: input.label,
-    scheduleId: input.scheduleId,
-    scheduleCapacityId: input.id,
-    groupType: "duo",
-    capacity: 5,
-    usesGlobalCapacity: false,
-    schedule: {
-      id: input.scheduleId,
-      name: "Jornada 1",
-      scheduledDate: input.scheduledDate,
-      startTime: input.startTime,
-    },
+    structuralLock: choreography.isEvaluated
+      ? "Esta coreografía ya fue evaluada y no puede modificarse."
+      : null,
+    submodality: { options: [{ id: "submodality_1", name: "Lyrical" }] },
   };
 }
 
@@ -888,75 +732,20 @@ async function clickMenuItem(label: string) {
 }
 
 /**
- * Adds a dancer through the combobox and waits for the server resolution to come
- * back: the roster schedule select does not exist until then.
- */
-async function addDancerToRoster(label: string) {
-  const trigger = Array.from(
-    document.querySelectorAll('button[role="combobox"]'),
-  ).find((candidate) => candidate.getAttribute("aria-haspopup") === "dialog");
-
-  if (!trigger) {
-    throw new Error("Expected the dancers combobox trigger to be rendered.");
-  }
-
-  await dispatchClick(trigger);
-
-  const option = Array.from(document.querySelectorAll('[role="option"]')).find(
-    (candidate) => candidate.textContent?.includes(label),
-  );
-
-  if (!option) {
-    throw new Error(`Expected dancer option "${label}" to be rendered.`);
-  }
-
-  await dispatchClick(option);
-  await waitForScheduleCapacitySelect();
-}
-
-async function dispatchClick(element: Element) {
-  await act(async () => {
-    element.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-    await Promise.resolve();
-  });
-}
-
-async function waitForScheduleCapacitySelect() {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (findScheduleCapacitySelect()) {
-      return;
-    }
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    });
-  }
-
-  throw new Error(
-    "Expected the roster schedule select to render after the resolution.",
-  );
-}
-
-/**
  * The select renders a hidden native `<select>` with one `<option>` per entry:
  * that is where the label and the `disabled` that actually reach the DOM live,
  * without depending on opening the popover.
  */
-function findScheduleCapacitySelect() {
-  return Array.from(document.querySelectorAll("select")).find((candidate) =>
-    Array.from(candidate.options).some(
-      (option) => option.value === "schedule_capacity_1",
-    ),
-  );
-}
-
 function readScheduleCapacityOptions() {
-  const select = findScheduleCapacitySelect();
+  const select = Array.from(document.querySelectorAll("select")).find(
+    (candidate) =>
+      Array.from(candidate.options).some(
+        (option) => option.value === "schedule_capacity_1",
+      ),
+  );
 
   if (!select) {
-    throw new Error("Expected the roster schedule select to be rendered.");
+    throw new Error("Expected the schedule capacity select to be rendered.");
   }
 
   return Array.from(select.options)

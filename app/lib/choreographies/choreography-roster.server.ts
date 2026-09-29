@@ -10,7 +10,6 @@ export {
   type UpdateChoreographyProfessorsResult,
   type UpdateChoreographyResult,
 } from "@/lib/choreographies/choreography-roster.shared";
-export { resolveChoreographyDancers } from "@/lib/choreographies/choreography-roster-dancer-update.server";
 export {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,

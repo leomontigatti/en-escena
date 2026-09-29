@@ -219,7 +219,6 @@ function getGlobalScheduleCapacityOptionId(scheduleId: string) {
 export {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
-  resolveChoreographyDancers,
 } from "@/lib/choreographies/choreography-roster.server";
 export type {
   ChoreographyCategoryCalculationMode,
