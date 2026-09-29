@@ -65,7 +65,7 @@ describe("dancer detail submissions", () => {
             message: "Revisá los datos del Bailarín.",
             fieldErrors: {
               documentNumber:
-                "Ya existe un Bailarín archivado con ese documento en tu academia.",
+                "Ya existe un bailarín archivado con ese documento en tu academia.",
             },
             values: {
               firstName: "Ana",
@@ -86,7 +86,7 @@ describe("dancer detail submissions", () => {
 
     expect(documentField.getAttribute("aria-invalid")).toBe("true");
     expect(document.body.textContent).toContain(
-      "Ya existe un Bailarín archivado con ese documento en tu academia.",
+      "Ya existe un bailarín archivado con ese documento en tu academia.",
     );
 
     const matchLink = document.querySelector<HTMLAnchorElement>(

@@ -453,7 +453,7 @@ describe("`/administracion/profesores` route", () => {
     expect(markup).toContain(
       "Este profesor está archivado. Reactivalo para que vuelva a aparecer en las listas activas y en próximas selecciones de coreografías.",
     );
-    expect(markup).toContain("Faltan datos de identificación.");
+    expect(markup).toContain("Faltan datos de identificación");
     expect(markup).not.toContain("Identificación incompleta");
     expect(markup).toContain("Reactivar");
   });
@@ -891,7 +891,7 @@ describe("`/administracion/profesores` route", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Profesor con ese documento en la academia.",
+          "Ya existe un profesor con ese documento en la academia.",
       },
     });
   });
@@ -938,7 +938,7 @@ describe("`/administracion/profesores` route", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Profesor con ese documento en la academia.",
+          "Ya existe un profesor con ese documento en la academia.",
       },
       duplicateDocumentProfessorId: existing.id,
     });

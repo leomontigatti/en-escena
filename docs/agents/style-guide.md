@@ -125,6 +125,47 @@ Rules:
 - Migrate existing callouts and empty states when the file is touched or in a
   dedicated pass.
 
+### Alert variants
+
+The variant says what kind of message it is, not how loud it should be:
+
+| Variant       | For                                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| `info`        | A state to know about, including a lock: why fields or actions are unavailable and what unlocks them |
+| `warning`     | Something the user should fix, or will regret if they go ahead                                       |
+| `destructive` | An error, or an action that cannot be undone                                                         |
+| `success`     | An outcome that stays on screen (toasts carry the rest)                                              |
+
+`default` is not used.
+
+### Alert icons
+
+Each variant has exactly one icon, imported under its canonical `lucide-react`
+name, in the position `Alert` gives it (top, beside the first line):
+
+| Variant       | Icon            |
+| ------------- | --------------- |
+| `destructive` | `CircleAlert`   |
+| `warning`     | `TriangleAlert` |
+| `info`        | `Info`          |
+| `success`     | `CircleCheck`   |
+
+No icon about the topic (`Trophy`, `Landmark`, `Ban`), no alias names
+(`AlertTriangle`, `AlertCircleIcon`, `InfoIcon`), and no class that moves the
+icon. An alert whose variant is chosen at run time picks its icon from the same
+table (`AccessNotice` in `app/components/auth/access-ui.tsx` is the model).
+
+### Alert content
+
+Every `Alert` has an `AlertTitle` and an `AlertDescription`. The title says
+what is going on in a few words; the description gives the detail and what to
+do. A lead line that introduces a list is the title, and the list is the
+description. Do not restyle a span into a headline or tighten the description's
+paragraph spacing: the title is the headline.
+
+A list inside an alert is a bulleted `ul` (`list-disc pl-5`) inside the
+`AlertDescription`.
+
 ## States and badges
 
 Use `Badge` with the variants defined in `app/components/ui/badge.tsx`. The

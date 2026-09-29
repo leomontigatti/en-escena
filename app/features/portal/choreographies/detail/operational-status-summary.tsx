@@ -1,6 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   type ChoreographyMissingPendingItem,
   type ChoreographyOperationalStatus,
@@ -27,6 +27,7 @@ export function OperationalStatusSummary({
   return (
     <Alert variant="warning">
       <TriangleAlert aria-hidden="true" />
+      <AlertTitle>Datos pendientes</AlertTitle>
       <AlertDescription>
         {missingItems.length === 1 ? "Falta" : "Faltan"} cargar{" "}
         {formatPendingItems(missingItems)}.

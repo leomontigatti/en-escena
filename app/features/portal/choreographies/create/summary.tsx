@@ -47,7 +47,7 @@ export function ChoreographyCreationSummary({
         title="Revisá antes de guardar"
         hint="Tocá el botón Cambiar para corregir alguno de los datos."
       />
-      <AccessNotice variant="info">
+      <AccessNotice title="Revisá antes de guardar" variant="warning">
         Revisá los datos ya que una vez guardados no vas a poder modificarlos.
       </AccessNotice>
       <dl

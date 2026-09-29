@@ -113,15 +113,18 @@ carries it (PRD #1090):
   `app/lib/shared/duplicate-warning.ts` is that type; `kind` says which guard spoke
   (`dancer-name`, `professor-name`, `choreography-cast`, `academy-name`) and each
   match carries the id of the record found plus whatever the copy names it by.
-  The answer carries **no `message`**: the matches shown beside the field are the
+  The answer carries **no `message`**: the matches shown in the dialog are the
   whole copy, so a warning answer never reaches `useServerActionToast` — a route that
   toasts its other answers narrows the warning one out.
-- The form keeps the values, shows the matches, and swaps its submit for
-  `Continuar de todos modos`. `DuplicateWarningPrompt`
-  (`app/components/shared/duplicate-warning-prompt.tsx`) is that half: a warning
-  `AccessNotice` above the actions, one hidden `acknowledgedDuplicateIds` input per
-  match, and the continue button. A multi-step form (the choreography wizard) adds
-  the same field to the form data it rebuilds.
+- The form keeps the values, and the answer opens a confirmation:
+  `DuplicateWarningDialog` (`app/components/shared/duplicate-warning-prompt.tsx`),
+  an `AlertDialog` titled with the question (`¿Es la misma persona?`), the matches,
+  `Cancelar` back to the form, and `Continuar de todos modos`. Each new answer
+  reopens it, so saving again after `Cancelar` asks again. `DuplicateWarningPrompt`
+  is the form's version: the continue button and one hidden
+  `acknowledgedDuplicateIds` input per match reach the form through the `form`
+  attribute, since the dialog renders outside it. A multi-step form (the
+  choreography wizard) adds the same field to the form data it rebuilds.
 - The re-submit **re-runs the check** (`readAcknowledgedDuplicateIds`,
   `matchesToWarnAbout`). A match that appeared between the two submits was never
   shown to the user, so it warns again — and that second answer carries **every**

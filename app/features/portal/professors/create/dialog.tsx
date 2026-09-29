@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
 import type { FetcherSubmitFunction } from "react-router";
 
@@ -13,7 +13,7 @@ import {
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
-import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ export function CreateProfessorDialog({
   onOpenChange: (nextOpen: boolean) => void;
   submit: FetcherSubmitFunction;
 }) {
+  const formId = useId();
   const form = useForm<CreateProfessorFormValues>({
     resolver: zodResolver(createProfessorSchema),
     defaultValues: actionData?.values ?? emptyProfessorValues,
@@ -102,7 +103,15 @@ export function CreateProfessorDialog({
             </DialogDescription>
           </DialogHeader>
 
+          {actionData?.status === "warning" ? (
+            <RosterNameWarningDialog
+              formId={formId}
+              warning={actionData.warning}
+            />
+          ) : null}
+
           <form
+            id={formId}
             method="post"
             onSubmit={createValidatedReactRouterSubmitHandler(form, submit, {
               method: "post",
@@ -144,10 +153,6 @@ export function CreateProfessorDialog({
               />
             </FieldGroup>
 
-            {actionData?.status === "warning" ? (
-              <RosterNameWarningNotice warning={actionData.warning} />
-            ) : null}
-
             <DialogFooter>
               <Button
                 type="button"
@@ -157,12 +162,10 @@ export function CreateProfessorDialog({
               >
                 Cancelar
               </Button>
-              {actionData?.status === "warning" ? null : (
-                <SubmitButton
-                  disabled={!form.formState.isDirty}
-                  isPending={isSubmitting}
-                />
-              )}
+              <SubmitButton
+                disabled={!form.formState.isDirty}
+                isPending={isSubmitting}
+              />
             </DialogFooter>
           </form>
         </DialogContent>

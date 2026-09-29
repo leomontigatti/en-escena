@@ -1,7 +1,7 @@
-import { AlertCircleIcon, UserX } from "lucide-react";
+import { TriangleAlert, UserX } from "lucide-react";
 import { Form } from "react-router";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -51,7 +51,8 @@ export function SuspendUserDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <Alert variant="warning">
-          <AlertCircleIcon aria-hidden="true" />
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Suspender no borra datos</AlertTitle>
           <AlertDescription>
             Conserva su historial y sus asignaciones de juez.
           </AlertDescription>

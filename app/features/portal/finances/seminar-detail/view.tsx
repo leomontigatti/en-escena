@@ -1,4 +1,4 @@
-import { AlertTriangle, Info } from "lucide-react";
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 
 import { PortalListPage } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -6,7 +6,7 @@ import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatDate } from "@/features/admin/schedules/view-shared";
 import type { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/seminar-detail/server";
 import { formatDancerName } from "@/lib/finances/formatters";
@@ -87,7 +87,8 @@ function SeminarAlerts({
     <AlertStack>
       {overAllocated ? (
         <Alert variant="destructive">
-          <AlertTriangle aria-hidden="true" />
+          <CircleAlert aria-hidden="true" />
+          <AlertTitle>Dinero asignado de más</AlertTitle>
           <AlertDescription>
             Hay inscripciones con más dinero asignado que su total. Escribile a
             administración para que lo corrija.
@@ -97,6 +98,7 @@ function SeminarAlerts({
       {isFull ? (
         <Alert variant="info">
           <Info aria-hidden="true" />
+          <AlertTitle>Seminario sin lugares</AlertTitle>
           <AlertDescription>
             El seminario no tiene lugares disponibles: las inscripciones con la
             seña cubierta ya ocupan el cupo. Podés inscribir igual, pero la seña
@@ -106,7 +108,8 @@ function SeminarAlerts({
       ) : null}
       {missingPrice ? (
         <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Seminario sin precio</AlertTitle>
           <AlertDescription>
             Este seminario todavía no tiene un precio que alcance a tus
             inscripciones: hasta que administración lo cargue no se puede

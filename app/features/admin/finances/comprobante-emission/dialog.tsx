@@ -1,8 +1,8 @@
-import { AlertTriangle, Check } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -110,7 +110,8 @@ export function EmissionDialog({
 
           {genericError ? (
             <Alert variant="destructive">
-              <AlertTriangle aria-hidden="true" />
+              <CircleAlert aria-hidden="true" />
+              <AlertTitle>No se pudo emitir el comprobante</AlertTitle>
               <AlertDescription>{genericError}</AlertDescription>
             </Alert>
           ) : null}

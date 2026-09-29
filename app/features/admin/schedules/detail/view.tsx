@@ -2,7 +2,7 @@ import { TriangleAlert } from "lucide-react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   scheduleRegistrationOpenRefusalMessage,
   type ScheduleRegistrationOpenBlockers,
@@ -42,12 +42,9 @@ function ScheduleRegistrationOpenBlockersAlert({
 }) {
   return (
     <Alert variant="warning">
-      <TriangleAlert
-        aria-hidden="true"
-        className="self-center !translate-y-0"
-      />
-      <AlertDescription className="[&_p:not(:last-child)]:mb-1">
-        <p>{scheduleRegistrationOpenRefusalMessage}</p>
+      <TriangleAlert aria-hidden="true" />
+      <AlertTitle>{scheduleRegistrationOpenRefusalMessage}</AlertTitle>
+      <AlertDescription>
         <ul className="list-disc pl-5">
           {blockers.map((blocker) => (
             <li key={blocker}>{blocker}</li>

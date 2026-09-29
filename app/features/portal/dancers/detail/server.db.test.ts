@@ -1241,7 +1241,7 @@ describe("handlePortalDancerDetailAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín con ese documento en tu academia.",
+          "Ya existe un bailarín con ese documento en tu academia.",
       },
     });
     await expectPersistedDancer(ownerEditable.id, {
@@ -1324,7 +1324,7 @@ describe("handlePortalDancerDetailAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín con ese documento en tu academia.",
+          "Ya existe un bailarín con ese documento en tu academia.",
       },
       duplicateDocumentDancerId: existing.id,
     });
@@ -1347,7 +1347,7 @@ describe("handlePortalDancerDetailAction", () => {
       status: "error",
       fieldErrors: {
         documentNumber:
-          "Ya existe un Bailarín archivado con ese documento en tu academia.",
+          "Ya existe un bailarín archivado con ese documento en tu academia.",
       },
       duplicateDocumentDancerId: existing.id,
     });

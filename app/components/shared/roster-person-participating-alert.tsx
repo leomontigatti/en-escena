@@ -1,6 +1,6 @@
 import { Info } from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 /**
  * Why the `Archivar` action is unavailable: the person holds a live commitment
@@ -20,6 +20,7 @@ export function RosterPersonParticipatingAlert({
   return (
     <Alert variant="info">
       <Info aria-hidden="true" />
+      <AlertTitle>No se puede archivar</AlertTitle>
       <AlertDescription>{message}</AlertDescription>
     </Alert>
   );

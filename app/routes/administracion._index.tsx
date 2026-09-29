@@ -13,7 +13,7 @@ import {
   HomeAccessCard,
   type HomeAccessCardItem,
 } from "@/components/shared/home-access-card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
@@ -137,15 +137,10 @@ function DashboardWarningAlert({
 }) {
   return (
     <Alert variant="warning">
-      <TriangleAlert
-        aria-hidden="true"
-        className="self-center !translate-y-0"
-      />
-      <AlertDescription className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
-        <span className="font-medium text-foreground">{headline}</span>
-        <span>{lead}</span>
-        <Link to={linkTo}>{linkLabel}</Link>
-        <span>.</span>
+      <TriangleAlert aria-hidden="true" />
+      <AlertTitle>{headline}</AlertTitle>
+      <AlertDescription>
+        {lead} <Link to={linkTo}>{linkLabel}</Link>.
       </AlertDescription>
     </Alert>
   );
