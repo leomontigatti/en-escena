@@ -256,9 +256,9 @@ Rules:
   field whose change recalculates others, or has consequences, never saves on
   its own.
 - `Guardar` stays disabled until something differs from what is saved, and while
-  a submit or a preview is in flight. A form with more than a couple of fields
-  also offers `Descartar cambios` beside it, and warns before leaving the screen
-  with unsaved changes.
+  a submit or a preview is in flight. A form that edits more than one field also
+  offers `Descartar cambios` beside it, and warns before leaving the screen with
+  unsaved changes.
 - Fields that affect each other stay on one screen, visible together. Do not
   split them across `Tabs`, steps or dialogs: a change in one tab that rewrites a
   field in another is a change the user does not see
@@ -279,6 +279,8 @@ Rules:
   `Guardar` may submit a draft that the action applies as several operations in
   one transaction. Two intents are no reason for two forms, or for locking one
   part of the screen while another has unsaved changes.
+- Migrate an existing screen that breaks these rules when the file is touched or
+  in a dedicated pass.
 
 ## React Hook Form
 
