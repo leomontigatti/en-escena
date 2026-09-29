@@ -69,7 +69,10 @@ export function CreateProfessorDialog({
   const { discardDialogProps, requestClose } = useDiscardGuard({
     isAudioDirty: false,
     isFormDirty: form.formState.isDirty,
-    onClose: () => onOpenChange(false),
+    onClose: () => {
+      form.reset(emptyProfessorValues);
+      onOpenChange(false);
+    },
   });
 
   const documentConflictDescription = useRosterDocumentConflictField({

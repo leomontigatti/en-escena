@@ -23,17 +23,17 @@ describe("the payment creation form", () => {
   test("keeps `Guardar` off until something is typed, and `Descartar cambios` empties it again", async () => {
     await renderPage();
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeUndefined();
 
     await typeAmount("15000");
 
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(readAmount().value).toBe("");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 
   test("asks before leaving with something typed, and not before leaving an empty form", async () => {
@@ -76,7 +76,7 @@ describe("the payment creation form", () => {
     await settle();
 
     expect(readAmount().value).toBe("15000");
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
   });
 });
 
@@ -149,7 +149,7 @@ async function typeAmount(value: string) {
   });
 }
 
-function isGuardarEnabled() {
+function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
   return button !== undefined && !(button as HTMLButtonElement).disabled;

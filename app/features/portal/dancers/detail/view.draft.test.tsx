@@ -23,17 +23,17 @@ describe("the portal dancer detail as one draft", () => {
   test("holds `Guardar` until something changes, and `Descartar cambios` puts it back", async () => {
     await renderDancerPage();
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeUndefined();
 
     await typeFirstName("Bea");
 
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(getFirstNameInput().value).toBe("Ana");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 
   test("asks before leaving with changes, and not when clean", async () => {
@@ -78,12 +78,12 @@ describe("the portal dancer detail as one draft", () => {
     });
 
     expect(getFirstNameInput().value).toBe("Bea");
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(getFirstNameInput().value).toBe("Ana");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 
   test("holds `Guardar` behind the same-name warning, and still guards what was typed", async () => {
@@ -107,7 +107,7 @@ describe("the portal dancer detail as one draft", () => {
       },
     });
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Continuar de todos modos")).toBeDefined();
 
     await clickLink("Volver");
@@ -196,7 +196,7 @@ async function typeFirstName(value: string) {
   await settle();
 }
 
-function isGuardarEnabled() {
+function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
   return button !== undefined && !(button as HTMLButtonElement).disabled;

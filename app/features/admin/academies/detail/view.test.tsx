@@ -100,7 +100,7 @@ async function typeInto(name: string, value: string) {
   });
 }
 
-function isGuardarEnabled() {
+function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
   return button !== undefined && !(button as HTMLButtonElement).disabled;
@@ -192,7 +192,7 @@ describe("AcademyDetailRouteView", () => {
   test("keeps `Guardar` off and offers no `Descartar cambios` while nothing changed", async () => {
     await renderDetail();
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeUndefined();
   });
 
@@ -201,12 +201,12 @@ describe("AcademyDetailRouteView", () => {
 
     await typeInto("name", "Academia Nueva");
 
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(readInput("name").value).toBe("Academia Fork");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeUndefined();
   });
 
@@ -275,12 +275,12 @@ describe("AcademyDetailRouteView", () => {
     await settle();
 
     expect(readInput("name").value).toBe("Academia Rechazada");
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(readInput("name").value).toBe("Academia Fork");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 
   test("shows a read-only auditor the fields disabled and only `Volver`", async () => {

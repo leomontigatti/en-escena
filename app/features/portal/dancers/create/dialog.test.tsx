@@ -77,7 +77,7 @@ describe("PortalDancersListRouteView dialog", () => {
 
     await clickReactDomButton("Nuevo bailarín");
 
-    expect(isGuardarDisabled()).toBe(true);
+    expect(isSaveDisabled()).toBe(true);
 
     await updateReactDomForm(() => {
       setInputValue(
@@ -86,7 +86,7 @@ describe("PortalDancersListRouteView dialog", () => {
       );
     });
 
-    expect(isGuardarDisabled()).toBe(false);
+    expect(isSaveDisabled()).toBe(false);
 
     await clickReactDomButton("Cancelar");
 
@@ -141,7 +141,7 @@ describe("PortalDancersListRouteView dialog", () => {
       ),
     );
 
-    expect(isGuardarDisabled()).toBe(false);
+    expect(isSaveDisabled()).toBe(false);
 
     await clickReactDomButton("Cancelar");
 
@@ -199,7 +199,7 @@ describe("PortalDancersListRouteView dialog", () => {
   });
 });
 
-function isGuardarDisabled() {
+function isSaveDisabled() {
   return (findButton("Guardar", { exact: true }) as HTMLButtonElement).disabled;
 }
 

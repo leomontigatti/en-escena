@@ -71,7 +71,10 @@ export function CreateDancerDialog({
   const { discardDialogProps, requestClose } = useDiscardGuard({
     isAudioDirty: false,
     isFormDirty: form.formState.isDirty,
-    onClose: () => onOpenChange(false),
+    onClose: () => {
+      form.reset(emptyDancerValues);
+      onOpenChange(false);
+    },
   });
 
   const documentConflictDescription = useRosterDocumentConflictField({

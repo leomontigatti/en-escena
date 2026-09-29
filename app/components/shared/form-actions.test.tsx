@@ -19,25 +19,25 @@ describe("FormActions", () => {
   test("keeps `Guardar` off and hides `Descartar cambios` while nothing changed", async () => {
     await renderPage({ hasChanges: false });
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeUndefined();
   });
 
   test("turns `Guardar` on and offers `Descartar cambios` once something changed", async () => {
     const page = await renderPage({ hasChanges: true });
 
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(page.discards()).toBe(1);
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 
   test("keeps `Guardar` off while the form says it cannot save yet", async () => {
     await renderPage({ canSave: false, hasChanges: true });
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeDefined();
   });
 
@@ -161,7 +161,7 @@ async function renderPage(input: {
   };
 }
 
-function isGuardarEnabled() {
+function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
   return button !== undefined && !(button as HTMLButtonElement).disabled;

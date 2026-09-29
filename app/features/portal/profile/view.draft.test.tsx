@@ -31,17 +31,17 @@ describe("the portal profile as one draft", () => {
   test("holds `Guardar` until something changes, and `Descartar cambios` puts it back", async () => {
     await renderProfilePage();
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeUndefined();
 
     await typeContactName("Mora Díaz");
 
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(getContactNameInput().value).toBe("Ana Paz");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeUndefined();
   });
 
@@ -83,13 +83,13 @@ describe("the portal profile as one draft", () => {
     await settle();
 
     expect(getContactNameInput().value).toBe("X");
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await typeContactName("Mora Díaz");
     await clickReactDomButton("Guardar");
     await settle();
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
 
     await clickLink("Volver");
 
@@ -177,7 +177,7 @@ async function typeContactName(value: string) {
   await settle();
 }
 
-function isGuardarEnabled() {
+function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
   return button !== undefined && !(button as HTMLButtonElement).disabled;

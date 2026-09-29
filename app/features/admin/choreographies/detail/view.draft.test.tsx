@@ -49,7 +49,7 @@ describe("the choreography detail as one draft", () => {
     await pickOption("Nivel de experiencia", "Profesional");
 
     expect(page.submissions).toEqual([]);
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Guardar");
     await settle();
@@ -95,7 +95,7 @@ describe("the choreography detail as one draft", () => {
     expect(page.previews()).toHaveLength(1);
     expect(isPending("Categoría")).toBe(true);
     expect(isPending("Tipo de grupo")).toBe(true);
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
 
     held.resolve();
     await settle();
@@ -103,7 +103,7 @@ describe("the choreography detail as one draft", () => {
     expect(isPending("Categoría")).toBe(false);
     expect(readField("Categoría")).toBe("Juvenil dúo");
     expect(readField("Tipo de grupo")).toBe("Dúo");
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
   });
 
   test("confirms a save with consequences, naming the dancer it withdraws", async () => {
@@ -145,13 +145,13 @@ describe("the choreography detail as one draft", () => {
     expect(readTrigger("Nivel de experiencia")).toBe(
       "Elegí el nivel de experiencia",
     );
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
 
     await pickOption("Submodalidad", "Hip hop");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
 
     await pickOption("Nivel de experiencia", "Amateur");
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
   });
 
   test("shows why there is no category next to the field, and keeps `Guardar` off", async () => {
@@ -176,7 +176,7 @@ describe("the choreography detail as one draft", () => {
     expect(readFieldReason("Categoría")).toBe(
       "Con este elenco no existe una categoría válida.",
     );
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 
   test("keeps every drafted value on screen when the save is refused", async () => {
@@ -195,7 +195,7 @@ describe("the choreography detail as one draft", () => {
       "El cronograma seleccionado ya no tiene cupo disponible.",
     );
     expect(getNameInput().value).toBe("Danza solar");
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
   });
 
   test("leaves the name editable and the structure read-only once evaluated", async () => {
@@ -246,7 +246,7 @@ describe("leaving the choreography detail with unsaved changes", () => {
     expect(isRowChecked("Bailarines", "Bea Lagos")).toBe(false);
     expect(readField("Tipo de grupo")).toBe("Solo");
     expect(findButton("Descartar cambios")).toBeUndefined();
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 
   test("asks before leaving with changes, and cancelling keeps the draft", async () => {
@@ -703,7 +703,7 @@ async function typeName(value: string) {
   await settle();
 }
 
-function isGuardarEnabled() {
+function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
   return button !== undefined && !(button as HTMLButtonElement).disabled;

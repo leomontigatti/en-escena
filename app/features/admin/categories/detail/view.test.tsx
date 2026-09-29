@@ -42,17 +42,17 @@ describe("the category detail as one draft", () => {
   test("keeps `Guardar` off until a change, and `Descartar cambios` puts back what is saved", async () => {
     await renderPage();
 
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
     expect(findButton("Descartar cambios")).toBeUndefined();
 
     await typeName("Juvenil");
 
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(readName().value).toBe("Infantil");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 
   test("asks before leaving with changes, and lets the save through without asking", async () => {
@@ -100,12 +100,12 @@ describe("the category detail as one draft", () => {
     await settle();
 
     expect(readName().value).toBe("Rechazada");
-    expect(isGuardarEnabled()).toBe(true);
+    expect(isSaveEnabled()).toBe(true);
 
     await clickReactDomButton("Descartar cambios");
 
     expect(readName().value).toBe("Infantil");
-    expect(isGuardarEnabled()).toBe(false);
+    expect(isSaveEnabled()).toBe(false);
   });
 });
 
@@ -157,7 +157,7 @@ async function typeName(value: string) {
   });
 }
 
-function isGuardarEnabled() {
+function isSaveEnabled() {
   const button = findButton("Guardar", { exact: true });
 
   return button !== undefined && !(button as HTMLButtonElement).disabled;
