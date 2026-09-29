@@ -1,16 +1,17 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { loadChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
-import { ChoreographiesListRouteView } from "@/features/admin/choreographies/list/view";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
+import { loadChoreographyAcademies } from "@/features/admin/choreographies/academies/server";
+import { ChoreographyAcademiesRouteView } from "@/features/admin/choreographies/academies/view";
 
 import type { Route } from "./+types/administracion.coreografias";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type ChoreographiesListRouteProps = {
+type ChoreographyAcademiesRouteProps = {
   loaderData: LoaderData;
 };
 
-export const meta = () => [
+export const meta: Route.MetaFunction = () => [
   { title: "Coreografías | Panel de administración | En Escena" },
 ];
 
@@ -19,13 +20,13 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadChoreographyListRouteData(request);
+  return await loadChoreographyAcademies(request);
 }
 
-export { ChoreographiesListRouteView };
+export const shouldRevalidate = createDataTableShouldRevalidate();
 
-export default function ChoreographiesListRoute({
+export default function ChoreographyAcademiesRoute({
   loaderData,
-}: ChoreographiesListRouteProps) {
-  return <ChoreographiesListRouteView loaderData={loaderData} />;
+}: ChoreographyAcademiesRouteProps) {
+  return <ChoreographyAcademiesRouteView loaderData={loaderData} />;
 }

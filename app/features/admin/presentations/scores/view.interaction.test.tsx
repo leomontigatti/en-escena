@@ -88,6 +88,22 @@ describe("correcting the panel's scores", () => {
     });
   }
 
+  test("links to the choreography under its academy, with no create icon", async () => {
+    await mount();
+    const link = [...document.querySelectorAll("a")].find(
+      (anchor) => anchor.textContent?.trim() === "Ver la coreografía",
+    );
+
+    expect(link?.getAttribute("href")).toBe(
+      "/administracion/coreografias/academy-1/choreography-1",
+    );
+    expect(link?.getAttribute("data-variant")).toBe("link");
+    expect(
+      link?.querySelector("svg.lucide-square-arrow-out-up-right"),
+    ).not.toBeNull();
+    expect(link?.querySelector("svg.lucide-plus")).toBeNull();
+  });
+
   test("opens every stored score on the number the judge gave", async () => {
     await mount({
       judges: [
@@ -223,6 +239,7 @@ function buildPresentation(
   overrides: Partial<PresentationScores> = {},
 ): PresentationScores {
   return {
+    academyId: "academy-1",
     academyName: "Academia Sur",
     average: 90,
     categoryName: "Juvenil",

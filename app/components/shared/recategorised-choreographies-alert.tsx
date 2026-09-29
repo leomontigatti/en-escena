@@ -10,20 +10,20 @@ import {
   type RecategorisedChoreography,
 } from "@/lib/choreographies/recategorisation-report";
 
-const choreographyDetailBasePath = {
-  admin: "/administracion/coreografias",
-  portal: "/portal/coreografias",
-} as const satisfies Record<RecategorisationSurface, string>;
-
 /**
  * What a birth-date correction changed beyond the dancer, one line per
  * choreography. Nothing to report renders nothing, so the caller can hand it
  * the action's payload without asking first.
+ *
+ * Where each line leads is the caller's: the portal's detail is the
+ * choreography alone, the administration's sits under the academy.
  */
 export function RecategorisedChoreographiesAlert({
+  buildChoreographyHref,
   choreographies,
   surface,
 }: {
+  buildChoreographyHref: (choreographyId: string) => string;
   choreographies: RecategorisedChoreography[];
   surface: RecategorisationSurface;
 }) {
@@ -42,12 +42,10 @@ export function RecategorisedChoreographiesAlert({
       )}
       <AlertTitle>{recategorisationReportTitle}</AlertTitle>
       <AlertDescription>
-        <ul className="flex flex-col gap-1">
+        <ul className="flex list-disc flex-col gap-1 pl-5">
           {choreographies.map((choreography) => (
             <li key={choreography.choreographyId}>
-              <Link
-                to={`${choreographyDetailBasePath[surface]}/${choreography.choreographyId}`}
-              >
+              <Link to={buildChoreographyHref(choreography.choreographyId)}>
                 {choreography.name}
               </Link>{" "}
               {buildRecategorisationSuffix({ choreography, surface })}

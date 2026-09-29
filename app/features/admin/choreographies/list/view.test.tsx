@@ -18,23 +18,27 @@ describe("ChoreographiesListRouteView", () => {
     expect(markup).toContain(
       "Activá un evento para consultar las coreografías registradas por las academias.",
     );
-    expect(markup).not.toContain("Todavía no hay coreografías.");
-  });
-
-  test("shows the no-data empty state for the active event", () => {
-    const markup = renderRoute();
-
-    expect(markup).toContain("Todavía no hay coreografías.");
-    expect(markup).toContain(
-      "Cuando las academias registren coreografías para el evento activo, vas a poder revisarlas desde este listado.",
+    expect(markup).not.toContain(
+      "Esta academia no tiene coreografías en este evento",
     );
   });
 
-  test("renders the number as the only detail link with the approved columns and shared status badges", () => {
+  test("titles the page with the academy and says when it has nothing in the event", () => {
+    const markup = renderRoute();
+
+    expect(markup).toMatch(/<h2[^>]*>Academia Norte<\/h2>/);
+    expect(markup).toContain(
+      "Esta academia no tiene coreografías en este evento",
+    );
+    expect(markup).toContain(
+      "Cuando la academia registre coreografías para el evento activo, vas a poder revisarlas desde este listado.",
+    );
+  });
+
+  test("renders the number as the only detail link, under the academy, with the approved columns and shared status badges", () => {
     const markup = renderRoute({
       choreographies: [
         {
-          academyName: "Academia Norte",
           categoryName: "Juvenil",
           choreographyNumber: 1,
           groupType: "duo",
@@ -49,7 +53,6 @@ describe("ChoreographiesListRouteView", () => {
           submodalityName: "Lyrical",
         },
         {
-          academyName: "Academia Sur",
           categoryName: "Juvenil",
           choreographyNumber: 2,
           groupType: "solo",
@@ -69,7 +72,6 @@ describe("ChoreographiesListRouteView", () => {
     for (const column of [
       "#",
       "Nombre",
-      "Academia",
       "Modalidad / Submodalidad",
       "Categoría / Tipo de grupo",
       "Estado",
@@ -83,8 +85,14 @@ describe("ChoreographiesListRouteView", () => {
     expect(markup).toContain("00002");
     expect(markup).toContain("Pieza Visible");
     expect(markup).toContain("Borrador");
-    expect(markup).toContain('href="/administracion/coreografias/choreo_1"');
-    expect(markup).toContain('href="/administracion/coreografias/choreo_2"');
+    expect(markup).toContain(
+      'href="/administracion/coreografias/academy_1/choreo_1"',
+    );
+    expect(markup).toContain(
+      'href="/administracion/coreografias/academy_1/choreo_2"',
+    );
+    // The academy is the page itself, so no column repeats it.
+    expect(markup).not.toContain(">Academia<");
     expect(markup).toContain(">00001</a>");
     expect(markup).not.toContain(">Pieza Visible</a>");
     expect(markup).not.toContain(">Borrador</a>");
@@ -102,7 +110,6 @@ describe("ChoreographiesListRouteView", () => {
     const markup = renderRoute({
       choreographies: [
         {
-          academyName: "Academia Norte",
           categoryName: "Juvenil",
           choreographyNumber: 3,
           groupType: "solo",
@@ -123,7 +130,7 @@ describe("ChoreographiesListRouteView", () => {
         category: null,
         groupType: null,
         modalityId: null,
-        order: { columnId: "academia", direction: "asc" },
+        order: { columnId: "nombre", direction: "asc" },
         page: 1,
         query: "",
         scheduleDate: null,
@@ -143,10 +150,7 @@ describe("ChoreographiesListRouteView", () => {
         category: null,
         groupType: null,
         modalityId: null,
-        order: {
-          columnId: "academia",
-          direction: "asc",
-        },
+        order: { columnId: "nombre", direction: "asc" },
         page: 1,
         query: "Sin resultados",
         scheduleDate: null,
@@ -155,14 +159,14 @@ describe("ChoreographiesListRouteView", () => {
       hasAnyChoreography: true,
     });
 
-    expect(markup).toContain(
-      "Buscar coreografía por número, nombre o academia",
-    );
+    expect(markup).toContain("Buscar por número o nombre");
     expect(markup).toContain('value="Sin resultados"');
     expect(markup).toContain(
       "No hay coreografías que coincidan con la búsqueda o los filtros.",
     );
-    expect(markup).not.toContain("Todavía no hay coreografías.");
+    expect(markup).not.toContain(
+      "Esta academia no tiene coreografías en este evento",
+    );
   });
 
   test("renders operational faceted filters with the approved URL values", () => {
@@ -179,10 +183,7 @@ describe("ChoreographiesListRouteView", () => {
         category: "categoria_1",
         groupType: "duo",
         modalityId: "modalidad_1",
-        order: {
-          columnId: "academia",
-          direction: "asc",
-        },
+        order: { columnId: "nombre", direction: "asc" },
         page: 1,
         query: "",
         scheduleDate: "2026-10-03",
@@ -208,7 +209,7 @@ describe("ChoreographiesListRouteView", () => {
         category: null,
         groupType: null,
         modalityId: null,
-        order: { columnId: "academia", direction: "asc" },
+        order: { columnId: "nombre", direction: "asc" },
         page: 1,
         query: "",
         scheduleDate: null,
@@ -228,7 +229,7 @@ describe("ChoreographiesListRouteView", () => {
 
   test("preserves busqueda and orden while resetting pagina on filter links", () => {
     const href = buildDataTableFilterHref({
-      basePath: "/administracion/coreografias",
+      basePath: "/administracion/coreografias/academy_1",
       currentSearch: "?busqueda=Luna&orden=nombre:desc&pagina=2",
       groups: [
         {
@@ -244,7 +245,7 @@ describe("ChoreographiesListRouteView", () => {
     });
 
     expect(href).toBe(
-      "/administracion/coreografias?busqueda=Luna&orden=nombre%3Adesc&estado=completa",
+      "/administracion/coreografias/academy_1?busqueda=Luna&orden=nombre%3Adesc&estado=completa",
     );
   });
 });
@@ -253,7 +254,7 @@ function renderRoute(
   loaderData: Partial<
     Parameters<typeof ChoreographiesListRouteView>[0]["loaderData"]
   > = {},
-  initialEntry = "/administracion/coreografias",
+  initialEntry = "/administracion/coreografias/academy_1",
 ) {
   return renderToStaticMarkup(
     createElement(
@@ -261,6 +262,7 @@ function renderRoute(
       { initialEntries: [initialEntry] },
       createElement(ChoreographiesListRouteView, {
         loaderData: {
+          academy: { id: "academy_1", name: "Academia Norte" },
           choreographies: [],
           facets: {
             categories: [],

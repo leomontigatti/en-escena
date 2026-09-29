@@ -169,12 +169,12 @@ describe("formatJudgeAssignmentMessage with kept assignments", () => {
 });
 
 describe("presentationRowPath", () => {
-  test("sends a pending row to its choreography", () => {
+  test("leaves a pending row without a link", () => {
     expect(
       presentationRowPath(
         buildItem({ evaluationStatus: "pending", presentationId: "p-1" }),
       ),
-    ).toBe("/administracion/coreografias/choreography-1");
+    ).toBeNull();
   });
 
   test("sends an evaluated row to its scores", () => {

@@ -15,6 +15,7 @@ import {
 } from "@/lib/choreographies/choreography-removal.server";
 import { restoreChoreography } from "@/lib/choreographies/choreography-restoration.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
+import { academyChoreographiesPath } from "@/lib/choreographies/admin-paths";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
   listDancerOptionsForChoreography,
@@ -142,9 +143,14 @@ function assertChoreographyAcceptsIntent(input: {
   });
 }
 
+type ChoreographyDetailParams = {
+  academyId?: string;
+  choreographyId?: string;
+};
+
 export async function loadChoreographyDetailRouteData(input: {
   request: Request;
-  params: { choreographyId?: string };
+  params: ChoreographyDetailParams;
 }): Promise<ChoreographyDetailLoaderData> {
   const user = await requireInternalUser(input.request, ["admin", "auditor"]);
   const eventContext = await loadEventContext(input.request);
@@ -153,20 +159,11 @@ export async function loadChoreographyDetailRouteData(input: {
     throw redirect(eventContext.redirectTo);
   }
 
-  const choreographyId = readChoreographyId(input.params);
-  const selectedEventId = eventContext.selectedEventId;
-  const choreography = selectedEventId
-    ? await findChoreographyDetail({
-        choreographyId,
-        selectedEventId,
-      })
-    : null;
-
-  if (!selectedEventId || !choreography) {
-    throw new Response(choreographyNotFoundMessage, {
-      status: 404,
-    });
-  }
+  const { choreography, selectedEventId } = await findRoutedChoreography({
+    params: input.params,
+    selectedEventId: eventContext.selectedEventId,
+  });
+  const choreographyId = choreography.id;
 
   // Two different questions on a withdrawn choreography: who the user is, and
   // whether the choreography accepts edits at all. `canEdit` answers the second,
@@ -217,7 +214,7 @@ export async function loadChoreographyDetailRouteData(input: {
   return {
     availableDancers,
     availableProfessors,
-    backToList: "/administracion/coreografias",
+    backToList: academyChoreographiesPath(choreography.academyId),
     canEdit,
     choreography,
     deletion: {
@@ -303,7 +300,7 @@ export type ChoreographyDetailActionData =
 
 export async function handleChoreographyDetailAction(input: {
   request: Request;
-  params: { choreographyId?: string };
+  params: ChoreographyDetailParams;
 }): Promise<ChoreographyDetailActionData | Response> {
   await requireAdminUser(input.request);
   const eventContext = await loadEventContext(input.request);
@@ -312,25 +309,11 @@ export async function handleChoreographyDetailAction(input: {
     throw redirect(eventContext.redirectTo);
   }
 
-  const selectedEventId = eventContext.selectedEventId;
-  const choreographyId = readChoreographyId(input.params);
-
-  if (!selectedEventId) {
-    throw new Response(choreographyNotFoundMessage, {
-      status: 404,
-    });
-  }
-
-  const choreography = await findChoreographyDetail({
-    choreographyId,
-    selectedEventId,
+  const { choreography, selectedEventId } = await findRoutedChoreography({
+    params: input.params,
+    selectedEventId: eventContext.selectedEventId,
   });
-
-  if (!choreography) {
-    throw new Response(choreographyNotFoundMessage, {
-      status: 404,
-    });
-  }
+  const choreographyId = choreography.id;
 
   const formData = await input.request.formData();
   const intent = formData.get("intent");
@@ -347,7 +330,7 @@ export async function handleChoreographyDetailAction(input: {
   if (intent === deleteChoreographyIntent) {
     const outcome = await deleteChoreography(choreography);
     return redirectWithFlashNotification(
-      "/administracion/coreografias",
+      academyChoreographiesPath(choreography.academyId),
       outcome === "withdrawn"
         ? "coreografia-retirada"
         : "coreografia-eliminada",
@@ -601,14 +584,33 @@ function getChoreographyDeleteBlockers(
   ];
 }
 
-function readChoreographyId(params: { choreographyId?: string }) {
-  if (!params.choreographyId) {
+/**
+ * The choreography the URL names, or its 404. The academy is part of the
+ * address: a choreography of the active event reached through another
+ * academy's URL is not found, so the loader and the action refuse it alike.
+ */
+async function findRoutedChoreography(input: {
+  params: ChoreographyDetailParams;
+  selectedEventId: string | null;
+}) {
+  const { academyId, choreographyId } = input.params;
+  const selectedEventId = input.selectedEventId;
+  const choreography =
+    academyId && choreographyId && selectedEventId
+      ? await findChoreographyDetail({ choreographyId, selectedEventId })
+      : null;
+
+  if (
+    !selectedEventId ||
+    !choreography ||
+    choreography.academyId !== academyId
+  ) {
     throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
 
-  return params.choreographyId;
+  return { choreography, selectedEventId };
 }
 
 function readFormString(formData: FormData, key: string) {
