@@ -1,4 +1,4 @@
-import { AlertCircleIcon } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useSearchParams } from "react-router";
 
 import {
@@ -74,7 +74,7 @@ export function EventPricesListView({
       <AlertStack>
         {missingCellsWarning ? (
           <Alert variant="warning">
-            <AlertCircleIcon aria-hidden="true" />
+            <TriangleAlert aria-hidden="true" />
             <AlertDescription>{missingCellsWarning}</AlertDescription>
           </Alert>
         ) : null}

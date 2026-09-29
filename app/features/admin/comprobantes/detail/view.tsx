@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, Check, Printer } from "lucide-react";
+import { Ban, Check, CircleAlert, Printer } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useFetcher } from "react-router";
 
@@ -315,7 +315,7 @@ function AnnulDialog({
 
           {genericError ? (
             <Alert variant="destructive">
-              <AlertTriangle aria-hidden="true" />
+              <CircleAlert aria-hidden="true" />
               <AlertDescription>{genericError}</AlertDescription>
             </Alert>
           ) : null}

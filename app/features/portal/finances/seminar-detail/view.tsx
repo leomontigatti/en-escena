@@ -1,4 +1,4 @@
-import { AlertTriangle, Info } from "lucide-react";
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 
 import { PortalListPage } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -87,7 +87,7 @@ function SeminarAlerts({
     <AlertStack>
       {overAllocated ? (
         <Alert variant="destructive">
-          <AlertTriangle aria-hidden="true" />
+          <CircleAlert aria-hidden="true" />
           <AlertDescription>
             Hay inscripciones con más dinero asignado que su total. Escribile a
             administración para que lo corrija.
@@ -106,7 +106,7 @@ function SeminarAlerts({
       ) : null}
       {missingPrice ? (
         <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
+          <TriangleAlert aria-hidden="true" />
           <AlertDescription>
             Este seminario todavía no tiene un precio que alcance a tus
             inscripciones: hasta que administración lo cargue no se puede

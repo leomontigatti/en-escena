@@ -1,4 +1,4 @@
-import { AlertTriangle, Info, ListOrdered } from "lucide-react";
+import { CircleAlert, Info, ListOrdered, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 
@@ -114,7 +114,7 @@ function PresentationWarningsNotice({
 
   return (
     <Alert variant="warning">
-      <AlertTriangle aria-hidden="true" />
+      <TriangleAlert aria-hidden="true" />
       <AlertDescription>
         {loaderData.warnedCount === 1
           ? "Existe 1 presentación con advertencias."
@@ -243,7 +243,7 @@ export function OrderingConfirmationDialog({
           </Alert>
         ) : null}
         <Alert variant="destructive">
-          <AlertTriangle aria-hidden="true" />
+          <CircleAlert aria-hidden="true" />
           <AlertDescription>
             Esta acción es irreversible y modifica cualquier orden manual
             realizado.

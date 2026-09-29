@@ -137,10 +137,7 @@ function DashboardWarningAlert({
 }) {
   return (
     <Alert variant="warning">
-      <TriangleAlert
-        aria-hidden="true"
-        className="self-center !translate-y-0"
-      />
+      <TriangleAlert aria-hidden="true" />
       <AlertDescription className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
         <span className="font-medium text-foreground">{headline}</span>
         <span>{lead}</span>

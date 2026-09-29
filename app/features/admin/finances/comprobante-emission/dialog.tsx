@@ -1,4 +1,4 @@
-import { AlertTriangle, Check } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
@@ -110,7 +110,7 @@ export function EmissionDialog({
 
           {genericError ? (
             <Alert variant="destructive">
-              <AlertTriangle aria-hidden="true" />
+              <CircleAlert aria-hidden="true" />
               <AlertDescription>{genericError}</AlertDescription>
             </Alert>
           ) : null}

@@ -1,4 +1,4 @@
-import { AlertCircleIcon, Check, Pause } from "lucide-react";
+import { Check, CircleAlert, Pause } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { MediaRow, MediaTime } from "@/components/shared/audio-playback";
@@ -256,7 +256,7 @@ export function FeedbackRecorder({
 
       {message ? (
         <Alert variant="destructive">
-          <AlertCircleIcon aria-hidden="true" />
+          <CircleAlert aria-hidden="true" />
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}

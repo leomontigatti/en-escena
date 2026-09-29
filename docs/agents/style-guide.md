@@ -138,6 +138,23 @@ The variant says what kind of message it is, not how loud it should be:
 
 `default` is not used.
 
+### Alert icons
+
+Each variant has exactly one icon, imported under its canonical `lucide-react`
+name, in the position `Alert` gives it (top, beside the first line):
+
+| Variant       | Icon            |
+| ------------- | --------------- |
+| `destructive` | `CircleAlert`   |
+| `warning`     | `TriangleAlert` |
+| `info`        | `Info`          |
+| `success`     | `CircleCheck`   |
+
+No icon about the topic (`Trophy`, `Landmark`, `Ban`), no alias names
+(`AlertTriangle`, `AlertCircleIcon`, `InfoIcon`), and no class that moves the
+icon. An alert whose variant is chosen at run time picks its icon from the same
+table (`AccessNotice` in `app/components/auth/access-ui.tsx` is the model).
+
 ## States and badges
 
 Use `Badge` with the variants defined in `app/components/ui/badge.tsx`. The

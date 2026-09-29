@@ -1,4 +1,4 @@
-import { AlertTriangle, Info } from "lucide-react";
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -160,7 +160,7 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
     <AlertStack>
       {overAllocated ? (
         <Alert variant="destructive">
-          <AlertTriangle aria-hidden="true" />
+          <CircleAlert aria-hidden="true" />
           <AlertDescription>
             Hay inscripciones con más dinero asignado que su total. Podés
             corregirlo desde la lista de inscripciones.
@@ -180,7 +180,7 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
       ) : null}
       {missingPrice ? (
         <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
+          <TriangleAlert aria-hidden="true" />
           <AlertDescription>
             Hay inscripciones sin un precio de seminario que las alcance: no se
             puede calcular lo que adeudan ni cobrarlas.

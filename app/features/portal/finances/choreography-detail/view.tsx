@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { CircleAlert, TriangleAlert } from "lucide-react";
 
 import { PortalListPage } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -80,7 +80,7 @@ function ChoreographyAlerts({
       {overAllocated ? <OverAllocatedAlert /> : null}
       {missingPrice ? (
         <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
+          <TriangleAlert aria-hidden="true" />
           <AlertDescription>
             Esta coreografía todavía no tiene un precio configurado: hasta que
             administración lo cargue no se puede calcular lo que adeuda.
@@ -103,7 +103,7 @@ function ChoreographyAlerts({
 function OverAllocatedAlert() {
   return (
     <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
+      <CircleAlert aria-hidden="true" />
       <AlertDescription>
         Hay inscripciones con más dinero asignado que su total. Escribile a
         administración para que lo corrija.

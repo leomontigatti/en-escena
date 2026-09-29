@@ -1,6 +1,6 @@
 import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
-import { TriangleAlert } from "lucide-react";
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import type { SubmitEventHandler, ReactNode } from "react";
 
 import {
@@ -404,6 +404,12 @@ function DancerIdentificationSection({
   );
 }
 
+const dancerAlertIcons = {
+  destructive: CircleAlert,
+  info: Info,
+  warning: TriangleAlert,
+} as const;
+
 function DancerAlert({
   action,
   children,
@@ -416,9 +422,11 @@ function DancerAlert({
   children: ReactNode;
   variant?: "destructive" | "info" | "warning";
 }) {
+  const DancerAlertIcon = dancerAlertIcons[variant];
+
   return (
     <Alert variant={variant}>
-      <TriangleAlert aria-hidden="true" />
+      <DancerAlertIcon aria-hidden="true" />
       <AlertDescription>{children}</AlertDescription>
       {action ? (
         <AlertAction className="top-1/2 -translate-y-1/2">

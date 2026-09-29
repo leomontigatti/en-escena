@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AlertCircleIcon } from "lucide-react";
+import { CircleAlert, TriangleAlert } from "lucide-react";
 
 import { DestroyButton } from "@/components/shared/action-buttons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -79,7 +79,11 @@ function DeleteDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <Alert variant={isBlocked ? "warning" : "destructive"}>
-          <AlertCircleIcon aria-hidden="true" />
+          {isBlocked ? (
+            <TriangleAlert aria-hidden="true" />
+          ) : (
+            <CircleAlert aria-hidden="true" />
+          )}
           <AlertDescription>
             {isBlocked
               ? (blockedDescription ??

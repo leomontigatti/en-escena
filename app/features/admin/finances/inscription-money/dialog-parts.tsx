@@ -3,7 +3,7 @@
  * chrome, the fetcher they write with, and the small pieces they each render.
  */
 
-import { AlertTriangle, Check } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useFetcher } from "react-router";
 
@@ -189,7 +189,7 @@ export function FetcherError({
 
   return (
     <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
+      <CircleAlert aria-hidden="true" />
       <AlertDescription>{data.message}</AlertDescription>
     </Alert>
   );

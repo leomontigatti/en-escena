@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { CircleAlert, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -122,7 +122,7 @@ function ChoreographyAlerts({
       {overAllocated ? <OverAllocatedAlert /> : null}
       {missingPrice ? (
         <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
+          <TriangleAlert aria-hidden="true" />
           <AlertDescription>
             Esta coreografía no tiene un precio configurado: no se puede
             calcular lo que adeuda ni cobrarla.
@@ -151,7 +151,7 @@ function ChoreographyAlerts({
 function OverAllocatedAlert() {
   return (
     <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
+      <CircleAlert aria-hidden="true" />
       <AlertDescription>
         Hay inscripciones con más dinero asignado que su total. Podés corregirlo
         desde la lista de inscripciones.

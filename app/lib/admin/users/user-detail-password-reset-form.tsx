@@ -1,3 +1,4 @@
+import { CircleAlert } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -109,6 +110,7 @@ export function InternalUserResetPasswordDialog({
           </DialogHeader>
           {error ? (
             <Alert variant="destructive">
+              <CircleAlert aria-hidden="true" />
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           ) : null}

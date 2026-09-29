@@ -137,10 +137,7 @@ function EventRegistrationReadinessAlert({
 
   return (
     <Alert variant="warning">
-      <TriangleAlert
-        aria-hidden="true"
-        className="self-center !translate-y-0"
-      />
+      <TriangleAlert aria-hidden="true" />
       <AlertDescription className="[&_p:not(:last-child)]:mb-1">
         <p>Este evento no está listo para inscribir coreografías.</p>
         <ul className="list-disc pl-5">

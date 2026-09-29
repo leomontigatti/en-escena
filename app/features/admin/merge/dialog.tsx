@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircleIcon, Merge } from "lucide-react";
+import { CircleAlert, Merge } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -129,7 +129,7 @@ export function MergeDialog({
           {survivorId ? renderSummary(survivorId) : null}
 
           <Alert variant="destructive">
-            <AlertCircleIcon aria-hidden="true" />
+            <CircleAlert aria-hidden="true" />
             <AlertDescription>
               {refusal ?? "Esta acción es irreversible."}
             </AlertDescription>

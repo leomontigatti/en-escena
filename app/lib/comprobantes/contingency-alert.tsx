@@ -1,4 +1,4 @@
-import { AlertTriangle, CircleCheck } from "lucide-react";
+import { CircleAlert, CircleCheck } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -121,7 +121,7 @@ export function ContingencyAlert({
 
   return (
     <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
+      <CircleAlert aria-hidden="true" />
       <AlertDescription>
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">

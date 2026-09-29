@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AlertCircleIcon, Trash } from "lucide-react";
+import { Trash, TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -71,7 +71,7 @@ function WithdrawDialog({
         </AlertDialogHeader>
         <div className="min-h-0 overflow-y-auto overscroll-contain">
           <Alert variant="warning">
-            <AlertCircleIcon aria-hidden="true" />
+            <TriangleAlert aria-hidden="true" />
             <AlertDescription>{consequence}</AlertDescription>
           </Alert>
         </div>

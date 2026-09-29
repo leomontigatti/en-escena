@@ -1,4 +1,4 @@
-import { InfoIcon } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,7 +13,7 @@ export function GuardAlert({ reason }: { reason: string | null }) {
     <AlertStack>
       {reason ? (
         <Alert variant="info">
-          <InfoIcon aria-hidden="true" />
+          <Info aria-hidden="true" />
           <AlertDescription>{reason}</AlertDescription>
         </Alert>
       ) : null}
