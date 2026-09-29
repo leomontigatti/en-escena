@@ -298,10 +298,18 @@ describe("comment-language guardrail (#592)", () => {
     );
   });
 
-  // The assertion that actually guards the repo.
-  test("the repository carries no Spanish comment and no Spanish test name", async () => {
-    await expect(checkCommentLanguage()).resolves.toEqual([]);
-  });
+  // The assertion that actually guards the repo. It reads every file, so it
+  // takes seconds and grows with the repo; under the full unit run's load it
+  // outlasted the default 5 s, hence its own limit.
+  test(
+    "the repository carries no Spanish comment and no Spanish test name",
+    {
+      timeout: 30_000,
+    },
+    async () => {
+      await expect(checkCommentLanguage()).resolves.toEqual([]);
+    },
+  );
 
   // Twice now the gate has passed only because it was not looking: first at the
   // repo-root configs, where `vitest.config.ts` sat, then at `.sandcastle/`.
