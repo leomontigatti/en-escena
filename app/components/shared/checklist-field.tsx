@@ -7,6 +7,7 @@ import {
 } from "react-hook-form";
 
 import { SearchInput } from "@/components/shared/search-input";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FieldError } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
@@ -19,12 +20,21 @@ type ChecklistOption = {
   label: string;
 };
 
+/**
+ * `capped` grows with the rows up to a ceiling, then scrolls: a form with
+ * other fields below it. `fill` takes whatever height the parent leaves, down
+ * to a floor: a step whose only content is the list.
+ */
+type ChecklistHeight = "capped" | "fill";
+
 type ChecklistFieldProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
 > = {
   control: Control<TFieldValues>;
+  disabled?: boolean;
   emptySelectionMessage: string;
+  height?: ChecklistHeight;
   label: string;
   name: TName;
   onValueChange?: () => void;
@@ -37,15 +47,18 @@ type ChecklistTab = "todos" | "seleccionados";
 /**
  * Picks options from a list shown in place, not in a popover: a long list —
  * an academy's dancers, an event's schedules — scrolls inside itself, so
- * nothing covers the actions below it. The list
- * takes the height its parent leaves it, down to a floor.
+ * nothing covers the actions below it. The rows sit in as many columns as the
+ * list's own width allows, so the same field reads well on a page and in a
+ * dialog.
  */
 function ChecklistField<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
 >({
   control,
+  disabled = false,
   emptySelectionMessage,
+  height = "capped",
   label,
   name,
   onValueChange,
@@ -82,26 +95,39 @@ function ChecklistField<
           <div
             role="group"
             aria-label={label}
-            className="flex flex-1 flex-col gap-2"
+            className={cn(
+              "@container flex flex-col gap-2",
+              height === "fill" && "flex-1",
+            )}
           >
-            <SearchInput
-              aria-label={searchLabel}
-              placeholder="Buscar por nombre"
-              value={query}
-              onValueChange={setQuery}
-            />
-            <Tabs
-              value={tab}
-              onValueChange={(value) => setTab(value as ChecklistTab)}
+            <div className="flex flex-col gap-2 @md:flex-row @md:items-center @md:gap-4">
+              <SearchInput
+                aria-label={searchLabel}
+                className="@md:w-64"
+                placeholder="Buscar por nombre"
+                value={query}
+                onValueChange={setQuery}
+              />
+              <Tabs
+                value={tab}
+                onValueChange={(value) => setTab(value as ChecklistTab)}
+              >
+                <TabsList variant="line">
+                  <TabsTrigger value="todos">Todos</TabsTrigger>
+                  <TabsTrigger value="seleccionados">
+                    Seleccionados
+                    <span className="sr-only">, </span>
+                    <Badge variant="secondary">{selected.length}</Badge>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div
+              className={cn(
+                "overflow-y-auto",
+                height === "fill" ? "min-h-64 flex-1 basis-0" : "max-h-80",
+              )}
             >
-              <TabsList className="w-full">
-                <TabsTrigger value="todos">Todos</TabsTrigger>
-                <TabsTrigger value="seleccionados">
-                  Seleccionados ({selected.length})
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div className="min-h-64 flex-1 basis-0 overflow-y-auto rounded-lg border p-1">
               {rows.length === 0 ? (
                 <p className="px-3 py-6 text-center text-sm text-muted-foreground">
                   {tab === "seleccionados" && query.length === 0
@@ -109,14 +135,17 @@ function ChecklistField<
                     : "Sin resultados."}
                 </p>
               ) : null}
-              {rows.map((option) => (
-                <ChecklistRow
-                  key={option.value}
-                  checked={selected.includes(option.value)}
-                  option={option}
-                  onToggle={() => toggle(option.value)}
-                />
-              ))}
+              <div className="grid gap-1 @lg:grid-cols-2 @3xl:grid-cols-3">
+                {rows.map((option) => (
+                  <ChecklistRow
+                    key={option.value}
+                    checked={selected.includes(option.value)}
+                    disabled={disabled}
+                    option={option}
+                    onToggle={() => toggle(option.value)}
+                  />
+                ))}
+              </div>
             </div>
             <FieldError>{fieldState.error?.message}</FieldError>
           </div>
@@ -128,10 +157,12 @@ function ChecklistField<
 
 function ChecklistRow({
   checked,
+  disabled,
   onToggle,
   option,
 }: {
   checked: boolean;
+  disabled: boolean;
   onToggle: () => void;
   option: ChecklistOption;
 }) {
@@ -139,13 +170,23 @@ function ChecklistRow({
     <div
       data-slot="checklist-row"
       className={cn(
-        "flex min-h-10 w-full items-center rounded-md px-3 hover:bg-muted/60",
+        "flex min-h-10 w-full items-center rounded-md px-3",
+        !disabled && "hover:bg-muted/60",
         checked && "bg-primary/5",
       )}
     >
-      <Label className="flex flex-1 cursor-pointer items-center gap-3 self-stretch">
-        <Checkbox checked={checked} onCheckedChange={onToggle} />
+      <Label
+        className={cn(
+          "flex flex-1 items-center gap-3 self-stretch font-normal",
+          !disabled && "cursor-pointer",
+        )}
+      >
         <span className="flex-1">{option.label}</span>
+        <Checkbox
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={onToggle}
+        />
       </Label>
     </div>
   );

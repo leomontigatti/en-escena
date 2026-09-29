@@ -104,6 +104,7 @@ function DancersStep({ loaderData, wizard }: StepProps) {
       <ChecklistField
         control={wizard.form.control}
         emptySelectionMessage="Todavía no seleccionaste bailarines."
+        height="fill"
         label="Bailarines"
         name="dancerIds"
         onValueChange={wizard.resetResolution}
@@ -204,6 +205,7 @@ function ProfessorsStep({ loaderData, wizard }: StepProps) {
       <ChecklistField
         control={wizard.form.control}
         emptySelectionMessage="Todavía no seleccionaste profesores."
+        height="fill"
         label="Profesores"
         name="professorIds"
         options={loaderData.activeProfessors.map((professor) => ({
