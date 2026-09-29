@@ -237,7 +237,7 @@ function useSettledDependentFields(input: {
     const classificationKey =
       getChoreographyDraftClassificationKey(getValues());
 
-    if (!answered?.key.startsWith(`${classificationKey}|`)) {
+    if (answered?.classificationKey !== classificationKey) {
       return;
     }
 

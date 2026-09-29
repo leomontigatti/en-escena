@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
 import {
+  getChoreographyDraftClassificationKey,
   getChoreographyDraftPreviewKey,
   type ChoreographyDraftPreview,
 } from "@/features/admin/choreographies/detail/draft.shared";
@@ -596,6 +597,10 @@ function buildSavedPreview(
       options: choreography.experienceLevelOptions,
       required: choreography.requiresExperienceLevel,
     },
+    classificationKey: getChoreographyDraftClassificationKey({
+      dancerIds: choreography.dancers.map((dancer) => dancer.id),
+      modalityId: choreography.modalityId,
+    }),
     groupType: choreography.groupType,
     key: getChoreographyDraftPreviewKey({
       dancerIds: choreography.dancers.map((dancer) => dancer.id),

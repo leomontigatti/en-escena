@@ -12,6 +12,7 @@ import { Toaster } from "sonner";
 import { afterEach, describe, expect, test } from "vitest";
 
 import {
+  getChoreographyDraftClassificationKey,
   getChoreographyDraftPreviewKey,
   readChoreographyDraftFormData,
   resolveChoreographyDraftIntent,
@@ -428,6 +429,10 @@ function buildPreview(
       ],
       required: true,
     },
+    classificationKey: getChoreographyDraftClassificationKey({
+      dancerIds,
+      modalityId,
+    }),
     groupType: "solo",
     key: getChoreographyDraftPreviewKey({
       dancerIds,

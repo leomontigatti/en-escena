@@ -31,6 +31,7 @@ import {
   type DraftScheduleOption,
 } from "./draft-schedule.server";
 import {
+  getChoreographyDraftClassificationKey,
   getChoreographyDraftPreviewKey,
   type ChoreographyDraft,
   type ChoreographyDraftBlocker,
@@ -149,6 +150,7 @@ export async function resolveChoreographyDraft(input: {
       blockers,
       category,
       consequences,
+      classificationKey: getChoreographyDraftClassificationKey(draft),
       experienceLevel: placement.experienceLevel,
       groupType,
       key: getChoreographyDraftPreviewKey({
@@ -332,6 +334,10 @@ function resolveLockedDraft(input: {
         options: choreography.experienceLevelOptions,
         required: choreography.requiresExperienceLevel,
       },
+      classificationKey: getChoreographyDraftClassificationKey({
+        dancerIds: choreography.dancers.map((dancer) => dancer.id),
+        modalityId: choreography.modalityId,
+      }),
       groupType: choreography.groupType,
       key: getChoreographyDraftPreviewKey({
         dancerIds: choreography.dancers.map((dancer) => dancer.id),

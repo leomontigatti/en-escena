@@ -42,9 +42,8 @@ export function ChoreographyClassificationFields({
   // picked on its own only waits for its consequences.
   const isDeriving =
     preview.isPending &&
-    !shown.key.startsWith(
-      `${getChoreographyDraftClassificationKey(draft.draft)}|`,
-    );
+    shown.classificationKey !==
+      getChoreographyDraftClassificationKey(draft.draft);
 
   return (
     <>

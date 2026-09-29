@@ -156,6 +156,8 @@ export type ChoreographyDraftPreview = {
     options: Array<{ id: string; name: string }>;
     required: boolean;
   };
+  /** The modality and dancers this answers for. */
+  classificationKey: string;
   groupType: ChoreographyGroupType;
   /** The draft this answers for, with the capacity the resolution settled on. */
   key: string;
