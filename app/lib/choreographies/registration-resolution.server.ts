@@ -706,7 +706,7 @@ export function getAgeAtDate(birthDate: string, date: LocalDateParts) {
  * event. The three are one gate because they answer the same question —whether
  * these dancers can register at all— and no caller needs them apart.
  */
-function validateResolvedDancers(
+export function validateResolvedDancers(
   dancers: ResolvedRegistrationDancer[],
 ): OperationFailure | null {
   const uniqueDancerIds = new Set(dancers.map((dancer) => dancer.id));

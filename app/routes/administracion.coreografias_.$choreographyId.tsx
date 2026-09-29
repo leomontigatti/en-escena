@@ -64,6 +64,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export const shouldRevalidate: ShouldRevalidateFunction = (arg) =>
   shouldRevalidateChoreographyDetail({
+    actionResult: arg.actionResult,
     defaultShouldRevalidate: arg.defaultShouldRevalidate,
     formData: arg.formData,
   });

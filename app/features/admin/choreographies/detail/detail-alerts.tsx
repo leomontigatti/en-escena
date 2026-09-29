@@ -1,9 +1,7 @@
-import { CircleAlert, Info, TriangleAlert } from "lucide-react";
+import { Info, TriangleAlert } from "lucide-react";
 
 import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
 
 import type { ChoreographyDetailLoaderData } from "./server";
@@ -28,15 +26,17 @@ function formatCategoryAgeMismatchAction(isEvaluated: boolean) {
  * permission.
  */
 export function ChoreographyDetailAlerts({
-  groupType,
   loaderData,
-  noCompatibleCategory,
 }: {
-  groupType: ChoreographyGroupType;
   loaderData: ChoreographyDetailLoaderData;
-  noCompatibleCategory: boolean;
 }) {
   const choreography = loaderData.choreography;
+  // The level is open whenever the category declares levels and the structure
+  // is: that is the only way to complete a choreography left without one.
+  const canChooseExperienceLevel =
+    loaderData.canEdit &&
+    loaderData.draft.structuralLock === null &&
+    choreography.requiresExperienceLevel;
 
   return (
     <AlertStack>
@@ -77,9 +77,7 @@ export function ChoreographyDetailAlerts({
           <AlertDescription>
             Esta coreografía no tiene nivel de experiencia y su categoría lo
             requiere.
-            {loaderData.experienceLevel.canReassign
-              ? " Elegí uno para completarla."
-              : ""}
+            {canChooseExperienceLevel ? " Elegí uno para completarla." : ""}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -134,26 +132,14 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ))}
 
-      {/* A deposit does not close the modality: it only rejects the correction
-          that would move the schedule, so it is announced as a
-          blocker-in-waiting. */}
+      {/* A deposit does not close the modality: it only refuses a save that
+          would move the schedule, so it is announced as a blocker-in-waiting. */}
       {loaderData.modality.blockers.map((blocker) => (
         <Alert key={blocker.code} variant="warning">
           <TriangleAlert aria-hidden="true" />
           <AlertDescription>{blocker.label}</AlertDescription>
         </Alert>
       ))}
-
-      {noCompatibleCategory ? (
-        <Alert variant="destructive">
-          <CircleAlert aria-hidden="true" />
-          <AlertTitle>No hay categoría compatible</AlertTitle>
-          <AlertDescription>
-            Con este elenco ({formatGroupTypeLabel(groupType)}) no existe una
-            categoría válida. Ajustá los bailarines para poder guardar.
-          </AlertDescription>
-        </Alert>
-      ) : null}
     </AlertStack>
   );
 }

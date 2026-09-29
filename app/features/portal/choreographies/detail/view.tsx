@@ -24,7 +24,7 @@ export function PortalChoreographyDetailRouteView({
 
   return (
     <section
-      className="flex flex-col gap-6"
+      className="flex flex-1 flex-col gap-6"
       aria-labelledby="choreography-title"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

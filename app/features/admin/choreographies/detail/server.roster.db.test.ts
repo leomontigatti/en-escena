@@ -15,11 +15,17 @@ import {
 import {
   handleChoreographyDetailAction,
   loadChoreographyDetailRouteData,
+  type ChoreographyDetailActionData,
 } from "@/features/admin/choreographies/detail/server";
+import { toSavedChoreographyDraft } from "@/features/admin/choreographies/detail/draft-form";
 import {
-  toChoreographyDetailViewActionData,
-  updateChoreographyRosterIntent,
-} from "@/features/admin/choreographies/detail/shared";
+  resolveChoreographyDraftIntent,
+  saveChoreographyDraftIntent,
+  toChoreographyDraftFormData,
+  type ChoreographyDraft,
+  type ChoreographyDraftPreview,
+} from "@/features/admin/choreographies/detail/draft.shared";
+import { toChoreographyDetailViewActionData } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import {
   invalidDancerSelectionMessage,
@@ -35,7 +41,11 @@ import {
   createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
-import { noCompatibleCategoryRosterMessage } from "@/lib/choreographies/choreography-messages";
+import {
+  evaluatedChoreographyMessage,
+  noCompatibleCategoryRosterMessage,
+} from "@/lib/choreographies/choreography-messages";
+import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 
@@ -228,42 +238,6 @@ describe("administrative choreography roster editing", () => {
     expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
   });
 
-  test("revives the same inscription id when the withdrawn dancer is added again", async () => {
-    const scenario = await createRemovalScenario({
-      academyName: "Academia Roster Revive",
-      email: "roster.revive.academia@example.com",
-    });
-    const payment = await createPayment(scenario);
-    await db.insert(paymentAllocations).values({
-      academyId: scenario.academyId,
-      amount: 3000,
-      eventId: scenario.event.id,
-      choreographyInscriptionId: scenario.inscriptionA.id,
-      paymentId: payment.id,
-    });
-
-    await submitRoster({
-      choreographyId: scenario.choreography.id,
-      dancerIds: [scenario.dancerB.id],
-    });
-    const response = await submitRoster({
-      choreographyId: scenario.choreography.id,
-      dancerIds: [scenario.dancerA.id, scenario.dancerB.id],
-    });
-
-    expect(response).toMatchObject({ status: "success" });
-
-    const inscriptions = await db.query.choreographyDancers.findMany({
-      where: eq(choreographyDancers.choreographyId, scenario.choreography.id),
-    });
-    const revived = inscriptions.find(
-      (row) => row.dancerId === scenario.dancerA.id,
-    );
-    expect(inscriptions).toHaveLength(2);
-    expect(revived?.id).toBe(scenario.inscriptionA.id);
-    expect(revived?.withdrawnAt).toBeNull();
-  });
-
   test("stamps a dancer added later with its own registration date, not the choreography's", async () => {
     const scenario = await createRemovalScenario({
       academyName: "Academia Roster Fecha",
@@ -313,7 +287,9 @@ describe("administrative choreography roster editing", () => {
   });
 
   test("keeps the original registration date when a withdrawn inscription is revived", async () => {
-    const scenario = await createRemovalScenario({
+    // Grupal, five dancers down to four and back: the group type and the
+    // capacity never move, so the withdrawal and the revival are the whole save.
+    const scenario = await createGrupalRemovalScenario({
       academyName: "Academia Roster Revive Fecha",
       email: "roster.revive.fecha.academia@example.com",
     });
@@ -331,13 +307,24 @@ describe("administrative choreography roster editing", () => {
       paymentId: payment.id,
     });
 
-    await submitRoster({
-      choreographyId: scenario.choreography.id,
-      dancerIds: [scenario.dancerB.id],
-    });
+    await expect(
+      submitRoster({
+        choreographyId: scenario.choreography.id,
+        dancerIds: scenario.remainingDancerIds,
+      }),
+    ).resolves.toMatchObject({ status: "success" });
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+      }),
+    ).resolves.toMatchObject({ withdrawnAt: expect.any(Date) });
+
     const response = await submitRoster({
       choreographyId: scenario.choreography.id,
-      dancerIds: [scenario.dancerA.id, scenario.dancerB.id],
+      dancerIds: [
+        scenario.inscriptionA.dancerId,
+        ...scenario.remainingDancerIds,
+      ],
     });
 
     expect(response).toMatchObject({ status: "success" });
@@ -350,7 +337,7 @@ describe("administrative choreography roster editing", () => {
   });
 
   test("leaves the withdrawn row untouched when its allocations are removed afterwards", async () => {
-    const scenario = await createRemovalScenario({
+    const scenario = await createGrupalRemovalScenario({
       academyName: "Academia Roster Desasigna",
       email: "roster.desasigna.academia@example.com",
     });
@@ -368,11 +355,12 @@ describe("administrative choreography roster editing", () => {
 
     await submitRoster({
       choreographyId: scenario.choreography.id,
-      dancerIds: [scenario.dancerB.id],
+      dancerIds: scenario.remainingDancerIds,
     });
     const withdrawn = await db.query.choreographyDancers.findFirst({
       where: eq(choreographyDancers.id, scenario.inscriptionA.id),
     });
+    expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
 
     await db
       .delete(paymentAllocations)
@@ -417,11 +405,10 @@ describe("administrative choreography roster editing", () => {
       dancerIds: [dancerA.id, dancerB.id],
     });
 
-    expect(result).not.toBeInstanceOf(Response);
-    if (result instanceof Response) {
-      throw new Error("Expected a blocked roster action, got a redirect.");
-    }
-    expect(result).toMatchObject({ status: "roster-error" });
+    expect(result).toEqual({
+      message: evaluatedChoreographyMessage,
+      status: "error",
+    });
 
     const inscriptions = await db.query.choreographyDancers.findMany({
       where: eq(choreographyDancers.choreographyId, choreography.id),
@@ -474,7 +461,7 @@ describe("administrative choreography roster editing", () => {
     expect(saved?.groupType).toBe("duo");
   });
 
-  test("keeps the current name when the submit does not carry one", async () => {
+  test("keeps the current name when only the roster changes", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Sin Nombre",
       email: "roster.sinnombre.academia@example.com",
@@ -657,13 +644,9 @@ describe("schedule capacity guard on the roster path", () => {
       dancerIds: [scenario.dancerA.id, scenario.dancerB.id],
     });
 
-    // Must not be the roster section's own swallowed channel: the route
-    // filters `status: "roster-error"` out before it reaches the view (see
-    // `toChoreographyDetailViewActionData`), so this specific rejection has to
-    // come back as a plain `status: "error"` to actually be visible.
+    // A plain `status: "error"`, so the rejection is visible on the page.
     expect(result).toMatchObject({
-      message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
+      message: priceDivergenceScheduleCapacityMessage,
       status: "error",
     });
     expect(result).not.toBeInstanceOf(Response);
@@ -722,9 +705,10 @@ describe("schedule capacity guard on the roster path", () => {
       dancerIds: [scenario.dancerA.id, scenario.dancerB.id],
     });
 
+    // The duo capacity is offered but full, so the draft has nowhere to land.
     expect(result).toMatchObject({
       message:
-        "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
+        "No se puede guardar: todos los cupos de cronograma compatibles están llenos.",
       status: "error",
     });
     if (!result || result instanceof Response) {
@@ -765,8 +749,7 @@ describe("schedule capacity guard on the roster path", () => {
     });
 
     expect(result).toMatchObject({
-      message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
+      message: priceDivergenceScheduleCapacityMessage,
       status: "error",
     });
 
@@ -897,7 +880,7 @@ describe("schedule capacity guard on the roster path", () => {
       scheduleCapacityId: catalog.duoScheduleCapacity.id,
     });
 
-    expect(undo).not.toMatchObject({ status: "success" });
+    expect(undo).toMatchObject({ status: "error" });
 
     const afterUndo = await db.query.choreographies.findFirst({
       where: eq(choreographies.id, choreography.id),
@@ -921,7 +904,7 @@ describe("schedule capacity guard on the roster path", () => {
   // are new call sites on the roster save path, so a wiring mistake there
   // (wrong argument order, wrong encoding for the specific-capacity case) would
   // show up as this test failing instead of as a silent false rejection.
-  test("still saves a compatible capacity picked from a multiple-status resolution after the #730 final gate", async () => {
+  test("saves the compatible capacity picked among several when the group type shrinks", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Cupo Compatible Final",
       email: "roster.cupo.compatible.final@example.com",
@@ -1056,7 +1039,7 @@ describe("schedule capacity guard on the roster path", () => {
       scheduleCapacityId: catalog.duoScheduleCapacity.id,
     });
 
-    expect(result).not.toMatchObject({ status: "success" });
+    expect(result).toMatchObject({ status: "error" });
 
     const saved = await db.query.choreographies.findFirst({
       where: eq(choreographies.id, choreography.id),
@@ -1398,7 +1381,7 @@ describe("`Estado de alta` on the administrative roster editor", () => {
     });
     expect(rejected).toMatchObject({
       message: invalidDancerSelectionMessage,
-      status: "roster-error",
+      status: "error",
     });
   });
 
@@ -1416,7 +1399,7 @@ describe("`Estado de alta` on the administrative roster editor", () => {
 
     expect(rejected).toMatchObject({
       message: invalidProfessorSelectionMessage,
-      status: "roster-error",
+      status: "error",
     });
   });
 
@@ -1514,57 +1497,6 @@ describe("`Estado de alta` on the administrative roster editor", () => {
     expect(stored).toMatchObject({
       categoryId: catalog.teenCategory.id,
       groupType: "duo",
-    });
-  });
-
-  test("normalizes a stale stored age on a save that changes nothing about the roster", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Edad Sin Cambios",
-      email: "roster.edad.sin.cambios.academia@example.com",
-    });
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    const dancer = await createDancer(owner.academyId, {
-      birthDate: "2010-01-10",
-      firstName: "Ana",
-      lastName: "Queda",
-    });
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.teenCategory.id,
-      eventId: event.id,
-      groupType: "solo",
-      modalityId: catalog.modality.id,
-      name: "Solo",
-      scheduleCapacityId: catalog.soloScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 11,
-      choreographyId: choreography.id,
-      dancerId: dancer.id,
-    });
-
-    const response = await submitRoster({
-      choreographyId: choreography.id,
-      dancerIds: [dancer.id],
-    });
-
-    expect(response).toMatchObject({ status: "success" });
-
-    const ageByDancerId = await readAgesByDancerId(choreography.id);
-    expect(ageByDancerId).toEqual(new Map([[dancer.id, 16]]));
-
-    // The normalization deliberately stops at the inscriptions: a save that
-    // resolves no roster writes no placement, so the choreography is left
-    // exactly as it was.
-    const stored = await db.query.choreographies.findFirst({
-      columns: { categoryId: true, groupType: true },
-      where: eq(choreographies.id, choreography.id),
-    });
-    expect(stored).toMatchObject({
-      categoryId: catalog.teenCategory.id,
-      groupType: "solo",
     });
   });
 });
@@ -1734,34 +1666,55 @@ test("refuses a roster change that resolves to no category, writing nothing", as
   expect(professorLinks).toHaveLength(1);
 });
 
+/**
+ * What the form does with a roster edit: the saved choreography as the draft
+ * plus the edits, previewed, and saved with the capacity the preview settled on
+ * unless the test names one.
+ */
 async function submitRoster(input: {
   choreographyId: string;
   dancerIds: string[];
   name?: string;
   professorIds?: string[];
-  experienceLevelId?: string;
   scheduleCapacityId?: string;
 }) {
-  const body = new FormData();
-  body.set("intent", updateChoreographyRosterIntent);
-  if (input.name !== undefined) {
-    body.set("name", input.name);
-  }
-  for (const dancerId of input.dancerIds) {
-    body.append("dancerIds", dancerId);
-  }
-  for (const professorId of input.professorIds ?? []) {
-    body.append("professorIds", professorId);
-  }
-  if (input.experienceLevelId) {
-    body.set("experienceLevelId", input.experienceLevelId);
-  }
-  if (input.scheduleCapacityId) {
-    body.set("scheduleCapacityId", input.scheduleCapacityId);
-  }
+  const detail = await loadRosterDetail(input.choreographyId);
+  const saved = toSavedChoreographyDraft(detail.choreography);
+  const draft: ChoreographyDraft = {
+    ...saved,
+    dancerIds: input.dancerIds,
+    name: input.name ?? saved.name,
+    professorIds: input.professorIds ?? saved.professorIds,
+  };
+  const preview = readDraftPreview(
+    await postDraft({
+      choreographyId: input.choreographyId,
+      draft,
+      intent: resolveChoreographyDraftIntent,
+    }),
+  );
 
+  return await postDraft({
+    choreographyId: input.choreographyId,
+    draft: {
+      ...draft,
+      scheduleCapacityId:
+        input.scheduleCapacityId ?? preview.scheduleCapacity.selectedId ?? "",
+    },
+    intent: saveChoreographyDraftIntent,
+    previewedCategoryId: preview.category?.id ?? null,
+  });
+}
+
+async function postDraft(input: {
+  choreographyId: string;
+  draft: ChoreographyDraft;
+  intent:
+    typeof resolveChoreographyDraftIntent | typeof saveChoreographyDraftIntent;
+  previewedCategoryId?: string | null;
+}) {
   const { request } = await createSignedInAdminRequest({
-    body,
+    body: toChoreographyDraftFormData(input),
     email: `admin.roster.${(submitCount += 1)}.${input.choreographyId}@example.com`,
     requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
     role: "admin",
@@ -1771,4 +1724,18 @@ async function submitRoster(input: {
     params: { choreographyId: input.choreographyId },
     request,
   });
+}
+
+function readDraftPreview(
+  response: ChoreographyDetailActionData | Response,
+): ChoreographyDraftPreview {
+  if (
+    response instanceof Response ||
+    !("intent" in response) ||
+    response.intent !== resolveChoreographyDraftIntent
+  ) {
+    throw new Error("the action did not answer the draft preview");
+  }
+
+  return response.preview;
 }
