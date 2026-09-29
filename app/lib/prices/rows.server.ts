@@ -68,3 +68,35 @@ export async function loadPriceRow(executor: Executor, priceId: string) {
 
   return row ?? null;
 }
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Takes the price rows `FOR UPDATE`, in id order so two writers locking the
+ * same rows cannot deadlock. Editing a price and storing it on an inscription
+ * both lock the row before they read it: the edit's guards ask whether an
+ * inscription stored the row, and storing it validates what the row covers, so
+ * each has to see the other's committed write, not the row as it was.
+ */
+export async function lockPriceRows(
+  tx: Transaction,
+  priceIds: readonly string[],
+) {
+  if (priceIds.length === 0) {
+    return;
+  }
+
+  await tx
+    .select({ id: prices.id })
+    .from(prices)
+    .where(inArray(prices.id, [...priceIds]))
+    .orderBy(asc(prices.id))
+    .for("update");
+}
+
+/** `loadPriceRow` under the row's lock (`lockPriceRows`). */
+export async function loadPriceRowForUpdate(tx: Transaction, priceId: string) {
+  await lockPriceRows(tx, [priceId]);
+
+  return await loadPriceRow(tx, priceId);
+}

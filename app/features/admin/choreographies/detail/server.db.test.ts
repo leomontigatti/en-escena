@@ -1,5 +1,5 @@
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -65,6 +65,10 @@ import {
   installDatabaseTestHooks,
   isPgliteTestBackend,
 } from "../../../../../tests/db/harness";
+import {
+  readBackendPid,
+  waitForABackendBlockedBy,
+} from "../../../../../tests/db/lock-contention";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 
@@ -1285,14 +1289,12 @@ describe("administrative choreography detail server", () => {
             .from(schedules)
             .where(eq(schedules.id, scenario.target.schedule.id))
             .for("update");
-          const [holder] = await tx.execute<{ pid: number }>(
-            sql`select pg_backend_pid() as pid`,
-          );
+          const holderPid = await readBackendPid(tx);
 
           reassignment = scenario.reassignTo(
             scenario.target.scheduleCapacity.id,
           );
-          await waitForABackendBlockedBy(Number(holder?.pid));
+          await waitForABackendBlockedBy(holderPid, "schedule lock");
 
           await tx
             .delete(scheduleModalities)
@@ -3482,22 +3484,6 @@ function facturaCInput(
     lines: [],
     ...rest,
   };
-}
-
-async function waitForABackendBlockedBy(holderPid: number) {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await db.execute<{ blocked: number }>(
-      sql`select count(*)::int as blocked from pg_stat_activity where ${holderPid} = any(pg_blocking_pids(pid))`,
-    );
-
-    if (Number(row?.blocked ?? 0) > 0) {
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-
-  throw new Error("The reassignment never waited on the schedule lock.");
 }
 
 /**

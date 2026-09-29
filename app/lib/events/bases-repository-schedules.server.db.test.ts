@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -37,6 +37,10 @@ import {
   installDatabaseTestHooks,
   isPgliteTestBackend,
 } from "../../../tests/db/harness";
+import {
+  readBackendPid,
+  waitForABackendBlockedBy,
+} from "../../../tests/db/lock-contention";
 
 installDatabaseTestHooks();
 
@@ -920,9 +924,7 @@ describe("`Bases del evento` repository", () => {
             .from(schedules)
             .where(eq(schedules.id, block.id))
             .for("update");
-          const [holder] = await tx.execute<{ pid: number }>(
-            sql`select pg_backend_pid() as pid`,
-          );
+          const holderPid = await readBackendPid(tx);
 
           edit = updateSchedule(block.id, {
             name: "Sábado mañana",
@@ -931,7 +933,7 @@ describe("`Bases del evento` repository", () => {
             totalCapacity: 20,
             modalityIds: [urbanas.id],
           });
-          await waitForABackendBlockedBy(Number(holder?.pid));
+          await waitForABackendBlockedBy(holderPid, "schedule lock");
 
           await tx
             .update(choreographies)
@@ -974,20 +976,4 @@ async function createSavedCategory(
       experienceLevels: [],
     }),
   );
-}
-
-async function waitForABackendBlockedBy(holderPid: number) {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await db.execute<{ blocked: number }>(
-      sql`select count(*)::int as blocked from pg_stat_activity where ${holderPid} = any(pg_blocking_pids(pid))`,
-    );
-
-    if (Number(row?.blocked ?? 0) > 0) {
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-
-  throw new Error("The schedule edit never waited on the schedule lock.");
 }

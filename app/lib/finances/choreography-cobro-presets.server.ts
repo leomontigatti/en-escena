@@ -30,6 +30,7 @@ import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-m
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+import { lockPriceRows } from "@/lib/prices/rows.server";
 
 import { choreographyTarget } from "./allocation-target.server";
 import {
@@ -262,6 +263,11 @@ async function applySelectedPrices(
   const byId = new Map(
     input.choreographies.map((choreography) => [choreography.id, choreography]),
   );
+
+  // Every row the loop below can lock, all at once and in order, before it
+  // takes them one by one through `loadCandidatePriceRow`: two presets picking
+  // the same rows cannot deadlock.
+  await lockPriceRows(tx, Object.values(input.priceIdByGroupType));
 
   for (const inscription of input.inscriptions) {
     const choreography = byId.get(inscription.choreographyId);
