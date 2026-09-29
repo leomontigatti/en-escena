@@ -33,6 +33,14 @@ import {
   findChoreographyDetail,
   type ChoreographyDetail,
 } from "./choreography-queries.server";
+import { resolveChoreographyDraft } from "./draft-resolution.server";
+import { saveChoreographyDraft } from "./draft-save.server";
+import {
+  readChoreographyDraftFormData,
+  resolveChoreographyDraftIntent,
+  saveChoreographyDraftIntent,
+  type ChoreographyDraftPreview,
+} from "./draft.shared";
 import { updateChoreographyExperienceLevel } from "./experience-level.server";
 import {
   listChoreographyModalityOptions,
@@ -293,8 +301,14 @@ export type ChoreographyModalityResolutionData = {
   result: ChoreographyModalityResolutionResult;
 };
 
+export type ChoreographyDraftPreviewData = {
+  intent: typeof resolveChoreographyDraftIntent;
+  preview: ChoreographyDraftPreview;
+};
+
 export type ChoreographyDetailActionData =
   | ChoreographyActionData
+  | ChoreographyDraftPreviewData
   | ChoreographyModalityResolutionData
   | ChoreographyRosterErrorData
   | ChoreographyRosterResolutionData
@@ -337,6 +351,14 @@ export async function handleChoreographyDetailAction(input: {
 
   assertChoreographyAcceptsIntent({ choreography, intent });
 
+  if (intent === saveChoreographyDraftIntent) {
+    return await saveChoreographyDraft({
+      choreography,
+      eventId: selectedEventId,
+      formData,
+    });
+  }
+
   if (intent === renameChoreographyIntent) {
     return await renameChoreography({
       choreographyId,
@@ -358,16 +380,15 @@ export async function handleChoreographyDetailAction(input: {
     return await restoreChoreographyAction(choreography);
   }
 
-  if (intent === resolveChoreographyRosterIntent) {
-    return {
-      intent: resolveChoreographyRosterIntent,
-      result: await resolveChoreographyDancers({
-        academyId: choreography.academyId,
-        choreographyId,
-        dancerIds: readFormStringArray(formData, "dancerIds"),
-        eventId: selectedEventId,
-      }),
-    };
+  const preview = await answerPreviewIntent({
+    choreography,
+    eventId: selectedEventId,
+    formData,
+    intent,
+  });
+
+  if (preview) {
+    return preview;
   }
 
   if (intent === updateChoreographyRosterIntent) {
@@ -376,17 +397,6 @@ export async function handleChoreographyDetailAction(input: {
       eventId: selectedEventId,
       formData,
     });
-  }
-
-  if (intent === resolveChoreographyModalityIntent) {
-    return {
-      intent: resolveChoreographyModalityIntent,
-      result: await resolveChoreographyModalityCorrection({
-        choreography,
-        eventId: selectedEventId,
-        modalityId: readFormString(formData, modalityFieldNames.modalityId),
-      }),
-    };
   }
 
   if (intent === updateChoreographyModalityIntent) {
@@ -420,6 +430,64 @@ export async function handleChoreographyDetailAction(input: {
   }
 
   throw new Response(unsupportedActionMessage, { status: 400 });
+}
+
+/**
+ * The intents that answer what an edit would do without writing it. None of
+ * them revalidates the loader (`shouldRevalidateChoreographyDetail`).
+ */
+async function answerPreviewIntent(input: {
+  choreography: ChoreographyDetail;
+  eventId: string;
+  formData: FormData;
+  intent: FormDataEntryValue | null;
+}): Promise<
+  | ChoreographyDraftPreviewData
+  | ChoreographyModalityResolutionData
+  | ChoreographyRosterResolutionData
+  | null
+> {
+  const { choreography, formData, intent } = input;
+  const selectedEventId = input.eventId;
+  const choreographyId = choreography.id;
+
+  if (intent === resolveChoreographyDraftIntent) {
+    const resolution = await resolveChoreographyDraft({
+      choreography,
+      draft: readChoreographyDraftFormData(formData).draft,
+      eventId: selectedEventId,
+    });
+
+    return {
+      intent: resolveChoreographyDraftIntent,
+      preview: resolution.preview,
+    };
+  }
+
+  if (intent === resolveChoreographyRosterIntent) {
+    return {
+      intent: resolveChoreographyRosterIntent,
+      result: await resolveChoreographyDancers({
+        academyId: choreography.academyId,
+        choreographyId,
+        dancerIds: readFormStringArray(formData, "dancerIds"),
+        eventId: selectedEventId,
+      }),
+    };
+  }
+
+  if (intent === resolveChoreographyModalityIntent) {
+    return {
+      intent: resolveChoreographyModalityIntent,
+      result: await resolveChoreographyModalityCorrection({
+        choreography,
+        eventId: selectedEventId,
+        modalityId: readFormString(formData, modalityFieldNames.modalityId),
+      }),
+    };
+  }
+
+  return null;
 }
 
 async function renameChoreography(input: {

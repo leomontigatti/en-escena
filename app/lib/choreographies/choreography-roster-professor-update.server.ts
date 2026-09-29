@@ -15,6 +15,8 @@ import {
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export async function updateChoreographyProfessors(input: {
   academyId: string;
   eventId: string;
@@ -38,43 +40,11 @@ export async function updateChoreographyProfessors(input: {
     return validation;
   }
 
-  const requestedProfessorIdsSet = new Set(validation.professorIds);
-  const currentLinks = await db
-    .select({
-      professorId: choreographyProfessors.professorId,
-    })
-    .from(choreographyProfessors)
-    .where(eq(choreographyProfessors.choreographyId, input.choreographyId));
-  const linkedProfessorIds = new Set(
-    currentLinks.map((row) => row.professorId),
-  );
-  const professorIdsToRemove = currentLinks
-    .map((row) => row.professorId)
-    .filter((id) => !requestedProfessorIdsSet.has(id));
-  const professorIdsToAdd = validation.professorIds.filter(
-    (id) => !linkedProfessorIds.has(id),
-  );
-
   await db.transaction(async (tx) => {
-    if (professorIdsToRemove.length > 0) {
-      await tx
-        .delete(choreographyProfessors)
-        .where(
-          and(
-            eq(choreographyProfessors.choreographyId, input.choreographyId),
-            inArray(choreographyProfessors.professorId, professorIdsToRemove),
-          ),
-        );
-    }
-
-    if (professorIdsToAdd.length > 0) {
-      await tx.insert(choreographyProfessors).values(
-        professorIdsToAdd.map((professorId) => ({
-          choreographyId: input.choreographyId,
-          professorId,
-        })),
-      );
-    }
+    await writeChoreographyProfessors(tx, {
+      choreographyId: input.choreographyId,
+      professorIds: validation.professorIds,
+    });
   });
 
   return { ok: true };
@@ -131,4 +101,51 @@ export async function validateChoreographyProfessorSelection(input: {
   }
 
   return { ok: true, professorIds: requestedProfessorIds };
+}
+
+/**
+ * Replaces the professor links with an already validated selection, inside the
+ * caller's transaction: the links that stay are left untouched, the ones that
+ * left are deleted and the new ones inserted.
+ */
+export async function writeChoreographyProfessors(
+  tx: Transaction,
+  input: { choreographyId: string; professorIds: string[] },
+): Promise<void> {
+  const requestedProfessorIds = new Set(input.professorIds);
+  const currentLinks = await tx
+    .select({
+      professorId: choreographyProfessors.professorId,
+    })
+    .from(choreographyProfessors)
+    .where(eq(choreographyProfessors.choreographyId, input.choreographyId));
+  const linkedProfessorIds = new Set(
+    currentLinks.map((row) => row.professorId),
+  );
+  const professorIdsToRemove = currentLinks
+    .map((row) => row.professorId)
+    .filter((id) => !requestedProfessorIds.has(id));
+  const professorIdsToAdd = input.professorIds.filter(
+    (id) => !linkedProfessorIds.has(id),
+  );
+
+  if (professorIdsToRemove.length > 0) {
+    await tx
+      .delete(choreographyProfessors)
+      .where(
+        and(
+          eq(choreographyProfessors.choreographyId, input.choreographyId),
+          inArray(choreographyProfessors.professorId, professorIdsToRemove),
+        ),
+      );
+  }
+
+  if (professorIdsToAdd.length > 0) {
+    await tx.insert(choreographyProfessors).values(
+      professorIdsToAdd.map((professorId) => ({
+        choreographyId: input.choreographyId,
+        professorId,
+      })),
+    );
+  }
 }

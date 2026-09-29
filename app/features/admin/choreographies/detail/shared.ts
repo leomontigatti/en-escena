@@ -1,6 +1,8 @@
 import type { FieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
+import { resolveChoreographyDraftIntent } from "./draft.shared";
+
 export const renameChoreographyIntent = "rename-choreography";
 export const deleteChoreographyIntent = "delete-choreography";
 export const restoreChoreographyIntent = "restore-choreography";
@@ -48,8 +50,8 @@ export const assignedExperienceLevelFieldName = "assignedExperienceLevelId";
  * roster: it persists nothing. Revalidating after that query reloads the loader
  * and resets the form to the saved roster, clobbering the edit in progress.
  *
- * `resolve-modality` previews a candidate modality the same way, and is
- * excluded for the same reason.
+ * `resolve-modality` and `resolve-draft` preview a candidate the same way, and
+ * are excluded for the same reason.
  */
 export function shouldRevalidateChoreographyDetail(input: {
   defaultShouldRevalidate: boolean;
@@ -59,7 +61,8 @@ export function shouldRevalidateChoreographyDetail(input: {
 
   if (
     intent === resolveChoreographyRosterIntent ||
-    intent === resolveChoreographyModalityIntent
+    intent === resolveChoreographyModalityIntent ||
+    intent === resolveChoreographyDraftIntent
   ) {
     return false;
   }

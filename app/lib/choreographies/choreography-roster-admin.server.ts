@@ -453,7 +453,7 @@ async function updateChoreographyDancers(input: {
  * rest. It runs inside the caller's transaction, after the capacity guard, so a
  * rejected move leaves none of it persisted.
  */
-async function syncRosterInscriptions(input: {
+export async function syncRosterInscriptions(input: {
   choreographyId: string;
   requestedDancerIds: Set<string>;
   resolvedDancers: ResolvedRegistrationDancer[];

@@ -97,6 +97,58 @@ export async function resolveChoreographyDancerUpdateContext(input: {
     };
   }
 
+  const roster = await readRosterDancers(input);
+
+  if (!roster.ok) {
+    return roster;
+  }
+
+  const resolvedDancers = roster.dancers;
+
+  const resolution =
+    await resolveChoreographyRegistrationOperationForResolvedDancers({
+      eventId: input.eventId,
+      modalityId: choreography.modalityId,
+      submodalityId: choreography.submodalityId,
+      dancers: resolvedDancers,
+    });
+
+  if (!resolution.ok) {
+    return {
+      ok: false,
+      message: resolution.error,
+    };
+  }
+
+  return {
+    ok: true,
+    choreography,
+    resolvedDancers,
+    resolution: resolution.resolution,
+    scheduleResolution: resolveDancerUpdateScheduleSelection(
+      getScheduleSelectionId(choreography),
+      resolution.resolution,
+    ),
+  };
+}
+
+/**
+ * The dancers an administrative roster names, each with the age it is placed
+ * with, or the reason the selection is refused: a dancer of another academy,
+ * or an inactive one that was not already on the roster. It reads the choice
+ * and nothing about the choreography's classification, so the roster save and
+ * the detail's draft resolve the same people whatever modality they classify
+ * them under.
+ */
+export async function readRosterDancers(input: {
+  academyId: string;
+  eventId: string;
+  choreographyId: string;
+  dancerIds: string[];
+}): Promise<
+  | { ok: true; dancers: ResolvedRegistrationDancer[] }
+  | { ok: false; message: string }
+> {
   const requestedDancerIds = [...new Set(input.dancerIds)];
   // Only the active ones count as "already on the roster": that exception exists
   // so an inactive dancer who already appears is not blocked, and a withdrawn
@@ -180,31 +232,7 @@ export async function resolveChoreographyDancerUpdateContext(input: {
     } satisfies ResolvedRegistrationDancer;
   });
 
-  const resolution =
-    await resolveChoreographyRegistrationOperationForResolvedDancers({
-      eventId: input.eventId,
-      modalityId: choreography.modalityId,
-      submodalityId: choreography.submodalityId,
-      dancers: resolvedDancers,
-    });
-
-  if (!resolution.ok) {
-    return {
-      ok: false,
-      message: resolution.error,
-    };
-  }
-
-  return {
-    ok: true,
-    choreography,
-    resolvedDancers,
-    resolution: resolution.resolution,
-    scheduleResolution: resolveDancerUpdateScheduleSelection(
-      getScheduleSelectionId(choreography),
-      resolution.resolution,
-    ),
-  };
+  return { ok: true, dancers: resolvedDancers };
 }
 
 export function resolveSelectedExperienceLevelId(input: {
