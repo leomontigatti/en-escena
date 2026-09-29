@@ -895,8 +895,9 @@ The loop:
 5. Diagnose from the page, not from guesses: `console` for errors, `requests` then
    `request <n>` or `response-body <n>` for the network. Fix the source and go back to step 4.
    A first load may log `504 (Outdated Optimize Dep)` while Vite pre-bundles; `reload` once.
-6. **Capture the after** at the end, once the change is final: `screenshot
---filename=<what>-after.png`, same screen, same account.
+6. **Capture the after** at the end, once the change is final: `resize 1440 900` again if the
+   1280 check changed it, then `screenshot --filename=<what>-after.png`, same screen, same
+   account, same size as the before.
 7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server. A
    session left open holds a Chromium for up to an hour.
 
