@@ -271,11 +271,13 @@ header. Alerts about the form sit above the card.
   field that needs the width spans both columns.
 - The card has no maximum width. It fills the shell like the alerts, tabs and
   tables around it, so the page keeps one edge.
-- The actions go in the card's footer, which sticks to the bottom of the window
-  (`sticky bottom-0`) so they stay in reach on a long form. The shared
-  `BackButton` (`Volver`) sits on the left and the shared `SubmitButton`
-  (`Guardar`) on the right, with `Descartar cambios` beside it when
-  [Editing and saving](#editing-and-saving) asks for it.
+- The actions go in a footer pinned to the bottom of the viewport, so they stay
+  in reach on a long form and rest on the bottom edge of a short page. It sits
+  below the card, not inside it: `Card` clips its overflow, which stops a
+  `sticky` child from sticking. The shared `BackButton` (`Volver`) sits on the
+  left and the shared `SubmitButton` (`Guardar`) on the right, with
+  `Descartar cambios` beside it when [Editing and saving](#editing-and-saving)
+  asks for it.
 - A detail page in edit mode swaps `Volver` for `Cancelar`, which leaves edit
   mode without saving.
 - A form in a `Dialog` is one column, with `Cancelar` and then the primary action
