@@ -32,6 +32,9 @@ vi.mock("react-router", async () => {
     useFormAction: reactRouterMocks.useFormAction,
     useNavigation: reactRouterMocks.useNavigation,
     useSubmit: reactRouterMocks.useSubmit,
+    // The form footer's leave guard needs a data router, which these renders
+    // do not mount; an idle blocker stands in for it.
+    useBlocker: () => ({ state: "unblocked" }),
   };
 });
 

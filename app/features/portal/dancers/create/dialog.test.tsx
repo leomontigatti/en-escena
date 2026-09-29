@@ -9,6 +9,9 @@ import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-sup
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
+  setInputValue,
+  updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
 type PortalDancersListRouteViewProps = Parameters<
@@ -64,6 +67,87 @@ describe("PortalDancersListRouteView dialog", () => {
     ).toBe("2999-01-01");
   });
 
+  test("holds `Guardar` until something is entered, and asks before `Cancelar` drops it", async () => {
+    await renderer.renderAsync(
+      createRouteElement(
+        "/portal/bailarines",
+        <PortalDancersListRouteView loaderData={createDancerLoaderData()} />,
+      ),
+    );
+
+    await clickReactDomButton("Nuevo bailarín");
+
+    expect(isSaveDisabled()).toBe(true);
+
+    await updateReactDomForm(() => {
+      setInputValue(
+        document.querySelector<HTMLInputElement>('input[name="firstName"]')!,
+        "Ana",
+      );
+    });
+
+    expect(isSaveDisabled()).toBe(false);
+
+    await clickReactDomButton("Cancelar");
+
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(document.body.textContent).toContain("Nuevo bailarín");
+
+    await clickReactDomButton("Seguir editando");
+    await clickReactDomButton("Cancelar");
+    await clickReactDomButton("Descartar", { exact: true });
+
+    expect(document.body.textContent).not.toContain(
+      "Ingresá los datos mínimos",
+    );
+  });
+
+  test("closes on `Cancelar` without asking while nothing was entered", async () => {
+    await renderer.renderAsync(
+      createRouteElement(
+        "/portal/bailarines",
+        <PortalDancersListRouteView loaderData={createDancerLoaderData()} />,
+      ),
+    );
+
+    await clickReactDomButton("Nuevo bailarín");
+    await clickReactDomButton("Cancelar");
+
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(document.body.textContent).not.toContain(
+      "Ingresá los datos mínimos",
+    );
+  });
+
+  test("keeps `Guardar` on after a refusal, and still asks before `Cancelar`", async () => {
+    await renderer.renderAsync(
+      createRouteElement(
+        "/portal/bailarines",
+        <PortalDancersListRouteView
+          loaderData={createDancerLoaderData()}
+          actionData={{
+            status: "error",
+            fieldErrors: { firstName: "Este campo es obligatorio." },
+            values: {
+              firstName: "",
+              lastName: "López",
+              birthDate: "2015-01-01",
+              documentType: "",
+              documentNumber: "",
+            },
+            modalOpen: true,
+          }}
+        />,
+      ),
+    );
+
+    expect(isSaveDisabled()).toBe(false);
+
+    await clickReactDomButton("Cancelar");
+
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+  });
+
   test("updates the open dancer dialog with submitted values after a server error", async () => {
     await renderer.renderAsync(
       createRouteElement(
@@ -114,6 +198,10 @@ describe("PortalDancersListRouteView dialog", () => {
     ).toBe("2999-01-01");
   });
 });
+
+function isSaveDisabled() {
+  return (findButton("Guardar", { exact: true }) as HTMLButtonElement).disabled;
+}
 
 function createDancerLoaderData(): PortalDancersListRouteViewProps["loaderData"] {
   return {

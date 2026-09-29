@@ -9,7 +9,6 @@ import {
   buildDetailActionError,
   buildDetailActionSuccess,
   buildDetailUser,
-  buildModeHref,
   getResetPasswordFieldErrors,
   getUpdateInternalUserFieldErrors,
   getUpdateInternalUserServerFieldErrors,
@@ -55,19 +54,9 @@ export async function loader({
     throw new Response(userNotFoundMessage, { status: 404 });
   }
 
-  const url = new URL(request.url);
-
   return {
     backToList: buildBackToListHref(request.url),
     canManage: appUser.role === "admin",
-    cancelHref: buildModeHref(url, userId, null),
-    editHref: buildModeHref(url, userId, "editar"),
-    isEditing:
-      appUser.role === "admin" && url.searchParams.get("modo") === "editar",
-    isResettingPassword:
-      appUser.role === "admin" &&
-      url.searchParams.get("modo") === "restablecer-contrasena",
-    resetPasswordHref: buildModeHref(url, userId, "restablecer-contrasena"),
     user: buildDetailUser(savedUser),
   };
 }

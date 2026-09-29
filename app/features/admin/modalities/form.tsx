@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ListChecks, Plus, Trash } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
@@ -23,6 +23,7 @@ import {
   type RouteFormPendingScope,
   useOptionalFormAction,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
@@ -52,25 +53,31 @@ function useEventModalityForm({
   submodalities?: EventSubmodalityRow[];
   submittedValues?: NameActionValues | ModalityActionValues;
 }): ModalityFormController {
-  const defaultValues = useMemo(
+  const saved = useMemo(
     (): ModalityFormValues => ({
-      name: submittedValues?.name ?? name ?? "",
-      submodalities:
-        submittedValues && "submodalities" in submittedValues
-          ? submittedValues.submodalities
-          : submodalities.map(toSubmodalityFormValues),
+      name: name ?? "",
+      submodalities: submodalities.map(toSubmodalityFormValues),
     }),
-    [name, submodalities, submittedValues],
+    [name, submodalities],
+  );
+  const submitted = useMemo(
+    (): ModalityFormValues | undefined =>
+      submittedValues && {
+        name: submittedValues.name,
+        submodalities:
+          "submodalities" in submittedValues
+            ? submittedValues.submodalities
+            : saved.submodalities,
+      },
+    [saved, submittedValues],
   );
   const form = useForm<ModalityFormValues>({
-    defaultValues,
+    defaultValues: saved,
     mode: "onSubmit",
     resolver: zodResolver(modalityFormSchema),
   });
 
-  useEffect(() => {
-    form.reset(defaultValues);
-  }, [defaultValues, form]);
+  useSavedFormValues(form, saved, submitted);
 
   return form;
 }
@@ -128,7 +135,7 @@ function ModalityFormActions({
   return (
     <EventBasesFormActions
       basePath={basePath}
-      control={form.control}
+      form={form}
       formId={formId}
       pendingScope={pendingScope}
     />

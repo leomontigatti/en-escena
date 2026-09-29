@@ -1,10 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Info, KeyRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { useNavigation, useSubmit } from "react-router";
 
-import { SubmitButton } from "@/components/shared/action-buttons";
+import { FormActions } from "@/components/shared/form-actions";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import type { loadPortalProfile } from "@/features/portal/profile/server";
@@ -37,6 +37,7 @@ import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -58,12 +59,16 @@ export function PortalProfileRouteView({
     actionDataOverride?.status === "error" ? actionDataOverride : undefined;
   const successResult =
     actionDataOverride?.status === "success" ? actionDataOverride : undefined;
-  const values = actionData?.values ?? {
+  const savedValues: AcademyProfileFormValues = {
     name: loaderData.academy.name,
     contactName: loaderData.academy.contactName,
     phone: loaderData.academy.phone,
   };
-  const form = useAcademyProfileForm({ values });
+  const values = actionData?.values ?? savedValues;
+  const form = useAcademyProfileForm({
+    savedValues,
+    values,
+  });
   const navigation = useNavigation();
   const isProfileSaving = isRouteFormPending(navigation, {
     intent: updateAcademyProfileIntent,
@@ -77,7 +82,10 @@ export function PortalProfileRouteView({
   });
 
   return (
-    <section className="flex flex-col gap-6" aria-labelledby="perfil-title">
+    <section
+      className="flex flex-1 flex-col gap-6"
+      aria-labelledby="perfil-title"
+    >
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
           <h1 id="perfil-title" className="text-xl font-semibold">
@@ -146,19 +154,31 @@ export function PortalProfileRouteView({
             </FieldGroup>
           </form>
         </CardContent>
-        <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-          <SubmitButton form={profileFormId} isPending={isProfileSaving} />
-        </CardFooter>
       </Card>
 
       <PasswordRecoveryForm email={loaderData.email} />
+
+      <FormActions
+        backTo="/portal"
+        form={profileFormId}
+        hasChanges={form.form.formState.isDirty}
+        isPending={isProfileSaving}
+        onDiscard={form.discard}
+      />
     </section>
   );
 }
 
+/**
+ * `savedValues` is what "changed" is measured against; `values` is what the
+ * form shows, which after a refused save is what was typed and still reads as
+ * changed ({@link useSavedFormValues}).
+ */
 function useAcademyProfileForm({
+  savedValues,
   values,
 }: {
+  savedValues: AcademyProfileFormValues;
   values: AcademyProfileFormValues;
 }) {
   const form = useForm<
@@ -170,14 +190,12 @@ function useAcademyProfileForm({
     mode: "onSubmit",
     resolver: zodResolver(academyProfileSchema),
   });
-
-  useEffect(() => {
-    form.reset(values);
-  }, [form, values.contactName, values.name, values.phone]);
+  useSavedFormValues(form, savedValues, values);
 
   const submit = useSubmit();
 
   return {
+    discard: () => form.reset(savedValues),
     form,
     handleSubmit: createValidatedRouteSubmitHandler(form, submit),
   };

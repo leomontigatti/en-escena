@@ -5,8 +5,17 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { AcademyDetailRouteView } from "@/features/admin/academies/detail/view";
-import type { AcademyDetailLoaderData } from "@/features/admin/academies/detail/shared";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import type {
+  AcademyDetailActionData,
+  AcademyDetailLoaderData,
+} from "@/features/admin/academies/detail/shared";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+  findButton,
+  setInputValue,
+  updateReactDomForm,
+} from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
 
@@ -32,19 +41,33 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
 }
 
 async function renderDetail({
+  actionData,
   canEdit = true,
   initialDeleteDialogOpen = false,
 }: {
+  actionData?: AcademyDetailActionData;
   canEdit?: boolean;
   initialDeleteDialogOpen?: boolean;
 } = {}) {
+  let saves = 0;
+
+  // The form posts to the URL the document says, which the memory router does
+  // not set.
+  window.history.replaceState(null, "", academyPath);
+
   const router = createMemoryRouter(
     [
+      { path: "/administracion/academias", element: <p>Lista</p> },
       {
         path: "/administracion/academias/:academyId",
-        action: async () => null,
+        action: async () => {
+          saves += 1;
+
+          return null;
+        },
         element: (
           <AcademyDetailRouteView
+            actionData={actionData}
             initialDeleteDialogOpen={initialDeleteDialogOpen}
             loaderData={buildLoaderData(canEdit)}
           />
@@ -55,6 +78,41 @@ async function renderDetail({
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);
+
+  return { pathname: () => router.state.location.pathname, saves: () => saves };
+}
+
+function readInput(name: string) {
+  const input = document.querySelector<HTMLInputElement>(
+    `input[name="${name}"]`,
+  );
+
+  if (!input) {
+    throw new Error(`Expected an input named "${name}".`);
+  }
+
+  return input;
+}
+
+async function typeInto(name: string, value: string) {
+  await updateReactDomForm(() => {
+    setInputValue(readInput(name), value);
+  });
+}
+
+function isSaveEnabled() {
+  const button = findButton("Guardar", { exact: true });
+
+  return button !== undefined && !(button as HTMLButtonElement).disabled;
+}
+
+const findDialog = () =>
+  document.querySelector<HTMLElement>('[role="alertdialog"]') ?? undefined;
+
+async function settle() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
 }
 
 /**
@@ -129,5 +187,110 @@ describe("AcademyDetailRouteView", () => {
 
     expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
     expect(document.body.textContent).not.toContain("Eliminar academia");
+  });
+
+  test("keeps `Guardar` off and offers no `Descartar cambios` while nothing changed", async () => {
+    await renderDetail();
+
+    expect(isSaveEnabled()).toBe(false);
+    expect(findButton("Descartar cambios")).toBeUndefined();
+  });
+
+  test("turns `Guardar` on with a change, and `Descartar cambios` puts back what is saved", async () => {
+    await renderDetail();
+
+    await typeInto("name", "Academia Nueva");
+
+    expect(isSaveEnabled()).toBe(true);
+
+    await clickReactDomButton("Descartar cambios");
+
+    expect(readInput("name").value).toBe("Academia Fork");
+    expect(isSaveEnabled()).toBe(false);
+    expect(findButton("Descartar cambios")).toBeUndefined();
+  });
+
+  test("asks before leaving with changes and lets the save through without asking", async () => {
+    const page = await renderDetail();
+
+    await typeInto("name", "Academia Nueva");
+    await clickReactDomButton("Guardar", { exact: true });
+    await settle();
+
+    expect(findDialog()).toBeUndefined();
+    expect(page.saves()).toBe(1);
+    expect(page.pathname()).toBe(academyPath);
+
+    await act(async () => {
+      document
+        .querySelector("a[href='/administracion/academias']")
+        ?.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            button: 0,
+            cancelable: true,
+          }),
+        );
+    });
+    await settle();
+
+    expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
+    expect(page.pathname()).toBe(academyPath);
+  });
+
+  test("leaves without asking when nothing changed", async () => {
+    const page = await renderDetail();
+
+    await act(async () => {
+      document
+        .querySelector("a[href='/administracion/academias']")
+        ?.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            button: 0,
+            cancelable: true,
+          }),
+        );
+    });
+    await settle();
+
+    expect(findDialog()).toBeUndefined();
+    expect(page.pathname()).toBe("/administracion/academias");
+  });
+
+  test("keeps `Guardar` on after the server refused a save, with what was typed back in the form", async () => {
+    await renderDetail({
+      actionData: {
+        fieldErrors: {},
+        intent: "update-academy",
+        message: "No pudimos guardar los cambios.",
+        status: "error",
+        values: {
+          contactName: "Nora Norte",
+          name: "Academia Rechazada",
+          phone: "3415551234",
+        },
+      },
+    });
+    await settle();
+
+    expect(readInput("name").value).toBe("Academia Rechazada");
+    expect(isSaveEnabled()).toBe(true);
+
+    await clickReactDomButton("Descartar cambios");
+
+    expect(readInput("name").value).toBe("Academia Fork");
+    expect(isSaveEnabled()).toBe(false);
+  });
+
+  test("shows a read-only auditor the fields disabled and only `Volver`", async () => {
+    await renderDetail({ canEdit: false });
+
+    expect(readInput("name").disabled).toBe(true);
+    expect(findButton("Guardar", { exact: true })).toBeUndefined();
+    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(
+      document.querySelector("a[href='/administracion/academias']"),
+    ).not.toBeNull();
   });
 });

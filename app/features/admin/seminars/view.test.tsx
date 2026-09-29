@@ -433,7 +433,10 @@ describe("SeminarDetailView `Inscriptos`", () => {
       }),
     ]);
 
-    const body = document.body.textContent ?? "";
+    // The `Información` panel stays mounted behind this one, hidden.
+    const body =
+      document.querySelector('[role="tabpanel"][data-state="active"]')
+        ?.textContent ?? "";
     expect(body).toContain("Abril Sosa");
     expect(body).toContain("Bailarín");
     expect(body).toContain("Beto Luna");

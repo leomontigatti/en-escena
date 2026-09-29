@@ -3,7 +3,7 @@ import { type ReactNode, useState } from "react";
 import { useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -86,6 +86,7 @@ export function PortalDancerDetailRouteView({
   });
   const form = usePortalDancerForm({
     eventStartDate: loaderData.activeEventStartDate,
+    savedValues: getPortalDancerFormValues({ dancer: loaderData.dancer }),
     submit,
     values: formValues,
   });
@@ -129,7 +130,7 @@ export function PortalDancerDetailRouteView({
   return (
     <>
       <section
-        className="flex flex-col gap-6"
+        className="flex flex-1 flex-col gap-6"
         aria-labelledby="bailarin-detail-title"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -251,16 +252,19 @@ export function PortalDancerDetailRouteView({
               ) : null}
             </form>
           </CardContent>
-          <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
-            <BackButton to="/portal/bailarines" viewTransition />
-            {nameWarning ? null : (
-              <SubmitButton
-                form={portalDancerFormId}
-                isPending={isSubmitting}
-              />
-            )}
-          </CardFooter>
         </PortalDancerFormSection>
+
+        {/* The same-name warning holds `Guardar`: the notice in the form
+            carries its own way to continue, and what was typed stays guarded. */}
+        <FormActions
+          backTo="/portal/bailarines"
+          canSave={!nameWarning}
+          form={portalDancerFormId}
+          hasChanges={form.form.formState.isDirty}
+          isPending={isSubmitting}
+          onDiscard={form.discard}
+          viewTransition
+        />
       </section>
 
       <PortalDancerStatusDialog

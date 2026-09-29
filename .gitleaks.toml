@@ -21,6 +21,15 @@ useDefault = true
 description = "Entropy match on a filename in a deleted prototype form (#978)"
 commits = ["ce1e706c00a5eae02a575ed0a5ad0c93f97dbd48"]
 
+# A fixed test password ("Temporal-2026") in a component test, matched as a
+# generic-api-key by its entropy. Scoped to the one commit that introduced it
+# (#1321); history is not rewritten, so the commit range keeps scanning it.
+[[allowlists]]
+description = "Entropy match on a test password literal (#1321)"
+commits = ["3032852aa093fd2fda5344fdbc8d1d1754150bea"]
+paths = ['''app/features/admin/users/detail/view\.test\.tsx''']
+condition = "AND"
+
 # --- Custom rules: gaps in the default ruleset, verified against 8.30.1 ------
 
 # The defaults have no rule for a password embedded in a connection URL, and

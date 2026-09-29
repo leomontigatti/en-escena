@@ -34,7 +34,6 @@ import {
   buildDancerActionError,
   buildDancerActionSuccess,
   buildDancerUpdateSchema,
-  buildModeHref,
   dancerFieldNames,
   readDancerUpdateValues,
 } from "./shared";
@@ -60,8 +59,6 @@ export async function loadDancerDetail(input: {
     throw new Response(dancerNotFoundMessage, { status: 404 });
   }
 
-  const url = new URL(input.request.url);
-
   return {
     activeEventStartDate: await findActiveEventStartDateOnly(),
     canEdit: user.role === "admin",
@@ -73,10 +70,6 @@ export async function loadDancerDetail(input: {
       storage: createDefaultDancerDocumentStorage(),
     }),
     backToList: buildBackToListHref(input.request.url),
-    editHref: buildModeHref(url, dancerId, "editar"),
-    cancelHref: buildModeHref(url, dancerId, null),
-    isEditing:
-      user.role === "admin" && url.searchParams.get("modo") === "editar",
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "dancer",
       personId: dancerId,

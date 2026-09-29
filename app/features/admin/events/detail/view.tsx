@@ -11,9 +11,9 @@ import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,11 @@ import {
   eventFormValues,
   paymentInstructionsFields,
 } from "@/lib/admin/events/form-values";
-import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
+import {
+  isRouteFormPending,
+  useOptionalNavigation,
+  useSavedFormValues,
+} from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -204,11 +208,15 @@ function EditEventPanel({
   registrationReadiness: EventDetailLoaderData["registrationReadiness"];
   resultsPublication: EventDetailLoaderData["resultsPublication"];
 }) {
-  const defaultValues = actionData?.values ?? eventFormValues(event);
+  const savedValues = eventFormValues(event);
   const eventForm = useEventForm({
-    values: defaultValues,
+    values: savedValues,
     pendingScope: { intent: "update" },
   });
+
+  // What a refused save sent back goes on top of what is saved, so it still
+  // counts as a change.
+  useSavedFormValues(eventForm.form, savedValues, actionData?.values);
   const documentsForm = useEventDocumentsForm(documents);
   const removal = useDocumentRemovalConfirmation({
     handleSubmit: eventForm.handleSubmit,
@@ -236,20 +244,11 @@ function EditEventPanel({
         action={eventActionPath(event.id)}
         encType="multipart/form-data"
         noValidate
+        className="flex flex-1 flex-col gap-6"
         onSubmit={removal.onSubmit}
       >
         <input type="hidden" name="intent" value="update" />
-        <AdminResourceFormCard
-          footer={
-            <>
-              <BackButton to="/administracion/eventos" />
-              <SubmitButton
-                disabled={!hasChanges}
-                isPending={eventForm.isPending}
-              />
-            </>
-          }
-        >
+        <AdminResourceFormCard>
           <EventFormFields controller={eventForm} />
           <EventFormTabs
             controller={eventForm}
@@ -261,6 +260,15 @@ function EditEventPanel({
             }
           />
         </AdminResourceFormCard>
+        <FormActions
+          backTo="/administracion/eventos"
+          hasChanges={hasChanges}
+          isPending={eventForm.isPending}
+          onDiscard={() => {
+            eventForm.form.reset();
+            documentsForm.discard();
+          }}
+        />
       </form>
       <RemoveDocumentsDialog
         isPending={eventForm.isPending}
@@ -278,9 +286,9 @@ const paymentInstructionsTabValue = "instrucciones-de-pago";
 
 /**
  * The two non-scalar halves of the event form, below the event's own fields and
- * inside the same `<form>`: "Guardar" stays in the card footer, outside the
- * tabs, and nothing here disables it — an invalid identifier is a field error
- * on submit, not a dead button.
+ * inside the same `<form>`: "Guardar" stays in the pinned footer, outside the
+ * tabs, and an invalid identifier is a field error on submit, not a dead
+ * button.
  */
 function EventFormTabs({
   controller,

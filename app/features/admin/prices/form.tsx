@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId, useMemo, type ReactNode } from "react";
+import { useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
@@ -23,6 +23,7 @@ import {
   type RouteFormPendingScope,
   useOptionalFormAction,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
@@ -101,7 +102,7 @@ export function usePriceForm({
   scheduleId,
   submittedValues,
 }: PriceFormDefaultValueProps): PriceFormController {
-  const defaultValues = useMemo(
+  const saved = useMemo(
     () =>
       getPriceFormDefaultValues({
         amount,
@@ -109,19 +110,23 @@ export function usePriceForm({
         name,
         paymentDeadline,
         scheduleId,
-        submittedValues,
       }),
-    [amount, groupType, name, paymentDeadline, scheduleId, submittedValues],
+    [amount, groupType, name, paymentDeadline, scheduleId],
+  );
+  const submitted = useMemo(
+    () =>
+      submittedValues
+        ? getPriceFormDefaultValues({ submittedValues })
+        : undefined,
+    [submittedValues],
   );
   const form = useForm<PriceFormValues>({
-    defaultValues,
+    defaultValues: saved,
     mode: "onSubmit",
     resolver: zodResolver(priceFormSchema),
   });
 
-  useEffect(() => {
-    form.reset(defaultValues);
-  }, [defaultValues, form]);
+  useSavedFormValues(form, saved, submitted);
 
   return form;
 }
@@ -212,7 +217,7 @@ export function PriceFormActions({
   return (
     <EventBasesFormActions
       basePath={basePath}
-      control={form.control}
+      form={form}
       formId={formId}
       pendingScope={pendingScope}
     />

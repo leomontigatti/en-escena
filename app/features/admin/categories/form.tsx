@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
@@ -19,6 +19,7 @@ import {
   type RouteFormPendingScope,
   useOptionalFormAction,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
@@ -94,35 +95,26 @@ function useCategoryForm({
   name?: string;
   submittedValues?: CategoryActionValues;
 }): CategoryFormController {
-  const defaultValues = useMemo(
-    () =>
-      submittedValues ?? {
-        name: name ?? "",
-        minAge: minAge === undefined ? "" : String(minAge),
-        maxAge: maxAge === undefined ? "" : String(maxAge),
-        groupTypes,
-        modalityIds,
-        experienceLevels,
-      },
-    [
-      experienceLevels,
+  const saved = useMemo(
+    (): CategoryFormValues => ({
+      name: name ?? "",
+      minAge: minAge === undefined ? "" : String(minAge),
+      maxAge: maxAge === undefined ? "" : String(maxAge),
       groupTypes,
-      maxAge,
-      minAge,
       modalityIds,
-      name,
-      submittedValues,
-    ],
+      experienceLevels,
+    }),
+    [experienceLevels, groupTypes, maxAge, minAge, modalityIds, name],
   );
   const form = useForm<CategoryFormValues>({
-    defaultValues,
+    // The first render, before the effect below runs, is also the one the
+    // server sends: a refused submission has to be in it.
+    defaultValues: submittedValues ?? saved,
     mode: "onSubmit",
     resolver: zodResolver(categoryFormSchema),
   });
 
-  useEffect(() => {
-    form.reset(defaultValues);
-  }, [defaultValues, form]);
+  useSavedFormValues(form, saved, submittedValues);
 
   return form;
 }
@@ -218,7 +210,7 @@ function CategoryFormActions({
   return (
     <EventBasesFormActions
       basePath={basePath}
-      control={form.control}
+      form={form}
       formId={formId}
       pendingScope={pendingScope}
     />

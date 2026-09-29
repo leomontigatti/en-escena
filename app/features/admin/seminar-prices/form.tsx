@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId, useMemo, type ReactNode } from "react";
+import { useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
@@ -21,6 +21,7 @@ import {
   type RouteFormPendingScope,
   useOptionalFormAction,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 import { cn } from "@/lib/shared/utils";
 
@@ -97,7 +98,7 @@ export function useSeminarPriceForm({
   paymentDeadline,
   submittedValues,
 }: SeminarPriceFormDefaultValueProps): SeminarPriceFormController {
-  const defaultValues = useMemo(
+  const saved = useMemo(
     () =>
       getSeminarPriceFormDefaultValues({
         amount,
@@ -105,20 +106,23 @@ export function useSeminarPriceForm({
         kind,
         name,
         paymentDeadline,
-        submittedValues,
       }),
-    [amount, forParticipants, kind, name, paymentDeadline, submittedValues],
+    [amount, forParticipants, kind, name, paymentDeadline],
+  );
+  const submitted = useMemo(
+    () =>
+      submittedValues
+        ? getSeminarPriceFormDefaultValues({ submittedValues })
+        : undefined,
+    [submittedValues],
   );
   const form = useForm<SeminarPriceFormValues>({
-    defaultValues,
+    defaultValues: saved,
     mode: "onSubmit",
     resolver: zodResolver(seminarPriceFormSchema),
   });
-  const { reset } = form;
 
-  useEffect(() => {
-    reset(defaultValues);
-  }, [defaultValues, reset]);
+  useSavedFormValues(form, saved, submitted);
 
   return form;
 }
@@ -192,7 +196,7 @@ export function SeminarPriceFormActions({
       // these rows are read on: `/administracion/precios/seminarios` is a
       // prefix of the form routes, not a screen.
       basePath={seminarPricesListPath}
-      control={form.control}
+      form={form}
       formId={formId}
       pendingScope={pendingScope}
     />

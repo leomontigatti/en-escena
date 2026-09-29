@@ -44,12 +44,12 @@ export function EventScheduleCreateView({
           intent="create-schedule"
           modalities={loaderData.modalities}
         />
-        <ScheduleFormActions
-          form={form}
-          formId={createScheduleFormId}
-          pendingScope={{ intent: "create-schedule" }}
-        />
       </ScheduleFormPanel>
+      <ScheduleFormActions
+        form={form}
+        formId={createScheduleFormId}
+        pendingScope={{ intent: "create-schedule" }}
+      />
     </AdminResourceLayout>
   );
 }

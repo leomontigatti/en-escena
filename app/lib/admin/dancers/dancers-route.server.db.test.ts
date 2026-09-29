@@ -593,7 +593,7 @@ describe("`/administracion/bailarines` route", () => {
     expect(loaderData.dancer.inscriptions).toEqual([]);
   });
 
-  test("shows explicit edit controls only for admin users", async () => {
+  test("shows the editable form to admins and only Volver to auditors", async () => {
     const academy = await createAcademyUser({
       email: "admin.controles.bailarines.academia@example.com",
       academyName: "Academia Controles",
@@ -611,11 +611,6 @@ describe("`/administracion/bailarines` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
-    const { request: adminEditRequest } = await createSignedInRequest({
-      email: "admin.edicion.bailarines@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
-    });
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.controles.bailarines@example.com",
       role: "auditor",
@@ -626,22 +621,17 @@ describe("`/administracion/bailarines` route", () => {
       await detailLoader(detailRouteArgs(adminRequest, dancer.id)),
       dancer.id,
     );
-    const adminEditMarkup = renderDetailRoute(
-      await detailLoader(detailRouteArgs(adminEditRequest, dancer.id)),
-      dancer.id,
-    );
     const auditorMarkup = renderDetailRoute(
       await detailLoader(detailRouteArgs(auditorRequest, dancer.id)),
       dancer.id,
     );
 
-    expect(adminMarkup).toContain("Editar");
+    expect(adminMarkup).toContain("Guardar");
     expect(adminMarkup).toContain("Acciones");
-    expect(adminMarkup).not.toContain("Guardar");
-    expect(adminEditMarkup).toContain("Guardar");
-    expect(adminEditMarkup).toContain("Cancelar");
-    expect(adminEditMarkup).toContain("Acciones");
+    expect(adminMarkup).not.toContain("Editar");
+    expect(adminMarkup).not.toContain("Cancelar");
     expect(auditorMarkup).not.toContain("Editar");
+    expect(auditorMarkup).not.toContain("Cancelar");
     expect(auditorMarkup).not.toContain("Guardar");
     expect(auditorMarkup).not.toContain("Acciones");
   });
@@ -756,7 +746,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.mutacion.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const result = await detailAction(
@@ -806,7 +796,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.bebe.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const result = await detailAction(
@@ -851,7 +841,7 @@ describe("`/administracion/bailarines` route", () => {
       const { request } = await createSignedInRequest({
         email: `${role}.bailarines@example.com`,
         role,
-        requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+        requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
       });
 
       await expectThrownResponse(
@@ -900,7 +890,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.motivo.evento.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const result = await detailAction(
@@ -950,7 +940,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.motivo.historial.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -999,7 +989,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.homonimo.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -1049,7 +1039,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.homonimo.ok.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -1095,7 +1085,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.duplicado.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -1145,7 +1135,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.documento.numero@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
     });
 
     const result = await detailAction(
@@ -1195,7 +1185,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.advertencia.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const markup = renderDetailRoute(
@@ -1243,7 +1233,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.fecha.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const ninaResult = await detailAction(
@@ -1343,7 +1333,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.sincategoria.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const result = await detailAction(
@@ -1412,7 +1402,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.fecha.sin-cambios@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const lilaResult = await detailAction(
@@ -1513,7 +1503,7 @@ describe("`/administracion/bailarines` route", () => {
       identityVerifiedAt: expect.any(Date),
     });
 
-    const verifiedRequestUrl = `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`;
+    const verifiedRequestUrl = `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`;
     const verifiedMarkup = renderDetailRoute(
       await detailLoader(
         detailRouteArgs(
@@ -1631,7 +1621,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.archivo.bailarines@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const archiveResult = await detailAction(
@@ -1684,7 +1674,7 @@ describe("`/administracion/bailarines` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.archivo.libre@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}`,
     });
 
     const archiveResult = await detailAction(

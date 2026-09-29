@@ -125,15 +125,15 @@ export function EventScheduleDetailView({
               occupiedCount={schedule.occupiedCount}
               scheduleCapacities={schedule.scheduleCapacities}
             />
-            <ScheduleFormActions
-              form={form}
-              formId="update-schedule-form"
-              pendingScope={{
-                intent: "update-schedule",
-                fields: { id: schedule.id },
-              }}
-            />
           </ScheduleFormPanel>
+          <ScheduleFormActions
+            form={form}
+            formId="update-schedule-form"
+            pendingScope={{
+              intent: "update-schedule",
+              fields: { id: schedule.id },
+            }}
+          />
         </>
       ) : (
         <EmptyResourceState>

@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 
-import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
   getButton,
+  setInputValue,
+  updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
 import { ProfessorDetailRouteView } from "./view";
@@ -22,36 +25,42 @@ describe("ProfessorDetailRouteView dialogs", () => {
 
   test("editing a non-consequential professor saves without a confirmation dialog", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/profesores/profesor_1"]}>
+      renderInDataRouter(
+        "/administracion/profesores/profesor_1",
         <ProfessorDetailRouteView
           loaderData={createLoaderData({
             editConsequence: null,
-            isEditing: true,
           })}
-        />
-      </MemoryRouter>,
+        />,
+      ),
     );
+
+    expect(getButton("Guardar").hasAttribute("disabled")).toBe(true);
+
+    await changeFirstName("Julieta");
 
     const saveButton = getButton("Guardar");
 
     expect(saveButton.getAttribute("type")).toBe("submit");
+    expect(saveButton.hasAttribute("disabled")).toBe(false);
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
   });
 
   test("editing a participating professor confirms with the participation message and no reason field", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/profesores/profesor_1"]}>
+      renderInDataRouter(
+        "/administracion/profesores/profesor_1",
         <ProfessorDetailRouteView
           loaderData={createLoaderData({
             editConsequence: "participated",
-            isEditing: true,
           })}
-        />
-      </MemoryRouter>,
+        />,
+      ),
     );
 
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
 
+    await changeFirstName("Julieta");
     await clickReactDomButton("Guardar", { exact: true });
 
     expect(document.body.textContent).toContain("¿Guardar cambios?");
@@ -59,11 +68,84 @@ describe("ProfessorDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });
 
+  test("offers `Descartar cambios` only while there are changes, and it restores the saved values", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/profesores/profesor_1",
+        <ProfessorDetailRouteView loaderData={createLoaderData()} />,
+      ),
+    );
+
+    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(findButton("Editar")).toBeUndefined();
+    expect(findButton("Cancelar")).toBeUndefined();
+
+    await changeFirstName("Julieta");
+
+    expect(findButton("Descartar cambios")).toBeDefined();
+
+    await clickReactDomButton("Descartar cambios");
+
+    expect(readFirstName().value).toBe("Julia");
+    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(getButton("Guardar").hasAttribute("disabled")).toBe(true);
+  });
+
+  test("keeps Guardar on after a refused save that refilled the form", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/profesores/profesor_1",
+        <ProfessorDetailRouteView
+          loaderData={createLoaderData()}
+          actionData={{
+            status: "error",
+            message: "Revisá los datos del Profesor.",
+            fieldErrors: { documentNumber: "Ya existe." },
+            values: {
+              firstName: "Julieta",
+              lastName: "Detalle",
+              documentType: "dni",
+              documentNumber: "12345678",
+            },
+          }}
+        />,
+      ),
+    );
+
+    expect(readFirstName().value).toBe("Julieta");
+    expect(getButton("Guardar").hasAttribute("disabled")).toBe(false);
+    expect(findButton("Descartar cambios")).toBeDefined();
+  });
+
+  test("shows an auditor the fields disabled and only Volver", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/profesores/profesor_1",
+        <ProfessorDetailRouteView
+          loaderData={createLoaderData({ canEdit: false })}
+        />,
+      ),
+    );
+
+    const inputs = Array.from(
+      document.querySelectorAll<HTMLInputElement>("input:not([type=hidden])"),
+    );
+
+    expect(inputs.some((input) => input.value === "Julia")).toBe(true);
+    expect(inputs.every((input) => input.disabled)).toBe(true);
+    expect(document.body.textContent).toContain("Volver");
+    expect(findButton("Guardar")).toBeUndefined();
+    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(findButton("Editar")).toBeUndefined();
+    expect(document.body.textContent).not.toContain("Cancelar");
+  });
+
   test("lands the duplicate-document refusal on the field and links to the match", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/profesores/profesor_1"]}>
+      renderInDataRouter(
+        "/administracion/profesores/profesor_1",
         <ProfessorDetailRouteView
-          loaderData={createLoaderData({ isEditing: true })}
+          loaderData={createLoaderData()}
           actionData={{
             status: "error",
             message: "Revisá los datos del Profesor.",
@@ -79,8 +161,8 @@ describe("ProfessorDetailRouteView dialogs", () => {
             },
             duplicateDocumentProfessorId: "profesor_archivado_1",
           }}
-        />
-      </MemoryRouter>,
+        />,
+      ),
     );
 
     const documentField = document.querySelector<HTMLInputElement>(
@@ -99,19 +181,34 @@ describe("ProfessorDetailRouteView dialogs", () => {
   });
 });
 
+function readFirstName() {
+  const input = document.querySelector<HTMLInputElement>(
+    'input[name="firstName"]',
+  );
+
+  if (!input) {
+    throw new Error("Expected the first name field to be rendered.");
+  }
+
+  return input;
+}
+
+async function changeFirstName(value: string) {
+  const input = readFirstName();
+
+  await updateReactDomForm(() => setInputValue(input, value));
+}
+
 function createLoaderData({
+  canEdit = true,
   editConsequence = null,
-  isEditing = false,
 }: {
+  canEdit?: boolean;
   editConsequence?: ProfessorEditConsequence;
-  isEditing?: boolean;
 } = {}): ProfessorDetailViewProps["loaderData"] {
   return {
     backToList: "/administracion/profesores",
-    cancelHref: "/administracion/profesores/profesor_1",
-    canEdit: true,
-    editHref: "/administracion/profesores/profesor_1?modo=editar",
-    isEditing,
+    canEdit,
     isParticipatingInActiveEvent: false,
     merge: null,
     professor: {

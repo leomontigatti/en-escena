@@ -43,23 +43,12 @@
  * erred in, and far rarer.
  */
 
-import { AlertTriangle, Check } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useFetcher } from "react-router";
+import { useState } from "react";
 
 import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -69,26 +58,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-
 import type { AllocationTargetKind } from "@/lib/finances/allocation-target.server";
-
 import { formatAmount, formatDancerName } from "@/lib/finances/formatters";
+
+import {
+  FetcherError,
+  MoneyDialog,
+  MoneyTargetFields,
+  OwedSummary,
+  SubmitIcon,
+  useMoneyWriteFetcher,
+} from "./dialog-parts";
 import {
   formatDialogPrice,
-  formatOwedAmount,
   isAmountOutOfRange,
   readInscriptionMoneyDialogShape,
   resolveAllocationDialogFigures,
   type InscriptionRow,
-  type OwedAgainstPrice,
   type PriceOption,
 } from "./figures";
 import {
   allocateInscriptionIntent,
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
-  targetKindFieldName,
 } from "./intents";
 
 export function InscriptionMoneyDialog({
@@ -172,7 +164,8 @@ function AllocateMoneyDialog({
   // picked. Opening it on the stored price left the picker saying one thing and
   // everything else another, and confirming without touching it fixed that old
   // price as soon as the allocation covered the deposit.
-  const [priceId, setPriceId] = useState(inscription.effectivePrice?.id ?? "");
+  const initialPriceId = inscription.effectivePrice?.id ?? "";
+  const [priceId, setPriceId] = useState(initialPriceId);
   const isSaving = fetcher.state !== "idle";
   // Below the threshold the price is a live choice, so every figure is
   // re-derived on each change rather than read off the loader.
@@ -186,51 +179,62 @@ function AllocateMoneyDialog({
   return (
     <MoneyDialog
       description="El dinero se asigna desde el saldo disponible de la academia."
+      isDirty={amount !== "" || priceId !== initialPriceId}
       isSaving={isSaving}
       onOpenChange={onOpenChange}
       title={formatDancerName(inscription)}
     >
-      <fetcher.Form method="post" className="flex flex-col gap-4">
-        <input type="hidden" name="intent" value={allocateInscriptionIntent} />
-        <MoneyTargetFields inscription={inscription} targetKind={targetKind} />
-
-        <FieldGroup>
-          <AllocationPriceField
-            effectivePrice={inscription.effectivePrice}
-            isLocked={isPriceLocked}
-            isSaving={isSaving}
-            onPriceIdChange={setPriceId}
-            priceId={priceId}
-            priceOptions={priceOptions}
+      {(requestClose) => (
+        <fetcher.Form method="post" className="flex flex-col gap-4">
+          <input
+            type="hidden"
+            name="intent"
+            value={allocateInscriptionIntent}
+          />
+          <MoneyTargetFields
+            inscription={inscription}
+            targetKind={targetKind}
           />
 
-          <MoneyAmountField
-            amount={amount}
-            id="inscription-amount"
-            isSaving={isSaving}
-            maxAmount={owedBalanceAmount}
-            onAmountChange={setAmount}
-            placeholderAmount={hintedAmount}
-          />
-        </FieldGroup>
+          <FieldGroup>
+            <AllocationPriceField
+              effectivePrice={inscription.effectivePrice}
+              isLocked={isPriceLocked}
+              isSaving={isSaving}
+              onPriceIdChange={setPriceId}
+              priceId={priceId}
+              priceOptions={priceOptions}
+            />
 
-        {/* The two owed figures only once there is money on it: on an empty
+            <MoneyAmountField
+              amount={amount}
+              id="inscription-amount"
+              isSaving={isSaving}
+              maxAmount={owedBalanceAmount}
+              onAmountChange={setAmount}
+              placeholderAmount={hintedAmount}
+            />
+          </FieldGroup>
+
+          {/* The two owed figures only once there is money on it: on an empty
             inscription they restate the price sitting right above. */}
-        {inscription.allocatedAmount > 0 ? <OwedSummary owed={owed} /> : null}
+          {inscription.allocatedAmount > 0 ? <OwedSummary owed={owed} /> : null}
 
-        <FetcherError data={fetcher.data} />
+          <FetcherError data={fetcher.data} />
 
-        <AllocationFooter
-          isSaving={isSaving}
-          isSubmitDisabled={
-            isSaving ||
-            amount === "" ||
-            isAmountOutOfRange(amount, owedBalanceAmount) ||
-            (!isPriceLocked && priceOptions.length === 0)
-          }
-          onRemoveMoney={onRemoveMoney}
-        />
-      </fetcher.Form>
+          <AllocationFooter
+            isSaving={isSaving}
+            isSubmitDisabled={
+              isSaving ||
+              amount === "" ||
+              isAmountOutOfRange(amount, owedBalanceAmount) ||
+              (!isPriceLocked && priceOptions.length === 0)
+            }
+            onCancel={requestClose}
+            onRemoveMoney={onRemoveMoney}
+          />
+        </fetcher.Form>
+      )}
     </MoneyDialog>
   );
 }
@@ -355,10 +359,12 @@ function MoneyAmountField({
 function AllocationFooter({
   isSaving,
   isSubmitDisabled,
+  onCancel,
   onRemoveMoney,
 }: {
   isSaving: boolean;
   isSubmitDisabled: boolean;
+  onCancel: () => void;
   onRemoveMoney: (() => void) | null;
 }) {
   return (
@@ -374,11 +380,14 @@ function AllocationFooter({
         </Button>
       ) : null}
       <div className="flex gap-2">
-        <DialogClose asChild>
-          <Button type="button" variant="outline" disabled={isSaving}>
-            Cancelar
-          </Button>
-        </DialogClose>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSaving}
+          onClick={onCancel}
+        >
+          Cancelar
+        </Button>
         <Button type="submit" disabled={isSubmitDisabled}>
           <SubmitIcon isSaving={isSaving} />
           Guardar
@@ -423,47 +432,56 @@ function RemoveMoneyDialog({
   return (
     <MoneyDialog
       description="El dinero que se quita vuelve al saldo disponible de la academia."
+      isDirty={amount !== ""}
       isSaving={isSaving}
       onOpenChange={onOpenChange}
       title={formatDancerName(inscription)}
     >
-      <fetcher.Form method="post" className="flex flex-col gap-4">
-        <input
-          type="hidden"
-          name="intent"
-          value={removeInscriptionMoneyIntent}
-        />
-        <MoneyTargetFields inscription={inscription} targetKind={targetKind} />
-
-        <FieldGroup>
-          <MoneyAmountField
-            amount={amount}
-            id="inscription-removed-amount"
-            isSaving={isSaving}
-            maxAmount={inscription.allocatedAmount}
-            onAmountChange={setAmount}
-            placeholderAmount={inscription.allocatedAmount}
+      {(requestClose) => (
+        <fetcher.Form method="post" className="flex flex-col gap-4">
+          <input
+            type="hidden"
+            name="intent"
+            value={removeInscriptionMoneyIntent}
           />
-        </FieldGroup>
+          <MoneyTargetFields
+            inscription={inscription}
+            targetKind={targetKind}
+          />
 
-        <FetcherError data={fetcher.data} />
+          <FieldGroup>
+            <MoneyAmountField
+              amount={amount}
+              id="inscription-removed-amount"
+              isSaving={isSaving}
+              maxAmount={inscription.allocatedAmount}
+              onAmountChange={setAmount}
+              placeholderAmount={inscription.allocatedAmount}
+            />
+          </FieldGroup>
 
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" disabled={isSaving}>
+          <FetcherError data={fetcher.data} />
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={requestClose}
+            >
               Cancelar
             </Button>
-          </DialogClose>
-          <Button
-            type="submit"
-            variant="destructive"
-            disabled={isSaving || amount === "" || isOutOfRange}
-          >
-            <SubmitIcon isSaving={isSaving} />
-            Quitar
-          </Button>
-        </DialogFooter>
-      </fetcher.Form>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={isSaving || amount === "" || isOutOfRange}
+            >
+              <SubmitIcon isSaving={isSaving} />
+              Quitar
+            </Button>
+          </DialogFooter>
+        </fetcher.Form>
+      )}
     </MoneyDialog>
   );
 }
@@ -489,174 +507,42 @@ function ReleaseExcessDialog({
   return (
     <MoneyDialog
       description={`Tiene ${formatAmount(excessAmount)} de más. Vuelven al saldo disponible de la academia y el resto queda como está.`}
+      // Nothing is typed or picked here, so there is nothing to lose.
+      isDirty={false}
       isSaving={isSaving}
       onOpenChange={onOpenChange}
       title={formatDancerName(inscription)}
     >
-      <fetcher.Form method="post" className="flex flex-col gap-4">
-        <input
-          type="hidden"
-          name="intent"
-          value={releaseInscriptionExcessIntent}
-        />
-        <MoneyTargetFields inscription={inscription} targetKind={targetKind} />
+      {(requestClose) => (
+        <fetcher.Form method="post" className="flex flex-col gap-4">
+          <input
+            type="hidden"
+            name="intent"
+            value={releaseInscriptionExcessIntent}
+          />
+          <MoneyTargetFields
+            inscription={inscription}
+            targetKind={targetKind}
+          />
 
-        <FetcherError data={fetcher.data} />
+          <FetcherError data={fetcher.data} />
 
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" disabled={isSaving}>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={requestClose}
+            >
               Cancelar
             </Button>
-          </DialogClose>
-          <Button type="submit" variant="destructive" disabled={isSaving}>
-            <SubmitIcon isSaving={isSaving} />
-            Liberar {formatAmount(excessAmount)}
-          </Button>
-        </DialogFooter>
-      </fetcher.Form>
+            <Button type="submit" variant="destructive" disabled={isSaving}>
+              <SubmitIcon isSaving={isSaving} />
+              Liberar {formatAmount(excessAmount)}
+            </Button>
+          </DialogFooter>
+        </fetcher.Form>
+      )}
     </MoneyDialog>
-  );
-}
-
-/**
- * What every shape submits besides its intent: which inscription, and of which
- * kind. The kind is a field rather than something the action infers from its own
- * route because the dialog is shared, and a shared control that leaves half its
- * meaning to the caller's URL is one refactor away from posting to the wrong
- * writer.
- */
-function MoneyTargetFields({
-  inscription,
-  targetKind,
-}: {
-  inscription: InscriptionRow;
-  targetKind: AllocationTargetKind;
-}) {
-  return (
-    <>
-      <input
-        type="hidden"
-        name="inscriptionId"
-        value={inscription.inscriptionId ?? ""}
-      />
-      <input type="hidden" name={targetKindFieldName} value={targetKind} />
-    </>
-  );
-}
-
-/**
- * The fetcher the three shapes write with, and the one rule about when the
- * dialog goes away: **only a write that went through closes it.** A refusal
- * comes back as a message in `fetcher.data` and has to stay readable, which it
- * is not if the dialog closes on top of it (#708).
- *
- * The refusal is read off `data.status`, not off the mere presence of `data`.
- * Today the action redirects once it has written and so brings nothing back,
- * which makes the two tests equivalent — but that is a deviation from the
- * dialog-write row of `docs/agents/form-feedback.md`, which expects the result
- * to come back from `fetcher.data`. Keying off presence would make the dialog
- * silently stop closing the day the action is aligned to the matrix.
- */
-function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
-  const fetcher = useFetcher<{ status: "error"; message: string }>();
-  const isSaving = fetcher.state !== "idle";
-  const isRefused = fetcher.data?.status === "error";
-  const hasSubmittedRef = useRef(false);
-
-  useEffect(() => {
-    if (isSaving) {
-      hasSubmittedRef.current = true;
-      return;
-    }
-
-    if (!hasSubmittedRef.current) {
-      return;
-    }
-
-    hasSubmittedRef.current = false;
-
-    if (!isRefused) {
-      onOpenChange(false);
-    }
-  }, [isRefused, isSaving, onOpenChange]);
-
-  return fetcher;
-}
-
-/** The chrome the three shapes share, so only their contents differ. */
-function MoneyDialog({
-  children,
-  description,
-  isSaving,
-  onOpenChange,
-  title,
-}: {
-  children: ReactNode;
-  description: string;
-  isSaving: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-}) {
-  return (
-    <Dialog open onOpenChange={(next) => !isSaving && onOpenChange(next)}>
-      <DialogContent overlayClassName="backdrop-blur-sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        {children}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
- * What the inscription owes, deposit first and balance second — the order the money
- * is meant to travel in, and the reason the amount field hints the deposit while
- * that threshold is unmet.
- */
-function OwedSummary({ owed }: { owed: OwedAgainstPrice }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-md border bg-muted/50 px-3 py-2">
-      <SummaryRow
-        label="Seña adeudada"
-        value={formatOwedAmount(owed.owedDepositAmount)}
-      />
-      <SummaryRow
-        label="Saldo adeudado"
-        value={formatOwedAmount(owed.owedBalanceAmount)}
-      />
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium tabular-nums">{value}</span>
-    </div>
-  );
-}
-
-function FetcherError({ data }: { data: { message: string } | undefined }) {
-  if (!data) {
-    return null;
-  }
-
-  return (
-    <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
-      <AlertDescription>{data.message}</AlertDescription>
-    </Alert>
-  );
-}
-
-function SubmitIcon({ isSaving }: { isSaving: boolean }) {
-  return isSaving ? (
-    <Spinner aria-hidden="true" data-icon="inline-start" />
-  ) : (
-    <Check aria-hidden="true" data-icon="inline-start" />
   );
 }

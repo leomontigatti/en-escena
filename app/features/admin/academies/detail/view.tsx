@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm, useFormState } from "react-hook-form";
 import { useNavigation, useSubmit } from "react-router";
 
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
@@ -8,8 +8,8 @@ import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import {
@@ -22,6 +22,7 @@ import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -50,12 +51,14 @@ export function AcademyDetailRouteView({
     actionData?.status === "error" && actionData.intent === updateAcademyIntent
       ? actionData
       : undefined;
-  const values = errorData?.values ?? {
-    name: academy.name,
-    contactName: academy.contactName,
-    phone: academy.phone,
-  };
-  const form = useAcademyDetailForm({ values });
+  const form = useAcademyDetailForm({
+    saved: {
+      name: academy.name,
+      contactName: academy.contactName,
+      phone: academy.phone,
+    },
+    submitted: errorData?.values,
+  });
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
@@ -98,16 +101,7 @@ export function AcademyDetailRouteView({
         ) : undefined
       }
     >
-      <AdminResourceFormCard
-        footer={
-          <>
-            <BackButton to="/administracion/academias" />
-            {canEdit ? (
-              <SubmitButton form={academyDetailFormId} isPending={isSaving} />
-            ) : null}
-          </>
-        }
-      >
+      <AdminResourceFormCard>
         <form
           id={academyDetailFormId}
           method="post"
@@ -150,6 +144,14 @@ export function AcademyDetailRouteView({
           </FieldGroup>
         </form>
       </AdminResourceFormCard>
+      <FormActions
+        backTo="/administracion/academias"
+        canEdit={canEdit}
+        form={academyDetailFormId}
+        hasChanges={form.hasChanges}
+        isPending={isSaving}
+        onDiscard={form.discard}
+      />
       {canEdit ? (
         // Whether the academy is empty is only known for certain at the moment
         // of the delete, so the dialog always offers the action and the server
@@ -172,25 +174,36 @@ export function AcademyDetailRouteView({
   );
 }
 
-function useAcademyDetailForm({ values }: { values: AcademyDetailFormValues }) {
+/**
+ * The form holds what is saved as its defaults, so a save the server refused,
+ * which refills what was typed, still reads as a change.
+ */
+function useAcademyDetailForm({
+  saved,
+  submitted,
+}: {
+  saved: AcademyDetailFormValues;
+  submitted?: AcademyDetailFormValues;
+}) {
   const form = useForm<
     AcademyDetailFormValues,
     unknown,
     AcademyDetailFormValues
   >({
-    defaultValues: values,
+    defaultValues: saved,
     mode: "onSubmit",
     resolver: zodResolver(academyDetailSchema),
   });
+  const { isDirty } = useFormState({ control: form.control });
 
-  useEffect(() => {
-    form.reset(values);
-  }, [form, values.contactName, values.name, values.phone]);
+  useSavedFormValues(form, saved, submitted);
 
   const submit = useSubmit();
 
   return {
+    discard: () => form.reset(),
     form,
     handleSubmit: createValidatedRouteSubmitHandler(form, submit),
+    hasChanges: isDirty,
   };
 }
