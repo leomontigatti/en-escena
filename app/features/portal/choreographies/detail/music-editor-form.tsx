@@ -6,12 +6,13 @@ import { toast } from "sonner";
 
 import { BackButton } from "@/components/shared/action-buttons";
 import { FileUploadField } from "@/components/shared/file-upload-field";
+import { PinnedActions } from "@/components/shared/pinned-actions";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
@@ -23,6 +24,7 @@ import {
   type PortalChoreographyMusicActionData,
   type PortalChoreographyMusicLoaderData,
 } from "@/features/portal/choreographies/detail/music-editor.shared";
+import { PortalChoreographyPeopleLists } from "@/features/portal/choreographies/detail/people-lists";
 
 export function ChoreographyMusicEditorForm({
   actionData,
@@ -105,13 +107,6 @@ export function ChoreographyMusicEditorForm({
     !musicHasValidationError &&
     !isSubmitting;
 
-  const dancerNames = choreography.dancers
-    .map((dancer) => `${dancer.firstName} ${dancer.lastName}`)
-    .join(", ");
-  const professorNames = choreography.professors
-    .map((professor) => `${professor.firstName} ${professor.lastName}`)
-    .join(", ");
-
   const handleMusicValidationErrorChange = useCallback((hasError: boolean) => {
     setMusicHasValidationError(hasError);
   }, []);
@@ -141,7 +136,11 @@ export function ChoreographyMusicEditorForm({
   );
 
   return (
-    <Form method="post" encType="multipart/form-data">
+    <Form
+      method="post"
+      encType="multipart/form-data"
+      className="flex flex-1 flex-col gap-6"
+    >
       <Card>
         <CardContent className="flex flex-col gap-5">
           <input type="hidden" name="intent" value={updateChoreographyIntent} />
@@ -188,8 +187,7 @@ export function ChoreographyMusicEditorForm({
           </FieldGroup>
 
           <FieldGroup>
-            <ReadOnlyField label="Bailarines" value={dancerNames} />
-            <ReadOnlyField label="Profesores" value={professorNames} />
+            <PortalChoreographyPeopleLists choreography={choreography} />
             <FileUploadField
               key={savedCount}
               control={form.control}
@@ -211,18 +209,18 @@ export function ChoreographyMusicEditorForm({
             />
           </FieldGroup>
         </CardContent>
-        <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
-          <BackButton to="/portal/coreografias" />
-          <Button type="submit" disabled={!canSubmit}>
-            {isSubmitting ? (
-              <Spinner aria-hidden="true" data-icon="inline-start" />
-            ) : (
-              <Check aria-hidden="true" data-icon="inline-start" />
-            )}
-            Guardar
-          </Button>
-        </CardFooter>
       </Card>
+      <PinnedActions>
+        <BackButton to="/portal/coreografias" />
+        <Button type="submit" disabled={!canSubmit}>
+          {isSubmitting ? (
+            <Spinner aria-hidden="true" data-icon="inline-start" />
+          ) : (
+            <Check aria-hidden="true" data-icon="inline-start" />
+          )}
+          Guardar
+        </Button>
+      </PinnedActions>
     </Form>
   );
 }

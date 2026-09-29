@@ -45,6 +45,39 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Faltan cargar");
     expect(markup).not.toContain("Falta cargar");
   });
+
+  // #1265: the portal reads in the same order as the administration detail,
+  // and the dancers show the age they were placed with.
+  test("reads the classification, then the dancers with their ages, then the professors, then the music", () => {
+    const markup = renderChoreographyDetail({
+      loaderData: choreographyDetailLoaderData({
+        choreography: choreographyDetailRow({
+          professors: [
+            {
+              id: "professor_1",
+              firstName: "Luz",
+              lastName: "Suárez",
+              active: true,
+            },
+          ],
+        }),
+      }),
+    });
+    const order = [
+      "Nombre",
+      "Modalidad",
+      "Cronograma",
+      "Bailarines",
+      "Ana Paz",
+      "14 años",
+      "Profesores",
+      "Luz Suárez",
+      "Archivo de música",
+    ].map((text) => markup.indexOf(text));
+
+    expect(order).not.toContain(-1);
+    expect(order).toEqual([...order].sort((left, right) => left - right));
+  });
 });
 
 function renderChoreographyDetail(

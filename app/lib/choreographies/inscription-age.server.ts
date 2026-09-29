@@ -59,7 +59,8 @@ export async function refreshActiveInscriptionAges(
 
 /**
  * The same refresh for a save that never resolves the roster —a rename, or a
- * professors-only edit— and therefore has no computed ages in hand. It derives
+ * professors-only edit— and therefore has no computed ages in hand. It runs in
+ * the caller's transaction, with the rest of that save. It derives
  * them here, from the dancers' birth dates against the start of the
  * choreography's own event, and touches nothing else: the placement a save like
  * that leaves on the choreography is not this function's business.
@@ -68,10 +69,11 @@ export async function refreshActiveInscriptionAges(
  * from the caller, so there is no second lookup and no way to normalize against
  * the wrong event's start date.
  */
-export async function normalizeActiveInscriptionAges(input: {
-  choreographyId: string;
-}): Promise<void> {
-  const links = await db
+export async function normalizeActiveInscriptionAges(
+  executor: Executor,
+  input: { choreographyId: string },
+): Promise<void> {
+  const links = await executor
     .select({
       birthDate: dancers.birthDate,
       dancerId: choreographyDancers.dancerId,
@@ -91,7 +93,7 @@ export async function normalizeActiveInscriptionAges(input: {
       ),
     );
 
-  await refreshActiveInscriptionAges(db, {
+  await refreshActiveInscriptionAges(executor, {
     choreographyId: input.choreographyId,
     ageByDancerId: new Map(
       links.map((link) => [

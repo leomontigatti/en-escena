@@ -104,7 +104,7 @@ describe("ChecklistField", () => {
     expect(getRowNames()).toEqual(["Abril Sosa", "Bea Lagos", "Camila Ríos"]);
   });
 
-  test("shows only the checked people under `Seleccionados`, counting them", async () => {
+  test("shows only the checked options under `Seleccionados`, counting them", async () => {
     await renderer.renderAsync(<DancersChecklist />);
 
     await pickTab("Seleccionados");
@@ -117,9 +117,11 @@ describe("ChecklistField", () => {
     await clickRow("Camila Ríos");
     await pickTab("Seleccionados");
 
+    // The count sits in a badge; the hidden comma keeps a screen reader from
+    // reading the tab as "Seleccionados1".
     expect(getReactDomTexts('[role="tab"]')).toEqual([
       "Todos",
-      "Seleccionados (1)",
+      "Seleccionados, 1",
     ]);
     expect(getRowNames()).toEqual(["Camila Ríos"]);
   });

@@ -339,8 +339,16 @@ export function AdminShell({
             </div>
           </header>
 
-          <main id="contenido-principal" className="flex-1 px-4 py-6">
-            <div className="mx-auto max-w-6xl">{children}</div>
+          {/* A column down to the bottom edge, as in the portal, so a screen
+              can grow to fill it: the choreography detail pins its actions
+              there. */}
+          <main
+            id="contenido-principal"
+            className="flex flex-1 flex-col px-4 py-6"
+          >
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col">
+              {children}
+            </div>
           </main>
         </SidebarInset>
       </SidebarProvider>

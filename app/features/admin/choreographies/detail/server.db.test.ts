@@ -19,17 +19,20 @@ import {
 import {
   handleChoreographyDetailAction,
   loadChoreographyDetailRouteData,
+  type ChoreographyDetailActionData,
+  type ChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
+import { toSavedChoreographyDraft } from "@/features/admin/choreographies/detail/draft-form";
 import {
-  assignedExperienceLevelFieldName,
-  assignedScheduleCapacityFieldName,
+  resolveChoreographyDraftIntent,
+  saveChoreographyDraftIntent,
+  toChoreographyDraftFormData,
+  type ChoreographyDraft,
+  type ChoreographyDraftPreview,
+} from "@/features/admin/choreographies/detail/draft.shared";
+import {
   deleteChoreographyIntent,
-  renameChoreographyIntent,
   restoreChoreographyIntent,
-  updateChoreographyExperienceLevelIntent,
-  updateChoreographyRosterIntent,
-  updateChoreographyScheduleCapacityIntent,
-  updateChoreographySubmodalityIntent,
 } from "@/features/admin/choreographies/detail/shared";
 import {
   createAcademySession,
@@ -52,7 +55,9 @@ import {
   recordComprobante,
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
-import { invalidScheduleEntryMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import { compatibleScheduleSelectionRequiredMessage } from "@/lib/choreographies/choreography-roster.shared";
+import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
@@ -204,7 +209,7 @@ describe("administrative choreography detail server", () => {
     await expectThrownResponse(
       submitDetailAction({
         academyId: stranger.academyId,
-        body: renameFormData("Renombrada"),
+        body: deleteFormData(),
         choreographyId: choreography.id,
         email: "admin.coreografias.ajena.accion@example.com",
         role: "admin",
@@ -219,7 +224,7 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual({ name: "De otra academia" });
   });
 
-  test("renames active-event choreographies for admins even once evaluated", async () => {
+  test("renames active-event choreographies for admins and refuses auditors", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Renombre",
       email: "admin.coreografias.renombre.academia@example.com",
@@ -240,11 +245,9 @@ describe("administrative choreography detail server", () => {
       submodalityId: catalog.submodality.id,
     });
 
-    const response = await submitDetailAction({
-      body: renameFormData("Nombre nuevo"),
+    const response = await saveDraftEdits({
       choreographyId: choreography.id,
-      email: "admin.coreografias.renombre@example.com",
-      role: "admin",
+      edits: { name: "Nombre nuevo" },
     });
 
     expect(response).not.toBeInstanceOf(Response);
@@ -260,11 +263,9 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual({ name: "Nombre nuevo" });
 
     await expectThrownResponse(
-      submitDetailAction({
-        body: renameFormData("Intento auditor"),
+      submitDraftAsAuditor({
         choreographyId: choreography.id,
-        email: "auditor.coreografias.renombre@example.com",
-        role: "auditor",
+        edits: { name: "Intento auditor" },
       }),
       403,
     );
@@ -832,11 +833,9 @@ describe("administrative choreography detail server", () => {
       updatedAt: staleUpdatedAt,
     });
 
-    const response = await submitDetailAction({
-      body: submodalityFormData(otherSubmodality.id),
+    const response = await saveDraftEdits({
       choreographyId: choreography.id,
-      email: "admin.coreografias.submodalidad@example.com",
-      role: "admin",
+      edits: { submodalityId: otherSubmodality.id },
     });
 
     expect(response).not.toBeInstanceOf(Response);
@@ -885,11 +884,9 @@ describe("administrative choreography detail server", () => {
       submodalityId: catalog.submodality.id,
     });
 
-    const result = await submitDetailAction({
-      body: submodalityFormData(foreignSubmodality.id),
+    const result = await saveDraftEdits({
       choreographyId: choreography.id,
-      email: "admin.coreografias.submodalidad.ajena@example.com",
-      role: "admin",
+      edits: { submodalityId: foreignSubmodality.id },
     });
 
     expect(result).not.toBeInstanceOf(Response);
@@ -923,11 +920,9 @@ describe("administrative choreography detail server", () => {
       submodalityId: catalog.submodality.id,
     });
 
-    const result = await submitDetailAction({
-      body: submodalityFormData(""),
+    const result = await saveDraftEdits({
       choreographyId: choreography.id,
-      email: "admin.coreografias.submodalidad.vacia@example.com",
-      role: "admin",
+      edits: { submodalityId: "" },
     });
 
     expect(result).not.toBeInstanceOf(Response);
@@ -940,7 +935,7 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual({ submodalityId: catalog.submodality.id });
   });
 
-  test("keeps the submodality read-only when the choreography has a presentation", async () => {
+  test("refuses a new submodality once the choreography was evaluated", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Submodalidad Presentada",
       email: "admin.coreografias.submodalidad.presentada.academia@example.com",
@@ -967,15 +962,16 @@ describe("administrative choreography detail server", () => {
     });
     evaluatedChoreographyIds.add(choreography.id);
 
-    const result = await submitDetailAction({
-      body: submodalityFormData(otherSubmodality.id),
+    const result = await saveDraftEdits({
       choreographyId: choreography.id,
-      email: "admin.coreografias.submodalidad.presentada@example.com",
-      role: "admin",
+      edits: { submodalityId: otherSubmodality.id },
     });
 
     expect(result).not.toBeInstanceOf(Response);
-    expect(result).toMatchObject({ status: "error" });
+    expect(result).toEqual({
+      message: evaluatedChoreographyMessage,
+      status: "error",
+    });
     await expect(
       db.query.choreographies.findFirst({
         columns: { submodalityId: true },
@@ -1056,7 +1052,10 @@ describe("administrative choreography detail server", () => {
       scenario.target.scheduleCapacity.id,
     );
 
-    expect(result).toMatchObject({ status: "error" });
+    expect(result).toEqual({
+      message: evaluatedChoreographyMessage,
+      status: "error",
+    });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
       scheduleId: scenario.catalog.schedule.id,
@@ -1091,7 +1090,7 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.total.lleno.detalle@example.com",
       role: "admin",
     });
-    const target = detail.scheduleCapacity.options.find(
+    const target = detail.draft.scheduleCapacity.options.find(
       (option) => option.id === scenario.target.scheduleCapacity.id,
     );
     // The specific capacity says 1/5 and it is still offered disabled: the view
@@ -1132,7 +1131,7 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.senia.tardia.detalle@example.com",
       role: "admin",
     });
-    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(detail)).toBe(true);
 
     await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
@@ -1146,8 +1145,7 @@ describe("administrative choreography detail server", () => {
     );
 
     expect(result).toMatchObject({
-      message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
+      message: priceDivergenceScheduleCapacityMessage,
       status: "error",
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
@@ -1243,12 +1241,9 @@ describe("administrative choreography detail server", () => {
         });
 
         const results = await Promise.all([
-          scenario.reassignTo(scenario.target.scheduleCapacity.id, {
-            sessionKey: "primera",
-          }),
+          scenario.reassignTo(scenario.target.scheduleCapacity.id),
           scenario.reassignTo(scenario.target.scheduleCapacity.id, {
             choreographyId: rival.id,
-            sessionKey: "segunda",
           }),
         ]);
 
@@ -1316,7 +1311,7 @@ describe("administrative choreography detail server", () => {
             ? "unexpected"
             : result,
         ).toMatchObject({
-          message: invalidScheduleEntryMessage,
+          message: compatibleScheduleSelectionRequiredMessage,
           status: "error",
         });
         await expect(scenario.readAssignment()).resolves.toMatchObject({
@@ -1337,9 +1332,9 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.opciones.multiple@example.com",
       role: "admin",
     });
-    expect(multiple.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(multiple)).toBe(true);
     expect(
-      multiple.scheduleCapacity.options.map((option) => option.id),
+      multiple.draft.scheduleCapacity.options.map((option) => option.id),
     ).toEqual(
       expect.arrayContaining([
         scenario.catalog.scheduleCapacity.id,
@@ -1376,13 +1371,13 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.opciones.single@example.com",
       role: "admin",
     });
-    expect(single.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(single)).toBe(true);
     expect(
-      single.scheduleCapacity.options.map((option) => option.id),
+      single.draft.scheduleCapacity.options.map((option) => option.id),
     ).toContain(drifted.scheduleCapacity.id);
   });
 
-  test("locks the field when the drifted assignment is the only option left", async () => {
+  test("locks the field when the drifted assignment is the only option left, and a rename keeps it", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Sin Alternativa",
       slug: "cronograma.sin.alternativa",
@@ -1418,18 +1413,23 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
 
-    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
-      drifted.scheduleCapacity.id,
-    ]);
-    expect(detail.scheduleCapacity.canReassign).toBe(false);
+    expect(
+      detail.draft.scheduleCapacity.options.map((option) => option.id),
+    ).toEqual([drifted.scheduleCapacity.id]);
+    expect(canPickScheduleCapacity(detail)).toBe(false);
 
-    // The intent refuses exactly what the read-only field never offered.
-    const result = await scenario.reassignTo(drifted.scheduleCapacity.id);
+    // Keeping the drifted assignment is not a move, so a save that leaves it
+    // alone goes through: it is repaired by choosing a destination, never
+    // forced by an unrelated edit.
+    const result = await saveDraftEdits({
+      choreographyId: scenario.choreography.id,
+      edits: { name: "Renombrada" },
+    });
 
-    expect(result).toMatchObject({
-      message:
-        "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
-      status: "error",
+    expect(result).toMatchObject({ status: "success" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: drifted.scheduleCapacity.id,
+      scheduleId: drifted.schedule.id,
     });
   });
 
@@ -1467,7 +1467,7 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.unico.detalle@example.com",
       role: "admin",
     });
-    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(detail)).toBe(true);
 
     const result = await scenario.reassignTo(
       scenario.catalog.scheduleCapacity.id,
@@ -1501,10 +1501,10 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.ocupacion.detalle@example.com",
       role: "admin",
     });
-    const assigned = detail.scheduleCapacity.options.find(
+    const assigned = detail.draft.scheduleCapacity.options.find(
       (option) => option.id === scenario.catalog.scheduleCapacity.id,
     );
-    const target = detail.scheduleCapacity.options.find(
+    const target = detail.draft.scheduleCapacity.options.find(
       (option) => option.id === scenario.target.scheduleCapacity.id,
     );
 
@@ -1531,7 +1531,7 @@ describe("administrative choreography detail server", () => {
     });
     // Read-only because the filter left nothing to move to, not because money
     // exists: the one alternative was the omitted one.
-    expect(detail.scheduleCapacity.canReassign).toBe(false);
+    expect(canPickScheduleCapacity(detail)).toBe(false);
     expect(detail.scheduleCapacity.blockers).toEqual([
       {
         code: "no-price-preserving-option",
@@ -1541,9 +1541,9 @@ describe("administrative choreography detail server", () => {
     ]);
     // The repricing destination is omitted, not offered as disabled: only the
     // assignment is left in the select.
-    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
-      scenario.catalog.scheduleCapacity.id,
-    ]);
+    expect(
+      detail.draft.scheduleCapacity.options.map((option) => option.id),
+    ).toEqual([scenario.catalog.scheduleCapacity.id]);
 
     const result = await scenario.reassignTo(
       scenario.target.scheduleCapacity.id,
@@ -1552,8 +1552,7 @@ describe("administrative choreography detail server", () => {
     // Absent from the accepted set, but reported as the price problem it is and
     // not as an incompatible selection.
     expect(result).toMatchObject({
-      message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
+      message: priceDivergenceScheduleCapacityMessage,
       status: "error",
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
@@ -1574,22 +1573,24 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.filtrado.detalle@example.com",
       role: "admin",
     });
-    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual(
+    expect(
+      detail.draft.scheduleCapacity.options.map((option) => option.id),
+    ).toEqual(
       expect.arrayContaining([
         scenario.catalog.scheduleCapacity.id,
         neutral.scheduleCapacity.id,
       ]),
     );
     expect(
-      detail.scheduleCapacity.options.map((option) => option.id),
+      detail.draft.scheduleCapacity.options.map((option) => option.id),
     ).not.toContain(scenario.target.scheduleCapacity.id);
     // Money on the choreography no longer closes the field: one alternative
     // holds the price, so there is something to choose and the select opens.
-    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(detail)).toBe(true);
     // The omission is not a disabling: nothing in the surviving list is marked
     // full, which is the only thing `isFull` ever means.
     expect(
-      detail.scheduleCapacity.options.every((option) => !option.isFull),
+      detail.draft.scheduleCapacity.options.every((option) => !option.isFull),
     ).toBe(true);
 
     // The intent accepts exactly what the loader offered: the neutral one goes
@@ -1598,14 +1599,11 @@ describe("administrative choreography detail server", () => {
       scenario.target.scheduleCapacity.id,
     );
     expect(refused).toMatchObject({
-      message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
+      message: priceDivergenceScheduleCapacityMessage,
       status: "error",
     });
 
-    const accepted = await scenario.reassignTo(neutral.scheduleCapacity.id, {
-      sessionKey: "neutro",
-    });
+    const accepted = await scenario.reassignTo(neutral.scheduleCapacity.id);
     expect(accepted).toMatchObject({ status: "success" });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: neutral.scheduleCapacity.id,
@@ -1626,7 +1624,7 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
     const offeredIds = new Set(
-      detail.scheduleCapacity.options.map((option) => option.id),
+      detail.draft.scheduleCapacity.options.map((option) => option.id),
     );
     // Every capacity of the event, offered or omitted, put to the intent: the
     // invariant `resolveScheduleCapacityCandidates` documents is that the two
@@ -1641,10 +1639,8 @@ describe("administrative choreography detail server", () => {
     ];
     const accepted: string[] = [];
 
-    for (const [index, candidateId] of candidateIds.entries()) {
-      const result = await scenario.reassignTo(candidateId, {
-        sessionKey: `invariante.${index}`,
-      });
+    for (const candidateId of candidateIds) {
+      const result = await scenario.reassignTo(candidateId);
 
       expect(result).not.toBeInstanceOf(Response);
 
@@ -1685,17 +1681,16 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
 
-    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
-      scenario.catalog.scheduleCapacity.id,
-    ]);
-    expect(detail.scheduleCapacity.canReassign).toBe(false);
+    expect(
+      detail.draft.scheduleCapacity.options.map((option) => option.id),
+    ).toEqual([scenario.catalog.scheduleCapacity.id]);
+    expect(canPickScheduleCapacity(detail)).toBe(false);
 
-    // The intent refuses exactly what the field never offered.
+    // The save refuses exactly what the field never offered.
     await expect(
       scenario.reassignTo(scenario.target.scheduleCapacity.id),
     ).resolves.toMatchObject({
-      message:
-        "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
+      message: compatibleScheduleSelectionRequiredMessage,
       status: "error",
     });
   });
@@ -1747,12 +1742,12 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
 
-    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
-      drifted.scheduleCapacity.id,
-    ]);
+    expect(
+      detail.draft.scheduleCapacity.options.map((option) => option.id),
+    ).toEqual([drifted.scheduleCapacity.id]);
     // The assignment is in the select for visibility, not as a destination: it
     // is not an alternative, so the field stays read-only.
-    expect(detail.scheduleCapacity.canReassign).toBe(false);
+    expect(canPickScheduleCapacity(detail)).toBe(false);
   });
 
   // The #48 shape, and the majority of the fleet: money on a general row, past
@@ -1792,9 +1787,9 @@ describe("administrative choreography detail server", () => {
     // the option is not filtered out and the field opens with money on the
     // choreography, which the blanket block used to close outright.
     expect(
-      detail.scheduleCapacity.options.map((option) => option.id),
+      detail.draft.scheduleCapacity.options.map((option) => option.id),
     ).toContain(scenario.target.scheduleCapacity.id);
-    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(detail)).toBe(true);
 
     const result = await scenario.reassignTo(
       scenario.target.scheduleCapacity.id,
@@ -1870,7 +1865,7 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
     expect(detail.scheduleCapacity.blockers).toEqual([]);
-    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(detail)).toBe(true);
 
     const result = await scenario.reassignTo(
       scenario.target.scheduleCapacity.id,
@@ -1914,7 +1909,7 @@ describe("administrative choreography detail server", () => {
     });
 
     // The field stays open: one alternative survived the filter.
-    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(detail)).toBe(true);
     expect(detail.scheduleCapacity.blockers).toEqual([
       {
         code: "price-filtered-options",
@@ -1926,7 +1921,7 @@ describe("administrative choreography detail server", () => {
     // what is on offer, and an enumeration would go stale.
     expect(detail.scheduleCapacity.blockers[0]?.label).not.toContain("20.000");
     expect(
-      detail.scheduleCapacity.options.map((option) => option.id).sort(),
+      detail.draft.scheduleCapacity.options.map((option) => option.id).sort(),
     ).toEqual(
       [
         scenario.catalog.scheduleCapacity.id,
@@ -1957,7 +1952,7 @@ describe("administrative choreography detail server", () => {
     // Money alone says nothing any more: no option would reprice it, so there
     // is nothing to announce.
     expect(detail.scheduleCapacity.blockers).toEqual([]);
-    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(canPickScheduleCapacity(detail)).toBe(true);
   });
 
   test("blocks auditors from reassigning the schedule capacity", async () => {
@@ -1967,11 +1962,9 @@ describe("administrative choreography detail server", () => {
     });
 
     await expectThrownResponse(
-      submitDetailAction({
-        body: scheduleCapacityFormData(scenario.target.scheduleCapacity.id),
+      submitDraftAsAuditor({
         choreographyId: scenario.choreography.id,
-        email: "auditor.coreografias.cronograma@example.com",
-        role: "auditor",
+        edits: { scheduleCapacityId: scenario.target.scheduleCapacity.id },
       }),
       403,
     );
@@ -1989,11 +1982,9 @@ describe("administrative choreography detail server", () => {
       updatedAt: staleUpdatedAt,
     });
 
-    const response = await submitDetailAction({
-      body: experienceLevelFormData("profesional"),
+    const response = await saveDraftEdits({
       choreographyId: scenario.choreography.id,
-      email: "admin.coreografias.nivel@example.com",
-      role: "admin",
+      edits: { experienceLevelId: "profesional" },
     });
 
     expect(response).not.toBeInstanceOf(Response);
@@ -2028,13 +2019,11 @@ describe("administrative choreography detail server", () => {
     expect(before.choreography.operationalStatus.pendingItems).toContain(
       "experienceLevel",
     );
-    expect(before.experienceLevel.canReassign).toBe(true);
+    expect(canPickExperienceLevel(before)).toBe(true);
 
-    await submitDetailAction({
-      body: experienceLevelFormData("amateur"),
+    await saveDraftEdits({
       choreographyId: scenario.choreography.id,
-      email: "admin.coreografias.nivel.faltante@example.com",
-      role: "admin",
+      edits: { experienceLevelId: "amateur" },
     });
 
     const after = await loadDetail({
@@ -2053,11 +2042,9 @@ describe("administrative choreography detail server", () => {
       slug: "nivel.ajeno",
     });
 
-    const response = await submitDetailAction({
-      body: experienceLevelFormData("elite"),
+    const response = await saveDraftEdits({
       choreographyId: scenario.choreography.id,
-      email: "admin.coreografias.nivel.ajeno@example.com",
-      role: "admin",
+      edits: { experienceLevelId: "elite" },
     });
 
     expect(response).toMatchObject({
@@ -2073,11 +2060,9 @@ describe("administrative choreography detail server", () => {
       slug: "nivel.vacio",
     });
 
-    const response = await submitDetailAction({
-      body: experienceLevelFormData(""),
+    const response = await saveDraftEdits({
       choreographyId: scenario.choreography.id,
-      email: "admin.coreografias.nivel.vacio@example.com",
-      role: "admin",
+      edits: { experienceLevelId: "" },
     });
 
     expect(response).toMatchObject({
@@ -2094,15 +2079,13 @@ describe("administrative choreography detail server", () => {
       slug: "nivel.evaluada",
     });
 
-    const response = await submitDetailAction({
-      body: experienceLevelFormData("profesional"),
+    const response = await saveDraftEdits({
       choreographyId: scenario.choreography.id,
-      email: "admin.coreografias.nivel.presentacion@example.com",
-      role: "admin",
+      edits: { experienceLevelId: "profesional" },
     });
 
     expect(response).toMatchObject({
-      message: "Esta coreografía ya fue evaluada y no puede modificarse.",
+      message: evaluatedChoreographyMessage,
       status: "error",
     });
     await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
@@ -2123,18 +2106,15 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.nivel.sinniveles.loader@example.com",
       role: "admin",
     });
-    expect(detail.experienceLevel.canReassign).toBe(false);
+    expect(canPickExperienceLevel(detail)).toBe(false);
 
-    const response = await submitDetailAction({
-      body: experienceLevelFormData("amateur"),
+    const response = await saveDraftEdits({
       choreographyId: scenario.choreography.id,
-      email: "admin.coreografias.nivel.sinniveles@example.com",
-      role: "admin",
+      edits: { experienceLevelId: "amateur" },
     });
 
     expect(response).toMatchObject({
-      message:
-        "No se puede cambiar el nivel de experiencia: la categoría de esta coreografía no lo requiere.",
+      message: "Elegí un nivel de experiencia válido para esta coreografía.",
       status: "error",
     });
     await expect(scenario.readExperienceLevel()).resolves.toBeNull();
@@ -2154,16 +2134,17 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
 
-    expect(detail.experienceLevel.canReassign).toBe(true);
+    expect(canPickExperienceLevel(detail)).toBe(true);
     expect(detail.choreography.experienceLevelOptions).toEqual([
       { id: "amateur", name: "Amateur" },
     ]);
   });
 
   // The options carry only what the category admits today, so a drifted level
-  // cannot be re-saved from the select. The mismatch alert is what keeps the
-  // stored value legible.
-  test("drops a drifted assigned level from the options and reports it", async () => {
+  // cannot be picked from the select. The mismatch alert is what keeps the
+  // stored value legible, and a save that leaves it alone keeps it: only a level
+  // the administrator picks is checked against the category.
+  test("drops a drifted assigned level from the options and reports it, and a rename keeps it", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Derivado",
       categoryExperienceLevels: ["profesional"],
@@ -2188,17 +2169,22 @@ describe("administrative choreography detail server", () => {
       "experienceLevelMismatch",
     );
 
-    const response = await submitDetailAction({
-      body: experienceLevelFormData("amateur"),
+    const renamed = await saveDraftEdits({
       choreographyId: scenario.choreography.id,
-      email: "admin.coreografias.nivel.derivado.guardar@example.com",
-      role: "admin",
+      edits: { name: "Renombrada" },
     });
+    expect(renamed).toMatchObject({ status: "success" });
+    await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
 
-    expect(response).toMatchObject({
+    const picked = await saveDraftEdits({
+      choreographyId: scenario.choreography.id,
+      edits: { experienceLevelId: "elite" },
+    });
+    expect(picked).toMatchObject({
       message: "Elegí un nivel de experiencia válido para esta coreografía.",
       status: "error",
     });
+    await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
   });
 
   // A category edited after the choreography was filed leaves it competing in a
@@ -2252,11 +2238,9 @@ describe("administrative choreography detail server", () => {
     });
 
     await expectThrownResponse(
-      submitDetailAction({
-        body: experienceLevelFormData("profesional"),
+      submitDraftAsAuditor({
         choreographyId: scenario.choreography.id,
-        email: "auditor.coreografias.nivel@example.com",
-        role: "auditor",
+        edits: { experienceLevelId: "profesional" },
       }),
       403,
     );
@@ -2290,11 +2274,9 @@ describe("administrative choreography detail server", () => {
     });
 
     await expectThrownResponse(
-      submitDetailAction({
-        body: submodalityFormData(otherSubmodality.id),
+      submitDraftAsAuditor({
         choreographyId: choreography.id,
-        email: "auditor.coreografias.submodalidad@example.com",
-        role: "auditor",
+        edits: { submodalityId: otherSubmodality.id },
       }),
       403,
     );
@@ -3046,30 +3028,35 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.retirada.solo-lectura.detalle@example.com",
       role: "admin",
     });
+    // Every field of the form goes read-only with `canEdit`.
     expect(detail.canEdit).toBe(false);
-    expect(detail.modality.canCorrect).toBe(false);
-    expect(detail.experienceLevel.canReassign).toBe(false);
-    expect(detail.scheduleCapacity.canReassign).toBe(false);
     // The one action left, and it is an administrator's: the page is read-only
     // around it, not closed.
     expect(detail.restoration.canRestore).toBe(true);
 
-    const rosterFormData = new FormData();
-    rosterFormData.set("intent", updateChoreographyRosterIntent);
-    rosterFormData.set("name", "Retirada");
-    rosterFormData.append("dancerIds", funded.dancerId);
-    rosterFormData.set("experienceLevelId", catalog.level.id);
-    rosterFormData.set("scheduleCapacityId", catalog.scheduleCapacity.id);
-
+    const saved = toSavedChoreographyDraft(detail.choreography);
+    const draftBody = (
+      draft: ChoreographyDraft,
+      intent:
+        | typeof resolveChoreographyDraftIntent
+        | typeof saveChoreographyDraftIntent,
+    ) => toChoreographyDraftFormData({ draft, intent });
     const refusedWrites: Array<[string, FormData]> = [
-      ["rename", renameFormData("Nombre nuevo")],
-      ["roster", rosterFormData],
-      ["submodality", submodalityFormData(catalog.submodality.id)],
+      ["preview", draftBody(saved, resolveChoreographyDraftIntent)],
       [
-        "schedule-capacity",
-        scheduleCapacityFormData(catalog.scheduleCapacity.id),
+        "rename",
+        draftBody(
+          { ...saved, name: "Nombre nuevo" },
+          saveChoreographyDraftIntent,
+        ),
       ],
-      ["experience-level", experienceLevelFormData(catalog.level.id)],
+      [
+        "roster",
+        draftBody(
+          { ...saved, dancerIds: [funded.dancerId] },
+          saveChoreographyDraftIntent,
+        ),
+      ],
       // A withdrawn choreography is never removed again: there is no second
       // outcome left for it.
       ["delete", deleteFormData()],
@@ -3107,13 +3094,6 @@ describe("administrative choreography detail server", () => {
 function restoreFormData() {
   const formData = new FormData();
   formData.set("intent", restoreChoreographyIntent);
-  return formData;
-}
-
-function experienceLevelFormData(experienceLevelId: string) {
-  const formData = new FormData();
-  formData.set("intent", updateChoreographyExperienceLevelIntent);
-  formData.set(assignedExperienceLevelFieldName, experienceLevelId);
   return formData;
 }
 
@@ -3330,15 +3310,11 @@ async function createScheduleCapacityScenario(input: {
     },
     async reassignTo(
       optionId: string,
-      options: { choreographyId?: string; sessionKey?: string } = {},
+      options: { choreographyId?: string } = {},
     ) {
-      const sessionKey = options.sessionKey ? `.${options.sessionKey}` : "";
-
-      return await submitDetailAction({
-        body: scheduleCapacityFormData(optionId),
+      return await saveDraftEdits({
         choreographyId: options.choreographyId ?? choreography.id,
-        email: `admin.coreografias.${input.slug}${sessionKey}@example.com`,
-        role: "admin",
+        edits: { scheduleCapacityId: optionId },
       });
     },
     target,
@@ -3389,20 +3365,6 @@ async function createPartiallyFilteredScheduleScenario(input: {
   });
 
   return { ...scenario, neutral };
-}
-
-function scheduleCapacityFormData(optionId: string) {
-  const formData = new FormData();
-  formData.set("intent", updateChoreographyScheduleCapacityIntent);
-  formData.set(assignedScheduleCapacityFieldName, optionId);
-  return formData;
-}
-
-function submodalityFormData(submodalityId: string) {
-  const formData = new FormData();
-  formData.set("intent", updateChoreographySubmodalityIntent);
-  formData.set("submodalityId", submodalityId);
-  return formData;
 }
 
 /**
@@ -3487,13 +3449,6 @@ async function readDetailParams(input: {
   };
 }
 
-function renameFormData(name: string) {
-  const formData = new FormData();
-  formData.set("intent", renameChoreographyIntent);
-  formData.set("name", name);
-  return formData;
-}
-
 function deleteFormData() {
   const formData = new FormData();
   formData.set("intent", deleteChoreographyIntent);
@@ -3544,4 +3499,106 @@ async function waitForABackendBlockedBy(holderPid: number) {
   }
 
   throw new Error("The reassignment never waited on the schedule lock.");
+}
+
+/**
+ * The fields the form keeps editable while the loader says it can: the level
+ * needs a category that takes one, the capacity needs a choice to make.
+ */
+function canPickExperienceLevel(detail: ChoreographyDetailLoaderData) {
+  return (
+    detail.canEdit &&
+    detail.draft.structuralLock === null &&
+    detail.draft.experienceLevel.required
+  );
+}
+
+function canPickScheduleCapacity(detail: ChoreographyDetailLoaderData) {
+  return (
+    detail.canEdit &&
+    detail.draft.structuralLock === null &&
+    detail.draft.scheduleCapacity.options.length > 1
+  );
+}
+
+// Every signed request creates its own user, so each one needs a distinct
+// email.
+let draftRequestCount = 0;
+
+async function readSavedDraft(choreographyId: string) {
+  const detail = await loadDetail({
+    choreographyId,
+    email: `admin.coreografias.borrador.${(draftRequestCount += 1)}@example.com`,
+    role: "admin",
+  });
+
+  return toSavedChoreographyDraft(detail.choreography);
+}
+
+/**
+ * What the form does with an edit: the saved choreography as the draft plus the
+ * edits, previewed and then saved with the category the preview showed.
+ */
+async function saveDraftEdits(input: {
+  choreographyId: string;
+  edits: Partial<ChoreographyDraft>;
+}) {
+  const draft = {
+    ...(await readSavedDraft(input.choreographyId)),
+    ...input.edits,
+  };
+  const preview = readDraftPreview(
+    await submitDetailAction({
+      body: toChoreographyDraftFormData({
+        draft,
+        intent: resolveChoreographyDraftIntent,
+      }),
+      choreographyId: input.choreographyId,
+      email: `admin.coreografias.borrador.${(draftRequestCount += 1)}@example.com`,
+      role: "admin",
+    }),
+  );
+
+  return await submitDetailAction({
+    body: toChoreographyDraftFormData({
+      draft,
+      intent: saveChoreographyDraftIntent,
+      previewedCategoryId: preview.category?.id ?? null,
+    }),
+    choreographyId: input.choreographyId,
+    email: `admin.coreografias.borrador.${(draftRequestCount += 1)}@example.com`,
+    role: "admin",
+  });
+}
+
+async function submitDraftAsAuditor(input: {
+  choreographyId: string;
+  edits: Partial<ChoreographyDraft>;
+}) {
+  return await submitDetailAction({
+    body: toChoreographyDraftFormData({
+      draft: {
+        ...(await readSavedDraft(input.choreographyId)),
+        ...input.edits,
+      },
+      intent: saveChoreographyDraftIntent,
+    }),
+    choreographyId: input.choreographyId,
+    email: `auditor.coreografias.borrador.${(draftRequestCount += 1)}@example.com`,
+    role: "auditor",
+  });
+}
+
+function readDraftPreview(
+  response: ChoreographyDetailActionData | Response,
+): ChoreographyDraftPreview {
+  if (
+    response instanceof Response ||
+    !("intent" in response) ||
+    response.intent !== resolveChoreographyDraftIntent
+  ) {
+    throw new Error("the action did not answer the draft preview");
+  }
+
+  return response.preview;
 }
