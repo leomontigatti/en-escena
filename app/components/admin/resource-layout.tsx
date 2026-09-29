@@ -76,7 +76,7 @@ export function AdminResourceLayout({
   return requireSelectedEvent && !resolvedSelectedEventId ? (
     <AdminEventRequiredEmptyState copy={eventRequiredEmptyState} />
   ) : (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-1 flex-col gap-6">
       <AdminResourceHeader
         title={title}
         titleStyle={titleStyle}

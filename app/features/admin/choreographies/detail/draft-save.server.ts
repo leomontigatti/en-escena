@@ -9,6 +9,7 @@ import {
   writeChoreographyProfessors,
 } from "@/lib/choreographies/choreography-roster-professor-update.server";
 import { compatibleScheduleSelectionRequiredMessage } from "@/lib/choreographies/choreography-roster.shared";
+import { normalizeActiveInscriptionAges } from "@/lib/choreographies/inscription-age.server";
 import {
   validateExperienceLevelSelection,
   validateSubmodalitySelection,
@@ -323,7 +324,6 @@ async function writeDraft(input: {
   write: DraftWrite;
 }): Promise<{ ok: true } | Refusal> {
   const { choreography, draft, tx, write } = input;
-  const { changes, classification } = write.resolution;
 
   await tx
     .select({ id: choreographies.id })
@@ -344,12 +344,47 @@ async function writeDraft(input: {
     return placement;
   }
 
+  await writeDraftPeople(input);
+  await tx
+    .update(choreographies)
+    .set({
+      experienceLevelId: write.experienceLevelId,
+      name: write.name,
+      submodalityId: write.submodalityId,
+      updatedAt: new Date(),
+      ...toPlacementColumns(write, draft),
+      ...(placement.schedule ?? {}),
+    })
+    .where(eq(choreographies.id, choreography.id));
+
+  return { ok: true };
+}
+
+/**
+ * The inscriptions and the professor links. A roster that was re-resolved is
+ * synced; one that was not still leaves no active inscription with a stale age
+ * (#1050), and writes no placement doing it. Once evaluated, the stored ages
+ * are what the dancers competed with, and stay.
+ */
+async function writeDraftPeople(input: {
+  choreography: ChoreographyDetail;
+  draft: ChoreographyDraft;
+  tx: Transaction;
+  write: DraftWrite;
+}) {
+  const { choreography, draft, tx, write } = input;
+  const { changes, preview, resolvedDancers } = write.resolution;
+
   if (changes.classification) {
     await syncRosterInscriptions({
       choreographyId: choreography.id,
       requestedDancerIds: new Set(draft.dancerIds),
-      resolvedDancers: write.resolution.resolvedDancers,
+      resolvedDancers,
       tx,
+    });
+  } else if (preview.structuralLock === null) {
+    await normalizeActiveInscriptionAges(tx, {
+      choreographyId: choreography.id,
     });
   }
 
@@ -359,28 +394,23 @@ async function writeDraft(input: {
       professorIds: [...new Set(draft.professorIds)],
     });
   }
+}
 
-  await tx
-    .update(choreographies)
-    .set({
-      experienceLevelId: write.experienceLevelId,
-      name: write.name,
-      submodalityId: write.submodalityId,
-      updatedAt: new Date(),
-      ...(classification && classification.categoryId
-        ? {
-            categoryAgeBasis: classification.categoryAgeBasis,
-            categoryCalculationMode: classification.categoryCalculationMode,
-            categoryId: classification.categoryId,
-            groupType: classification.groupType,
-            modalityId: draft.modalityId,
-          }
-        : {}),
-      ...(placement.schedule ?? {}),
-    })
-    .where(eq(choreographies.id, choreography.id));
+/** The placement columns, written only when the draft re-resolved them. */
+function toPlacementColumns(write: DraftWrite, draft: ChoreographyDraft) {
+  const { classification } = write.resolution;
 
-  return { ok: true };
+  if (!classification?.categoryId) {
+    return {};
+  }
+
+  return {
+    categoryAgeBasis: classification.categoryAgeBasis,
+    categoryCalculationMode: classification.categoryCalculationMode,
+    categoryId: classification.categoryId,
+    groupType: classification.groupType,
+    modalityId: draft.modalityId,
+  };
 }
 
 /**

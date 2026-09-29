@@ -103,10 +103,19 @@ export function readChoreographyDraftFormData(formData: FormData): {
 }
 
 /**
- * What a preview answers for: the inputs that move the classification and the
- * schedule. The name, the professors, the submodality and the level move none
- * of the derived fields, so editing them asks nothing of the server. Dancer
- * order does not count.
+ * The inputs that move the classification: the modality and the dancers, in
+ * any order. The name, the professors, the submodality and the level move none
+ * of the derived fields, so editing them asks nothing of the server.
+ */
+export function getChoreographyDraftClassificationKey(
+  draft: Pick<ChoreographyDraft, "dancerIds" | "modalityId">,
+) {
+  return [draft.modalityId, [...draft.dancerIds].sort().join(",")].join("|");
+}
+
+/**
+ * What a preview answers for: the classification inputs and the capacity, whose
+ * move is what the price and schedule consequences hang on.
  */
 export function getChoreographyDraftPreviewKey(
   draft: Pick<
@@ -114,11 +123,7 @@ export function getChoreographyDraftPreviewKey(
     "dancerIds" | "modalityId" | "scheduleCapacityId"
   >,
 ) {
-  return [
-    draft.modalityId,
-    [...draft.dancerIds].sort().join(","),
-    draft.scheduleCapacityId,
-  ].join("|");
+  return `${getChoreographyDraftClassificationKey(draft)}|${draft.scheduleCapacityId}`;
 }
 
 /**

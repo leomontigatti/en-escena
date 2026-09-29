@@ -386,8 +386,9 @@ longer belongs to what is being sold; below the threshold the read-time
 derivation follows the new key on its own. ADR-0014's 2026-09-09 correction
 withdrew §3's `groupType` refresh without replacing it, so this is open. Tracked
 in [#660](https://github.com/leomontigatti/en-escena/issues/660). The only guard in
-place is the schedule-capacity one, which refuses to move a choreography's
-schedule capacity while any inscription holds money.
+place is the schedule-capacity one, which refuses a save of the choreography
+detail that moves the schedule or its capacity, whichever field moved it, when
+an inscription holding money would be charged a different price there.
 
 - **The dancer detail prices with the finance rules.** `findDancerInscriptions`
   reads each inscription through `readInscriptionThresholds`, so the tab shows

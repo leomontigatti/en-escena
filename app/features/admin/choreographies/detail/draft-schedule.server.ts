@@ -18,6 +18,7 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
 import type { ChoreographyDetail } from "./choreography-queries.server";
 import type { ChoreographyDraft } from "./draft.shared";
+import type { ChoreographyScheduleCapacityBlocker } from "./shared";
 
 const everyScheduleCapacityFullMessage =
   "No se puede guardar: todos los cupos de cronograma compatibles están llenos.";
@@ -197,4 +198,49 @@ export function toAssignedScheduleOption(
     scheduleCapacityId: isGlobalOption ? null : choreography.scheduleCapacityId,
     scheduleId: choreography.scheduleId,
   };
+}
+
+/**
+ * The filter left something to choose from. Not phrased as a block, because
+ * nothing is blocked: the select is open and every destination in it holds the
+ * price. It names no destination and no amount — the select is already the
+ * list, and an enumeration in an alert would go stale the moment a price row
+ * or an allocation moves.
+ */
+const priceFilteredOptionsBlocker: ChoreographyScheduleCapacityBlocker = {
+  code: "price-filtered-options",
+  label:
+    "Hay inscripciones con dinero asignado, así que solo se ofrecen los cronogramas que mantienen el precio.",
+};
+
+/**
+ * The filter left nothing to choose from, so the field fell back to read-only.
+ * Without this the administrator sees a locked select and no reason at all: the
+ * omitted destinations explain themselves nowhere else.
+ */
+const noPricePreservingOptionBlocker: ChoreographyScheduleCapacityBlocker = {
+  code: "no-price-preserving-option",
+  label:
+    "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y no hay cronogramas alternativos que mantengan el precio.",
+};
+
+/**
+ * What the page's alert reads out about the price, chosen from the options that
+ * survived the filter and not from a blanket money read: money no destination
+ * would reprice omits nothing and is announced nowhere. It is not filtered by
+ * role — the auditor also has to see why the select is narrower, or closed.
+ */
+export function toScheduleCapacityBlockers(input: {
+  hasPriceDivergentOption: boolean;
+  hasSelectableAlternative: boolean;
+}): ChoreographyScheduleCapacityBlocker[] {
+  if (!input.hasPriceDivergentOption) {
+    return [];
+  }
+
+  return [
+    input.hasSelectableAlternative
+      ? priceFilteredOptionsBlocker
+      : noPricePreservingOptionBlocker,
+  ];
 }

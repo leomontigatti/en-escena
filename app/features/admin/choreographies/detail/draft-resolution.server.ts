@@ -7,7 +7,7 @@ import {
   noCompatibleCategoryModalityMessage,
   noCompatibleCategoryRosterMessage,
 } from "@/lib/choreographies/choreography-messages";
-import { readRosterDancers } from "@/lib/choreographies/choreography-roster-dancer-update.server";
+import { readRosterDancers } from "@/lib/choreographies/choreography-roster-dancers.server";
 import { haveSameIds } from "@/lib/choreographies/choreography-roster.shared";
 import {
   deriveGroupType,

@@ -2,53 +2,13 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographyProfessors, professors } from "@/db/schema";
-import {
-  assertPortalChoreographyFound,
-  portalOwnedChoreographyWhere,
-} from "@/lib/choreographies/choreography-access.server";
-import {
-  invalidProfessorSelectionMessage,
-  type UpdateChoreographyProfessorsResult,
-} from "@/lib/choreographies/choreography-roster.shared";
+import { invalidProfessorSelectionMessage } from "@/lib/choreographies/choreography-roster.shared";
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-export async function updateChoreographyProfessors(input: {
-  academyId: string;
-  eventId: string;
-  choreographyId: string;
-  professorIds: string[];
-}): Promise<UpdateChoreographyProfessorsResult> {
-  assertPortalChoreographyFound(
-    await db.query.choreographies.findFirst({
-      columns: { id: true },
-      where: portalOwnedChoreographyWhere(input),
-    }),
-  );
-
-  const validation = await validateChoreographyProfessorSelection({
-    academyId: input.academyId,
-    choreographyId: input.choreographyId,
-    professorIds: input.professorIds,
-  });
-
-  if (!validation.ok) {
-    return validation;
-  }
-
-  await db.transaction(async (tx) => {
-    await writeChoreographyProfessors(tx, {
-      choreographyId: input.choreographyId,
-      professorIds: validation.professorIds,
-    });
-  });
-
-  return { ok: true };
-}
 
 export async function validateChoreographyProfessorSelection(input: {
   academyId: string;

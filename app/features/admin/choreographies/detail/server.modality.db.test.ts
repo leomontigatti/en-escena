@@ -18,11 +18,14 @@ import {
   loadChoreographyDetailRouteData,
   type ChoreographyDetailActionData,
 } from "@/features/admin/choreographies/detail/server";
+import { toSavedChoreographyDraft } from "@/features/admin/choreographies/detail/draft-form";
 import {
-  modalityFieldNames,
-  resolveChoreographyModalityIntent,
-  updateChoreographyModalityIntent,
-} from "@/features/admin/choreographies/detail/shared";
+  resolveChoreographyDraftIntent,
+  saveChoreographyDraftIntent,
+  toChoreographyDraftFormData,
+  type ChoreographyDraft,
+  type ChoreographyDraftPreview,
+} from "@/features/admin/choreographies/detail/draft.shared";
 import {
   createAcademySession,
   createChoreographyRecord,
@@ -34,8 +37,12 @@ import {
   createSignedInAdminRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import {
+  evaluatedChoreographyMessage,
+  noCompatibleCategoryModalityMessage,
+} from "@/lib/choreographies/choreography-messages";
+import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -58,70 +65,32 @@ beforeEach(() => {
 installDatabaseTestHooks();
 
 describe("administrative choreography modality correction", () => {
-  test("previews the destination modality without writing anything", async () => {
-    const scenario = await createModalityScenario({ slug: "preview" });
-
-    const response = await scenario.resolveModality(
-      scenario.target.modality.id,
-    );
-
-    expect(response).toMatchObject({
-      intent: resolveChoreographyModalityIntent,
-      result: {
-        ok: true,
-        resolution: {
-          category: { name: scenario.target.category.name },
-          experienceLevel: { required: false },
-          modalityId: scenario.target.modality.id,
-          scheduleCapacity: { status: "auto" },
-          submodality: { required: true },
-        },
-      },
-    });
-    await expect(scenario.readChoreography()).resolves.toMatchObject({
-      modalityId: scenario.catalog.modality.id,
-      submodalityId: scenario.catalog.submodality.id,
-    });
-  });
-
   /**
    * Occupancy is a suffix on the options a select offers. The lone compatible
-   * capacity is not offered: it arrives preselected and read-only, like the
-   * `auto` status of registration, and saying how many places are left on a
-   * field nobody can change means nothing. The rule is the type's here — the
-   * locked capacity carries no label to get wrong—, so what is pinned is that
-   * it carries none and that the date-time the view composes from it is bare.
-   * `isFull` still comes from the occupancy read: a lone full capacity is the
-   * dead end the view explains instead.
+   * capacity is not offered: it arrives preselected and read-only, and saying
+   * how many places are left on a field nobody can change means nothing. So
+   * its label carries none, and the date-time the view composes from it is
+   * bare. `isFull` still comes from the occupancy read: a lone full capacity is
+   * the dead end the view explains instead.
    */
   test("previews the locked single capacity with no occupancy on its label", async () => {
     const scenario = await createModalityScenario({ slug: "cupo-unico" });
 
-    const preview = readModalityResolution(
-      await scenario.resolveModality(scenario.target.modality.id),
+    const preview = await scenario.resolveModality(scenario.target.modality.id);
+
+    expect(preview.scheduleCapacity.selectedId).toBe(
+      scenario.target.scheduleCapacity.id,
     );
-    const scheduleCapacity = preview?.scheduleCapacity;
-
-    if (scheduleCapacity?.status !== "auto") {
-      throw new Error("the lone compatible capacity did not arrive locked");
-    }
-
-    // `toEqual` is what pins the bareness: an option that grew a `label` back
-    // would fail on the extra key, whatever the label said.
-    expect(scheduleCapacity.options).toEqual([
+    expect(preview.scheduleCapacity.options).toEqual([
       {
         id: scenario.target.scheduleCapacity.id,
         isFull: false,
-        schedule: {
-          name: expect.any(String),
-          scheduledDate: "2026-05-01",
-          startTime: "10:00",
-        },
+        label: expect.stringContaining("1 de mayo de 2026"),
       },
     ]);
-    expect(
-      formatScheduleDateTime(scheduleCapacity.options[0].schedule),
-    ).toContain("1 de mayo de 2026");
+    expect(preview.scheduleCapacity.options[0]?.label).not.toContain(
+      "ocupados",
+    );
   });
 
   /**
@@ -135,26 +104,18 @@ describe("administrative choreography modality correction", () => {
       targetHasSecondCapacity: true,
     });
 
-    const preview = readModalityResolution(
-      await scenario.resolveModality(scenario.target.modality.id),
-    );
+    const preview = await scenario.resolveModality(scenario.target.modality.id);
 
-    const scheduleCapacity = preview?.scheduleCapacity;
+    expect(preview.scheduleCapacity.options).toHaveLength(2);
+    // Two compatible capacities are a choice: nothing is picked for the admin.
+    expect(preview.scheduleCapacity.selectedId).toBeNull();
 
-    if (scheduleCapacity?.status !== "multiple") {
-      throw new Error(
-        "the two compatible capacities did not arrive as a choice",
-      );
-    }
-
-    expect(scheduleCapacity.options).toHaveLength(2);
-
-    for (const option of scheduleCapacity.options) {
+    for (const option of preview.scheduleCapacity.options) {
       expect(option.label).toContain("0/5 ocupados");
     }
   });
 
-  test("writes modality, submodality, category, level and capacity in one correction", async () => {
+  test("writes the destination modality with its category and capacity, and clears a level its category does not take", async () => {
     const scenario = await createModalityScenario({ slug: "compuesta" });
 
     const response = await scenario.saveModality(scenario.target.modality.id);
@@ -177,7 +138,7 @@ describe("administrative choreography modality correction", () => {
     const scenario = await createModalityScenario({ slug: "submodalidad" });
 
     const response = await scenario.saveModality(scenario.target.modality.id, {
-      [modalityFieldNames.submodalityId]: scenario.catalog.submodality.id,
+      submodalityId: scenario.catalog.submodality.id,
     });
 
     expect(response).toMatchObject({
@@ -196,7 +157,7 @@ describe("administrative choreography modality correction", () => {
     });
 
     const response = await scenario.saveModality(scenario.target.modality.id, {
-      [modalityFieldNames.submodalityId]: "",
+      submodalityId: "",
     });
 
     expect(response).toMatchObject({
@@ -228,7 +189,7 @@ describe("administrative choreography modality correction", () => {
 
     const missingLevel = await scenario.saveModality(
       scenario.target.modality.id,
-      { [modalityFieldNames.experienceLevelId]: "" },
+      { experienceLevelId: "" },
     );
 
     expect(missingLevel).toMatchObject({ status: "error" });
@@ -252,8 +213,7 @@ describe("administrative choreography modality correction", () => {
     const response = await scenario.saveModality(scenario.target.modality.id);
 
     expect(response).toMatchObject({
-      message:
-        "Con esta modalidad no hay categoría compatible. Elegí otra modalidad.",
+      message: noCompatibleCategoryModalityMessage,
       status: "error",
     });
     await expect(scenario.readChoreography()).resolves.toMatchObject({
@@ -276,24 +236,6 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("rejects the correction when a deposit is registered and the capacity would move", async () => {
-    const scenario = await createModalityScenario({
-      allocatedAmount: 5000,
-      slug: "sena-mueve",
-    });
-
-    const response = await scenario.saveModality(scenario.target.modality.id);
-
-    expect(response).toMatchObject({
-      message:
-        "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.",
-      status: "error",
-    });
-    await expect(scenario.readChoreography()).resolves.toMatchObject({
-      modalityId: scenario.catalog.modality.id,
-    });
-  });
-
   // The dead end the omission creates: the modality select stays structural, so
   // this modality is offered, and every capacity behind it would reprice.
   test("previews no capacity at all when every one of them would reprice", async () => {
@@ -302,11 +244,16 @@ describe("administrative choreography modality correction", () => {
       slug: "sena-sin-cupo",
     });
 
-    const preview = readModalityResolution(
-      await scenario.resolveModality(scenario.target.modality.id),
-    );
+    const preview = await scenario.resolveModality(scenario.target.modality.id);
 
-    expect(preview?.scheduleCapacity).toEqual({ options: [], status: "none" });
+    expect(preview.scheduleCapacity).toEqual({
+      options: [],
+      selectedId: null,
+    });
+    expect(preview.blockers).toContainEqual({
+      code: "schedule-capacity",
+      message: priceDivergenceScheduleCapacityMessage,
+    });
     // The modality is still offered: money never greys a modality, and the
     // detail explains the dead end at the capacity instead.
     const detail = await scenario.loadDetail();
@@ -349,24 +296,6 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("rejects the correction when the previewed resolution diverged", async () => {
-    const scenario = await createModalityScenario({ slug: "divergencia" });
-
-    const response = await scenario.saveModality(scenario.target.modality.id, {
-      [modalityFieldNames.previewedCategoryId]:
-        scenario.catalog.categoryWithLevel.id,
-    });
-
-    expect(response).toMatchObject({
-      message:
-        "La resolución cambió mientras corregías la modalidad. Revisá los campos y volvé a guardar.",
-      status: "error",
-    });
-    await expect(scenario.readChoreography()).resolves.toMatchObject({
-      modalityId: scenario.catalog.modality.id,
-    });
-  });
-
   test("treats re-selecting the assigned modality as a successful no-op", async () => {
     const scenario = await createModalityScenario({ slug: "no-op" });
 
@@ -388,12 +317,12 @@ describe("administrative choreography modality correction", () => {
 
     const detail = await scenario.loadDetail();
 
-    expect(detail.modality.canCorrect).toBe(false);
+    expect(detail.draft.structuralLock).toBe(evaluatedChoreographyMessage);
 
     const response = await scenario.saveModality(scenario.target.modality.id);
 
     expect(response).toMatchObject({
-      message: "Esta coreografía ya fue evaluada y no puede modificarse.",
+      message: evaluatedChoreographyMessage,
       status: "error",
     });
     await expect(scenario.readChoreography()).resolves.toMatchObject({
@@ -409,7 +338,8 @@ describe("administrative choreography modality correction", () => {
 
     const detail = await scenario.loadDetail();
 
-    expect(detail.modality.canCorrect).toBe(true);
+    expect(detail.canEdit).toBe(true);
+    expect(detail.draft.structuralLock).toBeNull();
     expect(detail.modality.blockers).toEqual([
       {
         code: "price-change",
@@ -494,11 +424,14 @@ describe("administrative choreography modality correction", () => {
 
     const detail = await scenario.loadDetail("auditor");
 
-    expect(detail.modality.canCorrect).toBe(false);
+    expect(detail.canEdit).toBe(false);
     await expectThrownResponse(
       scenario.saveModality(scenario.target.modality.id, {}, "auditor"),
       403,
     );
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      modalityId: scenario.catalog.modality.id,
+    });
   });
 });
 
@@ -595,20 +528,43 @@ async function createModalityScenario(input: {
     eventId: event.id,
   });
 
-  async function resolveModality(
-    modalityId: string,
-    role: "admin" | "auditor" = "admin",
-  ) {
-    const formData = new FormData();
-    formData.set("intent", resolveChoreographyModalityIntent);
-    formData.set(modalityFieldNames.modalityId, modalityId);
+  async function submit(input: {
+    draft: ChoreographyDraft;
+    intent:
+      | typeof resolveChoreographyDraftIntent
+      | typeof saveChoreographyDraftIntent;
+    previewedCategoryId?: string | null;
+    role?: "admin" | "auditor";
+  }) {
+    const role = input.role ?? "admin";
 
     return await submitDetailAction({
-      body: formData,
+      body: toChoreographyDraftFormData(input),
       choreographyId: choreography.id,
       email: nextEmail(role),
       role,
     });
+  }
+
+  async function readModalityDraft(modalityId: string) {
+    const { request } = await createSignedInAdminRequest({
+      email: nextEmail("admin"),
+      requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,
+      role: "admin",
+    });
+    const detail = await loadChoreographyDetailRouteData({
+      params: { choreographyId: choreography.id },
+      request,
+    });
+
+    return {
+      ...toSavedChoreographyDraft(detail.choreography),
+      modalityId,
+      submodalityId:
+        modalityId === detail.choreography.modalityId
+          ? (detail.choreography.submodalityId ?? "")
+          : "",
+    };
   }
 
   return {
@@ -634,50 +590,46 @@ async function createModalityScenario(input: {
         where: eq(choreographies.id, choreography.id),
       });
     },
-    resolveModality,
     /**
-     * Saves the correction with the fields the view would have filled from the
-     * fetcher's resolution, so each test overrides only the one it exercises.
-     *
-     * The five `?? ""` fallbacks are the whole cyclomatic count, and the CRAP
-     * score on top of them penalises coverage a fixture cannot have: every test
-     * in this file runs it, and nothing tests the test.
+     * What the form asks while the modality is being picked: the saved
+     * choreography as the draft, with the submodality left to choose.
      */
-    // fallow-ignore-next-line complexity
+    async resolveModality(modalityId: string) {
+      return readDraftPreview(
+        await submit({
+          draft: await readModalityDraft(modalityId),
+          intent: resolveChoreographyDraftIntent,
+        }),
+      );
+    },
+    /**
+     * Saves the correction with the fields the form would have filled from the
+     * preview, so each test overrides only the one it exercises.
+     */
     async saveModality(
       modalityId: string,
-      overrides: Record<string, string> = {},
+      overrides: Partial<ChoreographyDraft> = {},
       role: "admin" | "auditor" = "admin",
     ) {
-      const preview = readModalityResolution(await resolveModality(modalityId));
-      const formData = new FormData();
-      formData.set("intent", updateChoreographyModalityIntent);
-      formData.set(modalityFieldNames.modalityId, modalityId);
-      formData.set(
-        modalityFieldNames.previewedCategoryId,
-        preview?.category?.id ?? "",
-      );
-      formData.set(
-        modalityFieldNames.submodalityId,
-        preview?.submodality.options[0]?.id ?? "",
-      );
-      formData.set(
-        modalityFieldNames.experienceLevelId,
-        preview?.experienceLevel.options[0]?.id ?? "",
-      );
-      formData.set(
-        modalityFieldNames.scheduleCapacityId,
-        preview?.scheduleCapacity.options[0]?.id ?? "",
+      const draft = await readModalityDraft(modalityId);
+      const preview = readDraftPreview(
+        await submit({
+          draft,
+          intent: resolveChoreographyDraftIntent,
+          role,
+        }),
       );
 
-      for (const [key, value] of Object.entries(overrides)) {
-        formData.set(key, value);
-      }
-
-      return await submitDetailAction({
-        body: formData,
-        choreographyId: choreography.id,
-        email: nextEmail(role),
+      return await submit({
+        draft: {
+          ...draft,
+          experienceLevelId: preview.experienceLevel.options[0]?.id ?? "",
+          scheduleCapacityId: preview.scheduleCapacity.selectedId ?? "",
+          submodalityId: preview.submodality.options[0]?.id ?? "",
+          ...overrides,
+        },
+        intent: saveChoreographyDraftIntent,
+        previewedCategoryId: preview.category?.id ?? null,
         role,
       });
     },
@@ -685,19 +637,18 @@ async function createModalityScenario(input: {
   };
 }
 
-function readModalityResolution(
+function readDraftPreview(
   response: ChoreographyDetailActionData | Response,
-) {
+): ChoreographyDraftPreview {
   if (
     response instanceof Response ||
     !("intent" in response) ||
-    response.intent !== resolveChoreographyModalityIntent ||
-    !response.result.ok
+    response.intent !== resolveChoreographyDraftIntent
   ) {
-    return null;
+    throw new Error("the action did not answer the draft preview");
   }
 
-  return response.result.resolution;
+  return response.preview;
 }
 
 async function createTargetModality(input: {

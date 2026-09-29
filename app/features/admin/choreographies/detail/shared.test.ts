@@ -1,63 +1,44 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  canCorrectChoreographyModality,
-  canReassignExperienceLevel,
-  canReassignScheduleCapacity,
+  resolveChoreographyDraftIntent,
+  saveChoreographyDraftIntent,
+} from "./draft.shared";
+import {
   formatChoreographyRemovalDescription,
-  renameChoreographyIntent,
-  resolveChoreographyModalityIntent,
-  resolveChoreographyRosterIntent,
   shouldRevalidateChoreographyDetail,
   toChoreographyDetailViewActionData,
-  updateChoreographyModalityIntent,
-  updateChoreographyRosterIntent,
 } from "./shared";
 
 describe("shouldRevalidateChoreographyDetail", () => {
-  test("does not revalidate after resolving a tentative roster", () => {
+  test("does not revalidate after previewing a draft", () => {
     expect(
       shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
-        formData: buildFormData(resolveChoreographyRosterIntent),
+        formData: buildFormData(resolveChoreographyDraftIntent),
       }),
     ).toBe(false);
   });
 
-  test("revalidates after the roster is actually saved", () => {
+  test("revalidates after the draft is saved", () => {
     expect(
       shouldRevalidateChoreographyDetail({
+        actionResult: { message: "Coreografía guardada.", status: "success" },
         defaultShouldRevalidate: true,
-        formData: buildFormData(updateChoreographyRosterIntent),
+        formData: buildFormData(saveChoreographyDraftIntent),
       }),
     ).toBe(true);
   });
 
-  test("does not revalidate after previewing a candidate modality", () => {
+  // A refused save wrote nothing: reloading would only start the draft over.
+  test("does not revalidate after a refused save", () => {
     expect(
       shouldRevalidateChoreographyDetail({
+        actionResult: { message: "Sin cupo.", status: "error" },
         defaultShouldRevalidate: true,
-        formData: buildFormData(resolveChoreographyModalityIntent),
+        formData: buildFormData(saveChoreographyDraftIntent),
       }),
     ).toBe(false);
-  });
-
-  test("revalidates after the modality correction is saved", () => {
-    expect(
-      shouldRevalidateChoreographyDetail({
-        defaultShouldRevalidate: true,
-        formData: buildFormData(updateChoreographyModalityIntent),
-      }),
-    ).toBe(true);
-  });
-
-  test("revalidates after a rename", () => {
-    expect(
-      shouldRevalidateChoreographyDetail({
-        defaultShouldRevalidate: true,
-        formData: buildFormData(renameChoreographyIntent),
-      }),
-    ).toBe(true);
   });
 
   test("defers to the router when there is no form data", () => {
@@ -70,7 +51,7 @@ describe("shouldRevalidateChoreographyDetail", () => {
 });
 
 describe("toChoreographyDetailViewActionData", () => {
-  test("forwards the rejection of a schedule capacity to the view", () => {
+  test("forwards a refused save to the view", () => {
     const rejection = {
       message:
         "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
@@ -89,122 +70,16 @@ describe("toChoreographyDetailViewActionData", () => {
     expect(toChoreographyDetailViewActionData(success)).toBe(success);
   });
 
-  test("drops a bespoke status the view never reads", () => {
+  test("drops a preview's answer and redirects", () => {
     expect(
       toChoreographyDetailViewActionData({
-        message: "Revisá el roster.",
-        section: "dancers",
-        status: "roster-error",
-      }),
-    ).toBeUndefined();
-  });
-
-  test("drops results without a status and redirects", () => {
-    expect(
-      toChoreographyDetailViewActionData({
-        intent: resolveChoreographyRosterIntent,
+        intent: resolveChoreographyDraftIntent,
       }),
     ).toBeUndefined();
     expect(toChoreographyDetailViewActionData(new Response())).toBeUndefined();
     expect(toChoreographyDetailViewActionData()).toBeUndefined();
   });
 });
-
-describe("canReassignScheduleCapacity", () => {
-  test("opens the schedule capacity for an admin with a surviving alternative", () => {
-    expect(canReassignScheduleCapacity(buildInput())).toBe(true);
-  });
-
-  test.each([
-    ["the user is not an admin", { canEdit: false }],
-    ["the choreography was evaluated", { isEvaluated: true }],
-    [
-      "no alternative survived the options",
-      { hasSelectableAlternative: false },
-    ],
-  ])("keeps it read-only when %s", (_cause, overrides) => {
-    expect(canReassignScheduleCapacity(buildInput(overrides))).toBe(false);
-  });
-
-  function buildInput(
-    overrides: Partial<Parameters<typeof canReassignScheduleCapacity>[0]> = {},
-  ) {
-    return {
-      canEdit: true,
-      isEvaluated: false,
-      hasSelectableAlternative: true,
-      ...overrides,
-    };
-  }
-});
-
-describe("canReassignExperienceLevel", () => {
-  test("opens the experience level for an admin whose category declares levels", () => {
-    expect(canReassignExperienceLevel(buildInput())).toBe(true);
-  });
-
-  test.each([
-    ["the user is not an admin", { canEdit: false }],
-    ["the choreography was evaluated", { isEvaluated: true }],
-    [
-      "the resolved category declares no levels",
-      { requiresExperienceLevel: false },
-    ],
-  ])("keeps it read-only when %s", (_cause, overrides) => {
-    expect(canReassignExperienceLevel(buildInput(overrides))).toBe(false);
-  });
-
-  // Unlike the capacity, a single option does not close the field: it is the only
-  // way to resolve a missing level that leaves the choreography incomplete.
-  test("stays open with a single available level", () => {
-    expect(
-      canReassignExperienceLevel(buildInput({ requiresExperienceLevel: true })),
-    ).toBe(true);
-  });
-
-  function buildInput(
-    overrides: Partial<Parameters<typeof canReassignExperienceLevel>[0]> = {},
-  ) {
-    return {
-      canEdit: true,
-      isEvaluated: false,
-      requiresExperienceLevel: true,
-      ...overrides,
-    };
-  }
-});
-
-describe("canCorrectChoreographyModality", () => {
-  test("opens the modality for an admin on a choreography not evaluated", () => {
-    expect(canCorrectChoreographyModality(buildInput())).toBe(true);
-  });
-
-  test.each([
-    ["the user is not an admin", { canEdit: false }],
-    ["the choreography was evaluated", { isEvaluated: true }],
-  ])("keeps it read-only when %s", (_cause, overrides) => {
-    expect(canCorrectChoreographyModality(buildInput(overrides))).toBe(false);
-  });
-
-  function buildInput(
-    overrides: Partial<
-      Parameters<typeof canCorrectChoreographyModality>[0]
-    > = {},
-  ) {
-    return {
-      canEdit: true,
-      isEvaluated: false,
-      ...overrides,
-    };
-  }
-});
-
-function buildFormData(intent: string) {
-  const formData = new FormData();
-  formData.set("intent", intent);
-
-  return formData;
-}
 
 describe("formatChoreographyRemovalDescription", () => {
   test("announces a withdrawal that moves no money", () => {
@@ -238,3 +113,10 @@ describe("formatChoreographyRemovalDescription", () => {
     }
   });
 });
+
+function buildFormData(intent: string) {
+  const formData = new FormData();
+  formData.set("intent", intent);
+
+  return formData;
+}

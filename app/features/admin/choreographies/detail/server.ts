@@ -1,9 +1,5 @@
-import { z } from "zod";
-import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
-import { db } from "@/db";
-import { choreographies } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
@@ -14,77 +10,46 @@ import {
   removeChoreography,
 } from "@/lib/choreographies/choreography-removal.server";
 import { restoreChoreography } from "@/lib/choreographies/choreography-restoration.server";
-import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
 } from "@/lib/choreographies/choreography-roster-options.server";
-import { resolveChoreographyDancers } from "@/lib/choreographies/choreography-roster.server";
 import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
 } from "@/lib/choreographies/choreography-roster.shared";
-import { getFieldErrors } from "@/lib/shared/form-validation";
-import { requiredFieldMessage } from "@/lib/shared/forms";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
 import {
   findChoreographyDetail,
   type ChoreographyDetail,
 } from "./choreography-queries.server";
+import { toSavedChoreographyDraft } from "./draft-form";
 import { resolveChoreographyDraft } from "./draft-resolution.server";
 import { saveChoreographyDraft } from "./draft-save.server";
+import { toScheduleCapacityBlockers } from "./draft-schedule.server";
 import {
   readChoreographyDraftFormData,
   resolveChoreographyDraftIntent,
   saveChoreographyDraftIntent,
   type ChoreographyDraftPreview,
 } from "./draft.shared";
-import { updateChoreographyExperienceLevel } from "./experience-level.server";
 import {
-  listChoreographyModalityOptions,
-  resolveChoreographyModalityCorrection,
   listChoreographyModalityBlockers,
-  updateChoreographyModality,
+  listChoreographyModalityOptions,
   type ChoreographyModalityOption,
-  type ChoreographyModalityResolutionResult,
 } from "./modality.server";
 import {
-  listSubmodalitiesForModality,
-  updateChoreographySubmodality,
-} from "./submodality.server";
-import {
-  resolveChoreographyScheduleCapacityOptions,
-  toScheduleCapacityBlockers,
-  updateChoreographyScheduleCapacity,
-  type ChoreographyScheduleCapacityReassignment,
-} from "./schedule-capacity.server";
-import {
-  canCorrectChoreographyModality,
-  canReassignExperienceLevel,
-  canReassignScheduleCapacity,
   canRestoreChoreography,
   choreographyRestoredSuccess,
-  restoreChoreographyIntent,
-  choreographyFieldNames,
   deleteChoreographyIntent,
-  modalityFieldNames,
-  renameChoreographyIntent,
-  resolveChoreographyModalityIntent,
-  resolveChoreographyRosterIntent,
-  updateChoreographyExperienceLevelIntent,
-  updateChoreographyModalityIntent,
-  updateChoreographyRosterIntent,
-  updateChoreographyScheduleCapacityIntent,
-  updateChoreographySubmodalityIntent,
-  type ChoreographyActionData,
-  choreographySavedSuccess,
+  restoreChoreographyIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyFieldUpdateErrorData,
   type ChoreographyModalityBlocker,
   type ChoreographyRemovalPreview,
-  type ChoreographyRosterErrorData,
+  type ChoreographyScheduleCapacityBlocker,
   type ChoreographySuccessData,
 } from "./shared";
 
@@ -103,25 +68,23 @@ export type ChoreographyDetailLoaderData = {
     canDelete: boolean;
     outcome: ChoreographyRemovalPreview;
   };
-  experienceLevel: {
-    canReassign: boolean;
-  };
+  /**
+   * The preview of the choreography as saved: the options the draft starts
+   * from, before any field is touched.
+   */
+  draft: ChoreographyDraftPreview;
   modality: {
     blockers: ChoreographyModalityBlocker[];
-    canCorrect: boolean;
     options: ChoreographyModalityOption[];
   };
   restoration: {
     canRestore: boolean;
   };
-  scheduleCapacity: ChoreographyScheduleCapacityReassignment;
+  scheduleCapacity: {
+    blockers: ChoreographyScheduleCapacityBlocker[];
+  };
   selectedEventId: string | null;
-  submodalityOptions: Array<{ id: string; name: string }>;
 };
-
-const renameChoreographySchema = z.object({
-  name: z.string().trim().min(1, requiredFieldMessage),
-});
 
 const unsupportedActionMessage = "Acción no soportada.";
 
@@ -186,8 +149,7 @@ export async function loadChoreographyDetailRouteData(input: {
     blockers,
     availableDancers,
     availableProfessors,
-    submodalityOptions,
-    scheduleCapacityOptions,
+    savedDraft,
     modalityBlockers,
     modalityOptions,
     removalOutcome,
@@ -201,9 +163,9 @@ export async function loadChoreographyDetailRouteData(input: {
       choreography.academyId,
       choreography.professors.map((professor) => professor.id),
     ),
-    listSubmodalitiesForModality(choreography.modalityId),
-    resolveChoreographyScheduleCapacityOptions({
+    resolveChoreographyDraft({
       choreography,
+      draft: toSavedChoreographyDraft(choreography),
       eventId: selectedEventId,
     }),
     listChoreographyModalityBlockers({
@@ -213,14 +175,6 @@ export async function loadChoreographyDetailRouteData(input: {
     listChoreographyModalityOptions(selectedEventId),
     previewChoreographyRemovalOutcome(choreographyId),
   ]);
-  // Both alerts are chosen from what the price does to a destination, and no
-  // longer from one blanket money read shared between them: the capacity one
-  // off the options the filter left, the modality one off the schedules a
-  // correction could land on.
-  const scheduleCapacityBlockers = toScheduleCapacityBlockers({
-    hasPriceDivergentOption: scheduleCapacityOptions.hasPriceDivergentOption,
-    hasSelectableAlternative: scheduleCapacityOptions.hasSelectableAlternative,
-  });
 
   return {
     availableDancers,
@@ -236,25 +190,12 @@ export async function loadChoreographyDetailRouteData(input: {
       // the click still leads to a withdrawal.
       outcome: removalOutcome,
     },
-    experienceLevel: {
-      // No blockers to list: the level is not a price key, so the only underlying
-      // condition is that the category declares it. The reason an evaluation
-      // closes it goes in the alert that already lists it.
-      canReassign: canReassignExperienceLevel({
-        canEdit,
-        isEvaluated: choreography.isEvaluated,
-        requiresExperienceLevel: choreography.requiresExperienceLevel,
-      }),
-    },
+    draft: savedDraft.preview,
     modality: {
-      // The price does not close the field: it is listed as a blocker-in-waiting,
-      // because it only rejects the save when the correction would land on a
-      // schedule that reprices the money.
+      // A deposit does not close the field: it is listed as a
+      // blocker-in-waiting, because it only refuses the save when the draft
+      // would land on a schedule that reprices the money.
       blockers: modalityBlockers,
-      canCorrect: canCorrectChoreographyModality({
-        canEdit,
-        isEvaluated: choreography.isEvaluated,
-      }),
       options: modalityOptions,
     },
     restoration: {
@@ -266,40 +207,20 @@ export async function loadChoreographyDetailRouteData(input: {
       }),
     },
     scheduleCapacity: {
-      // The reasons go to the view even when the field is already closed by
-      // another cause: the page's alert lists them for the auditor too.
-      blockers: scheduleCapacityBlockers,
-      // Reassigning is an administrative correction: `admin` only, never once
-      // evaluated, and only when the options left something to move to. An
-      // evaluated choreography has its schedule as closed as its roster. Money is not consulted here: it already spoke by omitting the
-      // destinations it would reprice, and asking it twice would close the
-      // field on a choreography whose surviving alternatives are all valid.
-      canReassign: canReassignScheduleCapacity({
-        canEdit,
-        isEvaluated: choreography.isEvaluated,
-        hasSelectableAlternative:
-          scheduleCapacityOptions.hasSelectableAlternative,
+      // What the price filter did to the capacities the saved choreography
+      // could move to, read off the ones it left. The reasons go to the view
+      // for the auditor too: the page's alert lists them.
+      blockers: toScheduleCapacityBlockers({
+        hasPriceDivergentOption:
+          savedDraft.schedule.priceDivergentIds.length > 0,
+        hasSelectableAlternative: savedDraft.schedule.options.some(
+          (option) => option.id !== choreography.scheduleCapacityId,
+        ),
       }),
-      options: scheduleCapacityOptions.options.map((option) => ({
-        id: option.id,
-        isFull: option.isFull,
-        label: option.label,
-      })),
     },
     selectedEventId,
-    submodalityOptions,
   };
 }
-
-export type ChoreographyRosterResolutionData = {
-  intent: typeof resolveChoreographyRosterIntent;
-  result: Awaited<ReturnType<typeof resolveChoreographyDancers>>;
-};
-
-export type ChoreographyModalityResolutionData = {
-  intent: typeof resolveChoreographyModalityIntent;
-  result: ChoreographyModalityResolutionResult;
-};
 
 export type ChoreographyDraftPreviewData = {
   intent: typeof resolveChoreographyDraftIntent;
@@ -307,11 +228,7 @@ export type ChoreographyDraftPreviewData = {
 };
 
 export type ChoreographyDetailActionData =
-  | ChoreographyActionData
   | ChoreographyDraftPreviewData
-  | ChoreographyModalityResolutionData
-  | ChoreographyRosterErrorData
-  | ChoreographyRosterResolutionData
   | ChoreographyFieldUpdateErrorData
   | ChoreographySuccessData;
 
@@ -351,17 +268,23 @@ export async function handleChoreographyDetailAction(input: {
 
   assertChoreographyAcceptsIntent({ choreography, intent });
 
+  if (intent === resolveChoreographyDraftIntent) {
+    const resolution = await resolveChoreographyDraft({
+      choreography,
+      draft: readChoreographyDraftFormData(formData).draft,
+      eventId: selectedEventId,
+    });
+
+    return {
+      intent: resolveChoreographyDraftIntent,
+      preview: resolution.preview,
+    };
+  }
+
   if (intent === saveChoreographyDraftIntent) {
     return await saveChoreographyDraft({
       choreography,
       eventId: selectedEventId,
-      formData,
-    });
-  }
-
-  if (intent === renameChoreographyIntent) {
-    return await renameChoreography({
-      choreographyId,
       formData,
     });
   }
@@ -380,220 +303,7 @@ export async function handleChoreographyDetailAction(input: {
     return await restoreChoreographyAction(choreography);
   }
 
-  const preview = await answerPreviewIntent({
-    choreography,
-    eventId: selectedEventId,
-    formData,
-    intent,
-  });
-
-  if (preview) {
-    return preview;
-  }
-
-  if (intent === updateChoreographyRosterIntent) {
-    return await updateChoreographyRosterAction({
-      choreography,
-      eventId: selectedEventId,
-      formData,
-    });
-  }
-
-  if (intent === updateChoreographyModalityIntent) {
-    return await updateChoreographyModality({
-      choreography,
-      eventId: selectedEventId,
-      formData,
-    });
-  }
-
-  if (intent === updateChoreographySubmodalityIntent) {
-    return await updateChoreographySubmodality({
-      choreography,
-      formData,
-    });
-  }
-
-  if (intent === updateChoreographyScheduleCapacityIntent) {
-    return await updateChoreographyScheduleCapacity({
-      choreography,
-      eventId: selectedEventId,
-      formData,
-    });
-  }
-
-  if (intent === updateChoreographyExperienceLevelIntent) {
-    return await updateChoreographyExperienceLevel({
-      choreography,
-      formData,
-    });
-  }
-
   throw new Response(unsupportedActionMessage, { status: 400 });
-}
-
-/**
- * The intents that answer what an edit would do without writing it. None of
- * them revalidates the loader (`shouldRevalidateChoreographyDetail`).
- */
-async function answerPreviewIntent(input: {
-  choreography: ChoreographyDetail;
-  eventId: string;
-  formData: FormData;
-  intent: FormDataEntryValue | null;
-}): Promise<
-  | ChoreographyDraftPreviewData
-  | ChoreographyModalityResolutionData
-  | ChoreographyRosterResolutionData
-  | null
-> {
-  const { choreography, formData, intent } = input;
-  const selectedEventId = input.eventId;
-  const choreographyId = choreography.id;
-
-  if (intent === resolveChoreographyDraftIntent) {
-    const resolution = await resolveChoreographyDraft({
-      choreography,
-      draft: readChoreographyDraftFormData(formData).draft,
-      eventId: selectedEventId,
-    });
-
-    return {
-      intent: resolveChoreographyDraftIntent,
-      preview: resolution.preview,
-    };
-  }
-
-  if (intent === resolveChoreographyRosterIntent) {
-    return {
-      intent: resolveChoreographyRosterIntent,
-      result: await resolveChoreographyDancers({
-        academyId: choreography.academyId,
-        choreographyId,
-        dancerIds: readFormStringArray(formData, "dancerIds"),
-        eventId: selectedEventId,
-      }),
-    };
-  }
-
-  if (intent === resolveChoreographyModalityIntent) {
-    return {
-      intent: resolveChoreographyModalityIntent,
-      result: await resolveChoreographyModalityCorrection({
-        choreography,
-        eventId: selectedEventId,
-        modalityId: readFormString(formData, modalityFieldNames.modalityId),
-      }),
-    };
-  }
-
-  return null;
-}
-
-async function renameChoreography(input: {
-  choreographyId: string;
-  formData: FormData;
-}): Promise<ChoreographyActionData | ChoreographySuccessData> {
-  const values = {
-    name: readFormString(input.formData, "name"),
-  };
-  const parsed = renameChoreographySchema.safeParse(values);
-
-  if (!parsed.success) {
-    return {
-      fieldErrors: getFieldErrors(parsed.error, choreographyFieldNames),
-      message: "Revisá los campos marcados.",
-      status: "error",
-      values,
-    } satisfies ChoreographyActionData;
-  }
-
-  await db
-    .update(choreographies)
-    .set({
-      name: parsed.data.name,
-      updatedAt: new Date(),
-    })
-    .where(eq(choreographies.id, input.choreographyId));
-
-  return choreographySavedSuccess();
-}
-
-async function updateChoreographyRosterAction(input: {
-  choreography: ChoreographyDetail;
-  eventId: string;
-  formData: FormData;
-}): Promise<
-  | ChoreographyActionData
-  | ChoreographyFieldUpdateErrorData
-  | ChoreographyRosterErrorData
-  | ChoreographySuccessData
-> {
-  // `name` is optional: a submit that only touches the roster does not send it
-  // and leaves the name intact. When it does arrive, it is validated exactly as
-  // in `rename-choreography`.
-  let name: string | undefined;
-
-  if (input.formData.has("name")) {
-    const parsedName = renameChoreographySchema.safeParse({
-      name: readFormString(input.formData, "name"),
-    });
-
-    if (!parsedName.success) {
-      return {
-        fieldErrors: getFieldErrors(parsedName.error, choreographyFieldNames),
-        message: "Revisá los campos marcados.",
-        status: "error",
-        values: { name: readFormString(input.formData, "name") },
-      } satisfies ChoreographyActionData;
-    }
-
-    name = parsedName.data.name;
-  }
-
-  const result = await updateAdministrativeChoreographyRoster({
-    academyId: input.choreography.academyId,
-    choreographyId: input.choreography.id,
-    dancerIds: readFormStringArray(input.formData, "dancerIds"),
-    eventId: input.eventId,
-    experienceLevelId: readOptionalFormString(
-      input.formData,
-      "experienceLevelId",
-    ),
-    name,
-    professorIds: readFormStringArray(input.formData, "professorIds"),
-    scheduleCapacityId: readOptionalFormString(
-      input.formData,
-      "scheduleCapacityId",
-    ),
-  });
-
-  if (!result.ok) {
-    // The two schedule-capacity guards (#659) and the no-category refusal
-    // (#996) reject a save that the roster section's own error channel would
-    // otherwise swallow (see `toChoreographyDetailViewActionData` in
-    // `shared.ts`): they surface as a plain `status: "error"` instead of
-    // `"roster-error"` so the rejection actually reaches the rendered page.
-    // Visibility is decided by the code, not by the failure being a roster one.
-    if (
-      result.code === "schedule-capacity" ||
-      result.code === "no-compatible-category"
-    ) {
-      return {
-        message: result.message,
-        status: "error",
-      };
-    }
-
-    return {
-      fieldErrors: result.fieldErrors,
-      message: result.message,
-      section: result.section,
-      status: "roster-error",
-    };
-  }
-
-  return choreographySavedSuccess();
 }
 
 /**
@@ -677,22 +387,4 @@ function readChoreographyId(params: { choreographyId?: string }) {
   }
 
   return params.choreographyId;
-}
-
-function readFormString(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
-
-function readFormStringArray(formData: FormData, key: string) {
-  return formData
-    .getAll(key)
-    .flatMap((value) => (typeof value === "string" && value ? [value] : []));
-}
-
-function readOptionalFormString(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" && value.length > 0 ? value : null;
 }

@@ -11,6 +11,9 @@ import {
   modalities,
   prices,
   scheduleCapacities,
+  scheduleCategories,
+  scheduleModalities,
+  schedules,
   submodalities,
 } from "@/db/schema";
 import {
@@ -24,11 +27,6 @@ import {
   type ChoreographyDraft,
   type ChoreographyDraftPreview,
 } from "@/features/admin/choreographies/detail/draft.shared";
-import {
-  modalityFieldNames,
-  resolveChoreographyModalityIntent,
-  resolveChoreographyRosterIntent,
-} from "@/features/admin/choreographies/detail/shared";
 import {
   createChoreographyRecord,
   createSelectedPriceInscriptionForTest,
@@ -48,6 +46,10 @@ import {
   createScheduleForModalityFixture,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
+import {
+  getAgeAtDate,
+  getEventLocalDateParts,
+} from "@/lib/choreographies/registration-resolution.server";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
@@ -71,24 +73,15 @@ beforeEach(() => {
 installDatabaseTestHooks();
 
 describe("previewing a draft of the choreography detail", () => {
-  test("answers a dancers-only draft as the roster resolution does, and writes nothing", async () => {
+  test("resolves a dancers-only draft to the new group type and its capacity, and writes nothing", async () => {
     const scenario = await createDraftScenario({ slug: "solo-a-duo" });
-    const draft = scenario.draft({
-      dancerIds: [scenario.ana.id, scenario.bea.id],
-    });
 
-    const preview = await scenario.resolveDraft(draft);
-    const roster = await scenario.resolveRoster(draft.dancerIds);
-
-    expect(roster).toMatchObject({ ok: true });
-    if (!roster?.ok) {
-      throw new Error("the roster resolution refused the draft's dancers");
-    }
-    expect(preview.category?.id).toBe(roster.resolution.categoryId);
-    expect(preview.groupType).toBe(roster.resolution.groupType);
-    expect(preview.scheduleCapacity.selectedId).toBe(
-      roster.resolution.schedule.selectedScheduleCapacityId,
+    const preview = await scenario.resolveDraft(
+      scenario.draft({ dancerIds: [scenario.ana.id, scenario.bea.id] }),
     );
+
+    expect(preview.category?.id).toBe(scenario.catalog.teenCategory.id);
+    expect(preview.groupType).toBe("duo");
     expect(preview.scheduleCapacity.selectedId).toBe(
       scenario.catalog.duoScheduleCapacity.id,
     );
@@ -110,29 +103,28 @@ describe("previewing a draft of the choreography detail", () => {
     ]);
   });
 
-  test("answers a modality-only draft as the modality resolution does", async () => {
+  test("resolves a modality-only draft to the new modality's category, submodalities and capacity", async () => {
     const scenario = await createDraftScenario({ slug: "solo-modalidad" });
-    const target = await createTargetModality(scenario.event.id);
+    const target = await createTargetModality(scenario.event.id, {
+      levels: ["amateur"],
+      withSubmodality: true,
+    });
 
     const preview = await scenario.resolveDraft(
       scenario.draft({ modalityId: target.modality.id, submodalityId: "" }),
     );
-    const modality = await scenario.resolveModality(target.modality.id);
 
-    expect(modality).toMatchObject({ ok: true });
-    if (!modality?.ok) {
-      throw new Error("the modality resolution refused the target modality");
-    }
-    expect(preview.category).toEqual(modality.resolution.category);
-    expect(preview.submodality.options).toEqual(
-      modality.resolution.submodality.options,
-    );
-    expect(preview.experienceLevel.required).toBe(
-      modality.resolution.experienceLevel.required,
-    );
-    expect(preview.scheduleCapacity.selectedId).toBe(
-      modality.resolution.scheduleCapacity.options[0]?.id,
-    );
+    expect(preview.category).toEqual({
+      id: target.category.id,
+      name: target.category.name,
+    });
+    expect(preview.submodality.options).toEqual([
+      { id: target.submodality?.id, name: target.submodality?.name },
+    ]);
+    expect(preview.experienceLevel).toMatchObject({ required: true });
+    // The lone compatible capacity arrives preselected.
+    expect(preview.scheduleCapacity.options).toHaveLength(1);
+    expect(preview.scheduleCapacity.selectedId).toBe(target.soloCapacity.id);
   });
 
   test("resolves the new modality with the new roster when both change", async () => {
@@ -183,6 +175,62 @@ describe("previewing a draft of the choreography detail", () => {
       scenario.catalog.soloScheduleCapacity.id,
     );
     expect(preview.consequences.scheduleCapacity).toBeNull();
+  });
+
+  // A modality run as two shows, one per category: whatever the roster
+  // resolves to decides the show, and the capacity follows it rather than the
+  // one the choreography held.
+  test("places a re-resolved roster in the show that accepts its category", async () => {
+    const scenario = await createDraftScenario({ slug: "dos-funciones" });
+    const [secondShow] = await db
+      .insert(schedules)
+      .values({
+        eventId: scenario.event.id,
+        name: `Función 2 ${scenario.event.id}`,
+        scheduledDate: "2026-05-01",
+        startTime: "16:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      modalityId: scenario.catalog.modality.id,
+      scheduleId: secondShow.id,
+    });
+    const [secondShowSoloCapacity] = await db
+      .insert(scheduleCapacities)
+      .values({ capacity: 5, groupType: "solo", scheduleId: secondShow.id })
+      .returning();
+    await db.insert(scheduleCategories).values([
+      {
+        categoryId: scenario.catalog.childCategory.id,
+        scheduleId: scenario.catalog.schedule.id,
+      },
+      {
+        categoryId: scenario.catalog.teenCategory.id,
+        scheduleId: secondShow.id,
+      },
+    ]);
+    const child = await createDancer(scenario.owner.academyId, {
+      birthDate: "2018-05-01",
+      firstName: "Cora",
+      lastName: "Nena",
+    });
+
+    const children = await scenario.resolveDraft(
+      scenario.draft({ dancerIds: [child.id] }),
+    );
+    const teenagers = await scenario.resolveDraft(
+      scenario.draft({ dancerIds: [scenario.bea.id] }),
+    );
+
+    expect(children.category?.id).toBe(scenario.catalog.childCategory.id);
+    expect(children.scheduleCapacity.selectedId).toBe(
+      scenario.catalog.soloScheduleCapacity.id,
+    );
+    expect(teenagers.category?.id).toBe(scenario.catalog.teenCategory.id);
+    expect(teenagers.scheduleCapacity.selectedId).toBe(
+      secondShowSoloCapacity.id,
+    );
   });
 
   test("reports no compatible category as a blocker with its reason", async () => {
@@ -457,6 +505,34 @@ describe("saving a draft of the choreography detail", () => {
     ]);
   });
 
+  // #1050: a save that does not re-resolve the roster still leaves no active
+  // inscription carrying a stale age, and moves no placement doing it.
+  test("normalizes a stale stored age on a save that does not re-resolve the roster", async () => {
+    const scenario = await createDraftScenario({ slug: "edad-vieja" });
+    await db
+      .update(choreographyDancers)
+      .set({ ageAtEventStart: 3 })
+      .where(eq(choreographyDancers.choreographyId, scenario.choreography.id));
+
+    const response = await scenario.saveDraft(
+      scenario.draft({ name: "Otro nombre" }),
+    );
+
+    expect(response).toMatchObject({ status: "success" });
+    await expect(scenario.readInscriptions()).resolves.toEqual([
+      expect.objectContaining({
+        ageAtEventStart: getAgeAtDate(
+          scenario.ana.birthDate,
+          getEventLocalDateParts(scenario.event.startsAt),
+        ),
+      }),
+    ]);
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      categoryId: scenario.catalog.teenCategory.id,
+      groupType: "solo",
+    });
+  });
+
   test("refuses structural changes on an evaluated choreography and accepts a rename", async () => {
     const scenario = await createDraftScenario({ slug: "evaluada-guarda" });
     evaluatedChoreographyIds.add(scenario.choreography.id);
@@ -579,6 +655,7 @@ async function createDraftScenario(input: {
     async readInscriptions() {
       return await db
         .select({
+          ageAtEventStart: choreographyDancers.ageAtEventStart,
           dancerId: choreographyDancers.dancerId,
           id: choreographyDancers.id,
           withdrawnAt: choreographyDancers.withdrawnAt,
@@ -608,32 +685,6 @@ async function createDraftScenario(input: {
           }),
         ),
       );
-    },
-    async resolveModality(modalityId: string) {
-      const formData = new FormData();
-      formData.set("intent", resolveChoreographyModalityIntent);
-      formData.set(modalityFieldNames.modalityId, modalityId);
-      const response = await submit(formData);
-
-      return "result" in response &&
-        response.intent === resolveChoreographyModalityIntent
-        ? response.result
-        : null;
-    },
-    async resolveRoster(dancerIds: string[]) {
-      const formData = new FormData();
-      formData.set("intent", resolveChoreographyRosterIntent);
-
-      for (const dancerId of dancerIds) {
-        formData.append("dancerIds", dancerId);
-      }
-
-      const response = await submit(formData);
-
-      return "result" in response &&
-        response.intent === resolveChoreographyRosterIntent
-        ? response.result
-        : null;
     },
     async saveDraft(draft: ChoreographyDraft) {
       const preview = await this.resolveDraft(draft);
