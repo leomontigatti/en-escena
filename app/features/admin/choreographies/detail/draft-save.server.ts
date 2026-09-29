@@ -8,7 +8,10 @@ import {
   validateChoreographyProfessorSelection,
   writeChoreographyProfessors,
 } from "@/lib/choreographies/choreography-roster-professor-update.server";
-import { compatibleScheduleSelectionRequiredMessage } from "@/lib/choreographies/choreography-roster.shared";
+import {
+  compatibleScheduleSelectionRequiredMessage,
+  getGlobalScheduleCapacityOptionId,
+} from "@/lib/choreographies/choreography-roster.shared";
 import { normalizeActiveInscriptionAges } from "@/lib/choreographies/inscription-age.server";
 import {
   validateExperienceLevelSelection,
@@ -312,6 +315,26 @@ async function validateDraftProfessors(input: {
   return validation.ok ? { ok: true } : refuse(validation.message);
 }
 
+/** Whether the locked row no longer holds what the save was decided on. */
+function isStale(
+  choreography: ChoreographyDetail,
+  locked: {
+    categoryId: string;
+    modalityId: string;
+    scheduleCapacityId: string | null;
+    scheduleId: string;
+  },
+) {
+  return (
+    locked.categoryId !== choreography.categoryId ||
+    locked.modalityId !== choreography.modalityId ||
+    locked.scheduleId !== choreography.scheduleId ||
+    (locked.scheduleCapacityId ??
+      getGlobalScheduleCapacityOptionId(locked.scheduleId)) !==
+      choreography.scheduleCapacityId
+  );
+}
+
 /**
  * The write itself, under the choreography's row lock. The schedule is locked
  * before anything is written, so a refusal from the lock leaves no piece of
@@ -325,11 +348,22 @@ async function writeDraft(input: {
 }): Promise<{ ok: true } | Refusal> {
   const { choreography, draft, tx, write } = input;
 
-  await tx
-    .select({ id: choreographies.id })
+  const [locked] = await tx
+    .select({
+      categoryId: choreographies.categoryId,
+      modalityId: choreographies.modalityId,
+      scheduleCapacityId: choreographies.scheduleCapacityId,
+      scheduleId: choreographies.scheduleId,
+    })
     .from(choreographies)
     .where(eq(choreographies.id, choreography.id))
     .for("update");
+
+  // The choreography was read before the lock: what the decisions below were
+  // made on must still be what is stored.
+  if (!locked || isStale(choreography, locked)) {
+    return refuse(divergedResolutionMessage);
+  }
 
   if (
     isStructuralDraft(choreography, draft, write.resolution) &&

@@ -988,16 +988,19 @@ and no request actions. The restriction is **permanent and role-based**.
 - Roster editing happens in the admin panel's choreography detail, not on a new
   screen, and unlocks only dancers and professors. Changing the set of dancers
   re-resolves the group type (by count), the category (by ages) and the
-  experience level (per the category); experience level and schedule become
-  selectable only when the re-resolution requires it. A roster that does not
+  experience level (per the category); experience level is editable whenever
+  the resolved category declares levels, and the schedule becomes selectable
+  only when the re-resolution requires it. A roster that does not
   resolve to a compatible category cannot be saved.
 - **Professors have no financial dimension**: adding or removing them cascades
   into nothing.
 - The **financial consequence** of a roster change is not resolved in that form.
   The form produces the membership change; the impact surfaces directly in the
   financial views, because the minimum rollup pulls the choreography's status
-  down. The save confirmation is a generic notice, with no amounts and no price
-  selection.
+  down. The save is one draft with one confirmation (`ConfirmDraftDialog`),
+  shown only when it reaches past the edited fields; it lists the schedule
+  moves, including the `Precio por bailarín` before and after, and the
+  inscriptions that end up withdrawn, with no price selection.
 - **Hard blocks.** An evaluated choreography (its presentation has a score or a
   disqualification) cannot have its roster edited, and can be neither deleted nor
   withdrawn. That evaluation is the **only** block on removal: a comprobante does

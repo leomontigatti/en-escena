@@ -123,7 +123,7 @@ describe("the choreography detail as one draft", () => {
     await settle();
 
     const dialog = findDialog();
-    expect(dialog?.textContent).toContain("Ana Paz (queda retirada)");
+    expect(dialog?.textContent).toContain("Ana Paz: inscripción retirada");
     expect(dialog?.textContent).toContain("Solo → Dúo");
     expect(page.saves()).toEqual([]);
 

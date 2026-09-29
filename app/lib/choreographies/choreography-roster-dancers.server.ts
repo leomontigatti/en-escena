@@ -5,7 +5,11 @@ import { choreographyDancers, dancers, events } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { invalidDancerSelectionMessage } from "@/lib/choreographies/choreography-roster.shared";
-import type { ResolvedRegistrationDancer } from "@/lib/choreographies/registration-resolution.server";
+import {
+  getAgeAtDate,
+  getEventLocalDateParts,
+  type ResolvedRegistrationDancer,
+} from "@/lib/choreographies/registration-resolution.server";
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
@@ -91,7 +95,7 @@ export async function readRosterDancers(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const eventLocalStartDate = getLocalDateParts(event.startsAt);
+  const eventLocalStartDate = getEventLocalDateParts(event.startsAt);
   const selectedDancerById = new Map(
     selectedDancers.map((dancer) => [dancer.id, dancer]),
   );
@@ -111,35 +115,4 @@ export async function readRosterDancers(input: {
   });
 
   return { ok: true, dancers: resolvedDancers };
-}
-
-function getLocalDateParts(date: Date) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(date);
-  const partMap = new Map(parts.map((part) => [part.type, part.value]));
-
-  return {
-    year: Number(partMap.get("year")),
-    month: Number(partMap.get("month")),
-    day: Number(partMap.get("day")),
-  };
-}
-
-function getAgeAtDate(
-  birthDate: string,
-  date: { year: number; month: number; day: number },
-) {
-  const [birthYear, birthMonth, birthDay] = birthDate
-    .split("-")
-    .map((value) => Number(value));
-  const hasHadBirthday =
-    date.month > birthMonth ||
-    (date.month === birthMonth && date.day >= birthDay);
-
-  return date.year - birthYear - (hasHadBirthday ? 0 : 1);
 }

@@ -1,7 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { useFetcher, useNavigation, useSubmit } from "react-router";
+import {
+  useActionData,
+  useFetcher,
+  useNavigation,
+  useSubmit,
+} from "react-router";
 
 import {
   choreographyDraftSchema,
@@ -167,10 +172,16 @@ function useDraftPreview(input: {
     preview: ChoreographyDraftPreview;
   }>();
   const { submit: submitPreview } = fetcher;
-  const answered =
+  const refusal = useActionData<{ status?: string }>();
+  const [refusedPreview, setRefusedPreview] =
+    useState<ChoreographyDraftPreview | null>(null);
+  const fetched =
     fetcher.data?.intent === resolveChoreographyDraftIntent
       ? fetcher.data.preview
       : null;
+  // A save the server refused was made on the preview at hand, which it may
+  // have found stale: that answer is set aside so the draft is asked again.
+  const answered = fetched === refusedPreview ? null : fetched;
   const key = getChoreographyDraftPreviewKey(draft);
   const current = isStructureLocked
     ? savedPreview
@@ -197,6 +208,22 @@ function useDraftPreview(input: {
   useEffect(() => {
     requestedKey.current = null;
   }, [savedPreview]);
+
+  const handledRefusal = useRef(refusal);
+
+  useEffect(() => {
+    // Only a new refusal sets the preview aside, not the answer that follows.
+    if (handledRefusal.current === refusal) {
+      return;
+    }
+
+    handledRefusal.current = refusal;
+
+    if (refusal?.status === "error") {
+      setRefusedPreview(fetched);
+      requestedKey.current = null;
+    }
+  }, [fetched, refusal]);
 
   return {
     current,

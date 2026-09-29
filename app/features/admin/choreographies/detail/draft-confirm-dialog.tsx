@@ -56,7 +56,7 @@ export function ConfirmDraftDialog({
             <div className="flex flex-col gap-2">
               <ul className="list-disc pl-5">
                 {withdrawnDancers.map((dancer) => (
-                  <li key={dancer.id}>{dancer.name} (queda retirada)</li>
+                  <li key={dancer.id}>{dancer.name}: inscripción retirada</li>
                 ))}
               </ul>
               <p>
