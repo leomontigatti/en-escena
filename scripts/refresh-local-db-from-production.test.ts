@@ -5,6 +5,7 @@ import {
   assertCustomFormat,
   assertIsoDate,
   availableDatesCommand,
+  localDatabaseName,
   newestArtifactCommand,
   remoteScpSource,
 } from "./refresh-local-db-from-production.mjs";
@@ -129,5 +130,31 @@ describe("BACKUP_ON validation", () => {
     expect(() => assertIsoDate("2026-09-12'; rm -rf /tmp/x; '")).toThrow(
       /YYYY-MM-DD/,
     );
+  });
+});
+
+describe("target database", () => {
+  test("is the one DATABASE_URL names, so a worktree refreshes its own", () => {
+    expect(
+      localDatabaseName(
+        "postgres://postgres:postgres@localhost:5433/en-escena-wt-t3code-1",
+      ),
+    ).toBe("en-escena-wt-t3code-1");
+  });
+
+  test("falls back to en-escena without a DATABASE_URL", () => {
+    expect(localDatabaseName(undefined)).toBe("en-escena");
+  });
+
+  test("refuses a database off this machine", () => {
+    expect(() =>
+      localDatabaseName("postgres://u:p@db.example.com:5432/en-escena"),
+    ).toThrow(/not a local database/);
+  });
+
+  test("refuses a name that would break out of the SQL it is quoted into", () => {
+    expect(() =>
+      localDatabaseName("postgres://u:p@localhost:5433/x'%3Bdrop"),
+    ).toThrow(/Unexpected local database name/);
   });
 });

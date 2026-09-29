@@ -141,7 +141,8 @@ Local sessions run inside [T3 Code](https://github.com/pingdotgg/t3code). Every
 T3 thread gets its own git worktree and branch: `t3.json` at the repo root sets
 `defaultThreadEnvMode` to `worktree`, and its `runOnWorktreeCreate` script links
 `.env` from the main checkout, installs and generates route types before the
-agent starts. T3 runs that script only once it is imported (project settings →
+agent starts. The worktree's own database and dev port come later, on its first
+`pnpm dev`, `db:seed` or `db:migrate` ([local-auth.md](../local-auth.md#one-database-per-worktree)). T3 runs that script only once it is imported (project settings →
 Actions → Import from t3.json), once per T3 install. A worktree with no `.env`
 means it was never imported; one with `.env` but no `node_modules` means the
 install step failed. The main checkout stays on
@@ -169,10 +170,9 @@ Rules for a session:
   code) can be started with the "local" workspace mode to skip the install; they
   must not change branches.
 - **Leaving a worktree behind is fine; abandoning a branch is not.** Push the
-  branch or delete it. Remove stale worktrees with `git worktree remove <path>`
-  and confirm with `git worktree list`; the `/tmp/fallow-audit-base-cache-*`
-  entries are caches `pnpm check:fallow` recreates on demand and can be removed
-  at any time.
+  branch or delete it. Finished worktrees, their branches and databases, and the
+  `/tmp/fallow-audit-base-cache-*` caches go with the `housekeeping` skill, which
+  runs `pnpm worktree:sweep`.
 
 The Automatically pull option in T3's Source Control settings keeps the main
 checkout's `master` current. It only runs when that checkout is clean and on
@@ -859,15 +859,16 @@ snapshots, console logs, default screenshots — in `.playwright-cli/` under the
 directory, which is gitignored. Skip this for what the browser cannot exercise: types, tests,
 tooling, docs, server code with no rendered surface.
 
-Data comes from `pnpm db:seed` against the local database, never from a database refreshed from
+Data comes from `pnpm db:seed` against the worktree's own database, never from a database refreshed from
 production (see [pull-requests.md](./pull-requests.md#ui-evidence)). The seed prints the demo
 accounts and their shared password; [local-auth.md](../local-auth.md#demo-data) lists what it
 creates.
 
 The loop:
 
-1. Start the dev server in the background: `pnpm dev` (port 5173 per `.claude/launch.json`; it
-   takes the next free port when 5173 is busy, so read the URL it prints).
+1. Start the dev server in the background: `pnpm dev`. It serves on the `PORT` in `.env.local`,
+   which the first run creates with the worktree's database. The examples below say 5173; use yours. A
+   "Port … is already in use" error means your own earlier server is still up: stop it.
 2. **Log in once per account and keep the session.** Open `/ingresar` in a named session,
    `snapshot` to get the field refs, `fill` the email and password, `click` the button, then
    `state-save` into `.playwright-cli/`:
@@ -885,7 +886,7 @@ The loop:
    form. Refs (`e15`) change between snapshots; read them from the latest one.
 
 3. **Capture the before** during exploration, before editing: `resize 1440 900`, `goto` the
-   screen and `screenshot --filename=<what>-before.png`. After the edit there is no before left
+   screen and `screenshot --filename=.playwright-cli/<what>-before.png`. After the edit there is no before left
    to take. Set the size rather than trusting the browser's default: 1440 is the design width
    in [style-guide.md](./style-guide.md#viewports). When the change touches a table or a dense
    row, also check it at `resize 1280 800`, the floor.
@@ -896,14 +897,14 @@ The loop:
    `request <n>` or `response-body <n>` for the network. Fix the source and go back to step 4.
    A first load may log `504 (Outdated Optimize Dep)` while Vite pre-bundles; `reload` once.
 6. **Capture the after** at the end, once the change is final: `resize 1440 900` again if the
-   1280 check changed it, then `screenshot --filename=<what>-after.png`, same screen, same
+   1280 check changed it, then `screenshot --filename=.playwright-cli/<what>-after.png`, same screen, same
    account, same size as the before.
 7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server. A
    session left open holds a Chromium for up to an hour.
 
 Quote any URL with a `$`-segment route or a query string (`'http://localhost:5173/portal?evento=…'`)
 so the shell does not expand it. Attach the two screenshots with `pnpm pr:evidence <pr>
-<what>-before.png <what>-after.png`, as [pull-requests.md](./pull-requests.md#ui-evidence)
+.playwright-cli/<what>-before.png .playwright-cli/<what>-after.png`, as [pull-requests.md](./pull-requests.md#ui-evidence)
 describes. Never ask the user to check a screen by hand: drive it and show the result.
 
 ## DB TDD
