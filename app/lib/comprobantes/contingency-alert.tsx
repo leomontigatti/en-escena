@@ -126,11 +126,15 @@ export function ContingencyAlert({
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <span>{contingency.message}</span>
-            {contingency.status === "rejected"
-              ? [...contingency.errors, ...contingency.observaciones].map(
-                  (detail) => <span key={detail}>{detail}</span>,
-                )
-              : null}
+            {contingency.status === "rejected" ? (
+              <ul className="list-disc pl-5">
+                {[...contingency.errors, ...contingency.observaciones].map(
+                  (detail) => (
+                    <li key={detail}>{detail}</li>
+                  ),
+                )}
+              </ul>
+            ) : null}
           </div>
 
           {contingency.status === "unverified" ? (

@@ -535,7 +535,7 @@ export function PortalCoreographiesSection({
                 </AlertTitle>
                 {creationAvailability.details.length > 0 ? (
                   <AlertDescription>
-                    <ul className="mt-2 flex flex-col gap-1">
+                    <ul className="mt-2 flex list-disc flex-col gap-1 pl-5">
                       {creationAvailability.details.map((detail) => (
                         <li key={detail}>{detail}</li>
                       ))}

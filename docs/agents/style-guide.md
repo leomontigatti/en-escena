@@ -155,6 +155,11 @@ No icon about the topic (`Trophy`, `Landmark`, `Ban`), no alias names
 icon. An alert whose variant is chosen at run time picks its icon from the same
 table (`AccessNotice` in `app/components/auth/access-ui.tsx` is the model).
 
+### Alert content
+
+A list inside an alert is a bulleted `ul` (`list-disc pl-5`) inside the
+`AlertDescription`.
+
 ## States and badges
 
 Use `Badge` with the variants defined in `app/components/ui/badge.tsx`. The
