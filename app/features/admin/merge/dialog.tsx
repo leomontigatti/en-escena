@@ -8,6 +8,7 @@ import {
   ComboboxField,
   type ComboboxFieldOption,
 } from "@/components/shared/combobox-field";
+import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -128,7 +129,7 @@ export function MergeDialog({
 
           {survivorId ? renderSummary(survivorId) : null}
 
-          <MergeNotice refusal={refusal} />
+          <MergeAlert refusal={refusal} />
 
           <DialogFooter>
             <DialogClose asChild>
@@ -217,16 +218,17 @@ export function MergeSummary({
   );
 }
 
-function MergeNotice({ refusal }: { refusal?: string }) {
+/** Why the merge is refused, or the warning before one that cannot be undone. */
+function MergeAlert({ refusal }: { refusal?: string }) {
+  if (!refusal) {
+    return <IrreversibleActionAlert />;
+  }
+
   return (
     <Alert variant="destructive">
       <CircleAlert aria-hidden="true" />
-      <AlertTitle>
-        {refusal ? "No se puede fusionar" : "Acción irreversible"}
-      </AlertTitle>
-      <AlertDescription>
-        {refusal ?? "Esta acción es irreversible."}
-      </AlertDescription>
+      <AlertTitle>No se puede fusionar</AlertTitle>
+      <AlertDescription>{refusal}</AlertDescription>
     </Alert>
   );
 }

@@ -1,8 +1,9 @@
-import { CircleAlert, Info, ListOrdered, TriangleAlert } from "lucide-react";
+import { Info, ListOrdered, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { AlertStack } from "@/components/shared/alert-stack";
+import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
 import {
   Alert,
   AlertAction,
@@ -263,14 +264,10 @@ export function OrderingConfirmationDialog({
             </AlertDescription>
           </Alert>
         ) : null}
-        <Alert variant="destructive">
-          <CircleAlert aria-hidden="true" />
-          <AlertTitle>Acción irreversible</AlertTitle>
-          <AlertDescription>
-            Esta acción es irreversible y modifica cualquier orden manual
-            realizado.
-          </AlertDescription>
-        </Alert>
+        <IrreversibleActionAlert>
+          Esta acción es irreversible y modifica cualquier orden manual
+          realizado.
+        </IrreversibleActionAlert>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <form method="post">

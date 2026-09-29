@@ -1,12 +1,12 @@
 import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
-import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import type { SubmitEventHandler, ReactNode } from "react";
 
 import {
   AdminEmptyState,
   AdminResourceFormCard,
 } from "@/components/admin/resource-layout";
+import { alertVariantIcons } from "@/components/shared/alert-icons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
@@ -415,12 +415,6 @@ function DancerIdentificationSection({
   );
 }
 
-const dancerAlertIcons = {
-  destructive: CircleAlert,
-  info: Info,
-  warning: TriangleAlert,
-} as const;
-
 function DancerAlert({
   action,
   children,
@@ -435,7 +429,7 @@ function DancerAlert({
   title: string;
   variant?: "destructive" | "info" | "warning";
 }) {
-  const DancerAlertIcon = dancerAlertIcons[variant];
+  const DancerAlertIcon = alertVariantIcons[variant];
 
   return (
     <Alert variant={variant}>

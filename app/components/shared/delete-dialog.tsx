@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { CircleAlert, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 
 import { DestroyButton } from "@/components/shared/action-buttons";
+import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -121,13 +122,3 @@ function DeleteDialog({
 }
 
 export { DeleteDialog };
-
-function IrreversibleActionAlert() {
-  return (
-    <Alert variant="destructive">
-      <CircleAlert aria-hidden="true" />
-      <AlertTitle>Acción irreversible</AlertTitle>
-      <AlertDescription>Esta acción es irreversible.</AlertDescription>
-    </Alert>
-  );
-}

@@ -1,13 +1,8 @@
 import type { ComponentProps, ReactNode } from "react";
-import {
-  CircleAlert,
-  CircleCheck,
-  Info,
-  LogOut,
-  TriangleAlert,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Link } from "react-router";
 
+import { alertVariantIcons } from "@/components/shared/alert-icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -138,18 +133,12 @@ type AccessNoticeProps = {
 
 type AccessNoticeVariant = "error" | "info" | "success" | "warning";
 
-const accessNoticeIcons = {
-  error: CircleAlert,
-  info: Info,
-  success: CircleCheck,
-  warning: TriangleAlert,
-} as const;
-
 export function AccessNotice({ children, title, variant }: AccessNoticeProps) {
-  const Icon = accessNoticeIcons[variant];
+  const alertVariant = variant === "error" ? "destructive" : variant;
+  const Icon = alertVariantIcons[alertVariant];
 
   return (
-    <Alert variant={variant === "error" ? "destructive" : variant}>
+    <Alert variant={alertVariant}>
       <Icon aria-hidden="true" />
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription aria-live="polite">{children}</AlertDescription>

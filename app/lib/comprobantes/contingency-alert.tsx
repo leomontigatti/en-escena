@@ -134,7 +134,8 @@ export function ContingencyAlert({
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <span>{contingency.message}</span>
-            {contingency.status === "rejected" ? (
+            {contingency.status === "rejected" &&
+            contingency.errors.length + contingency.observaciones.length > 0 ? (
               <ul className="list-disc pl-5">
                 {[...contingency.errors, ...contingency.observaciones].map(
                   (detail) => (

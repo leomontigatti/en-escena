@@ -42,7 +42,7 @@ export function RecategorisedChoreographiesAlert({
       )}
       <AlertTitle>{recategorisationReportTitle}</AlertTitle>
       <AlertDescription>
-        <ul className="flex list-disc flex-col gap-1 pl-5">
+        <ul className="list-disc pl-5">
           {choreographies.map((choreography) => (
             <li key={choreography.choreographyId}>
               <Link to={buildChoreographyHref(choreography.choreographyId)}>
