@@ -1,8 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
-import { useForm, useFormState } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { FormActions } from "@/components/shared/form-actions";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { UserFormCard } from "@/lib/admin/users/user-detail-cards";
@@ -20,36 +19,36 @@ import {
   isRouteFormPending,
   useOptionalNavigation,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 
 export function InternalUserEditCard({
   actionData,
-  cancelHref,
+  backToList,
   user,
 }: {
   actionData?: DetailActionData;
-  cancelHref: string;
+  backToList: string;
   user: DetailUser;
 }) {
   // Only this form's own refusal refills it. The detail route answers every
   // intent with one shape, so a suspension or a password-reset error also
   // carries `editValues` — empty ones — and adopting those blanked `Nombre`.
   const editError = actionData?.form === "edit" ? actionData : undefined;
-  const formValues =
-    editError?.editValues ?? buildUpdateInternalUserFormValues(user);
+  const savedValues = buildUpdateInternalUserFormValues(user);
   const form = useForm<
     UpdateInternalUserFormValues,
     unknown,
     UpdateInternalUserFormValues
   >({
-    defaultValues: formValues,
+    // The effect below corrects the defaults; this only keeps the first render
+    // showing what was typed.
+    defaultValues: editError?.editValues ?? savedValues,
     resolver: zodResolver(updateInternalUserSchema),
   });
   const { control, reset } = form;
 
-  useEffect(() => {
-    reset(formValues);
-  }, [reset, formValues.name, formValues.role]);
+  useSavedFormValues(form, savedValues, editError?.editValues);
 
   const submit = useOptionalSubmit();
   const navigation = useOptionalNavigation();
@@ -57,26 +56,16 @@ export function InternalUserEditCard({
     intent: updateInternalUserIntent,
   });
   const handleSubmit = createValidatedRouteFormDataSubmitHandler(form, submit);
-  // Nothing changed is nothing to save: the button only wakes up once the form
-  // is dirty, so a save is always a save of something. A refused save is the
-  // exception — it refills the form with what was typed, which clears `isDirty`,
-  // and the retry has to stay available.
-  const { isDirty } = useFormState({ control });
 
   return (
-    <form method="post" noValidate onSubmit={handleSubmit}>
+    <form
+      method="post"
+      noValidate
+      className="flex flex-1 flex-col gap-6"
+      onSubmit={handleSubmit}
+    >
       <input type="hidden" name="intent" value={updateInternalUserIntent} />
-      <UserFormCard
-        footer={
-          <>
-            <BackButton to={cancelHref} />
-            <SubmitButton
-              disabled={!isDirty && !editError}
-              isPending={isSavingUser}
-            />
-          </>
-        }
-      >
+      <UserFormCard>
         <TextInputField
           autoComplete="name"
           control={control}
@@ -89,6 +78,13 @@ export function InternalUserEditCard({
         />
         <InternalUserEditRoleField control={control} mainRole={user.mainRole} />
       </UserFormCard>
+
+      <FormActions
+        backTo={backToList}
+        hasChanges={form.formState.isDirty}
+        isPending={isSavingUser}
+        onDiscard={() => reset(savedValues)}
+      />
     </form>
   );
 }

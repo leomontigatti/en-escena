@@ -82,19 +82,21 @@ export function EventModalityDetailView({
       }
     >
       {modality ? (
-        <ModalityFormPanel>
-          <ModalityForm
-            criteriaSetup={{
-              criteria: loaderData.submodalityCriteria,
-              lockedSubmodalityIds: loaderData.lockedSubmodalityIds,
-              modalityId: modality.id,
-              submodalities: modalitySubmodalities,
-            }}
-            form={form}
-            formId="update-modality-form"
-            id={modality.id}
-            intent="update-modality"
-          />
+        <>
+          <ModalityFormPanel>
+            <ModalityForm
+              criteriaSetup={{
+                criteria: loaderData.submodalityCriteria,
+                lockedSubmodalityIds: loaderData.lockedSubmodalityIds,
+                modalityId: modality.id,
+                submodalities: modalitySubmodalities,
+              }}
+              form={form}
+              formId="update-modality-form"
+              id={modality.id}
+              intent="update-modality"
+            />
+          </ModalityFormPanel>
           <ModalityFormActions
             form={form}
             formId="update-modality-form"
@@ -103,7 +105,7 @@ export function EventModalityDetailView({
               fields: { id: modality.id },
             }}
           />
-        </ModalityFormPanel>
+        </>
       ) : (
         <EmptyResourceState>No encontramos esa modalidad.</EmptyResourceState>
       )}

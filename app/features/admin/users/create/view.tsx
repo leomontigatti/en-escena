@@ -1,11 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { TriangleAlert } from "lucide-react";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { FormActions } from "@/components/shared/form-actions";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +14,7 @@ import {
   isRouteFormPending,
   useOptionalNavigation,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -40,26 +40,23 @@ export type NewInternalUserRouteViewProps = {
 export function NewInternalUserRouteView({
   actionData,
 }: NewInternalUserRouteViewProps) {
-  const formValues = actionData?.values ?? defaultCreateInternalUserFormValues;
   const form = useForm<
     CreateInternalUserFormValues,
     unknown,
     CreateInternalUserFormValues
   >({
-    defaultValues: formValues,
+    defaultValues: defaultCreateInternalUserFormValues,
     resolver: zodResolver(createInternalUserSchema),
   });
-  const { control, reset } = form;
+  const { control } = form;
+  const { isDirty } = useFormState({ control });
 
-  useEffect(() => {
-    reset(formValues);
-  }, [
-    reset,
-    formValues.internalUsername,
-    formValues.name,
-    formValues.role,
-    formValues.temporaryPassword,
-  ]);
+  // A refused save comes back with what was typed, on top of the empty form.
+  useSavedFormValues(
+    form,
+    defaultCreateInternalUserFormValues,
+    actionData?.values,
+  );
 
   useServerActionToast(actionData, {
     toastId: notificationToastIds["user-form-error"],
@@ -78,7 +75,7 @@ export function NewInternalUserRouteView({
       description="Creá accesos internos con nombre de usuario propio y cambio obligatorio de contraseña en el primer ingreso."
       requireSelectedEvent={false}
     >
-      <div className="flex w-full flex-col gap-6">
+      <div className="flex w-full flex-1 flex-col gap-6">
         <AlertStack>
           <Alert variant="warning">
             <TriangleAlert aria-hidden="true" />
@@ -91,16 +88,14 @@ export function NewInternalUserRouteView({
           </Alert>
         </AlertStack>
 
-        <form method="post" noValidate onSubmit={handleSubmit}>
+        <form
+          method="post"
+          noValidate
+          className="flex flex-1 flex-col gap-6"
+          onSubmit={handleSubmit}
+        >
           <input type="hidden" name="intent" value={createInternalUserIntent} />
-          <UserFormCard
-            footer={
-              <>
-                <BackButton to="/administracion/usuarios" />
-                <SubmitButton isPending={isCreatingUser} />
-              </>
-            }
-          >
+          <UserFormCard>
             <TextInputField
               autoComplete="name"
               control={control}
@@ -134,6 +129,12 @@ export function NewInternalUserRouteView({
               type="password"
             />
           </UserFormCard>
+          <FormActions
+            backTo="/administracion/usuarios"
+            hasChanges={isDirty}
+            isPending={isCreatingUser}
+            onDiscard={() => form.reset()}
+          />
         </form>
       </div>
     </AdminResourceLayout>

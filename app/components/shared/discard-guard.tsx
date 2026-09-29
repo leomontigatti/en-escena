@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useBlocker } from "react-router";
 
 import {
   AlertDialog,
@@ -77,6 +78,61 @@ export function useDiscardGuard({
     },
     requestClose,
   };
+}
+
+/**
+ * The page's side of the same question. Every way out of a page is a
+ * navigation —`Volver`, the sidebar, the breadcrumbs, the browser's back— or a
+ * closing tab, so the guard sits on the router rather than on any one button,
+ * and asks once for all of them.
+ *
+ * The save is the one way out it lets through. A save that posts to the page's
+ * own URL never looks like leaving; one that goes elsewhere passes
+ * `isSaving` as a ref it sets before submitting, because the navigation starts
+ * before a re-render could report it.
+ */
+export function useUnsavedChangesGuard({
+  isDirty,
+  isSaving,
+}: {
+  isDirty: boolean;
+  isSaving: boolean | { readonly current: boolean };
+}): DiscardChangesDialogProps {
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isDirty &&
+      !readFlag(isSaving) &&
+      (currentLocation.pathname !== nextLocation.pathname ||
+        currentLocation.search !== nextLocation.search),
+  );
+
+  useEffect(() => {
+    if (!isDirty) {
+      return;
+    }
+
+    const warn = (event: BeforeUnloadEvent) => {
+      if (readFlag(isSaving)) {
+        return;
+      }
+
+      event.preventDefault();
+    };
+
+    window.addEventListener("beforeunload", warn);
+
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty, isSaving]);
+
+  return {
+    onDiscard: () => blocker.proceed?.(),
+    onKeepEditing: () => blocker.reset?.(),
+    open: blocker.state === "blocked",
+  };
+}
+
+function readFlag(flag: boolean | { readonly current: boolean }) {
+  return typeof flag === "boolean" ? flag : flag.current;
 }
 
 export type DiscardChangesDialogProps = ReturnType<

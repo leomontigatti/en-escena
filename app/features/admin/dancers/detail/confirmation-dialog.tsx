@@ -1,4 +1,5 @@
 import { TriangleAlert } from "lucide-react";
+import { Form } from "react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -24,7 +25,7 @@ export function DancerConfirmationDialog({
   birthDateMayNeedRecalculation,
   dialogIntent,
   editConsequence,
-  editFormId,
+  onConfirmSave,
   onOpenChange,
   statusAction,
   statusFormId,
@@ -33,7 +34,8 @@ export function DancerConfirmationDialog({
   birthDateMayNeedRecalculation: boolean;
   dialogIntent: DancerDialogIntent | null;
   editConsequence: DancerEditConsequence;
-  editFormId: string;
+  /** Submits the edit form, past its own question. */
+  onConfirmSave: () => void;
   onOpenChange: (open: boolean) => void;
   statusAction: DancerStatusAction;
   statusFormId: string;
@@ -65,7 +67,7 @@ export function DancerConfirmationDialog({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction asChild>
-              <Button type="submit" form={editFormId}>
+              <Button type="button" onClick={onConfirmSave}>
                 Guardar
               </Button>
             </AlertDialogAction>
@@ -86,9 +88,9 @@ export function DancerConfirmationDialog({
               {statusAction.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <form id={statusFormId} method="post">
+          <Form id={statusFormId} method="post">
             <input type="hidden" name="intent" value={statusAction.intent} />
-          </form>
+          </Form>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
@@ -112,9 +114,9 @@ export function DancerConfirmationDialog({
               bailarín.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <form id={verifyFormId} method="post">
+          <Form id={verifyFormId} method="post">
             <input type="hidden" name="intent" value="verify-dancer-identity" />
-          </form>
+          </Form>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction asChild>

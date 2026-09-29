@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import {
+  act,
+  createContext,
+  useContext,
+  useState,
+  type ReactNode,
+} from "react";
 import { createRoot } from "react-dom/client";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 import type { EventPriceDetailView as EventPriceDetailRouteViewType } from "@/features/admin/prices/detail/view";
@@ -353,6 +359,30 @@ function installReactTestEnvironment() {
   };
 }
 
+const SlotContext = createContext<ReactNode>(null);
+
+function Slot() {
+  return useContext(SlotContext);
+}
+
+/**
+ * The form's footer guards the page through the data router, which
+ * `MemoryRouter` is not. The router is made once and the view is handed in
+ * through context, so rendering again with other props updates the same
+ * component instance rather than mounting a new one.
+ */
+function DataRouterSlot({ children }: { children: ReactNode }) {
+  const [router] = useState(() =>
+    createMemoryRouter([{ path: "*", element: <Slot /> }]),
+  );
+
+  return (
+    <SlotContext.Provider value={children}>
+      <RouterProvider router={router} />
+    </SlotContext.Provider>
+  );
+}
+
 async function renderPriceDetailRoute({
   EventPriceDetailRouteView,
   loaderData,
@@ -366,9 +396,9 @@ async function renderPriceDetailRoute({
 }) {
   await act(async () => {
     root.render(
-      <MemoryRouter>
+      <DataRouterSlot>
         <EventPriceDetailRouteView loaderData={loaderData} priceId={priceId} />
-      </MemoryRouter>,
+      </DataRouterSlot>,
     );
   });
 }

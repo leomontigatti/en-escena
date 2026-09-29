@@ -1,20 +1,16 @@
-import { Check } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Form, useNavigation } from "react-router";
 import { toast } from "sonner";
 
-import { BackButton } from "@/components/shared/action-buttons";
 import { FileUploadField } from "@/components/shared/file-upload-field";
-import { PinnedActions } from "@/components/shared/pinned-actions";
+import { FormActions } from "@/components/shared/form-actions";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 import {
@@ -101,11 +97,16 @@ export function ChoreographyMusicEditorForm({
       musicStorageKey !== (choreography.musicStorageKey ?? ""),
     [choreography.musicStorageKey, musicStorageKey, selectedMusicFileName],
   );
-  const canSubmit =
-    canEditMusic &&
-    hasMusicChanged &&
-    !musicHasValidationError &&
-    !isSubmitting;
+
+  // Puts the field back on the stored song: the picked file, or the delete,
+  // goes, and the remount clears the file input itself.
+  const discardMusicChanges = useCallback(() => {
+    setMusicStorageKey(choreography.musicStorageKey ?? "");
+    setSelectedMusicFileName(null);
+    setMusicHasValidationError(false);
+    form.setValue("musicStorageKey", choreography.musicStorageKey ?? "");
+    setSavedCount((count) => count + 1);
+  }, [choreography.musicStorageKey, form]);
 
   const handleMusicValidationErrorChange = useCallback((hasError: boolean) => {
     setMusicHasValidationError(hasError);
@@ -210,17 +211,14 @@ export function ChoreographyMusicEditorForm({
           </FieldGroup>
         </CardContent>
       </Card>
-      <PinnedActions>
-        <BackButton to="/portal/coreografias" />
-        <Button type="submit" disabled={!canSubmit}>
-          {isSubmitting ? (
-            <Spinner aria-hidden="true" data-icon="inline-start" />
-          ) : (
-            <Check aria-hidden="true" data-icon="inline-start" />
-          )}
-          Guardar
-        </Button>
-      </PinnedActions>
+      <FormActions
+        backTo="/portal/coreografias"
+        canEdit={canEditMusic}
+        canSave={!musicHasValidationError}
+        hasChanges={hasMusicChanged}
+        isPending={isSubmitting}
+        onDiscard={discardMusicChanges}
+      />
     </Form>
   );
 }

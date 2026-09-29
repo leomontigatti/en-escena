@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type SubmitEventHandler } from "react";
+import { useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
 import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
+import {
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
+} from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -19,7 +24,7 @@ import {
 } from "./shared";
 import {
   DancerDetailAlerts,
-  DancerDetailCard,
+  DancerDetailForm,
   DancerDetailHeaderActions,
   InscriptionsSection,
   type InscriptionsSectionProps,
@@ -30,6 +35,10 @@ type DancerDetailRouteViewProps = {
   loaderData: DancerDetailLoaderData;
 };
 
+const editFormId = "admin-dancer-edit-form";
+const statusFormId = "admin-dancer-status-form";
+const verifyFormId = "admin-dancer-verify-form";
+
 export type { InscriptionsSectionProps };
 export { InscriptionsSection };
 
@@ -38,7 +47,7 @@ export function DancerDetailRouteView({
   loaderData,
 }: DancerDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
-  // A warning keeps the edit open with the submitted values and asks the
+  // A warning keeps the submitted values in the form and asks the
   // administrator to confirm.
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
@@ -52,49 +61,19 @@ export function DancerDetailRouteView({
   });
 
   const dancer = loaderData.dancer;
-  const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
-  const editForm = useDancerEditForm({
-    actionData: errorData,
-    eventStartDate: loaderData.activeEventStartDate,
-    values:
-      nameWarning?.values ??
-      getDancerEditValues({ actionData: errorData, dancer }),
-  });
-  const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
-    getInitialDialogIntent({
-      actionData: errorData,
-      shouldConfirmSave: dancer.editConsequence !== null,
-    }),
-  );
-  const editFormId = "admin-dancer-edit-form";
-  const statusFormId = "admin-dancer-status-form";
-  const verifyFormId = "admin-dancer-verify-form";
-  const watchedBirthDate = editForm.form.watch("birthDate");
+  const {
+    confirmSave,
+    dialogIntent,
+    editForm,
+    handleEditSubmit,
+    isSaving,
+    setDialogIntent,
+    viewState,
+  } = useDancerSave({ errorData, loaderData, nameWarning });
   const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
     detailHref: `/administracion/bailarines/${dancer.id}`,
     listHref: "/administracion/bailarines",
   });
-  const viewState = buildDancerDetailViewState({
-    actionData: errorData,
-    canEdit: loaderData.canEdit,
-    dancer,
-    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
-    requestedEditMode: loaderData.isEditing,
-    watchedBirthDate,
-  });
-
-  useEffect(() => {
-    const nextIntent = getInitialDialogIntent({
-      actionData: errorData,
-      shouldConfirmSave: viewState.shouldConfirmSave,
-    });
-
-    if (!nextIntent) {
-      return;
-    }
-
-    setDialogIntent(nextIntent);
-  }, [errorData, viewState.shouldConfirmSave, submittedEditValues]);
 
   return (
     <AdminResourceLayout
@@ -113,64 +92,146 @@ export function DancerDetailRouteView({
         />
       }
     >
-      <section className="flex flex-col gap-6">
-        <DancerDetailAlerts
-          academyId={dancer.academy.id}
-          active={dancer.active}
-          canEdit={loaderData.canEdit}
-          canVerifyIdentity={viewState.canVerifyIdentity}
-          identificationAlert={viewState.identificationAlert}
-          identificationAlertVariant={viewState.identificationAlertVariant}
-          onSelectIntent={setDialogIntent}
-          participatingAlert={viewState.participatingAlert}
-          recategorisedChoreographies={
-            successData?.recategorisedChoreographies ?? []
+      <DancerDetailAlerts
+        academyId={dancer.academy.id}
+        active={dancer.active}
+        canEdit={loaderData.canEdit}
+        canVerifyIdentity={viewState.canVerifyIdentity}
+        identificationAlert={viewState.identificationAlert}
+        identificationAlertVariant={viewState.identificationAlertVariant}
+        onSelectIntent={setDialogIntent}
+        participatingAlert={viewState.participatingAlert}
+        recategorisedChoreographies={
+          successData?.recategorisedChoreographies ?? []
+        }
+      />
+
+      <DancerDetailForm
+        backToList={loaderData.backToList}
+        canEdit={loaderData.canEdit}
+        dancer={dancer}
+        documentImageUrls={loaderData.documentImageUrls}
+        editForm={editForm}
+        editFormId={editFormId}
+        isSaving={isSaving}
+        nameWarning={nameWarning?.warning}
+        onSubmit={handleEditSubmit}
+        selectedEventId={loaderData.selectedEventId}
+      />
+
+      <DancerConfirmationDialog
+        birthDateMayNeedRecalculation={viewState.birthDateMayNeedRecalculation}
+        dialogIntent={dialogIntent}
+        editConsequence={dancer.editConsequence}
+        onConfirmSave={confirmSave}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialogIntent(null);
           }
-        />
+        }}
+        statusAction={viewState.statusAction}
+        statusFormId={statusFormId}
+        verifyFormId={verifyFormId}
+      />
 
-        <DancerDetailCard
-          backToList={loaderData.backToList}
-          cancelHref={loaderData.cancelHref}
-          canEdit={loaderData.canEdit}
-          dancer={dancer}
-          documentImageUrls={loaderData.documentImageUrls}
-          editForm={editForm}
-          editFormId={editFormId}
-          editHref={loaderData.editHref}
-          isEditing={viewState.isEditing || Boolean(nameWarning)}
-          nameWarning={nameWarning?.warning}
-          onConfirmSave={() => {
-            setDialogIntent("save");
-          }}
-          onSubmit={editForm.handleSubmit}
-          selectedEventId={loaderData.selectedEventId}
-          shouldConfirmSave={viewState.shouldConfirmSave}
-        />
-
-        <DancerConfirmationDialog
-          birthDateMayNeedRecalculation={
-            viewState.birthDateMayNeedRecalculation
-          }
-          dialogIntent={dialogIntent}
-          editConsequence={dancer.editConsequence}
-          editFormId={editFormId}
-          onOpenChange={(open) => {
-            if (!open) {
-              setDialogIntent(null);
-            }
-          }}
-          statusAction={viewState.statusAction}
-          statusFormId={statusFormId}
-          verifyFormId={verifyFormId}
-        />
-
-        <RosterMergeDialog
-          kind="dancer"
-          merge={loaderData.merge}
-          person={dancer}
-          {...mergeDialog}
-        />
-      </section>
+      <RosterMergeDialog
+        kind="dancer"
+        merge={loaderData.merge}
+        person={dancer}
+        {...mergeDialog}
+      />
     </AdminResourceLayout>
   );
+}
+
+/**
+ * The edit form and its save: straight through, or through the confirmation
+ * dialog when the save has consequences. The dialog's own `Guardar` resubmits
+ * the form, marked as confirmed so it is not asked about again.
+ */
+function useDancerSave({
+  errorData,
+  loaderData,
+  nameWarning,
+}: {
+  errorData?: Extract<DancerDetailActionData, { status: "error" }>;
+  loaderData: DancerDetailLoaderData;
+  nameWarning?: Extract<DancerDetailActionData, { status: "warning" }>;
+}) {
+  const dancer = loaderData.dancer;
+  const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
+  const editForm = useDancerEditForm({
+    actionData: errorData,
+    eventStartDate: loaderData.activeEventStartDate,
+    savedValues: getDancerEditValues({ actionData: undefined, dancer }),
+    submittedValues:
+      nameWarning?.values ??
+      (submittedEditValues
+        ? getDancerEditValues({ actionData: errorData, dancer })
+        : null),
+  });
+  const submit = useSubmit();
+  const navigation = useNavigation();
+  const isSaving = isRouteFormPending(navigation, { intent: "update-dancer" });
+  // Set by the confirmation dialog so its own `Guardar` is not asked about
+  // again.
+  const isSaveConfirmed = useRef(false);
+  const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
+    getInitialDialogIntent({
+      actionData: errorData,
+      shouldConfirmSave: dancer.editConsequence !== null,
+    }),
+  );
+  const watchedBirthDate = editForm.form.watch("birthDate");
+  const viewState = buildDancerDetailViewState({
+    canEdit: loaderData.canEdit,
+    dancer,
+    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
+    watchedBirthDate,
+  });
+  const submitEdit = createValidatedRouteSubmitHandler(editForm.form, submit);
+  const handleEditSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
+    if (asksBeforeSaving && !isSaveConfirmed.current) {
+      event.preventDefault();
+      void editForm.form.handleSubmit(() => setDialogIntent("save"))(event);
+      return;
+    }
+
+    isSaveConfirmed.current = false;
+    submitEdit(event);
+  };
+  // The same-name warning follows a save the administrator already confirmed.
+  const asksBeforeSaving = viewState.shouldConfirmSave && !nameWarning;
+
+  function confirmSave() {
+    isSaveConfirmed.current = true;
+    const formElement = document.getElementById(editFormId);
+
+    if (formElement instanceof HTMLFormElement) {
+      formElement.requestSubmit();
+    }
+  }
+
+  useEffect(() => {
+    const nextIntent = getInitialDialogIntent({
+      actionData: errorData,
+      shouldConfirmSave: viewState.shouldConfirmSave,
+    });
+
+    if (!nextIntent) {
+      return;
+    }
+
+    setDialogIntent(nextIntent);
+  }, [errorData, viewState.shouldConfirmSave, submittedEditValues]);
+
+  return {
+    confirmSave,
+    dialogIntent,
+    editForm,
+    handleEditSubmit,
+    isSaving,
+    setDialogIntent,
+    viewState,
+  };
 }

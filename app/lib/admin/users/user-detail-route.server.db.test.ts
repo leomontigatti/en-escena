@@ -181,7 +181,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "admin.editor@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?modo=editar`,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
       userName: "Ada Editora",
       internalUsername: "ada.editora",
     });
@@ -333,7 +333,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
         email: `${role}.sin-permiso@example.com`,
         role,
         requiresPasswordChange: false,
-        requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?modo=editar`,
+        requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
         userName: `${role} sin permiso`,
         internalUsername:
           role === "academy" ? undefined : `${role}.sin.permiso`,
@@ -363,8 +363,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "admin.self@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl:
-        "http://localhost/administracion/usuarios/self-admin?modo=editar",
+      requestUrl: "http://localhost/administracion/usuarios/self-admin",
       userName: "Admin Self",
       internalUsername: "admin.self",
     });
@@ -378,7 +377,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const selfResult = await detailAction(
       detailActionArgs(
         createPostRequest(
-          `http://localhost/administracion/usuarios/${selfAdmin.userId}?modo=editar`,
+          `http://localhost/administracion/usuarios/${selfAdmin.userId}`,
           selfAdmin.request.headers.get("cookie") ?? "",
           {
             name: "Admin Self",
@@ -412,7 +411,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const craftedResult = await detailAction(
       detailActionArgs(
         createPostRequest(
-          `http://localhost/administracion/usuarios/${otherAdmin.userId}?modo=editar`,
+          `http://localhost/administracion/usuarios/${otherAdmin.userId}`,
           selfAdmin.request.headers.get("cookie") ?? "",
           {
             name: "Admin Otro",
@@ -593,7 +592,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     expect(internalDetailData).not.toHaveProperty("selectedEventId");
   });
 
-  test("preserves back-to-list and mode hrefs while removing detail-only search params", async () => {
+  test("preserves the back-to-list search while removing detail-only search params", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.ruta.detalle@example.com",
       role: "judge",
@@ -607,7 +606,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "admin.ruta.detalle@example.com",
       role: "admin",
       requiresPasswordChange: false,
-      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=restablecer-contrasena&guardado=si&tipoGuardado=manual`,
+      requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&guardado=si&tipoGuardado=manual`,
       userName: "Ada Ruta",
       internalUsername: "ada.ruta",
     });
@@ -616,11 +615,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
       detailLoader(detailRouteArgs(adminRequest, targetUser.userId)),
     ).resolves.toMatchObject({
       backToList: "/administracion/usuarios?query=ada&estado=active",
-      cancelHref: `/administracion/usuarios/${targetUser.userId}?query=ada&estado=active`,
-      editHref: `/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=editar`,
-      resetPasswordHref: `/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&modo=restablecer-contrasena`,
-      isEditing: false,
-      isResettingPassword: true,
     });
   });
 });

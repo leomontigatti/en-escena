@@ -70,7 +70,13 @@ export function SeminarDetailView({
           <TabsTrigger value="informacion">Información</TabsTrigger>
           <TabsTrigger value="inscriptos">Inscriptos</TabsTrigger>
         </TabsList>
-        <TabsContent value="informacion" className="pt-2">
+        {/* Kept mounted behind the other tab: the draft is the page's, so
+            `Guardar` and the leave guard below cover it from either tab. */}
+        <TabsContent
+          value="informacion"
+          forceMount
+          className="pt-2 data-[state=inactive]:hidden"
+        >
           <SeminarFormPanel>
             <SeminarForm
               controller={controller}
@@ -84,18 +90,19 @@ export function SeminarDetailView({
               }}
               showInstructorPicture
             />
-            <SeminarFormActions
-              controller={controller}
-              formId={updateSeminarFormId}
-              pendingScope={{ intent: updateSeminarIntent }}
-              selectedEventId={loaderData.selectedEventId}
-            />
           </SeminarFormPanel>
         </TabsContent>
         <TabsContent value="inscriptos" className="pt-2">
           <SeminarInscriptionsTable inscriptions={loaderData.inscriptions} />
         </TabsContent>
       </Tabs>
+      {/* Outside the tabs, so the pinned footer rests on the page. */}
+      <SeminarFormActions
+        controller={controller}
+        formId={updateSeminarFormId}
+        pendingScope={{ intent: updateSeminarIntent }}
+        selectedEventId={loaderData.selectedEventId}
+      />
     </AdminResourceLayout>
   );
 }

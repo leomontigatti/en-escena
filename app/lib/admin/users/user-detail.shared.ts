@@ -68,11 +68,6 @@ export type DetailUser = {
 export type UserDetailLoaderData = {
   backToList: string;
   canManage: boolean;
-  cancelHref: string;
-  editHref: string;
-  isEditing: boolean;
-  isResettingPassword: boolean;
-  resetPasswordHref: string;
   user: DetailUser;
 };
 
@@ -189,22 +184,6 @@ export function buildBackToListHref(requestUrl: string) {
   );
 }
 
-export function buildModeHref(
-  url: URL,
-  userId: string,
-  mode: "editar" | "restablecer-contrasena" | null,
-) {
-  const nextSearchParams = sanitizeUserDetailSearchParams(url.searchParams);
-
-  if (mode) {
-    nextSearchParams.set("modo", mode);
-  } else {
-    nextSearchParams.delete("modo");
-  }
-
-  return buildUserDetailPath(userId, nextSearchParams);
-}
-
 // In-place editing on the detail does not redirect: it returns
 // `{ status: "success", message }`, the loader revalidates and the view fires the
 // toast directly from `actionData`. See docs/agents/form-feedback.md.
@@ -220,7 +199,6 @@ export function buildDetailActionSuccess(
 function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
   const nextSearchParams = new URLSearchParams(searchParams);
 
-  nextSearchParams.delete("modo");
   nextSearchParams.delete("guardado");
   nextSearchParams.delete("tipoGuardado");
 
@@ -327,13 +305,6 @@ function getDetailState(
   }
 
   return "active";
-}
-
-function buildUserDetailPath(userId: string, searchParams: URLSearchParams) {
-  return buildPathWithSearch(
-    `/administracion/usuarios/${userId}`,
-    searchParams,
-  );
 }
 
 function buildPathWithSearch(pathname: string, searchParams: URLSearchParams) {

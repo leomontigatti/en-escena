@@ -6,7 +6,10 @@ import { renderInDataRouter } from "@/lib/test-support/data-router";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
   getButton,
+  setInputValue,
+  updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
 type DancerEditConsequence =
@@ -80,17 +83,69 @@ describe("DancerDetailRouteView dialogs", () => {
         <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: null,
-            isEditing: true,
           })}
         />,
       ),
     );
 
+    expect(getButton("Guardar").hasAttribute("disabled")).toBe(true);
+
+    await changeFirstName("Julieta");
+
     const saveButton = getButton("Guardar");
 
     expect(saveButton.getAttribute("type")).toBe("submit");
-    expect(saveButton.getAttribute("form")).toBe("admin-dancer-edit-form");
+    expect(saveButton.hasAttribute("disabled")).toBe(false);
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
+  });
+
+  test("offers `Descartar cambios` only while there are changes, and it restores the saved values", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
+        <DancerDetailRouteView loaderData={createLoaderData()} />,
+      ),
+    );
+
+    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(findButton("Editar")).toBeUndefined();
+    expect(findButton("Cancelar")).toBeUndefined();
+
+    await changeFirstName("Julieta");
+
+    expect(findButton("Descartar cambios")).toBeDefined();
+
+    await clickReactDomButton("Descartar cambios");
+
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="firstName"]')
+        ?.value,
+    ).toBe("Julia");
+    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(getButton("Guardar").hasAttribute("disabled")).toBe(true);
+  });
+
+  test("shows an auditor the fields disabled and only Volver", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
+        <DancerDetailRouteView
+          loaderData={{ ...createLoaderData(), canEdit: false }}
+        />,
+      ),
+    );
+
+    const inputs = Array.from(
+      document.querySelectorAll<HTMLInputElement>("input:not([type=hidden])"),
+    );
+
+    expect(inputs.some((input) => input.value === "Julia")).toBe(true);
+    expect(inputs.every((input) => input.disabled)).toBe(true);
+    expect(document.body.textContent).toContain("Volver");
+    expect(findButton("Guardar")).toBeUndefined();
+    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(findButton("Editar")).toBeUndefined();
+    expect(document.body.textContent).not.toContain("Cancelar");
   });
 
   test("editing a verified dancer confirms with the verified message before saving", async () => {
@@ -100,15 +155,13 @@ describe("DancerDetailRouteView dialogs", () => {
         <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: "verified",
-            isEditing: true,
           })}
         />,
       ),
     );
 
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
-    expect(getButton("Guardar").getAttribute("type")).toBe("button");
-
+    await changeFirstName("Julieta");
     await clickReactDomButton("Guardar", { exact: true });
 
     expect(document.body.textContent).toContain("¿Guardar cambios?");
@@ -123,12 +176,12 @@ describe("DancerDetailRouteView dialogs", () => {
         <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: "participated",
-            isEditing: true,
           })}
         />,
       ),
     );
 
+    await changeFirstName("Julieta");
     await clickReactDomButton("Guardar", { exact: true });
 
     expect(document.body.textContent).toContain("¿Guardar cambios?");
@@ -137,19 +190,28 @@ describe("DancerDetailRouteView dialogs", () => {
   });
 });
 
+async function changeFirstName(value: string) {
+  const input = document.querySelector<HTMLInputElement>(
+    'input[name="firstName"]',
+  );
+
+  if (!input) {
+    throw new Error("Expected the first name field to be rendered.");
+  }
+
+  await updateReactDomForm(() => setInputValue(input, value));
+}
+
 function createLoaderData({
   active = true,
   editConsequence = null,
-  isEditing = false,
 }: {
   active?: boolean;
   editConsequence?: DancerEditConsequence;
-  isEditing?: boolean;
 } = {}): DancerDetailRouteViewProps["loaderData"] {
   return {
     activeEventStartDate: "2026-09-25",
     backToList: "/administracion/bailarines",
-    cancelHref: "/administracion/bailarines/dancer-1",
     canEdit: true,
     dancer: {
       academy: {
@@ -182,8 +244,6 @@ function createLoaderData({
       back: null,
       front: null,
     },
-    editHref: "/administracion/bailarines/dancer-1?modo=editar",
-    isEditing,
     isParticipatingInActiveEvent: false,
     merge: null,
     selectedEventId: null,

@@ -3,6 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
+// The form footer's leave guard needs a data router, which a static render
+// inside `MemoryRouter` does not have; an idle blocker stands in for it.
+vi.mock("react-router", async () => ({
+  ...(await vi.importActual<typeof import("react-router")>("react-router")),
+  useBlocker: () => ({ state: "unblocked" }),
+}));
+
 vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireAdminPanelUser: vi.fn(),
 }));

@@ -48,13 +48,13 @@ export function SeminarCreateView({
           formId={createSeminarFormId}
           intent={createSeminarIntent}
         />
-        <SeminarFormActions
-          controller={controller}
-          formId={createSeminarFormId}
-          pendingScope={{ intent: createSeminarIntent }}
-          selectedEventId={loaderData.selectedEventId}
-        />
       </SeminarFormPanel>
+      <SeminarFormActions
+        controller={controller}
+        formId={createSeminarFormId}
+        pendingScope={{ intent: createSeminarIntent }}
+        selectedEventId={loaderData.selectedEventId}
+      />
     </AdminResourceLayout>
   );
 }

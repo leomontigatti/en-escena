@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { useSavedFormValues } from "@/lib/shared/forms";
 
 import {
   buildProfessorEditSchema,
@@ -22,36 +23,39 @@ type ProfessorEditFormReturn = UseFormReturn<
 >;
 
 export type ProfessorEditFormController = {
+  discard: () => void;
   documentConflictDescription: ReactNode;
   form: ProfessorEditFormReturn;
+  hasChanges: boolean;
 };
 
+/**
+ * Measured against what is saved: a refused save puts what was typed back as
+ * the current values with the saved ones kept as defaults, so the form still
+ * reads as changed. A successful save revalidates the loader and the new saved
+ * values reset it to clean. See the dancer twin.
+ */
 export function useProfessorEditForm({
   actionData,
-  values,
+  savedValues,
+  submittedValues,
 }: {
   actionData?: ProfessorActionError;
-  values: ProfessorEditFormValues;
+  savedValues: ProfessorEditFormValues;
+  submittedValues: ProfessorEditFormValues | null;
 }): ProfessorEditFormController {
   const form = useForm<
     ProfessorEditFormValues,
     unknown,
     ProfessorEditFormValues
   >({
-    defaultValues: values,
+    // The effect below corrects the defaults; this only keeps the first render
+    // (and a server render) showing what was typed.
+    defaultValues: submittedValues ?? savedValues,
     mode: "onSubmit",
     resolver: zodResolver(buildProfessorEditSchema()),
   });
-
-  useEffect(() => {
-    form.reset(values);
-  }, [
-    form,
-    values.documentNumber,
-    values.documentType,
-    values.firstName,
-    values.lastName,
-  ]);
+  useSavedFormValues(form, savedValues, submittedValues);
 
   const documentConflictDescription = useRosterDocumentConflictField({
     actionData,
@@ -60,7 +64,12 @@ export function useProfessorEditForm({
     setError: form.setError,
   });
 
-  return { documentConflictDescription, form };
+  return {
+    discard: () => form.reset(savedValues),
+    documentConflictDescription,
+    form,
+    hasChanges: form.formState.isDirty,
+  };
 }
 
 export function ProfessorActionsMenu({

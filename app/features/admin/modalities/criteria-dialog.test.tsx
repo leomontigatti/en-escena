@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { act } from "react";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { SubmodalityCriteriaDialog } from "@/features/admin/modalities/criteria-dialog";
 import type {
@@ -11,6 +11,7 @@ import type {
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  getButton,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -32,14 +33,14 @@ describe("SubmodalityCriteriaDialog", () => {
 
   async function renderDialog(
     criteria: EventSubmodalityCriterionRow[],
-    options: { locked?: boolean } = {},
+    options: { locked?: boolean; onOpenChange?: (open: boolean) => void } = {},
   ) {
     await renderer.renderAsync(
       <SubmodalityCriteriaDialog
         criteria={criteria}
         locked={options.locked ?? false}
         modalityId="modality_1"
-        onOpenChange={() => {}}
+        onOpenChange={options.onOpenChange ?? (() => {})}
         open
         submodality={submodality}
       />,
@@ -133,6 +134,53 @@ describe("SubmodalityCriteriaDialog", () => {
     expect(findButtonByLabel("Guardar")).toBeUndefined();
     expect(findButtonByLabel("Agregar criterio")).toBeUndefined();
     expect(getMaximumInput(0).disabled).toBe(true);
+  });
+
+  test("holds `Guardar` until something changes", async () => {
+    await renderDialog([
+      criterion({ id: "criterion_1", maximum: 100, name: "Técnica" }),
+    ]);
+
+    expect(getButton("Guardar").disabled).toBe(true);
+
+    await updateReactDomForm(() => {
+      setInputValue(getMaximumInput(0), "90");
+    });
+
+    expect(getButton("Guardar").disabled).toBe(false);
+  });
+
+  test("closes straight away on `Cancelar` while clean", async () => {
+    const onOpenChange = vi.fn();
+    await renderDialog([], { onOpenChange });
+
+    await clickReactDomButton("Cancelar");
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  });
+
+  test("asks before `Cancelar` drops typed changes", async () => {
+    const onOpenChange = vi.fn();
+    await renderDialog(
+      [criterion({ id: "criterion_1", maximum: 100, name: "Técnica" })],
+      { onOpenChange },
+    );
+
+    await updateReactDomForm(() => {
+      setInputValue(getMaximumInput(0), "90");
+    });
+    await clickReactDomButton("Cancelar");
+
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    await clickReactDomButton("Descartar", { exact: true });
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    // The dialog stays mounted behind its trigger, so it opens again clean.
+    expect(getMaximumInput(0).value).toBe("100");
+    expect(getButton("Guardar").disabled).toBe(true);
   });
 
   test("appends an empty criterion, which starts out of the total", async () => {

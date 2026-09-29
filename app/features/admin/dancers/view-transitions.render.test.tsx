@@ -139,7 +139,6 @@ function buildDetailLoaderData() {
   return {
     activeEventStartDate: "2026-09-25",
     backToList: "/administracion/bailarines",
-    cancelHref: "/administracion/bailarines/dancer_1",
     canEdit: false,
     dancer: {
       academy: {
@@ -172,8 +171,6 @@ function buildDetailLoaderData() {
       back: null,
       front: null,
     },
-    editHref: "/administracion/bailarines/dancer_1?modo=editar",
-    isEditing: false,
     isParticipatingInActiveEvent: false,
     merge: null,
     selectedEventId: null,

@@ -1,5 +1,5 @@
 import { Plus, Trash } from "lucide-react";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   useFieldArray,
   useForm,
@@ -31,6 +31,7 @@ import {
   type RouteFormPendingScope,
   useOptionalFormAction,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
@@ -80,19 +81,16 @@ export function useScheduleForm({
   submittedValues?: ScheduleActionValues;
   totalCapacity?: number;
 }): ScheduleFormController {
-  const defaultValues = useMemo(
-    () =>
-      submittedValues ?? {
-        name: name ?? "",
-        scheduledDate: scheduledDate ?? "",
-        startTime: startTime ?? "",
-        totalCapacity: totalCapacity?.toString() ?? "",
-        modalityIds,
-        categoryIds,
-        scheduleCapacities: scheduleCapacities.map(
-          toScheduleCapacityFormValues,
-        ),
-      },
+  const saved = useMemo(
+    (): ScheduleFormValues => ({
+      name: name ?? "",
+      scheduledDate: scheduledDate ?? "",
+      startTime: startTime ?? "",
+      totalCapacity: totalCapacity?.toString() ?? "",
+      modalityIds,
+      categoryIds,
+      scheduleCapacities: scheduleCapacities.map(toScheduleCapacityFormValues),
+    }),
     [
       categoryIds,
       modalityIds,
@@ -100,18 +98,15 @@ export function useScheduleForm({
       scheduleCapacities,
       scheduledDate,
       startTime,
-      submittedValues,
       totalCapacity,
     ],
   );
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
-    defaultValues,
+    defaultValues: saved,
   });
 
-  useEffect(() => {
-    form.reset(defaultValues);
-  }, [defaultValues, form]);
+  useSavedFormValues(form, saved, submittedValues);
 
   return form;
 }
@@ -210,7 +205,7 @@ export function ScheduleFormActions({
   return (
     <EventBasesFormActions
       basePath={basePath}
-      control={form.control}
+      form={form}
       formId={formId}
       pendingScope={pendingScope}
     />

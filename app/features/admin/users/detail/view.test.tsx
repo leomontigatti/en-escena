@@ -15,7 +15,11 @@ import {
   type DetailViewActionData,
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  setInputValue,
+  updateReactDomForm,
+} from "@/lib/test-support/react-dom";
 
 const useNavigationMock = vi.hoisted(() => vi.fn());
 
@@ -29,12 +33,123 @@ vi.mock("react-router", async () => {
   };
 });
 
-describe("InternalUserDetailRouteView suspension", () => {
+describe("InternalUserDetailRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
     renderer.cleanup();
     useNavigationMock.mockReset();
+  });
+
+  test("opens a dialog from the menu without leaving the detail", async () => {
+    await renderDetail();
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await chooseMenuItem("Restablecer contraseña");
+
+    const dialog = document.querySelector('[role="dialog"]');
+
+    expect(dialog?.textContent).toContain("Guardar contraseña temporal");
+    expect(dialog?.textContent).toContain("Cancelar");
+  });
+
+  test("keeps the submit disabled while the password is empty", async () => {
+    await renderDetail();
+    await chooseMenuItem("Restablecer contraseña");
+
+    expect(getResetSubmit().disabled).toBe(true);
+
+    await typePassword("Temporal-2026");
+
+    expect(getResetSubmit().disabled).toBe(false);
+  });
+
+  test("disables the submit while the reset is in flight", async () => {
+    const formData = new FormData();
+    formData.set("intent", "reset-password");
+    await renderDetail({
+      navigation: { formData, formMethod: "post", state: "submitting" },
+    });
+    await chooseMenuItem("Restablecer contraseña");
+    await typePassword("Temporal-2026");
+
+    expect(getResetSubmit().disabled).toBe(true);
+  });
+
+  test("closes the dialog once the reset succeeds", async () => {
+    await renderDetail({
+      action: async () =>
+        buildDetailActionSuccess("usuario-interno-restablecido"),
+    });
+    await chooseMenuItem("Restablecer contraseña");
+    await typePassword("Temporal-2026");
+
+    await act(async () => {
+      getResetSubmit().click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test("stays open and shows the reason when the reset is refused", async () => {
+    await renderDetail({
+      action: async () => ({
+        status: "error" as const,
+        message: "No se pudo restablecer la contraseña.",
+        form: "reset-password" as const,
+        fieldErrors: {},
+        resetPasswordFieldErrors: {},
+        editValues: { name: "", role: "judge" as const },
+        resetPasswordValues: { temporaryPassword: "Temporal-2026" },
+      }),
+    });
+    await chooseMenuItem("Restablecer contraseña");
+    await typePassword("Temporal-2026");
+
+    await act(async () => {
+      getResetSubmit().click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const dialog = document.querySelector('[role="dialog"]');
+
+    expect(dialog?.textContent).toContain(
+      "No se pudo restablecer la contraseña.",
+    );
+  });
+
+  test("asks before closing with a typed password", async () => {
+    await renderDetail();
+    await chooseMenuItem("Restablecer contraseña");
+    await typePassword("Temporal-2026");
+
+    await act(async () => {
+      getButtonByText("Cancelar", '[role="dialog"]').click();
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+  });
+
+  test("closes without asking when nothing was typed", async () => {
+    await renderDetail();
+    await chooseMenuItem("Restablecer contraseña");
+
+    await act(async () => {
+      getButtonByText("Cancelar", '[role="dialog"]').click();
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
   test("confirms a suspension in a dialog instead of posting on the menu item", async () => {
@@ -183,6 +298,34 @@ function DetailRoute({ user }: { user?: Partial<DetailUser> }) {
   );
 }
 
+function getResetSubmit() {
+  return getButtonByText("Guardar contraseña temporal", '[role="dialog"]');
+}
+
+function getButtonByText(text: string, scope: string) {
+  const button = Array.from(
+    document.querySelectorAll<HTMLButtonElement>(`${scope} button`),
+  ).find((candidate) => candidate.textContent?.trim() === text);
+
+  if (!button) {
+    throw new Error(`Expected a "${text}" button in ${scope}.`);
+  }
+
+  return button;
+}
+
+async function typePassword(value: string) {
+  const input = document.querySelector<HTMLInputElement>(
+    'input[name="temporaryPassword"]',
+  );
+
+  if (!input) {
+    throw new Error("Expected the temporary password field.");
+  }
+
+  await updateReactDomForm(() => setInputValue(input, value));
+}
+
 function getConfirmButton() {
   const button = Array.from(document.querySelectorAll("button")).find(
     (candidate) => candidate.textContent?.trim() === "Suspender",
@@ -235,12 +378,6 @@ function buildLoaderData(user: Partial<DetailUser> = {}): UserDetailLoaderData {
   return {
     backToList: "/administracion/usuarios",
     canManage: true,
-    cancelHref: "/administracion/usuarios/user_1",
-    editHref: "/administracion/usuarios/user_1?modo=editar",
-    isEditing: false,
-    isResettingPassword: false,
-    resetPasswordHref:
-      "/administracion/usuarios/user_1?modo=restablecer-contrasena",
     user: {
       academyId: null,
       academyName: null,

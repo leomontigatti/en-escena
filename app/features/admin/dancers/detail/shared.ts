@@ -51,15 +51,12 @@ export const dancerFieldNames = [
 export type DancerDetailLoaderData = {
   activeEventStartDate: string | null;
   backToList: string;
-  cancelHref: string;
   canEdit: boolean;
   dancer: NonNullable<Awaited<ReturnType<typeof findDancer>>>;
   documentImageUrls: {
     back: string | null;
     front: string | null;
   };
-  editHref: string;
-  isEditing: boolean;
   /**
    * Answered by `hasActiveEventParticipation`, the same reader the guard in
    * `setRosterPersonStatus` asks. One reader for both, so the screen cannot
@@ -131,7 +128,6 @@ export type DancerDetailViewState = {
   editConsequence: DancerEditConsequence;
   identificationAlert: string | null;
   identificationAlertVariant: "info" | "warning";
-  isEditing: boolean;
   /**
    * Why the archive action is unavailable, or `null` when it is available.
    * Informational: nothing is wrong when it shows.
@@ -160,33 +156,10 @@ export function buildBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
   const searchParams = new URLSearchParams(url.search);
 
-  searchParams.delete("modo");
   searchParams.delete("evento");
   const search = searchParams.toString();
 
   return `/administracion/bailarines${search.length > 0 ? `?${search}` : ""}`;
-}
-
-export function buildModeHref(
-  url: URL,
-  dancerId: string,
-  mode: "editar" | null,
-) {
-  const searchParams = new URLSearchParams(url.search);
-
-  searchParams.delete("evento");
-
-  if (mode === null) {
-    searchParams.delete("modo");
-  } else {
-    searchParams.set("modo", mode);
-  }
-
-  const search = searchParams.toString();
-
-  return `/administracion/bailarines/${dancerId}${
-    search.length > 0 ? `?${search}` : ""
-  }`;
 }
 
 // In-place editing on the detail does not redirect: it returns
@@ -370,25 +343,16 @@ function hasDancerVerificationMinimumData(
 }
 
 export function buildDancerDetailViewState({
-  actionData,
   canEdit,
   dancer,
   isParticipatingInActiveEvent,
-  requestedEditMode,
   watchedBirthDate,
 }: {
-  actionData: DancerActionError | undefined;
   canEdit: boolean;
   dancer: DancerDetailLoaderData["dancer"];
   isParticipatingInActiveEvent: boolean;
-  requestedEditMode: boolean;
   watchedBirthDate: string;
 }): DancerDetailViewState {
-  // A failure only re-opens the edit form when it was an edit that failed: a
-  // refused archive carries no submitted values and must leave the screen in
-  // read mode, with the dialog and the toast doing the reporting.
-  const isEditing =
-    canEdit && (requestedEditMode || isDancerUpdateValues(actionData?.values));
   const archiveAvailability = getRosterPersonArchiveAvailability({
     isParticipatingInActiveEvent,
     kind: "dancer",
@@ -408,7 +372,7 @@ export function buildDancerDetailViewState({
   const identificationAlertVariant =
     dancer.identificationStatus === "unverified" ? "info" : "warning";
   const birthDateMayNeedRecalculation =
-    isEditing &&
+    canEdit &&
     dancer.participatedInAnyEvent &&
     watchedBirthDate !== dancer.birthDate;
 
@@ -418,7 +382,6 @@ export function buildDancerDetailViewState({
     editConsequence: dancer.editConsequence,
     identificationAlert,
     identificationAlertVariant,
-    isEditing,
     participatingAlert: archiveAvailability.participatingAlert,
     shouldConfirmSave:
       dancer.editConsequence !== null || birthDateMayNeedRecalculation,

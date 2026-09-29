@@ -116,12 +116,10 @@ function buildViewState(
   } = {},
 ) {
   return buildDancerDetailViewState({
-    actionData: undefined,
     canEdit: true,
     dancer: { ...dancer, ...overrides.dancer },
     isParticipatingInActiveEvent:
       overrides.isParticipatingInActiveEvent ?? false,
-    requestedEditMode: false,
     watchedBirthDate: "2010-01-01",
   });
 }

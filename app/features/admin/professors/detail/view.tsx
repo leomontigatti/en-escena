@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
+import { useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
 import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
+import {
+  createValidatedRouteSubmitHandler,
+  isRouteFormPending,
+} from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ProfessorConfirmationDialog } from "./confirmation-dialog";
 import { useProfessorEditForm } from "./form";
 import {
   ProfessorDetailAlerts,
-  ProfessorDetailCard,
+  ProfessorDetailForm,
   ProfessorDetailHeaderActions,
 } from "./sections";
 import {
@@ -25,6 +30,8 @@ import {
   toProfessorEditValues,
 } from "./shared";
 
+const editFormId = "administracion-profesor-form";
+
 export type ProfessorDetailRouteViewProps = {
   actionData?: ProfessorDetailActionData;
   loaderData: ProfessorDetailLoaderData;
@@ -35,7 +42,7 @@ export function ProfessorDetailRouteView({
   loaderData,
 }: ProfessorDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
-  // A warning keeps the edit open with the submitted values and asks the
+  // A warning keeps the submitted values in the form and asks the
   // administrator to confirm.
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
@@ -49,21 +56,116 @@ export function ProfessorDetailRouteView({
   });
 
   const professor = loaderData.professor;
+  const {
+    dialogIntent,
+    editForm,
+    handleEditSubmit,
+    isSaving,
+    pendingUpdateValues,
+    setDialogIntent,
+  } = useProfessorSave({ errorData, nameWarning, professor });
+
+  const viewState = buildProfessorDetailViewState({
+    active: professor.active,
+    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
+  });
+  const confirmationAction = getProfessorConfirmationAction({
+    active: professor.active,
+    intent: dialogIntent,
+  });
+  function openStatusDialog(
+    intent: "archive-professor" | "reactivate-professor",
+  ) {
+    setDialogIntent(intent);
+  }
+
+  return (
+    <AdminResourceLayout
+      selectedEventId={loaderData.selectedEventId}
+      requireSelectedEvent={false}
+      title="Detalle profesor"
+      description="Revisá la información administrativa de este profesor."
+      headerAction={
+        <ProfessorDetailHeaderActions
+          canEdit={loaderData.canEdit}
+          onSelectIntent={openStatusDialog}
+          onSelectMerge={() => mergeDialog.onOpenChange(true)}
+          statusAction={viewState.statusAction}
+        />
+      }
+    >
+      <ProfessorDetailAlerts
+        active={professor.active}
+        canEdit={loaderData.canEdit}
+        isIncomplete={professor.isIncomplete}
+        onSelectIntent={openStatusDialog}
+        participatingAlert={viewState.participatingAlert}
+      />
+
+      <ProfessorDetailForm
+        backToList={loaderData.backToList}
+        canEdit={loaderData.canEdit}
+        editForm={editForm}
+        editFormId={editFormId}
+        isSaving={isSaving}
+        nameWarning={nameWarning?.warning}
+        onSubmit={handleEditSubmit}
+        professor={professor}
+      />
+
+      <ProfessorConfirmationDialog
+        action={confirmationAction}
+        intent={dialogIntent}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialogIntent(null);
+          }
+        }}
+        pendingUpdateValues={pendingUpdateValues}
+      />
+
+      <RosterMergeDialog
+        kind="professor"
+        merge={loaderData.merge}
+        person={professor}
+        {...mergeDialog}
+      />
+    </AdminResourceLayout>
+  );
+}
+
+/**
+ * The edit form and its save: straight through, or through the confirmation
+ * dialog, holding the values it will post, when the save has consequences.
+ */
+function useProfessorSave({
+  errorData,
+  nameWarning,
+  professor,
+}: {
+  errorData?: Extract<ProfessorDetailActionData, { status: "error" }>;
+  nameWarning?: Extract<ProfessorDetailActionData, { status: "warning" }>;
+  professor: ProfessorDetailLoaderData["professor"];
+}) {
   const isConsequential = professor.editConsequence !== null;
   const submittedUpdateValues = getSubmittedProfessorUpdateValues(errorData);
-  // Only a failed edit re-opens the form: a refused archive carries no
-  // submitted values and leaves the screen in read mode.
-  const isEditing =
-    loaderData.canEdit &&
-    (loaderData.isEditing ||
-      Boolean(submittedUpdateValues) ||
-      Boolean(nameWarning));
-  const editValues = nameWarning
-    ? nameWarning.values
-    : getProfessorEditValues({ actionData: errorData, professor });
+  const savedValues = getProfessorEditValues({
+    actionData: undefined,
+    professor,
+  });
   const editForm = useProfessorEditForm({
     actionData: errorData,
-    values: editValues,
+    savedValues,
+    submittedValues: nameWarning
+      ? nameWarning.values
+      : submittedUpdateValues
+        ? getProfessorEditValues({ actionData: errorData, professor })
+        : null,
+  });
+  const submit = useSubmit();
+  const navigation = useNavigation();
+  const isSaving = isRouteFormPending(navigation, {
+    intent: "update-professor",
   });
   const [dialogIntent, setDialogIntent] =
     useState<ProfessorDialogIntent | null>(
@@ -89,96 +191,30 @@ export function ProfessorDetailRouteView({
     }
   }, [errorData, isConsequential, submittedUpdateValues]);
 
-  const viewState = buildProfessorDetailViewState({
-    active: professor.active,
-    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
-  });
-  const confirmationAction = getProfessorConfirmationAction({
-    active: professor.active,
-    intent: dialogIntent,
-  });
-  const editFormId = "administracion-profesor-form";
+  const submitEdit = createValidatedRouteSubmitHandler(editForm.form, submit);
 
   function handleEditSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const submitNative = () => {
-      event.currentTarget.submit();
-    };
     const openDialog = (values: ProfessorEditFormValues) => {
       setPendingUpdateValues(values);
       setDialogIntent("update-professor");
     };
 
     if (!isConsequential) {
-      void editForm.form.handleSubmit(submitNative)(event);
+      submitEdit(event);
       return;
     }
 
     void editForm.form.handleSubmit(openDialog)(event);
   }
 
-  function openStatusDialog(
-    intent: "archive-professor" | "reactivate-professor",
-  ) {
-    setDialogIntent(intent);
-  }
-
-  return (
-    <AdminResourceLayout
-      selectedEventId={loaderData.selectedEventId}
-      requireSelectedEvent={false}
-      title="Detalle profesor"
-      description="Revisá la información administrativa de este profesor."
-      headerAction={
-        <ProfessorDetailHeaderActions
-          canEdit={loaderData.canEdit}
-          onSelectIntent={openStatusDialog}
-          onSelectMerge={() => mergeDialog.onOpenChange(true)}
-          statusAction={viewState.statusAction}
-        />
-      }
-    >
-      <section className="flex flex-col gap-6">
-        <ProfessorDetailAlerts
-          active={professor.active}
-          canEdit={loaderData.canEdit}
-          isIncomplete={professor.isIncomplete}
-          onSelectIntent={openStatusDialog}
-          participatingAlert={viewState.participatingAlert}
-        />
-
-        <ProfessorDetailCard
-          backToList={loaderData.backToList}
-          cancelHref={loaderData.cancelHref}
-          canEdit={loaderData.canEdit}
-          editForm={editForm}
-          editFormId={editFormId}
-          editHref={loaderData.editHref}
-          isEditing={isEditing}
-          nameWarning={nameWarning?.warning}
-          onSubmit={handleEditSubmit}
-          professor={professor}
-        />
-      </section>
-
-      <ProfessorConfirmationDialog
-        action={confirmationAction}
-        intent={dialogIntent}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDialogIntent(null);
-          }
-        }}
-        pendingUpdateValues={pendingUpdateValues}
-      />
-
-      <RosterMergeDialog
-        kind="professor"
-        merge={loaderData.merge}
-        person={professor}
-        {...mergeDialog}
-      />
-    </AdminResourceLayout>
-  );
+  return {
+    dialogIntent,
+    editForm,
+    handleEditSubmit,
+    isSaving,
+    pendingUpdateValues,
+    setDialogIntent,
+  };
 }

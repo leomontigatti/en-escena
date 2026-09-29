@@ -1,14 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { useBlocker } from "react-router";
 
 import {
   AccessHeader,
   AccessPage,
   PrivateAccessHeader,
 } from "@/components/auth/access-ui";
-import { DiscardChangesDialog } from "@/components/shared/discard-guard";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/shared/discard-guard";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -89,7 +91,11 @@ export function JudgeScoreSheet({
     isAudioDirty: isFeedbackAudioFieldDirty(audio),
     isFormDirty: form.formState.isDirty,
   });
-  const blocker = useSheetDiscardGuard({ actionData, isDirty, isSaving });
+  const discardDialog = useSheetDiscardGuard({
+    actionData,
+    isDirty,
+    isSaving,
+  });
   const isSavePending = useJudgeSavePending(presentation.presentationId);
   const disqualified = presentation.status === "disqualified";
 
@@ -212,11 +218,7 @@ export function JudgeScoreSheet({
         </CardFooter>
       </Card>
 
-      <DiscardChangesDialog
-        onDiscard={() => blocker.proceed?.()}
-        onKeepEditing={() => blocker.reset?.()}
-        open={blocker.state === "blocked"}
-      />
+      <DiscardChangesDialog {...discardDialog} />
     </AccessPage>
   );
 }
@@ -250,10 +252,8 @@ function SheetTotal({
 }
 
 /**
- * Every way out of a page, unlike a dialog, is a navigation: `Volver`, the
- * browser's back button and the tab being closed all go through here, so the
- * sheet asks once and in one place. The save is the exception it lets through,
- * because a form that closes because it was stored has nothing to lose.
+ * The page's guard, with the pass the save needs: the save navigates to the
+ * next presentation, so it sets `isSaving` before it posts.
  */
 function useSheetDiscardGuard({
   actionData,
@@ -266,34 +266,7 @@ function useSheetDiscardGuard({
 }) {
   useSpentPass({ actionData, isSaving });
 
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isDirty &&
-      !isSaving.current &&
-      currentLocation.key !== nextLocation.key &&
-      (currentLocation.pathname !== nextLocation.pathname ||
-        currentLocation.search !== nextLocation.search),
-  );
-
-  useEffect(() => {
-    if (!isDirty) {
-      return;
-    }
-
-    const warn = (event: BeforeUnloadEvent) => {
-      if (isSaving.current) {
-        return;
-      }
-
-      event.preventDefault();
-    };
-
-    window.addEventListener("beforeunload", warn);
-
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [isDirty, isSaving]);
-
-  return blocker;
+  return useUnsavedChangesGuard({ isDirty, isSaving });
 }
 
 /**

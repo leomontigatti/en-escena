@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   useForm,
   useFormState,
@@ -8,7 +8,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { FormActions } from "@/components/shared/form-actions";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
@@ -40,6 +40,7 @@ import {
   useOptionalFormAction,
   useOptionalNavigation,
   useOptionalSubmit,
+  useSavedFormValues,
 } from "@/lib/shared/forms";
 import { buildListPath } from "@/lib/shared/navigation";
 
@@ -70,6 +71,8 @@ type SeminarQuotaOccupancy = {
  * actually changed.
  */
 export type SeminarFormController = {
+  /** Back to what is saved, the chosen picture included. */
+  discard: () => void;
   form: UseFormReturn<SeminarFormValues>;
   handleSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
   /**
@@ -95,14 +98,11 @@ export function useSeminarForm({
   intent: string;
   values: SeminarFormValues;
 }): SeminarFormController {
-  const defaultValues = useMemo(
-    () =>
-      actionData?.intent === intent ? (actionData.values ?? values) : values,
-    [actionData, intent, values],
-  );
+  const submitted =
+    actionData?.intent === intent ? actionData.values : undefined;
   const form = useForm<SeminarFormValues>({
     resolver: zodResolver(seminarFormSchema),
-    defaultValues,
+    defaultValues: values,
   });
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
@@ -110,11 +110,20 @@ export function useSeminarForm({
   const [hasSelectedPicture, setHasSelectedPicture] = useState(false);
   const [pictureFieldKey, setPictureFieldKey] = useState(0);
 
+  // What a refused save sent back goes on top of what is saved, so it still
+  // counts as a change.
+  useSavedFormValues(form, values, submitted);
+
   useEffect(() => {
-    reset(defaultValues);
     setHasSelectedPicture(false);
     setPictureFieldKey((key) => key + 1);
-  }, [defaultValues, reset]);
+  }, [submitted, values]);
+
+  const discard = useCallback(() => {
+    reset();
+    setHasSelectedPicture(false);
+    setPictureFieldKey((key) => key + 1);
+  }, [reset]);
 
   // Documented exception to the style guide's "server errors are toasts, never
   // `FieldError`s" rule (docs/agents/style-guide.md § React Hook Form): the PRD
@@ -139,6 +148,7 @@ export function useSeminarForm({
   }, [actionData, intent, setError]);
 
   return {
+    discard,
     form,
     handleSubmit: createValidatedRouteSubmitHandler(form, submit, formAction),
     hasSelectedPicture,
@@ -332,21 +342,17 @@ export function SeminarFormActions({
   selectedEventId: string | null;
 }) {
   const navigation = useOptionalNavigation();
-  const isPending = isRouteFormPending(navigation, pendingScope);
-  // Nothing changed is nothing to save: the button only wakes up once the form
-  // is dirty or a picture is chosen, so a save is always a save of something.
+  // The picture is browser state `isDirty` cannot see, so it is counted here.
   const { isDirty } = useFormState({ control: controller.form.control });
-  const hasChanges = isDirty || controller.hasSelectedPicture;
 
   return (
-    <div className="flex items-center justify-between gap-2">
-      <BackButton to={buildListPath(basePath, selectedEventId)} />
-      <SubmitButton
-        disabled={!hasChanges}
-        form={formId}
-        isPending={isPending}
-      />
-    </div>
+    <FormActions
+      backTo={buildListPath(basePath, selectedEventId)}
+      form={formId}
+      hasChanges={isDirty || controller.hasSelectedPicture}
+      isPending={isRouteFormPending(navigation, pendingScope)}
+      onDiscard={controller.discard}
+    />
   );
 }
 

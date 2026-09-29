@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   clickReactDomButton,
+  getButton,
   createReactDomTestRenderer,
 } from "@/lib/test-support/react-dom";
 
@@ -66,7 +67,7 @@ describe("the bulk judge dialogs", () => {
     expect(unnumbered.disabled).toBe(true);
   });
 
-  test("names the selection and refuses to submit without a judge", async () => {
+  test("names the selection and holds the action until a judge is picked", async () => {
     const { submissions } = await renderDialog({
       mode: "remove",
       selectedRows: [buildItem({ assignedJudgeIds: [ana.id] })],
@@ -75,12 +76,13 @@ describe("the bulk judge dialogs", () => {
     expect(document.body.textContent).toContain("Quitar jueces");
     expect(document.body.textContent).toContain("1 presentación elegida.");
 
+    const submit = getButton("Quitar");
+
+    expect(submit.disabled).toBe(true);
+
     await clickReactDomButton("Quitar");
     await flush();
 
-    // The emptiness is the form's to report, inline, rather than a button the
-    // reader finds disabled with nothing said.
-    expect(document.body.textContent).toContain("Este campo es obligatorio.");
     expect(submissions).toEqual([]);
   });
 

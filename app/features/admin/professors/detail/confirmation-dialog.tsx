@@ -1,3 +1,5 @@
+import { Form } from "react-router";
+
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -44,7 +46,7 @@ export function ProfessorConfirmationDialog({
               {action.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <form id={formId} method="post" noValidate className="grid gap-4">
+          <Form id={formId} method="post" noValidate className="grid gap-4">
             <input type="hidden" name="intent" value={action.intent} />
             {pendingUpdateFields ? (
               <>
@@ -70,7 +72,7 @@ export function ProfessorConfirmationDialog({
                 />
               </>
             ) : null}
-          </form>
+          </Form>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction asChild variant={action.variant}>

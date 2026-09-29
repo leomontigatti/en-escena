@@ -1,11 +1,23 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, type FormEvent } from "react";
-import { type SubmitHandler, useForm } from "react-hook-form";
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 
+import {
+  DiscardChangesDialog,
+  useDiscardGuard,
+} from "@/components/shared/discard-guard";
 import { TextInputField } from "@/components/shared/text-input-field";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { UserFormCard } from "@/lib/admin/users/user-detail-cards";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import {
   emptyResetPasswordValues,
   resetPasswordIntent,
@@ -13,66 +25,129 @@ import {
   type DetailActionData,
   type ResetPasswordFormValues,
 } from "@/lib/admin/users/user-detail.shared";
+import {
+  createValidatedRouteFormDataSubmitHandler,
+  isRouteFormPending,
+  useOptionalFormAction,
+  useOptionalNavigation,
+  useOptionalSubmit,
+} from "@/lib/shared/forms";
 
-export function InternalUserResetPasswordCard({
-  actionData,
-  cancelHref,
+const resetPasswordFormId = "reset-password-form";
+
+/**
+ * Setting a temporary password is an action on the user, not an edit of its
+ * fields, so it lives in a dialog over the detail. The route closes it when the
+ * reset succeeds; a refusal keeps it open with the reason inside, and a typed
+ * password is not thrown away without asking.
+ */
+export function InternalUserResetPasswordDialog({
+  error,
+  onOpenChange,
+  open,
 }: {
-  actionData?: DetailActionData;
-  cancelHref: string;
+  /** The refusal of the reset being attempted, not of an earlier opening. */
+  error?: DetailActionData;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
 }) {
-  const formValues =
-    actionData?.resetPasswordValues ?? emptyResetPasswordValues;
   const form = useForm<
     ResetPasswordFormValues,
     unknown,
     ResetPasswordFormValues
   >({
-    defaultValues: formValues,
+    defaultValues: emptyResetPasswordValues,
     mode: "onSubmit",
     resolver: zodResolver(resetPasswordSchema),
   });
+  const { reset, setError } = form;
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
+  const navigation = useOptionalNavigation();
+  const isSaving = isRouteFormPending(navigation, {
+    intent: resetPasswordIntent,
+  });
+  const { discardDialogProps, requestClose } = useDiscardGuard({
+    isAudioDirty: false,
+    isFormDirty: form.formState.isDirty,
+    onClose: () => onOpenChange(false),
+  });
+  const temporaryPassword = form.watch("temporaryPassword");
 
+  // Every opening starts empty.
   useEffect(() => {
-    form.reset(formValues);
-  }, [form, formValues.temporaryPassword]);
+    if (!open) {
+      reset(emptyResetPasswordValues);
+    }
+  }, [open, reset]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  // A password the client accepted and the server did not belongs on the field.
+  useEffect(() => {
+    const message = error?.resetPasswordFieldErrors.temporaryPassword;
 
-    const formElement = event.currentTarget;
-    const submitNativeForm: SubmitHandler<ResetPasswordFormValues> = () => {
-      formElement.submit();
-    };
-
-    void form.handleSubmit(submitNativeForm)(event);
-  }
+    if (message) {
+      setError("temporaryPassword", { message });
+    }
+  }, [error, setError]);
 
   return (
-    <form method="post" noValidate onSubmit={handleSubmit}>
-      <UserFormCard
-        title="Restablecimiento administrativo de contraseña"
-        footer={
-          <>
-            <Button asChild variant="outline">
-              <Link to={cancelHref}>Cancelar</Link>
-            </Button>
-            <Button type="submit">Guardar contraseña temporal</Button>
-          </>
-        }
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            requestClose();
+          }
+        }}
       >
-        <input type="hidden" name="intent" value={resetPasswordIntent} />
-        <TextInputField
-          autoComplete="new-password"
-          className="md:col-span-2"
-          control={form.control}
-          description="Compartila por un canal seguro. El Usuario deberá cambiarla antes de volver a ingresar a su área privada."
-          label="Contraseña temporal"
-          name="temporaryPassword"
-          orientation="responsive"
-          type="password"
-        />
-      </UserFormCard>
-    </form>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Restablecer contraseña</DialogTitle>
+            <DialogDescription>
+              Definí una contraseña temporal para este usuario.
+            </DialogDescription>
+          </DialogHeader>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error.message}</AlertDescription>
+            </Alert>
+          ) : null}
+          <form
+            id={resetPasswordFormId}
+            method="post"
+            noValidate
+            onSubmit={createValidatedRouteFormDataSubmitHandler(
+              form,
+              submit,
+              formAction,
+            )}
+          >
+            <input type="hidden" name="intent" value={resetPasswordIntent} />
+            <TextInputField
+              autoComplete="new-password"
+              control={form.control}
+              description="Compartila por un canal seguro. El Usuario deberá cambiarla antes de volver a ingresar a su área privada."
+              label="Contraseña temporal"
+              name="temporaryPassword"
+              type="password"
+            />
+          </form>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={requestClose}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form={resetPasswordFormId}
+              disabled={temporaryPassword.length === 0 || isSaving}
+            >
+              {isSaving ? <Spinner aria-hidden="true" data-icon /> : null}
+              Guardar contraseña temporal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <DiscardChangesDialog {...discardDialogProps} />
+    </>
   );
 }

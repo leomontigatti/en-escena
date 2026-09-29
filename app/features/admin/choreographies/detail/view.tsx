@@ -1,14 +1,12 @@
-import { Check, RotateCcw, Trash2, Undo2 } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { BackButton } from "@/components/shared/action-buttons";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { DiscardChangesDialog } from "@/components/shared/discard-guard";
 import { FileUploadField } from "@/components/shared/file-upload-field";
-import { PinnedActions } from "@/components/shared/pinned-actions";
+import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   AlertDialog,
@@ -20,14 +18,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { getAssetKindHelperText } from "@/lib/storage/asset-kinds";
@@ -48,7 +44,6 @@ import {
   type ChoreographyViewActionData,
 } from "./shared";
 import { useChoreographyDraft } from "./use-choreography-draft";
-import { useUnsavedChangesGuard } from "./use-unsaved-changes-guard";
 
 type ChoreographyDetailRouteViewProps = {
   actionData?: ChoreographyViewActionData;
@@ -267,10 +262,6 @@ function ChoreographyDetailForm({
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const draft = useChoreographyDraft(loaderData);
-  const discardDialog = useUnsavedChangesGuard({
-    isDirty: draft.isDirty,
-    isSaving: draft.isSaving,
-  });
 
   return (
     <>
@@ -295,34 +286,20 @@ function ChoreographyDetailForm({
           </CardContent>
         </Card>
 
-        <PinnedActions>
-          <BackButton to={loaderData.backToList} />
-          {loaderData.canEdit ? (
-            <div className="flex items-center gap-3">
-              {draft.isDirty ? (
-                <Button type="button" variant="outline" onClick={draft.discard}>
-                  <Undo2 aria-hidden="true" data-icon="inline-start" />
-                  Descartar cambios
-                </Button>
-              ) : null}
-              <Button type="submit" disabled={!draft.canSave}>
-                {draft.isSaving ? (
-                  <Spinner aria-hidden="true" data-icon="inline-start" />
-                ) : (
-                  <Check aria-hidden="true" data-icon="inline-start" />
-                )}
-                Guardar
-              </Button>
-            </div>
-          ) : null}
-        </PinnedActions>
+        <FormActions
+          backTo={loaderData.backToList}
+          canEdit={loaderData.canEdit}
+          canSave={draft.canSave}
+          hasChanges={draft.isDirty}
+          isPending={draft.isSaving}
+          onDiscard={draft.discard}
+        />
       </form>
 
       <ConfirmDraftDialog
         consequences={draft.preview.current?.consequences ?? null}
         {...draft.confirm}
       />
-      <DiscardChangesDialog {...discardDialog} />
     </>
   );
 }

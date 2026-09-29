@@ -119,6 +119,7 @@ export function JudgeAssignmentDialog({
     resolver: zodResolver(judgeAssignmentSchema),
   });
   const { reset } = form;
+  const pickedJudgeCount = form.watch(judgeIdFieldName).length;
 
   // The picks belong to one opening of the dialog: the selection they were
   // made against, and the direction they were made in, are gone by the next.
@@ -145,6 +146,8 @@ export function JudgeAssignmentDialog({
     }
   }, [isDone, onOpenChange]);
 
+  // What the dialog holds is a pick from a list, with no typed text to lose,
+  // so closing it never asks.
   return (
     <Dialog
       open={open}
@@ -194,7 +197,7 @@ export function JudgeAssignmentDialog({
             </DialogClose>
             <Button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || pickedJudgeCount === 0}
               variant={copy.submitVariant}
             >
               {isSaving ? (
