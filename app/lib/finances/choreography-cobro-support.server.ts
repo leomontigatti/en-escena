@@ -11,7 +11,7 @@ import {
   calculateDepositAmount,
   hasCrossedDepositThreshold,
 } from "@/lib/finances/inscription-financial-status";
-import { loadPriceRow, type PriceRow } from "@/lib/prices/rows.server";
+import { loadPriceRowForUpdate, type PriceRow } from "@/lib/prices/rows.server";
 
 export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -74,6 +74,10 @@ export async function runCobro(
  * Loads the chosen price row, validating that it belongs to the choreography's
  * candidate set: same event, same `groupType` and schedule (either a
  * schedule-specific row or a general one), without filtering by date.
+ *
+ * The row is read under its lock (`loadPriceRowForUpdate`), the one a price edit or
+ * delete takes before its guards: an edit that commits first is validated
+ * against here, and one that comes second sees the price stored.
  */
 export async function loadCandidatePriceRow(
   tx: Transaction,
@@ -84,7 +88,7 @@ export async function loadCandidatePriceRow(
     scheduleId: string;
   },
 ): Promise<FinancePriceRow | null> {
-  const price = await loadPriceRow(tx, input.priceId);
+  const price = await loadPriceRowForUpdate(tx, input.priceId);
 
   if (
     !price ||

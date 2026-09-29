@@ -21,7 +21,9 @@ import type { GroupType } from "@/lib/events/group-types";
 import type {
   EventBaseFailure,
   EventBasesDeleteResult,
+  EventBasesExecutor,
   EventBasesMutationResult,
+  EventBasesTransaction,
   PriceDependencies,
   PriceInput,
   PriceListItem,
@@ -41,8 +43,10 @@ import {
 import {
   loadEventPriceRows,
   loadPriceRow,
+  loadPriceRowForUpdate,
   type PriceRow,
 } from "@/lib/prices/rows.server";
+import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
 // The uncovered guard tests two things — that this is the group type's only row
 // with no deadline, and that the group type carries active inscriptions — but
@@ -101,23 +105,27 @@ export async function createPrice(
     return validation;
   }
 
-  const record = await db.transaction(async (tx) => {
-    const { scheduleIds, ...values } = validation.input;
-    const [inserted] = await tx
-      .insert(prices)
-      .values({
-        eventId,
-        ...values,
-        isSpecialPrice: scheduleIds.length > 0,
-      })
-      .returning();
+  try {
+    const record = await db.transaction(async (tx) => {
+      const { scheduleIds, ...values } = validation.input;
+      const [inserted] = await tx
+        .insert(prices)
+        .values({
+          eventId,
+          ...values,
+          isSpecialPrice: scheduleIds.length > 0,
+        })
+        .returning();
 
-    await replacePriceSchedules(tx, inserted, scheduleIds);
+      await replacePriceSchedules(tx, inserted, scheduleIds);
 
-    return inserted;
-  });
+      return inserted;
+    });
 
-  return created(record);
+    return created(record);
+  } catch (error) {
+    return await refuseLostDuplicateRace(error, eventId, validation.input);
+  }
 }
 
 export async function updatePrice(
@@ -139,11 +147,63 @@ export async function updatePrice(
     return validation;
   }
 
-  const hasDependencies =
-    dependencies.hasDependencies ?? priceHasOperationalDependencies;
+  // The guards read which inscriptions stored the row, so they run under the
+  // row's lock: the writers that store a price take the same lock
+  // (`loadCandidatePriceRow`), and one that commits while this edit is in
+  // flight is seen here instead of being left on a row the edit changed.
+  try {
+    return await savePriceUnderLock(priceId, validation.input, dependencies);
+  } catch (error) {
+    return await refuseLostDuplicateRace(
+      error,
+      existing.eventId,
+      validation.input,
+      priceId,
+    );
+  }
+}
 
-  if (hasStructuralPriceChanges(existing, validation.input)) {
-    if (await hasDependencies(priceId)) {
+async function savePriceUnderLock(
+  priceId: string,
+  input: ValidPriceInput,
+  dependencies: PriceDependencies,
+): Promise<EventBasesMutationResult> {
+  return await db.transaction(async (tx) => {
+    const locked = await loadPriceRowForUpdate(tx, priceId);
+
+    if (!locked) {
+      return priceNotFound();
+    }
+
+    const refusal = await refusePriceUpdate(tx, locked, input, dependencies);
+
+    if (refusal) {
+      return refusal;
+    }
+
+    const { scheduleIds, ...values } = input;
+    const [updated] = await tx
+      .update(prices)
+      .set({ ...values, isSpecialPrice: scheduleIds.length > 0 })
+      .where(eq(prices.id, priceId))
+      .returning();
+
+    await replacePriceSchedules(tx, updated, scheduleIds);
+
+    return created(updated);
+  });
+}
+
+async function refusePriceUpdate(
+  tx: EventBasesTransaction,
+  existing: PriceRow,
+  input: ValidPriceInput,
+  dependencies: PriceDependencies,
+): Promise<EventBaseFailure | null> {
+  const hasDependencies = resolveHasDependencies(tx, dependencies);
+
+  if (hasStructuralPriceChanges(existing, input)) {
+    if (await hasDependencies(existing.id)) {
       return {
         ok: false,
         code: "event-bases-has-dependencies",
@@ -153,7 +213,7 @@ export async function updatePrice(
       };
     }
 
-    if (await removesNeverExpiringCoverage(existing, validation.input)) {
+    if (await removesNeverExpiringCoverage(tx, existing, input)) {
       return {
         ok: false,
         code: "event-bases-has-dependencies",
@@ -163,9 +223,9 @@ export async function updatePrice(
   }
 
   const occupiedScheduleNames = await listOccupiedDroppedSchedules(
-    db,
+    tx,
     existing,
-    validation.input.scheduleIds,
+    input.scheduleIds,
   );
 
   if (occupiedScheduleNames.length > 0) {
@@ -177,63 +237,65 @@ export async function updatePrice(
     };
   }
 
-  const record = await db.transaction(async (tx) => {
-    const { scheduleIds, ...values } = validation.input;
-    const [updated] = await tx
-      .update(prices)
-      .set({ ...values, isSpecialPrice: scheduleIds.length > 0 })
-      .where(eq(prices.id, priceId))
-      .returning();
-
-    await replacePriceSchedules(tx, updated, scheduleIds);
-
-    return updated;
-  });
-
-  return created(record);
+  return null;
 }
 
 export async function deletePrice(
   priceId: string,
   dependencies: PriceDependencies = {},
 ): Promise<EventBasesDeleteResult> {
-  const price = await loadPriceRow(db, priceId);
+  // Under the row's lock for the same reason as `updatePrice`.
+  return await db.transaction(async (tx) => {
+    const price = await loadPriceRowForUpdate(tx, priceId);
 
-  if (!price) {
-    return priceNotFound();
-  }
+    if (!price) {
+      return priceNotFound();
+    }
 
-  const hasDependencies =
-    dependencies.hasDependencies ?? priceHasOperationalDependencies;
+    const hasDependencies = resolveHasDependencies(tx, dependencies);
 
-  if (await hasDependencies(priceId)) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: frozenPriceDeleteError,
-    };
-  }
+    if (await hasDependencies(priceId)) {
+      return {
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: frozenPriceDeleteError,
+      };
+    }
 
-  if (await removesNeverExpiringCoverage(price, null)) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: uncoveredPriceDeleteError,
-    };
-  }
+    if (await removesNeverExpiringCoverage(tx, price, null)) {
+      return {
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: uncoveredPriceDeleteError,
+      };
+    }
 
-  // The links go with it: `price_schedule_price_fk` cascades.
-  await db.delete(prices).where(eq(prices.id, priceId));
+    // The links go with it: `price_schedule_price_fk` cascades.
+    await tx.delete(prices).where(eq(prices.id, priceId));
 
-  return { ok: true };
+    return { ok: true };
+  });
+}
+
+function resolveHasDependencies(
+  tx: EventBasesTransaction,
+  dependencies: PriceDependencies,
+) {
+  return (
+    dependencies.hasDependencies ??
+    ((id: string) => priceHasOperationalDependencies(tx, id))
+  );
 }
 
 // `selectedPriceId` is only written when an inscription crosses its deposit, so
 // this sees frozen inscriptions and nothing else. Every un-crossed inscription
 // derives its price on read, and `removesNeverExpiringCoverage` is what answers
 // for those.
-async function priceHasOperationalDependencies(priceId: string) {
-  const [dependency] = await db
+async function priceHasOperationalDependencies(
+  executor: EventBasesExecutor,
+  priceId: string,
+) {
+  const [dependency] = await executor
     .select({
       id: choreographyDancers.id,
     })
@@ -285,6 +347,7 @@ async function findGroupTypesWithActiveInscriptions(eventId: string) {
 // date-relative: leaving a dated row applicable today while removing the tail
 // is the silent expiry this guards against.
 async function removesNeverExpiringCoverage(
+  executor: EventBasesExecutor,
   existing: PriceRow,
   // What the row becomes, or `null` when it is being deleted.
   next: ValidPriceInput | null,
@@ -303,7 +366,7 @@ async function removesNeverExpiringCoverage(
     return false;
   }
 
-  return hasActiveInscriptions(existing.eventId, existing.groupType);
+  return hasActiveInscriptions(executor, existing.eventId, existing.groupType);
 }
 
 /**
@@ -319,8 +382,12 @@ function isGeneralTail(
   return price.scheduleIds.length === 0 && price.paymentDeadline === null;
 }
 
-async function hasActiveInscriptions(eventId: string, groupType: GroupType) {
-  const [inscription] = await db
+async function hasActiveInscriptions(
+  executor: EventBasesExecutor,
+  eventId: string,
+  groupType: GroupType,
+) {
+  const [inscription] = await executor
     .select({ id: choreographyDancers.id })
     .from(choreographyDancers)
     .innerJoin(
@@ -490,6 +557,41 @@ function invalidPriceInput(
 type PriceDuplicate =
   { tier: "general" } | { tier: "special"; scheduleNames: string[] };
 
+// The two constraints `findDuplicatePrice` answers for ahead of the write.
+const priceDuplicateConstraints = [
+  "price_general_unique",
+  "price_schedule_tier_unique",
+] as const;
+
+/**
+ * A save whose pre-check missed a colliding price that was being saved at the
+ * same moment: the constraint refused it at the write. It gets the failure the
+ * pre-check would have given, asked again now that the other save committed so
+ * a special price still names the schedules. The constraint names the tier if
+ * the other row is gone again by then.
+ */
+async function refuseLostDuplicateRace(
+  error: unknown,
+  eventId: string,
+  input: ValidPriceInput,
+  exceptId?: string,
+): Promise<EventBaseFailure> {
+  const constraint = priceDuplicateConstraints.find((name) =>
+    isUniqueViolation(error, name),
+  );
+
+  if (!constraint) {
+    throw error;
+  }
+
+  return duplicatePriceInput(
+    (await findDuplicatePrice(eventId, input, exceptId)) ??
+      (constraint === "price_general_unique"
+        ? { tier: "general" }
+        : { tier: "special", scheduleNames: [] }),
+  );
+}
+
 function duplicatePriceInput(duplicate: PriceDuplicate): EventBaseFailure {
   if (duplicate.tier === "general") {
     return {
@@ -502,10 +604,17 @@ function duplicatePriceInput(duplicate: PriceDuplicate): EventBaseFailure {
     };
   }
 
+  // No names only after a lost race whose winner is gone again by the re-check
+  // (`refuseLostDuplicateRace`).
+  const where =
+    duplicate.scheduleNames.length > 0
+      ? formatScheduleNames(duplicate.scheduleNames)
+      : "esos cronogramas";
+
   return {
     ok: false,
     code: "duplicate-name",
-    error: `Ya existe un precio especial para ese tipo de grupo y fecha límite en ${formatScheduleNames(duplicate.scheduleNames)}.`,
+    error: `Ya existe un precio especial para ese tipo de grupo y fecha límite en ${where}.`,
     fieldErrors: {
       scheduleIds: "Revisá los cronogramas del precio.",
     },
