@@ -32,11 +32,12 @@ export type InscriptionPriceKey = ChoreographyScheduleSources & {
 
 /**
  * A choreography `price` row as the two-tier choice sees it: a candidate plus
- * the two axes the key is matched against.
+ * the two axes the key is matched against. `scheduleIds` is empty on a general
+ * row and names every schedule a special row prices.
  */
 export type InscriptionPriceRow = PriceCandidate & {
   groupType: string;
-  scheduleId: string | null;
+  scheduleIds: readonly string[];
 };
 
 /**
@@ -112,7 +113,7 @@ export function selectApplicableInscriptionPrice<
     (price) => price.groupType === input.key.groupType,
   );
   const schedulePrice = selectApplicablePriceCandidate(
-    ofGroupType.filter((price) => price.scheduleId === scheduleId),
+    ofGroupType.filter((price) => price.scheduleIds.includes(scheduleId)),
     input.businessDate,
   );
 
@@ -121,7 +122,7 @@ export function selectApplicableInscriptionPrice<
   }
 
   return selectApplicablePriceCandidate(
-    ofGroupType.filter((price) => price.scheduleId === null),
+    ofGroupType.filter((price) => price.scheduleIds.length === 0),
     input.businessDate,
   );
 }

@@ -1,6 +1,10 @@
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
-import { choreographies, choreographyDancers } from "@/db/schema";
+import {
+  choreographies,
+  choreographyDancers,
+  priceSchedules,
+} from "@/db/schema";
 import {
   created,
   db,
@@ -26,9 +30,19 @@ import type {
 import {
   frozenPriceDeleteError,
   frozenPriceUpdateError,
+  frozenSpecialPriceUpdateError,
   uncoveredPriceDeleteError,
   uncoveredPriceUpdateError,
 } from "@/lib/prices/guards";
+import {
+  listOccupiedDroppedSchedules,
+  replacePriceSchedules,
+} from "@/lib/events/bases-repository/price-schedules.server";
+import {
+  loadEventPriceRows,
+  loadPriceRow,
+  type PriceRow,
+} from "@/lib/prices/rows.server";
 
 // The uncovered guard tests two things — that this is the group type's only row
 // with no deadline, and that the group type carries active inscriptions — but
@@ -37,9 +51,7 @@ import {
 // roster admin path skips the readiness gate, so nothing else would stop a later
 // un-frozen inscription from landing on an uncovered path.
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
-  const eventPrices = await db.query.prices.findMany({
-    where: eq(prices.eventId, eventId),
-  });
+  const eventPrices = await loadEventPriceRows(db, eventId);
 
   if (eventPrices.length === 0) {
     return [];
@@ -53,9 +65,7 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   ]);
 
   const scheduleIds = uniqueValues(
-    eventPrices
-      .map((price) => price.scheduleId)
-      .filter((id): id is string => Boolean(id)),
+    eventPrices.flatMap((price) => price.scheduleIds),
   );
   const eventSchedules =
     scheduleIds.length > 0
@@ -68,19 +78,15 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
           ],
         })
       : [];
-  const schedulesById = new Map(
-    eventSchedules.map((schedule) => [schedule.id, schedule]),
-  );
-
   return eventPrices
     .map((price) => ({
       ...price,
       isReferenced: referencedIds.has(price.id),
       keepsRegistrationOpen:
         isGeneralTail(price) && groupTypesWithInscriptions.has(price.groupType),
-      schedule: price.scheduleId
-        ? (schedulesById.get(price.scheduleId) ?? null)
-        : null,
+      schedules: eventSchedules.filter((schedule) =>
+        price.scheduleIds.includes(schedule.id),
+      ),
     }))
     .sort(comparePrices);
 }
@@ -95,10 +101,21 @@ export async function createPrice(
     return validation;
   }
 
-  const [record] = await db
-    .insert(prices)
-    .values({ eventId, ...validation.input })
-    .returning();
+  const record = await db.transaction(async (tx) => {
+    const { scheduleIds, ...values } = validation.input;
+    const [inserted] = await tx
+      .insert(prices)
+      .values({
+        eventId,
+        ...values,
+        isSpecialPrice: scheduleIds.length > 0,
+      })
+      .returning();
+
+    await replacePriceSchedules(tx, inserted, scheduleIds);
+
+    return inserted;
+  });
 
   return created(record);
 }
@@ -108,9 +125,7 @@ export async function updatePrice(
   input: PriceInput,
   dependencies: PriceDependencies = {},
 ): Promise<EventBasesMutationResult> {
-  const existing = await db.query.prices.findFirst({
-    where: eq(prices.id, priceId),
-  });
+  const existing = await loadPriceRow(db, priceId);
 
   if (!existing) {
     return priceNotFound();
@@ -132,7 +147,9 @@ export async function updatePrice(
       return {
         ok: false,
         code: "event-bases-has-dependencies",
-        error: frozenPriceUpdateError,
+        error: existing.isSpecialPrice
+          ? frozenSpecialPriceUpdateError
+          : frozenPriceUpdateError,
       };
     }
 
@@ -145,11 +162,33 @@ export async function updatePrice(
     }
   }
 
-  const [record] = await db
-    .update(prices)
-    .set(validation.input)
-    .where(eq(prices.id, priceId))
-    .returning();
+  const occupiedScheduleNames = await listOccupiedDroppedSchedules(
+    db,
+    existing,
+    validation.input.scheduleIds,
+  );
+
+  if (occupiedScheduleNames.length > 0) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: `No se pueden quitar cronogramas con inscripciones que usan este precio: ${occupiedScheduleNames.join(", ")}.`,
+      fieldErrors: { scheduleIds: "Revisá los cronogramas del precio." },
+    };
+  }
+
+  const record = await db.transaction(async (tx) => {
+    const { scheduleIds, ...values } = validation.input;
+    const [updated] = await tx
+      .update(prices)
+      .set({ ...values, isSpecialPrice: scheduleIds.length > 0 })
+      .where(eq(prices.id, priceId))
+      .returning();
+
+    await replacePriceSchedules(tx, updated, scheduleIds);
+
+    return updated;
+  });
 
   return created(record);
 }
@@ -158,9 +197,7 @@ export async function deletePrice(
   priceId: string,
   dependencies: PriceDependencies = {},
 ): Promise<EventBasesDeleteResult> {
-  const price = await db.query.prices.findFirst({
-    where: eq(prices.id, priceId),
-  });
+  const price = await loadPriceRow(db, priceId);
 
   if (!price) {
     return priceNotFound();
@@ -185,6 +222,7 @@ export async function deletePrice(
     };
   }
 
+  // The links go with it: `price_schedule_price_fk` cascades.
   await db.delete(prices).where(eq(prices.id, priceId));
 
   return { ok: true };
@@ -247,7 +285,7 @@ async function findGroupTypesWithActiveInscriptions(eventId: string) {
 // date-relative: leaving a dated row applicable today while removing the tail
 // is the silent expiry this guards against.
 async function removesNeverExpiringCoverage(
-  existing: typeof prices.$inferSelect,
+  existing: PriceRow,
   // What the row becomes, or `null` when it is being deleted.
   next: ValidPriceInput | null,
 ) {
@@ -257,7 +295,7 @@ async function removesNeverExpiringCoverage(
 
   const staysTheGeneralTail =
     next !== null &&
-    next.scheduleId === null &&
+    next.scheduleIds.length === 0 &&
     next.groupType === existing.groupType &&
     next.paymentDeadline === null;
 
@@ -271,14 +309,14 @@ async function removesNeverExpiringCoverage(
 /**
  * Whether the row is its group type's deadline-less general row. It is the
  * only one: `price_general_unique` is `NULLS NOT DISTINCT` on
- * `(event_id, group_type, payment_deadline)`, so no other row can stand in for
- * it. `listPrices` and `removesNeverExpiringCoverage` both ask it, so the flag
+ * `(event_id, group_type, payment_deadline)` over the general rows, so no other
+ * row can stand in for it. `listPrices` and `removesNeverExpiringCoverage` both ask it, so the flag
  * the form locks on and the refusal cannot drift.
  */
 function isGeneralTail(
-  price: Pick<typeof prices.$inferSelect, "paymentDeadline" | "scheduleId">,
+  price: Pick<PriceRow, "paymentDeadline" | "scheduleIds">,
 ) {
-  return price.scheduleId === null && price.paymentDeadline === null;
+  return price.scheduleIds.length === 0 && price.paymentDeadline === null;
 }
 
 async function hasActiveInscriptions(eventId: string, groupType: GroupType) {
@@ -312,17 +350,23 @@ async function validatePriceInput(
     return invalidPriceInput(parsedInput.fieldErrors);
   }
 
-  const scheduleError = await validatePriceSchedule(
+  const scheduleError = await validatePriceSchedules(
     eventId,
-    parsedInput.input.scheduleId,
+    parsedInput.input.scheduleIds,
   );
 
   if (scheduleError) {
-    return invalidPriceInput({ scheduleId: scheduleError });
+    return invalidPriceInput({ scheduleIds: scheduleError });
   }
 
-  if (await findDuplicatePrice(eventId, parsedInput.input, options.exceptId)) {
-    return duplicatePriceInput(parsedInput.input.scheduleId);
+  const duplicate = await findDuplicatePrice(
+    eventId,
+    parsedInput.input,
+    options.exceptId,
+  );
+
+  if (duplicate) {
+    return duplicatePriceInput(duplicate);
   }
 
   return { ok: true, input: parsedInput.input };
@@ -340,7 +384,9 @@ function parsePriceInput(input: PriceInput):
     input.paymentDeadline,
     fieldErrors,
   );
-  const scheduleId = input.scheduleId?.trim() || null;
+  const scheduleIds = uniqueValues(
+    input.scheduleIds.map((id) => id.trim()).filter(Boolean),
+  ).sort();
   const groupType = readPriceGroupType(input.groupType, fieldErrors);
 
   if (!Number.isInteger(input.amount) || input.amount <= 0) {
@@ -358,7 +404,7 @@ function parsePriceInput(input: PriceInput):
       groupType,
       amount: input.amount,
       paymentDeadline,
-      scheduleId,
+      scheduleIds,
     },
   };
 }
@@ -397,89 +443,142 @@ function readPriceGroupType(
   return groupType;
 }
 
-async function validatePriceSchedule(
+async function validatePriceSchedules(
   eventId: string,
-  scheduleId: string | null,
+  scheduleIds: readonly string[],
 ) {
-  if (!scheduleId) {
+  if (scheduleIds.length === 0) {
     return null;
   }
 
-  const schedule = await db.query.schedules.findFirst({
-    columns: { id: true },
-    where: and(eq(schedules.id, scheduleId), eq(schedules.eventId, eventId)),
-  });
+  const eventSchedules = await db
+    .select({ id: schedules.id })
+    .from(schedules)
+    .where(
+      and(
+        inArray(schedules.id, [...scheduleIds]),
+        eq(schedules.eventId, eventId),
+      ),
+    );
 
-  return schedule ? null : "Elegí un cronograma del evento activo.";
+  return eventSchedules.length === scheduleIds.length
+    ? null
+    : "Elegí cronogramas del evento activo.";
 }
 
 function invalidPriceInput(
   fieldErrors: Record<string, string>,
 ): EventBaseFailure {
   const onlyScheduleError =
-    Object.keys(fieldErrors).length === 1 && fieldErrors.scheduleId;
+    Object.keys(fieldErrors).length === 1 && fieldErrors.scheduleIds;
 
   return {
     ok: false,
     code: "invalid-event-bases",
     error: onlyScheduleError
-      ? "Elegí un cronograma del evento activo."
+      ? "Elegí cronogramas del evento activo."
       : "Revisá los datos del precio.",
     fieldErrors,
   };
 }
 
-function duplicatePriceInput(scheduleId: string | null): EventBaseFailure {
+/**
+ * What a new or edited price collides with: the general row of its group type
+ * and deadline, or — for a special price — the schedules already covered by
+ * another special row of that group type and deadline.
+ */
+type PriceDuplicate =
+  { tier: "general" } | { tier: "special"; scheduleNames: string[] };
+
+function duplicatePriceInput(duplicate: PriceDuplicate): EventBaseFailure {
+  if (duplicate.tier === "general") {
+    return {
+      ok: false,
+      code: "duplicate-name",
+      error: "Ya existe un precio general para ese tipo de grupo.",
+      fieldErrors: {
+        groupType: "Revisá el tipo de grupo del precio.",
+      },
+    };
+  }
+
   return {
     ok: false,
     code: "duplicate-name",
-    error: scheduleId
-      ? "Ya existe un precio para ese tipo de grupo y cronograma."
-      : "Ya existe un precio general para ese tipo de grupo.",
+    error: `Ya existe un precio especial para ese tipo de grupo y fecha límite en ${formatScheduleNames(duplicate.scheduleNames)}.`,
     fieldErrors: {
-      groupType: "Revisá el tipo de grupo del precio.",
+      scheduleIds: "Revisá los cronogramas del precio.",
     },
   };
+}
+
+function formatScheduleNames(names: string[]) {
+  return new Intl.ListFormat("es-AR", {
+    style: "long",
+    type: "conjunction",
+  }).format(names);
 }
 
 async function findDuplicatePrice(
   eventId: string,
   input: ValidPriceInput,
   exceptId?: string,
-) {
-  const idFilter = exceptId ? ne(prices.id, exceptId) : undefined;
-  const scheduleFilter = input.scheduleId
-    ? eq(prices.scheduleId, input.scheduleId)
-    : isNull(prices.scheduleId);
-  const deadlineFilter = input.paymentDeadline
-    ? eq(prices.paymentDeadline, input.paymentDeadline)
-    : isNull(prices.paymentDeadline);
+): Promise<PriceDuplicate | null> {
+  if (input.scheduleIds.length === 0) {
+    const [general] = await db
+      .select({ id: prices.id })
+      .from(prices)
+      .where(
+        and(
+          eq(prices.eventId, eventId),
+          eq(prices.groupType, input.groupType),
+          eq(prices.isSpecialPrice, false),
+          matchesDeadline(prices.paymentDeadline, input.paymentDeadline),
+          exceptId ? ne(prices.id, exceptId) : undefined,
+        ),
+      )
+      .limit(1);
 
-  return db
-    .select({ id: prices.id })
-    .from(prices)
+    return general ? { tier: "general" } : null;
+  }
+
+  const colliding = await db
+    .select({ name: schedules.name })
+    .from(priceSchedules)
+    .innerJoin(schedules, eq(schedules.id, priceSchedules.scheduleId))
     .where(
       and(
-        eq(prices.eventId, eventId),
-        eq(prices.groupType, input.groupType),
-        deadlineFilter,
-        scheduleFilter,
-        idFilter,
+        inArray(priceSchedules.scheduleId, input.scheduleIds),
+        eq(priceSchedules.groupType, input.groupType),
+        matchesDeadline(priceSchedules.paymentDeadline, input.paymentDeadline),
+        exceptId ? ne(priceSchedules.priceId, exceptId) : undefined,
       ),
     )
-    .limit(1)
-    .then(([record]) => record);
+    .orderBy(asc(schedules.scheduledDate), asc(schedules.startTime));
+
+  return colliding.length > 0
+    ? { tier: "special", scheduleNames: colliding.map((row) => row.name) }
+    : null;
 }
 
-function hasStructuralPriceChanges(
-  existing: typeof prices.$inferSelect,
-  input: ValidPriceInput,
+function matchesDeadline(
+  column: typeof prices.paymentDeadline | typeof priceSchedules.paymentDeadline,
+  paymentDeadline: string | null,
 ) {
+  return paymentDeadline ? eq(column, paymentDeadline) : isNull(column);
+}
+
+// Which schedules a special price covers is not structure: an inscription that
+// stored the row keeps it wherever the row is offered, so adding a schedule
+// touches no one, and dropping one is refused on its own while an inscription
+// of the price sits on it (`listOccupiedDroppedSchedules`). Moving the row
+// between the general and the special tier is structure.
+function hasStructuralPriceChanges(existing: PriceRow, input: ValidPriceInput) {
   return (
     existing.groupType !== input.groupType ||
     existing.amount !== input.amount ||
     existing.paymentDeadline !== input.paymentDeadline ||
-    existing.scheduleId !== input.scheduleId
+    existing.isSpecialPrice !== input.scheduleIds.length > 0
   );
 }
 
@@ -492,19 +591,22 @@ function comparePrices(first: PriceListItem, second: PriceListItem) {
     return groupTypeComparison;
   }
 
-  if (first.schedule && !second.schedule) {
+  const [firstSchedule] = first.schedules;
+  const [secondSchedule] = second.schedules;
+
+  if (firstSchedule && !secondSchedule) {
     return -1;
   }
 
-  if (!first.schedule && second.schedule) {
+  if (!firstSchedule && secondSchedule) {
     return 1;
   }
 
-  const firstScheduleKey = first.schedule
-    ? `${first.schedule.scheduledDate}\0${first.schedule.startTime}\0${first.schedule.name}`
+  const firstScheduleKey = firstSchedule
+    ? `${firstSchedule.scheduledDate}\0${firstSchedule.startTime}\0${firstSchedule.name}`
     : "";
-  const secondScheduleKey = second.schedule
-    ? `${second.schedule.scheduledDate}\0${second.schedule.startTime}\0${second.schedule.name}`
+  const secondScheduleKey = secondSchedule
+    ? `${secondSchedule.scheduledDate}\0${secondSchedule.startTime}\0${secondSchedule.name}`
     : "";
   const scheduleComparison = firstScheduleKey.localeCompare(secondScheduleKey);
 

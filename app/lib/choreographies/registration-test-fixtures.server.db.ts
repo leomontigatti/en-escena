@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -7,7 +8,6 @@ import {
   dancers,
   events,
   modalities,
-  prices,
   professors,
   scheduleModalities,
   schedules,
@@ -155,14 +155,13 @@ export async function createEventCatalog(eventId: string) {
     eventId,
     modalityId: modality.id,
   });
-  await db.insert(prices).values([
+  await insertTestPrices([
     {
       eventId,
       name: "Precio Solo",
       groupType: "solo",
       amount: 10000,
       paymentDeadline: null,
-      scheduleId: null,
     },
     {
       eventId,
@@ -170,7 +169,6 @@ export async function createEventCatalog(eventId: string) {
       groupType: "duo",
       amount: 15000,
       paymentDeadline: null,
-      scheduleId: null,
     },
     {
       eventId,
@@ -178,7 +176,6 @@ export async function createEventCatalog(eventId: string) {
       groupType: "trio",
       amount: 20000,
       paymentDeadline: null,
-      scheduleId: null,
     },
     {
       eventId,
@@ -186,7 +183,6 @@ export async function createEventCatalog(eventId: string) {
       groupType: "grupal",
       amount: 25000,
       paymentDeadline: null,
-      scheduleId: null,
     },
   ]);
   const [

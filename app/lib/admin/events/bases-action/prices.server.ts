@@ -48,7 +48,7 @@ type PriceActionInput = EventBasesActionBaseInput & {
   groupType: string;
   amount: number;
   paymentDeadline: string;
-  priceScheduleId: string | null;
+  priceScheduleIds: string[];
 };
 
 function handlesPriceIntent(intent: string) {
@@ -95,9 +95,9 @@ function getPriceRequiredFieldErrors(
 
   if (
     String(formData.get("isSpecialPrice") ?? "") === "true" &&
-    !formData.get("scheduleId")
+    readScheduleIds(formData).length === 0
   ) {
-    fieldErrors.scheduleId = "Este campo es obligatorio.";
+    fieldErrors.scheduleIds = "Este campo es obligatorio.";
   }
 
   return buildRequiredFieldError("Revisá los datos del precio.", fieldErrors);
@@ -184,8 +184,15 @@ function readPriceActionInput(
     groupType: String(formData.get("groupType") ?? ""),
     amount: Number.parseInt(String(formData.get("amount") ?? ""), 10),
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
-    priceScheduleId: String(formData.get("scheduleId") ?? "") || null,
+    priceScheduleIds: readScheduleIds(formData),
   };
+}
+
+function readScheduleIds(formData: FormData) {
+  return formData
+    .getAll("scheduleIds")
+    .map(String)
+    .filter((id) => id.length > 0);
 }
 
 function readPriceActionValues(formData: FormData): PriceActionValues {
@@ -195,7 +202,7 @@ function readPriceActionValues(formData: FormData): PriceActionValues {
     groupType: String(formData.get("groupType") ?? ""),
     amount: String(formData.get("amount") ?? ""),
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
-    scheduleId: String(formData.get("scheduleId") ?? ""),
+    scheduleIds: readScheduleIds(formData),
   };
 }
 
@@ -205,6 +212,6 @@ function getPriceInput(input: PriceActionInput): PriceInput {
     groupType: input.groupType,
     amount: input.amount,
     paymentDeadline: input.paymentDeadline || null,
-    scheduleId: input.priceScheduleId,
+    scheduleIds: input.priceScheduleIds,
   };
 }

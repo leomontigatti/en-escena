@@ -1,7 +1,5 @@
-import { eq } from "drizzle-orm";
-
 import { db } from "@/db";
-import { prices } from "@/db/schema";
+import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import {
   evaluatedChoreographyMessage,
   noCompatibleCategoryModalityMessage,
@@ -495,9 +493,7 @@ async function readPriceMove(input: {
     return null;
   }
 
-  const priceRows = await db.query.prices.findMany({
-    where: eq(prices.eventId, input.eventId),
-  });
+  const priceRows = await loadEventPriceRows(db, input.eventId);
   const businessDate = getBusinessDateOnly();
   const priceAt = (key: {
     groupType: ChoreographyGroupType;

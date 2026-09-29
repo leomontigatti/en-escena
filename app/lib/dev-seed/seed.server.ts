@@ -217,7 +217,6 @@ async function createCatalog(event: { id: string; startsAt: Date }) {
     groupType: "solo",
     amount: 25000,
     paymentDeadline: null,
-    scheduleId: null,
   });
 
   return { modality, submodality, scheduleCapacity };

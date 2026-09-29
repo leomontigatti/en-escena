@@ -8,8 +8,6 @@ import type { PriceListItem } from "@/lib/events/bases.server";
 import { groupTypeLabels } from "@/lib/events/group-types";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
-export const EMPTY_SCHEDULE_VALUE = "__empty_schedule__";
-
 // A price with no `paymentDeadline` never expires: it is the row that applies
 // once every dated rung of the ladder has passed. "Precio base" is already the
 // UI term for `selectedPrice` (CONTEXT.md), so this row is named after the
@@ -54,17 +52,14 @@ export const priceFormSchema = z
         return Number.isInteger(amount) && amount > 0;
       }, "Ingresá un monto mayor a cero."),
     paymentDeadline: z.string().trim(),
-    scheduleId: z.string(),
+    scheduleIds: z.array(z.string()),
   })
   .superRefine((values, context) => {
-    if (
-      values.isSpecialPrice &&
-      values.scheduleId.trim() === EMPTY_SCHEDULE_VALUE
-    ) {
+    if (values.isSpecialPrice && values.scheduleIds.length === 0) {
       context.addIssue({
         code: "custom",
         message: requiredFieldMessage,
-        path: ["scheduleId"],
+        path: ["scheduleIds"],
       });
     }
   });
@@ -81,7 +76,9 @@ export function getPriceDisplayName(price: PriceListItem) {
   }
 
   const groupTypeLabel = getGroupTypeLabel(price.groupType);
-  const scopeLabel = price.schedule?.name ?? getPriceScopeLabel(price);
+  const scopeLabel =
+    price.schedules.map((schedule) => schedule.name).join(", ") ||
+    "Precio base";
   const deadlineLabel = formatPaymentDeadlineForDisplay(price.paymentDeadline);
 
   return deadlineLabel
@@ -133,12 +130,8 @@ function isPriceActionValues(
     "paymentDeadline" in values &&
     "name" in values &&
     "isSpecialPrice" in values &&
-    "scheduleId" in values
+    "scheduleIds" in values
   );
-}
-
-function getPriceScopeLabel(price: PriceListItem) {
-  return price.schedule ? "Precio por cronograma" : "Precio base";
 }
 
 function formatPaymentDeadlineForDisplay(paymentDeadline: string | null) {

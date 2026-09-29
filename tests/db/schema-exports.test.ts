@@ -30,6 +30,7 @@ const schemaExportNames = [
   "judgeAssignments",
   "modalities",
   "prices",
+  "priceSchedules",
   "professors",
   "payments",
   "presentations",

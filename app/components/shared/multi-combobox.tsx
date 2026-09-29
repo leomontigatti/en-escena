@@ -344,9 +344,12 @@ function MultiComboboxPopover<TOption extends MultiComboboxOption>({
         </ComboboxInput>
       ) : null}
       <ComboboxEmpty>{viewModel.currentEmptyMessage}</ComboboxEmpty>
+      {/* Base UI maps the items through this function, so the key goes on the
+          element it returns. */}
       <ComboboxList>
         {(itemValue) => (
           <MultiComboboxItem
+            key={itemValue}
             config={config}
             itemValue={itemValue}
             option={viewModel.getOption(itemValue)}
@@ -367,7 +370,7 @@ function MultiComboboxItem<TOption extends MultiComboboxOption>({
   option: TOption;
 }) {
   return (
-    <ComboboxItem key={itemValue} value={itemValue}>
+    <ComboboxItem value={itemValue}>
       {config.renderOption ? config.renderOption(option) : option.label}
     </ComboboxItem>
   );

@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import type {
   CreateVoucherResultDto,
   LastVoucherResultDto,
@@ -12,7 +13,6 @@ import {
   comprobantes,
   paymentAllocations,
   payments,
-  prices,
 } from "@/db/schema";
 import {
   createChoreographyRecord,
@@ -114,14 +114,15 @@ async function seedChoreographyWithInscriptions(
     email,
   });
   const catalog = await createEventCatalog(event.id);
-  await db.insert(prices).values({
-    eventId: event.id,
-    name: "Precio Solo vigente",
-    groupType: "solo",
-    amount: 10000,
-    paymentDeadline: "2099-12-31",
-    scheduleId: null,
-  });
+  await insertTestPrices([
+    {
+      eventId: event.id,
+      name: "Precio Solo vigente",
+      groupType: "solo",
+      amount: 10000,
+      paymentDeadline: "2099-12-31",
+    },
+  ]);
   const choreography = await createChoreographyRecord({
     academyId: academy.id,
     eventId: event.id,

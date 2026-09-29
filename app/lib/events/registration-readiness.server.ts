@@ -583,8 +583,8 @@ function resolveScheduleOptionsFromBases(
 // at every date it answers the today-question on its own.
 // Only the general tier counts. A schedule-specific row with no deadline stays
 // allowed — a schedule may want its own tail — but it does not cover the path:
-// `selectApplicableInscriptionPrice` never consults the schedule tier when the
-// caller hands it a null scheduleId, so such a path would still yield `missing-price`.
+// it covers only the schedules it names, and a path reaches every schedule that
+// accepts it, so such a path could still yield `missing-price`.
 function resolvePriceFromBases(
   eventBases: EventBases,
   input: { groupType: string },
@@ -594,7 +594,8 @@ function resolvePriceFromBases(
   }
 
   const generalCandidates = eventBases.prices.filter(
-    (price) => price.groupType === input.groupType && price.scheduleId === null,
+    (price) =>
+      price.groupType === input.groupType && price.scheduleIds.length === 0,
   );
 
   if (hasNeverExpiringPrice(generalCandidates)) {

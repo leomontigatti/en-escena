@@ -22,6 +22,7 @@ import {
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
 
+import { insertTestPrice } from "@/lib/prices/price-rows.test-support";
 import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -61,7 +62,7 @@ describe("`Bases del evento` repository", () => {
     await createSavedPrice(firstEvent.id, {
       amount: 15000,
       name: "Precio bloque",
-      scheduleId: block.id,
+      scheduleIds: [block.id],
     });
     await expect(deleteSchedule(block.id)).resolves.toMatchObject({
       ok: false,
@@ -72,7 +73,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 9000,
         paymentDeadline: "2026-06-30",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({ ok: true });
     await expect(
@@ -80,7 +81,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 13000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({
       ok: false,
@@ -92,13 +93,13 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 13000,
         paymentDeadline: "2026-05-31",
-        scheduleId: otherEventBlock.id,
+        scheduleIds: [otherEventBlock.id],
       }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "Elegí un cronograma del evento activo.",
+      error: "Elegí cronogramas del evento activo.",
       fieldErrors: {
-        scheduleId: "Elegí un cronograma del evento activo.",
+        scheduleIds: "Elegí cronogramas del evento activo.",
       },
     });
   });
@@ -109,7 +110,7 @@ describe("`Bases del evento` repository", () => {
     const specific = await createSavedPrice(event.id, {
       amount: 15000,
       name: "Precio bloque",
-      scheduleId: block.id,
+      scheduleIds: [block.id],
     });
     // Every fixture row expires on 2026-05-31; the resolver has no date of its
     // own, so the business date is what the test moves.
@@ -177,7 +178,7 @@ describe("`Bases del evento` repository", () => {
       amount: 25000,
       name: "Precio base del cronograma",
       paymentDeadline: null,
-      scheduleId: block.id,
+      scheduleIds: [block.id],
     });
 
     await expect(listPrices(event.id)).resolves.toMatchObject([
@@ -189,49 +190,50 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 30000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({
       ok: false,
       error: "Ya existe un precio general para ese tipo de grupo.",
     });
 
-    // `price_general_unique` and `price_specific_unique` are the last word:
-    // without `NULLS NOT DISTINCT` Postgres reads two null deadlines as
+    // `price_general_unique` and `price_schedule_tier_unique` are the last
+    // word: without `NULLS NOT DISTINCT` Postgres reads two null deadlines as
     // distinct and lets both rows in behind the repository check.
     await expect(
-      db.insert(prices).values({
+      insertTestPrice({
         eventId: event.id,
         name: "Segundo precio base general",
         groupType: "solo",
         amount: 30000,
         paymentDeadline: null,
-        scheduleId: null,
       }),
     ).rejects.toMatchObject({
       cause: { constraint_name: "price_general_unique" },
     });
     await expect(
-      db.insert(prices).values({
+      insertTestPrice({
         eventId: event.id,
         name: "Segundo precio base del cronograma",
         groupType: "solo",
         amount: 30000,
         paymentDeadline: null,
-        scheduleId: block.id,
+        scheduleIds: [block.id],
       }),
     ).rejects.toMatchObject({
-      cause: { constraint_name: "price_specific_unique" },
+      cause: { constraint_name: "price_schedule_tier_unique" },
     });
   });
 
-  // The clause lives only in migration 0015's hand-written SQL: Drizzle can
-  // express `NULLS NOT DISTINCT` on a `unique()` constraint but not on an
-  // index, and both of these are partial, so the TypeScript schema and the
-  // snapshot cannot carry it. That leaves it invisible to `drizzle-kit
-  // generate`, which would drop it without a word if it ever recreated these
-  // indexes. This asserts the clause itself rather than its effect, so the
-  // regression surfaces here instead of as a silently duplicated open-ended price.
+  // On the general index the clause lives only in migration 0036's
+  // hand-written SQL: Drizzle can express `NULLS NOT DISTINCT` on a `unique()`
+  // constraint but not on an index, and this one is partial, so the TypeScript
+  // schema and the snapshot cannot carry it. That leaves it invisible to
+  // `drizzle-kit generate`, which would drop it without a word if it ever
+  // recreated the index. This asserts the clause itself rather than its effect,
+  // so the regression surfaces here instead of as a silently duplicated
+  // open-ended price. The schedule tier's constraint is a `unique()` and
+  // carries the clause in the schema, but is asserted alongside.
   test("keeps `NULLS NOT DISTINCT` on both price unique indexes", async () => {
     const indexes = await db.execute<{
       indexname: string;
@@ -242,13 +244,13 @@ describe("`Bases del evento` repository", () => {
         pg_index.indnullsnotdistinct as nulls_not_distinct
       from pg_index
       join pg_class on pg_class.oid = pg_index.indexrelid
-      where pg_class.relname in ('price_general_unique', 'price_specific_unique')
+      where pg_class.relname in ('price_general_unique', 'price_schedule_tier_unique')
       order by pg_class.relname
     `);
 
     expect(readRows(indexes)).toEqual([
       { indexname: "price_general_unique", nulls_not_distinct: true },
-      { indexname: "price_specific_unique", nulls_not_distinct: true },
+      { indexname: "price_schedule_tier_unique", nulls_not_distinct: true },
     ]);
   });
 
@@ -267,7 +269,7 @@ describe("`Bases del evento` repository", () => {
       amount: 15000,
       name: "Precio bloque",
       paymentDeadline: "2026-05-31",
-      scheduleId: block.id,
+      scheduleIds: [block.id],
     });
 
     onBusinessDate("2026-05-20");
@@ -314,7 +316,7 @@ describe("`Bases del evento` repository", () => {
     await createSavedPrice(event.id, {
       amount: 15000,
       name: "Precio bloque",
-      scheduleId: block.id,
+      scheduleIds: [block.id],
     });
     await createSavedPrice(event.id, {
       amount: 17000,
@@ -326,17 +328,17 @@ describe("`Bases del evento` repository", () => {
       {
         eventId: event.id,
         paymentDeadline: "2026-05-31",
-        schedule: { name: "Sábado Mañana" },
+        schedules: [{ name: "Sábado Mañana" }],
       },
       {
         eventId: event.id,
         paymentDeadline: "2026-05-31",
-        schedule: null,
+        schedules: [],
       },
       {
         eventId: event.id,
         paymentDeadline: "2026-06-30",
-        schedule: null,
+        schedules: [],
       },
     ]);
 
@@ -347,7 +349,7 @@ describe("`Bases del evento` repository", () => {
           groupType: "solo",
           amount: 12000,
           paymentDeadline: "2026-05-31",
-          scheduleId: null,
+          scheduleIds: [],
         },
         { hasDependencies: async () => true },
       ),
@@ -362,7 +364,7 @@ describe("`Bases del evento` repository", () => {
           groupType: "solo",
           amount: 14000,
           paymentDeadline: "2026-05-31",
-          scheduleId: null,
+          scheduleIds: [],
         },
         { hasDependencies: async () => true },
       ),
@@ -406,7 +408,7 @@ describe("`Bases del evento` repository", () => {
         amount: 12000,
         groupType: "solo",
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({
       ok: false,
@@ -434,7 +436,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 30000,
         paymentDeadline: null,
-        scheduleId: catalog.schedule.id,
+        scheduleIds: [catalog.schedule.id],
       }),
     ).resolves.toMatchObject({ ok: true });
   });
@@ -476,7 +478,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 20000,
         paymentDeadline: "2099-06-30",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject(uncoveredUpdate);
     await expect(
@@ -484,7 +486,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 20000,
         paymentDeadline: null,
-        scheduleId: catalog.schedule.id,
+        scheduleIds: [catalog.schedule.id],
       }),
     ).resolves.toMatchObject(uncoveredUpdate);
     await expect(
@@ -492,7 +494,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "duo",
         amount: 20000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject(uncoveredUpdate);
 
@@ -503,7 +505,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 21000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({ ok: true, record: { amount: 21000 } });
   });
@@ -519,10 +521,10 @@ describe("`Bases del evento` repository", () => {
       amount: 25000,
       name: "Sin fecha límite - Bloque",
       paymentDeadline: null,
-      scheduleId: catalog.schedule.id,
+      scheduleIds: [catalog.schedule.id],
     });
 
-    // The general tail goes out of band, so the guard's `scheduleId` exit is
+    // The general tail goes out of band, so the guard's `scheduleIds` exit is
     // the only thing left permitting the delete below. Without it the test
     // would pass on a general-tier coverage check it is not meant to assert.
     await db.delete(prices).where(eq(prices.id, openEnded.id));
@@ -551,7 +553,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "duo",
         amount: 10000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({ ok: true });
     await expect(deletePrice(datedRung.id)).resolves.toMatchObject({
@@ -607,7 +609,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 20000,
         paymentDeadline: "2099-12-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({
       ok: false,
@@ -620,7 +622,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 26000,
         paymentDeadline: null,
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({ ok: true, record: { amount: 26000 } });
   });
@@ -646,7 +648,7 @@ describe("`Bases del evento` repository", () => {
         groupType: "solo",
         amount: 11000,
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({
       ok: false,
@@ -686,7 +688,7 @@ describe("`Bases del evento` repository", () => {
         amount: 12000,
         groupType: "solo",
         paymentDeadline: "2026-05-31",
-        scheduleId: null,
+        scheduleIds: [],
       }),
     ).resolves.toMatchObject({
       ok: true,
@@ -746,6 +748,222 @@ const uncoveredUpdateError =
   "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto.";
 const uncoveredDeleteError =
   "Este precio es necesario mientras haya inscripciones activas. No se puede borrar.";
+
+describe("a special price covering several schedules", () => {
+  async function createThreeScheduleFixture() {
+    const {
+      event,
+      modality,
+      schedule: saturday,
+    } = await createEventPriceFixture();
+    const sunday = await createSavedSchedule(event.id, {
+      modalityIds: [modality.id],
+      name: "Domingo Mañana",
+      scheduledDate: "2026-05-03",
+    });
+    const monday = await createSavedSchedule(event.id, {
+      modalityIds: [modality.id],
+      name: "Lunes Mañana",
+      scheduledDate: "2026-05-04",
+    });
+
+    return { event, monday, saturday, sunday };
+  }
+
+  test("applies to every schedule it covers and lists them in schedule order", async () => {
+    const { event, monday, saturday, sunday } =
+      await createThreeScheduleFixture();
+    await createSavedPrice(event.id);
+    const shared = await createSavedPrice(event.id, {
+      amount: 9000,
+      name: "Precio compartido",
+      scheduleIds: [sunday.id, saturday.id],
+    });
+
+    onBusinessDate("2026-05-20");
+    for (const schedule of [saturday, sunday]) {
+      await expect(
+        resolveApplicableInscriptionPrice(db, {
+          eventId: event.id,
+          groupType: "solo",
+          scheduleId: schedule.id,
+        }),
+      ).resolves.toMatchObject({ ok: true, price: { id: shared.id } });
+    }
+    await expect(
+      resolveApplicableInscriptionPrice(db, {
+        eventId: event.id,
+        groupType: "solo",
+        scheduleId: monday.id,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { name: "Precio base" } });
+
+    const listed = await listPrices(event.id);
+
+    expect(listed.find((price) => price.id === shared.id)).toMatchObject({
+      isSpecialPrice: true,
+      schedules: [{ name: "Sábado Mañana" }, { name: "Domingo Mañana" }],
+    });
+  });
+
+  test("refuses to cover a schedule another special price of the same group type and deadline covers", async () => {
+    const { event, monday, saturday, sunday } =
+      await createThreeScheduleFixture();
+    await createSavedPrice(event.id, {
+      name: "Fin de semana",
+      scheduleIds: [saturday.id, sunday.id],
+    });
+
+    await expect(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 9000,
+        paymentDeadline: "2026-05-31",
+        scheduleIds: [sunday.id, monday.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "Ya existe un precio especial para ese tipo de grupo y fecha límite en Domingo Mañana.",
+      fieldErrors: { scheduleIds: "Revisá los cronogramas del precio." },
+    });
+    await expect(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 9000,
+        paymentDeadline: "2026-06-30",
+        scheduleIds: [sunday.id, monday.id],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  test("rewrites the schedules it covers on update and frees the ones it drops", async () => {
+    const { event, monday, saturday, sunday } =
+      await createThreeScheduleFixture();
+    const weekend = await createSavedPrice(event.id, {
+      name: "Fin de semana",
+      scheduleIds: [saturday.id, sunday.id],
+    });
+
+    await expect(
+      updatePrice(weekend.id, {
+        name: "Fin de semana",
+        groupType: "solo",
+        amount: 12000,
+        paymentDeadline: "2026-05-31",
+        scheduleIds: [sunday.id, monday.id],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+
+    const listed = await listPrices(event.id);
+
+    expect(listed).toMatchObject([
+      {
+        id: weekend.id,
+        schedules: [{ name: "Domingo Mañana" }, { name: "Lunes Mañana" }],
+      },
+    ]);
+    await expect(deleteSchedule(saturday.id)).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(deleteSchedule(monday.id)).resolves.toMatchObject({
+      ok: false,
+      error: "No se puede borrar el cronograma porque tiene dependencias.",
+    });
+  });
+
+  test("lets a price in use gain schedules and refuses dropping one its inscriptions sit on", async () => {
+    const event = await createSavedEvent("Regional 2026", { activate: true });
+    const { academy, catalog, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Precio Compartido",
+        choreographyName: "Coreografía Compartida",
+        email: "academia.precio.compartido@example.com",
+        event,
+      });
+    const night = await createSavedSchedule(event.id, {
+      modalityIds: [catalog.modality.id],
+      name: "Noche",
+      startTime: "20:00",
+    });
+    const afternoon = await createSavedSchedule(event.id, {
+      modalityIds: [catalog.modality.id],
+      name: "Tarde",
+      startTime: "15:00",
+    });
+    const special = await createSavedPrice(event.id, {
+      amount: 15000,
+      name: "Especial",
+      paymentDeadline: null,
+      scheduleIds: [catalog.schedule.id, afternoon.id],
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      selectedPriceId: special.id,
+    });
+    const input = {
+      name: "Especial",
+      groupType: "solo",
+      amount: 15000,
+      paymentDeadline: null,
+    };
+
+    // Adding a schedule, and dropping one no inscription of the price sits on,
+    // leave every stored inscription where it was.
+    await expect(
+      updatePrice(special.id, {
+        ...input,
+        scheduleIds: [catalog.schedule.id, night.id],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(
+      updatePrice(special.id, { ...input, scheduleIds: [night.id] }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: `No se pueden quitar cronogramas con inscripciones que usan este precio: ${catalog.schedule.name}.`,
+      fieldErrors: { scheduleIds: "Revisá los cronogramas del precio." },
+    });
+    await expect(
+      updatePrice(special.id, {
+        ...input,
+        amount: 16000,
+        scheduleIds: [catalog.schedule.id, night.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "Este precio está en uso. Solo podés cambiar el nombre y los cronogramas.",
+    });
+    await expect(listPrices(event.id)).resolves.toContainEqual(
+      expect.objectContaining({
+        id: special.id,
+        scheduleIds: [catalog.schedule.id, night.id].sort(),
+      }),
+    );
+  });
+
+  test("turns into a general price when every schedule is dropped", async () => {
+    const { event, saturday } = await createThreeScheduleFixture();
+    const special = await createSavedPrice(event.id, {
+      name: "Especial",
+      scheduleIds: [saturday.id],
+    });
+
+    await expect(
+      updatePrice(special.id, {
+        name: "Especial",
+        groupType: "solo",
+        amount: 12000,
+        paymentDeadline: "2026-05-31",
+        scheduleIds: [],
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { isSpecialPrice: false } });
+    await expect(listPrices(event.id)).resolves.toMatchObject([
+      { id: special.id, schedules: [], isSpecialPrice: false },
+    ]);
+  });
+});
 
 // A `solo` path with one active un-frozen inscription: the state the guard has
 // to see. The catalog seeds the dated rung, and the open-ended row is the tail

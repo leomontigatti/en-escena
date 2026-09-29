@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -49,14 +50,15 @@ async function seedDancerWithTwoPriceRows(input: { allocatedAmount: number }) {
     .select({ id: prices.id })
     .from(prices)
     .where(eq(prices.eventId, event.id));
-  await db.insert(prices).values({
-    amount: 12000,
-    eventId: event.id,
-    groupType: "solo",
-    name: "Precio Solo vigente",
-    paymentDeadline: "2026-06-30",
-    scheduleId: null,
-  });
+  await insertTestPrices([
+    {
+      amount: 12000,
+      eventId: event.id,
+      groupType: "solo",
+      name: "Precio Solo vigente",
+      paymentDeadline: "2026-06-30",
+    },
+  ]);
 
   if (!expiredPrice) {
     throw new Error("Expected the fixture price row.");

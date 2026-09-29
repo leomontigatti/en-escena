@@ -176,7 +176,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
         groupType: "solo",
         amount: "13000",
         paymentDeadline: "2026-05-31",
-        scheduleId: "",
+        scheduleIds: [],
       },
     });
 
@@ -212,7 +212,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
         groupType: "",
         amount: "",
         paymentDeadline: "",
-        scheduleId: "",
+        scheduleIds: [],
       },
     });
   });

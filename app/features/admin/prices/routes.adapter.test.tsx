@@ -56,8 +56,9 @@ function price(id: string, name: string) {
     paymentDeadline: "2026-05-31",
     isReferenced: false,
     keepsRegistrationOpen: false,
-    schedule: null,
-    scheduleId: null,
+    schedules: [],
+    isSpecialPrice: false,
+    scheduleIds: [],
   };
 }
 

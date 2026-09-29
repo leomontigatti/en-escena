@@ -300,7 +300,7 @@ function priceFixture(
     id: "price_2",
     name: "Segunda fecha",
     paymentDeadline: null,
-    scheduleId: null,
+    scheduleIds: [],
     ...overrides,
   };
 }

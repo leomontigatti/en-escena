@@ -1,3 +1,4 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -9,7 +10,6 @@ import {
   dancers,
   events,
   modalities,
-  prices,
   professors,
   scheduleCapacities,
   submodalities,
@@ -299,14 +299,15 @@ async function createEventCatalog(eventId: string) {
       capacity: 5,
     })
     .returning();
-  await db.insert(prices).values({
-    eventId,
-    name: `Precio ${eventId}`,
-    groupType: "solo",
-    amount: 10000,
-    paymentDeadline: "2026-05-31",
-    scheduleId: null,
-  });
+  await insertTestPrices([
+    {
+      eventId,
+      name: `Precio ${eventId}`,
+      groupType: "solo",
+      amount: 10000,
+      paymentDeadline: "2026-05-31",
+    },
+  ]);
 
   return {
     categoryWithLevel,

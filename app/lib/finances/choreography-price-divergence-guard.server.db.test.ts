@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { prices, scheduleCapacities } from "@/db/schema";
+import { priceSchedules, prices, scheduleCapacities } from "@/db/schema";
 import {
   createAcademySession,
   createChoreographyRecord,
@@ -12,6 +12,7 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { hasPriceDivergentInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
+import { insertTestPrice } from "@/lib/prices/price-rows.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -81,21 +82,16 @@ async function createGuardScenario(slug: string) {
     async addPrice(input: {
       amount: number;
       groupType?: "solo" | "duo";
-      scheduleId?: string;
+      scheduleIds?: string[];
     }) {
-      const [price] = await db
-        .insert(prices)
-        .values({
-          amount: input.amount,
-          eventId: event.id,
-          groupType: input.groupType ?? "solo",
-          name: `Precio ${input.amount} ${input.scheduleId ?? "general"}`,
-          paymentDeadline: null,
-          scheduleId: input.scheduleId ?? null,
-        })
-        .returning();
-
-      return price;
+      return await insertTestPrice({
+        amount: input.amount,
+        eventId: event.id,
+        groupType: input.groupType ?? "solo",
+        name: `Precio ${input.amount} ${input.scheduleIds?.join(" ") ?? "general"}`,
+        paymentDeadline: null,
+        scheduleIds: input.scheduleIds,
+      });
     },
     async diverges(
       destination: {
@@ -121,7 +117,7 @@ describe("price divergence guard on a schedule capacity move", () => {
     await scenario.addPrice({ amount: 10000 });
     await scenario.addPrice({
       amount: 20000,
-      scheduleId: scenario.destinationSchedule.id,
+      scheduleIds: [scenario.destinationSchedule.id],
     });
     await scenario.addMoney({ allocatedAmount: 0 });
 
@@ -133,7 +129,7 @@ describe("price divergence guard on a schedule capacity move", () => {
     const general = await scenario.addPrice({ amount: 10000 });
     await scenario.addPrice({
       amount: 20000,
-      scheduleId: scenario.destinationSchedule.id,
+      scheduleIds: [scenario.destinationSchedule.id],
     });
     // 3000 is the 30 % deposit of 10000: at the threshold the stored row wins
     // whatever schedule the choreography sits on.
@@ -150,7 +146,7 @@ describe("price divergence guard on a schedule capacity move", () => {
     const general = await scenario.addPrice({ amount: 10000 });
     await scenario.addPrice({
       amount: 20000,
-      scheduleId: scenario.destinationSchedule.id,
+      scheduleIds: [scenario.destinationSchedule.id],
     });
     await scenario.addMoney({
       allocatedAmount: 1000,
@@ -181,7 +177,7 @@ describe("price divergence guard on a schedule capacity move", () => {
 
     const destinationPrice = await scenario.addPrice({
       amount: 20000,
-      scheduleId: scenario.destinationSchedule.id,
+      scheduleIds: [scenario.destinationSchedule.id],
     });
 
     // `null → number`.
@@ -190,9 +186,9 @@ describe("price divergence guard on a schedule capacity move", () => {
     // And the mirror image, `number → null`: the choreography sits on the only
     // schedule that has a row.
     await db
-      .update(prices)
+      .update(priceSchedules)
       .set({ scheduleId: scenario.catalog.schedule.id })
-      .where(eq(prices.id, destinationPrice.id));
+      .where(eq(priceSchedules.priceId, destinationPrice.id));
 
     await expect(scenario.diverges()).resolves.toBe(true);
   });
@@ -201,13 +197,13 @@ describe("price divergence guard on a schedule capacity move", () => {
     const scenario = await createGuardScenario("congelada-fijada");
     const pinned = await scenario.addPrice({
       amount: 10000,
-      scheduleId: scenario.catalog.schedule.id,
+      scheduleIds: [scenario.catalog.schedule.id],
     });
     // The same amount on both sides: the pinning alone is what refuses, because
     // the destination's allocation dialog could no longer offer this row.
     await scenario.addPrice({
       amount: 10000,
-      scheduleId: scenario.destinationSchedule.id,
+      scheduleIds: [scenario.destinationSchedule.id],
     });
     await scenario.addMoney({
       allocatedAmount: 3000,
@@ -219,6 +215,23 @@ describe("price divergence guard on a schedule capacity move", () => {
     await expect(
       scenario.diverges({ scheduleId: scenario.catalog.schedule.id }),
     ).resolves.toBe(false);
+  });
+
+  test("passes a frozen special row that covers both the schedule it leaves and the destination", async () => {
+    const scenario = await createGuardScenario("congelada-compartida");
+    const shared = await scenario.addPrice({
+      amount: 10000,
+      scheduleIds: [
+        scenario.catalog.schedule.id,
+        scenario.destinationSchedule.id,
+      ],
+    });
+    await scenario.addMoney({
+      allocatedAmount: 3000,
+      selectedPriceId: shared.id,
+    });
+
+    await expect(scenario.diverges()).resolves.toBe(false);
   });
 
   test("refuses a group-type move that reprices a below-threshold inscription", async () => {

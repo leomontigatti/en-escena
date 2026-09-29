@@ -5,7 +5,6 @@ import {
   choreographyDancers,
   events,
   paymentAllocations,
-  prices,
   scheduleCapacities,
 } from "@/db/schema";
 import {
@@ -18,6 +17,7 @@ import {
   computeDancerDiscountAmounts,
   type DancerDiscount,
 } from "@/lib/finances/operational-summary-calculations.server";
+import { loadEventPriceRows } from "@/lib/prices/rows.server";
 import { resolveEffectiveBasePriceAmount } from "@/lib/finances/inscription-price";
 import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 
@@ -83,9 +83,7 @@ export async function readInscriptionThresholds(
   }
 
   const [priceRows, rosterRows] = await Promise.all([
-    executor.query.prices.findMany({
-      where: eq(prices.eventId, input.eventId),
-    }),
+    loadEventPriceRows(executor, input.eventId),
     // The dancer's live roster within the event and academy: it is the set
     // that decides how many inscriptions qualify for the discount, which is why
     // the requested inscriptions alone are not enough.

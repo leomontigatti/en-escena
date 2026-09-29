@@ -1,15 +1,11 @@
+import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import {
-  payments,
-  choreographyDancers,
-  paymentAllocations,
-  prices,
-} from "@/db/schema";
+import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -315,17 +311,15 @@ describe("loadPortalAcademyFinances", () => {
     });
     // A price row expired as of 01/06: the inscription has it selected, and its
     // deposit and total come from there.
-    const [selectedPrice] = await db
-      .insert(prices)
-      .values({
+    const [selectedPrice] = await insertTestPrices([
+      {
         amount: 12000,
         eventId: event.id,
         groupType: "solo",
         name: "Precio Solo seleccionado",
         paymentDeadline: "2026-03-31",
-        scheduleId: null,
-      })
-      .returning();
+      },
+    ]);
     const inscription = await seedSignedInscription({
       academyId: owner.academyId,
       choreographyId: choreography.id,
