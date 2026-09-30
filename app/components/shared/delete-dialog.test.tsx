@@ -72,6 +72,37 @@ describe("DeleteDialog", () => {
     expect(getButton("Eliminar").disabled).toBe(true);
   });
 
+  test("disables `Cancelar` with the destructive action while the delete is pending", async () => {
+    const formData = new FormData();
+    formData.set("intent", "delete-category");
+    formData.set("id", "category_1");
+    useNavigationMock.mockReturnValue({
+      formData,
+      formMethod: "post",
+      state: "submitting",
+    });
+
+    await renderDialog();
+
+    expect(getButton("Cancelar").disabled).toBe(true);
+  });
+
+  test("leaves `Cancelar` live while another record's delete is pending", async () => {
+    const formData = new FormData();
+    formData.set("intent", "delete-category");
+    formData.set("id", "category_2");
+    useNavigationMock.mockReturnValue({
+      formData,
+      formMethod: "post",
+      state: "submitting",
+    });
+
+    await renderDialog();
+
+    expect(getButton("Cancelar").disabled).toBe(false);
+    expect(getButton("Eliminar").disabled).toBe(false);
+  });
+
   test("hides the destructive action and surfaces the blocked info when blocked", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 

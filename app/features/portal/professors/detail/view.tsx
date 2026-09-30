@@ -31,8 +31,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   createValidatedReactRouterSubmitHandler,
+  isRouteFormPending,
   useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -335,6 +337,10 @@ function ProfessorStatusDialog({
   const action = intent ? portalProfessorStatusActions[intent] : null;
   const isOpen = action !== null;
   const dialogFormId = getProfessorStatusFormId(intent);
+  const navigation = useNavigation();
+  const isPending =
+    action !== null &&
+    isRouteFormPending(navigation, { intent: action.intent });
 
   return (
     <>
@@ -354,11 +360,21 @@ function ProfessorStatusDialog({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel disabled={isPending}>
+                Cancelar
+              </AlertDialogCancel>
               <form id={dialogFormId} method="post">
                 <input type="hidden" name="intent" value={action.intent} />
-                <Button type="submit" variant={action.confirmButtonVariant}>
-                  <ProfessorStatusActionIcon intent={action.intent} />
+                <Button
+                  type="submit"
+                  variant={action.confirmButtonVariant}
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <Spinner aria-hidden="true" data-icon />
+                  ) : (
+                    <ProfessorStatusActionIcon intent={action.intent} />
+                  )}
                   {action.confirmButtonLabel}
                 </Button>
               </form>

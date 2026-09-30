@@ -10,6 +10,7 @@ import { discardChangesTitle } from "@/lib/shared/discard-guard";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  getButton,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -72,6 +73,8 @@ describe("scoring a presentation without criteria", () => {
 
   async function mount(options: {
     actionData?: JudgePanelActionData;
+    /** Resolves once the save may finish; without it the action answers at once. */
+    holdSave?: Promise<void>;
     presentationId: string;
     rows?: JudgePresentationRow[];
   }) {
@@ -81,6 +84,7 @@ describe("scoring a presentation without criteria", () => {
           path: "/juzgamiento",
           action: async ({ request }) => {
             submitted.push(await request.formData());
+            await options.holdSave;
 
             return { message: "Guardaste el puntaje.", status: "success" };
           },
@@ -225,6 +229,34 @@ describe("scoring a presentation without criteria", () => {
         value: "90.5",
       },
     ]);
+  });
+
+  test("disables `Cancelar` with `Guardar` while the score is being saved", async () => {
+    let releaseSave = () => {};
+    await mount({
+      holdSave: new Promise<void>((resolve) => {
+        releaseSave = resolve;
+      }),
+      presentationId: "b",
+    });
+    const input = scoreInput();
+
+    await updateReactDomForm(() => {
+      if (input) {
+        setInputValue(input, "90.5");
+      }
+    });
+
+    await updateReactDomForm(() => {
+      saveButton()?.click();
+    });
+
+    expect(saveButton()?.disabled).toBe(true);
+    expect(saveButton()?.querySelector('[data-slot="spinner"]')).not.toBeNull();
+    expect(getButton("Cancelar").disabled).toBe(true);
+    expect(getButton(disqualifyLabel).disabled).toBe(true);
+
+    releaseSave();
   });
 
   test("opens the next pending presentation once the score is saved", async () => {

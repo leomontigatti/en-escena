@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   formatDancerIdentificationPendingItemLabel,
@@ -45,6 +46,7 @@ import {
   getDancerVerificationStatus,
   type DancerIdentificationPendingItem,
 } from "@/lib/dancers/verification";
+import { isRouteFormPending } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -507,6 +509,10 @@ function PortalDancerStatusDialog({
   const action = intent ? portalDancerStatusActions[intent] : null;
   const isOpen = action !== null;
   const dialogFormId = getPortalDancerStatusFormId(intent);
+  const navigation = useNavigation();
+  const isPending =
+    action !== null &&
+    isRouteFormPending(navigation, { intent: action.intent });
 
   return (
     <>
@@ -526,11 +532,21 @@ function PortalDancerStatusDialog({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel disabled={isPending}>
+                Cancelar
+              </AlertDialogCancel>
               <form id={dialogFormId} method="post">
                 <input type="hidden" name="intent" value={action.intent} />
-                <Button type="submit" variant={action.confirmButtonVariant}>
-                  <PortalDancerStatusActionIcon intent={action.intent} />
+                <Button
+                  type="submit"
+                  variant={action.confirmButtonVariant}
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <Spinner aria-hidden="true" data-icon />
+                  ) : (
+                    <PortalDancerStatusActionIcon intent={action.intent} />
+                  )}
                   {action.confirmButtonLabel}
                 </Button>
               </form>

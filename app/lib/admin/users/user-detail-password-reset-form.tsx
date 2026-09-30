@@ -136,7 +136,12 @@ export function InternalUserResetPasswordDialog({
             />
           </form>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={requestClose}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={requestClose}
+            >
               Cancelar
             </Button>
             <Button

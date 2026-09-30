@@ -227,6 +227,14 @@ Rules:
 - Use a pending state on the button when an action originates from a concrete
   button or submit and the user might retry it. Disable the action while the
   request is in flight and change the label or icon to show progress.
+- While that request is in flight, `Cancelar` is disabled together with the
+  button that started it, and comes back with it. The same goes for whatever
+  else sits beside it in the footer (`Descartar cambios`, `Anterior`): with them
+  live, the dialog can be closed, or the form reopened and resubmitted, while
+  the first request is still running. A dialog that closes on the confirming
+  click, or that starts no request, has nothing to disable. `Volver` is a link
+  that leaves the page and goes through the discard guard; this rule does not
+  cover it, and today it stays live during a save.
 - Use a small inline spinner when a specific fragment of the screen updates
   without blocking the rest: auxiliary calculations, badges, summaries, counters
   or small panels.
@@ -536,6 +544,8 @@ A confirmation reads the same wherever it appears:
   `Guardar`, `Anular`), never a generic `Confirmar` or `Aceptar`. The verb button
   carries the icon [Buttons](#buttons) gives that verb, and is `destructive` only
   when the action destroys or reverses something.
+  While the verb's request is in flight, `Cancelar` is disabled with it
+  ([Pending, loading and transitions](#pending-loading-and-transitions)).
 - A confirmation is a shared component in `app/components/shared/`, not an
   `AlertDialog` written inline in a view: `DeleteDialog` for deletions,
   `WithdrawDialog` for withdrawals, `DiscardChangesDialog` for leaving unsaved
