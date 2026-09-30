@@ -81,6 +81,46 @@ describe("PortalAcademyPaymentsRouteView", () => {
     expect(text).not.toContain("TRF-9");
   });
 
+  test.each([
+    ["the number it displays", "00042"],
+    ["the unpadded number", "42"],
+  ])("finds a payment by %s", async (_label, query) => {
+    await renderPortalPayments(
+      renderer,
+      portalPaymentsLoaderDataFixture({
+        payments: [
+          paymentRowFixture({
+            id: "payment_1",
+            paymentNumber: 42,
+            reference: "TRF-9",
+          }),
+          paymentRowFixture({
+            id: "payment_2",
+            paymentNumber: 7,
+            reference: "MP-4",
+          }),
+        ],
+      }),
+    );
+
+    const search = document.querySelector<HTMLInputElement>(
+      'input[placeholder="Buscar pago por referencia o número"]',
+    );
+
+    if (!search) {
+      throw new Error("Expected the payments search input to be rendered.");
+    }
+
+    await updateReactDomForm(() => {
+      setInputValue(search, query);
+    });
+
+    const text = document.body.textContent ?? "";
+
+    expect(text).toContain("TRF-9");
+    expect(text).not.toContain("MP-4");
+  });
+
   test("shows the empty state when the academy has no payments", async () => {
     await renderPortalPayments(
       renderer,
