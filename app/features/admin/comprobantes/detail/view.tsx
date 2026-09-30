@@ -7,6 +7,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
+import { PinnedActions } from "@/components/shared/pinned-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -109,6 +110,9 @@ export function ComprobanteDetailRouteView({
         }
       >
         <ComprobanteDetailCard comprobante={comprobante} />
+        <PinnedActions>
+          <BackButton to="/administracion/comprobantes" />
+        </PinnedActions>
       </AdminResourceLayout>
 
       {/* It unmounts when it is CLOSED, not when it loses the affordance: an
@@ -133,10 +137,7 @@ function ComprobanteDetailCard({
   comprobante: ComprobanteDetail;
 }) {
   return (
-    <AdminResourceFormCard
-      contentClassName="gap-4"
-      footer={<BackButton to="/administracion/comprobantes" />}
-    >
+    <AdminResourceFormCard contentClassName="gap-4">
       <div className="flex flex-col gap-3">
         <DetailRow
           label="Tipo"
