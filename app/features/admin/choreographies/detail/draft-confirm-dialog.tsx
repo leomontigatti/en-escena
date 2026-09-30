@@ -34,7 +34,7 @@ export function ConfirmDraftDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar cambios</AlertDialogTitle>
           <AlertDialogDescription>

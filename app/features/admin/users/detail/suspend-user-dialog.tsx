@@ -40,6 +40,7 @@ export function SuspendUserDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
+        className="sm:max-w-lg"
         onEscapeKeyDown={(event) => {
           event.preventDefault();
         }}
