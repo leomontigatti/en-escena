@@ -18,11 +18,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // #982: the `PostToolUse` formatter on `Write|Edit`. Formatting stops being the
 // agent's job, so the hook has to be invisible: it writes the file and says
-// nothing, because `PostToolUse` stderr is fed back to Claude and a reformat is
+// nothing, because `PostToolUse` stderr is fed back to the agent and a reformat is
 // not something the agent should react to.
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
-const hook = path.join(repoRoot, ".claude/hooks/format-edited-file.sh");
+const hook = path.join(repoRoot, ".agents/hooks/format-edited-file.sh");
 
 let workdir: string;
 
@@ -185,6 +185,54 @@ describe("format-edited-file.sh — how it invokes Prettier", () => {
 
     expect(result.status).toBe(0);
     expect(existsSync(argvLog)).toBe(true);
+  });
+
+  // Codex edits through `apply_patch`: no `file_path`, only the patch text, with
+  // paths relative to the payload's `cwd`, and no `CLAUDE_PROJECT_DIR`.
+  it("formats every added, updated or moved file of a Codex patch, and skips deletions", () => {
+    for (const name of ["Updated.tsx", "Added.tsx", "Moved.tsx"]) {
+      writeFileSync(path.join(stubDir, name), "export const a = 1;\n");
+    }
+
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    delete env.CLAUDE_PROJECT_DIR;
+
+    const result = spawnSync("bash", [hook], {
+      input: JSON.stringify({
+        cwd: stubDir,
+        tool_name: "apply_patch",
+        tool_input: {
+          command: [
+            "*** Begin Patch",
+            "*** Update File: Updated.tsx",
+            "@@",
+            "-export const a = 0;",
+            "+export const a = 1;",
+            `*** Add File: ${path.join(stubDir, "Added.tsx")}`,
+            "+export const a = 1;",
+            "*** Update File: Old.tsx",
+            "*** Move to: Moved.tsx",
+            "*** Delete File: Gone.tsx",
+            "*** End Patch",
+          ].join("\n"),
+        },
+      }),
+      encoding: "utf8",
+      cwd: stubDir,
+      env,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const formatted = readFileSync(argvLog, "utf8")
+      .trim()
+      .split("\n")
+      .filter((arg) => !arg.startsWith("--"));
+    expect(formatted).toEqual(
+      ["Updated.tsx", "Added.tsx", "Moved.tsx"].map((name) =>
+        path.join(stubDir, name),
+      ),
+    );
   });
 
   it("is a silent no-op when the project has no Prettier installed", () => {

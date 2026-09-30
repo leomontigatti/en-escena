@@ -669,9 +669,16 @@ describe("domain documentation", () => {
   // either resolves or it rotted, usually because the document moved (every hit
   // when this was added was an ADR rehomed into `superseded/`).
   test("keeps every relative markdown link pointed at an existing file", async () => {
-    const roots = ["docs", ".sandcastle", ".claude"];
+    const roots = ["docs", ".sandcastle", ".agents", ".claude"];
+    const vendoredSkills = Object.keys(
+      (
+        JSON.parse(await readFile("skills-lock.json", "utf8")) as {
+          skills: Record<string, unknown>;
+        }
+      ).skills,
+    );
     const documents = [
-      "CLAUDE.md",
+      "AGENTS.md",
       "CONTEXT.md",
       ...(
         await Promise.all(
@@ -683,7 +690,14 @@ describe("domain documentation", () => {
         .flat()
         .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
         .map((entry) => `${entry.parentPath}/${entry.name}`),
-    ];
+    ].filter(
+      // Vendored skills are byte-identical to upstream and carry its example
+      // links; they are not ours to fix.
+      (document) =>
+        !vendoredSkills.some((name) =>
+          document.startsWith(`.agents/skills/${name}/`),
+        ),
+    );
 
     expect(documents.length).toBeGreaterThan(50);
 

@@ -23,7 +23,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // not about the real compiler.
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
-const hook = path.join(repoRoot, ".claude/hooks/stop-typecheck-lint.sh");
+const hook = path.join(repoRoot, ".agents/hooks/stop-typecheck-lint.sh");
 
 let workdir: string;
 let projectDir: string;
@@ -124,6 +124,35 @@ describe("stop-typecheck-lint.sh", () => {
       "If you cannot fix this, say so explicitly and report the work as blocked.",
     );
     expect(result.stderr).not.toContain("Fix this before ending the turn.");
+  });
+
+  // Codex sets no `CLAUDE_PROJECT_DIR`; the hook runs from inside the checkout,
+  // so the gate has to find the repo from its working directory instead.
+  it("finds the repo from its working directory when CLAUDE_PROJECT_DIR is unset (Codex)", () => {
+    change("app/routes/home.tsx");
+    mkdirSync(path.join(projectDir, "app/routes/nested"), { recursive: true });
+
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+      SKIP_STOP_CHECKS: "",
+      GITHUB_WORKFLOW: "",
+      FAKE_TYPECHECK_FAILS: "1",
+    };
+    delete env.CLAUDE_PROJECT_DIR;
+
+    const result = spawnSync("bash", [hook], {
+      input: JSON.stringify({
+        hook_event_name: "Stop",
+        stop_hook_active: false,
+      }),
+      encoding: "utf8",
+      cwd: path.join(projectDir, "app/routes/nested"),
+      env,
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("error TS2322");
   });
 
   it("blocks on a red lint even when typecheck is green", () => {

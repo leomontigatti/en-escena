@@ -112,7 +112,7 @@ Architecture Review is now the only AFK workflow. The other three are replaced a
   and moved the head under a babysitting session: on #1222 it stalled the session on a fresh
   review while three known threads sat unanswered. It also missed a PR that was opened already
   behind, since only a push to `master` fired it. The
-  [`babysit-pr`](../../.claude/skills/babysit-pr/SKILL.md) skill now updates the branch once,
+  [`babysit-pr`](../../.agents/skills/babysit-pr/SKILL.md) skill now updates the branch once,
   when being behind is the only thing between the PR and merge. `gh pr update-branch` does it
   when the merge is clean. A conflict is resolved in the session with the
   `resolving-merge-conflicts` skill, which knows what the PR is for; the runner's agent knew only

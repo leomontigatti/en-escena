@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Stop hook, blocking.
+# Stop hook, blocking. Wired from both `.claude/settings.json` and
+# `.codex/hooks.json`.
 #
 # A turn may not end on a red typecheck. Decided in #936, built in #982.
 #
@@ -31,10 +32,11 @@
 # any branch that ever committed a `.ts` file, which is the per-turn cost the
 # design avoids. Lint on committed changes is CI's `checks` job.
 #
-# On failure it exits 2 with the failing output on stderr, which is what Claude
-# Code feeds back to the agent. It keeps blocking while the failure persists;
-# Claude Code force-closes the turn after 8 consecutive blocks, and that is the
-# backstop, which is why `stop_hook_active` only picks the trailing instruction.
+# On failure it exits 2 with the failing output on stderr, which both harnesses
+# feed back to the agent: Claude Code as the block reason, Codex as a
+# continuation prompt. It keeps blocking while the failure persists; Claude Code
+# force-closes the turn after 8 consecutive blocks, and that is the backstop,
+# which is why `stop_hook_active` only picks the trailing instruction.
 #
 # There is no `SubagentStop` hook: it is a distinct event, and `research`,
 # `Explore` and `Plan` do not author app code.
@@ -60,7 +62,7 @@ fi
 # session. That is also why `set -e` is absent — the `output="$(...)"` capture
 # under `if` is the whole point, and a non-zero exit there is a result, not a
 # crash.
-cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" || exit 0
 
 # `--untracked-files=all` because the default collapses an untracked directory to
 # `app/`, which hides every extension under it. `-z` so paths arrive unquoted and

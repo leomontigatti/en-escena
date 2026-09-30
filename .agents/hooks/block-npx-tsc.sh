@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# PreToolUse hook (matcher: Bash).
+# PreToolUse hook (matcher: Bash), wired from both `.claude/settings.json` and
+# `.codex/hooks.json`; both harnesses send the command as `tool_input.command`.
 #
 # Blocks the TypeScript compiler called directly (`npx tsc`, `pnpm exec tsc`,
 # `pnpm dlx tsc`) and points at `pnpm typecheck` instead.
