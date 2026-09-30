@@ -1,5 +1,8 @@
+import { Check } from "lucide-react";
+
 import { DuplicateWarningDialog } from "@/components/shared/duplicate-warning-prompt";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 /**
  * The wizard's half of the duplicate warning. The wizard submits through a
@@ -20,11 +23,17 @@ export function ChoreographyDuplicateWarning({
 }) {
   return (
     <DuplicateWarningDialog
-      title="¿Es la misma coreografía?"
+      isPending={isSubmitting}
+      title="¿Guardar la coreografía?"
       warning={warning}
-      continueButton={
+      confirmButton={
         <Button type="button" disabled={isSubmitting} onClick={onContinue}>
-          Continuar de todos modos
+          {isSubmitting ? (
+            <Spinner aria-hidden="true" data-icon />
+          ) : (
+            <Check aria-hidden="true" data-icon="inline-start" />
+          )}
+          Guardar
         </Button>
       }
     >

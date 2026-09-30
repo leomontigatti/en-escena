@@ -263,6 +263,7 @@ export function PortalDancerDetailRouteView({
         {nameWarning ? (
           <RosterNameWarningDialog
             formId={portalDancerFormId}
+            isPending={isSubmitting}
             warning={nameWarning.warning}
           />
         ) : null}
