@@ -272,6 +272,10 @@ Each vendored skill has a line in `.prettierignore`, and `check:comment-language
 (`implement`, `babysit-pr`, `housekeeping`) are checked like any other doc. A repo-specific instruction
 goes in the prompt or doc that invokes the skill, never in the skill.
 
+**Updating is manual.** Nothing compares the pin with upstream: no script, CI job or
+schedule checks for a newer `mattpocock/skills`. A refresh is a deliberate `npx skills update`,
+reviewed as a diff, with this section's pin and dates moved along.
+
 **Not vendored**: `setup-matt-pocock-skills` (its output, [`issue-tracker.md`](./issue-tracker.md),
 [`triage-labels.md`](./triage-labels.md) and [`domain.md`](./domain.md), already exists), and
 `triage` and `grill-me` (rarely or never used). `research` was vendored

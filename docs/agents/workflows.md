@@ -182,14 +182,16 @@ checkout's `master` current. It only runs when that checkout is clean and on
 
 Claude Code and Codex read one copy of everything; only the wiring each harness
 insists on reading from its own directory is kept per harness, and each of those
-files holds no instructions of its own.
+files holds no instructions of its own beyond, for the Claude Code subagents, how to
+relay to Codex.
 
-| What                | The one copy                 | Claude Code reads it through                                      | Codex reads it through                 |
-| ------------------- | ---------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
-| Repo instructions   | `AGENTS.md`                  | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly                   |
-| Skills              | `.agents/skills/<name>/`     | `.claude/skills`, a symlink to `.agents/skills`                   | `.agents/skills` directly              |
-| Hooks               | `.agents/hooks/*.sh`         | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`                    |
-| `research` subagent | `.agents/agents/research.md` | `.claude/agents/research.md` (model, tools)                       | `.codex/agents/research.toml` (effort) |
+| What                | The one copy                 | Claude Code reads it through                                      | Codex reads it through                |
+| ------------------- | ---------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
+| Repo instructions   | `AGENTS.md`                  | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly                  |
+| Skills              | `.agents/skills/<name>/`     | `.claude/skills`, a symlink to `.agents/skills`                   | `.agents/skills` directly             |
+| Hooks               | `.agents/hooks/*.sh`         | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`                   |
+| `research` subagent | `.agents/agents/research.md` | `.claude/agents/research.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/research.toml` (model) |
+| `reviewer` subagent | `.agents/agents/reviewer.md` | `.claude/agents/reviewer.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/reviewer.toml` (model) |
 
 - **Do not add a `CLAUDE.md`**, here or in a parent directory: Claude Code reads
   `AGENTS.md` only as a fallback, when no `CLAUDE.md`, `.claude/CLAUDE.md` or
@@ -205,11 +207,21 @@ files holds no instructions of its own.
   its `apply_patch` tool). The scripts read either payload: Claude Code's
   `tool_input.file_path` or a Codex patch in `tool_input.command`, and
   `$CLAUDE_PROJECT_DIR` or, when Codex leaves it unset, the checkout the hook runs in.
+- **Both subagents run on Codex's gpt-6.1-sol at medium effort**, whichever harness
+  orchestrates. A Claude Code subagent can only run a Claude model, so the Claude wrappers
+  are Haiku relays: they hand the prompt to `scripts/agents/sol.sh`, which runs
+  `codex exec` and returns the final message verbatim. The script names the model for
+  Claude Code and the two `.toml` wrappers name it for Codex, so a model change touches
+  all three. The script needs the `codex` CLI installed and logged in; without it the
+  relay reports `blocked` rather than doing the work on Haiku. Review sub-agents reach
+  `reviewer` through the routing line in `AGENTS.md`, since the vendored `code-review`
+  skill takes no local edits. When T3 Code ships its orchestrator's `delegate_task`
+  (pingdotgg/t3code#2829), the relays are what would change.
 - **Codex reads `.codex/` from the main checkout, even in a worktree** (verified on
-  codex-cli 0.159): a T3 worktree gets the hooks and the `research` agent only once they
-  are on the branch the main checkout has out, while `AGENTS.md` and the skills come from
-  the worktree itself. The hook commands resolve `git rev-parse --show-toplevel`, so the
-  scripts that run are the worktree's.
+  codex-cli 0.159): a T3 worktree gets the hooks and the `research` and `reviewer`
+  agents only once they are on the branch the main checkout has out, while `AGENTS.md`
+  and the skills come from the worktree itself. The hook commands resolve
+  `git rev-parse --show-toplevel`, so the scripts that run are the worktree's.
 - **Codex runs a project hook only once it is trusted**: the project must be trusted, and
   each hook reviewed and approved when Codex first offers it.
 - **Harness-only files stay where they are**: the permission allowlist in
