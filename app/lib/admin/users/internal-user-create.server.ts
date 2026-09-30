@@ -7,6 +7,7 @@ import {
   assertValidInternalUsername,
   isReservedInternalUsername,
 } from "@/lib/auth/internal-username.server";
+import { internalUsernameRuleMessage } from "@/lib/auth/internal-username.shared";
 import {
   createInternalCredentialUser,
   deleteInternalCredentialUser,
@@ -67,7 +68,7 @@ export async function createInternalUser(
   try {
     internalUsername = assertValidInternalUsername(input.internalUsername);
   } catch {
-    return creationError("Ingresá un nombre de usuario interno válido.");
+    return creationError(internalUsernameRuleMessage);
   }
 
   if (isReservedInternalUsername(internalUsername)) {

@@ -88,6 +88,33 @@ describe("NewInternalUserRouteView interactions", () => {
     );
   });
 
+  test("tells the username rule on submit and clears it once the value fits", async () => {
+    const submitSpy = vi.fn();
+
+    renderIdleView(submitSpy);
+
+    await updateReactDomForm(() => {
+      setInputValue(getInput("name"), "Ana Juez");
+      setInputValue(getInput("internalUsername"), "!@#!%&*");
+      setInputValue(getInput("password"), "contrasena8");
+    });
+
+    await updateReactDomForm(() => {
+      getForm().requestSubmit(getButton("Guardar"));
+    });
+
+    expect(document.body.textContent).toContain(
+      "Usá entre 3 y 32 caracteres: minúsculas, números, punto, guion o guion bajo.",
+    );
+    expect(submitSpy).not.toHaveBeenCalled();
+
+    await updateReactDomForm(() => {
+      setInputValue(getInput("internalUsername"), "Ana.Juez");
+    });
+
+    expect(document.body.textContent).not.toContain("Usá entre 3 y 32");
+  });
+
   test("submits through React Router with the create intent", async () => {
     const submitSpy = vi.fn();
     const nativeSubmitSpy = vi

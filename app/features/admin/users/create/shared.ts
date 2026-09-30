@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import {
+  internalUsernameRuleMessage,
+  isValidInternalUsername,
+} from "@/lib/auth/internal-username.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
@@ -21,7 +25,10 @@ export const createInternalUserIntent = "create-internal-user";
 
 export const createInternalUserSchema = z.object({
   name: requiredTextField(),
-  internalUsername: requiredTextField(),
+  internalUsername: requiredTextField().refine(
+    isValidInternalUsername,
+    internalUsernameRuleMessage,
+  ),
   role: roleField,
   password: requiredTextField().refine(
     (value) => value.length >= passwordMinLength,
@@ -87,7 +94,7 @@ export function getCreateInternalUserServerFieldErrors(
   if (
     error === "Ese nombre de usuario interno ya existe." ||
     error === "Ese nombre de usuario interno está reservado." ||
-    error === "Ingresá un nombre de usuario interno válido."
+    error === internalUsernameRuleMessage
   ) {
     return { internalUsername: error };
   }
