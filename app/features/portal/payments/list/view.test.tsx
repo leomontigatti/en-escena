@@ -48,15 +48,23 @@ describe("PortalAcademyPaymentsRouteView", () => {
     ).toBeNull();
   });
 
-  test("finds a payment by its reference", async () => {
+  test.each([
+    ["its reference", "MP-4", "MP-4", "TRF-9"],
+    ["the number it displays", "00042", "TRF-9", "MP-4"],
+    ["the unpadded number", "42", "TRF-9", "MP-4"],
+  ])("finds a payment by %s", async (_label, query, shown, hidden) => {
     await renderPortalPayments(
       renderer,
       portalPaymentsLoaderDataFixture({
         payments: [
-          paymentRowFixture({ id: "payment_1", reference: "TRF-9" }),
+          paymentRowFixture({
+            id: "payment_1",
+            paymentNumber: 42,
+            reference: "TRF-9",
+          }),
           paymentRowFixture({
             id: "payment_2",
-            paymentNumber: 2,
+            paymentNumber: 7,
             reference: "MP-4",
           }),
         ],
@@ -72,13 +80,13 @@ describe("PortalAcademyPaymentsRouteView", () => {
     }
 
     await updateReactDomForm(() => {
-      setInputValue(search, "MP-4");
+      setInputValue(search, query);
     });
 
     const text = document.body.textContent ?? "";
 
-    expect(text).toContain("MP-4");
-    expect(text).not.toContain("TRF-9");
+    expect(text).toContain(shown);
+    expect(text).not.toContain(hidden);
   });
 
   test("shows the empty state when the academy has no payments", async () => {
