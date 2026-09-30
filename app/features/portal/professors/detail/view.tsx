@@ -2,7 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
-import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
+import {
+  Form,
+  useNavigation,
+  useSubmit,
+  type SubmitFunction,
+} from "react-router";
 
 import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
@@ -35,6 +40,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   createValidatedReactRouterSubmitHandler,
   isRouteFormPending,
+  useCloseOnceSettled,
   useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -342,6 +348,8 @@ function ProfessorStatusDialog({
     action !== null &&
     isRouteFormPending(navigation, { intent: action.intent });
 
+  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
+
   return (
     <>
       {action ? (
@@ -363,7 +371,7 @@ function ProfessorStatusDialog({
               <AlertDialogCancel disabled={isPending}>
                 Cancelar
               </AlertDialogCancel>
-              <form id={dialogFormId} method="post">
+              <Form id={dialogFormId} method="post">
                 <input type="hidden" name="intent" value={action.intent} />
                 <Button
                   type="submit"
@@ -377,7 +385,7 @@ function ProfessorStatusDialog({
                   )}
                   {action.confirmButtonLabel}
                 </Button>
-              </form>
+              </Form>
             </AlertDialogFooter>
           </AlertDialogContent>
         ) : null}

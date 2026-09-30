@@ -1,6 +1,6 @@
 import { Archive, Info, RotateCcw, TriangleAlert } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { useNavigation, useSubmit } from "react-router";
+import { Form, useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
@@ -46,7 +46,7 @@ import {
   getDancerVerificationStatus,
   type DancerIdentificationPendingItem,
 } from "@/lib/dancers/verification";
-import { isRouteFormPending } from "@/lib/shared/forms";
+import { isRouteFormPending, useCloseOnceSettled } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -514,6 +514,8 @@ function PortalDancerStatusDialog({
     action !== null &&
     isRouteFormPending(navigation, { intent: action.intent });
 
+  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
+
   return (
     <>
       {action ? (
@@ -535,7 +537,7 @@ function PortalDancerStatusDialog({
               <AlertDialogCancel disabled={isPending}>
                 Cancelar
               </AlertDialogCancel>
-              <form id={dialogFormId} method="post">
+              <Form id={dialogFormId} method="post">
                 <input type="hidden" name="intent" value={action.intent} />
                 <Button
                   type="submit"
@@ -549,7 +551,7 @@ function PortalDancerStatusDialog({
                   )}
                   {action.confirmButtonLabel}
                 </Button>
-              </form>
+              </Form>
             </AlertDialogFooter>
           </AlertDialogContent>
         ) : null}
