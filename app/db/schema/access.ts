@@ -21,12 +21,6 @@ export const user = createTable("user", {
   image: text("image"),
   role: userRole("role").notNull().default("academy"),
   internalUsername: text("internal_username").unique(),
-  // Nothing reads or writes this since the mandatory first-login change was
-  // retired (ADR-0003 amendment). It stays until the old container no longer
-  // selects it; the contract migration drops it in a follow-up.
-  requiresPasswordChange: boolean("requires_password_change")
-    .notNull()
-    .default(false),
   suspended: boolean("suspended").notNull().default(false),
   // Ban metadata from Better Auth's admin plugin (#423). The `banned` state maps
   // onto the `suspended` column (the same domain notion); only the reason and the
