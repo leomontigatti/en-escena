@@ -2,7 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
-import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
+import {
+  Form,
+  useNavigation,
+  useSubmit,
+  type SubmitFunction,
+} from "react-router";
 
 import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
@@ -31,8 +36,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   createValidatedReactRouterSubmitHandler,
+  isRouteFormPending,
+  useCloseOnceSettled,
   useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -335,6 +343,12 @@ function ProfessorStatusDialog({
   const action = intent ? portalProfessorStatusActions[intent] : null;
   const isOpen = action !== null;
   const dialogFormId = getProfessorStatusFormId(intent);
+  const navigation = useNavigation();
+  const isPending =
+    action !== null &&
+    isRouteFormPending(navigation, { intent: action.intent });
+
+  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
 
   return (
     <>
@@ -354,14 +368,24 @@ function ProfessorStatusDialog({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <form id={dialogFormId} method="post">
+              <AlertDialogCancel disabled={isPending}>
+                Cancelar
+              </AlertDialogCancel>
+              <Form id={dialogFormId} method="post">
                 <input type="hidden" name="intent" value={action.intent} />
-                <Button type="submit" variant={action.confirmButtonVariant}>
-                  <ProfessorStatusActionIcon intent={action.intent} />
+                <Button
+                  type="submit"
+                  variant={action.confirmButtonVariant}
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <Spinner aria-hidden="true" data-icon />
+                  ) : (
+                    <ProfessorStatusActionIcon intent={action.intent} />
+                  )}
                   {action.confirmButtonLabel}
                 </Button>
-              </form>
+              </Form>
             </AlertDialogFooter>
           </AlertDialogContent>
         ) : null}

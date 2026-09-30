@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Trash, TriangleAlert } from "lucide-react";
+import { Form } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -13,7 +14,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
+import {
+  isRouteFormPending,
+  useCloseOnceSettled,
+  useOptionalNavigation,
+} from "@/lib/shared/forms";
 
 /**
  * The confirmation of a removal that **withdraws** instead of deleting. It is
@@ -54,6 +59,8 @@ function WithdrawDialog({
     fields: { id: recordId },
   });
 
+  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
@@ -78,7 +85,7 @@ function WithdrawDialog({
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <form method="post">
+          <Form method="post">
             <input type="hidden" name="intent" value={intentValue} />
             <input type="hidden" name="id" value={recordId} />
             <input type="hidden" name={confirmFieldName} value={recordId} />
@@ -90,7 +97,7 @@ function WithdrawDialog({
               )}
               {confirmLabel}
             </Button>
-          </form>
+          </Form>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

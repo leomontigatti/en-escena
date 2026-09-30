@@ -1,6 +1,6 @@
 import { Archive, Info, RotateCcw, TriangleAlert } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { useNavigation, useSubmit } from "react-router";
+import { Form, useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   formatDancerIdentificationPendingItemLabel,
@@ -45,6 +46,7 @@ import {
   getDancerVerificationStatus,
   type DancerIdentificationPendingItem,
 } from "@/lib/dancers/verification";
+import { isRouteFormPending, useCloseOnceSettled } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -507,6 +509,12 @@ function PortalDancerStatusDialog({
   const action = intent ? portalDancerStatusActions[intent] : null;
   const isOpen = action !== null;
   const dialogFormId = getPortalDancerStatusFormId(intent);
+  const navigation = useNavigation();
+  const isPending =
+    action !== null &&
+    isRouteFormPending(navigation, { intent: action.intent });
+
+  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
 
   return (
     <>
@@ -526,14 +534,24 @@ function PortalDancerStatusDialog({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <form id={dialogFormId} method="post">
+              <AlertDialogCancel disabled={isPending}>
+                Cancelar
+              </AlertDialogCancel>
+              <Form id={dialogFormId} method="post">
                 <input type="hidden" name="intent" value={action.intent} />
-                <Button type="submit" variant={action.confirmButtonVariant}>
-                  <PortalDancerStatusActionIcon intent={action.intent} />
+                <Button
+                  type="submit"
+                  variant={action.confirmButtonVariant}
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <Spinner aria-hidden="true" data-icon />
+                  ) : (
+                    <PortalDancerStatusActionIcon intent={action.intent} />
+                  )}
                   {action.confirmButtonLabel}
                 </Button>
-              </form>
+              </Form>
             </AlertDialogFooter>
           </AlertDialogContent>
         ) : null}
