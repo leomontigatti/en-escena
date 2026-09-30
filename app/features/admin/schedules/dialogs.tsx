@@ -62,7 +62,7 @@ export function ScheduleActions({
         </DropdownMenuGroup>
       </ResourceActionsMenu>
       <DeleteDialog
-        title="Eliminar cronograma"
+        title="¿Eliminar el cronograma?"
         description={`Esta acción borra ${schedule.name} si no tiene cupos de cronograma ni otras dependencias asociadas. No se puede deshacer.`}
         intentValue="delete-schedule"
         recordId={schedule.id}

@@ -93,7 +93,9 @@ describe("PortalDancersListRouteView dialog", () => {
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Nuevo bailarín");
 
-    await clickReactDomButton("Seguir editando");
+    await clickReactDomButton("Cancelar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await clickReactDomButton("Cancelar");
     await clickReactDomButton("Descartar", { exact: true });
 

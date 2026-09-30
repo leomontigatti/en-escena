@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Trash, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -20,7 +20,8 @@ import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
  * the shared `DeleteDialog` with its one false sentence replaced: a row that
  * keeps its money is not an irreversible deletion, so the alert says what
  * survives instead of saying that nothing does, and the button names the
- * gesture rather than `Eliminar`.
+ * gesture rather than `Eliminar`. Withdrawing is not deleting, so the button
+ * carries no trash icon.
  *
  * It posts the same three fields the delete dialog posts, so a surface swaps
  * between the two by the row's evidence alone and its action reads one intent.
@@ -61,9 +62,6 @@ function WithdrawDialog({
         // consequence is the longest copy either dialog shows, so on a phone in
         // landscape it is what would otherwise push the footer off screen.
         className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_1fr_auto] sm:max-w-lg"
-        onEscapeKeyDown={(event) => {
-          event.preventDefault();
-        }}
       >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -84,10 +82,8 @@ function WithdrawDialog({
             <input type="hidden" name={confirmFieldName} value={recordId} />
             <Button type="submit" variant="destructive" disabled={isPending}>
               {isPending ? (
-                <Spinner aria-hidden="true" data-icon />
-              ) : (
-                <Trash aria-hidden="true" data-icon="inline-start" />
-              )}
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+              ) : null}
               {confirmLabel}
             </Button>
           </form>

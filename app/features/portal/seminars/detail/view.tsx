@@ -230,22 +230,22 @@ function RemovalDialog({
   if (inscription.hasMoney) {
     return (
       <WithdrawDialog
-        confirmLabel="Retirar inscripción"
+        confirmLabel="Retirar"
         consequence="El dinero que la inscripción tiene asignado queda como está y, si ya tenía la seña cubierta, su lugar se libera. Si volvés a inscribir a la persona, la inscripción vuelve con su dinero."
         description={`Esta inscripción ya tiene dinero asignado, así que no se borra: ${inscription.fullName} queda retirada del seminario de ${instructorName}.`}
         intentValue={deletePortalSeminarInscriptionIntent}
         onOpenChange={onOpenChange}
         open
         recordId={inscription.id}
-        title={inscription.fullName}
+        title="¿Retirar la inscripción?"
       />
     );
   }
 
   return (
     <DeleteDialog
-      title={inscription.fullName}
-      description={`Esta acción da de baja la inscripción en el seminario de ${instructorName} y libera su lugar. No se puede deshacer.`}
+      title="¿Eliminar la inscripción?"
+      description={`Esta acción da de baja la inscripción de ${inscription.fullName} en el seminario de ${instructorName} y libera su lugar. No se puede deshacer.`}
       intentValue={deletePortalSeminarInscriptionIntent}
       recordId={inscription.id}
       open

@@ -35,7 +35,8 @@ type DeleteDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   recordId: string;
-  title?: string;
+  /** The question the confirmation asks, naming the record: `¿Eliminar el pago?`. */
+  title: string;
 };
 
 /**
@@ -98,7 +99,7 @@ function ConfirmDeleteDialog({
   open,
   onOpenChange,
   recordId,
-  title = "Confirmar eliminación",
+  title,
 }: Omit<
   DeleteDialogProps,
   "blockedDescription" | "blockedTitle" | "isBlocked"
@@ -168,9 +169,6 @@ function DeleteDialogShell({
           "max-h-[calc(100dvh-2rem)]",
           details ? "grid-rows-[auto_auto_1fr_auto]" : undefined,
         )}
-        onEscapeKeyDown={(event) => {
-          event.preventDefault();
-        }}
       >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

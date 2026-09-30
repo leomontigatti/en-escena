@@ -235,7 +235,12 @@ describe("PortalSeminarDetailRouteView", () => {
     expect(dialog?.textContent).toContain(
       "Si volvés a inscribir a la persona, la inscripción vuelve con su dinero.",
     );
-    expect(dialog?.textContent).toContain("Retirar inscripción");
+    expect(dialog?.textContent).toContain("¿Retirar la inscripción?");
+    expect(
+      Array.from(dialog?.querySelectorAll("button") ?? []).map((button) =>
+        button.textContent?.trim(),
+      ),
+    ).toEqual(["Cancelar", "Retirar"]);
     expect(dialog?.textContent).not.toContain("$");
   });
 

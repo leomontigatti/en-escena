@@ -295,7 +295,9 @@ describe("scoring a presentation without criteria", () => {
     expect(document.body.textContent).toContain(discardChangesTitle);
     expect(router.state.location.search).toBe("?presentacion=b");
 
-    await clickReactDomButton("Seguir editando");
+    await clickReactDomButton("Cancelar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
 
     expect(document.body.textContent).not.toContain(discardChangesTitle);
     expect(scoreInput()?.value).toBe("90.5");
