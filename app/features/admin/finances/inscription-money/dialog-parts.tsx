@@ -136,7 +136,7 @@ export function MoneyDialog({
           }
         }}
       >
-        <DialogContent overlayClassName="backdrop-blur-sm">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>

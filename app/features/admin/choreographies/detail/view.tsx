@@ -88,6 +88,7 @@ export function ChoreographyDetailRouteView({
         // is where `Restaurar coreografía` lives, the one action left.
         loaderData.canEdit || loaderData.restoration.canRestore ? (
           <ChoreographyDetailActionsMenu
+            canDelete={loaderData.deletion.canDelete}
             canRestore={loaderData.restoration.canRestore}
             onDelete={() => setIsDeleteDialogOpen(true)}
             onRestore={() => setIsRestoreDialogOpen(true)}
@@ -119,13 +120,16 @@ export function ChoreographyDetailRouteView({
 /**
  * The header offers one of the two removal-axis actions, never both: a withdrawn
  * choreography is not removed again —there is no second outcome left for it— and
- * one that is taking part has nothing to restore.
+ * one that is taking part has nothing to restore. A blocked removal is disabled
+ * on sight, and the page alert says why.
  */
 function ChoreographyDetailActionsMenu({
+  canDelete,
   canRestore,
   onDelete,
   onRestore,
 }: {
+  canDelete: boolean;
   canRestore: boolean;
   onDelete: () => void;
   onRestore: () => void;
@@ -146,6 +150,7 @@ function ChoreographyDetailActionsMenu({
         ) : (
           <DropdownMenuItem
             variant="destructive"
+            disabled={!canDelete}
             onSelect={(event) => {
               event.preventDefault();
               onDelete();
@@ -163,7 +168,8 @@ function ChoreographyDetailActionsMenu({
 /**
  * `Eliminar coreografía` is one action with two outcomes, and the dialog names
  * the one that will happen before the admin confirms. The evaluated presentation
- * is the only thing that blocks it, and then the dialog explains itself instead
+ * is the only thing that blocks it; the menu item is then disabled, so the
+ * blocked dialog is only reached from the URL, and it explains itself instead
  * of offering the button.
  */
 function ChoreographyRemovalDialog({
