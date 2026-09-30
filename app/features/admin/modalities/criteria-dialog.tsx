@@ -3,6 +3,7 @@ import { Info, Plus, Trash } from "lucide-react";
 import { useMemo } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 
+import { SubmitButton } from "@/components/shared/action-buttons";
 import {
   DiscardChangesDialog,
   useDiscardGuard,
@@ -34,7 +35,9 @@ import {
 } from "@/lib/judging/criteria";
 import {
   createValidatedRouteSubmitHandler,
+  isRouteFormPending,
   useOptionalFormAction,
+  useOptionalNavigation,
   useOptionalSubmit,
   useSavedFormValues,
 } from "@/lib/shared/forms";
@@ -92,6 +95,11 @@ export function SubmodalityCriteriaDialog({
   });
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
+  const navigation = useOptionalNavigation();
+  const isSaving = isRouteFormPending(navigation, {
+    fields: { id: submodality.id },
+    intent: "save-submodality-criteria",
+  });
   const watchedCriteria = form.watch("criteria");
   const addingTotal = sumAddingCriteriaMaxima(watchedCriteria ?? []);
   const totalInvalid = fields.length > 0 && addingTotal !== addingCriteriaTotal;
@@ -169,6 +177,7 @@ export function SubmodalityCriteriaDialog({
               <Button
                 type="button"
                 variant="outline"
+                disabled={isSaving}
                 onClick={() => append({ kind: "adds", maximum: "", name: "" })}
               >
                 <Plus aria-hidden="true" />
@@ -176,17 +185,20 @@ export function SubmodalityCriteriaDialog({
               </Button>
             )}
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={requestClose}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                onClick={requestClose}
+              >
                 {locked ? "Cerrar" : "Cancelar"}
               </Button>
               {locked ? null : (
-                <Button
-                  type="submit"
+                <SubmitButton
                   disabled={!form.formState.isDirty}
                   form={`submodality-criteria-form-${submodality.id}`}
-                >
-                  Guardar
-                </Button>
+                  isPending={isSaving}
+                />
               )}
             </div>
           </DialogFooter>

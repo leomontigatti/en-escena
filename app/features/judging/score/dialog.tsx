@@ -7,6 +7,7 @@ import {
   useDiscardGuard,
 } from "@/components/shared/discard-guard";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -171,14 +172,21 @@ export function JudgeScoreDialog({
           </form>
           <DialogFooter className="sm:justify-between">
             <DisqualificationAction
+              disabled={isSaving}
               disqualified={disqualified}
               presentationId={presentation.presentationId}
             />
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={requestClose}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                onClick={requestClose}
+              >
                 Cancelar
               </Button>
               <Button disabled={isSaving} type="submit" form="judge-score-form">
+                {isSaving ? <Spinner aria-hidden="true" data-icon /> : null}
                 Guardar
               </Button>
             </div>

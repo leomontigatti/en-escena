@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import type { loadPortalProfile } from "@/features/portal/profile/server";
 import {
   academyProfileSchema,
@@ -237,6 +238,10 @@ function AcademyProfileTextField({
 
 function ProfileActionsMenu() {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const navigation = useNavigation();
+  const isSending = isRouteFormPending(navigation, {
+    intent: requestPasswordRecoveryIntent,
+  });
 
   return (
     <>
@@ -266,9 +271,19 @@ function ProfileActionsMenu() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
-            <Button type="submit" form={passwordRecoveryFormId}>
-              <Check aria-hidden="true" data-icon="inline-start" />
+            <AlertDialogCancel type="button" disabled={isSending}>
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              type="submit"
+              form={passwordRecoveryFormId}
+              disabled={isSending}
+            >
+              {isSending ? (
+                <Spinner aria-hidden="true" data-icon />
+              ) : (
+                <Check aria-hidden="true" data-icon="inline-start" />
+              )}
               Enviar email
             </Button>
           </AlertDialogFooter>

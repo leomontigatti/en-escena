@@ -78,7 +78,12 @@ export function CreateChoreographyPage({
             </Link>
           </Button>
         ) : (
-          <Button type="button" variant="outline" onClick={wizard.goBack}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={submission.isSubmitting}
+            onClick={wizard.goBack}
+          >
             <ChevronLeft aria-hidden="true" data-icon />
             Anterior
           </Button>
