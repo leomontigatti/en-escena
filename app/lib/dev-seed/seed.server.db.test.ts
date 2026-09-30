@@ -6,17 +6,24 @@ import {
   academies,
   choreographies,
   choreographyDancers,
+  comprobantes,
   dancers,
   events,
+  judgeAssignments,
   payments,
+  presentations,
   professors,
+  scores,
   user,
 } from "@/db/schema";
 import { signInAccessUser } from "@/lib/auth/access-auth.test-support";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { readInscriptionAllocatedAmount } from "@/lib/finances/allocation-pool.server";
 import { choreographyTarget } from "@/lib/finances/allocation-target.server";
+import { findScoreLockedSubmodalityIds } from "@/lib/judging/criteria.server";
 import {
   readFrozenChoreographyIds,
   readParticipationRows,
@@ -72,7 +79,7 @@ describe("dev seed", () => {
     }
   });
 
-  test("opens registrations on the active event and registers two choreographies for the academy", async () => {
+  test("opens registrations on the active event and registers four choreographies for the academy", async () => {
     await seedDevData({ now });
 
     const seededEvents = await db.query.events.findMany({
@@ -98,18 +105,23 @@ describe("dev seed", () => {
 
     await expect(
       db.$count(dancers, eq(dancers.academyId, academyId)),
-    ).resolves.toBe(2);
+    ).resolves.toBe(4);
     await expect(
       db.$count(professors, eq(professors.academyId, academyId)),
     ).resolves.toBe(2);
-    await expect(
-      db.query.choreographies.findMany({
-        where: eq(choreographies.academyId, academyId),
-      }),
-    ).resolves.toEqual([
-      expect.objectContaining({ eventId: activeEvent.id }),
-      expect.objectContaining({ eventId: activeEvent.id }),
+    const registered = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, academyId),
+      orderBy: asc(choreographies.name),
+    });
+    expect(registered.map(({ name }) => name)).toEqual([
+      "Luna de Papel",
+      "Río Arriba",
+      "Sal y Arena",
+      "Viento Sur",
     ]);
+    expect(registered.every(({ eventId }) => eventId === activeEvent.id)).toBe(
+      true,
+    );
   });
 
   test("leaves a payment allocated past the deposit and a frozen presentation, so the lock alerts have data", async () => {
@@ -131,31 +143,80 @@ describe("dev seed", () => {
     });
     expect(academyPayments).toHaveLength(1);
 
-    // Every inscription covers the 30% deposit of its 25000 price, which locks
-    // the price in the money dialog and makes the choreography orderable.
-    const inscriptions = await db
-      .select({ id: choreographyDancers.id })
-      .from(choreographyDancers)
-      .innerJoin(
-        choreographies,
-        eq(choreographies.id, choreographyDancers.choreographyId),
-      )
-      .where(eq(choreographies.academyId, academy.id));
-    expect(inscriptions).toHaveLength(2);
-    for (const inscription of inscriptions) {
-      await expect(
-        readInscriptionAllocatedAmount(db, choreographyTarget(inscription.id)),
-      ).resolves.toBeGreaterThanOrEqual(7500);
+    // Each paid inscription covers the 30% deposit of its 25000 price, which
+    // locks the price in the money dialog and makes the choreography orderable.
+    for (const name of ["Luna de Papel", "Viento Sur", "Río Arriba"]) {
+      await expect(allocatedTo(name)).resolves.toEqual([10000]);
     }
 
-    // One schedule is evaluated, so its numbered presentation is frozen while
-    // the other choreography stays open to correction.
+    // One schedule is evaluated, so its numbered presentations are frozen
+    // while the morning block stays open to correction.
     const rows = await readParticipationRows(activeEvent.id);
     const frozen = await readFrozenChoreographyIds(rows);
     const frozenNames = rows
       .filter((row) => frozen.has(row.choreographyId))
-      .map((row) => row.name);
-    expect(frozenNames).toEqual(["Viento Sur"]);
+      .map((row) => row.name)
+      .sort();
+    expect(frozenNames).toEqual(["Río Arriba", "Viento Sur"]);
+  });
+
+  test("leaves one choreography with nothing paid, so the money screens have an unpaid inscription", async () => {
+    await seedDevData({ now });
+
+    await expect(allocatedTo("Sal y Arena")).resolves.toEqual([0]);
+    await expect(allocatedTo("Luna de Papel")).resolves.toEqual([10000]);
+  });
+
+  test("has the demo judge score one presentation, so the score screens show a number", async () => {
+    await seedDevData({ now });
+
+    const scored = await db
+      .select({ name: choreographies.name, value: scores.value })
+      .from(scores)
+      .innerJoin(
+        judgeAssignments,
+        eq(judgeAssignments.id, scores.judgeAssignmentId),
+      )
+      .innerJoin(
+        presentations,
+        eq(presentations.id, judgeAssignments.presentationId),
+      )
+      .innerJoin(
+        choreographies,
+        eq(choreographies.id, presentations.choreographyId),
+      );
+    expect(scored).toEqual([{ name: "Río Arriba", value: "87.0" }]);
+
+    // It is scored in the block the disqualification already froze, under a
+    // submodality of its own, so the morning block stays open to correction
+    // and `Lírico` keeps its criteria editable.
+    const activeEvent = await db.query.events.findFirst({
+      where: eq(events.active, true),
+    });
+    const rows = await readParticipationRows(activeEvent?.id ?? "");
+    const frozen = await readFrozenChoreographyIds(rows);
+    expect(
+      rows
+        .filter((row) => frozen.has(row.choreographyId))
+        .map((row) => row.name)
+        .sort(),
+    ).toEqual(["Río Arriba", "Viento Sur"]);
+    const locked = await findScoreLockedSubmodalityIds(activeEvent?.id ?? "");
+    expect(locked.size).toBe(1);
+  });
+
+  test("invoices what one choreography paid, so the comprobante screens have a row", async () => {
+    await seedDevData({ now });
+
+    const invoiced = await db.query.choreographies.findFirst({
+      where: eq(choreographies.name, "Río Arriba"),
+    });
+    await expect(
+      listAnchorComprobantes(choreographyAnchor(invoiced?.id ?? "")),
+    ).resolves.toMatchObject([
+      { cbteTipo: 11, cbteNro: 1, impTotal: 10000, status: "vigente" },
+    ]);
+    await expect(db.$count(comprobantes)).resolves.toBe(1);
   });
 
   test("re-running resets the demo to the same state, keeping events it does not own", async () => {
@@ -183,6 +244,24 @@ describe("dev seed", () => {
     ).resolves.toMatchObject({ name: "Evento Real", active: false });
   });
 });
+
+/** What each inscription of the named choreography has allocated to it. */
+async function allocatedTo(choreographyName: string) {
+  const inscriptions = await db
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .where(eq(choreographies.name, choreographyName));
+
+  return await Promise.all(
+    inscriptions.map((inscription) =>
+      readInscriptionAllocatedAmount(db, choreographyTarget(inscription.id)),
+    ),
+  );
+}
 
 async function registerSecondChoreographyAsTheUIWould() {
   const choreography = await db.query.choreographies.findFirst();
@@ -217,7 +296,12 @@ async function readSeedShape() {
       .select({ name: events.name, active: events.active })
       .from(events)
       .orderBy(asc(events.name)),
-    db.select({ name: choreographies.name }).from(choreographies),
+    // Ordered: without it the rows come back in whatever order the engine
+    // likes, and the before/after comparison fails on a swap (#1338).
+    db
+      .select({ name: choreographies.name })
+      .from(choreographies)
+      .orderBy(asc(choreographies.name)),
   ]);
 
   return {
@@ -227,5 +311,7 @@ async function readSeedShape() {
     academies: await db.$count(academies),
     dancers: await db.$count(dancers),
     professors: await db.$count(professors),
+    comprobantes: await db.$count(comprobantes),
+    scores: await db.$count(scores),
   };
 }
