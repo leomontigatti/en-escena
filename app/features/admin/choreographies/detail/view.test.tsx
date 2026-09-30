@@ -32,6 +32,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain(
       "Esta coreografía ya fue evaluada y no puede modificarse.",
     );
+    expect(markup).not.toContain("Tampoco puede eliminarse ni retirarse.");
   });
 
   // The evaluation is also why the choreography cannot be deleted, and the
