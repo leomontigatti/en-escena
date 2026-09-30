@@ -1,7 +1,17 @@
+/** @vitest-environment jsdom */
+
+import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, test } from "vitest";
+import { createMemoryRouter, RouterProvider } from "react-router";
+import { afterEach, describe, expect, test } from "vitest";
 
 import { renderInDataRouter } from "@/lib/test-support/data-router";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+  setInputValue,
+  waitFor,
+} from "@/lib/test-support/react-dom";
 import { DancerDetailRouteView } from "@/routes/administracion.bailarines_.$dancerId";
 
 type DetailRouteViewProps = Parameters<typeof DancerDetailRouteView>[0];
@@ -102,6 +112,72 @@ describe("DancerDetailRouteView", () => {
     // draft test cover it.
     expect(markup).toContain('name="firstName" value="Ana"');
   });
+});
+
+describe("DancerDetailRouteView tabs", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  // Radix unmounts an inactive panel, and an unmounted input is not submitted:
+  // without `forceMount` a look at the inscriptions would post an empty
+  // birthdate and document, and the save would be refused (#1274).
+  test("saves the identification fields from the inscriptions tab", async () => {
+    let submitted: FormData | null = null;
+
+    // A form with no `action` posts to the document's URL, which a memory
+    // router does not move: without this the save would leave the page.
+    window.history.replaceState({}, "", "/administracion/bailarines/dancer-1");
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/bailarines/dancer-1",
+          action: async ({ request }) => {
+            submitted = await request.formData();
+
+            return null;
+          },
+          element: <DancerDetailRouteView loaderData={createLoaderData()} />,
+        },
+      ],
+      { initialEntries: ["/administracion/bailarines/dancer-1"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await act(async () => {
+      setInputValue(
+        document.querySelector<HTMLInputElement>('input[name="firstName"]')!,
+        "Julieta",
+      );
+    });
+    await selectTab("Inscripciones");
+    await clickReactDomButton("Guardar");
+    await waitFor(() => submitted !== null);
+
+    expect(Object.fromEntries(submitted!)).toMatchObject({
+      birthDate: "2012-07-12",
+      documentNumber: "12345678",
+      documentType: "dni",
+      firstName: "Julieta",
+      lastName: "Detalle",
+    });
+  });
+
+  async function selectTab(label: string) {
+    const trigger = Array.from(
+      document.querySelectorAll('[data-slot="tabs-trigger"]'),
+    ).find((candidate) => candidate.textContent === label);
+
+    // Radix activates a trigger on `mousedown`, not on the click after it.
+    await act(async () => {
+      trigger!.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(trigger!.getAttribute("data-state")).toBe("active");
+  }
 });
 
 function renderDetailView(input: Partial<DetailRouteViewProps> = {}) {

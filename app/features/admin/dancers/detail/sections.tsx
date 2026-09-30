@@ -299,7 +299,14 @@ function DancerDetailTabs({
         <TabsTrigger value="identificacion">Identificación</TabsTrigger>
         <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
       </TabsList>
-      <TabsContent value="identificacion" className="pt-2">
+      {/* Kept mounted behind the other tab: Radix unmounts an inactive panel,
+          and an unmounted input is not submitted, so a save after a look at
+          the inscriptions would post an empty birthdate and document. */}
+      <TabsContent
+        forceMount
+        value="identificacion"
+        className="pt-2 data-[state=inactive]:hidden"
+      >
         <DancerIdentificationSection
           dancer={dancer}
           documentImageUrls={documentImageUrls}
