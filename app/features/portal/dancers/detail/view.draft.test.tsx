@@ -107,12 +107,12 @@ describe("the portal dancer detail as one draft", () => {
       },
     });
 
-    expect(findDialog()?.textContent).toContain("¿Es la misma persona?");
-    expect(findButton("Continuar de todos modos")).toBeDefined();
+    expect(findDialog()?.textContent).toContain("¿Guardar el bailarín?");
+    expect(dialogButtonLabels()).toEqual(["Cancelar", "Guardar"]);
 
     await clickReactDomButton("Cancelar");
 
-    expect(findButton("Continuar de todos modos")).toBeUndefined();
+    expect(findDialog()).toBeUndefined();
     expect(isSaveEnabled()).toBe(true);
 
     await clickLink("Volver");
@@ -214,6 +214,12 @@ function isSaveEnabled() {
 function findDialog() {
   return (
     document.querySelector<HTMLElement>('[role="alertdialog"]') ?? undefined
+  );
+}
+
+function dialogButtonLabels() {
+  return Array.from(findDialog()?.querySelectorAll("button") ?? []).map(
+    (button) => button.textContent?.trim(),
   );
 }
 
