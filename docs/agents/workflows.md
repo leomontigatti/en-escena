@@ -187,14 +187,16 @@ checkout's `master` current. It only runs when that checkout is clean and on
 
 Claude Code and Codex read one copy of everything; only the wiring each harness
 insists on reading from its own directory is kept per harness, and each of those
-files holds no instructions of its own.
+files holds no instructions of its own beyond, for the Claude Code subagents, how to
+relay to Codex.
 
-| What                | The one copy                 | Claude Code reads it through                                      | Codex reads it through                 |
-| ------------------- | ---------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
-| Repo instructions   | `AGENTS.md`                  | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly                   |
-| Skills              | `.agents/skills/<name>/`     | `.claude/skills`, a symlink to `.agents/skills`                   | `.agents/skills` directly              |
-| Hooks               | `.agents/hooks/*.sh`         | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`                    |
-| `research` subagent | `.agents/agents/research.md` | `.claude/agents/research.md` (model, tools)                       | `.codex/agents/research.toml` (effort) |
+| What                | The one copy                 | Claude Code reads it through                                      | Codex reads it through                |
+| ------------------- | ---------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
+| Repo instructions   | `AGENTS.md`                  | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly                  |
+| Skills              | `.agents/skills/<name>/`     | `.claude/skills`, a symlink to `.agents/skills`                   | `.agents/skills` directly             |
+| Hooks               | `.agents/hooks/*.sh`         | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`                   |
+| `research` subagent | `.agents/agents/research.md` | `.claude/agents/research.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/research.toml` (model) |
+| `reviewer` subagent | `.agents/agents/reviewer.md` | `.claude/agents/reviewer.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/reviewer.toml` (model) |
 
 - **Do not add a `CLAUDE.md`**, here or in a parent directory: Claude Code reads
   `AGENTS.md` only as a fallback, when no `CLAUDE.md`, `.claude/CLAUDE.md` or
@@ -210,11 +212,21 @@ files holds no instructions of its own.
   its `apply_patch` tool). The scripts read either payload: Claude Code's
   `tool_input.file_path` or a Codex patch in `tool_input.command`, and
   `$CLAUDE_PROJECT_DIR` or, when Codex leaves it unset, the checkout the hook runs in.
+- **Both subagents run on Codex's gpt-6.1-sol at medium effort**, whichever harness
+  orchestrates. A Claude Code subagent can only run a Claude model, so the Claude wrappers
+  are Haiku relays: they hand the prompt to `scripts/agents/sol.sh`, which runs
+  `codex exec` and returns the final message verbatim. The script names the model for
+  Claude Code and the two `.toml` wrappers name it for Codex, so a model change touches
+  all three. The script needs the `codex` CLI installed and logged in; without it the
+  relay reports `blocked` rather than doing the work on Haiku. Review sub-agents reach
+  `reviewer` through the routing line in `AGENTS.md`, since the vendored `code-review`
+  skill takes no local edits. When T3 Code ships its orchestrator's `delegate_task`
+  (pingdotgg/t3code#2829), the relays are what would change.
 - **Codex reads `.codex/` from the main checkout, even in a worktree** (verified on
-  codex-cli 0.159): a T3 worktree gets the hooks and the `research` agent only once they
-  are on the branch the main checkout has out, while `AGENTS.md` and the skills come from
-  the worktree itself. The hook commands resolve `git rev-parse --show-toplevel`, so the
-  scripts that run are the worktree's.
+  codex-cli 0.159): a T3 worktree gets the hooks and the `research` and `reviewer`
+  agents only once they are on the branch the main checkout has out, while `AGENTS.md`
+  and the skills come from the worktree itself. The hook commands resolve
+  `git rev-parse --show-toplevel`, so the scripts that run are the worktree's.
 - **Codex runs a project hook only once it is trusted**: the project must be trusted, and
   each hook reviewed and approved when Codex first offers it.
 - **Harness-only files stay where they are**: the permission allowlist in
@@ -265,7 +277,10 @@ sharing a worker and its already-imported modules with the files before it.
 The split is computed from file contents when the config loads, so there is no
 list to maintain, but a test in `unit-shared` must not rely on module-level
 state (a module's `let`, a `Set` or a cache) being reset between files: reset
-it in the test, or the next file on that worker sees what this one left.
+it in the test, or the next file on that worker sees what this one left. The
+jsdom window is shared the same way, its address included: a test whose form
+posts to the document's URL sets that URL itself
+(`window.history.replaceState`) before it renders (#1338).
 
 `.github/workflows/pr-title.yml` is a fifth gate, in its own file (#1007): one
 job, `pr-title`, running `pnpm check:pr-title` over
@@ -912,7 +927,9 @@ The loop:
 
 1. Start the dev server in the background: `pnpm dev`. It serves on the `PORT` in `.env.local`,
    which the first run creates with the worktree's database. The examples below say 5173; use yours. A
-   "Port … is already in use" error means your own earlier server is still up: stop it.
+   "Port … is already in use" error usually means your own earlier server is still up:
+   `pnpm dev:stop`. It stops only listeners running from this worktree; one from another directory
+   is left alone and reported, with exit 1.
 2. **Log in once per account and keep the session.** Open `/ingresar` in a named session,
    `snapshot` to get the field refs, `fill` the email and password, `click` the button, then
    `state-save` into `.playwright-cli/`:
@@ -940,10 +957,14 @@ The loop:
 5. Diagnose from the page, not from guesses: `console` for errors, `requests` then
    `request <n>` or `response-body <n>` for the network. Fix the source and go back to step 4.
    A first load may log `504 (Outdated Optimize Dep)` while Vite pre-bundles; `reload` once.
+   Done when `console` shows no error and no React warning on the screens the change touches: a
+   warning (a missing `key`, a hydration mismatch) is a finding to fix, or to report on the PR with
+   its reason when it predates the change.
 6. **Capture the after** at the end, once the change is final: `resize 1440 900` again if the
    1280 check changed it, then `screenshot --filename=.playwright-cli/<what>-after.png`, same screen, same
    account, same size as the before.
-7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server. A
+7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server with
+   `pnpm dev:stop`, which finds it by this worktree's port and says `stopped <pid> on <port>`. A
    session left open holds a Chromium for up to an hour.
 
 Quote any URL with a `$`-segment route or a query string (`'http://localhost:5173/portal?evento=…'`)

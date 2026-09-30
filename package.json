@@ -9,6 +9,7 @@
   "scripts": {
     "build": "react-router build",
     "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/worktree-db.ts ensure && react-router dev",
+    "dev:stop": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/dev-stop.ts",
     "start": "node --env-file=.env node_modules/@react-router/serve/bin.js ./build/server/index.js",
     "typecheck": "react-router typegen && tsc --noEmit",
     "lint": "oxlint",

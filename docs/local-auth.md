@@ -154,22 +154,39 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   on `/portal`.
 - `auditoria@enescena.local` and `jurado@enescena.local`: an auditor and a
   judge, landing on `/auditoria` and `/juzgamiento`. The judge is assigned to
-  one presentation, which they disqualified.
+  both afternoon presentations: they disqualified `Viento Sur` and scored
+  `Río Arriba` 87.
 - All four are email-verified and share one password, `DEV_SEED_PASSWORD` in
   `app/lib/dev-seed/seed.server.ts`; the command prints it.
 - Three events: `Evento Activo` (active, 60 days out), `Evento Futuro` and
   `Evento Finalizado`. The active one has a catalog registrations accept: a
-  modality and submodality, two categories covering ages 1 to 100, two
+  modality with two submodalities (`Lírico`, `Contemporáneo`), two categories
+  covering ages 1 to 100, two
   schedules on the same day (`Bloque mañana`, `Bloque tarde`) open for
   registrations with a solo capacity each, and a solo price.
-- Two dancers and two professors in `Academia Demo`, and two choreographies on
-  the active event: `Luna de Papel` (Ana, morning) and `Viento Sur` (Bea,
-  afternoon).
-- One payment from `Academia Demo`, allocated past the deposit of both
-  inscriptions, so the payment's academy and each inscription's price show
-  their locks. The event is numbered, and `Viento Sur` is disqualified, which
-  counts as evaluated and freezes the afternoon schedule's numbers.
-  `Luna de Papel` stays open to correction.
+- Four dancers and two professors in `Academia Demo`, and four choreographies
+  on the active event, each in a different state:
+
+  | Choreography    | Dancer, block   | State                                                                                                  |
+  | --------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
+  | `Luna de Papel` | Ana, morning    | Deposit paid and numbered; open to correction.                                                         |
+  | `Viento Sur`    | Bea, afternoon  | Deposit paid, numbered, disqualified by the demo judge.                                                |
+  | `Río Arriba`    | Caro, afternoon | Deposit paid, numbered, scored 87 by the demo judge under `Contemporáneo`, and invoiced (`Factura C`). |
+  | `Sal y Arena`   | Dani, morning   | Nothing paid, so it has no number.                                                                     |
+
+- One payment from `Academia Demo`, allocated past the deposit of the three
+  paid inscriptions, so the payment's academy and each of those inscriptions'
+  price show their locks. The two afternoon presentations count as evaluated,
+  which freezes that schedule's numbers; the score locks the criteria of
+  `Contemporáneo` and leaves `Lírico`'s editable.
+- One comprobante, `9999-00000001`, for what `Río Arriba` paid. It goes through
+  the real emission with a stand-in for ARCA, on sales point 9999 so its number
+  cannot collide with a real one. Its CAE is the manual's example and its issuer
+  CUIT a placeholder: it is not a fiscal document.
+
+To read the data directly, the tables are `en_escena_<singular>`
+(`en_escena_choreography`, `en_escena_comprobante`); `\dt en_escena_*` in
+`psql` lists them.
 
 It writes to the `DATABASE_URL` in effect — the worktree's own database when
 `.env.local` exists (see [One database per worktree](#one-database-per-worktree)).
@@ -208,7 +225,8 @@ server console with the `[email:dev]` prefix. The demo accounts above skip this
 flow; to test registration itself, or as an alternative to the seed, use it:
 
 1. Run `pnpm dev`.
-2. Open `http://localhost:5173/registro`.
+2. Open `/registro` on the dev server: `http://localhost:5173/registro` in the
+   main checkout, the `PORT` from `.env.local` in a worktree.
 3. Submit an email address plus password.
 4. Copy the `/registro/confirmar?token_hash=...&type=signup` link from the
    `[email:dev]` console log.

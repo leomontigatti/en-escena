@@ -17,7 +17,8 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   the work cannot continue without them, or before anything destructive: deleting
   data, force-pushing, changing anything outside this repository. When a rule in
   these docs fights the task, say so and get a sign-off before breaking it. End a
-  run with what needs the user first, then what changed, then what was found.
+  run with what needs the user first, then what changed, then what was found in
+  this run.
 - **Implementing** (a feature, a fix, any code change) happens in a local session: call the
   Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
   Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets`: see
@@ -37,6 +38,10 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   `app/components/ui` components — and is not a formatter; formatting is
   Prettier's, unused code is `tsc`'s, and repo conventions belong to the
   `check:*` scripts.
+- **Subagents**: spawn every review sub-agent (`code-review`'s Standards and Spec axes, the
+  readback) as the `reviewer` agent, and research as the `research` agent; both run on
+  Codex's gpt-6.1-sol (see "Agent configuration" in
+  [docs/agents/workflows.md](docs/agents/workflows.md)).
 - **Coding standards**: [docs/agents/coding-standards.md](docs/agents/coding-standards.md),
   including the code language convention (Spanish for what the user reads, English for
   everything else; `comprobante` as the only reserved term). The identifier → UI term

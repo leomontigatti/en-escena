@@ -19,6 +19,13 @@ directory walk), not to suppress it. `git commit --no-verify` is the escape hatc
 for a hook that fires on something genuinely unrelated to your change; CI has
 none, on purpose.
 
+Read the gate by its **exit code**, unpiped: `pnpm check:fallow; echo $?`. A pipe
+into `grep` or `tail` reports that command's status in Fallow's place, which is
+how a session chased a failure that was not one (#1340). With exit 0, whatever
+it printed is informational: the metrics line, and functions over a threshold
+that `master` already had. With exit 1, the findings it lists are what this
+branch added.
+
 **As an investigation tool**, run `pnpm exec fallow audit --format json --quiet
 --explain --gate-marker agent` when auditing a changeset, preparing a PR handoff
 or chasing maintainability findings. The task map below is the rest of the
