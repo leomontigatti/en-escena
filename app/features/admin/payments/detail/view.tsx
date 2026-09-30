@@ -349,7 +349,17 @@ function EditablePaymentDetailForm({
       onSubmit={createValidatedRouteFormDataSubmitHandler(form, submit)}
     >
       <input type="hidden" name="intent" value={updatePaymentIntent} />
-      <AdminResourceFormCard contentClassName="gap-5">
+      <AdminResourceFormCard
+        contentClassName="gap-5"
+        footer={
+          <FormActions
+            backTo="/administracion/pagos"
+            hasChanges={isDirty}
+            isPending={isPending}
+            onDiscard={() => form.reset()}
+          />
+        }
+      >
         <FieldGroup className="grid gap-5 md:grid-cols-2">
           <PaymentAcademyField
             academies={loaderData.academies}
@@ -360,12 +370,6 @@ function EditablePaymentDetailForm({
           <PaymentFields control={form.control} />
         </FieldGroup>
       </AdminResourceFormCard>
-      <FormActions
-        backTo="/administracion/pagos"
-        hasChanges={isDirty}
-        isPending={isPending}
-        onDiscard={() => form.reset()}
-      />
     </form>
   );
 }
@@ -375,7 +379,18 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <AdminResourceFormCard contentClassName="gap-5">
+      <AdminResourceFormCard
+        contentClassName="gap-5"
+        footer={
+          <FormActions
+            backTo="/administracion/pagos"
+            canEdit={false}
+            hasChanges={false}
+            isPending={false}
+            onDiscard={() => undefined}
+          />
+        }
+      >
         <FieldGroup className="grid gap-5 md:grid-cols-2">
           <ReadOnlyField
             className="md:col-span-2"
@@ -400,13 +415,6 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
           />
         </FieldGroup>
       </AdminResourceFormCard>
-      <FormActions
-        backTo="/administracion/pagos"
-        canEdit={false}
-        hasChanges={false}
-        isPending={false}
-        onDiscard={() => undefined}
-      />
     </div>
   );
 }

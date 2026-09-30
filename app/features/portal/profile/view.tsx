@@ -110,7 +110,7 @@ export function PortalProfileRouteView({
         </Alert>
       </AlertStack>
 
-      <Card>
+      <Card className="overflow-clip">
         <CardContent>
           <form
             id={profileFormId}
@@ -155,17 +155,16 @@ export function PortalProfileRouteView({
             </FieldGroup>
           </form>
         </CardContent>
+        <FormActions
+          backTo="/portal"
+          form={profileFormId}
+          hasChanges={form.form.formState.isDirty}
+          isPending={isProfileSaving}
+          onDiscard={form.discard}
+        />
       </Card>
 
       <PasswordRecoveryForm email={loaderData.email} />
-
-      <FormActions
-        backTo="/portal"
-        form={profileFormId}
-        hasChanges={form.form.formState.isDirty}
-        isPending={isProfileSaving}
-        onDiscard={form.discard}
-      />
     </section>
   );
 }

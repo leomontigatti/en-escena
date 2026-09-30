@@ -164,7 +164,7 @@ export function PortalProfessorDetailRouteView({
           professorActive={loaderData.professor.active}
         />
 
-        <Card>
+        <Card className="overflow-clip">
           <CardContent>
             <form
               id={professorDetailFormId}
@@ -206,16 +206,15 @@ export function PortalProfessorDetailRouteView({
               </FieldGroup>
             </form>
           </CardContent>
+          <FormActions
+            backTo="/portal/profesores"
+            form={professorDetailFormId}
+            hasChanges={form.form.formState.isDirty}
+            isPending={isSubmitting}
+            onDiscard={form.discard}
+            viewTransition
+          />
         </Card>
-
-        <FormActions
-          backTo="/portal/profesores"
-          form={professorDetailFormId}
-          hasChanges={form.form.formState.isDirty}
-          isPending={isSubmitting}
-          onDiscard={form.discard}
-          viewTransition
-        />
         {nameWarning ? (
           <RosterNameWarningDialog
             formId={professorDetailFormId}

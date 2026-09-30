@@ -247,7 +247,19 @@ function EditEventPanel({
         onSubmit={removal.onSubmit}
       >
         <input type="hidden" name="intent" value="update" />
-        <AdminResourceFormCard>
+        <AdminResourceFormCard
+          footer={
+            <FormActions
+              backTo="/administracion/eventos"
+              hasChanges={hasChanges}
+              isPending={eventForm.isPending}
+              onDiscard={() => {
+                eventForm.form.reset();
+                documentsForm.discard();
+              }}
+            />
+          }
+        >
           <EventFormFields controller={eventForm} />
           <EventFormTabs
             controller={eventForm}
@@ -259,15 +271,6 @@ function EditEventPanel({
             }
           />
         </AdminResourceFormCard>
-        <FormActions
-          backTo="/administracion/eventos"
-          hasChanges={hasChanges}
-          isPending={eventForm.isPending}
-          onDiscard={() => {
-            eventForm.form.reset();
-            documentsForm.discard();
-          }}
-        />
       </form>
       <RemoveDocumentsDialog
         isPending={eventForm.isPending}

@@ -111,7 +111,18 @@ export function EventScheduleDetailView({
               />
             ) : null}
           </AlertStack>
-          <ScheduleFormPanel>
+          <ScheduleFormPanel
+            footer={
+              <ScheduleFormActions
+                form={form}
+                formId="update-schedule-form"
+                pendingScope={{
+                  intent: "update-schedule",
+                  fields: { id: schedule.id },
+                }}
+              />
+            }
+          >
             <ScheduleForm
               categories={loaderData.categories}
               form={form}
@@ -123,14 +134,6 @@ export function EventScheduleDetailView({
               scheduleCapacities={schedule.scheduleCapacities}
             />
           </ScheduleFormPanel>
-          <ScheduleFormActions
-            form={form}
-            formId="update-schedule-form"
-            pendingScope={{
-              intent: "update-schedule",
-              fields: { id: schedule.id },
-            }}
-          />
         </>
       ) : (
         <EmptyResourceState>

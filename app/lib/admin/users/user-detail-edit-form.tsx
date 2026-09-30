@@ -65,7 +65,16 @@ export function InternalUserEditCard({
       onSubmit={handleSubmit}
     >
       <input type="hidden" name="intent" value={updateInternalUserIntent} />
-      <UserFormCard>
+      <UserFormCard
+        footer={
+          <FormActions
+            backTo={backToList}
+            hasChanges={form.formState.isDirty}
+            isPending={isSavingUser}
+            onDiscard={() => reset(savedValues)}
+          />
+        }
+      >
         <TextInputField
           autoComplete="name"
           control={control}
@@ -78,13 +87,6 @@ export function InternalUserEditCard({
         />
         <InternalUserEditRoleField control={control} mainRole={user.mainRole} />
       </UserFormCard>
-
-      <FormActions
-        backTo={backToList}
-        hasChanges={form.formState.isDirty}
-        isPending={isSavingUser}
-        onDiscard={() => reset(savedValues)}
-      />
     </form>
   );
 }

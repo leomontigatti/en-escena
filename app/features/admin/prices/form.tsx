@@ -225,8 +225,16 @@ export function PriceFormActions({
   );
 }
 
-export function PriceFormPanel({ children }: { children: ReactNode }) {
-  return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
+export function PriceFormPanel({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <AdminResourceFormCard footer={footer}>{children}</AdminResourceFormCard>
+  );
 }
 
 function NameField({

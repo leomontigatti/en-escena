@@ -42,15 +42,18 @@ export function EventCreateView({ actionData }: EventCreateViewProps) {
         onSubmit={eventForm.handleSubmit}
       >
         <input type="hidden" name="intent" value="create" />
-        <AdminResourceFormCard>
+        <AdminResourceFormCard
+          footer={
+            <FormActions
+              backTo="/administracion/eventos"
+              hasChanges={eventForm.form.formState.isDirty}
+              isPending={eventForm.isPending}
+              onDiscard={() => eventForm.form.reset()}
+            />
+          }
+        >
           <EventFormFields controller={eventForm} />
         </AdminResourceFormCard>
-        <FormActions
-          backTo="/administracion/eventos"
-          hasChanges={eventForm.form.formState.isDirty}
-          isPending={eventForm.isPending}
-          onDiscard={() => eventForm.form.reset()}
-        />
       </form>
     </AdminResourceLayout>
   );

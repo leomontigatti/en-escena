@@ -64,7 +64,18 @@ function CategoryDetailView({
     >
       {category ? (
         <>
-          <AdminResourceFormCard>
+          <AdminResourceFormCard
+            footer={
+              <CategoryFormActions
+                form={form}
+                formId="update-category-form"
+                pendingScope={{
+                  intent: "update-category",
+                  fields: { id: category.id },
+                }}
+              />
+            }
+          >
             <CategoryForm
               form={form}
               formId="update-category-form"
@@ -73,14 +84,6 @@ function CategoryDetailView({
               modalities={loaderData.modalities}
             />
           </AdminResourceFormCard>
-          <CategoryFormActions
-            form={form}
-            formId="update-category-form"
-            pendingScope={{
-              intent: "update-category",
-              fields: { id: category.id },
-            }}
-          />
         </>
       ) : (
         <EmptyResourceState>No encontramos esa categoría.</EmptyResourceState>

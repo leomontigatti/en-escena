@@ -95,7 +95,16 @@ export function NewInternalUserRouteView({
           onSubmit={handleSubmit}
         >
           <input type="hidden" name="intent" value={createInternalUserIntent} />
-          <UserFormCard>
+          <UserFormCard
+            footer={
+              <FormActions
+                backTo="/administracion/usuarios"
+                hasChanges={isDirty}
+                isPending={isCreatingUser}
+                onDiscard={() => form.reset()}
+              />
+            }
+          >
             <TextInputField
               autoComplete="name"
               control={control}
@@ -129,12 +138,6 @@ export function NewInternalUserRouteView({
               type="password"
             />
           </UserFormCard>
-          <FormActions
-            backTo="/administracion/usuarios"
-            hasChanges={isDirty}
-            isPending={isCreatingUser}
-            onDiscard={() => form.reset()}
-          />
         </form>
       </div>
     </AdminResourceLayout>

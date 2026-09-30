@@ -36,7 +36,15 @@ export function EventScheduleCreateView({
       title="Nuevo cronograma"
       description="Definí fecha, hora, cupo total, y modalidades y categorías aceptadas para este cronograma."
     >
-      <ScheduleFormPanel>
+      <ScheduleFormPanel
+        footer={
+          <ScheduleFormActions
+            form={form}
+            formId={createScheduleFormId}
+            pendingScope={{ intent: "create-schedule" }}
+          />
+        }
+      >
         <ScheduleForm
           categories={loaderData.categories}
           form={form}
@@ -45,11 +53,6 @@ export function EventScheduleCreateView({
           modalities={loaderData.modalities}
         />
       </ScheduleFormPanel>
-      <ScheduleFormActions
-        form={form}
-        formId={createScheduleFormId}
-        pendingScope={{ intent: "create-schedule" }}
-      />
     </AdminResourceLayout>
   );
 }

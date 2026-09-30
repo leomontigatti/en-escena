@@ -33,7 +33,15 @@ export function CategoryCreateView({
       title="Nueva categoría"
       description="Definí rango de edad, tipos de grupo, modalidades y niveles de experiencia."
     >
-      <AdminResourceFormCard>
+      <AdminResourceFormCard
+        footer={
+          <CategoryFormActions
+            form={form}
+            formId="create-category-form"
+            pendingScope={{ intent: "create-category" }}
+          />
+        }
+      >
         <CategoryForm
           form={form}
           formId="create-category-form"
@@ -41,11 +49,6 @@ export function CategoryCreateView({
           modalities={loaderData.modalities}
         />
       </AdminResourceFormCard>
-      <CategoryFormActions
-        form={form}
-        formId="create-category-form"
-        pendingScope={{ intent: "create-category" }}
-      />
     </AdminResourceLayout>
   );
 }

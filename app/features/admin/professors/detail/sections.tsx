@@ -97,7 +97,7 @@ export function ProfessorDetailAlerts({
 }
 
 /**
- * The whole page form: the card of fields and the pinned footer under it. Whoever
+ * The whole page form: the card of fields, closed by its pinned footer. Whoever
  * may edit gets the fields editable in place; anyone else sees them disabled with
  * only `Volver`.
  */
@@ -129,21 +129,23 @@ export function ProfessorDetailForm({
       onSubmit={onSubmit}
     >
       <input type="hidden" name="intent" value="update-professor" />
-      <AdminResourceFormCard>
+      <AdminResourceFormCard
+        footer={
+          <FormActions
+            backTo={backToList}
+            canEdit={canEdit}
+            hasChanges={editForm.hasChanges}
+            isPending={isSaving}
+            onDiscard={editForm.discard}
+          />
+        }
+      >
         <ProfessorAdministrativeDataSection
           canEdit={canEdit}
           editForm={editForm}
           professor={professor}
         />
       </AdminResourceFormCard>
-
-      <FormActions
-        backTo={backToList}
-        canEdit={canEdit}
-        hasChanges={editForm.hasChanges}
-        isPending={isSaving}
-        onDiscard={editForm.discard}
-      />
       {nameWarning ? (
         <RosterNameWarningDialog formId={editFormId} warning={nameWarning} />
       ) : null}

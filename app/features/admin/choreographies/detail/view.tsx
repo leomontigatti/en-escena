@@ -3,7 +3,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
-import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import {
+  AdminResourceFormCard,
+  AdminResourceLayout,
+} from "@/components/admin/resource-layout";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { FormActions } from "@/components/shared/form-actions";
@@ -18,7 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -273,27 +275,27 @@ function ChoreographyDetailForm({
         className="flex flex-1 flex-col gap-6"
         onSubmit={(event) => void draft.requestSave(event)}
       >
-        <Card>
-          <CardContent className="flex flex-col gap-6">
-            <FieldGroup className="grid gap-5 md:grid-cols-2">
-              <ChoreographyClassificationFields
-                draft={draft}
-                loaderData={loaderData}
-              />
-            </FieldGroup>
-            <ChoreographyPeopleFields draft={draft} loaderData={loaderData} />
-            <ChoreographyMusicField loaderData={loaderData} />
-          </CardContent>
-        </Card>
-
-        <FormActions
-          backTo={loaderData.backToList}
-          canEdit={loaderData.canEdit}
-          canSave={draft.canSave}
-          hasChanges={draft.isDirty}
-          isPending={draft.isSaving}
-          onDiscard={draft.discard}
-        />
+        <AdminResourceFormCard
+          footer={
+            <FormActions
+              backTo={loaderData.backToList}
+              canEdit={loaderData.canEdit}
+              canSave={draft.canSave}
+              hasChanges={draft.isDirty}
+              isPending={draft.isSaving}
+              onDiscard={draft.discard}
+            />
+          }
+        >
+          <FieldGroup className="grid gap-5 md:grid-cols-2">
+            <ChoreographyClassificationFields
+              draft={draft}
+              loaderData={loaderData}
+            />
+          </FieldGroup>
+          <ChoreographyPeopleFields draft={draft} loaderData={loaderData} />
+          <ChoreographyMusicField loaderData={loaderData} />
+        </AdminResourceFormCard>
       </form>
 
       <ConfirmDraftDialog
