@@ -60,7 +60,7 @@ describe("label references (#1116)", () => {
   });
 
   test("in markdown, reads the code and not the prose around it", () => {
-    const markdown = ".claude/skills/example/SKILL.md";
+    const markdown = ".agents/skills/example/SKILL.md";
     const read = (contents: string) =>
       findLabelReferencesInSource({ contents, filePath: markdown }).map(
         (reference) => reference.label,

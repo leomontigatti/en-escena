@@ -2,7 +2,7 @@
 
 Project-local workflows for agents working on En Escena.
 
-These workflows adapt useful ideas from `mattpocock/course-video-manager` to this repo. They are repo instructions for Claude Code and other agents that read `CLAUDE.md`.
+These workflows adapt useful ideas from `mattpocock/course-video-manager` to this repo. They are repo instructions for Claude Code, Codex and any other agent that reads `AGENTS.md`.
 
 ## Where work starts
 
@@ -68,10 +68,10 @@ of them, and ask for its report as text with a fixed shape: status, one-line
 summary, artifacts touched, next step, risks. A subagent whose last action is a
 tool call returns the tool result instead of its report.
 
-Reading outside the repo goes to the `research` agent (`.claude/agents/research.md`). It
+Reading outside the repo goes to the `research` agent (`.agents/agents/research.md`). It
 fetches with `curl` and with the `firecrawl` CLI through the `firecrawl-search` and
 `firecrawl-scrape` skills, and those two are **installed per machine**
-(`~/.claude/skills`, `npm i -g firecrawl-cli`, then `firecrawl login`), not vendored here:
+(`~/.claude/skills` for Claude Code, `~/.agents/skills` for Codex, `npm i -g firecrawl-cli`, then `firecrawl login`), not vendored here:
 the built-in web tools are denied in the user settings, so firecrawl is the only way an agent
 can search. On a machine without it the agent degrades to `curl` on plain-text sources and
 says so.
@@ -102,7 +102,7 @@ database, backup and AFK commands included — is
 
 Use `pnpm typecheck` for type validation.
 
-Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app. A PreToolUse hook (`.claude/hooks/block-npx-tsc.sh`, wired in `.claude/settings.json`) enforces this: it blocks `npx tsc` / `pnpm exec tsc` / `pnpm dlx tsc` and points back here.
+Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app. A PreToolUse hook (`.agents/hooks/block-npx-tsc.sh`, wired in `.claude/settings.json` and `.codex/hooks.json`) enforces this: it blocks `npx tsc` / `pnpm exec tsc` / `pnpm dlx tsc` and points back here.
 
 When reading React Router flat-route files with shell commands, quote paths that
 contain `$` segments so the shell does not expand route params. For example, use
@@ -177,6 +177,44 @@ Rules for a session:
 The Automatically pull option in T3's Source Control settings keeps the main
 checkout's `master` current. It only runs when that checkout is clean and on
 `master`, which the rules above guarantee.
+
+## Agent configuration
+
+Claude Code and Codex read one copy of everything; only the wiring each harness
+insists on reading from its own directory is kept per harness, and each of those
+files holds no instructions of its own.
+
+| What                | The one copy                 | Claude Code reads it through                                      | Codex reads it through                 |
+| ------------------- | ---------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
+| Repo instructions   | `AGENTS.md`                  | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly                   |
+| Skills              | `.agents/skills/<name>/`     | `.claude/skills`, a symlink to `.agents/skills`                   | `.agents/skills` directly              |
+| Hooks               | `.agents/hooks/*.sh`         | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`                    |
+| `research` subagent | `.agents/agents/research.md` | `.claude/agents/research.md` (model, tools)                       | `.codex/agents/research.toml` (effort) |
+
+- **Do not add a `CLAUDE.md`**, here or in a parent directory: Claude Code reads
+  `AGENTS.md` only as a fallback, when no `CLAUDE.md`, `.claude/CLAUDE.md` or
+  `CLAUDE.local.md` sits in the working directory or above it, and would silently stop
+  reading these instructions. Claude-only notes go in `~/.claude/CLAUDE.md`, which does
+  not count.
+- **Skills are the one symlink**: Claude Code reads skills only from `.claude/skills`, with
+  no setting to add a directory, so `.claude/skills` points at `.agents/skills`.
+- **A new skill** goes in `.agents/skills/<name>/` and both harnesses see it; there is
+  nothing to link.
+- **A hook change** is a change to the script. Adding or removing a hook touches both
+  wiring files, which carry the same events and matchers (Codex accepts `Write|Edit` for
+  its `apply_patch` tool). The scripts read either payload: Claude Code's
+  `tool_input.file_path` or a Codex patch in `tool_input.command`, and
+  `$CLAUDE_PROJECT_DIR` or, when Codex leaves it unset, the checkout the hook runs in.
+- **Codex reads `.codex/` from the main checkout, even in a worktree** (verified on
+  codex-cli 0.159): a T3 worktree gets the hooks and the `research` agent only once they
+  are on the branch the main checkout has out, while `AGENTS.md` and the skills come from
+  the worktree itself. The hook commands resolve `git rev-parse --show-toplevel`, so the
+  scripts that run are the worktree's.
+- **Codex runs a project hook only once it is trusted**: the project must be trusted, and
+  each hook reviewed and approved when Codex first offers it.
+- **Harness-only files stay where they are**: the permission allowlist in
+  `.claude/settings.json` and the dev-server launcher in `.claude/launch.json` have no
+  Codex counterpart here.
 
 ## Continuous integration
 
@@ -468,11 +506,12 @@ Hook guidance:
 
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
-  repo-root configs (#592); on Spanish in the `.md` under `.claude/`,
-  `.github/`, `.sandcastle/` and `docs/` — `docs/adr/` and `docs/research/` excepted,
-  because both are records of something external (#792); on the `#` comments in
+  repo-root configs (#592); on Spanish in the `.md` under `.agents/`, `.claude/`,
+  `.github/`, `.sandcastle/` and `docs/` — `docs/adr/`, `docs/research/` and the
+  vendored skills in `skills-lock.json` excepted, because all three are records of
+  something external (#792); on the `#` comments in
   the YAML under `.github/` and at the repo root (#793); and on the `#` comments
-  and the stderr messages of the `.sh` under `.claude/` and `scripts/`, the hooks
+  and the stderr messages of the `.sh` under `.agents/` and `scripts/`, the hooks
   included (#947) — a hook's stderr is the sentence the agent reads back, so it
   is governed like a thrown error, whether it sits on the `>&2` line or in the
   variable that line prints. It reads three instruments: Spanish function words,
@@ -536,18 +575,18 @@ Hook guidance:
 - Prefer running `pnpm typecheck` explicitly before finishing. This command
   must stay as `pnpm typecheck`, not `pnpm exec tsc`, because it generates React
   Router route types before TypeScript runs.
-- Two Claude Code hooks run inside the session itself (#982), and they fire in
-  the AFK implement runners too — hooks are configuration, not a terminal
-  feature, so a headless runner reads the same `.claude/settings.json` (#930):
-  - **`PostToolUse` on `Write|Edit`** → `.claude/hooks/format-edited-file.sh`
-    runs `node_modules/.bin/prettier --write --ignore-unknown` over the file the
+- Two hooks run inside the session itself (#982), in Claude Code and Codex
+  alike (see [Agent configuration](#agent-configuration)), and in a headless
+  runner too — hooks are configuration, not a terminal feature (#930):
+  - **`PostToolUse` on `Write|Edit`** → `.agents/hooks/format-edited-file.sh`
+    runs `node_modules/.bin/prettier --write --ignore-unknown` over each file the
     tool just wrote. It calls the binary directly rather than through
     `pnpm exec`, which costs 0.9 s wall against 93 ms of actual Prettier, and it
     always exits 0 without writing to stderr: `PostToolUse` stderr is fed back to
-    Claude, and a reformat is not something to react to. An unsupported path — a
+    the agent, and a reformat is not something to react to. An unsupported path — a
     `.png` — is a silent no-op. The matcher is exact-string alternation, so it
     does not cover `NotebookEdit`; this repo has no notebooks.
-  - **`Stop`** → `.claude/hooks/stop-typecheck-lint.sh` runs
+  - **`Stop`** → `.agents/hooks/stop-typecheck-lint.sh` runs
     `pnpm typecheck && pnpm lint` and **blocks** with exit 2, putting the failing
     output in front of the agent. It costs ~11.6 s (5.1 s typecheck + ~6.5 s
     lint, type-aware since #986). It exits 0 without running
@@ -569,7 +608,7 @@ Hook guidance:
     `Explore` and `Plan` do not author app code.
 
   `SKIP_STOP_CHECKS` is the documented local bypass: set to any value, it turns
-  the gate off — `SKIP_STOP_CHECKS=1 claude`, or export it for the session. The gate keeps blocking while the failure
+  the gate off — `SKIP_STOP_CHECKS=1 claude` (or `codex`), or export it for the session. The gate keeps blocking while the failure
   persists; Claude Code force-closes the turn after 8 consecutive blocks, which is
   the backstop, so the wording of the last instruction is all `stop_hook_active`
   decides.
@@ -797,7 +836,7 @@ screen keeps rendering the list.
 ## Implement
 
 Implementing a feature, fixing a bug or changing code in a local session follows the
-`implement` skill ([`.claude/skills/implement/SKILL.md`](../../.claude/skills/implement/SKILL.md)):
+`implement` skill ([`.agents/skills/implement/SKILL.md`](../../.agents/skills/implement/SKILL.md)):
 call the Skill tool with "implement" before editing. It is the same workflow the AFK implement
 runners follow from their prompts — test-first through the `tdd` skill at the ticket's **Test
 seams**, typecheck and single test files as you go, the list in

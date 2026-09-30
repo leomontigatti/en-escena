@@ -3,7 +3,7 @@
 > **Scope since ADR-0016 (last amendment 2026-09-26).** The implement, review, write-PR, To
 > Issues, Update Branch, Label Behind PRs and Promote Queued runners are all retired;
 > implementation, review, PRD slicing and branch updates happen in local sessions (the last of
-> those through the [`babysit-pr`](../../.claude/skills/babysit-pr/SKILL.md) skill). Architecture
+> those through the [`babysit-pr`](../../.agents/skills/babysit-pr/SKILL.md) skill). Architecture
 > Review is the only AFK workflow left. What this document sets up is its infrastructure.
 
 Runbook for the infrastructure Architecture Review consumes (spec §3.1 covers the retired

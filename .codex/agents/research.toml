@@ -1,0 +1,6 @@
+# Codex wrapper for the research agent. The instructions live in
+# `.agents/agents/research.md`, shared with Claude Code's `.claude/agents/research.md`.
+name = "research"
+description = "Resolves a research question against primary sources (official docs, source code, npm registry, specs) and reports the findings back to the session that spawned it. Use for \"quick research\", \"search the web\", wayfinder research tickets and any \"look this up in the docs\" legwork."
+model_reasoning_effort = "medium"
+developer_instructions = "Before anything else, read `.agents/agents/research.md` and follow it: it holds this agent's instructions."

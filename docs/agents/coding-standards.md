@@ -40,7 +40,7 @@ earns its place when it covers something a glance at the page would not:
 
 - **Keep**: reducers, state machines, validation, formatting and label logic
   (ideally extracted into a pure module and tested without React, per
-  [FRONTEND-TDD.md](../../.claude/skills/implement/FRONTEND-TDD.md)), and user
+  [FRONTEND-TDD.md](../../.agents/skills/implement/FRONTEND-TDD.md)), and user
   flows that type or click and assert the resulting behaviour — what gets
   submitted, what the user is told, what becomes disabled — or an
   accessibility contract such as focus, labels or roles a keyboard user
@@ -148,7 +148,7 @@ Route filenames are URLs, so they stay Spanish
 English (`loadAcademyFinances`). That mapping is intentional, not drift.
 
 "Docs" means every engineering doc, with no exceptions: ADRs, `docs/agents/`,
-`docs/domain/`, the glossary (`CONTEXT.md`), the repo index (`CLAUDE.md`) and
+`docs/domain/`, the glossary (`CONTEXT.md`), the repo index (`AGENTS.md`) and
 the style guide. No user reads these files, so the rule above already decides
 them. Being _about_ the product surface does not make a file part of it —
 otherwise ADRs would qualify too.
@@ -195,7 +195,7 @@ directory in the repo holding a file of those extensions, which is the point:
 and `.sandcastle/` was the next one waiting. A test derives the expected roots
 from `git ls-files`, so the next gap of that shape fails rather than hides.
 
-**Markdown is covered too** (#792): `.md` under `.claude/`, `.github/`,
+**Markdown is covered too** (#792): `.md` under `.agents/`, `.claude/`, `.github/`,
 `.sandcastle/` and `docs/`, plus the repo root. Two directories are exempt, for one reason — a record
 of something external may not be rewritten. `docs/adr/` is the decision as it was
 taken. `docs/research/` cites Argentine tax law by the titles the regulations
@@ -244,13 +244,13 @@ It was gated because leaving it on review is what let six Spanish comments acros
 four workflow files outlive #592's sweep.
 
 **Shell is covered too** ([#947](https://github.com/leomontigatti/en-escena/issues/947)):
-`.sh` under `.claude/` and `scripts/`, plus the repo root. Its `#` comments are
+`.sh` under `.agents/` and `scripts/`, plus the repo root. Its `#` comments are
 read by YAML's rule, the same one a `run: |` block already went through. Its
-**stderr is read like a thrown `Error`**, because that is what it is: a Claude
-Code hook's stderr is the sentence the agent is handed back, so nobody but an
+**stderr is read like a thrown `Error`**, because that is what it is: an agent
+hook's stderr is the sentence the agent is handed back, so nobody but an
 agent or an operator ever reads it. `block-npx-tsc.sh` shipped that sentence in
 Spanish through #592's sweep and #793's, because the gate reached only the `.md`
-under `.claude/`.
+under `.claude/`, where the hooks lived then.
 
 The predicate reads the quoted strings on a line that redirects to `>&2`, and the
 literals assigned to a variable the file interpolates into one — `instruction="…"`

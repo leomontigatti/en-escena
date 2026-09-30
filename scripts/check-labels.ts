@@ -27,8 +27,8 @@ const scanned: { directory: string; keeps: RegExp }[] = [
   { directory: ".github/workflows", keeps: /\.ya?ml$/ },
   { directory: ".sandcastle", keeps: /\.(ts|mts|md)$/ },
   { directory: "scripts", keeps: /\.(ts|mts|mjs|sh)$/ },
-  { directory: ".claude/skills", keeps: /\.md$/ },
-  { directory: ".claude/agents", keeps: /\.md$/ },
+  { directory: ".agents/skills", keeps: /\.md$/ },
+  { directory: ".agents/agents", keeps: /\.md$/ },
 ];
 
 // Fixtures in tests hold misspelled labels on purpose.
