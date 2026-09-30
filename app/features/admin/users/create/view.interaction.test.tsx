@@ -80,7 +80,7 @@ describe("NewInternalUserRouteView interactions", () => {
     await updateReactDomForm(() => {
       setInputValue(getInput("name"), "Ana Juez");
       setInputValue(getInput("internalUsername"), "ana.juez");
-      setInputValue(getInput("temporaryPassword"), "contrasena8");
+      setInputValue(getInput("password"), "contrasena8");
     });
 
     expect(document.body.textContent).not.toContain(
@@ -99,7 +99,7 @@ describe("NewInternalUserRouteView interactions", () => {
     await updateReactDomForm(() => {
       setInputValue(getInput("name"), "Ana Juez");
       setInputValue(getInput("internalUsername"), "ana.juez");
-      setInputValue(getInput("temporaryPassword"), "contrasena8");
+      setInputValue(getInput("password"), "contrasena8");
     });
 
     await updateReactDomForm(() => {

@@ -7,7 +7,7 @@ import {
   getFieldErrors,
 } from "@/lib/shared/form-validation";
 
-const temporaryPasswordMinLength = 8;
+const passwordMinLength = 8;
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
 
@@ -23,9 +23,9 @@ export const createInternalUserSchema = z.object({
   name: requiredTextField(),
   internalUsername: requiredTextField(),
   role: roleField,
-  temporaryPassword: requiredTextField().refine(
-    (value) => value.length >= temporaryPasswordMinLength,
-    `La contraseña temporal debe tener al menos ${temporaryPasswordMinLength} caracteres.`,
+  password: requiredTextField().refine(
+    (value) => value.length >= passwordMinLength,
+    `La contraseña debe tener al menos ${passwordMinLength} caracteres.`,
   ),
 });
 
@@ -33,7 +33,7 @@ const createInternalUserFieldNames = [
   "name",
   "internalUsername",
   "role",
-  "temporaryPassword",
+  "password",
 ] as const;
 
 export type CreateInternalUserField =
@@ -45,7 +45,7 @@ export type CreateInternalUserFormValues = {
   name: string;
   internalUsername: string;
   role: string;
-  temporaryPassword: string;
+  password: string;
 };
 
 export type CreateInternalUserActionData = {
@@ -61,7 +61,7 @@ export const defaultCreateInternalUserFormValues: CreateInternalUserFormValues =
     name: "",
     internalUsername: "",
     role: "judge",
-    temporaryPassword: "",
+    password: "",
   };
 
 export function readCreateInternalUserFormValues(
@@ -71,7 +71,7 @@ export function readCreateInternalUserFormValues(
     name: String(formData.get("name") ?? ""),
     internalUsername: String(formData.get("internalUsername") ?? ""),
     role: String(formData.get("role") ?? ""),
-    temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
+    password: String(formData.get("password") ?? ""),
   };
 }
 

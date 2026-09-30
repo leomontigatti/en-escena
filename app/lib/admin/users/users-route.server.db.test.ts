@@ -25,7 +25,6 @@ describe("`/administracion/usuarios` route", () => {
     const admin = await createSignedInRequest({
       email: "admin.usuarios.lista@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios",
       userName: "Ada Admin",
       internalUsername: "ada.admin",
@@ -33,7 +32,6 @@ describe("`/administracion/usuarios` route", () => {
     const auditor = await createSignedInRequest({
       email: "auditor.usuarios.lista@example.com",
       role: "auditor",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios",
       userName: "Ariel Auditor",
       internalUsername: "ariel.auditor",
@@ -46,7 +44,6 @@ describe("`/administracion/usuarios` route", () => {
     await createSignedInRequest({
       email: "judge.usuarios.lista@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios",
       userName: "Joaquín Juez",
       internalUsername: "joaquin.juez",
@@ -54,7 +51,6 @@ describe("`/administracion/usuarios` route", () => {
     const suspendedUser = await createSignedInRequest({
       email: "suspendido.usuarios@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios",
       userName: "Susana Suspendida",
       internalUsername: "susana.suspendida",
@@ -63,14 +59,6 @@ describe("`/administracion/usuarios` route", () => {
       .update(user)
       .set({ suspended: true })
       .where(eq(user.id, suspendedUser.userId));
-    await createSignedInRequest({
-      email: "mandatorio.usuarios@example.com",
-      role: "admin",
-      requiresPasswordChange: true,
-      requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Marta Mandatoria",
-      internalUsername: "marta.mandatoria",
-    });
 
     await expect(loader(routeArgs(admin.request))).resolves.toMatchObject({
       canManage: true,
@@ -83,7 +71,6 @@ describe("`/administracion/usuarios` route", () => {
     const { request: judgeRequest } = await createSignedInRequest({
       email: "judge.bloqueado@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios",
       userName: "Julia Juez",
       internalUsername: "julia.juez",
@@ -109,14 +96,12 @@ describe("`/administracion/usuarios` route", () => {
     expect(defaultMarkup).not.toContain("ada.admin");
     expect(defaultMarkup).not.toContain("academia.usuarios@example.com");
     expect(defaultMarkup).toContain("Activo");
-    expect(defaultMarkup).toContain("Cambio obligatorio");
     expect(defaultMarkup).not.toContain("Susana Suspendida");
     expect(defaultMarkup).not.toContain("susana.suspendida");
 
     const byIdentifierRequest = await createSignedInRequest({
       email: "admin.busqueda.usuarios@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios?busqueda=ada.admin",
       userName: "Admin Búsqueda",
       internalUsername: "admin.busqueda",
@@ -132,7 +117,6 @@ describe("`/administracion/usuarios` route", () => {
     const legacyQueryRequest = await createSignedInRequest({
       email: "admin.legacy-query.usuarios@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios?q=ada.admin",
       userName: "Admin Legacy",
       internalUsername: "admin.legacy",
@@ -150,7 +134,6 @@ describe("`/administracion/usuarios` route", () => {
     const byNameRequest = await createSignedInRequest({
       email: "admin.nombre.usuarios@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl:
         "http://localhost/administracion/usuarios?busqueda=Nora+Norte",
       userName: "Admin Nombre",
@@ -165,7 +148,6 @@ describe("`/administracion/usuarios` route", () => {
     const byTypeRequest = await createSignedInRequest({
       email: "admin.tipo.usuarios@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios?tipo=academy",
       userName: "Admin Tipo",
       internalUsername: "admin.tipo",
@@ -179,24 +161,19 @@ describe("`/administracion/usuarios` route", () => {
     const byStatusRequest = await createSignedInRequest({
       email: "admin.estado.usuarios@example.com",
       role: "admin",
-      requiresPasswordChange: false,
-      requestUrl:
-        "http://localhost/administracion/usuarios?estado=mandatory-password-change",
+      requestUrl: "http://localhost/administracion/usuarios?estado=suspended",
       userName: "Admin Estado",
       internalUsername: "admin.estado",
     });
     const byStatusData = await loader(routeArgs(byStatusRequest.request));
 
     expect(
-      byStatusData.users.every(
-        (savedUser) => savedUser.state === "mandatory-password-change",
-      ),
+      byStatusData.users.every((savedUser) => savedUser.state === "suspended"),
     ).toBe(true);
 
     const byRoleRequest = await createSignedInRequest({
       email: "admin.rol.usuarios@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios?rol=auditor",
       userName: "Admin Rol",
       internalUsername: "admin.rol",
@@ -210,7 +187,6 @@ describe("`/administracion/usuarios` route", () => {
     const bySuspendedStatusRequest = await createSignedInRequest({
       email: "admin.suspendidos.usuarios@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios?estado=suspended",
       userName: "Admin Suspendidos",
       internalUsername: "admin.suspendidos",
@@ -228,7 +204,6 @@ describe("`/administracion/usuarios` route", () => {
     await createSignedInRequest({
       email: "juez.correo@enescena.com.ar",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios",
       userName: "Juan Juez",
       internalUsername: "juez.correo",
@@ -245,7 +220,6 @@ describe("`/administracion/usuarios` route", () => {
           await createSignedInRequest({
             email: "admin.correo.interno@enescena.com.ar",
             role: "admin",
-            requiresPasswordChange: false,
             requestUrl:
               "http://localhost/administracion/usuarios?busqueda=juez.correo%40enescena.com.ar",
             userName: "Admin Correo Interno",
@@ -263,7 +237,6 @@ describe("`/administracion/usuarios` route", () => {
           await createSignedInRequest({
             email: "admin.correo.academia@enescena.com.ar",
             role: "admin",
-            requiresPasswordChange: false,
             requestUrl:
               "http://localhost/administracion/usuarios?busqueda=contacto%40academia-sur.com",
             userName: "Admin Correo Academia",
@@ -316,7 +289,6 @@ function renderRoute(
 async function createSignedInRequest(input: {
   email: string;
   role: "academy" | "admin" | "auditor" | "judge";
-  requiresPasswordChange?: boolean;
   requestUrl: string;
   userName: string;
   internalUsername?: string;
@@ -333,7 +305,6 @@ async function createSignedInRequest(input: {
       emailVerified: true,
       role: input.role,
       internalUsername: input.internalUsername ?? null,
-      requiresPasswordChange: input.requiresPasswordChange ?? false,
       name: input.userName,
     })
     .where(eq(user.id, signUpResult.response.user.id));

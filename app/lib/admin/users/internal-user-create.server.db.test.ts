@@ -12,14 +12,14 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("create internal user", () => {
-  test("creates an internal user with a normalized username and a mandatory password change", async () => {
+  test("creates an internal user with a normalized username who signs in with the given password", async () => {
     const adminUser = await createAdminUser("admin.creator@example.com");
 
     const result = await createInternalUser({
       name: "Jurado Principal",
       internalUsername: " Jurado.Principal ",
       role: "judge",
-      temporaryPassword: "temporal-segura",
+      password: "clave-segura",
       createdByUserId: adminUser.id,
     });
 
@@ -44,16 +44,15 @@ describe("create internal user", () => {
       name: "Jurado Principal",
       role: "judge",
       internalUsername: "jurado.principal",
-      requiresPasswordChange: true,
       emailVerified: false,
     });
     expect(savedUser?.email).toBe("jurado.principal@enescena.com.ar");
 
     const loginResponse = await expectThrownResponse(
-      submitSignInAction("Jurado.Principal", "temporal-segura"),
+      submitSignInAction("Jurado.Principal", "clave-segura"),
       302,
     );
-    expect(loginResponse.headers.get("location")).toBe("/cambiar-contrasena");
+    expect(loginResponse.headers.get("location")).toBe("/juzgamiento");
   });
 
   test("refuses a reserved internal username", async () => {
@@ -65,7 +64,7 @@ describe("create internal user", () => {
           name: "Usuario Reservado",
           internalUsername: reservedUsername,
           role: "judge",
-          temporaryPassword: "temporal-segura",
+          password: "clave-segura",
           createdByUserId: adminUser.id,
         }),
       ).resolves.toEqual({
@@ -90,7 +89,7 @@ describe("create internal user", () => {
         name: "Auditor Interno",
         internalUsername: "auditor.interno",
         role: "auditor",
-        temporaryPassword: "temporal-segura",
+        password: "clave-segura",
         createdByUserId: adminUser.id,
       }),
     ).resolves.toEqual({
