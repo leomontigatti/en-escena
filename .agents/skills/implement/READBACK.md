@@ -12,7 +12,7 @@ author thinks it does.
 
 1. Pin the fixed point: the branch point against the base branch. Confirm the diff
    (`git diff <base>...HEAD`) is non-empty and note `git log <base>..HEAD --oneline`.
-2. Spawn **one** sub-agent with the diff command and the commit list, and this brief:
+2. Spawn **one** `reviewer` sub-agent with the diff command and the commit list, and this brief:
 
    > Read the diff. Restate in plain words what it does, as a reviewer would explain it to the
    > author. Then list anything surprising: behaviour the commit messages do not mention, a
