@@ -17,7 +17,8 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   the work cannot continue without them, or before anything destructive: deleting
   data, force-pushing, changing anything outside this repository. When a rule in
   these docs fights the task, say so and get a sign-off before breaking it. End a
-  run with what needs the user first, then what changed, then what was found.
+  run with what needs the user first, then what changed, then what was found in
+  this run.
 - **Implementing** (a feature, a fix, any code change) happens in a local session: call the
   Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
   Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets`: see

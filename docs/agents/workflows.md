@@ -940,6 +940,9 @@ The loop:
 5. Diagnose from the page, not from guesses: `console` for errors, `requests` then
    `request <n>` or `response-body <n>` for the network. Fix the source and go back to step 4.
    A first load may log `504 (Outdated Optimize Dep)` while Vite pre-bundles; `reload` once.
+   Done when `console` shows no error and no React warning on the screens the change touches: a
+   warning (a missing `key`, a hydration mismatch) is a finding to fix, or to report on the PR with
+   its reason when it predates the change.
 6. **Capture the after** at the end, once the change is final: `resize 1440 900` again if the
    1280 check changed it, then `screenshot --filename=.playwright-cli/<what>-after.png`, same screen, same
    account, same size as the before.
