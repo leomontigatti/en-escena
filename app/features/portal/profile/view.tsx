@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Info, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
-import { useNavigation, useSubmit } from "react-router";
+import { Form, useNavigation, useSubmit } from "react-router";
 
 import { FormActions } from "@/components/shared/form-actions";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -38,6 +38,7 @@ import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
+  useCloseOnceSettled,
   useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -243,6 +244,11 @@ function ProfileActionsMenu() {
     intent: requestPasswordRecoveryIntent,
   });
 
+  useCloseOnceSettled({
+    isPending: isSending,
+    onClose: () => setIsPasswordDialogOpen(false),
+  });
+
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
@@ -295,14 +301,14 @@ function ProfileActionsMenu() {
 
 function PasswordRecoveryForm({ email }: { email: string }) {
   return (
-    <form id={passwordRecoveryFormId} method="post">
+    <Form id={passwordRecoveryFormId} method="post">
       <input
         type="hidden"
         name="intent"
         value={requestPasswordRecoveryIntent}
       />
       <input type="hidden" name="email" value={email} />
-    </form>
+    </Form>
   );
 }
 

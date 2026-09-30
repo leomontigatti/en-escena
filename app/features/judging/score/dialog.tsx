@@ -118,7 +118,9 @@ export function JudgeScoreDialog({
       <Dialog
         open
         onOpenChange={(open) => {
-          if (!open) {
+          // Esc and the close button are held like `Cancelar`: closing over a
+          // save in flight would let the judge reopen and post the score twice.
+          if (!open && !isSaving) {
             requestClose();
           }
         }}

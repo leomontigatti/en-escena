@@ -339,6 +339,40 @@ describe("scoring a presentation without criteria", () => {
     expect(scoreInput()).toBeNull();
   });
 
+  test("ignores Esc and the close button while the score is being saved", async () => {
+    let releaseSave = () => {};
+    const router = await mount({
+      holdSave: new Promise<void>((resolve) => {
+        releaseSave = resolve;
+      }),
+      presentationId: "b",
+    });
+    const input = scoreInput();
+
+    await updateReactDomForm(() => {
+      if (input) {
+        setInputValue(input, "90.5");
+      }
+    });
+
+    await updateReactDomForm(() => {
+      saveButton()?.click();
+    });
+
+    await updateReactDomForm(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    await clickReactDomButton("Cerrar", { exact: true });
+
+    expect(scoreInput()).not.toBeNull();
+    expect(document.body.textContent).not.toContain(discardChangesTitle);
+    expect(router.state.location.search).toBe("?presentacion=b");
+
+    releaseSave();
+  });
+
   test("asks when Esc closes a dirty form", async () => {
     const router = await mount({ presentationId: "b" });
     const input = scoreInput();
