@@ -11,7 +11,10 @@ import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { buildCreatePath } from "@/lib/shared/navigation";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { kindTabParam, useUrlTab } from "@/lib/shared/url-tab";
-import { describeEmptyList } from "@/lib/list-query/list-query";
+import {
+  describeEmptyList,
+  listQueryParamNames,
+} from "@/lib/list-query/list-query";
 
 import { SeminarPriceListTable } from "../../seminar-prices/list-table";
 import {
@@ -47,6 +50,7 @@ export function EventPricesListView({
   const tab = useUrlTab({
     defaultValue: choreographiesTabValue,
     param: kindTabParam,
+    resets: [listQueryParamNames.page],
     values: [choreographiesTabValue, seminarPricesTabValue],
   });
   const isSeminarTab = tab.value === seminarPricesTabValue;

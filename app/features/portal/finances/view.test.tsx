@@ -184,6 +184,18 @@ describe("PortalAcademyFinancesRouteView", () => {
     expect(metricCardText("Saldo disponible")).toContain("$ 5.000");
   });
 
+  // The name the prices list uses for the same two tabs.
+  test("names the tab in the URL", async () => {
+    const router = await renderPortalFinances(
+      renderer,
+      portalFinancesLoaderDataFixture(),
+    );
+
+    await clickTab("Seminarios");
+
+    expect(router.state.location.search).toBe("?tipo=seminarios");
+  });
+
   test("keeps one selection per tab", async () => {
     await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
 
@@ -363,6 +375,8 @@ async function renderPortalFinances(
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);
+
+  return router;
 }
 
 function portalFinancesLoaderDataFixture(

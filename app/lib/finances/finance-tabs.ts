@@ -5,6 +5,7 @@ import {
   resolveSelectedOperationalTotals,
   sumOperationalFinanceRows,
 } from "@/lib/finances/selected-operational-totals";
+import { listQueryParamNames } from "@/lib/list-query/list-query";
 import { kindTabParam, useUrlTab } from "@/lib/shared/url-tab";
 
 /** The tab the page opens on, and the one the URL does not have to name. */
@@ -46,6 +47,7 @@ export function useFinanceTabs<
   const { onValueChange: onTabChange, value: activeTab } = useUrlTab({
     defaultValue: choreographiesTabValue,
     param: kindTabParam,
+    resets: [listQueryParamNames.page],
     values: [choreographiesTabValue, seminarsTabValue],
   });
   const [selectedChoreographyIds, setSelectedChoreographyIds] = useState<
