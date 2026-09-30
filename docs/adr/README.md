@@ -17,7 +17,7 @@ explicit supersedes or conflict notes inside the ADR.
 - Infrastructure and hosting: `0013-exit-supabase.md`
 - Tooling and guardrails: `0015-deterministic-guardrails.md`
 - Agent workflow: `0016-local-implementation.md`
-- Finances: `0014-arbitrary-amount-allocation-and-comprobante-amendments.md`, `0009-inscription-based-finances.md`, `superseded/0011-invoicing-concept-portion-and-surfaces.md`, `superseded/0012-arca-unreachable-contingency-and-recovery.md`
+- Finances: `0017-waived-inscription.md`, `0014-arbitrary-amount-allocation-and-comprobante-amendments.md`, `0009-inscription-based-finances.md`, `superseded/0011-invoicing-concept-portion-and-surfaces.md`, `superseded/0012-arca-unreachable-contingency-and-recovery.md`
 
 ## Decisions
 
@@ -30,6 +30,7 @@ explicit supersedes or conflict notes inside the ADR.
 - [ADR-0014: Arbitrary-amount allocation, the live discount, and the comprobante amendment star](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md) - records the rationale of finance map #547 and points at `docs/domain/finances.md` for the model itself (supersedes ADR-0011, ADR-0012; ratifies ADR-0009).
 - [ADR-0015: Deterministic guardrails before judgement](./0015-deterministic-guardrails.md) - records why the gates of map #929 exist, what a lint rule has to justify to enter, and what was rejected; points at `docs/agents/workflows.md` and `docs/agents/validation.md` for the setup itself.
 - [ADR-0016: Implementation and review happen in local sessions](./0016-local-implementation.md) - retires the AFK Implement, Implement PRD, Implement PR and Review runners in favour of T3 Code sessions with a browser, and keeps Architecture Review; its 2026-09-25 amendment retires To Issues for the `to-tickets` skill, and its 2026-09-26 amendment retires Update Branch, Label Behind PRs and Promote Queued for the `babysit-pr` skill.
+- [ADR-0017: A free inscription is a waiver, not a zero price or a discount](./0017-waived-inscription.md) - records why a free choreography place is a `Bonificada` waiver on the inscription rather than a zero price row or a 100% `administrativeDiscount`.
 
 ## Superseded
 

@@ -307,7 +307,7 @@ Financial situation of a choreography: the **minimum** `inscriptionFinancialStat
 _Avoid_: `choreographyOperationalStatus`, `eventStatus`, watermark, needs attention
 
 **`presentation`** — ui: "Presentación"
-Ordered instance of a choreography for the event day: a row of its own, one-to-one with the choreography, holding its order number (`N.º`) within the event. A choreography needs to be at least `Señada` to get one and nothing to keep it. Created only by the automatic ordering or by placing a late choreography by hand.
+Ordered instance of a choreography for the event day: a row of its own, one-to-one with the choreography, holding its order number (`N.º`) within the event. A choreography needs to be at least `Señada` —or `Bonificada`— to get one and nothing to keep it. Created only by the automatic ordering or by placing a late choreography by hand.
 _Avoid_: `choreography`, `choreographyNumber` (the number a choreography is searched by, not its place in the order), `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`dancerSpacing`** — ui: "Separación de bailarines"
@@ -446,8 +446,12 @@ Upper threshold of an inscription: its `selectedPrice` minus the live `dancerDis
 _Avoid_: `inscriptionBalanceAmount` (retired), choreography balance, `availableBalanceAmount`
 
 **`inscriptionFinancialStatus`** — ui: "Estado"
-Status of an inscription derived on read from `Σ allocations` against its two thresholds: `depositPending` (`Seña pendiente`), `depositMet` (`Señada`) and `paidInFull` (`Pagada`). Nothing is written when a threshold is crossed. A choreography carries the **minimum** over its inscriptions.
+Status of an inscription derived on read from `Σ allocations` against its two thresholds: `depositPending` (`Seña pendiente`), `depositMet` (`Señada`) and `paidInFull` (`Pagada`). Nothing is written when a threshold is crossed. A choreography carries the **minimum** over its inscriptions. A **`waivedInscription`** reads a fourth value, `waived` (`Bonificada`), which sits outside the scale rather than on it.
 _Avoid_: `choreographyFinancialState` (retired), watermark, needs attention
+
+**`waivedInscription`** — ui: "Bonificada"
+Choreography inscription that administration has granted for free, case by case: it competes like any other and is judged, scored and ranked, but owes nothing. Both its thresholds are zero and its status is `waived` (`Bonificada`), never `Pagada`, so a free place is never mistaken for a paid one. It holds no money: marking one is refused while it carries allocations, which must be taken off first, and nothing can be allocated to it. It stays out of its choreography's minimum, which is the minimum of the paying inscriptions, and a choreography whose every active inscription is waived reads `Bonificada` itself; for getting a `presentation` it counts as a met deposit. It is outside the `dancerDiscount` qualifying set, because being free already is the benefit. It produces no `comprobante`, carries no reason, and reads `Bonificada` on the portal as well as in administration. Revoking it restores the ordinary price and `Seña pendiente`, and a `presentation` already held stays. Only all-or-nothing: a partial reduction is the reserved `administrativeDiscount`, not this. It applies to choreography inscriptions only; a `seminarInscription` has no such state.
+_Avoid_: 100% discount, zero price, `administrativeDiscount`, `Pagada`, scholarship (`Becada`), exempt (`Exenta`)
 
 **`choreographyPrice`** — ui: "Precio de coreografía"
 Amount derived for a choreography from the prices of its active inscriptions: the sum of their selected prices, one by one.
@@ -478,7 +482,7 @@ Date until which a configured price can be applied to an inscription.
 _Avoid_: deposit date, invoice due date
 
 **`dancerDiscount`** — ui: "Descuento por bailarín"
-Automatic discount that enters an inscription's `inscriptionTotalAmount` and nowhere else. It is **always live**: recomputed on every read, never frozen and never carried forward. Its qualifying set is the dancer's registered active inscriptions in the same **academy and event**, whatever their financial status, and the most expensive one of the set is left at full price.
+Automatic discount that enters an inscription's `inscriptionTotalAmount` and nowhere else. It is **always live**: recomputed on every read, never frozen and never carried forward. Its qualifying set is the dancer's registered active inscriptions in the same **academy and event**, whatever their financial status and excluding any `waivedInscription`, and the most expensive one of the set is left at full price.
 _Avoid_: `administrativeDiscount`, manual discount, granted discount, frozen discount
 
 **`administrativeDiscount`** — ui: "Descuento administrativo"
