@@ -924,7 +924,9 @@ The loop:
 
 1. Start the dev server in the background: `pnpm dev`. It serves on the `PORT` in `.env.local`,
    which the first run creates with the worktree's database. The examples below say 5173; use yours. A
-   "Port … is already in use" error means your own earlier server is still up: stop it.
+   "Port … is already in use" error usually means your own earlier server is still up:
+   `pnpm dev:stop`. It stops only listeners running from this worktree; one from another directory
+   is left alone and reported, with exit 1.
 2. **Log in once per account and keep the session.** Open `/ingresar` in a named session,
    `snapshot` to get the field refs, `fill` the email and password, `click` the button, then
    `state-save` into `.playwright-cli/`:
@@ -955,7 +957,8 @@ The loop:
 6. **Capture the after** at the end, once the change is final: `resize 1440 900` again if the
    1280 check changed it, then `screenshot --filename=.playwright-cli/<what>-after.png`, same screen, same
    account, same size as the before.
-7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server. A
+7. Close: `playwright-cli -s=<session> close` (or `close-all`), and stop the dev server with
+   `pnpm dev:stop`, which finds it by this worktree's port and says `stopped <pid> on <port>`. A
    session left open holds a Chromium for up to an hour.
 
 Quote any URL with a `$`-segment route or a query string (`'http://localhost:5173/portal?evento=…'`)
