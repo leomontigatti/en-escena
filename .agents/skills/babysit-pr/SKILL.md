@@ -53,8 +53,8 @@ On `WAITING`, read `pending`:
   head commit.
 - The same `pending` for 45 minutes: step 5 as BLOCKED, naming what is stuck.
 
-On `NO_REVIEW`, CodeRabbit's status is green but it never reviewed the head commit, so the PR is
-not ready. Comment `@coderabbitai review` on the PR, once per head commit, and run the watcher
+On `NO_REVIEW`, CodeRabbit's status is green but neither a review nor its summary comment covers
+the head commit, so the PR is not ready. Comment `@coderabbitai review` on the PR, once per head commit, and run the watcher
 again: it waits for the answer. `NO_REVIEW` again on the same head: step 5 as NEEDS YOU, quoting
 what CodeRabbit replied, if anything.
 
@@ -133,5 +133,9 @@ Fixed: <finding> → <sha>                                  (one line each)
 Declined: <finding> — <reason>                            (one line each)
 Rubric candidates: <pattern>                              (omit when empty)
 ```
+
+`CodeRabbit passes` counts review objects. A pass that finds nothing leaves only its summary
+comment, so `READY` with 0 passes is a PR it reviewed and found clean, never one it skipped: that
+case is `NO_REVIEW`.
 
 Nothing here merges, marks a PR draft or ready, rebases or force-pushes: those are the user's.
