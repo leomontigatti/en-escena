@@ -46,7 +46,7 @@ export function DancerConfirmationDialog({
   return (
     <>
       <AlertDialog open={dialogIntent === "save"} onOpenChange={onOpenChange}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Guardar cambios?</AlertDialogTitle>
             <AlertDialogDescription>

@@ -122,10 +122,7 @@ export function JudgeScoreDialog({
           }
         }}
       >
-        <DialogContent
-          onInteractOutside={(event) => event.preventDefault()}
-          className="sm:max-w-md"
-        >
+        <DialogContent onInteractOutside={(event) => event.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{presentation.name}</DialogTitle>
             <DialogDescription>

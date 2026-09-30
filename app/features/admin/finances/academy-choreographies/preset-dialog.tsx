@@ -133,7 +133,7 @@ export function FinancePresetDialog({
       open={open}
       onOpenChange={(next) => !isSaving && onOpenChange(next)}
     >
-      <DialogContent overlayClassName="backdrop-blur-sm">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{financePresetLabels[stage]}</DialogTitle>
           <DialogDescription>

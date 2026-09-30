@@ -102,7 +102,7 @@ export function MergeDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent overlayClassName="backdrop-blur-sm">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

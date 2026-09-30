@@ -95,7 +95,7 @@ export function CreateProfessorDialog({
           }
         }}
       >
-        <DialogContent overlayClassName="backdrop-blur-sm">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Nuevo profesor</DialogTitle>
             <DialogDescription>

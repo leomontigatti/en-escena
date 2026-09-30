@@ -97,7 +97,7 @@ export function CreateDancerDialog({
           }
         }}
       >
-        <DialogContent overlayClassName="backdrop-blur-sm">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Nuevo bailarín</DialogTitle>
             <DialogDescription>
