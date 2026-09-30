@@ -225,7 +225,8 @@ server console with the `[email:dev]` prefix. The demo accounts above skip this
 flow; to test registration itself, or as an alternative to the seed, use it:
 
 1. Run `pnpm dev`.
-2. Open `http://localhost:5173/registro`.
+2. Open `/registro` on the dev server: `http://localhost:5173/registro` in the
+   main checkout, the `PORT` from `.env.local` in a worktree.
 3. Submit an email address plus password.
 4. Copy the `/registro/confirmar?token_hash=...&type=signup` link from the
    `[email:dev]` console log.
