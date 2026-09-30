@@ -1,9 +1,14 @@
-# En Escena — guide for Claude Code
+# En Escena — guide for coding agents
 
 Index of the repo's conventions. Every operative rule lives in its own file under
 `docs/agents/`; this file only routes. The first section is
 read at the start of every task; the second is reached when its leading word
 matches the task.
+
+Claude Code and Codex share this file (there is deliberately no `CLAUDE.md`), the skills in
+`.agents/skills/`, and the hooks in `.agents/hooks/`: see "Agent configuration" in
+[docs/agents/workflows.md](docs/agents/workflows.md). In Codex, "call the Skill tool
+with X" means open `.agents/skills/X/SKILL.md` and follow it.
 
 ## Every task
 

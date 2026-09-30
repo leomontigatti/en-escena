@@ -49,7 +49,11 @@ const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 // reads (#792 Q7).
 // `.github` joined with the PR template (#1114): prose a contributor reads, on
 // the same rule as the rest.
+// `.agents` joined when the agent config moved there so Claude Code and Codex
+// share it: the local skills, the hooks and the research agent's instructions
+// are ours, and only the vendored skills below are exempt.
 export const scannedDocDirectories = [
+  ".agents",
   ".claude",
   ".github",
   ".sandcastle",
@@ -62,13 +66,26 @@ const docFilePattern = /\.md$/;
 // Spanish titles the regulations actually carry — "RG 1415/2003 — Régimen de
 // emisión de comprobantes" is the name of the thing, and a translated citation
 // leads a reader nowhere (#792 Q7/Q8).
-// `.agents` is the same argument one step further out: the skills under it are
-// vendored verbatim from their upstream repo and pinned by content hash in
+// The vendored skills are the same argument one step further out: they are
+// copied verbatim from their upstream repo and pinned by content hash in
 // `skills-lock.json`, so a sweep may not rewrite them — editing one breaks the
-// hash and the next `skills add` discards the edit anyway. It scans clean today;
-// excluding it is about what happens when it does not, since the remedy would
-// have to be unpinning someone else's prose rather than fixing ours.
-export const excludedDocDirectories = [".agents", "docs/adr", "docs/research"];
+// hash and the next `skills add` discards the edit anyway. They scan clean
+// today; excluding them is about what happens when they do not, since the
+// remedy would have to be unpinning someone else's prose rather than fixing
+// ours. The list is read from the lockfile, so vendoring a skill exempts it.
+export const vendoredSkillDirectories = Object.keys(
+  (
+    JSON.parse(
+      readFileSync(new URL("../skills-lock.json", import.meta.url), "utf8"),
+    ) as { skills: Record<string, unknown> }
+  ).skills,
+).map((name) => `.agents/skills/${name}`);
+
+export const excludedDocDirectories = [
+  ...vendoredSkillDirectories,
+  "docs/adr",
+  "docs/research",
+];
 
 // YAML is on the same rule and used to rest on review, which is how six Spanish
 // comments outlived #592 across four workflow files (#793). A `#` comment is
@@ -85,16 +102,16 @@ export const scannedYamlDirectories = [".github"];
 const yamlFilePattern = /\.(yml|yaml)$/;
 
 // Shell is on the rule for the same reason YAML is, and it drifted the same way:
-// `.claude/hooks/block-npx-tsc.sh` kept its Spanish comments and a Spanish
-// stderr message through #592 because the scan reached only the `.md` under
-// `.claude/` (#947). A hook's output is read by an agent, not by a user, so it
+// `block-npx-tsc.sh` (then under `.claude/hooks/`, now `.agents/hooks/`) kept
+// its Spanish comments and a Spanish stderr message through #592 because the
+// scan reached only the `.md` under `.claude/` (#947). A hook's output is read by an agent, not by a user, so it
 // is engineering prose end to end.
 //
-// `scripts/` is in the list even though the issue only named `.claude/`: it
+// `scripts/` is in the list even though the issue only named the hooks: it
 // holds eight tracked `.sh` files, all English today, and leaving them out would
 // mean the scan-root test below has to carry an exemption for a directory whose
 // `.ts` is already scanned.
-export const scannedShellDirectories = [".claude", "scripts"];
+export const scannedShellDirectories = [".agents", "scripts"];
 const shellFilePattern = /\.sh$/;
 
 // Generated, not written: a lockfile is 330 KB of resolution output that no
@@ -105,18 +122,9 @@ const shellFilePattern = /\.sh$/;
 // test on arrival and be recorded here deliberately, not be absorbed by a
 // prefix nobody revisits.
 export const excludedYamlFiles = [
-  ".agents/skills/code-review/agents/openai.yaml",
-  ".agents/skills/codebase-design/agents/openai.yaml",
-  ".agents/skills/domain-modeling/agents/openai.yaml",
-  ".agents/skills/grilling/agents/openai.yaml",
-  ".agents/skills/handoff/agents/openai.yaml",
-  ".agents/skills/prototype/agents/openai.yaml",
-  ".agents/skills/resolving-merge-conflicts/agents/openai.yaml",
-  ".agents/skills/tdd/agents/openai.yaml",
-  ".agents/skills/to-spec/agents/openai.yaml",
-  ".agents/skills/to-tickets/agents/openai.yaml",
-  ".agents/skills/wayfinder/agents/openai.yaml",
-  ".agents/skills/writing-for-agents/agents/openai.yaml",
+  ...vendoredSkillDirectories.map(
+    (directory) => `${directory}/agents/openai.yaml`,
+  ),
   "pnpm-lock.yaml",
 ];
 

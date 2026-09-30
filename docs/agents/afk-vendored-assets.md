@@ -19,7 +19,7 @@ ticket [Vendor the AFK spec + prompts + do-work skill](https://github.com/leomon
 | ---------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
 | Spec of the 8 workflows                  | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md)   | `docs/agents/afk-agent-platform-spec.md`                |
 | Base runner prompts (9)                  | [`prompts/`](./prompts/)                                       | `docs/agents/prompts/*.prompt.md`                       |
-| `implement` skill, vendored as `do-work` | [`.claude/skills/implement/`](../../.claude/skills/implement/) | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md` |
+| `implement` skill, vendored as `do-work` | [`.agents/skills/implement/`](../../.agents/skills/implement/) | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md` |
 
 ## What was adapted vs. the source
 
@@ -79,7 +79,7 @@ are only concrete references to this repo:
   needing no judgement. `agent-label-behind-prs.yml` applied the label on `push` to `master`
   instead, kept deliberately thin (no agent, no runner, no checkout). Retired with Update Branch
   itself (ADR-0016, amendment of 2026-09-26): a PR behind `master` is now brought up to date by
-  the [`babysit-pr`](../../.claude/skills/babysit-pr/SKILL.md) skill, once, when that is the only
+  the [`babysit-pr`](../../.agents/skills/babysit-pr/SKILL.md) skill, once, when that is the only
   thing between it and merge.
 - **No credential persisted by the checkout (#956)** (retired). The spec's runner steps (§4.2 step 2,
   §4.3 step 3, §4.5 step 2 and their siblings) read "Checkout … with `AGENT_PAT ||
@@ -239,8 +239,8 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
 ## Matt Pocock skills
 
 The skills this repo uses from [`mattpocock/skills`](https://github.com/mattpocock/skills) are
-vendored under `.agents/skills/<name>/`, symlinked from `.claude/skills/<name>` and recorded in
-`skills-lock.json`. They
+vendored under `.agents/skills/<name>/`, which Claude Code reaches through the `.claude/skills`
+symlink and Codex reads directly, and recorded in `skills-lock.json`. They
 replace the user-scope `mattpocock-skills@claude-plugins-official` plugin, which did not keep
 itself current and made local sessions and the runners use different skill versions (#965).
 Vendored skills load unprefixed: `/grilling`, not `/mattpocock-skills:grilling`.
@@ -267,14 +267,15 @@ Vendored skills load unprefixed: `/grilling`, not `/mattpocock-skills:grilling`.
 content hash.
 
 **No local edits.** The files are byte-identical to upstream, so the hashes stay true.
-`.agents/skills` is in `.prettierignore`, `check:comment-language` skips `.agents`, and each
-skill's `agents/openai.yaml` is listed in its `excludedYamlFiles`. A repo-specific instruction
+Each vendored skill has a line in `.prettierignore`, and `check:comment-language` reads
+`skills-lock.json` to skip its `.md` and its `agents/openai.yaml`; the local skills beside them
+(`implement`, `babysit-pr`, `housekeeping`) are checked like any other doc. A repo-specific instruction
 goes in the prompt or doc that invokes the skill, never in the skill.
 
 **Not vendored**: `setup-matt-pocock-skills` (its output, [`issue-tracker.md`](./issue-tracker.md),
 [`triage-labels.md`](./triage-labels.md) and [`domain.md`](./domain.md), already exists), and
 `triage` and `grill-me` (rarely or never used). `research` was vendored
-and then dropped: the `research` agent (`.claude/agents/research.md`) does that job, and
+and then dropped: the `research` agent (`.agents/agents/research.md`) does that job, and
 [`issue-tracker.md`](./issue-tracker.md#research-tickets) tells `wayfinder` to spawn it where the
 skill's text says to call the `research` skill. `code-review` and
 `wayfinder` still say "tell the user to run `/setup-matt-pocock-skills`", but only when
@@ -290,9 +291,11 @@ pnpm dlx skills@<version> add mattpocock/skills -a claude-code -y --copy \
   -s to-spec -s to-tickets -s resolving-merge-conflicts -s wayfinder -s grilling -s handoff -s writing-for-agents
 ```
 
-It installs into `.claude/skills/`: move each directory to `.agents/skills/`, restore the
-symlink, then commit the changed hashes and update the commit above. Adding a skill means adding
-it to the table, the command and `excludedYamlFiles`.
+It installs into `.claude/skills/`, which is a symlink to `.agents/skills/`, so the files land in
+place; if the CLI replaced the symlink with a directory instead, move each skill back to
+`.agents/skills/` and restore it with `ln -s ../.agents/skills .claude/skills`. Then commit the
+changed hashes and update the commit above. Adding a skill means adding it to the table, the
+command and `.prettierignore`.
 
 ## What was **retired**
 

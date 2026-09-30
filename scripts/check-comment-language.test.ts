@@ -595,7 +595,7 @@ describe("comment-language guardrail, YAML (#793)", () => {
 });
 
 describe("comment-language guardrail, shell (#947)", () => {
-  const shellPath = ".claude/hooks/block-npx-tsc.sh";
+  const shellPath = ".agents/hooks/block-npx-tsc.sh";
 
   function shellKindsIn(contents: string): string[] {
     return findSpanishProseInShell({
