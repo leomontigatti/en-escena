@@ -120,7 +120,8 @@ export function SubmodalityCriteriaDialog({
         onOpenChange={(nextOpen) => {
           if (nextOpen) {
             onOpenChange(true);
-          } else {
+          } else if (!isSaving) {
+            // Esc and the close button are held like `Cancelar` while saving.
             requestClose();
           }
         }}

@@ -189,6 +189,31 @@ describe("SubmodalityCriteriaDialog", () => {
     expect(getButton("Agregar criterio").disabled).toBe(true);
   });
 
+  test("ignores Esc while the save is in flight", async () => {
+    const formData = new FormData();
+    formData.set("intent", "save-submodality-criteria");
+    formData.set("id", submodality.id);
+    useNavigationMock.mockReturnValue({
+      formData,
+      formMethod: "post",
+      state: "submitting",
+    });
+    const onOpenChange = vi.fn();
+    await renderDialog(
+      [criterion({ id: "criterion_1", maximum: 100, name: "Técnica" })],
+      { onOpenChange },
+    );
+
+    await updateReactDomForm(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(getButton("Guardar")).toBeDefined();
+  });
+
   test("closes straight away on `Cancelar` while clean", async () => {
     const onOpenChange = vi.fn();
     await renderDialog([], { onOpenChange });
