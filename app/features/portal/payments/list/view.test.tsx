@@ -48,43 +48,11 @@ describe("PortalAcademyPaymentsRouteView", () => {
     ).toBeNull();
   });
 
-  test("finds a payment by its reference", async () => {
-    await renderPortalPayments(
-      renderer,
-      portalPaymentsLoaderDataFixture({
-        payments: [
-          paymentRowFixture({ id: "payment_1", reference: "TRF-9" }),
-          paymentRowFixture({
-            id: "payment_2",
-            paymentNumber: 2,
-            reference: "MP-4",
-          }),
-        ],
-      }),
-    );
-
-    const search = document.querySelector<HTMLInputElement>(
-      'input[placeholder="Buscar pago por referencia o número"]',
-    );
-
-    if (!search) {
-      throw new Error("Expected the payments search input to be rendered.");
-    }
-
-    await updateReactDomForm(() => {
-      setInputValue(search, "MP-4");
-    });
-
-    const text = document.body.textContent ?? "";
-
-    expect(text).toContain("MP-4");
-    expect(text).not.toContain("TRF-9");
-  });
-
   test.each([
-    ["the number it displays", "00042"],
-    ["the unpadded number", "42"],
-  ])("finds a payment by %s", async (_label, query) => {
+    ["its reference", "MP-4", "MP-4", "TRF-9"],
+    ["the number it displays", "00042", "TRF-9", "MP-4"],
+    ["the unpadded number", "42", "TRF-9", "MP-4"],
+  ])("finds a payment by %s", async (_label, query, shown, hidden) => {
     await renderPortalPayments(
       renderer,
       portalPaymentsLoaderDataFixture({
@@ -117,8 +85,8 @@ describe("PortalAcademyPaymentsRouteView", () => {
 
     const text = document.body.textContent ?? "";
 
-    expect(text).toContain("TRF-9");
-    expect(text).not.toContain("MP-4");
+    expect(text).toContain(shown);
+    expect(text).not.toContain(hidden);
   });
 
   test("shows the empty state when the academy has no payments", async () => {
