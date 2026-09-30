@@ -1,5 +1,4 @@
 import { TriangleAlert } from "lucide-react";
-import { useSearchParams } from "react-router";
 
 import {
   AdminEmptyState,
@@ -11,12 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { buildCreatePath } from "@/lib/shared/navigation";
 import { useServerActionToast } from "@/lib/shared/toasts";
+import { kindTabParam, useUrlTab } from "@/lib/shared/url-tab";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { SeminarPriceListTable } from "../../seminar-prices/list-table";
 import {
   seminarPricesBasePath,
-  seminarPricesTabParam,
   seminarPricesTabValue,
 } from "../../seminar-prices/shared";
 import { readMissingSeminarPriceCellsWarning } from "../../seminar-prices/view-shared";
@@ -45,12 +44,12 @@ export function EventPricesListView({
   // The tab lives in the URL rather than in state, so that `Nuevo precio`, the
   // breadcrumb of a seminar price and the redirect after a delete can all name
   // the list the administrator was reading.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab =
-    searchParams.get(seminarPricesTabParam) === seminarPricesTabValue
-      ? seminarPricesTabValue
-      : choreographiesTabValue;
-  const isSeminarTab = activeTab === seminarPricesTabValue;
+  const tab = useUrlTab({
+    defaultValue: choreographiesTabValue,
+    param: kindTabParam,
+    values: [choreographiesTabValue, seminarPricesTabValue],
+  });
+  const isSeminarTab = tab.value === seminarPricesTabValue;
   const missingCellsWarning = readMissingSeminarPriceCellsWarning(
     loaderData.seminarPrices,
     loaderData.hasSeminars,
@@ -80,25 +79,7 @@ export function EventPricesListView({
           </Alert>
         ) : null}
       </AlertStack>
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => {
-          setSearchParams(
-            (current) => {
-              const next = new URLSearchParams(current);
-
-              if (value === seminarPricesTabValue) {
-                next.set(seminarPricesTabParam, seminarPricesTabValue);
-              } else {
-                next.delete(seminarPricesTabParam);
-              }
-
-              return next;
-            },
-            { preventScrollReset: true, replace: true },
-          );
-        }}
-      >
+      <Tabs value={tab.value} onValueChange={tab.onValueChange}>
         <TabsList variant="line">
           <TabsTrigger value={choreographiesTabValue}>Coreografías</TabsTrigger>
           <TabsTrigger value={seminarPricesTabValue}>Seminarios</TabsTrigger>

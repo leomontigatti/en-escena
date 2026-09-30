@@ -557,14 +557,24 @@ Rules:
   use them to split one form whose fields affect each other
   ([Editing and saving](#editing-and-saving)).
 - `Tabs` take `variant="line"`.
-- Tabs that switch between subsets of the same data (`Coreografías` /
-  `Seminarios`) keep the active tab in the URL, replacing the history entry, so
-  a reload or a shared link lands on the same tab. The parameter names what the
-  tab picks: `?tipo=` for `Coreografías` / `Seminarios`, `?dia=` for a day.
-- Tabs that split one record into sections keep their state local. When they
-  hold form fields, the form submits from its React Hook Form values
-  (`createValidatedRouteFormDataSubmitHandler`): Radix unmounts the hidden
-  panel, so a submit built from the DOM drops that tab's fields.
+- Tabs that switch what a whole page lists (`Coreografías` / `Seminarios`, the
+  days of an event) keep the active tab in the URL through `useUrlTab`
+  (`app/lib/shared/url-tab.ts`), so a reload or a shared link lands on the same
+  tab. The hook owns how: the default tab is the absence of the parameter, a
+  switch replaces the history entry, and the parameters that belong to the tab
+  being left (a page number) are reset. The parameter names what the tab picks,
+  and the names live in that module: `?tipo=` for `Coreografías` /
+  `Seminarios`, `?dia=` for a day. A new kind of tab adds its name there.
+- Every other tab set keeps its state local: tabs that split one record into
+  sections, and tabs inside a card or a control (a judge's sheet, the
+  checklist's `Todos` / `Seleccionados`).
+- A tab panel that holds fields of a form takes `forceMount` and
+  `data-[state=inactive]:hidden`. Radix unmounts an inactive panel, an
+  unmounted input is not submitted, and a file picked in a native file input is
+  lost with it. Submitting from the React Hook Form values does not replace
+  this: they cannot carry a file.
+- A controlled `Tabs` switches through `onValueChange`, never through `onClick`
+  on each trigger: the arrow keys switch tabs without a click.
 - Use `DropdownMenu` for contextual actions.
 - Do not build navigation with hand-styled buttons or links when an equivalent
   shadcn component exists.

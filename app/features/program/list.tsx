@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import {
   ClientDataTable,
   DataTableTruncatedText,
@@ -12,6 +10,7 @@ import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
+import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
 
 import {
   formatProgramOrderNumber,
@@ -49,30 +48,26 @@ export function ProgramList({
   showLevel = false,
 }: ProgramListProps) {
   // The day narrows what is on screen and nothing else: the whole list is
-  // already here, so the tab is reading state rather than a query.
-  const [day, setDay] = useState(allDaysTabValue);
+  // already here. It is in the URL all the same, so a reload or a link shared
+  // from a phone lands on the day it was read on.
   const days = listProgramDays(rows);
+  const tab = useUrlTab({
+    defaultValue: allDaysTabValue,
+    param: dayTabParam,
+    values: [allDaysTabValue, ...days],
+  });
   const visibleRows =
-    day === allDaysTabValue
+    tab.value === allDaysTabValue
       ? rows
-      : rows.filter((row) => row.scheduledDate === day);
+      : rows.filter((row) => row.scheduledDate === tab.value);
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs value={days.includes(day) ? day : allDaysTabValue}>
+      <Tabs value={tab.value} onValueChange={tab.onValueChange}>
         <TabsList variant="line">
-          <TabsTrigger
-            value={allDaysTabValue}
-            onClick={() => setDay(allDaysTabValue)}
-          >
-            Todos
-          </TabsTrigger>
+          <TabsTrigger value={allDaysTabValue}>Todos</TabsTrigger>
           {days.map((eventDay) => (
-            <TabsTrigger
-              key={eventDay}
-              value={eventDay}
-              onClick={() => setDay(eventDay)}
-            >
+            <TabsTrigger key={eventDay} value={eventDay}>
               {formatScheduleDayLabel(eventDay)}
             </TabsTrigger>
           ))}

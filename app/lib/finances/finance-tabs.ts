@@ -1,16 +1,15 @@
-import { useCallback, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useState } from "react";
 
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import {
   resolveSelectedOperationalTotals,
   sumOperationalFinanceRows,
 } from "@/lib/finances/selected-operational-totals";
+import { kindTabParam, useUrlTab } from "@/lib/shared/url-tab";
 
 /** The tab the page opens on, and the one the URL does not have to name. */
 export const choreographiesTabValue = "coreografias";
 export const seminarsTabValue = "seminarios";
-const financeTabParam = "seccion";
 
 /** What a financial list's row has to carry for a tab to sum it. */
 type FinanceTabRow = {
@@ -44,11 +43,11 @@ export function useFinanceTabs<
   choreographyFinanceRows: TChoreographyRow[];
   seminarFinanceRows: TSeminarRow[];
 }) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab =
-    searchParams.get(financeTabParam) === seminarsTabValue
-      ? seminarsTabValue
-      : choreographiesTabValue;
+  const { onValueChange: onTabChange, value: activeTab } = useUrlTab({
+    defaultValue: choreographiesTabValue,
+    param: kindTabParam,
+    values: [choreographiesTabValue, seminarsTabValue],
+  });
   const [selectedChoreographyIds, setSelectedChoreographyIds] = useState<
     string[]
   >([]);
@@ -71,28 +70,6 @@ export function useFinanceTabs<
     summary: seminarThresholds,
   });
   const isSeminarsTab = activeTab === seminarsTabValue;
-  // The default tab is the absence of the parameter, not a value for it: the
-  // URL only ever names the tab the page does not open on.
-  const onTabChange = useCallback(
-    (value: string) => {
-      setSearchParams(
-        (current) => {
-          const next = new URLSearchParams(current);
-
-          if (value === seminarsTabValue) {
-            next.set(financeTabParam, seminarsTabValue);
-          } else {
-            next.delete(financeTabParam);
-          }
-
-          return next;
-        },
-        { preventScrollReset: true, replace: true },
-      );
-    },
-    [setSearchParams],
-  );
-
   return {
     activeTab,
     activeThresholds: isSeminarsTab
