@@ -43,6 +43,7 @@ the head commit is still running, and its exit code is the verdict:
 | 4    | `CHECKS`                      | Step 3.                                                              |
 | 5    | `WAITING`                     | Run it again. See below.                                             |
 | 8    | `BEHIND`                      | Step 4b.                                                             |
+| 9    | `NO_REVIEW`                   | See below.                                                           |
 | 2    | `CONFLICTS`                   | Step 4b.                                                             |
 | 6, 7 | `GATE`, `CLOSED`, `GH_FAILED` | Step 5 as BLOCKED, with `gate` or the error.                         |
 
@@ -51,6 +52,11 @@ On `WAITING`, read `pending`:
 - `CodeRabbit` pending on two calls in a row: comment `@coderabbitai review` on the PR, once per
   head commit.
 - The same `pending` for 45 minutes: step 5 as BLOCKED, naming what is stuck.
+
+On `NO_REVIEW`, CodeRabbit's status is green but neither a review nor its summary comment covers
+the head commit, so the PR is not ready. Comment `@coderabbitai review` on the PR, once per head commit, and run the watcher
+again: it waits for the answer. `NO_REVIEW` again on the same head: step 5 as NEEDS YOU, quoting
+what CodeRabbit replied, if anything.
 
 ## 3. Triage the round
 
@@ -127,5 +133,9 @@ Fixed: <finding> → <sha>                                  (one line each)
 Declined: <finding> — <reason>                            (one line each)
 Rubric candidates: <pattern>                              (omit when empty)
 ```
+
+`CodeRabbit passes` counts review objects. A pass that finds nothing leaves only its summary
+comment, so `READY` with 0 passes is a PR it reviewed and found clean, never one it skipped: that
+case is `NO_REVIEW`.
 
 Nothing here merges, marks a PR draft or ready, rebases or force-pushes: those are the user's.
