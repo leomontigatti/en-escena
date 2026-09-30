@@ -60,6 +60,7 @@ function snapshot(overrides: Partial<PrSnapshot> = {}): PrSnapshot {
       { commit: HEAD, submittedAt: "2026-09-26T15:51:00Z", body: "" },
     ],
     comments: [],
+    headIsMerge: false,
     ...overrides,
   };
 }
@@ -472,6 +473,55 @@ describe("classify", () => {
     expect(classify(snapshot({ mergeState: "BLOCKED" }), NOW)).toMatchObject({
       verdict: "GATE",
     });
+  });
+
+  test("reports NO_REVIEW when CodeRabbit went green without reviewing the head commit (#1335)", () => {
+    const unreviewed = snapshot({ coderabbitReviews: [] });
+    expect(classify(unreviewed, NOW)).toMatchObject({
+      verdict: "NO_REVIEW",
+      exitCode: 9,
+      coderabbitPasses: 0,
+    });
+  });
+
+  test("stays READY on a merge from the base that CodeRabbit skipped, when it reviewed the PR before", () => {
+    const earlier = [
+      { commit: "a", submittedAt: "2026-09-26T15:00:00Z", body: "" },
+    ];
+    expect(
+      classify(snapshot({ headIsMerge: true, coderabbitReviews: earlier }), NOW)
+        .verdict,
+    ).toBe("READY");
+    expect(
+      classify(snapshot({ headIsMerge: true, coderabbitReviews: [] }), NOW)
+        .verdict,
+    ).toBe("NO_REVIEW");
+  });
+
+  test("waits out the grace period after a review request, then reports NO_REVIEW again", () => {
+    const request = (secondsAgo: number) => ({
+      author: "leomontigatti",
+      body: "@coderabbitai review",
+      createdAt: new Date(NOW - secondsAgo * 1000).toISOString(),
+    });
+    const justAsked = snapshot({
+      coderabbitReviews: [],
+      comments: [request(30)],
+    });
+    expect(classify(justAsked, NOW)).toMatchObject({
+      verdict: "WAITING",
+      pending: ["CodeRabbit"],
+    });
+    const askedLongAgo = snapshot({
+      coderabbitReviews: [],
+      comments: [request(CODERABBIT_GRACE_SECONDS)],
+    });
+    expect(classify(askedLongAgo, NOW).verdict).toBe("NO_REVIEW");
+  });
+
+  test("reports NO_REVIEW before BEHIND, so the review is asked for on the commit that carries the change", () => {
+    const pr = snapshot({ coderabbitReviews: [], mergeState: "BEHIND" });
+    expect(classify(pr, NOW).verdict).toBe("NO_REVIEW");
   });
 
   test("counts CodeRabbit's passes, for the triage rubric", () => {

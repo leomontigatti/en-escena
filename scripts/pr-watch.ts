@@ -16,15 +16,19 @@ import { fileURLToPath } from "node:url";
 //
 // CodeRabbit is read from its `CodeRabbit` commit status, which turns green a
 // minute or two before its review posts. So it counts as done only once a
-// review of the head commit exists, or a grace period has passed with none,
-// which is how a commit it skips (a merge from the base) looks.
+// review of the head commit exists, or a grace period has passed with none.
+// A green status with no review is how a commit it skips looks. That is
+// expected of a merge from the base on a PR it already reviewed; on any other
+// head the verdict is NO_REVIEW, never READY (#1335).
 //
 // Usage: pnpm pr:watch [pr] [--once] [--interval <s>] [--timeout <s>]
 //
 // Exit codes: 0 READY or MERGED, 2 CONFLICTS, 3 THREADS or FINDINGS, 4 CHECKS,
 // 5 WAITING (timed out, or --once mid-round), 6 GATE or CLOSED, 7 `gh` kept
-// failing, 8 BEHIND (nothing else open, but the base moved on), 1 usage error. The default timeout keeps one call under the Bash
-// tool's ten-minute limit; the skill re-runs it.
+// failing, 8 BEHIND (nothing else open, but the base moved on), 9 NO_REVIEW
+// (nothing else open, but CodeRabbit never reviewed the head), 1 usage error.
+// The default timeout keeps one call under the Bash tool's ten-minute limit;
+// the skill re-runs it.
 
 /** The contexts branch protection requires on `master`: `ci.yml`'s four plus `pr-title`. */
 export const REQUIRED_CONTEXTS = [
@@ -87,6 +91,8 @@ export type PrSnapshot = {
   threads: Thread[];
   coderabbitReviews: { commit: string; submittedAt: string; body: string }[];
   comments: { author: string; body: string; createdAt: string }[];
+  /** The head commit has two parents: a merge from the base, which CodeRabbit skips. */
+  headIsMerge: boolean;
 };
 
 type FailedCheck = { name: string; workflow: string; link: string };
@@ -102,6 +108,7 @@ export type Verdict = {
     | "FINDINGS"
     | "CHECKS"
     | "GATE"
+    | "NO_REVIEW"
     | "BEHIND";
   exitCode: number;
   pr: number;
@@ -238,9 +245,17 @@ export function coderabbitState(
   const state = entryState(status);
   if (state === "pending") return { done: false, reviewed, failed: false };
   if (state === "fail") return { done: true, reviewed, failed: true };
-  const greenFor = (now - Date.parse(status.startedAt ?? "")) / 1000;
+  // The grace period runs from the green status or from the latest
+  // `@coderabbitai` request, whichever is later: a request takes a moment to
+  // turn the status back to pending.
+  const waitingSince = Math.max(
+    Date.parse(status.startedAt ?? ""),
+    ...pr.comments
+      .filter((comment) => comment.body.trim().startsWith("@coderabbitai"))
+      .map((comment) => Date.parse(comment.createdAt)),
+  );
   return {
-    done: reviewed || greenFor >= CODERABBIT_GRACE_SECONDS,
+    done: reviewed || (now - waitingSince) / 1000 >= CODERABBIT_GRACE_SECONDS,
     reviewed,
     failed: false,
   };
@@ -311,6 +326,7 @@ const EXIT_CODES: Record<Verdict["verdict"], number> = {
   GATE: 6,
   CLOSED: 6,
   BEHIND: 8,
+  NO_REVIEW: 9,
 };
 
 function isBotOrRequest(comment: { author: string; body: string }): boolean {
@@ -373,6 +389,9 @@ export function classify(pr: PrSnapshot, now: number): Verdict {
     }));
   const reviewFindings = unansweredReviewFindings(pr);
   const gate = gateReason(pr);
+  // CodeRabbit skips a merge from the base, so that head carries no review of
+  // its own; the PR's earlier review stands for it.
+  const skippedMerge = pr.headIsMerge && pr.coderabbitReviews.length > 0;
 
   // CHECKS precedes GATE because a failing required check also reads as
   // mergeState BLOCKED: the other order would call every red run a gate.
@@ -387,6 +406,7 @@ export function classify(pr: PrSnapshot, now: number): Verdict {
     ["FINDINGS", reviewFindings !== null],
     ["CHECKS", failed.length > 0],
     ["GATE", gate !== null],
+    ["NO_REVIEW", !coderabbit.failed && !coderabbit.reviewed && !skippedMerge],
     ["BEHIND", pr.mergeState === "BEHIND"],
   ]);
 
@@ -511,6 +531,15 @@ function readSnapshot(number: number): PrSnapshot {
         submittedAt: review.submitted_at ?? "",
         body: review.body ?? "",
       })),
+    headIsMerge:
+      Number(
+        gh([
+          "api",
+          `repos/{owner}/{repo}/commits/${view.headRefOid}`,
+          "--jq",
+          ".parents | length",
+        ]).trim(),
+      ) > 1,
     comments: (
       view.comments as {
         author: { login: string } | null;
