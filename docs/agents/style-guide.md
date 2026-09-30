@@ -524,9 +524,9 @@ A single explicit rule for choosing the component:
 
 - **`AlertDialog`**: yes/no confirmations and consequential actions (delete,
   archive, verify, save changes on a consequential record). It exposes
-  `role="alertdialog"`, traps focus and does **not** close on outside click or
-  Escape. Its look is smaller, with a centered header and a footer bar: that is
-  the "confirmation" look.
+  `role="alertdialog"`, traps focus and does **not** close on outside click;
+  Escape closes it, as `Cancelar` does. Its look is smaller, with a centered
+  header and a footer bar: that is the "confirmation" look.
 - **`Dialog`**: forms and views (create/edit resources, detail panels). It closes
   via overlay/Escape and has an X button.
 
@@ -536,6 +536,20 @@ centralizes `isPending` (disables + spinner on the destructive button), the
 `isBlocked` mode (hides the destructive button and shows a blocking
 title/description) and the `details` slot. Do not duplicate that logic or
 hand-roll a `Dialog` for deleting.
+
+A confirmation reads the same wherever it appears:
+
+- The title is a question naming the action and its object, such as
+  `¿Eliminar la coreografía?`, `¿Guardar los cambios?` or
+  `¿Anular el comprobante?`. Not `Confirmar …`.
+- The footer holds `Cancelar` and then the verb from the title (`Eliminar`,
+  `Guardar`, `Anular`), never a generic `Confirmar` or `Aceptar`. The verb button
+  carries the icon [Buttons](#buttons) gives that verb, and is `destructive` only
+  when the action destroys or reverses something.
+- A confirmation is a shared component in `app/components/shared/`, not an
+  `AlertDialog` written inline in a view: `DeleteDialog` for deletions,
+  `WithdrawDialog` for withdrawals, `DiscardChangesDialog` for leaving unsaved
+  changes. A new kind of confirmation gets its own component there.
 
 Both keep their default width: no `size` prop, no `max-w-*`. The one exception
 is an `AlertDialog` that carries a list, a preview or an alert, such as the
@@ -602,6 +616,12 @@ instead.
 
 - When the record's state locks fields, an `Alert` above the form says why and
   what unlocks them.
+- An action the record's state forbids is disabled before it is clicked, never
+  refused after: the `⋯` menu item or button is `disabled`, and an `info`
+  `Alert` above the form lists every reason, for auditors too. The disabled
+  control gets no tooltip: a tooltip cannot hold a list and does not reach
+  touch screens. The blocked mode of `DeleteDialog` is only for the dialog
+  opened straight from the URL. The server still refuses, for the race.
 - Every shared field draws the lock icon when disabled, `TextareaField`
   included. A `Switch` does not: its disabled look already reads as locked.
 
