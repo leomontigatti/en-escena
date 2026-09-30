@@ -78,7 +78,7 @@ export function DisqualificationAction({
         {disqualifyLabel}
       </Button>
       <AlertDialog open={isConfirming} onOpenChange={setIsConfirming}>
-        <AlertDialogContent className="sm:max-w-sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
             <AlertDialogDescription>

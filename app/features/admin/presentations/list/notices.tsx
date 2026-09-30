@@ -230,7 +230,7 @@ export function OrderingConfirmationDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
-        className="max-h-[calc(100dvh-2rem)]"
+        className="max-h-[calc(100dvh-2rem)] sm:max-w-lg"
         onEscapeKeyDown={(event) => {
           event.preventDefault();
         }}

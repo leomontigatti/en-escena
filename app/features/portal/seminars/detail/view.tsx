@@ -280,7 +280,6 @@ function RegisterInscriptionDialog({
     <Dialog open onOpenChange={(nextOpen) => (nextOpen ? null : onClose())}>
       <DialogContent
         ref={contentRef}
-        overlayClassName="backdrop-blur-sm"
         onOpenAutoFocus={(event) => {
           // `ComboboxField` puts the field id on its search input, which only
           // exists once the popup is open, so the trigger is what takes focus.

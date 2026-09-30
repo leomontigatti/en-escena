@@ -117,7 +117,7 @@ export function SubmodalityCriteriaDialog({
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{`Criterios de ${submodality.name}`}</DialogTitle>
             <DialogDescription>

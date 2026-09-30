@@ -114,7 +114,7 @@ export function FeedbackPlayback({
       ) : null}
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent className="sm:max-w-sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{deleteFeedbackAudioTitle}</AlertDialogTitle>
             <AlertDialogDescription>

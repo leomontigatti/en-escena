@@ -434,7 +434,7 @@ function RemoveDocumentsDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar los cambios</AlertDialogTitle>
           <AlertDialogDescription>
