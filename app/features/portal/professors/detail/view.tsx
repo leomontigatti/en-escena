@@ -227,6 +227,7 @@ export function PortalProfessorDetailRouteView({
         {nameWarning ? (
           <RosterNameWarningDialog
             formId={professorDetailFormId}
+            isPending={isSubmitting}
             warning={nameWarning.warning}
           />
         ) : null}

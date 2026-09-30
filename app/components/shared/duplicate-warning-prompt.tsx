@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import {
@@ -10,12 +11,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 
 type DuplicateWarningDialogProps = {
   children: ReactNode;
-  /** The continue action: a submit into the form, or a fetcher resubmit. */
-  continueButton: ReactNode;
+  /**
+   * The title's verb with its icon, saving anyway: a submit into the form, or
+   * a fetcher resubmit.
+   */
+  confirmButton: ReactNode;
+  /** The save the dialog confirmed is in flight. */
+  isPending: boolean;
+  /** A question naming the save the matches interrupted and its object. */
   title: string;
   /**
    * The server's answer that found the matches. Each answer is a new object,
@@ -31,7 +39,8 @@ type DuplicateWarningDialogProps = {
  */
 export function DuplicateWarningDialog({
   children,
-  continueButton,
+  confirmButton,
+  isPending,
   title,
   warning,
 }: DuplicateWarningDialogProps) {
@@ -53,8 +62,8 @@ export function DuplicateWarningDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          {continueButton}
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          {confirmButton}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -69,19 +78,26 @@ export function DuplicateWarningDialog({
  */
 export function DuplicateWarningPrompt({
   children,
+  confirmIcon: ConfirmIcon,
+  confirmLabel,
   formId,
+  isPending,
   matchIds,
   title,
   warning,
-}: Omit<DuplicateWarningDialogProps, "continueButton"> & {
+}: Omit<DuplicateWarningDialogProps, "confirmButton"> & {
+  confirmIcon: LucideIcon;
+  /** The verb from the title. */
+  confirmLabel: string;
   formId: string;
   matchIds: readonly string[];
 }) {
   return (
     <DuplicateWarningDialog
+      isPending={isPending}
       title={title}
       warning={warning}
-      continueButton={
+      confirmButton={
         <>
           {matchIds.map((matchId) => (
             <input
@@ -92,8 +108,13 @@ export function DuplicateWarningPrompt({
               value={matchId}
             />
           ))}
-          <Button form={formId} type="submit">
-            Continuar de todos modos
+          <Button form={formId} type="submit" disabled={isPending}>
+            {isPending ? (
+              <Spinner aria-hidden="true" data-icon />
+            ) : (
+              <ConfirmIcon aria-hidden="true" data-icon="inline-start" />
+            )}
+            {confirmLabel}
           </Button>
         </>
       }

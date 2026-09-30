@@ -106,6 +106,7 @@ export function CreateProfessorDialog({
           {actionData?.status === "warning" ? (
             <RosterNameWarningDialog
               formId={formId}
+              isPending={isSubmitting}
               warning={actionData.warning}
             />
           ) : null}

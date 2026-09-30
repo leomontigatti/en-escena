@@ -1,4 +1,4 @@
-import { Form, redirect, useActionData } from "react-router";
+import { Form, redirect, useActionData, useNavigation } from "react-router";
 import { z } from "zod";
 
 import { AcademyNameWarningDialog } from "@/components/auth/academy-name-warning";
@@ -23,6 +23,7 @@ import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import { isPublicAccessFormSubmitting } from "@/lib/auth/public-access-route.shared";
 import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -120,6 +121,7 @@ const academyOnboardingFormId = "academy-onboarding-form";
 
 export default function AcademyOnboardingRoute() {
   const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
   const form = useAccessForm({
     schema: academyOnboardingSchema,
     values: actionData?.values ?? emptyAcademyOnboardingValues,
@@ -187,6 +189,7 @@ export default function AcademyOnboardingRoute() {
       {warning ? (
         <AcademyNameWarningDialog
           formId={academyOnboardingFormId}
+          isPending={isPublicAccessFormSubmitting(navigation)}
           matches={warning.matches}
         />
       ) : null}
