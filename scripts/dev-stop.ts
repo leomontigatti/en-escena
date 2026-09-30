@@ -67,24 +67,49 @@ function workingDirectory(pid: number): string | null {
   }
 }
 
-/** True once none of the pids listens on the port any more, false after the wait. */
-async function portFreedOf(port: number, pids: number[]): Promise<boolean> {
-  for (let waited = 0; waited < WAIT_MS; waited += POLL_MS) {
-    const listening = new Set(listeningPids(port));
-    if (!pids.some((pid) => listening.has(pid))) return true;
+/**
+ * The pids still listening on the port other than the ones already known to be
+ * foreign, once none is left or the wait ends. A replacement process that
+ * binds the port meanwhile shows up here rather than counting as freed.
+ */
+async function remainingListeners(
+  port: number,
+  ignored: number[],
+): Promise<number[]> {
+  const others = () =>
+    listeningPids(port).filter((pid) => !ignored.includes(pid));
+  let remaining = others();
+  for (
+    let waited = 0;
+    remaining.length > 0 && waited < WAIT_MS;
+    waited += POLL_MS
+  ) {
     await delay(POLL_MS);
+    remaining = others();
   }
-  return false;
+  return remaining;
 }
 
-async function stopListeners(port: number, pids: number[]): Promise<boolean> {
+async function stopListeners(
+  port: number,
+  pids: number[],
+  foreign: number[],
+): Promise<boolean> {
   if (pids.length === 0) return true;
-  for (const pid of pids) process.kill(pid, "SIGTERM");
+  for (const pid of pids) {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch (error) {
+      // Already gone between the scan and the signal: that is a stop too.
+      if ((error as { code?: string }).code !== "ESRCH") throw error;
+    }
+  }
 
-  const freed = await portFreedOf(port, pids);
-  if (freed) console.log(`stopped ${pids.join(", ")} on ${port}`);
-  else console.error(`pid ${pids.join(", ")} still listens on ${port}`);
-  return freed;
+  const remaining = await remainingListeners(port, foreign);
+  if (remaining.length === 0)
+    console.log(`stopped ${pids.join(", ")} on ${port}`);
+  else console.error(`pid ${remaining.join(", ")} still listens on ${port}`);
+  return remaining.length === 0;
 }
 
 async function main() {
@@ -105,7 +130,11 @@ async function main() {
     );
   }
 
-  const stopped = await stopListeners(port, stop);
+  const stopped = await stopListeners(
+    port,
+    stop,
+    foreign.map((listener) => listener.pid),
+  );
   process.exitCode = stopped && foreign.length === 0 ? 0 : 1;
 }
 
