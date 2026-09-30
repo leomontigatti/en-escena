@@ -14,6 +14,10 @@ description: "Implementation workflow: explore, test-first at agreed seams, vali
 
 ## 1. Explore
 
+Start current: `git fetch origin && git log --oneline HEAD..origin/master` prints nothing, or you
+merge `origin/master` in first
+([workflows.md](../../../docs/agents/workflows.md#branches-worktrees-and-t3-code-threads)).
+
 Read the issue or request, then `CONTEXT.md`, the ADRs under `docs/adr/` that touch the area, and
 the test files beside the code you will change. Done when you can name the **seams**: the public
 interfaces the behaviour will be tested through.
@@ -66,15 +70,18 @@ green tests.
 
 ## 6. Commit
 
-Commit to the current branch when the user asked for a commit or a PR, or the run is unattended;
-otherwise report the result and leave the tree for the user. Conventional-commit subject and body
-in English, per `docs/agents/coding-standards.md` § Code Language.
+Commit to the current branch when the run started from an issue, the user asked for a commit or a
+PR, or the run is unattended; otherwise report the result and leave the tree for the user.
+Conventional-commit subject and body in English, per `docs/agents/coding-standards.md` § Code
+Language.
 
 ## 7. Open the PR and hand it off
 
-When the user asked for a PR: push the branch, open it ready for review (never a draft) in the
-shape of [pull-requests.md](../../../docs/agents/pull-requests.md), attach the step 4 evidence,
-and link it to the thread. Done when `gh pr view` shows it open and it is linked.
+When the run started from an issue or the user asked for a PR: push the branch, open it ready for
+review (never a draft) in the shape of [pull-requests.md](../../../docs/agents/pull-requests.md)
+with `Closes #N`, attach the step 4 evidence, and link it to the thread. An issue is the unit of
+work here, so a run that starts from one ends in the PR that closes it unless the user says
+otherwise. Done when `gh pr view` shows it open and it is linked.
 
 Then call the Skill tool with "babysit-pr", which hands the waiting to a background subagent. The
 babysit is not done in this session: this context is the largest in the run, and each review round
