@@ -150,6 +150,11 @@ install step failed. The main checkout stays on
 
 Rules for a session:
 
+- **Start current.** A thread can be older than the rules it builds against, and a
+  worktree behind `master` reproduces what `master` already replaced. Before the
+  first edit of an implementation or a prototype,
+  `git fetch origin && git log --oneline HEAD..origin/master` prints nothing;
+  when it lists commits, `git merge origin/master` first.
 - **Work where you started.** The thread's worktree is the working directory.
   Never `git checkout` or `git switch` in the main checkout, and never create a
   worktree of your own (`git worktree add`, Claude's `EnterWorktree`): T3 only
