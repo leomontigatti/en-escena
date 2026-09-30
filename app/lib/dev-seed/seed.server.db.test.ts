@@ -151,13 +151,10 @@ describe("dev seed", () => {
 
     // One schedule is evaluated, so its numbered presentations are frozen
     // while the morning block stays open to correction.
-    const rows = await readParticipationRows(activeEvent.id);
-    const frozen = await readFrozenChoreographyIds(rows);
-    const frozenNames = rows
-      .filter((row) => frozen.has(row.choreographyId))
-      .map((row) => row.name)
-      .sort();
-    expect(frozenNames).toEqual(["Río Arriba", "Viento Sur"]);
+    await expect(frozenChoreographyNames(activeEvent.id)).resolves.toEqual([
+      "Río Arriba",
+      "Viento Sur",
+    ]);
   });
 
   test("leaves one choreography with nothing paid, so the money screens have an unpaid inscription", async () => {
@@ -193,15 +190,12 @@ describe("dev seed", () => {
     const activeEvent = await db.query.events.findFirst({
       where: eq(events.active, true),
     });
-    const rows = await readParticipationRows(activeEvent?.id ?? "");
-    const frozen = await readFrozenChoreographyIds(rows);
-    expect(
-      rows
-        .filter((row) => frozen.has(row.choreographyId))
-        .map((row) => row.name)
-        .sort(),
-    ).toEqual(["Río Arriba", "Viento Sur"]);
-    const locked = await findScoreLockedSubmodalityIds(activeEvent?.id ?? "");
+    if (!activeEvent) throw new Error("Expected the seed's active event.");
+    await expect(frozenChoreographyNames(activeEvent.id)).resolves.toEqual([
+      "Río Arriba",
+      "Viento Sur",
+    ]);
+    const locked = await findScoreLockedSubmodalityIds(activeEvent.id);
     expect(locked.size).toBe(1);
   });
 
@@ -244,6 +238,17 @@ describe("dev seed", () => {
     ).resolves.toMatchObject({ name: "Evento Real", active: false });
   });
 });
+
+/** The numbered choreographies whose number is frozen, by name. */
+async function frozenChoreographyNames(eventId: string) {
+  const rows = await readParticipationRows(eventId);
+  const frozen = await readFrozenChoreographyIds(rows);
+
+  return rows
+    .filter((row) => frozen.has(row.choreographyId))
+    .map((row) => row.name)
+    .sort();
+}
 
 /** What each inscription of the named choreography has allocated to it. */
 async function allocatedTo(choreographyName: string) {

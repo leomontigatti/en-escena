@@ -28,6 +28,7 @@ import {
   ArcaClient,
   type ArcaBillingPort,
 } from "@/lib/comprobantes/arca/client.server";
+import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
 import { emitFacturaC } from "@/lib/comprobantes/emit-factura-c.server";
 import { deleteSeededRows } from "@/lib/dev-seed/delete-seeded-rows.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
@@ -455,8 +456,13 @@ async function coverDeposits(input: {
 // unique index is on sales point, type and number.
 const DEMO_SALES_POINT = 9999;
 
-// The CAE of the WSFEv1 manual's own example: recognisably not a real one.
+// The CAE of the WSFEv1 manual's own example and a placeholder issuer CUIT, not
+// the association's: the printed comprobante and its QR must not pass for one
+// the real issuer emitted.
 const DEMO_CAE = "41124578989845";
+const DEMO_ISSUER_CUIT = "20000000001";
+// ARCA's id for `Consumidor Final`, the recipient every `Factura C` here has.
+const DEMO_RECEPTOR_IVA_CONDITION_ID = 5;
 
 // Stands in for ARCA: the sales point has issued nothing, and every request is
 // authorized as asked, with a CAE that expires ten days on as a real one
@@ -464,7 +470,7 @@ const DEMO_CAE = "41124578989845";
 const demoBilling: ArcaBillingPort = {
   getLastVoucher: async () => ({
     cbteNro: 0,
-    cbteTipo: 11,
+    cbteTipo: FACTURA_C_CBTE_TIPO,
     ptoVta: DEMO_SALES_POINT,
   }),
   createVoucher: async (request) => {
@@ -515,8 +521,8 @@ async function invoiceChoreography(input: {
       {
         client: new ArcaClient(demoBilling),
         ptoVta: DEMO_SALES_POINT,
-        issuerCuit: "30717611590",
-        receptorIvaConditionId: 5,
+        issuerCuit: DEMO_ISSUER_CUIT,
+        receptorIvaConditionId: DEMO_RECEPTOR_IVA_CONDITION_ID,
       },
     ),
     "invoice the scored choreography",

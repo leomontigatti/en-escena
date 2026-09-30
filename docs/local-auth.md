@@ -180,7 +180,8 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   `Contemporáneo` and leaves `Lírico`'s editable.
 - One comprobante, `9999-00000001`, for what `Río Arriba` paid. It goes through
   the real emission with a stand-in for ARCA, on sales point 9999 so its number
-  cannot collide with a real one: its CAE and QR are not a fiscal document.
+  cannot collide with a real one. Its CAE is the manual's example and its issuer
+  CUIT a placeholder: it is not a fiscal document.
 
 To read the data directly, the tables are `en_escena_<singular>`
 (`en_escena_choreography`, `en_escena_comprobante`); `\dt en_escena_*` in
