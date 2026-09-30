@@ -3,13 +3,7 @@ import { type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -54,7 +48,6 @@ type AdminResourceFormCardProps = {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
-  footer?: ReactNode;
   title?: ReactNode;
 };
 
@@ -135,7 +128,6 @@ export function AdminResourceFormCard({
   children,
   className,
   contentClassName,
-  footer,
   title,
 }: AdminResourceFormCardProps) {
   return (
@@ -148,11 +140,6 @@ export function AdminResourceFormCard({
       <CardContent className={cn("flex flex-col gap-6", contentClassName)}>
         {children}
       </CardContent>
-      {footer ? (
-        <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
-          {footer}
-        </CardFooter>
-      ) : null}
     </Card>
   );
 }

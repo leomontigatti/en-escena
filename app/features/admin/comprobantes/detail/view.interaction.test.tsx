@@ -296,4 +296,17 @@ describe("ComprobanteDetailRouteView", () => {
     // nor action.
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
   });
+
+  // The card clips its overflow, so a `Volver` inside it could never stay
+  // pinned to the bottom of the viewport (#1276).
+  test("renders `Volver` below the card, where it can stay pinned", async () => {
+    await mount({});
+
+    const volver = [...document.querySelectorAll("a")].find(
+      (link) => link.textContent === "Volver",
+    );
+
+    expect(volver).toBeDefined();
+    expect(volver?.closest('[data-slot="card"]')).toBeNull();
+  });
 });
