@@ -154,7 +154,8 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   on `/portal`.
 - `auditoria@enescena.local` and `jurado@enescena.local`: an auditor and a
   judge, landing on `/auditoria` and `/juzgamiento`. The judge is assigned to
-  one presentation, which they disqualified.
+  both afternoon presentations: they disqualified `Viento Sur` and scored
+  `Río Arriba` 87.
 - All four are email-verified and share one password, `DEV_SEED_PASSWORD` in
   `app/lib/dev-seed/seed.server.ts`; the command prints it.
 - Three events: `Evento Activo` (active, 60 days out), `Evento Futuro` and
