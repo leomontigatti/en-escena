@@ -20,6 +20,7 @@ import {
   findButton,
   setInputValue,
   updateReactDomForm,
+  waitFor,
 } from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
@@ -151,20 +152,6 @@ function getStepCounter() {
 function isNextDisabled() {
   return (findButton("Siguiente", { exact: true }) as HTMLButtonElement)
     .disabled;
-}
-
-async function waitFor(check: () => boolean) {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    if (check()) {
-      return;
-    }
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    });
-  }
-
-  throw new Error("The page never reached the expected state.");
 }
 
 async function clickLabel(text: string) {

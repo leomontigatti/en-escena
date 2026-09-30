@@ -159,6 +159,17 @@ suite is broad and cheap, and it is the thing most likely to catch a regression
 in code the change did not touch. Keeping it costs ~2.6 minutes and preserves
 almost all of the safety net.
 
+## A test that fails and then passes
+
+A test that fails and passes on a rerun with nothing changed is a **flake**, and
+a flake is a defect in the test: rerunning until green hides it from the next
+session. Open an issue with the test's file and name and the failing output, or
+add them to the open one, before moving on. Two causes found so far (#1338):
+state a `unit-shared` worker carries from one file to the next
+([workflows.md](./workflows.md#continuous-integration)), and a fixed pause
+standing in for an outcome, where `waitFor` from
+`app/lib/test-support/react-dom.tsx` waits for the outcome itself.
+
 ## Targeting DB tests
 
 Both scripts pass positional arguments through to vitest, so a path filter works:

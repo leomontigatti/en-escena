@@ -122,6 +122,26 @@ function findButton(label: string, options: { exact?: boolean } = {}) {
   });
 }
 
+/**
+ * Waits for the page to reach a state, for an outcome that arrives when its
+ * request does: a saved form, a refusal, a toast. A fixed pause in its place
+ * passes on an idle machine and fails when the full suite saturates the
+ * workers (#1338).
+ */
+async function waitFor(check: () => boolean) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if (check()) {
+      return;
+    }
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
+
+  throw new Error("The page never reached the expected state.");
+}
+
 /** The text of every element matching `selector`, in document order. */
 function getReactDomTexts(selector: string) {
   return Array.from(document.querySelectorAll(selector)).map(
@@ -137,5 +157,6 @@ export {
   getReactDomTexts,
   setInputValue,
   updateReactDomForm,
+  waitFor,
 };
 export type { ReactDomTestRenderer };

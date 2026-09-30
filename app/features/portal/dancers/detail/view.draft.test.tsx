@@ -124,7 +124,11 @@ describe("the portal dancer detail as one draft", () => {
 async function renderDancerPage(
   input: { actionData?: DancerDetailProps["actionData"] } = {},
 ) {
-  // The form posts to jsdom's own address, so the page sits at `/`.
+  // The form posts to the URL the document says, which the memory router does
+  // not set. The window is shared by every file of a `unit-shared` worker, so
+  // its address is whatever the last one left: put it where this page sits.
+  window.history.replaceState(null, "", "/");
+
   const router = createMemoryRouter(
     [
       {
