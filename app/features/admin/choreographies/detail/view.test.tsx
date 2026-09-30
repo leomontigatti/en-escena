@@ -34,6 +34,20 @@ describe("ChoreographyDetailRouteView", () => {
     );
   });
 
+  // The evaluation is also why the choreography cannot be deleted, and the
+  // page says so before the menu is opened (#454), to auditors as well.
+  test("says in the evaluation alert that the choreography cannot be deleted", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        choreography: buildChoreography({ isEvaluated: true }),
+        deletion: evaluatedDeletion,
+      }),
+    });
+
+    expect(markup).toContain("Tampoco puede eliminarse ni retirarse.");
+  });
+
   // Holding a number is not a lock: the administrator keeps correcting the
   // choreography, and the alert only says where the correction may echo.
   test("announces the presentation number without locking anything", () => {
@@ -348,6 +362,23 @@ describe("ChoreographyDetailRouteView", () => {
     ).toBe(true);
   });
 
+  test("disables the delete menu item when the choreography cannot be deleted", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ isEvaluated: true }),
+        deletion: evaluatedDeletion,
+      }),
+    });
+
+    await openActionsMenu();
+
+    const item = Array.from(
+      document.querySelectorAll('[role="menuitem"]'),
+    ).find((element) => element.textContent?.includes("Eliminar coreografía"));
+
+    expect(item?.getAttribute("aria-disabled")).toBe("true");
+  });
+
   // The dialog names the outcome before the admin confirms: the two are not
   // the same act, and only one of them keeps the money where it is.
   test("announces a withdrawal when the choreography holds money or comprobantes", async () => {
@@ -532,6 +563,17 @@ function renderDetail(
 
   return renderToStaticMarkup(<RouterProvider router={router} />);
 }
+
+const evaluatedDeletion: ChoreographyDetailLoaderData["deletion"] = {
+  blockers: [
+    {
+      code: "evaluated-presentation",
+      label: "la presentación ya fue evaluada",
+    },
+  ],
+  canDelete: false,
+  outcome: "deleted",
+};
 
 function buildLoaderData(
   overrides: Partial<ChoreographyDetailLoaderData> = {},
