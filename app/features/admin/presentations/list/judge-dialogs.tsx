@@ -159,7 +159,7 @@ export function JudgeAssignmentDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent overlayClassName="backdrop-blur-sm">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{copy.title}</DialogTitle>
           <DialogDescription>
