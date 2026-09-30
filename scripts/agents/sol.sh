@@ -84,7 +84,7 @@ start() {
       -C "$root" --ephemeral -o "$dir/out.md" - \
       <"$dir/prompt.md" >"$dir/codex.log" 2>&1 || status=$?
     echo "$status" >"$dir/exit"
-  ) </dev/null &
+  ) </dev/null >/dev/null 2>&1 &
   echo $! >"$dir/pid"
   await "$dir"
 }
