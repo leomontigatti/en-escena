@@ -277,7 +277,10 @@ sharing a worker and its already-imported modules with the files before it.
 The split is computed from file contents when the config loads, so there is no
 list to maintain, but a test in `unit-shared` must not rely on module-level
 state (a module's `let`, a `Set` or a cache) being reset between files: reset
-it in the test, or the next file on that worker sees what this one left.
+it in the test, or the next file on that worker sees what this one left. The
+jsdom window is shared the same way, its address included: a test whose form
+posts to the document's URL sets that URL itself
+(`window.history.replaceState`) before it renders (#1338).
 
 `.github/workflows/pr-title.yml` is a fifth gate, in its own file (#1007): one
 job, `pr-title`, running `pnpm check:pr-title` over

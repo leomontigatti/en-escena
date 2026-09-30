@@ -35,6 +35,7 @@ import {
   findButton,
   setInputValue,
   updateReactDomForm,
+  waitFor,
 } from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
@@ -189,11 +190,15 @@ describe("the choreography detail as one draft", () => {
 
     await typeName("Danza solar");
     await clickReactDomButton("Guardar");
-    await settle();
-
-    expect(document.body.textContent).toContain(
-      "El cronograma seleccionado ya no tiene cupo disponible.",
+    // The refusal shows when the save answers, not a fixed pause after the
+    // click: under a loaded suite the pause used to end first (#1338).
+    await waitFor(
+      () =>
+        document.body.textContent?.includes(
+          "El cronograma seleccionado ya no tiene cupo disponible.",
+        ) ?? false,
     );
+
     expect(getNameInput().value).toBe("Danza solar");
     expect(isSaveEnabled()).toBe(true);
   });

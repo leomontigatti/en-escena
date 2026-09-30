@@ -19,6 +19,7 @@ import {
   findButton,
   setInputValue,
   updateReactDomForm,
+  waitFor,
 } from "@/lib/test-support/react-dom";
 
 type ProfileLoaderData = Awaited<ReturnType<typeof loadPortalProfile>>;
@@ -63,6 +64,29 @@ describe("the portal profile as one draft", () => {
 
     expect(findDialog()).toBeUndefined();
     expect(page.pathname()).toBe("/portal");
+  });
+
+  test("saves wherever an earlier test file left the shared window (#1338)", async () => {
+    // `unit-shared` runs every file of a worker in one jsdom window, and the
+    // admin detail tests leave its address on their own page.
+    window.history.replaceState(
+      null,
+      "",
+      "/administracion/academias/academy_1",
+    );
+    const saved: string[] = [];
+    await renderProfilePage({
+      save: (contactName) => {
+        saved.push(contactName);
+        return { message: "Perfil actualizado.", status: "success" };
+      },
+    });
+
+    await typeContactName("Mora Díaz");
+    await clickReactDomButton("Guardar");
+    await waitFor(() => !isSaveEnabled());
+
+    expect(saved).toEqual(["Mora Díaz"]);
   });
 
   test("leaves the form clean after a save, and keeps `Guardar` on after a refusal", async () => {
@@ -114,7 +138,11 @@ async function renderProfilePage(
     );
   }
 
-  // The form posts to jsdom's own address, so the page sits at `/`.
+  // The form posts to the URL the document says, which the memory router does
+  // not set. The window is shared by every file of a `unit-shared` worker, so
+  // its address is whatever the last one left: put it where this page sits.
+  window.history.replaceState(null, "", "/");
+
   const router = createMemoryRouter(
     [
       { element: <Link to="/">Perfil</Link>, path: "/portal" },
