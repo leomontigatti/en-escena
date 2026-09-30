@@ -16,20 +16,7 @@ import {
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 import { cn } from "@/lib/shared/utils";
 
-function DeleteDialog({
-  blockedDescription,
-  blockedTitle = "No se puede eliminar",
-  confirmFieldName = "confirmDeletion",
-  confirmFieldValue,
-  description,
-  details,
-  intentValue,
-  isBlocked = false,
-  open,
-  onOpenChange,
-  recordId,
-  title = "Confirmar eliminación",
-}: {
+type DeleteDialogProps = {
   blockedDescription?: ReactNode;
   blockedTitle?: string;
   confirmFieldName?: string;
@@ -49,14 +36,115 @@ function DeleteDialog({
   onOpenChange: (open: boolean) => void;
   recordId: string;
   title?: string;
-}) {
+};
+
+/**
+ * The dialog has two modes, and this is the one place that tells them apart:
+ * a blocked delete explains itself and offers no destructive button, a
+ * confirmable one warns and submits.
+ */
+function DeleteDialog({ isBlocked = false, ...props }: DeleteDialogProps) {
+  return isBlocked ? (
+    <BlockedDeleteDialog {...props} />
+  ) : (
+    <ConfirmDeleteDialog {...props} />
+  );
+}
+
+function BlockedDeleteDialog({
+  blockedDescription,
+  blockedTitle = "No se puede eliminar",
+  description,
+  details,
+  open,
+  onOpenChange,
+}: Omit<DeleteDialogProps, "isBlocked">) {
+  return (
+    <DeleteDialogShell
+      alert={
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Acción no disponible</AlertTitle>
+          <AlertDescription>
+            {blockedDescription ??
+              "Esta acción no está disponible para este registro."}
+          </AlertDescription>
+        </Alert>
+      }
+      cancelLabel="Cerrar"
+      description={description}
+      details={details}
+      onOpenChange={onOpenChange}
+      open={open}
+      title={blockedTitle}
+    />
+  );
+}
+
+function ConfirmDeleteDialog({
+  confirmFieldName = "confirmDeletion",
+  confirmFieldValue,
+  description,
+  details,
+  intentValue,
+  open,
+  onOpenChange,
+  recordId,
+  title = "Confirmar eliminación",
+}: Omit<DeleteDialogProps, "isBlocked">) {
   const navigation = useOptionalNavigation();
-  const resolvedConfirmFieldValue = confirmFieldValue ?? recordId;
   const isPending = isRouteFormPending(navigation, {
     intent: intentValue,
     fields: { id: recordId },
   });
 
+  return (
+    <DeleteDialogShell
+      action={
+        <form method="post">
+          <input type="hidden" name="intent" value={intentValue} />
+          <input type="hidden" name="id" value={recordId} />
+          <input
+            type="hidden"
+            name={confirmFieldName}
+            value={confirmFieldValue ?? recordId}
+          />
+          <DestroyButton isPending={isPending} />
+        </form>
+      }
+      alert={<IrreversibleActionAlert />}
+      cancelLabel="Cancelar"
+      description={description}
+      details={details}
+      isPending={isPending}
+      onOpenChange={onOpenChange}
+      open={open}
+      title={title}
+    />
+  );
+}
+
+function DeleteDialogShell({
+  action,
+  alert,
+  cancelLabel,
+  description,
+  details,
+  isPending = false,
+  onOpenChange,
+  open,
+  title,
+}: {
+  action?: ReactNode;
+  alert: ReactNode;
+  cancelLabel: string;
+  description: ReactNode;
+  details?: ReactNode;
+  isPending?: boolean;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  title: string;
+}) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
@@ -74,23 +162,10 @@ function DeleteDialog({
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {isBlocked ? blockedTitle : title}
-          </AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        {isBlocked ? (
-          <Alert variant="warning">
-            <TriangleAlert aria-hidden="true" />
-            <AlertTitle>Acción no disponible</AlertTitle>
-            <AlertDescription>
-              {blockedDescription ??
-                "Esta acción no está disponible para este registro."}
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <IrreversibleActionAlert />
-        )}
+        {alert}
         {details ? (
           <div
             data-slot="delete-dialog-details"
@@ -101,20 +176,9 @@ function DeleteDialog({
         ) : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>
-            {isBlocked ? "Cerrar" : "Cancelar"}
+            {cancelLabel}
           </AlertDialogCancel>
-          {isBlocked ? null : (
-            <form method="post">
-              <input type="hidden" name="intent" value={intentValue} />
-              <input type="hidden" name="id" value={recordId} />
-              <input
-                type="hidden"
-                name={confirmFieldName}
-                value={resolvedConfirmFieldValue}
-              />
-              <DestroyButton isPending={isPending} />
-            </form>
-          )}
+          {action}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
