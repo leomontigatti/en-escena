@@ -71,7 +71,8 @@ green tests.
 ## 6. Commit
 
 Commit to the current branch when the run started from an issue, the user asked for a commit or a
-PR, or the run is unattended; otherwise report the result and leave the tree for the user.
+PR, or the run is unattended; otherwise report the result and leave the tree for the user. An
+explicit request from the user not to commit overrides all of these.
 Conventional-commit subject and body in English, per `docs/agents/coding-standards.md` § Code
 Language.
 
@@ -79,7 +80,7 @@ Language.
 
 When the run started from an issue or the user asked for a PR: push the branch, open it ready for
 review (never a draft) in the shape of [pull-requests.md](../../../docs/agents/pull-requests.md)
-with `Closes #N`, attach the step 4 evidence, and link it to the thread. An issue is the unit of
+with `Closes #N`, attach the step 4 evidence when step 4 produced any, and link it to the thread. An issue is the unit of
 work here, so a run that starts from one ends in the PR that closes it unless the user says
 otherwise. Done when `gh pr view` shows it open and it is linked.
 
