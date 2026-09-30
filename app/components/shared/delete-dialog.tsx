@@ -58,7 +58,15 @@ function BlockedDeleteDialog({
   details,
   open,
   onOpenChange,
-}: Omit<DeleteDialogProps, "isBlocked">) {
+}: Pick<
+  DeleteDialogProps,
+  | "blockedDescription"
+  | "blockedTitle"
+  | "description"
+  | "details"
+  | "open"
+  | "onOpenChange"
+>) {
   return (
     <DeleteDialogShell
       alert={
@@ -91,7 +99,10 @@ function ConfirmDeleteDialog({
   onOpenChange,
   recordId,
   title = "Confirmar eliminación",
-}: Omit<DeleteDialogProps, "isBlocked">) {
+}: Omit<
+  DeleteDialogProps,
+  "blockedDescription" | "blockedTitle" | "isBlocked"
+>) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, {
     intent: intentValue,
