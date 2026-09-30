@@ -6,6 +6,8 @@
 
 <!-- UI change? Before/after images, or a short video for motion. Delete if not applicable. -->
 
+Risk: <!-- two-way or one-way door; blast radius: what breaks, and for whom, if this is wrong. -->
+
 Validation:
 
 Closes #
