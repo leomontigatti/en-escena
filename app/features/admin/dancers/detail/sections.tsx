@@ -1,6 +1,8 @@
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
-import { useState, type SubmitEventHandler, type ReactNode } from "react";
+import { type SubmitEventHandler, type ReactNode } from "react";
+
+import { useFormFieldsTab } from "@/lib/shared/forms";
 
 import {
   AdminEmptyState,
@@ -178,9 +180,8 @@ export function DancerDetailAlerts({
 /**
  * The whole page form: the card of fields, closed by its pinned footer. Whoever
  * may edit gets the fields editable in place; anyone else sees them disabled with
- * only `Volver`. Every field is in `Identificación`, so the footer offers to save
- * on that tab alone: on `Inscripciones` the fields are unmounted and a save
- * would post none of them.
+ * only `Volver`. Every field is in `Identificación`, and the footer offers to
+ * save from either tab.
  */
 export function DancerDetailForm({
   backToList,
@@ -205,7 +206,7 @@ export function DancerDetailForm({
   onSubmit: SubmitEventHandler<HTMLFormElement>;
   selectedEventId: string | null;
 }) {
-  const [tab, setTab] = useState<DancerDetailTab>("identificacion");
+  const { selectTab, tab } = useFormFieldsTab(editForm.form, dancerDetailTabs);
 
   return (
     <form
@@ -224,7 +225,6 @@ export function DancerDetailForm({
             hasChanges={editForm.hasChanges}
             isPending={isSaving}
             onDiscard={editForm.discard}
-            showsSave={tab === "identificacion"}
           />
         }
       >
@@ -234,7 +234,7 @@ export function DancerDetailForm({
           dancer={dancer}
           documentImageUrls={documentImageUrls}
           editForm={editForm}
-          onTabChange={setTab}
+          onTabChange={selectTab}
           selectedEventId={selectedEventId}
           tab={tab}
         />
@@ -250,9 +250,8 @@ export function DancerDetailForm({
   );
 }
 
+/** The fields' tab first. */
 const dancerDetailTabs = ["identificacion", "inscripciones"] as const;
-
-type DancerDetailTab = (typeof dancerDetailTabs)[number];
 
 function DancerDetailTabs({
   dancer,
@@ -267,26 +266,23 @@ function DancerDetailTabs({
   documentImageUrls: DancerDetailLoaderData["documentImageUrls"];
   editForm: DancerEditFormController;
   canEdit: boolean;
-  onTabChange: (tab: DancerDetailTab) => void;
+  onTabChange: (tab: string) => void;
   selectedEventId: string | null;
-  tab: DancerDetailTab;
+  tab: string;
 }) {
   return (
-    <Tabs
-      value={tab}
-      onValueChange={(next) => {
-        const named = dancerDetailTabs.find((candidate) => candidate === next);
-
-        if (named) {
-          onTabChange(named);
-        }
-      }}
-    >
+    <Tabs value={tab} onValueChange={onTabChange}>
       <TabsList variant="line">
         <TabsTrigger value="identificacion">Identificación</TabsTrigger>
         <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
       </TabsList>
-      <TabsContent value="identificacion" className="pt-2">
+      {/* Kept mounted behind the other tab: the save posts the inputs
+          themselves, and Radix would unmount them. */}
+      <TabsContent
+        forceMount
+        value="identificacion"
+        className="pt-2 data-[state=inactive]:hidden"
+      >
         <DancerIdentificationSection
           dancer={dancer}
           documentImageUrls={documentImageUrls}

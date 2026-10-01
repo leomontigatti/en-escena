@@ -62,9 +62,9 @@ describe("DancerDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("¿Archivar al bailarín?");
   });
 
-  // Every field is in `Identificación`, and Radix unmounts it behind the other
-  // tab: a save from `Inscripciones` would post an empty dancer (#1274).
-  test("offers `Guardar` on the tab that holds the fields, and keeps what was typed behind the other", async () => {
+  // Every field is in `Identificación`, and Radix would unmount it behind the
+  // other tab: a save from `Inscripciones` would post an empty dancer (#1274).
+  test("offers `Guardar` on both tabs, and posts every field from `Inscripciones`", async () => {
     await renderer.renderAsync(
       renderInDataRouter(
         "/administracion/bailarines/dancer-1",
@@ -72,20 +72,11 @@ describe("DancerDetailRouteView dialogs", () => {
       ),
     );
 
-    await updateReactDomForm(() => {
-      setInputValue(getFirstNameInput(), "Bea");
-    });
+    await changeFirstName("Bea");
     await selectTab("Inscripciones");
 
-    expect(document.querySelector('input[name="firstName"]')).toBeNull();
-    expect(findButton("Guardar", { exact: true })).toBeUndefined();
-    expect(findButton("Descartar cambios")).toBeUndefined();
-    expect(document.body.textContent).toContain("Volver");
-
-    await selectTab("Identificación");
-
-    expect(getFirstNameInput().value).toBe("Bea");
     expect(getButton("Guardar").disabled).toBe(false);
+    expect(findButton("Descartar cambios")).toBeDefined();
 
     const form = getFirstNameInput().form;
 
@@ -102,6 +93,30 @@ describe("DancerDetailRouteView dialogs", () => {
       firstName: "Bea",
       lastName: "Detalle",
     });
+  });
+
+  test("a save refused from `Inscripciones` brings the fields' tab forward", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
+        <DancerDetailRouteView loaderData={createLoaderData()} />,
+      ),
+    );
+
+    await changeFirstName("");
+    await selectTab("Inscripciones");
+
+    expect(getSelectedTab()).toBe("Inscripciones");
+
+    await clickReactDomButton("Guardar", { exact: true });
+
+    expect(getSelectedTab()).toBe("Identificación");
+    expect(getFirstNameInput().getAttribute("aria-invalid")).toBe("true");
+
+    // Only a save pulls the tab: the errors that remain do not hold it.
+    await selectTab("Inscripciones");
+
+    expect(getSelectedTab()).toBe("Inscripciones");
   });
 
   test("changing a dancer's status confirms without a correction reason field", async () => {
@@ -309,6 +324,11 @@ function getFirstNameInput() {
   }
 
   return input;
+}
+
+function getSelectedTab() {
+  return document.querySelector('[role="tab"][aria-selected="true"]')
+    ?.textContent;
 }
 
 async function selectTab(label: string) {

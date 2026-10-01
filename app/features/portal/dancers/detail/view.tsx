@@ -46,7 +46,11 @@ import {
   getDancerVerificationStatus,
   type DancerIdentificationPendingItem,
 } from "@/lib/dancers/verification";
-import { isRouteFormPending, useCloseOnceSettled } from "@/lib/shared/forms";
+import {
+  isRouteFormPending,
+  useCloseOnceSettled,
+  useFormFieldsTab,
+} from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -69,9 +73,8 @@ import {
   type PortalDancerStatusIntent,
 } from "./shared";
 
+/** The fields' tab first. */
 const portalDancerTabs = ["identificacion", "inscripciones"] as const;
-
-type PortalDancerTab = (typeof portalDancerTabs)[number];
 
 export type PortalDancerDetailRouteViewProps = {
   loaderData: PortalDancerDetailLoaderData;
@@ -105,7 +108,7 @@ export function PortalDancerDetailRouteView({
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<PortalDancerStatusIntent | null>(initialStatusDialogIntent);
-  const [tab, setTab] = useState<PortalDancerTab>("identificacion");
+  const { selectTab, tab } = useFormFieldsTab(form.form, portalDancerTabs);
   const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
   const identificationPendingItems = getDancerIdentificationPendingItems(
     loaderData.dancer,
@@ -192,7 +195,6 @@ export function PortalDancerDetailRouteView({
               hasChanges={form.form.formState.isDirty}
               isPending={isSubmitting}
               onDiscard={form.discard}
-              showsSave={tab === "identificacion"}
               viewTransition
             />
           }
@@ -207,18 +209,7 @@ export function PortalDancerDetailRouteView({
               className="flex flex-col gap-6"
             >
               <input type="hidden" name="intent" value="update-dancer" />
-              <Tabs
-                value={tab}
-                onValueChange={(next) => {
-                  const named = portalDancerTabs.find(
-                    (candidate) => candidate === next,
-                  );
-
-                  if (named) {
-                    setTab(named);
-                  }
-                }}
-              >
+              <Tabs value={tab} onValueChange={selectTab}>
                 <TabsList variant="line">
                   <TabsTrigger value="identificacion">
                     Identificación

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type SubmitEventHandler } from "react";
+import { useEffect, useRef, useState, type SubmitEventHandler } from "react";
 import type {
   FieldValues,
   SubmitHandler,
@@ -50,6 +50,45 @@ export function useSavedFormValues<
       form.reset(refused, { keepDefaultValues: true });
     }
   }, [form, savedKey, submittedKey]);
+}
+
+/**
+ * The local tab of a record whose form keeps every field in one tab. `Guardar`
+ * is offered on every tab, so a save refused from another one brings the
+ * fields' tab forward: an error never lands on a panel nobody can see. The
+ * submit count is a dependency so that a second refusal of the same broken
+ * form switches again.
+ */
+export function useFormFieldsTab<
+  TTab extends string,
+  TFieldValues extends FieldValues,
+  TTransformed extends FieldValues | undefined,
+>(
+  form: Pick<UseFormReturn<TFieldValues, unknown, TTransformed>, "formState">,
+  tabs: readonly [TTab, ...TTab[]],
+) {
+  const [fieldsTab] = tabs;
+  const [tab, setTab] = useState(fieldsTab);
+  const { errors, submitCount } = form.formState;
+  const hasErrors = Object.keys(errors).length > 0;
+
+  useEffect(() => {
+    if (hasErrors) {
+      setTab(fieldsTab);
+    }
+  }, [fieldsTab, hasErrors, submitCount]);
+
+  return {
+    /** For `Tabs`' `onValueChange`, which hands back a plain string. */
+    selectTab: (next: string) => {
+      const named = tabs.find((candidate) => candidate === next);
+
+      if (named) {
+        setTab(named);
+      }
+    },
+    tab,
+  };
 }
 
 // The only two options any caller of the handlers below actually sets. Derived

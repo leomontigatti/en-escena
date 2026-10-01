@@ -120,25 +120,33 @@ describe("the portal dancer detail as one draft", () => {
     expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
   });
 
-  // Every field is in `Identificación`, so the other tab has nothing to save.
-  test("offers `Guardar` on the tab that holds the fields, and still guards the changes from the other", async () => {
+  test("offers `Guardar` on both tabs, and guards the changes from either", async () => {
     await renderDancerPage();
 
     await typeFirstName("Bea");
     await selectTab("Inscripciones");
 
-    expect(findButton("Guardar", { exact: true })).toBeUndefined();
-    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(isSaveEnabled()).toBe(true);
+    expect(findButton("Descartar cambios")).toBeDefined();
 
     await clickLink("Volver");
 
     expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
+  });
 
-    await clickReactDomButton("Cancelar");
-    await selectTab("Identificación");
+  test("a save refused from `Inscripciones` brings the fields' tab forward", async () => {
+    await renderDancerPage();
 
-    expect(getFirstNameInput().value).toBe("Bea");
-    expect(isSaveEnabled()).toBe(true);
+    await typeFirstName("");
+    await selectTab("Inscripciones");
+
+    expect(getSelectedTab()).toBe("Inscripciones");
+
+    await clickReactDomButton("Guardar", { exact: true });
+    await settle();
+
+    expect(getSelectedTab()).toBe("Identificación");
+    expect(getFirstNameInput().getAttribute("aria-invalid")).toBe("true");
   });
 });
 
@@ -242,6 +250,11 @@ function dialogButtonLabels() {
   return Array.from(findDialog()?.querySelectorAll("button") ?? []).map(
     (button) => button.textContent?.trim(),
   );
+}
+
+function getSelectedTab() {
+  return document.querySelector('[role="tab"][aria-selected="true"]')
+    ?.textContent;
 }
 
 async function selectTab(label: string) {

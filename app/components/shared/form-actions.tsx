@@ -27,11 +27,6 @@ type FormActionsProps = {
   hasChanges: boolean;
   isPending: boolean;
   onDiscard: () => void;
-  /**
-   * Whether `Guardar` is offered here. A tab with no field of the form shows
-   * `Volver` alone, and the changes made on the other tab stay guarded.
-   */
-  showsSave?: boolean;
   viewTransition?: boolean;
 };
 
@@ -50,7 +45,6 @@ export function FormActions({
   hasChanges,
   isPending,
   onDiscard,
-  showsSave = true,
   viewTransition,
 }: FormActionsProps) {
   const discardDialog = useUnsavedChangesGuard({
@@ -62,7 +56,7 @@ export function FormActions({
     <>
       <PinnedActions>
         <BackButton to={backTo} viewTransition={viewTransition} />
-        {canEdit && showsSave ? (
+        {canEdit ? (
           <div className="flex items-center gap-3">
             {hasChanges ? (
               <Button
