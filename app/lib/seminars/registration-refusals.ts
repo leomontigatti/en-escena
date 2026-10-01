@@ -26,9 +26,10 @@ export const seminarPricesMissingMessage =
   "Las inscripciones a este seminario todavía no están abiertas.";
 
 /**
- * Said twice as well: the admin seminar detail explains with it above the tabs
- * while `Eliminar` is disabled, and the repository refuses with it when an
- * inscription appeared in between.
+ * The repository's refusal when an inscription appeared between opening the
+ * delete confirmation and submitting it. The blocked dialog the admin seminar
+ * detail opens up front words its own reason, because it can also say how to
+ * get past it.
  */
 export const seminarHasInscriptionsMessage =
   "Este seminario tiene inscripciones. No podés eliminarlo.";

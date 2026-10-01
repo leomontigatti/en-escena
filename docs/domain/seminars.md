@@ -61,8 +61,9 @@ what runs today.
   orphans it on the volume, as event documents are orphaned today.
 - Administration edits every other field at any time, including after
   inscriptions exist, with two refusals: a seminar cannot be deleted while it
-  has inscriptions (`Eliminar` is disabled on sight and an alert above the tabs
-  says why), and, after the submission, the quota cannot drop below
+  has inscriptions (`Eliminar` opens the blocked delete dialog, which says what
+  it takes; with a covered inscription the item is disabled instead, since the
+  alert above the tabs explaining the locked fields names the delete too), and, after the submission, the quota cannot drop below
   the **covered** count — an inscription that has not covered its deposit holds
   no place, so it does not hold the floor up either, and raising the quota is
   always free. Moving a seminar's date into the past simply closes its
@@ -104,7 +105,6 @@ rule fits; every difference is named.
   fields render through the shared read-only look, `Borrar precio` is disabled,
   and an `info` alert above the form card says why, naming both the locked
   fields and the delete — and the server refuses all the same, for the race. The
-  delete dialog still opens blocked when reached straight from the URL. The
   sentences are the choreography list's, shared in `app/lib/prices/guards.ts`,
   and the choreography price form shows its guards the same way.
 - **Readiness.** A seminar's registration is closed while the event lacks a

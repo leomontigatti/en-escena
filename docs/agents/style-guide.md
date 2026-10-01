@@ -660,10 +660,15 @@ instead.
     description says what it takes, its `info` `Alert` lists every reason, and
     `Cerrar` is its only button. An alert on the page would sit
     on nearly every record and stop being read.
+  - **A block an alert already explains**, because the same state also locks
+    fields (a price in use, a seminar with a covered inscription), is disabled
+    like a rare one, and that alert's sentence names the action too
+    (`Solo podés cambiar el nombre y no se puede borrar`). A dialog would only
+    repeat it.
 
-  The blocked mode of `DeleteDialog` is built on it for a deletion, and is
-  also what a dialog opened straight from the URL shows when the block is a
-  rare one. The server still refuses, for the race.
+  The blocked mode of `DeleteDialog` is built on it for a deletion; its
+  description says what it takes to delete, not what deleting does. The
+  server still refuses, for the race.
 
 - Every shared field draws the lock icon when disabled, `TextareaField`
   included. A `Switch` does not: its disabled look already reads as locked.

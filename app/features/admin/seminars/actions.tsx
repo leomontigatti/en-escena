@@ -6,34 +6,39 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { seminarHasInscriptionsMessage } from "@/lib/seminars/registration-refusals";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
 
 import { deleteSeminarIntent } from "./shared";
 
 export function SeminarActions({
+  hasCoveredInscription,
   seminar,
   initialDeleteDialogOpen = false,
 }: {
+  hasCoveredInscription: boolean;
   seminar: SeminarListItem;
   initialDeleteDialogOpen?: boolean;
 }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  // The inscriptions are what the seminar owes, and the alert above the tabs
-  // already says it cannot be deleted while any stands, so the item is disabled
-  // on sight. The count is the withdrawn-inclusive one, because that is what
+  // The count is the withdrawn-inclusive one, because that is what
   // `deleteSeminar` refuses on.
   const hasInscriptions = seminar.inscriptionCount > 0;
+  const blockedDeletion = describeBlockedDeletion(seminar);
 
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48" size="icon">
         <DropdownMenuGroup>
+          {/* A covered inscription locks fields, and the alert explaining
+              them above the tabs names the delete too, so the item is
+              disabled on sight. Uncovered ones are what nearly every seminar
+              in use holds: the item stays enabled and the dialog says why it
+              cannot delete (style guide, Detail pages). */}
           <DropdownMenuItem
             variant="destructive"
-            disabled={hasInscriptions}
+            disabled={hasCoveredInscription}
             onSelect={() => setDeleteDialogOpen(true)}
           >
             Eliminar
@@ -42,11 +47,14 @@ export function SeminarActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar el seminario?"
-        description={`Esta acción borra el seminario de ${seminar.instructorName}. No se puede deshacer.`}
-        // Still blocked when opened straight from the URL: the dialog then only
-        // explains itself and offers no destructive button.
+        blockedTitle="No se puede eliminar el seminario"
+        description={
+          hasInscriptions
+            ? blockedDeletion.wayOut
+            : `Esta acción borra el seminario de ${seminar.instructorName}. No se puede deshacer.`
+        }
         isBlocked={hasInscriptions}
-        blockedDescription={seminarHasInscriptionsMessage}
+        blockedDescription={blockedDeletion.reason}
         intentValue={deleteSeminarIntent}
         recordId={seminar.id}
         open={deleteDialogOpen}
@@ -54,4 +62,30 @@ export function SeminarActions({
       />
     </>
   );
+}
+
+/**
+ * Why a seminar that holds inscriptions cannot be deleted, for the alert, and
+ * what it takes to delete it, for the description. Removing an inscription with
+ * money or a comprobante withdraws it instead of deleting it, and a withdrawn
+ * row blocks the delete for good, so once only those are left there is no way
+ * out to name.
+ */
+function describeBlockedDeletion(
+  seminar: Pick<SeminarListItem, "registeredCount">,
+) {
+  const reason =
+    "Este seminario tiene inscripciones y no puede eliminarse directamente.";
+
+  return seminar.registeredCount > 0
+    ? {
+        reason,
+        wayOut:
+          "Importante: seguir el orden para eliminarlo correctamente. Quitar el dinero de todas las inscripciones y después eliminarlas desde la lista de inscriptos.",
+      }
+    : {
+        reason,
+        wayOut:
+          "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
+      };
 }

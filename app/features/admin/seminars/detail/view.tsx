@@ -1,10 +1,7 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { GuardAlert } from "@/components/shared/guard-alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  coveredSeminarMessage,
-  seminarHasInscriptionsMessage,
-} from "@/lib/seminars/registration-refusals";
+import { coveredSeminarMessage } from "@/lib/seminars/registration-refusals";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { SeminarActions } from "../actions";
@@ -42,11 +39,11 @@ export function SeminarDetailView({
     intent: updateSeminarIntent,
     values: loaderData.values,
   });
+  // Only a covered inscription has a standing reason: it locks fields. One that
+  // only blocks the delete is said by `Eliminar` when it is clicked.
   const lockReason = loaderData.hasCoveredInscription
     ? coveredSeminarMessage
-    : seminar.inscriptionCount > 0
-      ? seminarHasInscriptionsMessage
-      : null;
+    : null;
 
   return (
     <AdminResourceLayout
@@ -55,15 +52,16 @@ export function SeminarDetailView({
       description="Editá el instructor, su foto, el tipo, la fecha, la hora, el cupo y la seña del seminario."
       headerAction={
         <SeminarActions
+          hasCoveredInscription={loaderData.hasCoveredInscription}
           seminar={seminar}
           initialDeleteDialogOpen={initialDeleteDialogOpen}
         />
       }
     >
       {/* Above the tabs, never inside one: what is locked is the seminar
-          itself, so the reason reads the same from either tab. A covered
-          inscription is always an inscription, so its sentence already names
-          the delete and the two notices never show together. */}
+          itself, so the reason reads the same from either tab. Its sentence
+          names the delete as well, which is why `Eliminar` is then disabled
+          without a dialog of its own. */}
       <GuardAlert reason={lockReason} />
       <Tabs defaultValue="informacion">
         <TabsList variant="line">
