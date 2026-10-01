@@ -47,7 +47,7 @@
 
 import { and, asc, desc, eq } from "drizzle-orm";
 
-import { paymentAllocations, payments } from "@/db/schema";
+import { choreographyDancers, paymentAllocations, payments } from "@/db/schema";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
@@ -292,6 +292,17 @@ async function assertNoActiveOverAllocation(
 ): Promise<
   { ok: false; message: string } | { ok: true; allocatedAmount: number }
 > {
+  if (input.target.kind === "choreography") {
+    // The lock the waiver takes (`inscription-waiver.server.ts`), taken before
+    // the row is read: an allocation and a waiver racing for one inscription
+    // are serialized, and whichever comes second sees the other's write.
+    await tx
+      .select({ id: choreographyDancers.id })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, input.target.id))
+      .for("update");
+  }
+
   const thresholds = await thresholdReaders[input.target.kind](tx, {
     academyId: input.academyId,
     eventId: input.eventId,
@@ -301,6 +312,14 @@ async function assertNoActiveOverAllocation(
 
   if (!inscriptionThresholds) {
     return { ok: false, message: "No encontramos esa inscripción." };
+  }
+
+  if (inscriptionThresholds.waived) {
+    return {
+      ok: false,
+      message:
+        "Esta inscripción está bonificada: no se le puede asignar dinero. Para cobrarla, quitá la bonificación.",
+    };
   }
 
   const allocatedAmount = await readInscriptionAllocatedAmount(

@@ -1,5 +1,6 @@
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -24,7 +25,14 @@ import {
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
+import { useServerActionToast } from "@/lib/shared/toasts";
+
 import type { loadChoreographyFinanceDetail } from "./server";
+import type { ChoreographyFinanceActionData } from "./shared";
+import {
+  InscriptionWaiverConfirmationDialog,
+  type InscriptionWaiverConfirmation,
+} from "./waiver-confirmation";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadChoreographyFinanceDetail>
@@ -228,6 +236,17 @@ function InscriptionsTable({
   priceOptions: PriceOption[];
 }) {
   const [openDancerId, setOpenDancerId] = useState<string | null>(null);
+  const [waiverConfirmation, setWaiverConfirmation] =
+    useState<InscriptionWaiverConfirmation | null>(null);
+  // Owned here and not by the confirmation, which closes on the click: the
+  // answer comes back to a component that is still mounted to toast it.
+  const waiverFetcher = useFetcher<ChoreographyFinanceActionData>();
+  useServerActionToast(
+    waiverFetcher.data?.status === "success" ||
+      waiverFetcher.data?.status === "error"
+      ? waiverFetcher.data
+      : null,
+  );
   // Stable, so the columns are not rebuilt — and the rows not remounted — by a
   // re-render of the view.
   const openMoneyDialog = useCallback((dancerId: string) => {
@@ -267,6 +286,29 @@ function InscriptionsTable({
           onOpenChange={closeMoneyDialog}
           priceOptions={priceOptions}
           targetKind="choreography"
+          waiver={{
+            onUnwaive: () => {
+              setOpenDancerId(null);
+              setWaiverConfirmation({
+                inscription: openInscription,
+                kind: "unwaive",
+              });
+            },
+            onWaive: () => {
+              setOpenDancerId(null);
+              setWaiverConfirmation({
+                inscription: openInscription,
+                kind: "waive",
+              });
+            },
+          }}
+        />
+      ) : null}
+      {waiverConfirmation ? (
+        <InscriptionWaiverConfirmationDialog
+          confirmation={waiverConfirmation}
+          fetcher={waiverFetcher}
+          onClose={() => setWaiverConfirmation(null)}
         />
       ) : null}
     </section>

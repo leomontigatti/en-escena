@@ -8,7 +8,14 @@
  */
 
 export type InscriptionFinancialStatus =
-  "depositPending" | "depositMet" | "paidInFull";
+  "depositPending" | "depositMet" | "paidInFull" | "waived";
+
+/**
+ * The paying scale. `waived` (`Bonificada`, ADR-0017) is a fourth status that
+ * sits **outside** it: a free inscription is neither behind nor ahead of a
+ * paying one, so it is never compared with them.
+ */
+type ScaleFinancialStatus = Exclude<InscriptionFinancialStatus, "waived">;
 
 /** A choreography's rollup lives on the same scale as its inscriptions. */
 export type ChoreographyFinancialStatus = InscriptionFinancialStatus;
@@ -33,7 +40,7 @@ const inscriptionAnomalyPrecedence = [
  * Order of the scale. `depositPending < depositMet < paidInFull`, which is what
  * makes the rollup a minimum rather than a high-water mark.
  */
-const statusOrder: Record<InscriptionFinancialStatus, number> = {
+const statusOrder: Record<ScaleFinancialStatus, number> = {
   depositPending: 0,
   depositMet: 1,
   paidInFull: 2,
@@ -47,6 +54,12 @@ const statusOrder: Record<InscriptionFinancialStatus, number> = {
 export type InscriptionThresholds = {
   depositAmount: number | null;
   totalAmount: number | null;
+  /**
+   * `Bonificada` (ADR-0017): both thresholds are zero whatever the price, and
+   * the status reads `waived`. It travels with the thresholds so every reader
+   * that resolves them hands it on without a second lookup.
+   */
+  waived?: boolean;
 };
 
 /** Everything an inscription derives from its money, in a single read. */
@@ -159,6 +172,10 @@ export function hasUncrossedThreshold(input: {
   after: InscriptionFinancialStatus;
   before: InscriptionFinancialStatus;
 }): boolean {
+  if (input.after === "waived" || input.before === "waived") {
+    return false;
+  }
+
   return statusOrder[input.after] < statusOrder[input.before];
 }
 
@@ -177,6 +194,10 @@ export function deriveInscriptionFinancialFigures(input: {
 }): InscriptionFinancialFigures {
   if (input.withdrawn) {
     return deriveWithdrawnInscriptionFigures(input);
+  }
+
+  if (input.thresholds.waived) {
+    return deriveWaivedInscriptionFigures(input);
   }
 
   const { depositAmount, totalAmount } = input.thresholds;
@@ -246,6 +267,28 @@ function deriveWithdrawnInscriptionFigures(input: {
 }
 
 /**
+ * A waived inscription (`Bonificada`) owes nothing: both thresholds are zero,
+ * whatever its price. It holds no money either — waiving is refused while it
+ * carries allocations, and nothing can be allocated to it — so any money that
+ * slips past the guards through a race reads as `Sobreasignada`, the anomaly
+ * that already means "money in the wrong place".
+ */
+function deriveWaivedInscriptionFigures(input: {
+  allocatedAmount: number;
+}): InscriptionFinancialFigures {
+  return {
+    allocatedAmount: input.allocatedAmount,
+    anomalies: input.allocatedAmount > 0 ? ["overAllocated"] : [],
+    depositAmount: 0,
+    financialStatus: "waived",
+    overAllocatedAmount: input.allocatedAmount,
+    owedBalanceAmount: 0,
+    owedDepositAmount: 0,
+    totalAmount: 0,
+  };
+}
+
+/**
  * Which badge a row wears in the `Estado` column. The three axes do not sit side
  * by side: they **replace** each other, because two badges competing for the same
  * glance read as two facts of equal weight when only one asks for something.
@@ -288,6 +331,10 @@ export function resolveInscriptionStatusBadge(input: {
  * person the academy registered hold their place?*.
  *
  * A unit with no inscriptions cannot happen either: `depositPending`.
+ *
+ * Waived inscriptions stay out of the minimum: the unit is as far along as its
+ * paying inscriptions. A unit whose every inscription is waived reads `waived`
+ * itself.
  */
 export function deriveMinimumFinancialStatus(
   statuses: InscriptionFinancialStatus[],
@@ -296,7 +343,15 @@ export function deriveMinimumFinancialStatus(
     return "depositPending";
   }
 
-  return statuses.reduce((lowest, status) =>
+  const paying = statuses.filter(
+    (status): status is ScaleFinancialStatus => status !== "waived",
+  );
+
+  if (paying.length === 0) {
+    return "waived";
+  }
+
+  return paying.reduce((lowest, status) =>
     statusOrder[status] < statusOrder[lowest] ? status : lowest,
   );
 }

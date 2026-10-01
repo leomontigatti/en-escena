@@ -1,0 +1,1 @@
+ALTER TABLE "en_escena_choreography_dancer" ADD COLUMN "waived_at" timestamp with time zone;

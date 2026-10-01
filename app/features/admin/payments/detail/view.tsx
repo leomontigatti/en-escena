@@ -258,6 +258,7 @@ const resultingChoreographyStatusSentences = {
   depositPending: "La coreografía quedaría con la seña pendiente.",
   depositMet: "La coreografía quedaría señada.",
   paidInFull: "La coreografía quedaría pagada.",
+  waived: "La coreografía quedaría bonificada.",
 } as const satisfies Record<ChoreographyFinancialStatus, string>;
 
 function AffectedUnitConsequence({

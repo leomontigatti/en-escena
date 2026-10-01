@@ -23,6 +23,10 @@ import {
   releaseInscriptionExcess,
   removeFromInscription,
 } from "@/lib/finances/inscription-allocation.server";
+import {
+  unwaiveInscriptions,
+  waiveInscriptions,
+} from "@/lib/finances/inscription-waiver.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 
 import {
@@ -45,6 +49,8 @@ import {
 import {
   choreographyDetailUrl,
   type ChoreographyFinanceActionData,
+  unwaiveInscriptionIntent,
+  waiveInscriptionIntent,
 } from "./shared";
 
 export async function loadChoreographyFinanceDetail(input: {
@@ -208,6 +214,19 @@ export async function handleChoreographyFinanceAction(input: {
     throw redirectToDetail(academyId, choreographyId, eventId);
   }
 
+  if (
+    intent === waiveInscriptionIntent ||
+    intent === unwaiveInscriptionIntent
+  ) {
+    return await runWaiverIntent({
+      academyId,
+      choreographyId,
+      eventId,
+      formData,
+      intent,
+    });
+  }
+
   const emissionContext = {
     anchor: { kind: "choreography", choreographyId } as const,
     detailUrl: choreographyDetailUrl(academyId, choreographyId, eventId),
@@ -290,6 +309,39 @@ async function runInscriptionMoneyIntent(input: {
       : await removeFromInscription({ ...target, amount });
 
   return result.ok ? null : { status: "error", message: result.message };
+}
+
+/**
+ * The `Bonificada` waiver of one inscription. It stays on the page
+ * (form-feedback matrix): the loader revalidates, and the outcome travels back
+ * as a toast.
+ */
+async function runWaiverIntent(input: {
+  academyId: string;
+  choreographyId: string;
+  eventId: string;
+  formData: FormData;
+  intent: typeof waiveInscriptionIntent | typeof unwaiveInscriptionIntent;
+}): Promise<ChoreographyFinanceActionData> {
+  const waiver = {
+    academyId: input.academyId,
+    choreographyId: input.choreographyId,
+    eventId: input.eventId,
+    inscriptionIds: [String(input.formData.get("inscriptionId") ?? "").trim()],
+  };
+  const waiving = input.intent === waiveInscriptionIntent;
+  const result = waiving
+    ? await waiveInscriptions(waiver)
+    : await unwaiveInscriptions(waiver);
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  return {
+    status: "success",
+    message: waiving ? "Inscripción bonificada." : "Bonificación quitada.",
+  };
 }
 
 function redirectToDetail(

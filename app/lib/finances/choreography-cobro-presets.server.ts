@@ -94,6 +94,7 @@ export async function payChoreographiesPreset(input: {
         choreographyId: choreographyDancers.choreographyId,
         id: choreographyDancers.id,
         selectedPriceId: choreographyDancers.selectedPriceId,
+        waivedAt: choreographyDancers.waivedAt,
       })
       .from(choreographyDancers)
       .where(
@@ -256,6 +257,7 @@ async function applySelectedPrices(
       choreographyId: string;
       id: string;
       selectedPriceId: string | null;
+      waivedAt: Date | null;
     }>;
     priceIdByGroupType: PresetPriceSelection;
   },
@@ -275,7 +277,9 @@ async function applySelectedPrices(
       ? input.priceIdByGroupType[choreography.groupType]
       : undefined;
 
-    if (!choreography || !priceId) {
+    // A waived inscription owes nothing whatever its price, so a pick does not
+    // reach it: it keeps the row it goes back to if the waiver is taken off.
+    if (!choreography || !priceId || inscription.waivedAt !== null) {
       continue;
     }
 

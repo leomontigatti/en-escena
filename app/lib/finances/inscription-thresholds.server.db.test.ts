@@ -40,7 +40,9 @@ beforeEach(() => {
  * bailarín` tier is 15 % at four qualifying inscriptions and 10 % at three, so
  * whether the withdrawn row counts changes what the three surviving siblings owe.
  */
-async function seedWithdrawnDiscountFixture() {
+async function seedWithdrawnDiscountFixture(
+  fourth: "waived" | "withdrawn" = "withdrawn",
+) {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
   const { academy, catalog, choreography } =
     await createAcademyFinanceChoreographyFixture({
@@ -87,7 +89,14 @@ async function seedWithdrawnDiscountFixture() {
         choreographyId,
         dancerId: dancer.id,
         selectedPriceId: price.id,
-        withdrawnAt: withdrawn ? new Date("2026-04-01T12:00:00Z") : null,
+        waivedAt:
+          withdrawn && fourth === "waived"
+            ? new Date("2026-04-01T12:00:00Z")
+            : null,
+        withdrawnAt:
+          withdrawn && fourth === "withdrawn"
+            ? new Date("2026-04-01T12:00:00Z")
+            : null,
       })
       .returning();
 
@@ -190,6 +199,69 @@ describe("readInscriptionThresholds on a withdrawn sibling", () => {
         (row) => row.id === fixture.withdrawnInscriptionId,
       ),
     ).toMatchObject({ dancerDiscountAmount: 0, withdrawn: true });
+  });
+});
+
+describe("a waived inscription", () => {
+  test("has zero thresholds and leaves the discount qualifying set on the write path", async () => {
+    const fixture = await seedWithdrawnDiscountFixture("waived");
+
+    const thresholds = await readInscriptionThresholds(db, {
+      academyId: fixture.academyId,
+      eventId: fixture.eventId,
+      inscriptionIds: [
+        ...fixture.activeInscriptionIds,
+        fixture.withdrawnInscriptionId,
+      ],
+    });
+
+    // Three paying inscriptions qualify, not four: 10 %, not 15 %.
+    expect(
+      ascending(
+        fixture.activeInscriptionIds.map(
+          (id) => thresholds.get(id)?.dancerDiscountAmount ?? -1,
+        ),
+      ),
+    ).toEqual([0, 1000, 1000]);
+    expect(thresholds.get(fixture.withdrawnInscriptionId)).toMatchObject({
+      dancerDiscountAmount: 0,
+      dancerDiscountPercentage: 0,
+      depositAmount: 0,
+      totalAmount: 0,
+      waived: true,
+    });
+  });
+
+  test("agrees with the read path, which reads it `Bonificada` and owing nothing", async () => {
+    const fixture = await seedWithdrawnDiscountFixture("waived");
+
+    const detail = await readAcademyEventOperationalFinanceDetail({
+      academyId: fixture.academyId,
+      eventId: fixture.eventId,
+    });
+
+    expect(
+      ascending(
+        fixture.activeInscriptionIds.map(
+          (id) =>
+            detail.inscriptions.find((row) => row.id === id)
+              ?.dancerDiscountAmount ?? -1,
+        ),
+      ),
+    ).toEqual([0, 1000, 1000]);
+    expect(
+      detail.inscriptions.find(
+        (row) => row.id === fixture.withdrawnInscriptionId,
+      ),
+    ).toMatchObject({
+      dancerDiscountAmount: 0,
+      depositAmount: 0,
+      financialStatus: "waived",
+      owedBalanceAmount: 0,
+      owedDepositAmount: 0,
+      totalAmount: 0,
+      withdrawn: false,
+    });
   });
 });
 

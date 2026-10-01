@@ -96,6 +96,25 @@ describe("sumPresetOwedAmount", () => {
     ).toEqual({ amount: 0, status: "complete" });
   });
 
+  test("leaves a waived inscription out of the re-pricing", () => {
+    expect(
+      sumPresetOwedAmount({
+        groupTypeByChoreography,
+        inscriptions: [
+          inscriptionFixture({
+            depositAmount: 0,
+            financialStatus: "waived",
+            id: "inscription_1",
+            owedBalanceAmount: 0,
+            owedDepositAmount: 0,
+          }),
+        ],
+        pickedPriceByGroupType: { solo: priceFixture() },
+        stage: "deposit",
+      }),
+    ).toEqual({ amount: 0, status: "complete" });
+  });
+
   /**
    * The alert under the figure promises that picking a price completes it. It
    * is the same promise as the writer's: an inscription with no applicable price

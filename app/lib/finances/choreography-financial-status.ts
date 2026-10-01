@@ -8,12 +8,16 @@ const inscriptionFinancialStatusLabels = {
   depositPending: "Seña pendiente",
   depositMet: "Señada",
   paidInFull: "Pagada",
+  waived: "Bonificada",
 } as const satisfies Record<InscriptionFinancialStatus, string>;
 
 const inscriptionFinancialStatusBadgeVariants = {
   depositPending: "warning",
   depositMet: "info",
   paidInFull: "success",
+  // Green like `Pagada`: both owe nothing. The label is what tells a free place
+  // from a paid one (ADR-0017).
+  waived: "success",
 } as const satisfies Record<InscriptionFinancialStatus, string>;
 
 const inscriptionAnomalyLabels = {
