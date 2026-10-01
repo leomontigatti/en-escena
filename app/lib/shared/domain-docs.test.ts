@@ -47,7 +47,7 @@ const domainRuleRequirements = [
 const warningMechanismRequirements = [
   "acknowledgedDuplicateIds",
   '{ status: "warning", warning: { kind, matches: [{ id, ... }] } }',
-  "Continuar de todos modos",
+  "the title's verb with its icon",
   "re-runs the check",
   "**Nothing is stored** about an acknowledgement",
   "**A refusal always wins.**",

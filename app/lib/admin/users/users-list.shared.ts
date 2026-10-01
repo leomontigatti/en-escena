@@ -6,11 +6,9 @@ import {
 
 export type UserListRole = "academy" | InternalUserRole;
 
-export type UserListState =
-  "active" | "mandatory-password-change" | "suspended";
+export type UserListState = "active" | "suspended";
 
-export type UserListStateFilter =
-  "active" | "mandatory-password-change" | "suspended";
+export type UserListStateFilter = "active" | "suspended";
 
 export type UserListType = "academy" | "internal";
 

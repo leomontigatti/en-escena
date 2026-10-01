@@ -32,6 +32,21 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain(
       "Esta coreografía ya fue evaluada y no puede modificarse.",
     );
+    expect(markup).not.toContain("Tampoco puede eliminarse ni retirarse.");
+  });
+
+  // The evaluation is also why the choreography cannot be deleted, and the
+  // page says so before the menu is opened (#454), to auditors as well.
+  test("says in the evaluation alert that the choreography cannot be deleted", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        choreography: buildChoreography({ isEvaluated: true }),
+        deletion: evaluatedDeletion,
+      }),
+    });
+
+    expect(markup).toContain("Tampoco puede eliminarse ni retirarse.");
   });
 
   // Holding a number is not a lock: the administrator keeps correcting the
@@ -340,12 +355,29 @@ describe("ChoreographyDetailRouteView", () => {
 
     await clickMenuItem("Eliminar coreografía");
 
-    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
     expect(
       Array.from(document.querySelectorAll("button")).some(
         (button) => button.textContent?.trim() === "Eliminar",
       ),
     ).toBe(true);
+  });
+
+  test("disables the delete menu item when the choreography cannot be deleted", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ isEvaluated: true }),
+        deletion: evaluatedDeletion,
+      }),
+    });
+
+    await openActionsMenu();
+
+    const item = Array.from(
+      document.querySelectorAll('[role="menuitem"]'),
+    ).find((element) => element.textContent?.includes("Eliminar coreografía"));
+
+    expect(item?.getAttribute("aria-disabled")).toBe("true");
   });
 
   // The dialog names the outcome before the admin confirms: the two are not
@@ -358,7 +390,7 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
     expect(document.body.textContent).toContain("queda retirada");
     expect(document.body.textContent).toContain("No se mueve dinero");
   });
@@ -371,7 +403,7 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
     expect(document.body.textContent).toContain("se elimina por completo");
     expect(document.body.textContent).not.toContain("queda retirada");
   });
@@ -532,6 +564,17 @@ function renderDetail(
 
   return renderToStaticMarkup(<RouterProvider router={router} />);
 }
+
+const evaluatedDeletion: ChoreographyDetailLoaderData["deletion"] = {
+  blockers: [
+    {
+      code: "evaluated-presentation",
+      label: "la presentación ya fue evaluada",
+    },
+  ],
+  canDelete: false,
+  outcome: "deleted",
+};
 
 function buildLoaderData(
   overrides: Partial<ChoreographyDetailLoaderData> = {},

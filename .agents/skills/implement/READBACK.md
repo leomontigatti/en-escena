@@ -18,10 +18,10 @@ author thinks it does.
    > author. Then list anything surprising: behaviour the commit messages do not mention, a
    > change that looks unrelated to the rest, code that contradicts its own comment or name,
    > anything you would ask about before approving. Say "nothing surprising" if there is
-   > nothing. Under 200 words.
+   > nothing. End with one line: `Would merge: yes | after fixes | no`. Under 200 words.
 
 3. Report it under `## Readback`, verbatim or lightly cleaned, ending with one line: how many
-   surprises it flagged.
+   surprises it flagged, and its merge verdict.
 
 When a surprise turns out to touch money, results or judging, auth, a migration or a
 `CONTEXT.md` term, the diff was risky after all: run the full `code-review`.

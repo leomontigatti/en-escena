@@ -1,7 +1,19 @@
 /** @vitest-environment jsdom */
 
 import { act } from "react";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+const useNavigationMock = vi.hoisted(() => vi.fn());
+
+vi.mock("react-router", async () => {
+  const actual =
+    await vi.importActual<typeof import("react-router")>("react-router");
+
+  return {
+    ...actual,
+    useNavigation: useNavigationMock,
+  };
+});
 
 import { SubmodalityCriteriaDialog } from "@/features/admin/modalities/criteria-dialog";
 import type {
@@ -27,8 +39,13 @@ const submodality: EventSubmodalityRow = {
 describe("SubmodalityCriteriaDialog", () => {
   const renderer = createReactDomTestRenderer();
 
+  beforeEach(() => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+  });
+
   afterEach(() => {
     renderer.cleanup();
+    useNavigationMock.mockReset();
   });
 
   async function renderDialog(
@@ -148,6 +165,53 @@ describe("SubmodalityCriteriaDialog", () => {
     });
 
     expect(getButton("Guardar").disabled).toBe(false);
+  });
+
+  test("disables `Cancelar` with `Guardar` while the save is in flight", async () => {
+    const formData = new FormData();
+    formData.set("intent", "save-submodality-criteria");
+    formData.set("id", submodality.id);
+    useNavigationMock.mockReturnValue({
+      formData,
+      formMethod: "post",
+      state: "submitting",
+    });
+
+    await renderDialog([
+      criterion({ id: "criterion_1", maximum: 100, name: "Técnica" }),
+    ]);
+
+    expect(getButton("Guardar").disabled).toBe(true);
+    expect(
+      getButton("Guardar").querySelector('[data-slot="spinner"]'),
+    ).not.toBeNull();
+    expect(getButton("Cancelar").disabled).toBe(true);
+    expect(getButton("Agregar criterio").disabled).toBe(true);
+  });
+
+  test("ignores Esc while the save is in flight", async () => {
+    const formData = new FormData();
+    formData.set("intent", "save-submodality-criteria");
+    formData.set("id", submodality.id);
+    useNavigationMock.mockReturnValue({
+      formData,
+      formMethod: "post",
+      state: "submitting",
+    });
+    const onOpenChange = vi.fn();
+    await renderDialog(
+      [criterion({ id: "criterion_1", maximum: 100, name: "Técnica" })],
+      { onOpenChange },
+    );
+
+    await updateReactDomForm(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(getButton("Guardar")).toBeDefined();
   });
 
   test("closes straight away on `Cancelar` while clean", async () => {

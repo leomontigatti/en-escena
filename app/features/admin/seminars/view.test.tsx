@@ -458,7 +458,7 @@ describe("SeminarDetailView `Inscriptos`", () => {
 
     expect(dialog?.textContent).toContain("Abril Sosa");
     expect(dialog?.textContent).toContain(
-      "Esta acción da de baja la inscripción del seminario y libera su lugar. No se puede deshacer.",
+      "Esta acción da de baja la inscripción de Abril Sosa del seminario y libera su lugar. No se puede deshacer.",
     );
     expect(
       dialog?.querySelector('input[name="intent"]')?.getAttribute("value"),
@@ -482,7 +482,12 @@ describe("SeminarDetailView `Inscriptos`", () => {
     expect(dialog?.textContent).toContain(
       "El dinero asignado sigue en la inscripción y el lugar que tenía queda libre.",
     );
-    expect(dialog?.textContent).toContain("Retirar inscripción");
+    expect(dialog?.textContent).toContain("¿Retirar la inscripción?");
+    expect(
+      Array.from(dialog?.querySelectorAll("button") ?? []).map((button) =>
+        button.textContent?.trim(),
+      ),
+    ).toEqual(["Cancelar", "Retirar"]);
     expect(
       dialog?.querySelector('input[name="intent"]')?.getAttribute("value"),
     ).toBe("delete-seminar-inscription");

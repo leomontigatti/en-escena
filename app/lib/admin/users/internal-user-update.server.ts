@@ -42,7 +42,6 @@ export async function updateInternalUser(
       email: true,
       internalUsername: true,
       name: true,
-      requiresPasswordChange: true,
       role: true,
       sessionInvalidBefore: true,
       suspended: true,

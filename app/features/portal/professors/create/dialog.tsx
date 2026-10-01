@@ -95,7 +95,7 @@ export function CreateProfessorDialog({
           }
         }}
       >
-        <DialogContent overlayClassName="backdrop-blur-sm">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Nuevo profesor</DialogTitle>
             <DialogDescription>
@@ -106,6 +106,7 @@ export function CreateProfessorDialog({
           {actionData?.status === "warning" ? (
             <RosterNameWarningDialog
               formId={formId}
+              isPending={isSubmitting}
               warning={actionData.warning}
             />
           ) : null}

@@ -1,11 +1,8 @@
-import { and, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { accessSession } from "@/db/schema";
-import {
-  auth,
-  verifyBetterAuthCredentialPassword,
-} from "@/lib/auth/access-auth-provider.betterauth.server";
+import { auth } from "@/lib/auth/access-auth-provider.betterauth.server";
 
 type InternalCredentialUserInput = {
   email: string;
@@ -16,16 +13,6 @@ type InternalCredentialUserInput = {
 type InternalCredentialPasswordInput = {
   userId: string;
   password: string;
-};
-
-type VerifyInternalCredentialPasswordInput = {
-  email: string;
-  password: string;
-};
-
-type RevokeOtherAccessSessionsInput = {
-  userId: string;
-  currentSessionId: string;
 };
 
 // Server-side creation of an internal user via Better Auth's admin plugin
@@ -59,8 +46,7 @@ export async function deleteInternalCredentialUser(userId: string) {
 
 // Password reset from the panel: the admin plugin's `setUserPassword` with the
 // admin session's `headers`, which Better Auth requires to authorize the
-// operation (research #369). The user's own (mandatory) password change does not
-// come through here: it uses `upsertBetterAuthCredentialPassword` directly.
+// operation (research #369).
 export async function setInternalCredentialPassword(
   input: InternalCredentialPasswordInput,
   adminHeaders: Headers,
@@ -74,27 +60,8 @@ export async function setInternalCredentialPassword(
   });
 }
 
-export async function verifyInternalCredentialPassword(
-  input: VerifyInternalCredentialPasswordInput,
-) {
-  return verifyBetterAuthCredentialPassword(input);
-}
-
 export async function revokeInternalCredentialSessions(userId: string) {
   await db.delete(accessSession).where(eq(accessSession.userId, userId));
-}
-
-export async function revokeOtherAccessSessions(
-  input: RevokeOtherAccessSessionsInput,
-) {
-  await db
-    .delete(accessSession)
-    .where(
-      and(
-        eq(accessSession.userId, input.userId),
-        ne(accessSession.id, input.currentSessionId),
-      ),
-    );
 }
 
 // Suspension (= Better Auth's `banned`) from the panel: the admin plugin's

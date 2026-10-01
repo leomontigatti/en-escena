@@ -102,7 +102,7 @@ export async function action({
     if (!parsedResetPassword.success) {
       return buildDetailActionError({
         form: "reset-password",
-        message: "Revisá la contraseña temporal.",
+        message: "Revisá la contraseña nueva.",
         resetPasswordFieldErrors: getResetPasswordFieldErrors(
           parsedResetPassword.error,
         ),
@@ -112,7 +112,7 @@ export async function action({
 
     const result = await resetInternalUserPassword({
       targetUserId: userId,
-      temporaryPassword: parsedResetPassword.data.temporaryPassword,
+      password: parsedResetPassword.data.password,
       updatedByUserId: appUser.id,
       adminHeaders: request.headers,
     });
@@ -168,7 +168,6 @@ async function findDetailUserRow(
       email: user.email,
       role: user.role,
       internalUsername: user.internalUsername,
-      requiresPasswordChange: user.requiresPasswordChange,
       suspended: user.suspended,
       academyId: academies.id,
       academyName: academies.name,

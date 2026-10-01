@@ -39,7 +39,7 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   Prettier's, unused code is `tsc`'s, and repo conventions belong to the
   `check:*` scripts.
 - **Subagents**: spawn every review sub-agent (`code-review`'s Standards and Spec axes, the
-  readback) as the `reviewer` agent, and research as the `research` agent; both run on
+  correctness axis, the readback) as the `reviewer` agent, and research as the `research` agent; both run on
   Codex's gpt-6.1-sol (see "Agent configuration" in
   [docs/agents/workflows.md](docs/agents/workflows.md)).
 - **Coding standards**: [docs/agents/coding-standards.md](docs/agents/coding-standards.md),

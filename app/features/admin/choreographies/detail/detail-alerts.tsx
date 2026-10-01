@@ -48,7 +48,14 @@ export function ChoreographyDetailAlerts({
         <Alert variant="info">
           <Info aria-hidden="true" />
           <AlertTitle>Esta coreografía ya fue evaluada</AlertTitle>
-          <AlertDescription>{evaluatedChoreographyMessage}</AlertDescription>
+          <AlertDescription>
+            {evaluatedChoreographyMessage}
+            {/* The evaluation is the one deletion blocker there is, so it is
+                said here rather than in a second alert (#454). */}
+            {loaderData.deletion.canDelete
+              ? ""
+              : " Tampoco puede eliminarse ni retirarse."}
+          </AlertDescription>
         </Alert>
       ) : choreography.presentationOrderNumber === null ? null : (
         <Alert variant="info">

@@ -22,9 +22,7 @@ export type ChoreographyCastWarning = DuplicateWarning<
 export function getDuplicateChoreographyMessage(
   matches: readonly ChoreographyCastMatch[],
 ) {
-  const labels = matches.map(
-    (match) => `«${match.name}» (N.º ${match.choreographyNumber})`,
-  );
+  const names = formatSpanishList(matches.map((match) => match.name));
 
-  return `Ya registraste ${formatSpanishList(labels)} con los mismos bailarines en este evento.`;
+  return `Ya existe una coreografía con el mismo nombre y los mismos bailarines en este evento: ${names}.`;
 }

@@ -1,4 +1,5 @@
 import { Info } from "lucide-react";
+import { Form } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -18,7 +19,11 @@ import {
   formatPresentationCount,
   formatResultsPublicationMoment,
 } from "@/lib/judging/results-copy";
-import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
+import {
+  isRouteFormPending,
+  useCloseOnceSettled,
+  useOptionalNavigation,
+} from "@/lib/shared/forms";
 
 import { eventActionPath, type EventDetailLoaderData } from "./shared";
 
@@ -86,6 +91,8 @@ export function ResultsPublicationDialog({
   const intent = isHiding ? "hide-results" : "publish-results";
   const isPending = isRouteFormPending(navigation, { intent });
 
+  useCloseOnceSettled({ isPending, onClose });
+
   if (!action) {
     return null;
   }
@@ -111,7 +118,7 @@ export function ResultsPublicationDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <form method="post" action={eventActionPath(eventId)}>
+          <Form method="post" action={eventActionPath(eventId)}>
             <input type="hidden" name="intent" value={intent} />
             <Button
               type="submit"
@@ -121,7 +128,7 @@ export function ResultsPublicationDialog({
               {isPending ? <Spinner aria-hidden="true" data-icon /> : null}
               {isHiding ? "Ocultar resultados" : "Publicar resultados"}
             </Button>
-          </form>
+          </Form>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

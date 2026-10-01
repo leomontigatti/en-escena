@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Info, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
-import { useNavigation, useSubmit } from "react-router";
+import { Form, useNavigation, useSubmit } from "react-router";
 
 import { FormActions } from "@/components/shared/form-actions";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import type { loadPortalProfile } from "@/features/portal/profile/server";
 import {
   academyProfileSchema,
@@ -37,6 +38,7 @@ import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
+  useCloseOnceSettled,
   useSavedFormValues,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -237,6 +239,15 @@ function AcademyProfileTextField({
 
 function ProfileActionsMenu() {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const navigation = useNavigation();
+  const isSending = isRouteFormPending(navigation, {
+    intent: requestPasswordRecoveryIntent,
+  });
+
+  useCloseOnceSettled({
+    isPending: isSending,
+    onClose: () => setIsPasswordDialogOpen(false),
+  });
 
   return (
     <>
@@ -266,9 +277,19 @@ function ProfileActionsMenu() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel type="button">Cancelar</AlertDialogCancel>
-            <Button type="submit" form={passwordRecoveryFormId}>
-              <Check aria-hidden="true" data-icon="inline-start" />
+            <AlertDialogCancel type="button" disabled={isSending}>
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              type="submit"
+              form={passwordRecoveryFormId}
+              disabled={isSending}
+            >
+              {isSending ? (
+                <Spinner aria-hidden="true" data-icon />
+              ) : (
+                <Check aria-hidden="true" data-icon="inline-start" />
+              )}
               Enviar email
             </Button>
           </AlertDialogFooter>
@@ -280,14 +301,14 @@ function ProfileActionsMenu() {
 
 function PasswordRecoveryForm({ email }: { email: string }) {
   return (
-    <form id={passwordRecoveryFormId} method="post">
+    <Form id={passwordRecoveryFormId} method="post">
       <input
         type="hidden"
         name="intent"
         value={requestPasswordRecoveryIntent}
       />
       <input type="hidden" name="email" value={email} />
-    </form>
+    </Form>
   );
 }
 

@@ -257,7 +257,6 @@ function createChangePasswordRequest(input: {
   requestUrl?: string;
 }) {
   const formData = new FormData();
-  formData.set("mode", "recovery");
   formData.set("newPassword", input.password);
   formData.set("confirmPassword", input.password);
 
