@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { act } from "react";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 import { renderInDataRouter } from "@/lib/test-support/data-router";
@@ -59,6 +60,46 @@ describe("DancerDetailRouteView dialogs", () => {
     );
     expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
     expect(document.body.textContent).not.toContain("¿Archivar al bailarín?");
+  });
+
+  // `Inscripciones` is a table of its own: the card and its footer stay with
+  // the fields, mounted behind it so what was typed is kept (#1274).
+  test("keeps the card, its footer and what was typed behind `Inscripciones`", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
+        <DancerDetailRouteView loaderData={createLoaderData()} />,
+      ),
+    );
+
+    await changeFirstName("Bea");
+    await selectTab("Inscripciones");
+
+    expect(getSelectedTab()).toBe("Inscripciones");
+    expect(getButton("Guardar").closest('[data-state="inactive"]')).not.toBe(
+      null,
+    );
+
+    await selectTab("Identificación");
+
+    expect(getFirstNameInput().value).toBe("Bea");
+    expect(getButton("Guardar").disabled).toBe(false);
+
+    const form = getFirstNameInput().form;
+
+    if (!form) {
+      throw new Error("The first name field is not inside a form.");
+    }
+
+    expect(Object.fromEntries(new FormData(form))).toMatchObject({
+      birthDate: "2012-07-12",
+      documentBackImageStorageKey: "document-back",
+      documentFrontImageStorageKey: "document-front",
+      documentNumber: "12345678",
+      documentType: "dni",
+      firstName: "Bea",
+      lastName: "Detalle",
+    });
   });
 
   test("changing a dancer's status confirms without a correction reason field", async () => {
@@ -254,4 +295,34 @@ function createLoaderData({
     merge: null,
     selectedEventId: null,
   };
+}
+
+function getFirstNameInput() {
+  const input = document.querySelector<HTMLInputElement>(
+    'input[name="firstName"]',
+  );
+
+  if (!input) {
+    throw new Error("The first name field is not in the DOM.");
+  }
+
+  return input;
+}
+
+function getSelectedTab() {
+  return document.querySelector('[role="tab"][aria-selected="true"]')
+    ?.textContent;
+}
+
+async function selectTab(label: string) {
+  const trigger = Array.from(document.querySelectorAll('[role="tab"]')).find(
+    (candidate) => candidate.textContent === label,
+  );
+
+  // Radix activates a trigger on `mousedown`, not on the click after it.
+  await act(async () => {
+    trigger!.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+    );
+  });
 }

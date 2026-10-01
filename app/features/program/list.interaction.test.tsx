@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 
-import { MemoryRouter } from "react-router";
+import { act } from "react";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { defaultClientDataTablePageSize } from "@/components/shared/data-table.shared";
@@ -18,19 +19,76 @@ describe("the program list everyone outside the administration reads", () => {
 
   afterEach(renderer.cleanup);
 
+  let urlSearch = "";
+
+  function SearchProbe() {
+    urlSearch = useLocation().search;
+
+    return null;
+  }
+
   async function mount({
+    entry = "/programa",
     rows,
     showAcademy = true,
   }: {
+    entry?: string;
     rows: ProgramListRow[];
     showAcademy?: boolean;
   }) {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/programa"]}>
+      <MemoryRouter initialEntries={[entry]}>
         <ProgramList rows={rows} showAcademy={showAcademy} />
+        <SearchProbe />
       </MemoryRouter>,
     );
   }
+
+  const twoDays = [
+    buildRow({
+      choreographyId: "one",
+      name: "Primera",
+      scheduledDate: "2026-05-01",
+    }),
+    buildRow({
+      choreographyId: "two",
+      name: "Segunda",
+      orderNumber: 2,
+      scheduledDate: "2026-05-02",
+    }),
+  ];
+
+  // Radix activates a trigger on `mousedown`, not on the click after it.
+  async function selectTab(index: number) {
+    await act(async () => {
+      document
+        .querySelectorAll('[role="tab"]')
+        [index]!.dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+        );
+    });
+  }
+
+  // A link shared from a phone, or a reload, lands on the day it was read on.
+  test("opens on the day the link names", async () => {
+    await mount({ entry: "/programa?dia=2026-05-02", rows: twoDays });
+
+    expect(document.body.textContent).not.toContain("Primera");
+    expect(document.body.textContent).toContain("Segunda");
+  });
+
+  test("keeps the chosen day in the URL, and no day at all for the whole program", async () => {
+    await mount({ rows: twoDays });
+
+    await selectTab(2);
+    expect(urlSearch).toBe("?dia=2026-05-02");
+    expect(document.body.textContent).not.toContain("Primera");
+    expect(document.body.textContent).toContain("Segunda");
+
+    await selectTab(0);
+    expect(urlSearch).toBe("");
+    expect(document.body.textContent).toContain("Primera");
+  });
 
   function searchInput() {
     const input = document.querySelector("input[placeholder^='Buscar por']");

@@ -24,11 +24,12 @@ import {
   type SeminarPriceInput,
 } from "@/lib/seminar-prices/repository.server";
 import { buildDetailPath, isDetailPath } from "@/lib/shared/navigation";
+import { kindTabParam } from "@/lib/shared/url-tab";
 
 const seminarPriceBasePath = "/administracion/precios/seminarios";
 // Deleting a row leaves the detail, and the list it returns to is the seminar
 // tab of `Precios`: the tab is a search param so the redirect can name it.
-const seminarPriceListPath = "/administracion/precios?lista=seminarios";
+const seminarPriceListPath = `/administracion/precios?${kindTabParam}=seminarios`;
 const seminarPriceSavedNotification = "precio-guardado";
 const seminarPriceDeletedNotification = "precio-eliminado";
 

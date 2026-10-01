@@ -73,7 +73,7 @@ describe("`Precios` with its seminar tab", () => {
 
     const seminarTab = renderList(
       [],
-      "/administracion/precios?lista=seminarios",
+      "/administracion/precios?tipo=seminarios",
     );
 
     expect(seminarTab).toContain(
@@ -93,7 +93,7 @@ describe("`Precios` with its seminar tab", () => {
         }),
         seminarPrice({ id: "seminar_price_2" }),
       ],
-      "/administracion/precios?lista=seminarios",
+      "/administracion/precios?tipo=seminarios",
     );
 
     expect(markup).toContain("Precio exclusivo");
@@ -123,7 +123,7 @@ describe("`Precios` with its seminar tab", () => {
         seminarPrice(),
         seminarPrice({ id: "seminar_price_2", forParticipants: false }),
       ],
-      "/administracion/precios?lista=seminarios",
+      "/administracion/precios?tipo=seminarios",
     );
 
     expect(covered).not.toContain(warning);

@@ -18,6 +18,7 @@ import {
   parseListOrder,
   readListPage,
 } from "@/lib/list-query/list-query";
+import { inPageNavigationState } from "@/lib/shared/discard-guard";
 import { useOptionalNavigation } from "@/lib/shared/forms";
 
 /**
@@ -53,7 +54,11 @@ export function useDataTableUrlState({
       return;
     }
 
-    void navigate(nextHref, { preventScrollReset: true, replace: true });
+    void navigate(nextHref, {
+      preventScrollReset: true,
+      replace: true,
+      state: inPageNavigationState,
+    });
   };
 
   return {

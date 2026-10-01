@@ -10,6 +10,7 @@ export type DancerInscription = {
   id: string;
   choreographyName: string;
   choreographyNumber: number;
+  eventName: string;
   categoryName: string;
   groupType: "solo" | "duo" | "trio" | "grupal";
   basePriceAmount: number | null;

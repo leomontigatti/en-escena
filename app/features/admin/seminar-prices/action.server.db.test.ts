@@ -100,7 +100,7 @@ describe("administrative seminar price action", () => {
 
     // The list a deleted row returns to is the seminar tab of `Precios`.
     expect(deleted.headers.get("location")).toBe(
-      "/administracion/precios?lista=seminarios",
+      "/administracion/precios?tipo=seminarios",
     );
     await expect(listSeminarPrices(event.id)).resolves.toEqual([]);
   });

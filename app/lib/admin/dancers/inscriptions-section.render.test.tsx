@@ -50,7 +50,6 @@ describe("InscriptionsSection", () => {
       selectedEventId: "event-1",
     });
 
-    expect(markup).toContain("Sin inscripciones en el evento activo");
     expect(markup).toContain(
       "Este bailarín no tiene inscripciones en el evento activo.",
     );
@@ -65,6 +64,7 @@ describe("InscriptionsSection", () => {
           id: "choreo-1",
           choreographyName: "Finale",
           choreographyNumber: 12,
+          eventName: "Evento Activo",
           categoryName: "Juvenil",
           groupType: "duo",
           basePriceAmount: 35000,
@@ -88,10 +88,8 @@ describe("InscriptionsSection", () => {
     expect(markup).toContain("Juvenil · Dúo");
     expect(markup).toContain("35.000");
     expect(markup).not.toContain("350");
-    expect(markup).not.toContain("Buscar coreografía");
-    expect(markup).not.toContain("Anterior");
-    expect(markup).not.toContain("Siguiente");
-    expect(markup).not.toContain("registros");
+    expect(markup).toContain("Evento Activo");
+    expect(markup).toContain("Buscar inscripción por coreografía o evento");
     expect(markup).not.toContain(
       "Los importes son estimados y no reemplazan comprobantes financieros.",
     );
