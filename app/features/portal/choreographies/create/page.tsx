@@ -2,7 +2,9 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 
 import { AccessNotice } from "@/components/auth/access-ui";
+import { PinnedActions } from "@/components/shared/pinned-actions";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { ChoreographyDuplicateWarning } from "@/features/portal/choreographies/create/duplicate-warning";
@@ -22,75 +24,88 @@ export function CreateChoreographyPage({
   const { currentStepIndex, steps, submission } = wizard;
 
   return (
-    // Fills the height under the portal header, through main's bottom padding,
-    // so the actions rest on the bottom edge even when the step is short.
-    <div className="mx-auto -mb-6 flex w-full max-w-2xl flex-1 flex-col gap-5">
-      <header className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <h1 className="text-lg font-semibold">Nueva coreografía</h1>
-          <span className="text-sm text-muted-foreground">
+    <section
+      aria-labelledby="nueva-coreografia-title"
+      className="flex flex-1 flex-col gap-6"
+    >
+      <header className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h2 id="nueva-coreografia-title" className="text-xl font-semibold">
+              Nueva coreografía
+            </h2>
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              Registrala en el evento activo, un paso a la vez.
+            </p>
+          </div>
+          <span className="shrink-0 text-sm text-muted-foreground">
             Paso {currentStepIndex + 1} de {steps.length}
           </span>
         </div>
         <Progress value={((currentStepIndex + 1) / steps.length) * 100} />
       </header>
 
-      <div className="flex flex-1 flex-col gap-5">
-        {wizard.isLoadingStep ? (
-          <div
-            aria-busy="true"
-            className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground"
-          >
-            <Spinner aria-hidden="true" />
-            Cargando la coreografía…
-          </div>
-        ) : (
-          <CreateChoreographyStepContent
-            loaderData={loaderData}
-            wizard={wizard}
-          />
-        )}
-      </div>
+      <Card className="overflow-clip">
+        <CardContent className="flex flex-col gap-5">
+          {wizard.isLoadingStep ? (
+            <div
+              aria-busy="true"
+              className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"
+            >
+              <Spinner aria-hidden="true" />
+              Cargando la coreografía…
+            </div>
+          ) : (
+            <CreateChoreographyStepContent
+              loaderData={loaderData}
+              wizard={wizard}
+            />
+          )}
 
-      {submission.error ? (
-        <AccessNotice
-          title="No se pudo registrar la coreografía"
-          variant="error"
-        >
-          {submission.error}
-        </AccessNotice>
-      ) : null}
+          {/* Inside the card, beside the button that raised them. */}
+          {submission.error ? (
+            <AccessNotice
+              title="No se pudo registrar la coreografía"
+              variant="error"
+            >
+              {submission.error}
+            </AccessNotice>
+          ) : null}
 
-      {submission.warning ? (
-        <ChoreographyDuplicateWarning
-          isSubmitting={submission.isSubmitting}
-          matches={submission.warning.matches}
-          warning={submission.warning}
-          onContinue={() => submission.confirm(submission.warning?.matchIds)}
-        />
-      ) : null}
+          {submission.warning ? (
+            <ChoreographyDuplicateWarning
+              isSubmitting={submission.isSubmitting}
+              matches={submission.warning.matches}
+              warning={submission.warning}
+              onContinue={() =>
+                submission.confirm(submission.warning?.matchIds)
+              }
+            />
+          ) : null}
+        </CardContent>
 
-      <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex items-center justify-between gap-3 bg-background px-4 py-3">
-        {currentStepIndex === 0 ? (
-          <Button asChild variant="outline">
-            <Link to="/portal/coreografias" onClick={wizard.clearAnswers}>
-              Cancelar
-            </Link>
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={submission.isSubmitting}
-            onClick={wizard.goBack}
-          >
-            <ChevronLeft aria-hidden="true" data-icon />
-            Anterior
-          </Button>
-        )}
-        <CreateChoreographyNextAction wizard={wizard} />
-      </div>
-    </div>
+        <PinnedActions>
+          {currentStepIndex === 0 ? (
+            <Button asChild variant="outline">
+              <Link to="/portal/coreografias" onClick={wizard.clearAnswers}>
+                Cancelar
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submission.isSubmitting}
+              onClick={wizard.goBack}
+            >
+              <ChevronLeft aria-hidden="true" data-icon />
+              Anterior
+            </Button>
+          )}
+          <CreateChoreographyNextAction wizard={wizard} />
+        </PinnedActions>
+      </Card>
+    </section>
   );
 }
 

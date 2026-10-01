@@ -310,6 +310,10 @@ Rules:
 - In long forms, split into sections with a small title. Avoid nested cards.
 - A row repeater (a `useFieldArray` of short rows) shows its column labels once,
   above the first row, and keeps an `sr-only` label on each row's fields.
+- A choice shown in place, `OptionCardsField` for one pick and `ChecklistField`
+  for many, draws each option as a `ChoiceCard`: as tall as an `Input`, the
+  label in regular weight, the radio or checkbox at the end, in two columns once
+  the width allows.
 
 ### Form layout
 
@@ -344,10 +348,8 @@ header. Alerts about the form sit above the card.
   tab's `Guardar` submits, or the leave guard over its draft.
 - A form in a `Dialog` is one column, with `Cancelar` and then the primary action
   on the right of the footer.
-- The portal's `Nueva coreografía` wizard is the exception: one column,
-  `max-w-2xl`, and its bar pinned to the bottom of the viewport instead of
-  closing a card. Each step fills the free height, the dancer checklist most of
-  all, and the next step must never be a scroll away.
+- The portal's `Nueva coreografía` wizard follows the same layout: each step
+  in one card, closed by `PinnedActions` with the step buttons.
 
 ## Editing and saving
 

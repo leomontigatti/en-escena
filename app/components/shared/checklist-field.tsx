@@ -6,26 +6,18 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
+import { ChoiceCard } from "@/components/shared/choice-card";
 import { SearchInput } from "@/components/shared/search-input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FieldError } from "@/components/ui/field";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { matchesListSearch } from "@/lib/list-query/list-query";
-import { cn } from "@/lib/shared/utils";
 
 type ChecklistOption = {
   value: string;
   label: string;
 };
-
-/**
- * `capped` grows with the rows up to a ceiling, then scrolls: a form with
- * other fields below it. `fill` takes whatever height the parent leaves, down
- * to a floor: a step whose only content is the list.
- */
-type ChecklistHeight = "capped" | "fill";
 
 type ChecklistFieldProps<
   TFieldValues extends FieldValues,
@@ -34,7 +26,6 @@ type ChecklistFieldProps<
   control: Control<TFieldValues>;
   disabled?: boolean;
   emptySelectionMessage: string;
-  height?: ChecklistHeight;
   label: string;
   name: TName;
   onValueChange?: () => void;
@@ -47,7 +38,7 @@ type ChecklistTab = "todos" | "seleccionados";
 /**
  * Picks options from a list shown in place, not in a popover: a long list —
  * an academy's dancers, an event's schedules — scrolls inside itself, so
- * nothing covers the actions below it. The rows sit in as many columns as the
+ * nothing covers the actions below it. The rows sit in two columns once the
  * list's own width allows, so the same field reads well on a page and in a
  * dialog.
  */
@@ -58,7 +49,6 @@ function ChecklistField<
   control,
   disabled = false,
   emptySelectionMessage,
-  height = "capped",
   label,
   name,
   onValueChange,
@@ -95,10 +85,7 @@ function ChecklistField<
           <div
             role="group"
             aria-label={label}
-            className={cn(
-              "@container flex flex-col gap-2",
-              height === "fill" && "flex-1",
-            )}
+            className="@container flex flex-col gap-4"
           >
             <div className="flex flex-col gap-2 @md:flex-row @md:items-center @md:gap-4">
               <SearchInput
@@ -123,10 +110,9 @@ function ChecklistField<
               </Tabs>
             </div>
             <div
-              className={cn(
-                "overflow-y-auto",
-                height === "fill" ? "min-h-64 flex-1 basis-0" : "max-h-80",
-              )}
+              // Grows with the rows up to a ceiling, then scrolls inside, its
+              // edges fading while there is more to scroll to.
+              className="max-h-80 scroll-fade overflow-y-auto"
             >
               {rows.length === 0 ? (
                 <p className="px-3 py-6 text-center text-sm text-muted-foreground">
@@ -135,7 +121,7 @@ function ChecklistField<
                     : "Sin resultados."}
                 </p>
               ) : null}
-              <div className="grid gap-1 @lg:grid-cols-2 @3xl:grid-cols-3">
+              <div className="grid gap-2 @lg:grid-cols-2">
                 {rows.map((option) => (
                   <ChecklistRow
                     key={option.value}
@@ -167,28 +153,13 @@ function ChecklistRow({
   option: ChecklistOption;
 }) {
   return (
-    <div
-      data-slot="checklist-row"
-      className={cn(
-        "flex min-h-10 w-full items-center rounded-md px-3",
-        !disabled && "hover:bg-muted/60",
-        checked && "bg-primary/5",
-      )}
-    >
-      <Label
-        className={cn(
-          "flex flex-1 items-center gap-3 self-stretch font-normal",
-          !disabled && "cursor-pointer",
-        )}
-      >
-        <span className="flex-1">{option.label}</span>
-        <Checkbox
-          checked={checked}
-          disabled={disabled}
-          onCheckedChange={onToggle}
-        />
-      </Label>
-    </div>
+    <ChoiceCard disabled={disabled} label={option.label}>
+      <Checkbox
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onToggle}
+      />
+    </ChoiceCard>
   );
 }
 

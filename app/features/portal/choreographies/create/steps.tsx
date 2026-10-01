@@ -106,7 +106,6 @@ function DancersStep({ loaderData, wizard }: StepProps) {
       <ChecklistField
         control={wizard.form.control}
         emptySelectionMessage="Todavía no seleccionaste bailarines."
-        height="fill"
         label="Bailarines"
         name="dancerIds"
         onValueChange={wizard.resetResolution}
@@ -141,12 +140,12 @@ function CategoryStep({
   return (
     <>
       <StepIntro
-        title="Categoría"
+        title="Categoría y tipo de grupo"
         hint="Sale de las edades de los bailarines. Si no es la que esperabas, volvé y revisá quiénes bailan."
       />
       <div className="flex flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3">
         <span className="text-xs font-semibold text-muted-foreground uppercase">
-          Compite en
+          Participa en
         </span>
         <span className="text-base font-medium">
           {formatCategoryAndGroupTypeSummary(resolution)}
@@ -207,7 +206,6 @@ function ProfessorsStep({ loaderData, wizard }: StepProps) {
       <ChecklistField
         control={wizard.form.control}
         emptySelectionMessage="Todavía no seleccionaste profesores."
-        height="fill"
         label="Profesores"
         name="professorIds"
         options={loaderData.activeProfessors.map((professor) => ({
