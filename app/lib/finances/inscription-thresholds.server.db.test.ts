@@ -34,13 +34,14 @@ beforeEach(() => {
 
 /**
  * One dancer with four `solo` inscriptions in the same event and academy, all at
- * the catalogue price of 10000 with a 30 % deposit, the fourth withdrawn.
+ * the catalogue price of 10000 with a 30 % deposit, the fourth excluded from
+ * the discount: withdrawn, or waived (`Bonificada`), as `fourth` says.
  *
  * Four is the shape that makes the exclusion visible: the `Descuento por
  * bailarín` tier is 15 % at four qualifying inscriptions and 10 % at three, so
- * whether the withdrawn row counts changes what the three surviving siblings owe.
+ * whether the excluded row counts changes what the three paying siblings owe.
  */
-async function seedWithdrawnDiscountFixture(
+async function seedExcludedDiscountFixture(
   fourth: "waived" | "withdrawn" = "withdrawn",
 ) {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
@@ -78,10 +79,10 @@ async function seedWithdrawnDiscountFixture(
   });
 
   const activeInscriptionIds: string[] = [];
-  let withdrawnInscriptionId = "";
+  let excludedInscriptionId = "";
 
   for (const [index, choreographyId] of choreographyIds.entries()) {
-    const withdrawn = index === choreographyIds.length - 1;
+    const excluded = index === choreographyIds.length - 1;
     const [inscription] = await db
       .insert(choreographyDancers)
       .values({
@@ -90,11 +91,11 @@ async function seedWithdrawnDiscountFixture(
         dancerId: dancer.id,
         selectedPriceId: price.id,
         waivedAt:
-          withdrawn && fourth === "waived"
+          excluded && fourth === "waived"
             ? new Date("2026-04-01T12:00:00Z")
             : null,
         withdrawnAt:
-          withdrawn && fourth === "withdrawn"
+          excluded && fourth === "withdrawn"
             ? new Date("2026-04-01T12:00:00Z")
             : null,
       })
@@ -104,8 +105,8 @@ async function seedWithdrawnDiscountFixture(
       throw new Error("Expected an inscription.");
     }
 
-    if (withdrawn) {
-      withdrawnInscriptionId = inscription.id;
+    if (excluded) {
+      excludedInscriptionId = inscription.id;
     } else {
       activeInscriptionIds.push(inscription.id);
     }
@@ -115,7 +116,7 @@ async function seedWithdrawnDiscountFixture(
     academyId: academy.academy.id,
     activeInscriptionIds,
     eventId: event.id,
-    withdrawnInscriptionId,
+    excludedInscriptionId,
   };
 }
 
@@ -125,14 +126,14 @@ function ascending(values: number[]) {
 
 describe("readInscriptionThresholds on a withdrawn sibling", () => {
   test("leaves the withdrawn inscription out of the discount qualifying set", async () => {
-    const fixture = await seedWithdrawnDiscountFixture();
+    const fixture = await seedExcludedDiscountFixture();
 
     const thresholds = await readInscriptionThresholds(db, {
       academyId: fixture.academyId,
       eventId: fixture.eventId,
       inscriptionIds: [
         ...fixture.activeInscriptionIds,
-        fixture.withdrawnInscriptionId,
+        fixture.excludedInscriptionId,
       ],
     });
 
@@ -163,7 +164,7 @@ describe("readInscriptionThresholds on a withdrawn sibling", () => {
 
     // It keeps its price and its deposit — the figures the withdrawal evidence
     // is read from — while taking no discount of its own.
-    expect(thresholds.get(fixture.withdrawnInscriptionId)).toMatchObject({
+    expect(thresholds.get(fixture.excludedInscriptionId)).toMatchObject({
       dancerDiscountAmount: 0,
       dancerDiscountPercentage: 0,
       depositAmount: 3000,
@@ -173,7 +174,7 @@ describe("readInscriptionThresholds on a withdrawn sibling", () => {
   });
 
   test("agrees with the read path, which excludes it the same way", async () => {
-    const fixture = await seedWithdrawnDiscountFixture();
+    const fixture = await seedExcludedDiscountFixture();
 
     const detail = await readAcademyEventOperationalFinanceDetail({
       academyId: fixture.academyId,
@@ -196,7 +197,7 @@ describe("readInscriptionThresholds on a withdrawn sibling", () => {
 
     expect(
       detail.inscriptions.find(
-        (row) => row.id === fixture.withdrawnInscriptionId,
+        (row) => row.id === fixture.excludedInscriptionId,
       ),
     ).toMatchObject({ dancerDiscountAmount: 0, withdrawn: true });
   });
@@ -204,14 +205,14 @@ describe("readInscriptionThresholds on a withdrawn sibling", () => {
 
 describe("a waived inscription", () => {
   test("has zero thresholds and leaves the discount qualifying set on the write path", async () => {
-    const fixture = await seedWithdrawnDiscountFixture("waived");
+    const fixture = await seedExcludedDiscountFixture("waived");
 
     const thresholds = await readInscriptionThresholds(db, {
       academyId: fixture.academyId,
       eventId: fixture.eventId,
       inscriptionIds: [
         ...fixture.activeInscriptionIds,
-        fixture.withdrawnInscriptionId,
+        fixture.excludedInscriptionId,
       ],
     });
 
@@ -223,7 +224,7 @@ describe("a waived inscription", () => {
         ),
       ),
     ).toEqual([0, 1000, 1000]);
-    expect(thresholds.get(fixture.withdrawnInscriptionId)).toMatchObject({
+    expect(thresholds.get(fixture.excludedInscriptionId)).toMatchObject({
       dancerDiscountAmount: 0,
       dancerDiscountPercentage: 0,
       depositAmount: 0,
@@ -233,7 +234,7 @@ describe("a waived inscription", () => {
   });
 
   test("agrees with the read path, which reads it `Bonificada` and owing nothing", async () => {
-    const fixture = await seedWithdrawnDiscountFixture("waived");
+    const fixture = await seedExcludedDiscountFixture("waived");
 
     const detail = await readAcademyEventOperationalFinanceDetail({
       academyId: fixture.academyId,
@@ -251,7 +252,7 @@ describe("a waived inscription", () => {
     ).toEqual([0, 1000, 1000]);
     expect(
       detail.inscriptions.find(
-        (row) => row.id === fixture.withdrawnInscriptionId,
+        (row) => row.id === fixture.excludedInscriptionId,
       ),
     ).toMatchObject({
       dancerDiscountAmount: 0,

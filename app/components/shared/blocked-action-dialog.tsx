@@ -47,16 +47,29 @@ export function BlockedActionDialog({
 }: BlockedActionDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className={cn("sm:max-w-lg", className)}>
+      <AlertDialogContent
+        // Bounded to the viewport, with the reasons as the row that gives way
+        // and scrolls: a choreography can list a whole roster of them, and the
+        // footer has to stay reachable on a phone.
+        className={cn(
+          "max-h-[calc(100dvh-2rem)] sm:max-w-lg",
+          children
+            ? "grid-rows-[auto_minmax(0,1fr)_auto_auto]"
+            : "grid-rows-[auto_minmax(0,1fr)_auto]",
+          className,
+        )}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        <Alert variant="info">
-          <Info aria-hidden="true" />
-          <AlertTitle>{reasonsTitle}</AlertTitle>
-          <AlertDescription>{reasons}</AlertDescription>
-        </Alert>
+        <div className="min-h-0 overflow-y-auto overscroll-contain">
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertTitle>{reasonsTitle}</AlertTitle>
+            <AlertDescription>{reasons}</AlertDescription>
+          </Alert>
+        </div>
         {children}
         <AlertDialogFooter>
           <AlertDialogCancel>Cerrar</AlertDialogCancel>

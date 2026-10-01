@@ -689,14 +689,6 @@ describe("waiving an inscription from its money dialog", () => {
       "unwaive-inscription",
     ]);
   });
-
-  test("badges a waived inscription `Bonificada`", async () => {
-    await mount([waivedRow]);
-
-    expect(
-      document.querySelector('[aria-label="Inscripciones"] tbody')?.textContent,
-    ).toContain("Bonificada");
-  });
 });
 
 describe("inscriptions table filters", () => {

@@ -173,6 +173,7 @@ function toPresetInscription(
     choreographyId: inscription.choreographyId,
     dancerDiscountAmount: inscription.dancerDiscountAmount,
     depositAmount: inscription.depositAmount,
+    financialStatus: inscription.financialStatus,
     id: inscription.id,
     owedBalanceAmount: inscription.owedBalanceAmount,
     owedDepositAmount: inscription.owedDepositAmount,

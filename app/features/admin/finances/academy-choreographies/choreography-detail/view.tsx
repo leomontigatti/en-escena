@@ -14,7 +14,10 @@ import {
 } from "@/components/shared/data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatDancerName } from "@/lib/finances/formatters";
 
@@ -219,16 +222,21 @@ function ChoreographyActions({
           Emitir factura
         </DropdownMenuItem>
         {waiver.allWaived ? (
-          <DropdownMenuItem
-            onSelect={() =>
-              waiverConfirmation.show({
-                count: waiver.active.length,
-                kind: "unwaiveChoreography",
-              })
-            }
-          >
-            Quitar bonificación
-          </DropdownMenuItem>
+          <>
+            {/* It reverses the waiver: destructive, so last and apart. */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() =>
+                waiverConfirmation.show({
+                  count: waiver.active.length,
+                  kind: "unwaiveChoreography",
+                })
+              }
+            >
+              Quitar bonificación
+            </DropdownMenuItem>
+          </>
         ) : (
           <DropdownMenuItem
             disabled={waiver.toWaive.length === 0}

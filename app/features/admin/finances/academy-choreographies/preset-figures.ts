@@ -35,7 +35,9 @@ export type PresetInscription = {
   choreographyId: string;
   dancerDiscountAmount: number;
   depositAmount: number | null;
-  financialStatus?: InscriptionFinancialStatus;
+  // Required, so a loader that drops it fails to typecheck: without it a
+  // waived inscription would be re-priced in the projection.
+  financialStatus: InscriptionFinancialStatus;
   id: string;
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;

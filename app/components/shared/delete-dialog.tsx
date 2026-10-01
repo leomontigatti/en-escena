@@ -89,7 +89,7 @@ function BlockedDeleteDialog({
       reasonsTitle="Acción no disponible"
       title={blockedTitle}
     >
-      <DeleteDialogDetails details={details} />
+      {details ? <DeleteDialogDetails details={details} /> : null}
     </BlockedActionDialog>
   );
 }

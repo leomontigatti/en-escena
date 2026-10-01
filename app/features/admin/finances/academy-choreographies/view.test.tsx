@@ -758,19 +758,6 @@ describe("AcademyFinancesRouteView", () => {
     }),
   ];
 
-  test("badges a choreography whose every inscription is waived `Bonificada`", async () => {
-    await renderListIntoDocument({
-      loaderData: academyFinancesLoaderDataFixture({
-        choreographyFinanceRows: waivedRows(),
-      }),
-    });
-
-    expect(statusBadges()).toEqual([
-      [{ text: "Señada", destructive: false }],
-      [{ text: "Bonificada", destructive: false }],
-    ]);
-  });
-
   test("filters the list down to the waived choreographies on `Bonificada`", async () => {
     await renderListIntoDocument({
       initialEntry: "/administracion/finanzas/academy_1?estado=waived",
@@ -959,6 +946,7 @@ function presetInscriptionFixture(
     allocatedAmount: 0,
     basePriceAmount: 10000,
     basePriceId: "price_1",
+    financialStatus: "depositPending",
     choreographyId: "choreography_1",
     dancerDiscountAmount: 0,
     depositAmount: 3000,

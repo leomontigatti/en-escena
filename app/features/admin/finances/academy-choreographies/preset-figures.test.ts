@@ -300,6 +300,7 @@ function inscriptionFixture(
     allocatedAmount: 0,
     basePriceAmount: 10000,
     basePriceId: "price_1",
+    financialStatus: "depositPending",
     choreographyId: "choreography_1",
     dancerDiscountAmount: 0,
     depositAmount: 3000,

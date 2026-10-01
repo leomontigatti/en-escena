@@ -18,7 +18,7 @@
  * can trust that nothing moved.
  */
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import {
   choreographies,
@@ -102,7 +102,12 @@ export async function payChoreographiesPreset(input: {
           inArray(choreographyDancers.choreographyId, choreographyIds),
           activeInscription(),
         ),
-      );
+      )
+      // The lock the waiver and the pool take, in the same id order: a waiver
+      // racing this preset either commits first, and is read here, or waits
+      // until the preset has priced and funded.
+      .orderBy(asc(choreographyDancers.id))
+      .for("update");
 
     if (inscriptions.length === 0) {
       return {
