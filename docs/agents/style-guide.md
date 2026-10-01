@@ -310,6 +310,10 @@ Rules:
 - In long forms, split into sections with a small title. Avoid nested cards.
 - A row repeater (a `useFieldArray` of short rows) shows its column labels once,
   above the first row, and keeps an `sr-only` label on each row's fields.
+- A choice shown in place, `OptionCardsField` for one pick and `ChecklistField`
+  for many, draws each option as a `ChoiceCard`: as tall as an `Input`, the
+  label in regular weight, the radio or checkbox at the end, in two columns once
+  the width allows.
 
 ### Form layout
 
@@ -326,18 +330,26 @@ header. Alerts about the form sit above the card.
   field that needs the width spans both columns.
 - The card has no maximum width. It fills the shell like the alerts, tabs and
   tables around it, so the page keeps one edge.
-- The actions go in a footer pinned to the bottom of the viewport, so they stay
-  in reach on a long form and rest on the bottom edge of a short page. It sits
-  below the card, not inside it: `Card` clips its overflow, which stops a
-  `sticky` child from sticking. The shared `BackButton` (`Volver`) sits on the
-  left and the shared `SubmitButton` (`Guardar`) on the right, with
-  `Descartar cambios` beside it when [Editing and saving](#editing-and-saving)
-  asks for it.
+- The actions close the card as its last row: `FormActions` (or `PinnedActions`
+  on a read-only page) passed as `AdminResourceFormCard`'s `footer`. The shared
+  `BackButton` (`Volver`) sits on the left and the shared `SubmitButton`
+  (`Guardar`) on the right, with `Descartar cambios` beside it when
+  [Editing and saving](#editing-and-saving) asks for it.
+- The row is sticky. On a card that fits the viewport it rests right under the
+  fields; on one that runs past the bottom edge it sticks there until the end of
+  the card scrolls into view. A plain `Card` that holds it takes
+  `overflow-clip`: the card's own `overflow-hidden` makes it a scroll container,
+  which stops a sticky child from sticking.
+- With tabs, the footer goes where the form is. When one tab holds the form, the
+  footer closes that tab's card and the other tabs have none. When one form
+  spans the tabs, the card holds the tabs and the footer closes it under them.
+  Keep a panel mounted behind the other tab (`forceMount`, hidden when
+  inactive) only when a switch must not lose it: a picked file, fields another
+  tab's `Guardar` submits, or the leave guard over its draft.
 - A form in a `Dialog` is one column, with `Cancelar` and then the primary action
   on the right of the footer.
-- The portal's `Nueva coreografía` wizard is the exception: one column,
-  `max-w-2xl` and its own sticky bar, because it walks through one step at a
-  time.
+- The portal's `Nueva coreografía` wizard follows the same layout: each step
+  in one card, closed by `PinnedActions` with the step buttons.
 
 ## Editing and saving
 

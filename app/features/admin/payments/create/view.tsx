@@ -76,7 +76,17 @@ export function NewPaymentRouteView({
         onSubmit={createValidatedRouteFormDataSubmitHandler(form, submit)}
       >
         <input type="hidden" name="intent" value={createPaymentIntent} />
-        <AdminResourceFormCard contentClassName="gap-5">
+        <AdminResourceFormCard
+          contentClassName="gap-5"
+          footer={
+            <FormActions
+              backTo="/administracion/pagos"
+              hasChanges={isDirty}
+              isPending={isPending}
+              onDiscard={() => form.reset()}
+            />
+          }
+        >
           <FieldGroup className="grid gap-5 md:grid-cols-2">
             <PaymentAcademyField
               academies={loaderData.academies}
@@ -85,12 +95,6 @@ export function NewPaymentRouteView({
             <PaymentFields control={form.control} />
           </FieldGroup>
         </AdminResourceFormCard>
-        <FormActions
-          backTo="/administracion/pagos"
-          hasChanges={isDirty}
-          isPending={isPending}
-          onDiscard={() => form.reset()}
-        />
       </form>
     </AdminResourceLayout>
   );

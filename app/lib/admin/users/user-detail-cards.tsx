@@ -68,21 +68,32 @@ function ReadOnlyUserPage({
 }) {
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <UserFormCard>{children}</UserFormCard>
-      <FormActions
-        backTo={backToList}
-        canEdit={false}
-        hasChanges={false}
-        isPending={false}
-        onDiscard={() => {}}
-      />
+      <UserFormCard
+        footer={
+          <FormActions
+            backTo={backToList}
+            canEdit={false}
+            hasChanges={false}
+            isPending={false}
+            onDiscard={() => {}}
+          />
+        }
+      >
+        {children}
+      </UserFormCard>
     </div>
   );
 }
 
-export function UserFormCard({ children }: { children: ReactNode }) {
+export function UserFormCard({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
   return (
-    <AdminResourceFormCard>
+    <AdminResourceFormCard footer={footer}>
       <FieldGroup className="grid gap-5 md:grid-cols-2">{children}</FieldGroup>
     </AdminResourceFormCard>
   );

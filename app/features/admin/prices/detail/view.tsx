@@ -68,7 +68,18 @@ export function EventPriceDetailView({
       {price && guard ? (
         <div className="flex flex-1 flex-col gap-6">
           <GuardAlert reason={guard.reason} />
-          <PriceFormPanel>
+          <PriceFormPanel
+            footer={
+              <PriceFormActions
+                form={form}
+                formId="update-price-form"
+                pendingScope={{
+                  intent: "update-price",
+                  fields: { id: price.id },
+                }}
+              />
+            }
+          >
             <PriceForm
               form={form}
               formId="update-price-form"
@@ -78,14 +89,6 @@ export function EventPriceDetailView({
               schedules={loaderData.schedules}
             />
           </PriceFormPanel>
-          <PriceFormActions
-            form={form}
-            formId="update-price-form"
-            pendingScope={{
-              intent: "update-price",
-              fields: { id: price.id },
-            }}
-          />
         </div>
       ) : (
         <EmptyResourceState>

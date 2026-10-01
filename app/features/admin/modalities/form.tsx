@@ -142,8 +142,16 @@ function ModalityFormActions({
   );
 }
 
-function ModalityFormPanel({ children }: { children: ReactNode }) {
-  return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
+function ModalityFormPanel({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <AdminResourceFormCard footer={footer}>{children}</AdminResourceFormCard>
+  );
 }
 
 /**

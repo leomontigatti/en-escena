@@ -41,7 +41,7 @@ function DancersChecklist({ initial = [] }: { initial?: string[] }) {
 }
 
 function getRowNames() {
-  return getReactDomTexts('[data-slot="checklist-row"]');
+  return getReactDomTexts('[data-slot="choice-card"]');
 }
 
 function getSearchInput() {
@@ -52,11 +52,11 @@ function getSearchInput() {
 
 async function clickRow(name: string) {
   const row = Array.from(
-    document.querySelectorAll<HTMLElement>('[data-slot="checklist-row"]'),
+    document.querySelectorAll<HTMLElement>('[data-slot="choice-card"]'),
   ).find((candidate) => candidate.textContent === name);
 
   await updateReactDomForm(() => {
-    row?.querySelector("label")?.click();
+    row?.click();
   });
 }
 

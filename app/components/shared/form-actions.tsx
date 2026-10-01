@@ -31,7 +31,8 @@ type FormActionsProps = {
 };
 
 /**
- * A form page's footer, pinned to the bottom of the viewport: `Volver`, and
+ * A form page's footer, the last row of the form's card and sticky to the
+ * bottom of the viewport while the card runs past it: `Volver`, and
  * `Guardar` with `Descartar cambios` beside it while there is something to
  * discard. It also asks before the page is left with unsaved changes, by any
  * way out, so a form gets the whole rule by rendering it.

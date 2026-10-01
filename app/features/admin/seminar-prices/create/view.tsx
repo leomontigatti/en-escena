@@ -39,18 +39,21 @@ export function SeminarPriceCreateView({
       title="Nuevo precio de seminario"
       description="Configurá el tipo de seminario, a quiénes les aplica, el importe y su fecha límite de pago."
     >
-      <SeminarPriceFormPanel>
+      <SeminarPriceFormPanel
+        footer={
+          <SeminarPriceFormActions
+            form={form}
+            formId={createSeminarPriceFormId}
+            pendingScope={{ intent: "create-seminar-price" }}
+          />
+        }
+      >
         <SeminarPriceForm
           form={form}
           formId={createSeminarPriceFormId}
           intent="create-seminar-price"
         />
       </SeminarPriceFormPanel>
-      <SeminarPriceFormActions
-        form={form}
-        formId={createSeminarPriceFormId}
-        pendingScope={{ intent: "create-seminar-price" }}
-      />
     </AdminResourceLayout>
   );
 }

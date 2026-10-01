@@ -110,9 +110,6 @@ export function ComprobanteDetailRouteView({
         }
       >
         <ComprobanteDetailCard comprobante={comprobante} />
-        <PinnedActions>
-          <BackButton to="/administracion/comprobantes" />
-        </PinnedActions>
       </AdminResourceLayout>
 
       {/* It unmounts when it is CLOSED, not when it loses the affordance: an
@@ -137,7 +134,14 @@ function ComprobanteDetailCard({
   comprobante: ComprobanteDetail;
 }) {
   return (
-    <AdminResourceFormCard contentClassName="gap-4">
+    <AdminResourceFormCard
+      contentClassName="gap-4"
+      footer={
+        <PinnedActions>
+          <BackButton to="/administracion/comprobantes" />
+        </PinnedActions>
+      }
+    >
       <div className="flex flex-col gap-3">
         <DetailRow
           label="Tipo"

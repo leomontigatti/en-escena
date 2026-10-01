@@ -1,16 +1,21 @@
 import type { ReactNode } from "react";
 
+import { CardFooter } from "@/components/ui/card";
+
 /**
- * A form's `Volver` and `Guardar`, pinned to the bottom of the viewport while
- * the page scrolls and resting on the bottom edge when it does not. It needs a
- * full-height column above it —both shells' `main` is one— and sits outside
- * any `Card`, whose overflow would clip it. The negative margin reaches the
- * edges of `main`'s padding, so the content scrolls under an opaque band.
+ * A form's actions (`Volver` and `Guardar`, or a wizard's step buttons),
+ * closing the card they act on. Sticky, so it rests right after the fields
+ * while the card fits the viewport and sticks to the bottom edge while the
+ * card runs past it. It must be the card's last
+ * child, and the card must clip with `overflow-clip`: `overflow-hidden` makes
+ * the card a scroll container, which stops a sticky child from sticking.
+ * `AdminResourceFormCard`'s `footer` does both.
  */
 export function PinnedActions({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-4 -mb-6 mt-auto flex items-center justify-between gap-3 bg-background px-4 py-3">
+    // Opaque, where `CardFooter` is translucent: the fields scroll under it.
+    <CardFooter className="sticky bottom-0 z-10 justify-between gap-3 bg-card">
       {children}
-    </div>
+    </CardFooter>
   );
 }
