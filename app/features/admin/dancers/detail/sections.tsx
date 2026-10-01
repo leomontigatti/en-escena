@@ -176,7 +176,7 @@ export function DancerDetailAlerts({
 }
 
 /**
- * The whole page form: the card of fields and the pinned footer under it. Whoever
+ * The whole page form: the card of fields, closed by its pinned footer. Whoever
  * may edit gets the fields editable in place; anyone else sees them disabled with
  * only `Volver`. Every field is in `Identificación`, so the footer offers to save
  * on that tab alone: on `Inscripciones` the fields are unmounted and a save
@@ -216,7 +216,18 @@ export function DancerDetailForm({
       onSubmit={onSubmit}
     >
       <input type="hidden" name="intent" value="update-dancer" />
-      <AdminResourceFormCard>
+      <AdminResourceFormCard
+        footer={
+          <FormActions
+            backTo={backToList}
+            canEdit={canEdit}
+            hasChanges={editForm.hasChanges}
+            isPending={isSaving}
+            onDiscard={editForm.discard}
+            showsSave={tab === "identificacion"}
+          />
+        }
+      >
         <ReadOnlyField label="Academia" value={dancer.academy.name} />
         <DancerDetailTabs
           canEdit={canEdit}
@@ -228,15 +239,6 @@ export function DancerDetailForm({
           tab={tab}
         />
       </AdminResourceFormCard>
-
-      <FormActions
-        backTo={backToList}
-        canEdit={canEdit}
-        hasChanges={editForm.hasChanges}
-        isPending={isSaving}
-        onDiscard={editForm.discard}
-        showsSave={tab === "identificacion"}
-      />
       {nameWarning ? (
         <RosterNameWarningDialog
           formId={editFormId}

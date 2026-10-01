@@ -184,7 +184,19 @@ export function PortalDancerDetailRouteView({
           showsVerifiedIdentityAlert={viewModel.showsVerifiedIdentityAlert}
         />
 
-        <PortalDancerFormSection>
+        <PortalDancerFormSection
+          footer={
+            <FormActions
+              backTo="/portal/bailarines"
+              form={portalDancerFormId}
+              hasChanges={form.form.formState.isDirty}
+              isPending={isSubmitting}
+              onDiscard={form.discard}
+              showsSave={tab === "identificacion"}
+              viewTransition
+            />
+          }
+        >
           <CardContent>
             <form
               id={portalDancerFormId}
@@ -238,16 +250,6 @@ export function PortalDancerDetailRouteView({
             </form>
           </CardContent>
         </PortalDancerFormSection>
-
-        <FormActions
-          backTo="/portal/bailarines"
-          form={portalDancerFormId}
-          hasChanges={form.form.formState.isDirty}
-          isPending={isSubmitting}
-          onDiscard={form.discard}
-          showsSave={tab === "identificacion"}
-          viewTransition
-        />
         {nameWarning ? (
           <RosterNameWarningDialog
             formId={portalDancerFormId}
@@ -501,7 +503,13 @@ function PortalDancerInscriptionsSection({
   );
 }
 
-function PortalDancerFormSection({ children }: { children: ReactNode }) {
+function PortalDancerFormSection({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer: ReactNode;
+}) {
   return (
     <section
       aria-labelledby="bailarin-detail-form-title"
@@ -510,7 +518,10 @@ function PortalDancerFormSection({ children }: { children: ReactNode }) {
       <h2 id="bailarin-detail-form-title" className="sr-only">
         Ficha del bailarín
       </h2>
-      <Card>{children}</Card>
+      <Card className="overflow-clip">
+        {children}
+        {footer}
+      </Card>
     </section>
   );
 }

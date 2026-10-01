@@ -297,16 +297,17 @@ describe("ComprobanteDetailRouteView", () => {
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
   });
 
-  // The card clips its overflow, so a `Volver` inside it could never stay
-  // pinned to the bottom of the viewport (#1276).
-  test("renders `Volver` below the card, where it can stay pinned", async () => {
+  // The actions close the card they act on: a sticky footer only sticks as
+  // the card's own last child.
+  test("renders `Volver` in the card's pinned footer", async () => {
     await mount({});
 
     const volver = [...document.querySelectorAll("a")].find(
       (link) => link.textContent === "Volver",
     );
+    const footer = volver?.closest('[data-slot="card-footer"]');
 
-    expect(volver).toBeDefined();
-    expect(volver?.closest('[data-slot="card"]')).toBeNull();
+    expect(footer?.parentElement?.dataset.slot).toBe("card");
+    expect(footer?.nextElementSibling).toBeNull();
   });
 });
