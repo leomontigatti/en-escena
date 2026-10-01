@@ -134,6 +134,7 @@ export function InscriptionMoneyDialog({
     return (
       <RemoveMoneyDialog
         inscription={inscription}
+        isWaivable={waiver !== null}
         onOpenChange={onOpenChange}
         targetKind={targetKind}
       />
@@ -468,10 +469,13 @@ function AllocationFooter({
  */
 function RemoveMoneyDialog({
   inscription,
+  isWaivable,
   onOpenChange,
   targetKind,
 }: {
   inscription: InscriptionRow;
+  /** Whether the row could be waived once its money is off (ADR-0017). */
+  isWaivable: boolean;
   onOpenChange: (open: boolean) => void;
   targetKind: AllocationTargetKind;
 }) {
@@ -495,6 +499,9 @@ function RemoveMoneyDialog({
             name="intent"
             value={removeInscriptionMoneyIntent}
           />
+          {isWaivable ? (
+            <WaiverBlockedAlert allocatedAmount={inscription.allocatedAmount} />
+          ) : null}
           <MoneyTargetFields
             inscription={inscription}
             targetKind={targetKind}
@@ -513,23 +520,32 @@ function RemoveMoneyDialog({
 
           <FetcherError data={fetcher.data} />
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSaving}
-              onClick={requestClose}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="destructive"
-              disabled={isSaving || amount === "" || isOutOfRange}
-            >
-              <SubmitIcon isSaving={isSaving} />
-              Quitar
-            </Button>
+          <DialogFooter className={isWaivable ? "sm:justify-between" : ""}>
+            {/* Disabled for as long as there is money on the row: this shape
+                is the way to take it off, and the alert above says so. */}
+            {isWaivable ? (
+              <Button type="button" variant="outline" disabled>
+                Bonificar
+              </Button>
+            ) : null}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                onClick={requestClose}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={isSaving || amount === "" || isOutOfRange}
+              >
+                <SubmitIcon isSaving={isSaving} />
+                Quitar
+              </Button>
+            </div>
           </DialogFooter>
         </fetcher.Form>
       )}

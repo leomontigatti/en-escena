@@ -623,6 +623,34 @@ describe("waiving an inscription from its money dialog", () => {
     expect(button("Quitar dinero")?.disabled).toBe(false);
   });
 
+  // Review regression: a fully paid row opens straight on removal, and the
+  // waiver was missing from that shape.
+  test("tells a fully paid row how to become waivable from its removal shape", async () => {
+    await mount([
+      inscriptionFixture({
+        allocatedAmount: 10000,
+        financialStatus: "paidInFull",
+        owedBalanceAmount: 0,
+      }),
+    ]);
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(dialogText()).toContain(removeDescription);
+    expect(dialogText()).toContain("Tiene $ 10.000 asignados.");
+    expect(button("Bonificar")?.disabled).toBe(true);
+  });
+
+  // Review regression: a withdrawn row was offered a waiver the server refuses.
+  test("offers no waiver on a withdrawn inscription", async () => {
+    await mount([{ ...emptyRow, withdrawn: true }]);
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(button("Bonificar")).toBeNull();
+    expect(dialogText()).not.toContain("bonificar");
+  });
+
   test("asks before waiving an inscription with no money, and posts the waiver", async () => {
     const posted: FormData[] = [];
     await mount([emptyRow], (formData) => {

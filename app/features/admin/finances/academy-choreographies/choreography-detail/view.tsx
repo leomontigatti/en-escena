@@ -376,22 +376,28 @@ function InscriptionsTable({
           onOpenChange={closeMoneyDialog}
           priceOptions={priceOptions}
           targetKind="choreography"
-          waiver={{
-            onUnwaive: () => {
-              setOpenDancerId(null);
-              waiverConfirmation.show({
-                inscription: openInscription,
-                kind: "unwaiveInscription",
-              });
-            },
-            onWaive: () => {
-              setOpenDancerId(null);
-              waiverConfirmation.show({
-                inscription: openInscription,
-                kind: "waiveInscription",
-              });
-            },
-          }}
+          // A withdrawn inscription is off the roster and cannot be waived,
+          // so its dialog offers no waiver at all.
+          waiver={
+            openInscription.withdrawn
+              ? null
+              : {
+                  onUnwaive: () => {
+                    setOpenDancerId(null);
+                    waiverConfirmation.show({
+                      inscription: openInscription,
+                      kind: "unwaiveInscription",
+                    });
+                  },
+                  onWaive: () => {
+                    setOpenDancerId(null);
+                    waiverConfirmation.show({
+                      inscription: openInscription,
+                      kind: "waiveInscription",
+                    });
+                  },
+                }
+          }
         />
       ) : null}
       {waiverConfirmation.state ? (
