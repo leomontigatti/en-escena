@@ -1,6 +1,6 @@
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
-import type { SubmitEventHandler, ReactNode } from "react";
+import { useState, type SubmitEventHandler, type ReactNode } from "react";
 
 import {
   AdminEmptyState,
@@ -178,7 +178,9 @@ export function DancerDetailAlerts({
 /**
  * The whole page form: the card of fields and the pinned footer under it. Whoever
  * may edit gets the fields editable in place; anyone else sees them disabled with
- * only `Volver`.
+ * only `Volver`. Every field is in `Identificación`, so the footer offers to save
+ * on that tab alone: on `Inscripciones` the fields are unmounted and a save
+ * would post none of them.
  */
 export function DancerDetailForm({
   backToList,
@@ -203,6 +205,8 @@ export function DancerDetailForm({
   onSubmit: SubmitEventHandler<HTMLFormElement>;
   selectedEventId: string | null;
 }) {
+  const [tab, setTab] = useState<DancerDetailTab>("identificacion");
+
   return (
     <form
       id={editFormId}
@@ -213,17 +217,15 @@ export function DancerDetailForm({
     >
       <input type="hidden" name="intent" value="update-dancer" />
       <AdminResourceFormCard>
-        <DancerAdministrativeDataSection
-          canEdit={canEdit}
-          dancer={dancer}
-          editForm={editForm}
-        />
+        <ReadOnlyField label="Academia" value={dancer.academy.name} />
         <DancerDetailTabs
           canEdit={canEdit}
           dancer={dancer}
           documentImageUrls={documentImageUrls}
           editForm={editForm}
+          onTabChange={setTab}
           selectedEventId={selectedEventId}
+          tab={tab}
         />
       </AdminResourceFormCard>
 
@@ -233,6 +235,7 @@ export function DancerDetailForm({
         hasChanges={editForm.hasChanges}
         isPending={isSaving}
         onDiscard={editForm.discard}
+        showsSave={tab === "identificacion"}
       />
       {nameWarning ? (
         <RosterNameWarningDialog
@@ -245,60 +248,38 @@ export function DancerDetailForm({
   );
 }
 
-function DancerAdministrativeDataSection({
-  dancer,
-  editForm,
-  canEdit,
-}: {
-  canEdit: boolean;
-  dancer: DancerDetailLoaderData["dancer"];
-  editForm: DancerEditFormController;
-}) {
-  return (
-    <FieldGroup className="grid gap-5 md:grid-cols-2">
-      <ReadOnlyField
-        className="md:col-span-2"
-        label="Academia"
-        value={dancer.academy.name}
-      />
-      {canEdit ? (
-        <>
-          <DancerTextField
-            form={editForm.form}
-            label="Nombre"
-            name="firstName"
-          />
-          <DancerTextField
-            form={editForm.form}
-            label="Apellido"
-            name="lastName"
-          />
-        </>
-      ) : (
-        <>
-          <ReadOnlyField label="Nombre" value={dancer.firstName} />
-          <ReadOnlyField label="Apellido" value={dancer.lastName} />
-        </>
-      )}
-    </FieldGroup>
-  );
-}
+const dancerDetailTabs = ["identificacion", "inscripciones"] as const;
+
+type DancerDetailTab = (typeof dancerDetailTabs)[number];
 
 function DancerDetailTabs({
   dancer,
   documentImageUrls,
   editForm,
   canEdit,
+  onTabChange,
   selectedEventId,
+  tab,
 }: {
   dancer: DancerDetailLoaderData["dancer"];
   documentImageUrls: DancerDetailLoaderData["documentImageUrls"];
   editForm: DancerEditFormController;
   canEdit: boolean;
+  onTabChange: (tab: DancerDetailTab) => void;
   selectedEventId: string | null;
+  tab: DancerDetailTab;
 }) {
   return (
-    <Tabs defaultValue="identificacion">
+    <Tabs
+      value={tab}
+      onValueChange={(next) => {
+        const named = dancerDetailTabs.find((candidate) => candidate === next);
+
+        if (named) {
+          onTabChange(named);
+        }
+      }}
+    >
       <TabsList variant="line">
         <TabsTrigger value="identificacion">Identificación</TabsTrigger>
         <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
@@ -337,6 +318,16 @@ function DancerIdentificationSection({
     <FieldGroup className="grid gap-5 md:grid-cols-2">
       {canEdit ? (
         <>
+          <DancerTextField
+            form={editForm.form}
+            label="Nombre"
+            name="firstName"
+          />
+          <DancerTextField
+            form={editForm.form}
+            label="Apellido"
+            name="lastName"
+          />
           <DancerBirthDateField
             eventStartDate={editForm.eventStartDate}
             form={editForm.form}
@@ -377,6 +368,8 @@ function DancerIdentificationSection({
         </>
       ) : (
         <>
+          <ReadOnlyField label="Nombre" value={dancer.firstName} />
+          <ReadOnlyField label="Apellido" value={dancer.lastName} />
           <ReadOnlyDateField
             label="Fecha de nacimiento"
             value={dancer.birthDate}

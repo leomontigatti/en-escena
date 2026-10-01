@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { act } from "react";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 import { renderInDataRouter } from "@/lib/test-support/data-router";
@@ -53,6 +54,32 @@ describe("DancerDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("¿Verificar?");
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
     expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
+  });
+
+  // Every field is in `Identificación`, and Radix unmounts it behind the other
+  // tab: a save from `Inscripciones` would post an empty dancer (#1274).
+  test("offers `Guardar` on the tab that holds the fields, and keeps what was typed behind the other", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
+        <DancerDetailRouteView loaderData={createLoaderData()} />,
+      ),
+    );
+
+    await updateReactDomForm(() => {
+      setInputValue(getFirstNameInput(), "Bea");
+    });
+    await selectTab("Inscripciones");
+
+    expect(document.querySelector('input[name="firstName"]')).toBeNull();
+    expect(findButton("Guardar", { exact: true })).toBeUndefined();
+    expect(findButton("Descartar cambios")).toBeUndefined();
+    expect(document.body.textContent).toContain("Volver");
+
+    await selectTab("Identificación");
+
+    expect(getFirstNameInput().value).toBe("Bea");
+    expect(getButton("Guardar").disabled).toBe(false);
   });
 
   test("changing a dancer's status confirms without a correction reason field", async () => {
@@ -248,4 +275,29 @@ function createLoaderData({
     merge: null,
     selectedEventId: null,
   };
+}
+
+function getFirstNameInput() {
+  const input = document.querySelector<HTMLInputElement>(
+    'input[name="firstName"]',
+  );
+
+  if (!input) {
+    throw new Error("The first name field is not in the DOM.");
+  }
+
+  return input;
+}
+
+async function selectTab(label: string) {
+  const trigger = Array.from(document.querySelectorAll('[role="tab"]')).find(
+    (candidate) => candidate.textContent === label,
+  );
+
+  // Radix activates a trigger on `mousedown`, not on the click after it.
+  await act(async () => {
+    trigger!.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+    );
+  });
 }

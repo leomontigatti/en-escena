@@ -592,11 +592,14 @@ Rules:
 - Every other tab set keeps its state local: tabs that split one record into
   sections, and tabs inside a card or a control (a judge's sheet, the
   checklist's `Todos` / `Seleccionados`).
-- A tab panel that holds fields of a form takes `forceMount` and
-  `data-[state=inactive]:hidden`. Radix unmounts an inactive panel, an
-  unmounted input is not submitted, and a file picked in a native file input is
-  lost with it. Submitting from the React Hook Form values does not replace
-  this: they cannot carry a file.
+- A form's fields go in one tab when a record has tabs, and `FormActions` takes
+  `showsSave` only for that tab: a tab with no field of the form shows `Volver`
+  alone. Radix unmounts an inactive panel and an unmounted input is not
+  submitted, so `Guardar` on such a tab would post an empty form.
+- A panel takes `forceMount` and `data-[state=inactive]:hidden` in the two cases
+  that rule does not cover: the fields span more than one tab (the event's
+  detail), or the panel holds a native file input, whose picked file is lost
+  when it unmounts and which the React Hook Form values cannot carry.
 - A controlled `Tabs` switches through `onValueChange`, never through `onClick`
   on each trigger: the arrow keys switch tabs without a click.
 - Use `DropdownMenu` for contextual actions.

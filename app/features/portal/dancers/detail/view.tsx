@@ -69,6 +69,10 @@ import {
   type PortalDancerStatusIntent,
 } from "./shared";
 
+const portalDancerTabs = ["identificacion", "inscripciones"] as const;
+
+type PortalDancerTab = (typeof portalDancerTabs)[number];
+
 export type PortalDancerDetailRouteViewProps = {
   loaderData: PortalDancerDetailLoaderData;
   actionData?: PortalDancerDetailActionData;
@@ -101,6 +105,7 @@ export function PortalDancerDetailRouteView({
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<PortalDancerStatusIntent | null>(initialStatusDialogIntent);
+  const [tab, setTab] = useState<PortalDancerTab>("identificacion");
   const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
   const identificationPendingItems = getDancerIdentificationPendingItems(
     loaderData.dancer,
@@ -190,44 +195,26 @@ export function PortalDancerDetailRouteView({
               className="flex flex-col gap-6"
             >
               <input type="hidden" name="intent" value="update-dancer" />
-              <FieldGroup className="grid gap-5 md:grid-cols-2">
-                {viewModel.isIdentityVerified ? (
-                  <>
-                    <ReadOnlyField
-                      label="Nombre"
-                      name="firstName"
-                      value={viewModel.identityFieldValues.firstName}
-                    />
-                    <ReadOnlyField
-                      label="Apellido"
-                      name="lastName"
-                      value={viewModel.identityFieldValues.lastName}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <PortalDancerTextField
-                      form={form.form}
-                      label="Nombre"
-                      name="firstName"
-                    />
-                    <PortalDancerTextField
-                      form={form.form}
-                      label="Apellido"
-                      name="lastName"
-                    />
-                  </>
-                )}
-              </FieldGroup>
-              <Tabs defaultValue="identificacion">
+              <Tabs
+                value={tab}
+                onValueChange={(next) => {
+                  const named = portalDancerTabs.find(
+                    (candidate) => candidate === next,
+                  );
+
+                  if (named) {
+                    setTab(named);
+                  }
+                }}
+              >
                 <TabsList variant="line">
                   <TabsTrigger value="identificacion">
                     Identificación
                   </TabsTrigger>
                   <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
                 </TabsList>
-                {/* The identity fields stay mounted so a file picked here is
-                    still submitted after a look at the inscriptions tab.
+                {/* Kept mounted behind the other tab, so a file picked here
+                    is still in its input after a look at the inscriptions.
                     `forceMount` leaves the panel to hide itself. */}
                 <TabsContent
                   forceMount
@@ -258,6 +245,7 @@ export function PortalDancerDetailRouteView({
           hasChanges={form.form.formState.isDirty}
           isPending={isSubmitting}
           onDiscard={form.discard}
+          showsSave={tab === "identificacion"}
           viewTransition
         />
         {nameWarning ? (
@@ -298,6 +286,33 @@ function PortalDancerIdentificationFields({
 }) {
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
+      {viewModel.isIdentityVerified ? (
+        <>
+          <ReadOnlyField
+            label="Nombre"
+            name="firstName"
+            value={viewModel.identityFieldValues.firstName}
+          />
+          <ReadOnlyField
+            label="Apellido"
+            name="lastName"
+            value={viewModel.identityFieldValues.lastName}
+          />
+        </>
+      ) : (
+        <>
+          <PortalDancerTextField
+            form={form.form}
+            label="Nombre"
+            name="firstName"
+          />
+          <PortalDancerTextField
+            form={form.form}
+            label="Apellido"
+            name="lastName"
+          />
+        </>
+      )}
       {viewModel.isIdentityVerified ? (
         <ReadOnlyDateField
           label="Fecha de nacimiento"

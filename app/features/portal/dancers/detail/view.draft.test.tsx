@@ -119,6 +119,27 @@ describe("the portal dancer detail as one draft", () => {
 
     expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
   });
+
+  // Every field is in `Identificación`, so the other tab has nothing to save.
+  test("offers `Guardar` on the tab that holds the fields, and still guards the changes from the other", async () => {
+    await renderDancerPage();
+
+    await typeFirstName("Bea");
+    await selectTab("Inscripciones");
+
+    expect(findButton("Guardar", { exact: true })).toBeUndefined();
+    expect(findButton("Descartar cambios")).toBeUndefined();
+
+    await clickLink("Volver");
+
+    expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
+
+    await clickReactDomButton("Cancelar");
+    await selectTab("Identificación");
+
+    expect(getFirstNameInput().value).toBe("Bea");
+    expect(isSaveEnabled()).toBe(true);
+  });
 });
 
 async function renderDancerPage(
@@ -221,6 +242,20 @@ function dialogButtonLabels() {
   return Array.from(findDialog()?.querySelectorAll("button") ?? []).map(
     (button) => button.textContent?.trim(),
   );
+}
+
+async function selectTab(label: string) {
+  const trigger = Array.from(document.querySelectorAll('[role="tab"]')).find(
+    (candidate) => candidate.textContent === label,
+  );
+
+  // Radix activates a trigger on `mousedown`, not on the click after it.
+  await act(async () => {
+    trigger!.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+    );
+  });
+  await settle();
 }
 
 async function clickLink(text: string) {
