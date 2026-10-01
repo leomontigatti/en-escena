@@ -1,13 +1,17 @@
 import { z } from "zod";
 
 import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import {
+  internalUsernameRuleMessage,
+  isValidInternalUsername,
+} from "@/lib/auth/internal-username.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
 
-const temporaryPasswordMinLength = 8;
+const passwordMinLength = 8;
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
 
@@ -21,11 +25,14 @@ export const createInternalUserIntent = "create-internal-user";
 
 export const createInternalUserSchema = z.object({
   name: requiredTextField(),
-  internalUsername: requiredTextField(),
+  internalUsername: requiredTextField().refine(
+    isValidInternalUsername,
+    internalUsernameRuleMessage,
+  ),
   role: roleField,
-  temporaryPassword: requiredTextField().refine(
-    (value) => value.length >= temporaryPasswordMinLength,
-    `La contraseña temporal debe tener al menos ${temporaryPasswordMinLength} caracteres.`,
+  password: requiredTextField().refine(
+    (value) => value.length >= passwordMinLength,
+    `La contraseña debe tener al menos ${passwordMinLength} caracteres.`,
   ),
 });
 
@@ -33,7 +40,7 @@ const createInternalUserFieldNames = [
   "name",
   "internalUsername",
   "role",
-  "temporaryPassword",
+  "password",
 ] as const;
 
 export type CreateInternalUserField =
@@ -45,7 +52,7 @@ export type CreateInternalUserFormValues = {
   name: string;
   internalUsername: string;
   role: string;
-  temporaryPassword: string;
+  password: string;
 };
 
 export type CreateInternalUserActionData = {
@@ -61,7 +68,7 @@ export const defaultCreateInternalUserFormValues: CreateInternalUserFormValues =
     name: "",
     internalUsername: "",
     role: "judge",
-    temporaryPassword: "",
+    password: "",
   };
 
 export function readCreateInternalUserFormValues(
@@ -71,7 +78,7 @@ export function readCreateInternalUserFormValues(
     name: String(formData.get("name") ?? ""),
     internalUsername: String(formData.get("internalUsername") ?? ""),
     role: String(formData.get("role") ?? ""),
-    temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
+    password: String(formData.get("password") ?? ""),
   };
 }
 
@@ -87,7 +94,7 @@ export function getCreateInternalUserServerFieldErrors(
   if (
     error === "Ese nombre de usuario interno ya existe." ||
     error === "Ese nombre de usuario interno está reservado." ||
-    error === "Ingresá un nombre de usuario interno válido."
+    error === internalUsernameRuleMessage
   ) {
     return { internalUsername: error };
   }

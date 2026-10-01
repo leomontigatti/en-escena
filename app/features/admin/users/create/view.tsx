@@ -72,18 +72,16 @@ export function NewInternalUserRouteView({
   return (
     <AdminResourceLayout
       title="Nuevo usuario"
-      description="Creá accesos internos con nombre de usuario propio y cambio obligatorio de contraseña en el primer ingreso."
+      description="Creá accesos internos con nombre de usuario y contraseña propios."
       requireSelectedEvent={false}
     >
       <div className="flex w-full flex-1 flex-col gap-6">
         <AlertStack>
           <Alert variant="warning">
             <TriangleAlert aria-hidden="true" />
-            <AlertTitle>
-              Compartí la contraseña temporal por un canal seguro
-            </AlertTitle>
+            <AlertTitle>Compartí la contraseña por un canal seguro</AlertTitle>
             <AlertDescription>
-              La contraseña temporal no vuelve a mostrarse después de guardar.
+              La contraseña no vuelve a mostrarse después de guardar.
             </AlertDescription>
           </Alert>
         </AlertStack>
@@ -123,8 +121,8 @@ export function NewInternalUserRouteView({
             <TextInputField
               autoComplete="new-password"
               control={control}
-              label="Contraseña temporal"
-              name="temporaryPassword"
+              label="Contraseña"
+              name="password"
               placeholder="Mínimo 8 caracteres"
               type="password"
             />

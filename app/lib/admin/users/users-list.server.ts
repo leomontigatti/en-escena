@@ -54,7 +54,6 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
       email: user.email,
       role: user.role,
       internalUsername: user.internalUsername,
-      requiresPasswordChange: user.requiresPasswordChange,
       suspended: user.suspended,
       academyName: academies.name,
       academyContactName: academies.contactName,
@@ -91,7 +90,6 @@ export async function listUsers(input: { filters: UserListFilters }): Promise<{
 }
 
 function getUserListState(row: {
-  requiresPasswordChange: boolean;
   role: UserListRole;
   suspended: boolean;
 }): UserListState {
@@ -101,10 +99,6 @@ function getUserListState(row: {
 
   if (row.suspended) {
     return "suspended";
-  }
-
-  if (row.requiresPasswordChange) {
-    return "mandatory-password-change";
   }
 
   return "active";
@@ -147,15 +141,8 @@ function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
 
   if (filters.state === "active") {
     clauses.push(
-      or(
-        eq(user.role, "academy"),
-        and(eq(user.suspended, false), eq(user.requiresPasswordChange, false)),
-      ) ?? sql`false`,
+      or(eq(user.role, "academy"), eq(user.suspended, false)) ?? sql`false`,
     );
-  } else if (filters.state === "mandatory-password-change") {
-    clauses.push(eq(user.requiresPasswordChange, true));
-    clauses.push(eq(user.suspended, false));
-    clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
   } else if (filters.state === "suspended") {
     clauses.push(eq(user.suspended, true));
     clauses.push(inArray(user.role, INTERNAL_USER_ROLES));
@@ -171,7 +158,6 @@ function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
 function readStateFilter(value: string | null): UserListFilters["state"] {
   switch (value) {
     case "active":
-    case "mandatory-password-change":
     case "suspended":
       return value;
     default:

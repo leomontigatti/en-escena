@@ -5,10 +5,7 @@ import { db } from "@/db";
 import { academies, accessSession, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
-import {
-  MANDATORY_PASSWORD_CHANGE_PATH,
-  PUBLIC_ACADEMY_ONBOARDING_PATH,
-} from "@/lib/auth/access-paths.shared";
+import { PUBLIC_ACADEMY_ONBOARDING_PATH } from "@/lib/auth/access-paths.shared";
 import {
   INTERNAL_USER_ROLES,
   isInternalUserRole,
@@ -21,7 +18,6 @@ export type AppUser = {
   internalUsername: string | null;
   name: string | null;
   role: "academy" | InternalUserRole;
-  requiresPasswordChange: boolean;
   sessionInvalidBefore: Date | null;
 };
 
@@ -42,7 +38,6 @@ const DEFAULT_FORBIDDEN_MESSAGE = "No tenés permiso para acceder a esta vista."
 
 export async function requireSignedInAccessState(
   request: Request,
-  options?: { allowMandatoryPasswordChange?: boolean },
 ): Promise<SignedInAccessState> {
   const session = await accessAuthProvider.getAccessSession(request);
 
@@ -57,7 +52,6 @@ export async function requireSignedInAccessState(
       internalUsername: true,
       name: true,
       role: true,
-      requiresPasswordChange: true,
       sessionInvalidBefore: true,
       suspended: true,
     },
@@ -75,14 +69,6 @@ export async function requireSignedInAccessState(
       session.session.issuedAt < appUser.sessionInvalidBefore
     ) {
       await revokeAppUserSessionsAndRedirect(request, appUser.id);
-    }
-
-    if (
-      !options?.allowMandatoryPasswordChange &&
-      appUser.role !== "academy" &&
-      appUser.requiresPasswordChange
-    ) {
-      throw redirect(MANDATORY_PASSWORD_CHANGE_PATH);
     }
 
     return {
@@ -108,11 +94,8 @@ export async function requireSignedInAccessState(
   redirectToLoginForRequest(request);
 }
 
-export async function requireSignedInUser(
-  request: Request,
-  options?: { allowMandatoryPasswordChange?: boolean },
-) {
-  const accessState = await requireSignedInAccessState(request, options);
+export async function requireSignedInUser(request: Request) {
+  const accessState = await requireSignedInAccessState(request);
 
   if (accessState.kind === "academy-onboarding") {
     throw redirect(PUBLIC_ACADEMY_ONBOARDING_PATH);

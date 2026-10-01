@@ -22,7 +22,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("`/administracion/usuarios/nuevo` route", () => {
-  test("requires admin access and renders the temporary password warning", async () => {
+  test("requires admin access and renders the password warning", async () => {
     await expectThrownResponse(
       loader(
         routeArgs(
@@ -45,12 +45,12 @@ describe("`/administracion/usuarios/nuevo` route", () => {
     expect(loaderData).not.toHaveProperty("eventOptions");
     expect(loaderData).not.toHaveProperty("selectedEventId");
     expect(markup).toContain("Nuevo usuario");
-    expect(markup).toContain("Contraseña temporal");
+    expect(markup).toContain("Contraseña");
     expect(markup).toContain("canal seguro");
     expect(markup).not.toContain("Usuario interno creado");
   });
 
-  test("creates an internal judge user and redirects to the new user's detail with a flash toast without revealing the temporary password", async () => {
+  test("creates an internal judge user and redirects to the new user's detail with a flash toast without revealing the password", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.crea.usuario@example.com",
       role: "admin",
@@ -59,7 +59,7 @@ describe("`/administracion/usuarios/nuevo` route", () => {
         name: "Mesa de Jueces",
         internalUsername: "Mesa.Jueces",
         role: "judge",
-        temporaryPassword: "temporal-segura",
+        password: "clave-segura",
         email: "",
       }),
     });
@@ -75,7 +75,6 @@ describe("`/administracion/usuarios/nuevo` route", () => {
     expect(savedUser).toMatchObject({
       name: "Mesa de Jueces",
       role: "judge",
-      requiresPasswordChange: true,
     });
     await expectFlashRedirect(
       response,
@@ -86,7 +85,7 @@ describe("`/administracion/usuarios/nuevo` route", () => {
         variant: "success",
       },
     );
-    expect(response.headers.get("location")).not.toContain("temporal-segura");
+    expect(response.headers.get("location")).not.toContain("clave-segura");
   });
 });
 

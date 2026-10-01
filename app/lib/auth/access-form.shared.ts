@@ -13,7 +13,6 @@ export const authToastIds = {
   recoveryError: "auth:recovery-error",
   recoveryResult: "auth:recovery-result",
   resetPasswordError: "auth:reset-password-error",
-  mandatoryPasswordChangeError: "auth:mandatory-password-change-error",
   invitationError: "auth:invitation-error",
   registrationError: "auth:registration-error",
   registrationResult: "auth:registration-result",
