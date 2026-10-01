@@ -357,7 +357,7 @@ export function PortalShell({
           </header>
 
           {/* A column down to the bottom edge, so a screen can grow to fill
-                it: the choreography registration pins its actions there. */}
+                it. */}
           <main
             id="contenido-principal"
             className="flex flex-1 flex-col px-4 py-6"

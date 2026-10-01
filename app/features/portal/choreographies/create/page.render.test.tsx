@@ -140,7 +140,7 @@ function buildScheduleOption(id: string, scheduledDate: string) {
 }
 
 function getHeading() {
-  return document.querySelector("h2")?.textContent;
+  return document.querySelector("h3")?.textContent;
 }
 
 function getStepCounter() {
@@ -268,7 +268,7 @@ describe("the choreography registration page", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await fillFirstStep();
-    await pickDancerAndResolve("Categoría");
+    await pickDancerAndResolve("Categoría y tipo de grupo");
 
     expect(getStepCounter()).toBe("Paso 3 de 5");
     expect(document.body.textContent).toContain("Juvenil - Solo");
