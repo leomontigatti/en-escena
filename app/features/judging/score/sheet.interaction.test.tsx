@@ -372,7 +372,9 @@ describe("scoring a submodality with criteria", () => {
     expect(document.body.textContent).toContain(discardChangesTitle);
     expect(router.state.location.search).toBe("?presentacion=a");
 
-    await clickReactDomButton("Seguir editando");
+    await clickReactDomButton("Cancelar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
 
     expect(document.body.textContent).not.toContain(discardChangesTitle);
     expect(criterionInput("tecnica")?.value).toBe("50");

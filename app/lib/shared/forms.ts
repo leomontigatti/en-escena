@@ -1,4 +1,4 @@
-import { useEffect, type SubmitEventHandler } from "react";
+import { useEffect, useRef, type SubmitEventHandler } from "react";
 import type {
   FieldValues,
   SubmitHandler,
@@ -137,6 +137,36 @@ export function useOptionalNavigation() {
   } catch {
     return { state: "idle" } as const;
   }
+}
+
+/**
+ * Closes a confirmation once the submission it started has settled. A dialog
+ * that posts through the router stays mounted while its action runs and after
+ * it answers, where a document post used to take the whole page with it: left
+ * open, an enabled verb would sit in front of the user after the work was
+ * already done, and a second press would do it twice (#1358). Success and
+ * refusal close alike; the toast is what carries the outcome.
+ */
+export function useCloseOnceSettled({
+  isPending,
+  onClose,
+}: {
+  isPending: boolean;
+  onClose: () => void;
+}) {
+  const wasPending = useRef(false);
+
+  useEffect(() => {
+    if (isPending) {
+      wasPending.current = true;
+      return;
+    }
+
+    if (wasPending.current) {
+      wasPending.current = false;
+      onClose();
+    }
+  }, [isPending, onClose]);
 }
 
 export type RouteFormPendingScope = {

@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { ExternalLink, type LucideIcon } from "lucide-react";
+import { Fragment, useState, type ReactNode } from "react";
 
 import {
   AlertDialog,
@@ -10,12 +11,55 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
+
+/**
+ * A match's name, linking to its page in a new tab: the dialog sits over a
+ * half-filled form, and leaving the page would lose it or trip the discard
+ * guard, so the comparison happens beside it. Same shape as the file previews
+ * in `read-only-document-image-field.tsx`.
+ */
+export function DuplicateMatchLink({
+  children,
+  href,
+}: {
+  children: ReactNode;
+  href: string;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-baseline gap-1 rounded-sm font-medium text-brand underline-offset-4 hover:text-brand/80 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+    >
+      {children}
+      <ExternalLink aria-hidden="true" className="size-3.5 self-center" />
+    </a>
+  );
+}
+
+/** `formatSpanishList` for nodes: `a, b y c`. */
+export function joinSpanishList(items: readonly ReactNode[]) {
+  return items.map((item, index) => (
+    <Fragment key={index}>
+      {index === 0 ? null : index === items.length - 1 ? " y " : ", "}
+      {item}
+    </Fragment>
+  ));
+}
 
 type DuplicateWarningDialogProps = {
   children: ReactNode;
-  /** The continue action: a submit into the form, or a fetcher resubmit. */
-  continueButton: ReactNode;
+  /**
+   * The title's verb with its icon, saving anyway: a submit into the form, or
+   * a fetcher resubmit.
+   */
+  confirmButton: ReactNode;
+  /** The save the dialog confirmed is in flight. */
+  isPending: boolean;
+  /** A question naming the save the matches interrupted and its object. */
   title: string;
   /**
    * The server's answer that found the matches. Each answer is a new object,
@@ -31,7 +75,8 @@ type DuplicateWarningDialogProps = {
  */
 export function DuplicateWarningDialog({
   children,
-  continueButton,
+  confirmButton,
+  isPending,
   title,
   warning,
 }: DuplicateWarningDialogProps) {
@@ -53,8 +98,8 @@ export function DuplicateWarningDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          {continueButton}
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          {confirmButton}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -69,19 +114,26 @@ export function DuplicateWarningDialog({
  */
 export function DuplicateWarningPrompt({
   children,
+  confirmIcon: ConfirmIcon,
+  confirmLabel,
   formId,
+  isPending,
   matchIds,
   title,
   warning,
-}: Omit<DuplicateWarningDialogProps, "continueButton"> & {
+}: Omit<DuplicateWarningDialogProps, "confirmButton"> & {
+  confirmIcon: LucideIcon;
+  /** The verb from the title. */
+  confirmLabel: string;
   formId: string;
   matchIds: readonly string[];
 }) {
   return (
     <DuplicateWarningDialog
+      isPending={isPending}
       title={title}
       warning={warning}
-      continueButton={
+      confirmButton={
         <>
           {matchIds.map((matchId) => (
             <input
@@ -92,8 +144,13 @@ export function DuplicateWarningPrompt({
               value={matchId}
             />
           ))}
-          <Button form={formId} type="submit">
-            Continuar de todos modos
+          <Button form={formId} type="submit" disabled={isPending}>
+            {isPending ? (
+              <Spinner aria-hidden="true" data-icon />
+            ) : (
+              <ConfirmIcon aria-hidden="true" data-icon="inline-start" />
+            )}
+            {confirmLabel}
           </Button>
         </>
       }

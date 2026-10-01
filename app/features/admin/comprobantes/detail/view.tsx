@@ -285,7 +285,7 @@ function AnnulDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle>Anular comprobante</AlertDialogTitle>
           <AlertDialogDescription>

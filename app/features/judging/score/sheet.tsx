@@ -195,6 +195,7 @@ export function JudgeScoreSheet({
         </CardContent>
         <CardFooter className="justify-between gap-2">
           <DisqualificationAction
+            disabled={isSavePending}
             disqualified={disqualified}
             // The post is a navigation the page's own guard would otherwise
             // stop, and there is nothing in the form it can lose.

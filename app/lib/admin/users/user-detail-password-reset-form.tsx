@@ -37,7 +37,7 @@ import {
 const resetPasswordFormId = "reset-password-form";
 
 /**
- * Setting a temporary password is an action on the user, not an edit of its
+ * Setting a new password is an action on the user, not an edit of its
  * fields, so it lives in a dialog over the detail. The route closes it when the
  * reset succeeds; a refusal keeps it open with the reason inside, and a typed
  * password is not thrown away without asking.
@@ -73,7 +73,7 @@ export function InternalUserResetPasswordDialog({
     isFormDirty: form.formState.isDirty,
     onClose: () => onOpenChange(false),
   });
-  const temporaryPassword = form.watch("temporaryPassword");
+  const password = form.watch("password");
 
   // Every opening starts empty.
   useEffect(() => {
@@ -84,10 +84,10 @@ export function InternalUserResetPasswordDialog({
 
   // A password the client accepted and the server did not belongs on the field.
   useEffect(() => {
-    const message = error?.resetPasswordFieldErrors.temporaryPassword;
+    const message = error?.resetPasswordFieldErrors.password;
 
     if (message) {
-      setError("temporaryPassword", { message });
+      setError("password", { message });
     }
   }, [error, setError]);
 
@@ -105,7 +105,7 @@ export function InternalUserResetPasswordDialog({
           <DialogHeader>
             <DialogTitle>Restablecer contraseña</DialogTitle>
             <DialogDescription>
-              Definí una contraseña temporal para este usuario.
+              Definí una nueva contraseña para este usuario.
             </DialogDescription>
           </DialogHeader>
           {error ? (
@@ -129,23 +129,28 @@ export function InternalUserResetPasswordDialog({
             <TextInputField
               autoComplete="new-password"
               control={form.control}
-              description="Compartila por un canal seguro. El Usuario deberá cambiarla antes de volver a ingresar a su área privada."
-              label="Contraseña temporal"
-              name="temporaryPassword"
+              description="Compartila por un canal seguro. Sus sesiones abiertas se cierran y vuelve a ingresar con esta contraseña."
+              label="Nueva contraseña"
+              name="password"
               type="password"
             />
           </form>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={requestClose}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={requestClose}
+            >
               Cancelar
             </Button>
             <Button
               type="submit"
               form={resetPasswordFormId}
-              disabled={temporaryPassword.length === 0 || isSaving}
+              disabled={password.length === 0 || isSaving}
             >
               {isSaving ? <Spinner aria-hidden="true" data-icon /> : null}
-              Guardar contraseña temporal
+              Guardar contraseña
             </Button>
           </DialogFooter>
         </DialogContent>

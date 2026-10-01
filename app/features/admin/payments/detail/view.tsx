@@ -208,7 +208,7 @@ export function PaymentDetailRouteView({
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
           recordId={payment.id}
-          title="Eliminar pago"
+          title="¿Eliminar el pago?"
         />
       ) : null}
     </>

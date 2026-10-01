@@ -63,7 +63,7 @@ describe("PaymentDetailRouteView", () => {
     expect(document.body.textContent).toContain("Detalle pago");
     expect(getInputValue("Academia")).toBe("Academia Norte");
     expect(document.body.textContent).not.toContain("Guardar");
-    expect(document.body.textContent).not.toContain("Eliminar pago");
+    expect(document.body.textContent).not.toContain("¿Eliminar el pago?");
   });
 
   test("asks only for delete confirmation without a reason field", async () => {
@@ -71,7 +71,7 @@ describe("PaymentDetailRouteView", () => {
       initialDeleteDialogOpen: true,
     });
 
-    expect(document.body.textContent).toContain("Eliminar pago");
+    expect(document.body.textContent).toContain("¿Eliminar el pago?");
     expect(document.body.textContent).toContain("Esta acción es irreversible.");
     expect(document.body.textContent).toContain(
       "El saldo disponible de la academia baja por el monto del pago.",

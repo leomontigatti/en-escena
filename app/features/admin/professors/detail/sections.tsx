@@ -147,7 +147,11 @@ export function ProfessorDetailForm({
         />
       </AdminResourceFormCard>
       {nameWarning ? (
-        <RosterNameWarningDialog formId={editFormId} warning={nameWarning} />
+        <RosterNameWarningDialog
+          formId={editFormId}
+          isPending={isSaving}
+          warning={nameWarning}
+        />
       ) : null}
     </form>
   );

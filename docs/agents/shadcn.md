@@ -67,9 +67,9 @@ overwrite is unsafe.
 | `avatar`                                     | `data-layout="overlap"` for avatar groups; `shape="square"` (see below)                                          |
 | `select`                                     | defaults to `position="popper"`, `align="start"`, explicit `side`                                                |
 | `sidebar`                                    | wraps its tree in `TooltipProvider`                                                                              |
-| `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content                                                           |
+| `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content; unprefixed default width — see below                     |
 | `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger |
-| `dialog`                                     | `useLayerAbovePress` — see below                                                                                 |
+| `dialog`                                     | `useLayerAbovePress` — see below; the overlay blurs (`backdrop-blur-sm`), as `alert-dialog`'s does               |
 | `slider`                                     | `aria-label` is forwarded to each thumb, which is what carries `role="slider"`                                   |
 | all                                          | `font-heading` instead of upstream's `cn-font-heading`                                                           |
 
@@ -92,6 +92,12 @@ if the Portal unmounts around it. With the prop omitted the component behaves
 exactly as upstream does, so this is additive, not a fork. Callers must still
 gate rendering themselves (`{open ? <AlertDialogContent forceMount/> : null}`),
 since `forceMount` defeats Radix's presence-based unmounting.
+
+`alert-dialog.tsx` sets its default width without upstream's
+`data-[size=default]:` prefix. The prefixed class outranks a caller's
+`className="sm:max-w-lg"`, and tailwind-merge does not see them as the same
+utility, so the widening the style guide asks for did nothing. Only `size="sm"`
+keeps an attribute-scoped width.
 
 `avatar.tsx`'s `shape` prop has no upstream counterpart either; a CLI sync would
 drop it. Every square avatar here (the brand mark, the account menus, the home

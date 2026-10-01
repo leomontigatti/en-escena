@@ -40,7 +40,7 @@ export function SeminarPriceActions({
         </DropdownMenuGroup>
       </ResourceActionsMenu>
       <DeleteDialog
-        title="Eliminar precio de seminario"
+        title="¿Eliminar el precio de seminario?"
         description={`Esta acción borra ${seminarPrice.name} si no tiene dependencias asociadas.`}
         blockedDescription={deletionBlock}
         isBlocked={Boolean(deletionBlock)}

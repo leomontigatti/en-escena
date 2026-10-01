@@ -1,6 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Form, Link } from "react-router";
 
 import {
   EventFormFields,
@@ -437,7 +437,7 @@ function RemoveDocumentsDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar los cambios</AlertDialogTitle>
           <AlertDialogDescription>
@@ -533,7 +533,7 @@ function EventActions({
         publication={resultsPublication}
       />
       <DeleteDialog
-        title="Eliminar evento"
+        title="¿Eliminar el evento?"
         description={`Esta acción no se puede deshacer. Se va a eliminar ${event.name}.`}
         intentValue="delete"
         recordId={event.id}
@@ -600,7 +600,7 @@ function EventActionItem({
   });
 
   return (
-    <form method="post" action={action}>
+    <Form method="post" action={action}>
       <input type="hidden" name="intent" value={intent} />
       {value ? <input type="hidden" name="value" value={value} /> : null}
       {confirmName && confirmValue ? (
@@ -618,6 +618,6 @@ function EventActionItem({
           </span>
         </button>
       </DropdownMenuItem>
-    </form>
+    </Form>
   );
 }

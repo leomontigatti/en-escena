@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Form } from "react-router";
 
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -62,7 +63,7 @@ export function ScheduleActions({
         </DropdownMenuGroup>
       </ResourceActionsMenu>
       <DeleteDialog
-        title="Eliminar cronograma"
+        title="¿Eliminar el cronograma?"
         description={`Esta acción borra ${schedule.name} si no tiene cupos de cronograma ni otras dependencias asociadas. No se puede deshacer.`}
         intentValue="delete-schedule"
         recordId={schedule.id}
@@ -99,7 +100,7 @@ function ScheduleRegistrationActionItem({
   });
 
   return (
-    <form method="post">
+    <Form method="post">
       <input type="hidden" name="intent" value={intent} />
       <input type="hidden" name="id" value={scheduleId} />
       <DropdownMenuItem asChild disabled={disabled}>
@@ -114,7 +115,7 @@ function ScheduleRegistrationActionItem({
           </span>
         </button>
       </DropdownMenuItem>
-    </form>
+    </Form>
   );
 }
 
