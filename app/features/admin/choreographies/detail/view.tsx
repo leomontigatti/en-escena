@@ -206,7 +206,7 @@ function ChoreographyRemovalDialog({
       onOpenChange={onOpenChange}
       open={open}
       recordId={loaderData.choreography.id}
-      title="Eliminar coreografía"
+      title="¿Eliminar la coreografía?"
     />
   );
 }

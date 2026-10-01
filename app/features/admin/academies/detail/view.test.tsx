@@ -169,7 +169,7 @@ describe("AcademyDetailRouteView", () => {
       await Promise.resolve();
     });
 
-    expect(document.body.textContent).toContain("Eliminar academia");
+    expect(document.body.textContent).toContain("¿Eliminar la academia?");
     expect(document.body.textContent).toContain("Academia Fork");
     expect(document.body.textContent).toContain("Esta acción es irreversible.");
   });
@@ -186,7 +186,7 @@ describe("AcademyDetailRouteView", () => {
     await renderDetail({ canEdit: false, initialDeleteDialogOpen: true });
 
     expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
-    expect(document.body.textContent).not.toContain("Eliminar academia");
+    expect(document.body.textContent).not.toContain("¿Eliminar la academia?");
   });
 
   test("keeps `Guardar` off and offers no `Descartar cambios` while nothing changed", async () => {

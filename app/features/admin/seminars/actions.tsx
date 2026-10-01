@@ -41,7 +41,7 @@ export function SeminarActions({
         </DropdownMenuGroup>
       </ResourceActionsMenu>
       <DeleteDialog
-        title="Eliminar seminario"
+        title="¿Eliminar el seminario?"
         description={`Esta acción borra el seminario de ${seminar.instructorName}. No se puede deshacer.`}
         // Still blocked when opened straight from the URL: the dialog then only
         // explains itself and offers no destructive button.

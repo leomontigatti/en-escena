@@ -44,6 +44,7 @@ describe("DeleteDialog submission", () => {
               onOpenChange={(nextOpen) => openChanges.push(nextOpen)}
               open
               recordId="category_1"
+              title="¿Eliminar la categoría?"
             />
           ),
         },

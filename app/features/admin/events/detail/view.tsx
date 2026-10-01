@@ -530,7 +530,7 @@ function EventActions({
         publication={resultsPublication}
       />
       <DeleteDialog
-        title="Eliminar evento"
+        title="¿Eliminar el evento?"
         description={`Esta acción no se puede deshacer. Se va a eliminar ${event.name}.`}
         intentValue="delete"
         recordId={event.id}

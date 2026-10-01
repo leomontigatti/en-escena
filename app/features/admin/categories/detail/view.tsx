@@ -105,8 +105,9 @@ function CategoryActions({ category }: { category: CategoryRow }) {
         </DropdownMenuGroup>
       </ResourceActionsMenu>
       <DeleteDialog
-        description={`Estás seguro que querés elimiar la categoría ${category.name} del evento.`}
+        description={`La categoría ${category.name} se elimina del evento. No se puede deshacer.`}
         intentValue="delete-category"
+        title="¿Eliminar la categoría?"
         recordId={category.id}
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}

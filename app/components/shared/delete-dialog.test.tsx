@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   createReactDomTestRenderer,
   getButton,
+  updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
 const useNavigationMock = vi.hoisted(() => vi.fn());
@@ -46,6 +47,7 @@ describe("DeleteDialog", () => {
               onOpenChange={() => {}}
               open
               recordId="category_1"
+              title="¿Eliminar la categoría?"
               {...props}
             />
           ),
@@ -56,6 +58,26 @@ describe("DeleteDialog", () => {
 
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
+
+  test("closes on Escape, like every other confirmation", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+    const onOpenChange = vi.fn();
+
+    await renderDialog({ onOpenChange });
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    await updateReactDomForm(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Escape",
+        }),
+      );
+    });
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 
   test("disables the destructive action while its delete submission is pending", async () => {
     const formData = new FormData();

@@ -88,9 +88,16 @@ function getButton(label: string) {
   return button;
 }
 
+type FindButtonOptions = {
+  exact?: boolean;
+  /** Where to look, when a label is not unique on the page: a dialog's
+   * `Cancelar` next to the form's own. */
+  within?: ParentNode | null;
+};
+
 async function clickReactDomButton(
   label: string,
-  options: { exact?: boolean } = {},
+  options: FindButtonOptions = {},
 ) {
   const button = findButton(label, options);
 
@@ -109,8 +116,10 @@ async function clickReactDomButton(
   });
 }
 
-function findButton(label: string, options: { exact?: boolean } = {}) {
-  return Array.from(document.querySelectorAll("button")).find((candidate) => {
+function findButton(label: string, options: FindButtonOptions = {}) {
+  const scope = options.within ?? document;
+
+  return Array.from(scope.querySelectorAll("button")).find((candidate) => {
     const text = candidate.textContent?.trim();
     const ariaLabel = candidate.getAttribute("aria-label");
 

@@ -355,7 +355,7 @@ describe("ChoreographyDetailRouteView", () => {
 
     await clickMenuItem("Eliminar coreografía");
 
-    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
     expect(
       Array.from(document.querySelectorAll("button")).some(
         (button) => button.textContent?.trim() === "Eliminar",
@@ -390,7 +390,7 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
     expect(document.body.textContent).toContain("queda retirada");
     expect(document.body.textContent).toContain("No se mueve dinero");
   });
@@ -403,7 +403,7 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
     expect(document.body.textContent).toContain("se elimina por completo");
     expect(document.body.textContent).not.toContain("queda retirada");
   });

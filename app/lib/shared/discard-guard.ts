@@ -14,7 +14,7 @@ export const discardChangesTitle = "¿Descartar los cambios?";
 export const discardChangesDescription =
   "Si salís ahora, se pierde lo que cargaste.";
 export const discardChangesConfirmLabel = "Descartar";
-export const discardChangesCancelLabel = "Seguir editando";
+export const discardChangesCancelLabel = "Cancelar";
 
 /**
  * Everything a form can have to lose. The fields are what React Hook Form calls

@@ -37,7 +37,7 @@ describe("EventModalityDetailView delete", () => {
     await renderDetail();
 
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
-    expect(document.body.textContent).toContain("Eliminar modalidad");
+    expect(document.body.textContent).toContain("¿Eliminar la modalidad?");
     expect(getButton("Eliminar").disabled).toBe(false);
   });
 
