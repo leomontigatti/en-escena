@@ -18,6 +18,7 @@ import {
   choreographyStatusFilterOptions,
   formatInscriptionStatusBadge,
   inscriptionFinancialStatusOptions,
+  waivedStatusFilterOption,
   withdrawnStatusFilterOption,
 } from "@/lib/finances/choreography-financial-status";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
@@ -69,6 +70,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
     label: "Estado",
     options: [
       ...inscriptionFinancialStatusOptions,
+      waivedStatusFilterOption,
       withdrawnStatusFilterOption,
     ],
   },

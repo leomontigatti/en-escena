@@ -49,7 +49,7 @@ export const inscriptionFinancialStatusOptions = [
  * The `Bonificada` option (ADR-0017), for the filters over choreographies and
  * their inscriptions: the only rows that can be waived.
  */
-const waivedStatusFilterOption = {
+export const waivedStatusFilterOption = {
   label: inscriptionFinancialStatusLabels.waived,
   value: "waived",
 } as const satisfies { label: string; value: InscriptionFinancialStatus };
