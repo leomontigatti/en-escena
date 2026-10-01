@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { Check } from "lucide-react";
-import type { ComponentProps } from "react";
+import { type ComponentProps, useState } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
@@ -59,6 +59,39 @@ describe("ConfirmationDialog", () => {
 
     expect(button.type).toBe("submit");
     expect(button.getAttribute("form")).toBe("archive-form");
+  });
+
+  test("still posts the form it names when the parent unmounts the dialog on close", async () => {
+    const onSubmit = vi.fn((event: { preventDefault: () => void }) =>
+      event.preventDefault(),
+    );
+
+    function Parent() {
+      const [isOpen, setIsOpen] = useState(true);
+
+      return isOpen ? (
+        <ConfirmationDialog
+          confirmLabel="Archivar"
+          description="El profesor deja de aparecer en el portal."
+          form="archive-form"
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsOpen(false);
+            }
+          }}
+          open
+          title="¿Archivar al profesor?"
+        >
+          <form id="archive-form" onSubmit={onSubmit} />
+        </ConfirmationDialog>
+      ) : null;
+    }
+
+    await renderer.renderAsync(<Parent />);
+    await clickReactDomButton("Archivar", { exact: true });
+
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(document.querySelector("#archive-form")).toBeNull();
   });
 
   test("runs onConfirm when it submits no form", async () => {
