@@ -43,7 +43,7 @@ describe("ProfessorDetailRouteView dialogs", () => {
 
     expect(saveButton.getAttribute("type")).toBe("submit");
     expect(saveButton.hasAttribute("disabled")).toBe(false);
-    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
+    expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
   });
 
   test("editing a participating professor confirms with the participation message and no reason field", async () => {
@@ -58,12 +58,12 @@ describe("ProfessorDetailRouteView dialogs", () => {
       ),
     );
 
-    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
+    expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
 
     await changeFirstName("Julieta");
     await clickReactDomButton("Guardar", { exact: true });
 
-    expect(document.body.textContent).toContain("¿Guardar cambios?");
+    expect(document.body.textContent).toContain("¿Guardar los cambios?");
     expect(document.body.textContent).toContain("ya participó de un evento");
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });
