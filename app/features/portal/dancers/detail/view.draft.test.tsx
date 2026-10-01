@@ -120,33 +120,47 @@ describe("the portal dancer detail as one draft", () => {
     expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
   });
 
-  test("offers `Guardar` on both tabs, and guards the changes from either", async () => {
+  // `Inscripciones` is a table of its own: the card and its footer stay with
+  // the fields, mounted behind it so the guard still covers what was typed.
+  test("keeps the footer with the fields, and still guards the changes from `Inscripciones`", async () => {
     await renderDancerPage();
 
     await typeFirstName("Bea");
     await selectTab("Inscripciones");
 
-    expect(isSaveEnabled()).toBe(true);
-    expect(findButton("Descartar cambios")).toBeDefined();
+    expect(getSelectedTab()).toBe("Inscripciones");
+    expect(
+      findButton("Guardar", { exact: true })?.closest(
+        '[data-state="inactive"]',
+      ),
+    ).not.toBe(null);
 
     await clickLink("Volver");
 
     expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
+
+    await clickReactDomButton("Cancelar");
+    await selectTab("Identificación");
+
+    expect(getFirstNameInput().value).toBe("Bea");
+    expect(isSaveEnabled()).toBe(true);
   });
 
-  test("a save refused from `Inscripciones` brings the fields' tab forward", async () => {
-    await renderDancerPage();
+  // The table keeps its search in the address bar, which is not a way out.
+  test("searches the inscriptions without asking about the unsaved changes", async () => {
+    const page = await renderDancerPage();
 
-    await typeFirstName("");
+    await typeFirstName("Bea");
     await selectTab("Inscripciones");
+    await updateReactDomForm(() => {
+      setInputValue(getInscriptionsSearch(), "luna");
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
 
-    expect(getSelectedTab()).toBe("Inscripciones");
-
-    await clickReactDomButton("Guardar", { exact: true });
-    await settle();
-
-    expect(getSelectedTab()).toBe("Identificación");
-    expect(getFirstNameInput().getAttribute("aria-invalid")).toBe("true");
+    expect(page.search()).toBe("?busqueda=luna");
+    expect(findDialog()).toBeUndefined();
   });
 });
 
@@ -181,7 +195,10 @@ async function renderDancerPage(
   await renderer.renderAsync(<RouterProvider router={router} />);
   await settle();
 
-  return { pathname: () => router.state.location.pathname };
+  return {
+    pathname: () => router.state.location.pathname,
+    search: () => router.state.location.search,
+  };
 }
 
 function buildLoaderData(): DancerDetailProps["loaderData"] {
@@ -222,6 +239,18 @@ function getFirstNameInput() {
 
   if (!input) {
     throw new Error("The first name field is not in the DOM.");
+  }
+
+  return input;
+}
+
+function getInscriptionsSearch() {
+  const input = document.querySelector<HTMLInputElement>(
+    'input[placeholder="Buscar inscripción por coreografía o evento"]',
+  );
+
+  if (!input) {
+    throw new Error("The inscriptions search is not in the DOM.");
   }
 
   return input;

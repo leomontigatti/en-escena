@@ -46,11 +46,7 @@ import {
   getDancerVerificationStatus,
   type DancerIdentificationPendingItem,
 } from "@/lib/dancers/verification";
-import {
-  isRouteFormPending,
-  useCloseOnceSettled,
-  useFormFieldsTab,
-} from "@/lib/shared/forms";
+import { isRouteFormPending, useCloseOnceSettled } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -72,9 +68,6 @@ import {
   type PortalDancerDetailLoaderData,
   type PortalDancerStatusIntent,
 } from "./shared";
-
-/** The fields' tab first. */
-const portalDancerTabs = ["identificacion", "inscripciones"] as const;
 
 export type PortalDancerDetailRouteViewProps = {
   loaderData: PortalDancerDetailLoaderData;
@@ -108,7 +101,6 @@ export function PortalDancerDetailRouteView({
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<PortalDancerStatusIntent | null>(initialStatusDialogIntent);
-  const { selectTab, tab } = useFormFieldsTab(form.form, portalDancerTabs);
   const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
   const identificationPendingItems = getDancerIdentificationPendingItems(
     loaderData.dancer,
@@ -187,60 +179,58 @@ export function PortalDancerDetailRouteView({
           showsVerifiedIdentityAlert={viewModel.showsVerifiedIdentityAlert}
         />
 
-        <PortalDancerFormSection
-          footer={
-            <FormActions
-              backTo="/portal/bailarines"
-              form={portalDancerFormId}
-              hasChanges={form.form.formState.isDirty}
-              isPending={isSubmitting}
-              onDiscard={form.discard}
-              viewTransition
-            />
-          }
-        >
-          <CardContent>
-            <form
-              id={portalDancerFormId}
-              method="post"
-              encType="multipart/form-data"
-              noValidate
-              onSubmit={form.handleSubmit}
-              className="flex flex-col gap-6"
+        <Tabs defaultValue="identificacion">
+          <TabsList variant="line">
+            <TabsTrigger value="identificacion">Identificación</TabsTrigger>
+            <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+          </TabsList>
+          {/* Kept mounted behind the other tab, so a file picked here is
+              still in its input after a look at the inscriptions and the
+              leave guard in `Guardar`'s footer still covers the draft. */}
+          <TabsContent
+            forceMount
+            value="identificacion"
+            className="pt-2 data-[state=inactive]:hidden"
+          >
+            <PortalDancerFormSection
+              footer={
+                <FormActions
+                  backTo="/portal/bailarines"
+                  form={portalDancerFormId}
+                  hasChanges={form.form.formState.isDirty}
+                  isPending={isSubmitting}
+                  onDiscard={form.discard}
+                  viewTransition
+                />
+              }
             >
-              <input type="hidden" name="intent" value="update-dancer" />
-              <Tabs value={tab} onValueChange={selectTab}>
-                <TabsList variant="line">
-                  <TabsTrigger value="identificacion">
-                    Identificación
-                  </TabsTrigger>
-                  <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
-                </TabsList>
-                {/* Kept mounted behind the other tab, so a file picked here
-                    is still in its input after a look at the inscriptions.
-                    `forceMount` leaves the panel to hide itself. */}
-                <TabsContent
-                  forceMount
-                  value="identificacion"
-                  className="pt-2 data-[state=inactive]:hidden"
+              <CardContent>
+                <form
+                  id={portalDancerFormId}
+                  method="post"
+                  encType="multipart/form-data"
+                  noValidate
+                  onSubmit={form.handleSubmit}
+                  className="flex flex-col gap-6"
                 >
+                  <input type="hidden" name="intent" value="update-dancer" />
                   <PortalDancerIdentificationFields
                     documentConflictDescription={documentConflictDescription}
                     documentImageUrls={loaderData.documentImageUrls}
                     form={form}
                     viewModel={viewModel}
                   />
-                </TabsContent>
-                <TabsContent value="inscripciones" className="pt-2">
-                  <PortalDancerInscriptionsSection
-                    inscriptions={loaderData.inscriptions}
-                    selectedEventId={loaderData.selectedEventId}
-                  />
-                </TabsContent>
-              </Tabs>
-            </form>
-          </CardContent>
-        </PortalDancerFormSection>
+                </form>
+              </CardContent>
+            </PortalDancerFormSection>
+          </TabsContent>
+          <TabsContent value="inscripciones" className="pt-2">
+            <PortalDancerInscriptionsSection
+              inscriptions={loaderData.inscriptions}
+              selectedEventId={loaderData.selectedEventId}
+            />
+          </TabsContent>
+        </Tabs>
         {nameWarning ? (
           <RosterNameWarningDialog
             formId={portalDancerFormId}
@@ -471,15 +461,6 @@ function PortalDancerInscriptionsSection({
       <PortalEmptyState
         title="Sin evento activo"
         description="No hay un evento activo para revisar inscripciones."
-      />
-    );
-  }
-
-  if (inscriptions.length === 0) {
-    return (
-      <PortalEmptyState
-        title="Sin inscripciones en el evento activo"
-        description="Este bailarín no tiene inscripciones en el evento activo."
       />
     );
   }

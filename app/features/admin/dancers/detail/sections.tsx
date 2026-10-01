@@ -2,8 +2,6 @@ import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { type SubmitEventHandler, type ReactNode } from "react";
 
-import { useFormFieldsTab } from "@/lib/shared/forms";
-
 import {
   AdminEmptyState,
   AdminResourceFormCard,
@@ -178,10 +176,10 @@ export function DancerDetailAlerts({
 }
 
 /**
- * The whole page form: the card of fields, closed by its pinned footer. Whoever
- * may edit gets the fields editable in place; anyone else sees them disabled with
- * only `Volver`. Every field is in `Identificación`, and the footer offers to
- * save from either tab.
+ * The dancer's two tabs. `Identificación` is the whole page form: the card of
+ * fields, closed by its pinned footer. Whoever may edit gets the fields
+ * editable in place; anyone else sees them disabled with only `Volver`.
+ * `Inscripciones` is a table of its own, outside the card.
  */
 export function DancerDetailForm({
   backToList,
@@ -206,89 +204,54 @@ export function DancerDetailForm({
   onSubmit: SubmitEventHandler<HTMLFormElement>;
   selectedEventId: string | null;
 }) {
-  const { selectTab, tab } = useFormFieldsTab(editForm.form, dancerDetailTabs);
-
   return (
-    <form
-      id={editFormId}
-      method="post"
-      noValidate
-      className="flex flex-1 flex-col gap-6"
-      onSubmit={onSubmit}
-    >
-      <input type="hidden" name="intent" value="update-dancer" />
-      <AdminResourceFormCard
-        footer={
-          <FormActions
-            backTo={backToList}
-            canEdit={canEdit}
-            hasChanges={editForm.hasChanges}
-            isPending={isSaving}
-            onDiscard={editForm.discard}
-          />
-        }
-      >
-        <ReadOnlyField label="Academia" value={dancer.academy.name} />
-        <DancerDetailTabs
-          canEdit={canEdit}
-          dancer={dancer}
-          documentImageUrls={documentImageUrls}
-          editForm={editForm}
-          onTabChange={selectTab}
-          selectedEventId={selectedEventId}
-          tab={tab}
-        />
-      </AdminResourceFormCard>
-      {nameWarning ? (
-        <RosterNameWarningDialog
-          formId={editFormId}
-          isPending={isSaving}
-          warning={nameWarning}
-        />
-      ) : null}
-    </form>
-  );
-}
-
-/** The fields' tab first. */
-const dancerDetailTabs = ["identificacion", "inscripciones"] as const;
-
-function DancerDetailTabs({
-  dancer,
-  documentImageUrls,
-  editForm,
-  canEdit,
-  onTabChange,
-  selectedEventId,
-  tab,
-}: {
-  dancer: DancerDetailLoaderData["dancer"];
-  documentImageUrls: DancerDetailLoaderData["documentImageUrls"];
-  editForm: DancerEditFormController;
-  canEdit: boolean;
-  onTabChange: (tab: string) => void;
-  selectedEventId: string | null;
-  tab: string;
-}) {
-  return (
-    <Tabs value={tab} onValueChange={onTabChange}>
+    <Tabs defaultValue="identificacion">
       <TabsList variant="line">
         <TabsTrigger value="identificacion">Identificación</TabsTrigger>
         <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
       </TabsList>
-      {/* Kept mounted behind the other tab: the save posts the inputs
-          themselves, and Radix would unmount them. */}
+      {/* Kept mounted behind the other tab, so the leave guard in `Guardar`'s
+          footer still covers the draft from there. */}
       <TabsContent
         forceMount
         value="identificacion"
         className="pt-2 data-[state=inactive]:hidden"
       >
-        <DancerIdentificationSection
-          dancer={dancer}
-          documentImageUrls={documentImageUrls}
-          editForm={editForm}
-          canEdit={canEdit}
-        />
+        <form
+          id={editFormId}
+          method="post"
+          noValidate
+          className="flex flex-1 flex-col gap-6"
+          onSubmit={onSubmit}
+        >
+          <input type="hidden" name="intent" value="update-dancer" />
+          <AdminResourceFormCard
+            footer={
+              <FormActions
+                backTo={backToList}
+                canEdit={canEdit}
+                hasChanges={editForm.hasChanges}
+                isPending={isSaving}
+                onDiscard={editForm.discard}
+              />
+            }
+          >
+            <ReadOnlyField label="Academia" value={dancer.academy.name} />
+            <DancerIdentificationSection
+              dancer={dancer}
+              documentImageUrls={documentImageUrls}
+              editForm={editForm}
+              canEdit={canEdit}
+            />
+          </AdminResourceFormCard>
+          {nameWarning ? (
+            <RosterNameWarningDialog
+              formId={editFormId}
+              isPending={isSaving}
+              warning={nameWarning}
+            />
+          ) : null}
+        </form>
       </TabsContent>
       <TabsContent value="inscripciones" className="pt-2">
         <InscriptionsSection
@@ -441,15 +404,6 @@ export function InscriptionsSection({
       <AdminEmptyState
         title="Sin evento activo"
         description="No hay un evento activo seleccionado para revisar inscripciones."
-      />
-    );
-  }
-
-  if (inscriptions.length === 0) {
-    return (
-      <AdminEmptyState
-        title="Sin inscripciones en el evento activo"
-        description="Este bailarín no tiene inscripciones en el evento activo."
       />
     );
   }

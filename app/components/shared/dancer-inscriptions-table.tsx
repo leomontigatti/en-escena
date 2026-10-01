@@ -1,12 +1,8 @@
-import { DataTableLink } from "@/components/shared/data-table-link";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ClientDataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
@@ -31,50 +27,69 @@ export function DancerInscriptionsTable({
   buildChoreographyHref: (choreographyId: string) => string;
   inscriptions: DancerInscription[];
 }) {
+  const columns: DataTableColumn<DancerInscription>[] = [
+    {
+      id: "choreographyNumber",
+      header: "#",
+      className: "font-medium tabular-nums",
+      cell: (inscription) => (
+        <DataTableLink to={buildChoreographyHref(inscription.id)}>
+          {formatEventSequenceNumber(inscription.choreographyNumber)}
+        </DataTableLink>
+      ),
+      sortValue: (inscription) => inscription.choreographyNumber,
+    },
+    {
+      id: "choreographyName",
+      header: "Coreografía",
+      cell: (inscription) => inscription.choreographyName,
+      filterValue: (inscription) => inscription.choreographyName,
+      sortValue: (inscription) => inscription.choreographyName,
+    },
+    {
+      id: "eventName",
+      header: "Evento",
+      className: "text-muted-foreground",
+      cell: (inscription) => inscription.eventName,
+      filterValue: (inscription) => inscription.eventName,
+      sortValue: (inscription) => inscription.eventName,
+    },
+    {
+      id: "category",
+      header: "Categoría / Tipo de grupo",
+      className: "text-muted-foreground",
+      cell: (inscription) =>
+        formatPrimaryAndSecondaryValue(
+          inscription.categoryName,
+          formatGroupTypeLabel(inscription.groupType),
+        ),
+    },
+    {
+      id: "basePriceAmount",
+      header: "Precio base",
+      cell: (inscription) => formatMoney(inscription.basePriceAmount),
+    },
+    {
+      id: "dancerDiscountAmount",
+      header: "Descuento",
+      cell: (inscription) => formatMoney(inscription.dancerDiscountAmount),
+    },
+    {
+      id: "totalAmount",
+      header: "Total",
+      cell: (inscription) => formatMoney(inscription.totalAmount),
+    },
+  ];
+
   return (
-    <div className="rounded-lg border bg-background">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="px-3">#</TableHead>
-            <TableHead className="px-3">Coreografía</TableHead>
-            <TableHead className="px-3">Categoría / Tipo de grupo</TableHead>
-            <TableHead className="px-3">Precio base</TableHead>
-            <TableHead className="px-3">Descuento</TableHead>
-            <TableHead className="px-3">Total</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {inscriptions.map((inscription) => (
-            <TableRow key={inscription.id}>
-              <TableCell className="px-3 font-medium tabular-nums">
-                <DataTableLink to={buildChoreographyHref(inscription.id)}>
-                  {formatEventSequenceNumber(inscription.choreographyNumber)}
-                </DataTableLink>
-              </TableCell>
-              <TableCell className="px-3">
-                {inscription.choreographyName}
-              </TableCell>
-              <TableCell className="px-3 text-muted-foreground">
-                {formatPrimaryAndSecondaryValue(
-                  inscription.categoryName,
-                  formatGroupTypeLabel(inscription.groupType),
-                )}
-              </TableCell>
-              <TableCell className="px-3">
-                {formatMoney(inscription.basePriceAmount)}
-              </TableCell>
-              <TableCell className="px-3">
-                {formatMoney(inscription.dancerDiscountAmount)}
-              </TableCell>
-              <TableCell className="px-3">
-                {formatMoney(inscription.totalAmount)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <ClientDataTable
+      rows={inscriptions}
+      columns={columns}
+      getRowKey={(inscription) => inscription.id}
+      searchPlaceholder="Buscar inscripción por coreografía o evento"
+      emptyMessage="Este bailarín no tiene inscripciones en el evento activo."
+      initialSort={{ columnId: "choreographyName", direction: "asc" }}
+    />
   );
 }
 

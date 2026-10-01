@@ -17,6 +17,7 @@ import {
   discardChangesDescription,
   discardChangesTitle,
   hasUnsavedChanges,
+  isInPageNavigation,
   reduceDiscardGuard,
   type UnsavedChangesSources,
 } from "@/lib/shared/discard-guard";
@@ -84,7 +85,8 @@ export function useDiscardGuard({
  * The page's side of the same question. Every way out of a page is a
  * navigation —`Volver`, the sidebar, the breadcrumbs, the browser's back— or a
  * closing tab, so the guard sits on the router rather than on any one button,
- * and asks once for all of them.
+ * and asks once for all of them. A table rewriting its own search or page in
+ * the address bar is not one of them.
  *
  * The save is the one way out it lets through. A save that posts to the page's
  * own URL never looks like leaving; one that goes elsewhere passes
@@ -102,6 +104,7 @@ export function useUnsavedChangesGuard({
     ({ currentLocation, nextLocation }) =>
       isDirty &&
       !readFlag(isSaving) &&
+      !isInPageNavigation(nextLocation.state) &&
       (currentLocation.pathname !== nextLocation.pathname ||
         currentLocation.search !== nextLocation.search),
   );
