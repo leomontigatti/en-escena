@@ -5,6 +5,7 @@ import { expectSharedBirthDateRules } from "@/lib/test-support/dancer-birth-date
 import {
   buildDancerDetailViewState,
   buildDancerUpdateSchema,
+  getDancerConfirmation,
   getInitialDialogIntent,
   type DancerDetailLoaderData,
 } from "./shared";
@@ -153,5 +154,84 @@ describe("buildDancerDetailViewState", () => {
     expect(viewState.statusAction.intent).toBe("reactivate-dancer");
     expect(viewState.statusAction.disabled).toBe(false);
     expect(viewState.participatingAlert).toBeNull();
+  });
+});
+
+describe("getDancerConfirmation", () => {
+  const archive = {
+    description: "Archivá este Bailarín.",
+    disabled: false,
+    intent: "archive-dancer",
+    label: "Archivar",
+  } as const;
+  const reactivate = {
+    description: "Reactivá este Bailarín.",
+    disabled: false,
+    intent: "reactivate-dancer",
+    label: "Reactivar Bailarín",
+  } as const;
+
+  test("asks to save with the consequence, and confirms with Guardar", () => {
+    const confirmation = getDancerConfirmation({
+      editConsequence: "participated",
+      intent: "save",
+      statusAction: archive,
+    });
+
+    expect(confirmation).toMatchObject({
+      confirmLabel: "Guardar",
+      destructive: false,
+      submittedIntent: null,
+      title: "¿Guardar los cambios?",
+    });
+    expect(confirmation.description).toContain("ya participó de un evento");
+    expect(confirmation.confirmIcon).toBeDefined();
+  });
+
+  test("asks to archive with the verb alone, painted destructive", () => {
+    expect(
+      getDancerConfirmation({
+        editConsequence: null,
+        intent: "archive-dancer",
+        statusAction: archive,
+      }),
+    ).toMatchObject({
+      confirmLabel: "Archivar",
+      description: "Archivá este Bailarín.",
+      destructive: true,
+      submittedIntent: "archive-dancer",
+      title: "¿Archivar al bailarín?",
+    });
+  });
+
+  // The menu item names the record; the dialog's verb repeats its title.
+  test("confirms a reactivation with Reactivar, not the menu item's label", () => {
+    expect(
+      getDancerConfirmation({
+        editConsequence: null,
+        intent: "reactivate-dancer",
+        statusAction: reactivate,
+      }),
+    ).toMatchObject({
+      confirmLabel: "Reactivar",
+      destructive: false,
+      submittedIntent: "reactivate-dancer",
+      title: "¿Reactivar al bailarín?",
+    });
+  });
+
+  test("names what a verification verifies", () => {
+    expect(
+      getDancerConfirmation({
+        editConsequence: null,
+        intent: "verify",
+        statusAction: archive,
+      }),
+    ).toMatchObject({
+      confirmLabel: "Verificar",
+      destructive: false,
+      submittedIntent: "verify-dancer-identity",
+      title: "¿Verificar la identidad del bailarín?",
+    });
   });
 });

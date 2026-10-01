@@ -1,3 +1,4 @@
+import { Check, type LucideIcon } from "lucide-react";
 import { z } from "zod";
 import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-duplicates";
 import type {
@@ -394,7 +395,70 @@ export function buildDancerDetailViewState({
   };
 }
 
-export function getSaveConsequenceMessage(
+/** What the confirmation dialog asks, in the shape `ConfirmationDialog` takes. */
+export type DancerConfirmation = {
+  confirmIcon?: LucideIcon;
+  confirmLabel: string;
+  description: string;
+  destructive: boolean;
+  /** The intent its hidden form posts, or `null` for the save, which submits
+   * the edit form itself. */
+  submittedIntent:
+    DancerStatusAction["intent"] | "verify-dancer-identity" | null;
+  title: string;
+};
+
+export function getDancerConfirmation({
+  editConsequence,
+  intent,
+  statusAction,
+}: {
+  editConsequence: DancerEditConsequence;
+  intent: DancerDialogIntent;
+  statusAction: DancerStatusAction;
+}): DancerConfirmation {
+  switch (intent) {
+    case "save":
+      return {
+        confirmIcon: Check,
+        confirmLabel: "Guardar",
+        description:
+          getSaveConsequenceMessage(editConsequence) ??
+          "Confirmá los cambios antes de guardarlos.",
+        destructive: false,
+        submittedIntent: null,
+        title: "¿Guardar los cambios?",
+      };
+    case "verify":
+      return {
+        confirmLabel: "Verificar",
+        description:
+          "Confirmá la verificación administrativa de la identidad de este bailarín.",
+        destructive: false,
+        submittedIntent: "verify-dancer-identity",
+        title: "¿Verificar la identidad del bailarín?",
+      };
+    case "archive-dancer":
+    case "reactivate-dancer":
+      return statusAction.intent === "archive-dancer"
+        ? {
+            confirmLabel: "Archivar",
+            description: statusAction.description,
+            destructive: true,
+            submittedIntent: "archive-dancer",
+            title: "¿Archivar al bailarín?",
+          }
+        : {
+            confirmLabel: "Reactivar",
+            description: statusAction.description,
+            destructive: false,
+            submittedIntent: "reactivate-dancer",
+            title: "¿Reactivar al bailarín?",
+          };
+  }
+}
+
+function getSaveConsequenceMessage(
   editConsequence: DancerEditConsequence,
 ): string | null {
   switch (editConsequence) {
