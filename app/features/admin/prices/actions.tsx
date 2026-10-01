@@ -29,9 +29,9 @@ export function PriceActions({
   );
   // The guard is read before the menu opens, so a protected row shows a
   // disabled item instead of a refusal after the submission. The alert above
-  // the form already says the price cannot be deleted; the blocked dialog is
-  // for when it opens straight from the URL. The server refuses all the same,
-  // for the race.
+  // the form already says the price cannot be deleted, so the item needs no
+  // dialog of its own (style guide, Detail pages). The server refuses all the
+  // same, for the race.
   const deletionBlock = readPriceDeletionBlock(price);
 
   return (
