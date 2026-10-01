@@ -48,6 +48,8 @@ type AdminResourceFormCardProps = {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  /** The form's `FormActions` or `PinnedActions`, pinned as the card's last row. */
+  footer?: ReactNode;
   title?: ReactNode;
 };
 
@@ -128,10 +130,13 @@ export function AdminResourceFormCard({
   children,
   className,
   contentClassName,
+  footer,
   title,
 }: AdminResourceFormCardProps) {
   return (
-    <Card className={cn("w-full", className)}>
+    // `overflow-clip` rounds the corners like the card's own `overflow-hidden`
+    // without making it a scroll container, so the footer can stick.
+    <Card className={cn("w-full overflow-clip", className)}>
       {title ? (
         <CardHeader>
           <CardTitle>{title}</CardTitle>
@@ -140,6 +145,7 @@ export function AdminResourceFormCard({
       <CardContent className={cn("flex flex-col gap-6", contentClassName)}>
         {children}
       </CardContent>
+      {footer}
     </Card>
   );
 }

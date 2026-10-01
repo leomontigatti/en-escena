@@ -34,18 +34,21 @@ export function EventModalityCreateView({
       title="Nueva modalidad"
       description="Definí una modalidad para organizar las coreografías del evento activo."
     >
-      <ModalityFormPanel>
+      <ModalityFormPanel
+        footer={
+          <ModalityFormActions
+            form={form}
+            formId="create-modality-form"
+            pendingScope={{ intent: "create-modality" }}
+          />
+        }
+      >
         <ModalityForm
           form={form}
           formId="create-modality-form"
           intent="create-modality"
         />
       </ModalityFormPanel>
-      <ModalityFormActions
-        form={form}
-        formId="create-modality-form"
-        pendingScope={{ intent: "create-modality" }}
-      />
     </AdminResourceLayout>
   );
 }

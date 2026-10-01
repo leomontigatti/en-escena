@@ -33,7 +33,15 @@ export function EventPriceCreateView({
       title="Nuevo precio"
       description="Configurá tipo de grupo, importe y si el precio aplica como base o para un cronograma específico."
     >
-      <PriceFormPanel>
+      <PriceFormPanel
+        footer={
+          <PriceFormActions
+            form={form}
+            formId={createPriceFormId}
+            pendingScope={{ intent: "create-price" }}
+          />
+        }
+      >
         <PriceForm
           form={form}
           formId={createPriceFormId}
@@ -41,11 +49,6 @@ export function EventPriceCreateView({
           schedules={loaderData.schedules}
         />
       </PriceFormPanel>
-      <PriceFormActions
-        form={form}
-        formId={createPriceFormId}
-        pendingScope={{ intent: "create-price" }}
-      />
     </AdminResourceLayout>
   );
 }

@@ -101,7 +101,18 @@ export function AcademyDetailRouteView({
         ) : undefined
       }
     >
-      <AdminResourceFormCard>
+      <AdminResourceFormCard
+        footer={
+          <FormActions
+            backTo="/administracion/academias"
+            canEdit={canEdit}
+            form={academyDetailFormId}
+            hasChanges={form.hasChanges}
+            isPending={isSaving}
+            onDiscard={form.discard}
+          />
+        }
+      >
         <form
           id={academyDetailFormId}
           method="post"
@@ -144,14 +155,6 @@ export function AcademyDetailRouteView({
           </FieldGroup>
         </form>
       </AdminResourceFormCard>
-      <FormActions
-        backTo="/administracion/academias"
-        canEdit={canEdit}
-        form={academyDetailFormId}
-        hasChanges={form.hasChanges}
-        isPending={isSaving}
-        onDiscard={form.discard}
-      />
       {canEdit ? (
         // Whether the academy is empty is only known for certain at the moment
         // of the delete, so the dialog always offers the action and the server

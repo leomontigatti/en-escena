@@ -142,7 +142,7 @@ export function ChoreographyMusicEditorForm({
       encType="multipart/form-data"
       className="flex flex-1 flex-col gap-6"
     >
-      <Card>
+      <Card className="overflow-clip">
         <CardContent className="flex flex-col gap-5">
           <input type="hidden" name="intent" value={updateChoreographyIntent} />
 
@@ -210,15 +210,15 @@ export function ChoreographyMusicEditorForm({
             />
           </FieldGroup>
         </CardContent>
+        <FormActions
+          backTo="/portal/coreografias"
+          canEdit={canEditMusic}
+          canSave={!musicHasValidationError}
+          hasChanges={hasMusicChanged}
+          isPending={isSubmitting}
+          onDiscard={discardMusicChanges}
+        />
       </Card>
-      <FormActions
-        backTo="/portal/coreografias"
-        canEdit={canEditMusic}
-        canSave={!musicHasValidationError}
-        hasChanges={hasMusicChanged}
-        isPending={isSubmitting}
-        onDiscard={discardMusicChanges}
-      />
     </Form>
   );
 }

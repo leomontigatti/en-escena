@@ -73,7 +73,18 @@ export function SeminarPriceDetailView({
       {seminarPrice && guard ? (
         <>
           <GuardAlert reason={guard.reason} />
-          <SeminarPriceFormPanel>
+          <SeminarPriceFormPanel
+            footer={
+              <SeminarPriceFormActions
+                form={form}
+                formId="update-seminar-price-form"
+                pendingScope={{
+                  intent: "update-seminar-price",
+                  fields: { id: seminarPrice.id },
+                }}
+              />
+            }
+          >
             <SeminarPriceForm
               form={form}
               formId="update-seminar-price-form"
@@ -82,14 +93,6 @@ export function SeminarPriceDetailView({
               intent="update-seminar-price"
             />
           </SeminarPriceFormPanel>
-          <SeminarPriceFormActions
-            form={form}
-            formId="update-seminar-price-form"
-            pendingScope={{
-              intent: "update-seminar-price",
-              fields: { id: seminarPrice.id },
-            }}
-          />
         </>
       ) : (
         <EmptyResourceState>

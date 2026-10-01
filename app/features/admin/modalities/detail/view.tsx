@@ -83,7 +83,18 @@ export function EventModalityDetailView({
     >
       {modality ? (
         <>
-          <ModalityFormPanel>
+          <ModalityFormPanel
+            footer={
+              <ModalityFormActions
+                form={form}
+                formId="update-modality-form"
+                pendingScope={{
+                  intent: "update-modality",
+                  fields: { id: modality.id },
+                }}
+              />
+            }
+          >
             <ModalityForm
               criteriaSetup={{
                 criteria: loaderData.submodalityCriteria,
@@ -97,14 +108,6 @@ export function EventModalityDetailView({
               intent="update-modality"
             />
           </ModalityFormPanel>
-          <ModalityFormActions
-            form={form}
-            formId="update-modality-form"
-            pendingScope={{
-              intent: "update-modality",
-              fields: { id: modality.id },
-            }}
-          />
         </>
       ) : (
         <EmptyResourceState>No encontramos esa modalidad.</EmptyResourceState>

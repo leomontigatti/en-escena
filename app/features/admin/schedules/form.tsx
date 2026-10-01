@@ -212,8 +212,16 @@ export function ScheduleFormActions({
   );
 }
 
-export function ScheduleFormPanel({ children }: { children: ReactNode }) {
-  return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
+export function ScheduleFormPanel({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <AdminResourceFormCard footer={footer}>{children}</AdminResourceFormCard>
+  );
 }
 
 function ScheduleTextField({

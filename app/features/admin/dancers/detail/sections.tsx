@@ -176,7 +176,7 @@ export function DancerDetailAlerts({
 }
 
 /**
- * The whole page form: the card of fields and the pinned footer under it. Whoever
+ * The whole page form: the card of fields, closed by its pinned footer. Whoever
  * may edit gets the fields editable in place; anyone else sees them disabled with
  * only `Volver`.
  */
@@ -212,7 +212,17 @@ export function DancerDetailForm({
       onSubmit={onSubmit}
     >
       <input type="hidden" name="intent" value="update-dancer" />
-      <AdminResourceFormCard>
+      <AdminResourceFormCard
+        footer={
+          <FormActions
+            backTo={backToList}
+            canEdit={canEdit}
+            hasChanges={editForm.hasChanges}
+            isPending={isSaving}
+            onDiscard={editForm.discard}
+          />
+        }
+      >
         <DancerAdministrativeDataSection
           canEdit={canEdit}
           dancer={dancer}
@@ -226,14 +236,6 @@ export function DancerDetailForm({
           selectedEventId={selectedEventId}
         />
       </AdminResourceFormCard>
-
-      <FormActions
-        backTo={backToList}
-        canEdit={canEdit}
-        hasChanges={editForm.hasChanges}
-        isPending={isSaving}
-        onDiscard={editForm.discard}
-      />
       {nameWarning ? (
         <RosterNameWarningDialog
           formId={editFormId}

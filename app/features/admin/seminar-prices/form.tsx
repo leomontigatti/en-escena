@@ -203,8 +203,16 @@ export function SeminarPriceFormActions({
   );
 }
 
-export function SeminarPriceFormPanel({ children }: { children: ReactNode }) {
-  return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
+export function SeminarPriceFormPanel({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <AdminResourceFormCard footer={footer}>{children}</AdminResourceFormCard>
+  );
 }
 
 /**
