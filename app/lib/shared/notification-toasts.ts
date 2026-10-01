@@ -316,7 +316,7 @@ export const notificationToasts = {
   },
   "usuario-interno-restablecido": {
     id: notificationToastIds["usuario-interno-restablecido"],
-    message: "Contraseña temporal guardada.",
+    message: "Contraseña restablecida.",
     variant: "success",
   },
   "usuario-interno-suspendido": {

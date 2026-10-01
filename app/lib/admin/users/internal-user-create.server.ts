@@ -7,6 +7,7 @@ import {
   assertValidInternalUsername,
   isReservedInternalUsername,
 } from "@/lib/auth/internal-username.server";
+import { internalUsernameRuleMessage } from "@/lib/auth/internal-username.shared";
 import {
   createInternalCredentialUser,
   deleteInternalCredentialUser,
@@ -16,13 +17,13 @@ import {
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
 
-const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MIN_LENGTH = 8;
 
 type CreateInternalUserInput = {
   name: string;
   internalUsername: string;
   role: InternalUserRole;
-  temporaryPassword: string;
+  password: string;
   createdByUserId: string;
 };
 
@@ -58,10 +59,8 @@ export async function createInternalUser(
     return creationError("Elegí un permiso principal válido.");
   }
 
-  if (input.temporaryPassword.length < TEMPORARY_PASSWORD_MIN_LENGTH) {
-    return creationError(
-      "La contraseña temporal debe tener al menos 8 caracteres.",
-    );
+  if (input.password.length < PASSWORD_MIN_LENGTH) {
+    return creationError("La contraseña debe tener al menos 8 caracteres.");
   }
 
   let internalUsername: string;
@@ -69,7 +68,7 @@ export async function createInternalUser(
   try {
     internalUsername = assertValidInternalUsername(input.internalUsername);
   } catch {
-    return creationError("Ingresá un nombre de usuario interno válido.");
+    return creationError(internalUsernameRuleMessage);
   }
 
   if (isReservedInternalUsername(internalUsername)) {
@@ -98,7 +97,7 @@ export async function createInternalUser(
   const credentialUser = await createInternalCredentialUser({
     email: credentialEmail,
     name,
-    password: input.temporaryPassword,
+    password: input.password,
   });
 
   let createdUser: { id: string } | null = null;
@@ -120,7 +119,6 @@ export async function createInternalUser(
             emailVerified: false,
             internalUsername,
             name,
-            requiresPasswordChange: true,
             role: input.role,
           })
           .where(eq(user.id, credentialUser.userId))
@@ -134,7 +132,6 @@ export async function createInternalUser(
             id: credentialUser.userId,
             internalUsername,
             name,
-            requiresPasswordChange: true,
             role: input.role,
           })
           .returning({ id: user.id });

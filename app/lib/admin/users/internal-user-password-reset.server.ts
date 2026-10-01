@@ -8,10 +8,10 @@ import {
 } from "@/lib/auth/internal-user-auth.server";
 import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
 
-const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MIN_LENGTH = 8;
 
 type ResetInternalUserPasswordInput = {
-  temporaryPassword: string;
+  password: string;
   targetUserId: string;
   updatedByUserId: string;
   adminHeaders: Headers;
@@ -41,9 +41,9 @@ export async function resetInternalUserPassword(
     );
   }
 
-  if (input.temporaryPassword.length < TEMPORARY_PASSWORD_MIN_LENGTH) {
+  if (input.password.length < PASSWORD_MIN_LENGTH) {
     return resetPasswordError(
-      "La contraseña temporal debe tener al menos 8 caracteres.",
+      "La contraseña debe tener al menos 8 caracteres.",
     );
   }
 
@@ -53,7 +53,6 @@ export async function resetInternalUserPassword(
       email: true,
       internalUsername: true,
       name: true,
-      requiresPasswordChange: true,
       role: true,
       suspended: true,
     },
@@ -78,7 +77,7 @@ export async function resetInternalUserPassword(
   try {
     await setInternalCredentialPassword(
       {
-        password: input.temporaryPassword,
+        password: input.password,
         userId: existingUser.id,
       },
       input.adminHeaders,
@@ -92,7 +91,6 @@ export async function resetInternalUserPassword(
   await db
     .update(user)
     .set({
-      requiresPasswordChange: true,
       sessionInvalidBefore: invalidatedAt,
     })
     .where(eq(user.id, existingUser.id));

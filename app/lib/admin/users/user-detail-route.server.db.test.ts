@@ -31,7 +31,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.suspendible@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/juzgamiento",
       userName: "Julia Suspendible",
       internalUsername: "julia.suspendible",
@@ -39,7 +38,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const adminUser = await createSignedInRequest({
       email: "admin.suspende@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
       userName: "Ada Suspende",
       internalUsername: "ada.suspende",
@@ -145,7 +143,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const selfAdmin = await createSignedInRequest({
       email: "admin.self.suspension@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios/self-admin",
       userName: "Admin Self Suspension",
       internalUsername: "admin.self.suspension",
@@ -172,7 +169,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.interno.original@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/juzgamiento",
       userName: "Julia Original",
       internalUsername: "julia.original",
@@ -180,7 +176,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.editor@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
       userName: "Ada Editora",
       internalUsername: "ada.editora",
@@ -229,11 +224,10 @@ describe("`/administracion/usuarios/:userId` route", () => {
     ).resolves.toEqual([]);
   });
 
-  test("resets an internal user password with a mandatory change and revokes sessions", async () => {
+  test("resets an internal user password, revokes sessions and lets the user in with the new one", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.restablecer@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/juzgamiento",
       userName: "Julia Restablecida",
       internalUsername: "julia.restablecida",
@@ -242,7 +236,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.restablece@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
       userName: "Ada Restablece",
       internalUsername: "ada.restablece",
@@ -262,7 +255,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
           adminRequest.headers.get("cookie") ?? "",
           {
             intent: "reset-password",
-            temporaryPassword: "temporal-nueva",
+            password: "clave-nueva",
           },
         ),
         targetUser.userId,
@@ -271,14 +264,8 @@ describe("`/administracion/usuarios/:userId` route", () => {
 
     expect(resetResult).toEqual({
       status: "success",
-      message: "Contraseña temporal guardada.",
+      message: "Contraseña restablecida.",
     });
-    await expect(
-      db.query.user.findFirst({
-        columns: { requiresPasswordChange: true },
-        where: eq(user.id, targetUser.userId),
-      }),
-    ).resolves.toMatchObject({ requiresPasswordChange: true });
     await expect(
       db
         .select()
@@ -287,10 +274,10 @@ describe("`/administracion/usuarios/:userId` route", () => {
     ).resolves.toEqual([]);
 
     const loginResponse = await expectThrownResponse(
-      submitSignInAction("julia.restablecida", "temporal-nueva"),
+      submitSignInAction("julia.restablecida", "clave-nueva"),
       302,
     );
-    expect(loginResponse.headers.get("location")).toBe("/cambiar-contrasena");
+    expect(loginResponse.headers.get("location")).toBe("/juzgamiento");
 
     const oldPasswordResponse = await signInAction({
       url: new URL("http://localhost/ingresar"),
@@ -316,7 +303,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.bloqueado@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/juzgamiento",
       userName: "Julia Bloqueada",
       internalUsername: "julia.bloqueada",
@@ -332,7 +318,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
       const blockedUser = await createSignedInRequest({
         email: `${role}.sin-permiso@example.com`,
         role,
-        requiresPasswordChange: false,
         requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
         userName: `${role} sin permiso`,
         internalUsername:
@@ -362,7 +347,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const selfAdmin = await createSignedInRequest({
       email: "admin.self@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios/self-admin",
       userName: "Admin Self",
       internalUsername: "admin.self",
@@ -403,7 +387,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const otherAdmin = await createSignedInRequest({
       email: "admin.otro@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: "http://localhost/administracion/usuarios",
       userName: "Admin Otro",
       internalUsername: "admin.otro",
@@ -439,7 +422,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const internalUser = await createSignedInRequest({
       email: "admin.detalle.usuario@example.com",
       role: "admin",
-      requiresPasswordChange: true,
       requestUrl: "http://localhost/administracion/usuarios",
       userName: "Ada Admin",
       internalUsername: "ada.admin",
@@ -453,7 +435,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.viewer@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: `http://localhost/administracion/usuarios/${internalUser.userId}`,
       userName: "Admin Viewer",
       internalUsername: "admin.viewer",
@@ -461,7 +442,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.viewer@example.com",
       role: "auditor",
-      requiresPasswordChange: false,
       requestUrl: `http://localhost/administracion/usuarios/${internalUser.userId}`,
       userName: "Ariel Auditor",
       internalUsername: "ariel.auditor",
@@ -474,7 +454,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const { request: judgeRequest } = await createSignedInRequest({
       email: "judge.viewer@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl: `http://localhost/administracion/usuarios/${internalUser.userId}`,
       userName: "Julia Juez",
       internalUsername: "julia.juez",
@@ -596,7 +575,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.ruta.detalle@example.com",
       role: "judge",
-      requiresPasswordChange: false,
       requestUrl:
         "http://localhost/administracion/usuarios/placeholder?query=ada&estado=active",
       userName: "Julia Ruta",
@@ -605,7 +583,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.ruta.detalle@example.com",
       role: "admin",
-      requiresPasswordChange: false,
       requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&guardado=si&tipoGuardado=manual`,
       userName: "Ada Ruta",
       internalUsername: "ada.ruta",
@@ -696,7 +673,6 @@ function renderDetailRoute(
 async function createSignedInRequest(input: {
   email: string;
   role: "academy" | "admin" | "auditor" | "judge";
-  requiresPasswordChange?: boolean;
   requestUrl: string;
   userName: string;
   internalUsername?: string;
@@ -714,7 +690,6 @@ async function createSignedInRequest(input: {
       emailVerified: true,
       role: input.role,
       internalUsername: input.internalUsername ?? null,
-      requiresPasswordChange: input.requiresPasswordChange ?? false,
       name: input.userName,
     })
     .where(eq(user.id, signUpResult.response.user.id));

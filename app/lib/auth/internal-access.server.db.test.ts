@@ -80,19 +80,6 @@ describe("internal access authorization", () => {
     });
   });
 
-  test("redirects internal users with mandatory password change away from private routes", async () => {
-    const { request } = await createSignedInRequest({
-      email: "obligatorio@example.com",
-      role: "admin",
-      requiresPasswordChange: true,
-    });
-
-    const response = await expectThrownResponse(requireSignedInUser(request));
-
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/cambiar-contrasena");
-  });
-
   test("blocks suspended users from private routes and revokes their sessions", async () => {
     const { request, userId } = await createSignedInRequest({
       email: "suspendido.privado@example.com",
@@ -229,7 +216,6 @@ describe("internal access authorization", () => {
 async function createSignedInRequest(input: {
   email: string;
   role: "academy" | InternalUserRole;
-  requiresPasswordChange?: boolean;
 }) {
   const signUpResult = await createAccessUser({
     email: input.email,
@@ -242,7 +228,6 @@ async function createSignedInRequest(input: {
     .set({
       emailVerified: true,
       role: input.role,
-      requiresPasswordChange: input.requiresPasswordChange,
     })
     .where(eq(user.id, signUpResult.response.user.id));
 

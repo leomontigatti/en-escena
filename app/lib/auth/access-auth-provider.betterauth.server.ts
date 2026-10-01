@@ -39,8 +39,7 @@ import type {
 } from "@/lib/auth/access-auth-provider.shared.server";
 
 // Domain session policy (#297): 8 h lifetime, refreshed every 30 min. The
-// domain gates (`suspended`, `sessionInvalidBefore` vs `issuedAt`,
-// `requiresPasswordChange`) still live in `internal-access.server.ts`.
+// domain gates (`suspended`, `sessionInvalidBefore` vs `issuedAt`) still live in `internal-access.server.ts`.
 export const SESSION_EXPIRES_IN_SECONDS = 8 * 60 * 60;
 export const SESSION_UPDATE_AGE_SECONDS = 30 * 60;
 
@@ -233,40 +232,6 @@ export async function upsertBetterAuthCredentialPassword(input: {
     providerId: CREDENTIAL_PROVIDER_ID,
     password: passwordHash,
     userId: input.userId,
-  });
-}
-
-// Verifies an email+password credential against the stored hash, using Better
-// Auth's verifier. Replaces `verifyLocalAccessPassword` (#422).
-export async function verifyBetterAuthCredentialPassword(input: {
-  email: string;
-  password: string;
-}): Promise<boolean> {
-  const savedUser = await db.query.user.findFirst({
-    columns: { id: true },
-    where: eq(user.email, input.email),
-  });
-
-  if (!savedUser?.id) {
-    return false;
-  }
-
-  const savedCredential = await db.query.account.findFirst({
-    columns: { password: true },
-    where: and(
-      eq(account.userId, savedUser.id),
-      eq(account.providerId, CREDENTIAL_PROVIDER_ID),
-    ),
-  });
-
-  if (!savedCredential?.password) {
-    return false;
-  }
-
-  const ctx = await auth.$context;
-  return ctx.password.verify({
-    hash: savedCredential.password,
-    password: input.password,
   });
 }
 
@@ -620,8 +585,7 @@ const LEGACY_SCRYPT_KEY_LENGTH = 64;
 // Verifies a password against the stored hash. Detects the legacy format
 // migrated from `access_credential` (`scrypt:<salt>:<hash>`) and verifies it
 // with the old algorithm; for Better Auth's native format it delegates to its
-// verifier (`better-auth/crypto`). This is the config's `password.verify`, so
-// `verifyBetterAuthCredentialPassword` uses it too, via `ctx.password`.
+// verifier (`better-auth/crypto`). This is the config's `password.verify`.
 function verifyAccessPassword(input: {
   hash: string;
   password: string;
