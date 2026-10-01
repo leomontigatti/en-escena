@@ -1,7 +1,10 @@
+import { TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState, type SubmitEventHandler } from "react";
-import { useNavigation, useSubmit } from "react-router";
+import { Form, useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
 import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
 import {
@@ -11,10 +14,10 @@ import {
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
-import { DancerConfirmationDialog } from "./confirmation-dialog";
 import { useDancerEditForm } from "./form";
 import {
   buildDancerDetailViewState,
+  getDancerConfirmation,
   getDancerEditValues,
   getInitialDialogIntent,
   getSubmittedDancerUpdateValues,
@@ -36,8 +39,7 @@ type DancerDetailRouteViewProps = {
 };
 
 const editFormId = "admin-dancer-edit-form";
-const statusFormId = "admin-dancer-status-form";
-const verifyFormId = "admin-dancer-verify-form";
+const confirmationFormId = "admin-dancer-confirmation-form";
 
 export type { InscriptionsSectionProps };
 export { InscriptionsSection };
@@ -120,20 +122,22 @@ export function DancerDetailRouteView({
         selectedEventId={loaderData.selectedEventId}
       />
 
-      <DancerConfirmationDialog
-        birthDateMayNeedRecalculation={viewState.birthDateMayNeedRecalculation}
-        dialogIntent={dialogIntent}
-        editConsequence={dancer.editConsequence}
-        onConfirmSave={confirmSave}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDialogIntent(null);
+      {/* Unmounted while closed, so the copy never changes under a dialog
+          that is animating out. */}
+      {dialogIntent ? (
+        <DancerConfirmationDialog
+          birthDateMayNeedRecalculation={
+            viewState.birthDateMayNeedRecalculation
           }
-        }}
-        statusAction={viewState.statusAction}
-        statusFormId={statusFormId}
-        verifyFormId={verifyFormId}
-      />
+          confirmation={getDancerConfirmation({
+            editConsequence: dancer.editConsequence,
+            intent: dialogIntent,
+            statusAction: viewState.statusAction,
+          })}
+          onConfirmSave={confirmSave}
+          onClose={() => setDialogIntent(null)}
+        />
+      ) : null}
 
       <RosterMergeDialog
         kind="dancer"
@@ -142,6 +146,61 @@ export function DancerDetailRouteView({
         {...mergeDialog}
       />
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The save confirms by resubmitting the edit form; archiving, reactivating and
+ * verifying each post their intent through a hidden form of their own.
+ */
+function DancerConfirmationDialog({
+  birthDateMayNeedRecalculation,
+  confirmation,
+  onClose,
+  onConfirmSave,
+}: {
+  birthDateMayNeedRecalculation: boolean;
+  confirmation: ReturnType<typeof getDancerConfirmation>;
+  onClose: () => void;
+  onConfirmSave: () => void;
+}) {
+  const { submittedIntent } = confirmation;
+
+  return (
+    <ConfirmationDialog
+      className={submittedIntent === null ? "sm:max-w-lg" : undefined}
+      confirmIcon={confirmation.confirmIcon}
+      confirmLabel={confirmation.confirmLabel}
+      description={confirmation.description}
+      destructive={confirmation.destructive}
+      form={submittedIntent === null ? undefined : confirmationFormId}
+      onConfirm={submittedIntent === null ? onConfirmSave : undefined}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      open
+      title={confirmation.title}
+    >
+      {submittedIntent === null ? (
+        birthDateMayNeedRecalculation ? (
+          <Alert variant="warning">
+            <TriangleAlert aria-hidden="true" />
+            <AlertTitle>Revisá las categorías</AlertTitle>
+            <AlertDescription>
+              Si cambiás la fecha de nacimiento, las coreografías vinculadas
+              pueden requerir recalcular categoría desde el flujo de
+              Coreografías.
+            </AlertDescription>
+          </Alert>
+        ) : null
+      ) : (
+        <Form id={confirmationFormId} method="post">
+          <input type="hidden" name="intent" value={submittedIntent} />
+        </Form>
+      )}
+    </ConfirmationDialog>
   );
 }
 

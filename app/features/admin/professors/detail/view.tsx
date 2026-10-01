@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigation, useSubmit } from "react-router";
+import { Form, useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
 import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
 import {
@@ -10,7 +11,6 @@ import {
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { ProfessorConfirmationDialog } from "./confirmation-dialog";
 import { useProfessorEditForm } from "./form";
 import {
   ProfessorDetailAlerts,
@@ -21,6 +21,7 @@ import {
   buildProfessorDetailViewState,
   getInitialDialogIntent,
   getProfessorConfirmationAction,
+  getProfessorDialogFormId,
   getProfessorEditValues,
   getSubmittedProfessorUpdateValues,
   type ProfessorDetailActionData,
@@ -113,16 +114,32 @@ export function ProfessorDetailRouteView({
         professor={professor}
       />
 
-      <ProfessorConfirmationDialog
-        action={confirmationAction}
-        intent={dialogIntent}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDialogIntent(null);
+      {/* Unmounted while closed, so the copy never falls back to the status
+          action's while the dialog animates out of a save. */}
+      {dialogIntent ? (
+        <ConfirmationDialog
+          confirmIcon={confirmationAction.confirmIcon}
+          confirmLabel={confirmationAction.confirmLabel}
+          description={confirmationAction.description}
+          destructive={confirmationAction.destructive}
+          title={confirmationAction.title}
+          confirmDisabled={
+            dialogIntent === "update-professor" && pendingUpdateValues === null
           }
-        }}
-        pendingUpdateValues={pendingUpdateValues}
-      />
+          form={getProfessorDialogFormId(confirmationAction.intent)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDialogIntent(null);
+            }
+          }}
+          open
+        >
+          <ProfessorConfirmationForm
+            intent={confirmationAction.intent}
+            pendingUpdateValues={pendingUpdateValues}
+          />
+        </ConfirmationDialog>
+      ) : null}
 
       <RosterMergeDialog
         kind="professor"
@@ -131,6 +148,51 @@ export function ProfessorDetailRouteView({
         {...mergeDialog}
       />
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The hidden form the confirmation submits: the intent, and for a save the
+ * values the administrator confirmed.
+ */
+function ProfessorConfirmationForm({
+  intent,
+  pendingUpdateValues,
+}: {
+  intent: ProfessorDialogIntent;
+  pendingUpdateValues: ProfessorEditFormValues | null;
+}) {
+  const pendingUpdateFields =
+    intent === "update-professor" ? pendingUpdateValues : null;
+
+  return (
+    <Form id={getProfessorDialogFormId(intent)} method="post" noValidate>
+      <input type="hidden" name="intent" value={intent} />
+      {pendingUpdateFields ? (
+        <>
+          <input
+            type="hidden"
+            name="firstName"
+            value={pendingUpdateFields.firstName}
+          />
+          <input
+            type="hidden"
+            name="lastName"
+            value={pendingUpdateFields.lastName}
+          />
+          <input
+            type="hidden"
+            name="documentType"
+            value={pendingUpdateFields.documentType}
+          />
+          <input
+            type="hidden"
+            name="documentNumber"
+            value={pendingUpdateFields.documentNumber}
+          />
+        </>
+      ) : null}
+    </Form>
   );
 }
 

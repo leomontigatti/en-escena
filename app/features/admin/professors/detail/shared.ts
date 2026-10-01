@@ -1,3 +1,4 @@
+import { Check, type LucideIcon } from "lucide-react";
 import { z } from "zod";
 import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-duplicates";
 import type {
@@ -141,12 +142,14 @@ export function buildProfessorDetailViewState({
   };
 }
 
+/** What the confirmation dialog asks, in the shape `ConfirmationDialog` takes. */
 export type ProfessorConfirmationAction = {
+  confirmIcon?: LucideIcon;
   confirmLabel: string;
-  confirmTitle: string;
   description: string;
+  destructive: boolean;
   intent: ProfessorDialogIntent;
-  variant: "default" | "destructive";
+  title: string;
 };
 
 export function getProfessorConfirmationAction({
@@ -158,32 +161,33 @@ export function getProfessorConfirmationAction({
 }): ProfessorConfirmationAction {
   if (intent === "update-professor") {
     return {
+      confirmIcon: Check,
       confirmLabel: "Guardar",
-      confirmTitle: "¿Guardar cambios?",
       description:
         "Este profesor ya participó de un evento. Los cambios pueden afectar registros existentes.",
+      destructive: false,
       intent: "update-professor",
-      variant: "default",
+      title: "¿Guardar los cambios?",
     };
   }
 
   if (active) {
     return {
       confirmLabel: "Archivar",
-      confirmTitle: "¿Archivar profesor?",
       description: `El profesor dejará de aparecer en las vistas activas y en próximas selecciones del portal. ${getArchiveKeepsRosterMessage("professor")}`,
+      destructive: true,
       intent: "archive-professor",
-      variant: "destructive",
+      title: "¿Archivar al profesor?",
     };
   }
 
   return {
     confirmLabel: "Reactivar",
-    confirmTitle: "¿Reactivar profesor?",
     description:
       "El profesor volverá a aparecer en las vistas activas y en próximas selecciones del portal.",
+    destructive: false,
     intent: "reactivate-professor",
-    variant: "default",
+    title: "¿Reactivar al profesor?",
   };
 }
 

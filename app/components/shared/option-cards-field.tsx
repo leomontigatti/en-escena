@@ -6,13 +6,8 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-  FieldTitle,
-} from "@/components/ui/field";
+import { ChoiceCard } from "@/components/shared/choice-card";
+import { FieldError } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type OptionCard = {
@@ -73,37 +68,24 @@ function OptionCardsField<
             }}
           >
             {options.map((option) => (
-              <OptionCardItem
+              <ChoiceCard
                 key={option.value}
-                id={`${id}-${option.value}`}
-                option={option}
-              />
+                disabled={option.disabled}
+                htmlFor={`${id}-${option.value}`}
+                label={option.label}
+              >
+                <RadioGroupItem
+                  id={`${id}-${option.value}`}
+                  value={option.value}
+                  disabled={option.disabled}
+                />
+              </ChoiceCard>
             ))}
           </RadioGroup>
           <FieldError id={errorId}>{fieldState.error?.message}</FieldError>
         </div>
       )}
     />
-  );
-}
-
-function OptionCardItem({ id, option }: { id: string; option: OptionCard }) {
-  return (
-    <FieldLabel htmlFor={id}>
-      <Field
-        orientation="horizontal"
-        data-disabled={option.disabled ? true : undefined}
-      >
-        <FieldContent>
-          <FieldTitle>{option.label}</FieldTitle>
-        </FieldContent>
-        <RadioGroupItem
-          id={id}
-          value={option.value}
-          disabled={option.disabled}
-        />
-      </Field>
-    </FieldLabel>
   );
 }
 

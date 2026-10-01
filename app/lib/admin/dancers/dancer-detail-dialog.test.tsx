@@ -39,21 +39,27 @@ describe("DancerDetailRouteView dialogs", () => {
       ),
     );
 
-    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
-    expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
-    expect(document.body.textContent).not.toContain("¿Verificar?");
+    expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
+    expect(document.body.textContent).not.toContain("¿Archivar al bailarín?");
+    expect(document.body.textContent).not.toContain(
+      "¿Verificar la identidad del bailarín?",
+    );
 
     await clickReactDomButton("Verificar", { exact: true });
 
-    expect(document.body.textContent).toContain("¿Verificar?");
-    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
-    expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
+    expect(document.body.textContent).toContain(
+      "¿Verificar la identidad del bailarín?",
+    );
+    expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
+    expect(document.body.textContent).not.toContain("¿Archivar al bailarín?");
 
     await clickReactDomButton("Cancelar", { exact: true });
 
-    expect(document.body.textContent).not.toContain("¿Verificar?");
-    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
-    expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
+    expect(document.body.textContent).not.toContain(
+      "¿Verificar la identidad del bailarín?",
+    );
+    expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
+    expect(document.body.textContent).not.toContain("¿Archivar al bailarín?");
   });
 
   // Every field is in `Identificación`, and Radix unmounts it behind the other
@@ -111,11 +117,11 @@ describe("DancerDetailRouteView dialogs", () => {
       ),
     );
 
-    expect(document.body.textContent).not.toContain("¿Reactivar bailarín?");
+    expect(document.body.textContent).not.toContain("¿Reactivar al bailarín?");
 
     await clickReactDomButton("Reactivar", { exact: true });
 
-    expect(document.body.textContent).toContain("¿Reactivar bailarín?");
+    expect(document.body.textContent).toContain("¿Reactivar al bailarín?");
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });
 
@@ -139,7 +145,7 @@ describe("DancerDetailRouteView dialogs", () => {
 
     expect(saveButton.getAttribute("type")).toBe("submit");
     expect(saveButton.hasAttribute("disabled")).toBe(false);
-    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
+    expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
   });
 
   test("offers `Descartar cambios` only while there are changes, and it restores the saved values", async () => {
@@ -203,11 +209,11 @@ describe("DancerDetailRouteView dialogs", () => {
       ),
     );
 
-    expect(document.body.textContent).not.toContain("¿Guardar cambios?");
+    expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
     await changeFirstName("Julieta");
     await clickReactDomButton("Guardar", { exact: true });
 
-    expect(document.body.textContent).toContain("¿Guardar cambios?");
+    expect(document.body.textContent).toContain("¿Guardar los cambios?");
     expect(document.body.textContent).toContain("identidad verificada");
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });
@@ -227,7 +233,7 @@ describe("DancerDetailRouteView dialogs", () => {
     await changeFirstName("Julieta");
     await clickReactDomButton("Guardar", { exact: true });
 
-    expect(document.body.textContent).toContain("¿Guardar cambios?");
+    expect(document.body.textContent).toContain("¿Guardar los cambios?");
     expect(document.body.textContent).toContain("ya participó de un evento");
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });

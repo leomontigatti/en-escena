@@ -660,7 +660,7 @@ async function pickOption(label: string, option: string) {
 function findRow(group: string, name: string) {
   return Array.from(
     document.querySelectorAll<HTMLElement>(
-      `[role="group"][aria-label="${group}"] [data-slot="checklist-row"]`,
+      `[role="group"][aria-label="${group}"] [data-slot="choice-card"]`,
     ),
   ).find((row) => row.textContent === name);
 }
@@ -673,7 +673,7 @@ async function toggleRow(group: string, name: string) {
   }
 
   await updateReactDomForm(() => {
-    row.querySelector("label")?.click();
+    row.click();
   });
   await settle();
 }

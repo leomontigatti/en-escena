@@ -47,8 +47,12 @@ export function ChoreographyCreationSummary({
         title="Revisá antes de guardar"
         hint="Tocá el botón Cambiar para corregir alguno de los datos."
       />
-      <AccessNotice title="Revisá antes de guardar" variant="warning">
-        Revisá los datos ya que una vez guardados no vas a poder modificarlos.
+      <AccessNotice
+        title="Estos datos no se pueden cambiar después"
+        variant="warning"
+      >
+        Una vez guardada la coreografía, solo vas a poder cargar o cambiar la
+        música.
       </AccessNotice>
       <dl
         aria-label="Resumen de coreografía"
