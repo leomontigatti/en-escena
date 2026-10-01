@@ -5,6 +5,7 @@ import {
   categories,
   choreographies,
   choreographyDancers,
+  events,
   schedules,
 } from "@/db/schema";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
@@ -32,6 +33,7 @@ export async function findDancerInscriptions(input: {
       name: choreographies.name,
       choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
+      eventName: events.name,
       groupType: choreographies.groupType,
       scheduleId: schedules.id,
       academyId: choreographies.academyId,
@@ -44,6 +46,7 @@ export async function findDancerInscriptions(input: {
     )
     .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
+    .innerJoin(events, eq(choreographies.eventId, events.id))
     .where(
       and(
         eq(choreographyDancers.dancerId, input.dancerId),
@@ -74,6 +77,7 @@ export async function findDancerInscriptions(input: {
       id: choreography.id,
       choreographyName: choreography.name,
       choreographyNumber: choreography.choreographyNumber,
+      eventName: choreography.eventName,
       categoryName: choreography.categoryName,
       groupType: choreography.groupType,
       basePriceAmount: resolution?.priceAmount ?? null,

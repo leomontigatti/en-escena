@@ -17,6 +17,22 @@ export const discardChangesConfirmLabel = "Descartar";
 export const discardChangesCancelLabel = "Cancelar";
 
 /**
+ * Carried by a navigation that only rewrites what a list on the page shows:
+ * its search, its order, its page. The page is not left and the draft stays
+ * where it is, so the guard lets it through.
+ */
+export const inPageNavigationState = { inPage: true } as const;
+
+export function isInPageNavigation(state: unknown) {
+  return (
+    typeof state === "object" &&
+    state !== null &&
+    "inPage" in state &&
+    state.inPage === true
+  );
+}
+
+/**
  * Everything a form can have to lose. The fields are what React Hook Form calls
  * dirty; the audio is a `Devolución` recorded or deleted since the last save,
  * which no field state knows about.

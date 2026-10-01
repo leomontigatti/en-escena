@@ -28,6 +28,7 @@ import {
   useOptionalNavigation,
 } from "@/lib/shared/forms";
 import { listQueryParamNames } from "@/lib/list-query/list-query";
+import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
 
 import {
   orderAutomaticallyIntent,
@@ -152,38 +153,26 @@ export function PresentationDayTabs({
 }: {
   loaderData: PresentationListResult;
 }) {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const selectDay = (day: string) => {
-    const next = new URLSearchParams(searchParams);
-
-    if (day === allDaysTabValue) {
-      next.delete("dia");
-    } else {
-      next.set("dia", day);
-    }
-
-    next.delete(listQueryParamNames.page);
-    setSearchParams(next);
-  };
+  const tab = useUrlTab({
+    defaultValue: allDaysTabValue,
+    param: dayTabParam,
+    resets: [listQueryParamNames.page],
+    values: [allDaysTabValue, ...loaderData.days],
+  });
 
   return (
     <Tabs
-      value={loaderData.filters.day ?? allDaysTabValue}
+      value={tab.value}
+      onValueChange={tab.onValueChange}
       // An event with more days than the page is wide scrolls its tabs rather
       // than widening the page; the padding keeps the active underline, drawn
       // below the list, inside the scroll box that would otherwise clip it.
       className="max-w-full overflow-x-auto pb-1"
     >
       <TabsList variant="line">
-        <TabsTrigger
-          value={allDaysTabValue}
-          onClick={() => selectDay(allDaysTabValue)}
-        >
-          Todos
-        </TabsTrigger>
+        <TabsTrigger value={allDaysTabValue}>Todos</TabsTrigger>
         {loaderData.days.map((day) => (
-          <TabsTrigger key={day} value={day} onClick={() => selectDay(day)}>
+          <TabsTrigger key={day} value={day}>
             {formatScheduleDayTabLabel(day)}
           </TabsTrigger>
         ))}
