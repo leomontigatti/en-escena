@@ -6,7 +6,6 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { seminarHasInscriptionsMessage } from "@/lib/seminars/registration-refusals";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
 
 import { deleteSeminarIntent } from "./shared";
@@ -26,6 +25,7 @@ export function SeminarActions({
   // The count is the withdrawn-inclusive one, because that is what
   // `deleteSeminar` refuses on.
   const hasInscriptions = seminar.inscriptionCount > 0;
+  const blockedDeletion = describeBlockedDeletion(seminar);
 
   return (
     <>
@@ -50,11 +50,11 @@ export function SeminarActions({
         blockedTitle="No se puede eliminar el seminario"
         description={
           hasInscriptions
-            ? describeDeletionWayOut(seminar)
+            ? blockedDeletion.wayOut
             : `Esta acción borra el seminario de ${seminar.instructorName}. No se puede deshacer.`
         }
         isBlocked={hasInscriptions}
-        blockedDescription={seminarHasInscriptionsMessage}
+        blockedDescription={blockedDeletion.reason}
         intentValue={deleteSeminarIntent}
         recordId={seminar.id}
         open={deleteDialogOpen}
@@ -65,15 +65,27 @@ export function SeminarActions({
 }
 
 /**
- * What it takes to delete a seminar that holds inscriptions. Removing one with
+ * Why a seminar that holds inscriptions cannot be deleted, for the alert, and
+ * what it takes to delete it, for the description. Removing an inscription with
  * money or a comprobante withdraws it instead of deleting it, and a withdrawn
  * row blocks the delete for good, so once only those are left there is no way
  * out to name.
  */
-function describeDeletionWayOut(
+function describeBlockedDeletion(
   seminar: Pick<SeminarListItem, "registeredCount">,
 ) {
+  const reason =
+    "Este seminario tiene inscripciones y no puede eliminarse directamente.";
+
   return seminar.registeredCount > 0
-    ? "Para eliminarlo, primero quitá el dinero de sus inscripciones y después quitalas desde Inscriptos. Una inscripción que se quita con dinero o comprobantes queda retirada, y entonces el seminario ya no se puede eliminar."
-    : "Sus inscripciones retiradas conservan dinero o comprobantes, así que el seminario ya no se puede eliminar.";
+    ? {
+        reason,
+        wayOut:
+          "Importante: seguir el orden para eliminarlo correctamente. Quitar el dinero de todas las inscripciones y después eliminarlas desde la lista de inscriptos.",
+      }
+    : {
+        reason,
+        wayOut:
+          "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
+      };
 }

@@ -21,9 +21,9 @@ export function SeminarPriceActions({
   );
   // The guard is read before the menu opens, so a protected row shows a
   // disabled item instead of a refusal after the submission. The alert above
-  // the form already says the price cannot be deleted, so the item needs no
-  // dialog of its own (style guide, Detail pages). The server refuses all the
-  // same, for the race.
+  // the form already says the price cannot be deleted, so the dialog only ever
+  // confirms (style guide, Detail pages). The server refuses all the same, for
+  // the race.
   const deletionBlock = readPriceDeletionBlock(seminarPrice);
 
   return (
@@ -42,8 +42,6 @@ export function SeminarPriceActions({
       <DeleteDialog
         title="¿Eliminar el precio de seminario?"
         description={`Esta acción borra ${seminarPrice.name} si no tiene dependencias asociadas.`}
-        blockedDescription={deletionBlock}
-        isBlocked={Boolean(deletionBlock)}
         intentValue="delete-seminar-price"
         recordId={seminarPrice.id}
         open={deleteDialogOpen}

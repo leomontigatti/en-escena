@@ -42,7 +42,6 @@ import {
   formatChoreographyRemovalDescription,
   restoreChoreographyDescription,
   restoreChoreographyIntent,
-  type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
 } from "./shared";
 import { useChoreographyDraft } from "./use-choreography-draft";
@@ -108,7 +107,9 @@ export function ChoreographyDetailRouteView({
         />
       ) : null}
 
-      {loaderData.canEdit && !loaderData.restoration.canRestore ? (
+      {loaderData.canEdit &&
+      !loaderData.restoration.canRestore &&
+      loaderData.deletion.canDelete ? (
         <ChoreographyRemovalDialog
           loaderData={loaderData}
           onOpenChange={setIsDeleteDialogOpen}
@@ -170,9 +171,8 @@ function ChoreographyDetailActionsMenu({
 /**
  * `Eliminar coreografía` is one action with two outcomes, and the dialog names
  * the one that will happen before the admin confirms. The evaluated presentation
- * is the only thing that blocks it; the menu item is then disabled, so the
- * blocked dialog is only reached from the URL, and it explains itself instead
- * of offering the button.
+ * is the only thing that blocks it; the menu item is then disabled and the
+ * evaluation alert says why, so there is no blocked dialog to render.
  */
 function ChoreographyRemovalDialog({
   loaderData,
@@ -185,26 +185,12 @@ function ChoreographyRemovalDialog({
 }) {
   return (
     <DeleteDialog
-      blockedDescription={
-        loaderData.deletion.canDelete ? undefined : (
-          <BlockedDeleteReasons blockers={loaderData.deletion.blockers} />
-        )
-      }
-      blockedTitle="No se puede eliminar esta coreografía"
-      description={
-        loaderData.deletion.canDelete
-          ? formatChoreographyRemovalDescription({
-              outcome: loaderData.deletion.outcome,
-              presentationOrderNumber:
-                loaderData.choreography.presentationOrderNumber,
-            })
-          : // The reason itself is left to `BlockedDeleteReasons`, which lists it
-            // right below: saying it here as well reads as two findings and not
-            // as one.
-            "Esta coreografía no puede eliminarse ni retirarse: la historia competitiva no se pierde."
-      }
+      description={formatChoreographyRemovalDescription({
+        outcome: loaderData.deletion.outcome,
+        presentationOrderNumber:
+          loaderData.choreography.presentationOrderNumber,
+      })}
       intentValue={deleteChoreographyIntent}
-      isBlocked={!loaderData.deletion.canDelete}
       onOpenChange={onOpenChange}
       open={open}
       recordId={loaderData.choreography.id}
@@ -345,22 +331,5 @@ function ChoreographyMusicField({
       uploadedLabel="Archivo de música cargado"
       variant="compact"
     />
-  );
-}
-
-function BlockedDeleteReasons({
-  blockers,
-}: {
-  blockers: ChoreographyDeleteBlocker[];
-}) {
-  return (
-    <div>
-      <p>{blockers.length === 1 ? "Motivo:" : "Motivos:"}</p>
-      <ul className="mt-2 list-disc pl-5">
-        {blockers.map((blocker) => (
-          <li key={blocker.code}>{blocker.label}</li>
-        ))}
-      </ul>
-    </div>
   );
 }

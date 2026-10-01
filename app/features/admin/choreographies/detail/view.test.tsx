@@ -408,40 +408,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(document.body.textContent).not.toContain("queda retirada");
   });
 
-  test("opens a blocked delete dialog with concrete blocker reasons", async () => {
-    await renderDetailIntoDocument({
-      initialDeleteDialogOpen: true,
-      loaderData: buildLoaderData({
-        deletion: {
-          canDelete: false,
-          outcome: "deleted",
-          blockers: [
-            {
-              code: "evaluated-presentation",
-              label: "la presentación ya fue evaluada",
-            },
-          ],
-        },
-      }),
-    });
-
-    expect(document.body.textContent).toContain(
-      "No se puede eliminar esta coreografía",
-    );
-    expect(document.body.textContent).toContain(
-      "la presentación ya fue evaluada",
-    );
-    expect(document.body.textContent).toContain("Cerrar");
-    expect(document.body.textContent).not.toContain(
-      "Esta acción es irreversible.",
-    );
-    expect(
-      Array.from(document.querySelectorAll("button")).some(
-        (button) => button.textContent?.trim() === "Eliminar",
-      ),
-    ).toBe(false);
-  });
-
   /**
    * The capacity select labels through the shared builder, occupancy included
    * and a full capacity disabled, so it cannot drift from the portal's.

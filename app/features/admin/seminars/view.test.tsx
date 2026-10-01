@@ -231,9 +231,11 @@ describe("SeminarDetailView", () => {
 
     expect(dialog?.textContent).toContain("No se puede eliminar el seminario");
     expect(dialog?.textContent).toContain(
-      "Para eliminarlo, primero quitá el dinero de sus inscripciones y después quitalas desde Inscriptos.",
+      "Este seminario tiene inscripciones y no puede eliminarse directamente.",
     );
-    expect(dialog?.textContent).toContain(seminarHasInscriptionsMessage);
+    expect(dialog?.textContent).toContain(
+      "Importante: seguir el orden para eliminarlo correctamente. Quitar el dinero de todas las inscripciones y después eliminarlas desde la lista de inscriptos.",
+    );
     expect(dialog?.querySelector("form")).toBeNull();
     expect(
       Array.from(dialog?.querySelectorAll("button") ?? []).map(
@@ -560,7 +562,7 @@ describe("SeminarDetailView delete dialog", () => {
     const dialog = document.querySelector('[role="alertdialog"]');
 
     expect(dialog?.textContent).toContain(
-      "Este seminario tiene inscripciones. No podés eliminarlo.",
+      "Este seminario tiene inscripciones y no puede eliminarse directamente.",
     );
     expect(dialog?.querySelector("form")).toBeNull();
   });
@@ -589,12 +591,12 @@ describe("SeminarDetailView delete dialog", () => {
     const dialog = document.querySelector('[role="alertdialog"]');
 
     expect(dialog?.textContent).toContain(
-      "Este seminario tiene inscripciones. No podés eliminarlo.",
+      "Este seminario tiene inscripciones y no puede eliminarse directamente.",
     );
     // Nobody is left to remove: a withdrawn row keeps its money or its
     // comprobante, so the way out the other case names does not exist here.
     expect(dialog?.textContent).toContain(
-      "Sus inscripciones retiradas conservan dinero o comprobantes, así que el seminario ya no se puede eliminar.",
+      "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
     );
     expect(dialog?.querySelector("form")).toBeNull();
   });
