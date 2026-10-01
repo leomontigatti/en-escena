@@ -604,11 +604,13 @@ Rules:
 - Every other tab set keeps its state local: tabs that split one record into
   sections, and tabs inside a card or a control (a judge's sheet, the
   checklist's `Todos` / `Seleccionados`).
-- A form's fields go in one tab when a record has tabs, and the card's footer is
-  the same on every tab: `Guardar` and `Descartar cambios` are offered from all
-  of them. `useFormFieldsTab` (`app/lib/shared/forms.ts`) holds the tab and
-  brings the fields' tab forward when a save is refused, so an error never lands
-  on a panel nobody can see.
+- A form's fields go in one tab when a record has tabs. Where the card holds the
+  tabs (the dancer details), its footer is the same on every tab: `Guardar` and
+  `Descartar cambios` are offered from all of them, and `useFormFieldsTab`
+  (`app/lib/shared/forms.ts`) holds the tab and brings the fields' tab forward
+  when a save is refused, so an error never lands on a panel nobody can see.
+  Where the other tab is a table of its own (the seminar's `Inscriptos`), the
+  card and its footer sit inside the fields' tab and the table stands bare.
 - A panel that holds fields takes `forceMount` and `data-[state=inactive]:hidden`.
   Radix unmounts an inactive panel, an unmounted input is not submitted, and a
   file picked in a native file input is lost with it.
