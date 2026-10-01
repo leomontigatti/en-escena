@@ -1,5 +1,6 @@
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import {
   AdminEmptyState,
@@ -24,6 +25,7 @@ import {
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
+import { PrototypeWaiverView } from "./prototype-waiver";
 import type { loadChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
@@ -43,6 +45,12 @@ export function ChoreographyFinanceDetailView({
   loaderData,
 }: ChoreographyFinanceDetailViewProps) {
   const choreography = loaderData.choreography;
+  // PROTOTYPE — throwaway: `?variant=A` swaps in the waiver prototype.
+  const [searchParams] = useSearchParams();
+
+  if (searchParams.get("variant") && choreography) {
+    return <PrototypeWaiverView loaderData={loaderData} />;
+  }
 
   return (
     <AdminResourceLayout
