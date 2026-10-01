@@ -34,7 +34,7 @@ export async function action({ request }: { request: Request }) {
     name: parsed.data.name,
     internalUsername: parsed.data.internalUsername,
     role: parsed.data.role,
-    temporaryPassword: parsed.data.temporaryPassword,
+    password: parsed.data.password,
     createdByUserId: appUser.id,
   });
 
@@ -46,7 +46,7 @@ export async function action({ request }: { request: Request }) {
       fieldErrors: getCreateInternalUserServerFieldErrors(result.error),
       values: {
         ...values,
-        temporaryPassword: "",
+        password: "",
       },
     };
   }

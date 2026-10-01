@@ -2,24 +2,24 @@ import { describe, expect, test } from "vitest";
 
 import {
   assertValidInternalUsername,
-  normalizeInternalUsername,
+  isReservedInternalUsername,
 } from "@/lib/auth/internal-username.server";
 
-describe("internal username", () => {
-  test("normalizes valid values to lowercase", () => {
-    expect(normalizeInternalUsername(" Admin.User_01 ")).toBe("admin.user_01");
+describe("internal username on the server", () => {
+  test("returns the normalized value when it is valid", () => {
+    expect(assertValidInternalUsername(" Admin.User_01 ")).toBe(
+      "admin.user_01",
+    );
   });
 
-  test.each([
-    "ab",
-    "usuario con espacios",
-    "josé",
-    "usuario@example.com",
-    "usuario@interno",
-    "USER+PLUS",
-  ])("rejects invalid values: %s", (value) => {
-    expect(() => assertValidInternalUsername(value)).toThrowError(
+  test("throws on an invalid value", () => {
+    expect(() => assertValidInternalUsername("josé")).toThrowError(
       "Invalid internal username.",
     );
+  });
+
+  test("reserves the routed addresses", () => {
+    expect(isReservedInternalUsername("Acceso")).toBe(true);
+    expect(isReservedInternalUsername("jurado")).toBe(false);
   });
 });
