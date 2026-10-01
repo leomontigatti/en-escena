@@ -123,16 +123,12 @@ Flow through which an existing academy recovers its access via a link sent to it
 _Avoid_: `academyRegistration`, `internalUserInvitation`
 
 **`internalUserPasswordReset`** — ui: "Restablecimiento administrativo de contraseña"
-Administrative action that assigns a new temporary password to an internal user and forces a mandatory password change; it is the recovery mechanism for internal users.
+Administrative action that assigns a new password to an internal user and closes their open sessions; it is the recovery mechanism for internal users, who receive no email.
 _Avoid_: `accessRecovery`, `internalUserInvitation`
 
 **`accessSession`** — ui: "Sesión de acceso"
 Authenticated period of a user inside the system.
 _Avoid_: `academyRegistration`, `internalUserInvitation`, `accessRecovery`
-
-**`requiresPasswordChange`** — ui: "Cambio obligatorio de contraseña"
-Condition of an internal user who must set their own password before reaching their private area.
-_Avoid_: `accessRecovery`, `internalUserInvitation`
 
 **`suspendedUser`** — ui: "Usuario suspendido"
 User who keeps their history but cannot start or maintain access sessions.

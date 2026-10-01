@@ -75,7 +75,7 @@ export function CreateChoreographyPage({
           {submission.warning ? (
             <ChoreographyDuplicateWarning
               isSubmitting={submission.isSubmitting}
-              message={submission.warning.message}
+              matches={submission.warning.matches}
               warning={submission.warning}
               onContinue={() =>
                 submission.confirm(submission.warning?.matchIds)
@@ -92,7 +92,12 @@ export function CreateChoreographyPage({
               </Link>
             </Button>
           ) : (
-            <Button type="button" variant="outline" onClick={wizard.goBack}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submission.isSubmitting}
+              onClick={wizard.goBack}
+            >
               <ChevronLeft aria-hidden="true" data-icon />
               Anterior
             </Button>

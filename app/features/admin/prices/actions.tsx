@@ -48,7 +48,7 @@ export function PriceActions({
         </DropdownMenuGroup>
       </ResourceActionsMenu>
       <DeleteDialog
-        title="Eliminar precio"
+        title="¿Eliminar el precio?"
         description={`Esta acción borra ${getPriceDisplayName(price)} si no tiene dependencias asociadas. No se puede deshacer.`}
         blockedDescription={deletionBlock}
         isBlocked={Boolean(deletionBlock)}

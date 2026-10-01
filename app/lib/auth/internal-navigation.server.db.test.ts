@@ -94,12 +94,11 @@ describe("internal navigation", () => {
     );
   });
 
-  test("authenticates internal users with internal username and redirects mandatory changes", async () => {
+  test("authenticates internal users with internal username and lands them on their role path", async () => {
     await createCredentialUser({
       email: "admin.interno@example.com",
       role: "admin",
       internalUsername: "admin.interno",
-      requiresPasswordChange: true,
     });
 
     const response = await expectThrownResponse(
@@ -116,7 +115,7 @@ describe("internal navigation", () => {
       302,
     );
 
-    expect(response.headers.get("location")).toBe("/cambiar-contrasena");
+    expect(response.headers.get("location")).toBe("/administracion");
     expect(response.headers.get("set-cookie")).toContain(
       "better-auth.session_token",
     );
@@ -415,7 +414,6 @@ async function createCredentialUser(input: {
   email: string;
   role: "academy" | InternalUserRole;
   internalUsername?: string;
-  requiresPasswordChange?: boolean;
 }) {
   const signUpResult = await createAccessUser({
     email: input.email,
@@ -429,7 +427,6 @@ async function createCredentialUser(input: {
       emailVerified: true,
       role: input.role,
       internalUsername: input.internalUsername,
-      requiresPasswordChange: input.requiresPasswordChange,
     })
     .where(eq(user.id, signUpResult.response.user.id));
 

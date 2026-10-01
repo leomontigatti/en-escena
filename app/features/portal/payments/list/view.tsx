@@ -53,7 +53,9 @@ const paymentColumns: DataTableColumn<PaymentRow>[] = [
     header: "Referencia",
     className: "min-w-56 text-muted-foreground",
     cell: (row) => row.reference ?? "",
-    filterValue: (row) => `${row.reference ?? ""} ${row.paymentNumber}`,
+    // The padded form also holds the raw number, so `42` matches as `00042` does.
+    filterValue: (row) =>
+      `${row.reference ?? ""} ${formatEventSequenceNumber(row.paymentNumber)}`,
   },
   {
     id: "paymentMethod",

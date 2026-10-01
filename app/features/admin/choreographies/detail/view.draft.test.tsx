@@ -262,7 +262,9 @@ describe("leaving the choreography detail with unsaved changes", () => {
 
     expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
 
-    await clickReactDomButton("Seguir editando");
+    await clickReactDomButton("Cancelar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await settle();
 
     expect(page.pathname()).toBe("/administracion/coreografias/choreo_1");

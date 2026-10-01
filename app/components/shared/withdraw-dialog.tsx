@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Trash, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
+import { Form } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -13,14 +14,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
+import {
+  isRouteFormPending,
+  useCloseOnceSettled,
+  useOptionalNavigation,
+} from "@/lib/shared/forms";
 
 /**
  * The confirmation of a removal that **withdraws** instead of deleting. It is
  * the shared `DeleteDialog` with its one false sentence replaced: a row that
  * keeps its money is not an irreversible deletion, so the alert says what
  * survives instead of saying that nothing does, and the button names the
- * gesture rather than `Eliminar`.
+ * gesture rather than `Eliminar`. Withdrawing is not deleting, so the button
+ * carries no trash icon.
  *
  * It posts the same three fields the delete dialog posts, so a surface swaps
  * between the two by the row's evidence alone and its action reads one intent.
@@ -54,16 +60,15 @@ function WithdrawDialog({
     fields: { id: recordId },
   });
 
+  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
         // The same viewport bound the delete dialog carries (#708): the
         // consequence is the longest copy either dialog shows, so on a phone in
         // landscape it is what would otherwise push the footer off screen.
-        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_1fr_auto]"
-        onEscapeKeyDown={(event) => {
-          event.preventDefault();
-        }}
+        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_1fr_auto] sm:max-w-lg"
       >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -78,19 +83,17 @@ function WithdrawDialog({
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <form method="post">
+          <Form method="post">
             <input type="hidden" name="intent" value={intentValue} />
             <input type="hidden" name="id" value={recordId} />
             <input type="hidden" name={confirmFieldName} value={recordId} />
             <Button type="submit" variant="destructive" disabled={isPending}>
               {isPending ? (
-                <Spinner aria-hidden="true" data-icon />
-              ) : (
-                <Trash aria-hidden="true" data-icon="inline-start" />
-              )}
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+              ) : null}
               {confirmLabel}
             </Button>
-          </form>
+          </Form>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

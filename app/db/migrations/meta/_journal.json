@@ -260,6 +260,13 @@
       "when": 1790704389952,
       "tag": "0036_price_schedules",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790799860947,
+      "tag": "0037_drop_requires_password_change",
+      "breakpoints": true
     }
   ]
 }

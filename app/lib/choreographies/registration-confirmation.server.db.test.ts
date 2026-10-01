@@ -631,7 +631,7 @@ describe("choreography registration confirmation", () => {
       ok: false,
       code: "duplicate-choreography",
       error:
-        "Ya registraste «Luna Llena» (N.º 1) con los mismos bailarines en este evento.",
+        "Ya existe una coreografía con el mismo nombre y los mismos bailarines en este evento: Luna Llena.",
       warning: {
         kind: "choreography-cast",
         matches: [{ choreographyNumber: 1, name: "Luna Llena" }],

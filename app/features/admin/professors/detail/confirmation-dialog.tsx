@@ -39,7 +39,7 @@ export function ProfessorConfirmationDialog({
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       {intent ? (
-        <AlertDialogContent forceMount size="sm">
+        <AlertDialogContent forceMount>
           <AlertDialogHeader>
             <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
             <AlertDialogDescription>

@@ -55,7 +55,9 @@ describe("the portal profile as one draft", () => {
     expect(findDialog()).toBeDefined();
     expect(page.pathname()).toBe("/");
 
-    await clickReactDomButton("Seguir editando");
+    await clickReactDomButton("Cancelar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
 
     expect(findDialog()).toBeUndefined();
 

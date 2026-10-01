@@ -1,6 +1,5 @@
 import { Info, ListOrdered, TriangleAlert } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { useSearchParams } from "react-router";
+import { Form, useSearchParams } from "react-router";
 
 import { AlertStack } from "@/components/shared/alert-stack";
 import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
@@ -23,7 +22,11 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
-import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
+import {
+  isRouteFormPending,
+  useCloseOnceSettled,
+  useOptionalNavigation,
+} from "@/lib/shared/forms";
 import { listQueryParamNames } from "@/lib/list-query/list-query";
 
 import {
@@ -208,29 +211,14 @@ export function OrderingConfirmationDialog({
   const isPending = isRouteFormPending(navigation, {
     intent: orderAutomaticallyIntent,
   });
-  // The ordering stays on the list, so nothing navigates the dialog away: it
-  // closes itself once its own submission settles. Leaving it open would sit an
-  // enabled `Confirmar` in front of the administrator after the order was already
-  // written, and a second press would throw away the manual moves the first one
-  // just made.
-  const wasPending = useRef(false);
-
-  useEffect(() => {
-    if (isPending) {
-      wasPending.current = true;
-      return;
-    }
-
-    if (wasPending.current) {
-      wasPending.current = false;
-      onOpenChange(false);
-    }
-  }, [isPending, onOpenChange]);
+  // The ordering stays on the list, so nothing navigates the dialog away: a
+  // second `Confirmar` would throw away the manual moves the first one just made.
+  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
-        className="max-h-[calc(100dvh-2rem)]"
+        className="max-h-[calc(100dvh-2rem)] sm:max-w-lg"
         onEscapeKeyDown={(event) => {
           event.preventDefault();
         }}
@@ -258,7 +246,7 @@ export function OrderingConfirmationDialog({
         </IrreversibleActionAlert>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <form method="post">
+          <Form method="post">
             <input
               type="hidden"
               name="intent"
@@ -270,7 +258,7 @@ export function OrderingConfirmationDialog({
               ) : null}
               Confirmar
             </Button>
-          </form>
+          </Form>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

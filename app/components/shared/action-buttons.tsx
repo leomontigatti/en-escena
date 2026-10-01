@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, Trash } from "lucide-react";
+import { Check, ChevronLeft, Trash2 } from "lucide-react";
 import type { ComponentProps } from "react";
 import { Link } from "react-router";
 
@@ -56,7 +56,7 @@ export function DestroyButton({
       {isPending ? (
         <Spinner aria-hidden="true" data-icon />
       ) : (
-        <Trash aria-hidden="true" data-icon="inline-start" />
+        <Trash2 aria-hidden="true" data-icon="inline-start" />
       )}
       Eliminar
     </Button>

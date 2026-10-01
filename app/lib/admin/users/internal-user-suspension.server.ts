@@ -46,7 +46,6 @@ export async function setInternalUserSuspendedState(
       email: true,
       internalUsername: true,
       name: true,
-      requiresPasswordChange: true,
       role: true,
       sessionInvalidBefore: true,
       suspended: true,

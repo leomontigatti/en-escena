@@ -69,7 +69,9 @@ describe("FormActions", () => {
 
     expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
 
-    await clickReactDomButton("Seguir editando");
+    await clickReactDomButton("Cancelar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await settle();
 
     expect(findDialog()).toBeUndefined();
@@ -80,6 +82,22 @@ describe("FormActions", () => {
     await settle();
 
     expect(page.pathname()).toBe("/otra");
+  });
+
+  test("disables `Descartar cambios` with `Guardar` while the save is pending, and leaves `Volver` live", async () => {
+    await renderPage({ hasChanges: true, isPending: true });
+
+    expect(isSaveEnabled()).toBe(false);
+    expect(
+      (findButton("Descartar cambios") as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    const back = Array.from(document.querySelectorAll("a")).find(
+      (link) => link.textContent?.trim() === "Volver",
+    );
+
+    expect(back?.getAttribute("href")).toBe("/lista");
+    expect(back?.getAttribute("aria-disabled")).toBeNull();
   });
 
   test("lets its own save through without asking", async () => {
@@ -98,6 +116,7 @@ async function renderPage(input: {
   canEdit?: boolean;
   canSave?: boolean;
   hasChanges: boolean;
+  isPending?: boolean;
 }) {
   let discards = 0;
   let saves = 0;
@@ -112,7 +131,7 @@ async function renderPage(input: {
           canEdit={input.canEdit}
           canSave={input.canSave}
           hasChanges={hasChanges}
-          isPending={false}
+          isPending={input.isPending ?? false}
           onDiscard={() => {
             discards += 1;
             setHasChanges(false);

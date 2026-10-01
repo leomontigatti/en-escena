@@ -38,10 +38,13 @@ export const disqualifiedNoticeMessage =
   "La presentación está descalificada. Podés dejar una devolución o volver a calificarla.";
 
 export function DisqualificationAction({
+  disabled = false,
   disqualified,
   onSubmitting,
   presentationId,
 }: {
+  /** While the score beside it is being saved: the two must not race. */
+  disabled?: boolean;
   disqualified: boolean;
   /** Told before the post, so a page-level discard guard lets it through. */
   onSubmitting?: () => void;
@@ -62,7 +65,12 @@ export function DisqualificationAction({
 
   if (disqualified) {
     return (
-      <Button type="button" variant="outline" onClick={() => post("reinstate")}>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => post("reinstate")}
+      >
         {reinstateLabel}
       </Button>
     );
@@ -73,12 +81,13 @@ export function DisqualificationAction({
       <Button
         type="button"
         variant="destructive"
+        disabled={disabled}
         onClick={() => setIsConfirming(true)}
       >
         {disqualifyLabel}
       </Button>
       <AlertDialog open={isConfirming} onOpenChange={setIsConfirming}>
-        <AlertDialogContent className="sm:max-w-sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
             <AlertDialogDescription>

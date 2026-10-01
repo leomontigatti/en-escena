@@ -154,7 +154,7 @@ export function DiscardChangesDialog({
         }
       }}
     >
-      <AlertDialogContent className="sm:max-w-sm">
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{discardChangesTitle}</AlertDialogTitle>
           <AlertDialogDescription>

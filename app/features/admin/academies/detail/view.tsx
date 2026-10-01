@@ -160,7 +160,7 @@ export function AcademyDetailRouteView({
         // of the delete, so the dialog always offers the action and the server
         // is what refuses, naming what the academy still holds.
         <DeleteDialog
-          title="Eliminar academia"
+          title="¿Eliminar la academia?"
           description={`Esta acción borra la academia ${academy.name} y su usuario de acceso. Solo procede si no tiene bailarines, profesores, coreografías, inscripciones a seminarios ni pagos.`}
           intentValue={deleteAcademyIntent}
           recordId={academy.id}

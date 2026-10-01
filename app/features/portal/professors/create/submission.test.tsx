@@ -236,7 +236,7 @@ describe("professor create submissions", () => {
         'input[name="acknowledgedDuplicateIds"]',
       )?.value,
     ).toBe("professor_twin_1");
-    expect(document.body.textContent).toContain("Continuar de todos modos");
+    expect(document.body.textContent).toContain("¿Guardar el profesor?");
   });
 });
 

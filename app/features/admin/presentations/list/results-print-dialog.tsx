@@ -56,7 +56,7 @@ export function ResultsPrintDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent overlayClassName="backdrop-blur-sm">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Imprimir resultados</DialogTitle>
           <DialogDescription>

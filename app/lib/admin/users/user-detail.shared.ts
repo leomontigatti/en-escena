@@ -11,10 +11,10 @@ import {
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
 
-const temporaryPasswordMinLength = 8;
+const passwordMinLength = 8;
 
 const updateInternalUserFieldNames = ["name", "role"] as const;
-const resetPasswordFieldNames = ["temporaryPassword"] as const;
+const resetPasswordFieldNames = ["password"] as const;
 
 export type UpdateInternalUserField =
   (typeof updateInternalUserFieldNames)[number];
@@ -32,12 +32,11 @@ export type UpdateInternalUserFormValues = {
 };
 
 export type ResetPasswordFormValues = {
-  temporaryPassword: string;
+  password: string;
 };
 
 export type DetailUserRole = "academy" | "admin" | "auditor" | "judge";
-export type DetailUserState =
-  "active" | "mandatory-password-change" | "suspended";
+export type DetailUserState = "active" | "suspended";
 export type DetailUserType = "academy" | "internal";
 
 export type DetailUserRow = {
@@ -46,7 +45,6 @@ export type DetailUserRow = {
   email: string;
   role: DetailUserRole;
   internalUsername: string | null;
-  requiresPasswordChange: boolean;
   suspended: boolean;
   academyId: string | null;
   academyName: string | null;
@@ -84,7 +82,6 @@ export const internalUserRoleOptions = detailUserRoleOptions.filter(
 
 export const detailUserStateOptions = [
   { value: "active", label: "Activo" },
-  { value: "mandatory-password-change", label: "Cambio obligatorio" },
   { value: "suspended", label: "Suspendido" },
 ] as const satisfies ReadonlyArray<{ value: DetailUserState; label: string }>;
 
@@ -111,7 +108,7 @@ const emptyEditValues: UpdateInternalUserFormValues = {
 };
 
 export const emptyResetPasswordValues: ResetPasswordFormValues = {
-  temporaryPassword: "",
+  password: "",
 };
 
 const emptyUpdateInternalUserFieldErrors =
@@ -146,9 +143,9 @@ export const userStatusIntentSchema = z.enum([
 export const updateInternalUserIntent = "update-internal-user";
 export const resetPasswordIntent = "reset-password";
 export const resetPasswordSchema = z.object({
-  temporaryPassword: requiredTextField().refine(
-    (value) => value.length >= temporaryPasswordMinLength,
-    `La contraseña temporal debe tener al menos ${temporaryPasswordMinLength} caracteres.`,
+  password: requiredTextField().refine(
+    (value) => value.length >= passwordMinLength,
+    `La contraseña debe tener al menos ${passwordMinLength} caracteres.`,
   ),
 });
 
@@ -233,7 +230,7 @@ export function readResetPasswordFormValues(
   formData: FormData,
 ): ResetPasswordFormValues {
   return {
-    temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
+    password: String(formData.get("password") ?? ""),
   };
 }
 
@@ -298,10 +295,6 @@ function getDetailState(
 ): DetailUserState {
   if (!isAcademyUser && row.suspended) {
     return "suspended";
-  }
-
-  if (!isAcademyUser && row.requiresPasswordChange) {
-    return "mandatory-password-change";
   }
 
   return "active";

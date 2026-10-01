@@ -296,10 +296,10 @@ access flows and the local test harness:
   academy identity.
 - Internal invitation tokens create or activate one internal user role:
   administration, audit or judging.
-- Internal password recovery remains an administrative reset with a temporary
-  password; internal users do not receive recovery emails.
-- Roles, academy ownership, internal usernames, suspension and mandatory
-  password-change state are app-domain data. Do not put authorization
+- Internal password recovery remains an administrative reset that sets the new
+  password outright; internal users do not receive recovery emails.
+- Roles, academy ownership, internal usernames and suspension are app-domain
+  data. Do not put authorization
   decisions in user-editable auth metadata.
 
 The following are not required for local operation or implementation:

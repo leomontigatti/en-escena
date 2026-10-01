@@ -118,10 +118,13 @@ carries it (PRD #1090):
   toasts its other answers narrows the warning one out.
 - The form keeps the values, and the answer opens a confirmation:
   `DuplicateWarningDialog` (`app/components/shared/duplicate-warning-prompt.tsx`),
-  an `AlertDialog` titled with the question (`¿Es la misma persona?`), the matches,
-  `Cancelar` back to the form, and `Continuar de todos modos`. Each new answer
+  an `AlertDialog` that reads like every other confirmation
+  ([style-guide.md § `AlertDialog` vs. `Dialog`](style-guide.md#alertdialog-vs-dialog)):
+  a title naming the save the matches interrupted (`¿Guardar el bailarín?`,
+  `¿Crear la academia?`), the matches, `Cancelar` back to the form, and
+  the title's verb with its icon (`Guardar` with `Check`). Each new answer
   reopens it, so saving again after `Cancelar` asks again. `DuplicateWarningPrompt`
-  is the form's version: the continue button and one hidden
+  is the form's version: the verb button and one hidden
   `acknowledgedDuplicateIds` input per match reach the form through the `form`
   attribute, since the dialog renders outside it. A multi-step form (the
   choreography wizard) adds the same field to the form data it rebuilds.
