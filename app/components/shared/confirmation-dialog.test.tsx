@@ -52,19 +52,19 @@ describe("ConfirmationDialog", () => {
     expect(footerLabels()).toEqual(["Cancelar", "Archivar"]);
   });
 
-  test("submits the form it names", async () => {
-    await renderDialog({ form: "archive-form" });
-
-    const button = getButton("Archivar");
-
-    expect(button.type).toBe("submit");
-    expect(button.getAttribute("form")).toBe("archive-form");
-  });
-
-  test("still posts the form it names when the parent unmounts the dialog on close", async () => {
+  // A browser drops the submission of a form that is no longer in the
+  // document, and a user's click lets React unmount the dialog before the
+  // click's default action runs. jsdom flushes later, so the assertion is the
+  // order instead: the form has submitted by the time the click has finished
+  // bubbling, not in its default action after it.
+  test("submits the form it names during the click, before the parent can unmount the dialog", async () => {
     const onSubmit = vi.fn((event: { preventDefault: () => void }) =>
       event.preventDefault(),
     );
+    const submittedWhenClickEnded: number[] = [];
+    const recordClickEnd = () => {
+      submittedWhenClickEnded.push(onSubmit.mock.calls.length);
+    };
 
     function Parent() {
       const [isOpen, setIsOpen] = useState(true);
@@ -88,8 +88,14 @@ describe("ConfirmationDialog", () => {
     }
 
     await renderer.renderAsync(<Parent />);
-    await clickReactDomButton("Archivar", { exact: true });
+    window.addEventListener("click", recordClickEnd);
+    try {
+      await clickReactDomButton("Archivar", { exact: true });
+    } finally {
+      window.removeEventListener("click", recordClickEnd);
+    }
 
+    expect(submittedWhenClickEnded).toEqual([1]);
     expect(onSubmit).toHaveBeenCalledOnce();
     expect(document.querySelector("#archive-form")).toBeNull();
   });
