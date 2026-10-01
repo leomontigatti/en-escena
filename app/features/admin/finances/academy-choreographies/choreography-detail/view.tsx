@@ -31,7 +31,7 @@ import type { loadChoreographyFinanceDetail } from "./server";
 import type { ChoreographyFinanceActionData } from "./shared";
 import {
   ChoreographyWaiverBlockedDialog,
-  type WaiverConfirmation,
+  useWaiverConfirmation,
   WaiverConfirmationDialog,
 } from "./waiver-confirmation";
 
@@ -199,9 +199,8 @@ function ChoreographyActions({
   // billable. Unmounting there would take the `recovered` state with it (#577).
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
   const waiver = readChoreographyWaiver(loaderData.inscriptions);
-  const [waiverDialog, setWaiverDialog] = useState<
-    WaiverConfirmation | "blocked" | null
-  >(null);
+  const [isWaiverBlocked, setIsWaiverBlocked] = useState(false);
+  const waiverConfirmation = useWaiverConfirmation();
   const waiverFetcher = useWaiverFetcher();
 
   return (
@@ -222,7 +221,7 @@ function ChoreographyActions({
         {waiver.allWaived ? (
           <DropdownMenuItem
             onSelect={() =>
-              setWaiverDialog({
+              waiverConfirmation.show({
                 count: waiver.active.length,
                 kind: "unwaiveChoreography",
               })
@@ -233,28 +232,32 @@ function ChoreographyActions({
         ) : (
           <DropdownMenuItem
             disabled={waiver.toWaive.length === 0}
-            onSelect={() =>
-              setWaiverDialog(
-                waiver.withMoney.length > 0
-                  ? "blocked"
-                  : { count: waiver.toWaive.length, kind: "waiveChoreography" },
-              )
-            }
+            onSelect={() => {
+              if (waiver.withMoney.length > 0) {
+                setIsWaiverBlocked(true);
+              } else {
+                waiverConfirmation.show({
+                  count: waiver.toWaive.length,
+                  kind: "waiveChoreography",
+                });
+              }
+            }}
           >
             Bonificar coreografía
           </DropdownMenuItem>
         )}
       </ResourceActionsMenu>
-      {waiverDialog === "blocked" ? (
+      {isWaiverBlocked ? (
         <ChoreographyWaiverBlockedDialog
           inscriptionsWithMoney={waiver.withMoney}
-          onClose={() => setWaiverDialog(null)}
+          onClose={() => setIsWaiverBlocked(false)}
         />
-      ) : waiverDialog ? (
+      ) : null}
+      {waiverConfirmation.state ? (
         <WaiverConfirmationDialog
-          confirmation={waiverDialog}
+          {...waiverConfirmation.state}
           fetcher={waiverFetcher}
-          onClose={() => setWaiverDialog(null)}
+          onClose={waiverConfirmation.close}
         />
       ) : null}
       {emission ? (
@@ -324,8 +327,7 @@ function InscriptionsTable({
   priceOptions: PriceOption[];
 }) {
   const [openDancerId, setOpenDancerId] = useState<string | null>(null);
-  const [waiverConfirmation, setWaiverConfirmation] =
-    useState<WaiverConfirmation | null>(null);
+  const waiverConfirmation = useWaiverConfirmation();
   const waiverFetcher = useWaiverFetcher();
   // Stable, so the columns are not rebuilt — and the rows not remounted — by a
   // re-render of the view.
@@ -369,14 +371,14 @@ function InscriptionsTable({
           waiver={{
             onUnwaive: () => {
               setOpenDancerId(null);
-              setWaiverConfirmation({
+              waiverConfirmation.show({
                 inscription: openInscription,
                 kind: "unwaiveInscription",
               });
             },
             onWaive: () => {
               setOpenDancerId(null);
-              setWaiverConfirmation({
+              waiverConfirmation.show({
                 inscription: openInscription,
                 kind: "waiveInscription",
               });
@@ -384,11 +386,11 @@ function InscriptionsTable({
           }}
         />
       ) : null}
-      {waiverConfirmation ? (
+      {waiverConfirmation.state ? (
         <WaiverConfirmationDialog
-          confirmation={waiverConfirmation}
+          {...waiverConfirmation.state}
           fetcher={waiverFetcher}
-          onClose={() => setWaiverConfirmation(null)}
+          onClose={waiverConfirmation.close}
         />
       ) : null}
     </section>

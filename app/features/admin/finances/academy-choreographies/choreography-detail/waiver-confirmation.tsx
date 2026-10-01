@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { FetcherWithComponents } from "react-router";
 
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
@@ -31,6 +32,27 @@ export type WaiverConfirmation =
 const waiverFormId = "waiver-form";
 
 /**
+ * Which confirmation is up, and whether it is open. Closing keeps it mounted:
+ * the verb closes the dialog on the very click that submits its form, and a
+ * form unmounted inside that click is one the browser no longer submits. Left
+ * mounted with `open` off, the dialog keeps its content —form included— through
+ * its exit, which is when the submission happens.
+ */
+export function useWaiverConfirmation() {
+  const [state, setState] = useState<{
+    confirmation: WaiverConfirmation;
+    open: boolean;
+  } | null>(null);
+
+  return {
+    close: () => setState((current) => current && { ...current, open: false }),
+    show: (confirmation: WaiverConfirmation) =>
+      setState({ confirmation, open: true }),
+    state,
+  };
+}
+
+/**
  * The question the `Bonificada` waiver asks before it acts (ADR-0017). Waiving
  * gives something and reverses nothing, so its verb is the default button;
  * taking the waiver off reverses one, so it is `destructive`.
@@ -42,10 +64,12 @@ export function WaiverConfirmationDialog({
   confirmation,
   fetcher,
   onClose,
+  open,
 }: {
   confirmation: WaiverConfirmation;
   fetcher: FetcherWithComponents<ChoreographyFinanceActionData>;
   onClose: () => void;
+  open: boolean;
 }) {
   const copy = waiverCopy(confirmation);
 
@@ -60,7 +84,7 @@ export function WaiverConfirmationDialog({
           onClose();
         }
       }}
-      open
+      open={open}
       title={copy.title}
     >
       <fetcher.Form id={waiverFormId} method="post">
