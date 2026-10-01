@@ -33,8 +33,8 @@ import {
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
+  deriveInscriptionFinancialFigures,
   deriveMinimumFinancialStatus,
-  deriveInscriptionFinancialStatus,
   hasUncrossedThreshold,
   type ChoreographyFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
@@ -256,6 +256,8 @@ async function readChoreographyImpacts(input: {
  * The status each inscription lands on once this payment's money is gone, and
  * how many of them fell. A withdrawn inscription is not here: it keeps its
  * money and its evidence, but it is out of the choreography's status rollup.
+ * The statuses go through the same derivation every reader uses, so a waived
+ * inscription reads `waived` and stays out of the minimum here as well.
  */
 function readChoreographyImpact(input: {
   allocatedByInscription: Map<string, number>;
@@ -268,24 +270,22 @@ function readChoreographyImpact(input: {
 > {
   let uncrossingInscriptionCount = 0;
   const statusesAfter = input.inscriptions.map((inscription) => {
-    const resolved = input.thresholds.get(inscription.id) ?? {
+    const thresholds = input.thresholds.get(inscription.id) ?? {
       depositAmount: null,
       totalAmount: null,
     };
     const allocatedAmount =
       input.allocatedByInscription.get(inscription.id) ?? 0;
-    const before = deriveInscriptionFinancialStatus({
+    const before = deriveInscriptionFinancialFigures({
       allocatedAmount,
-      depositAmount: resolved.depositAmount,
-      totalAmount: resolved.totalAmount,
-    });
-    const after = deriveInscriptionFinancialStatus({
+      thresholds,
+    }).financialStatus;
+    const after = deriveInscriptionFinancialFigures({
       allocatedAmount:
         allocatedAmount -
         (input.releasedByInscription.get(inscription.id) ?? 0),
-      depositAmount: resolved.depositAmount,
-      totalAmount: resolved.totalAmount,
-    });
+      thresholds,
+    }).financialStatus;
 
     if (hasUncrossedThreshold({ after, before })) {
       uncrossingInscriptionCount += 1;
