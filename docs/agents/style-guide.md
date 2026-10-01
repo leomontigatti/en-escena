@@ -562,16 +562,16 @@ A confirmation reads the same wherever it appears:
 - A confirmation is a shared component in `app/components/shared/`, not an
   `AlertDialog` written inline in a view: `DeleteDialog` for deletions,
   `WithdrawDialog` for withdrawals, `DiscardChangesDialog` for leaving unsaved
-  changes. A new kind of confirmation gets its own component there, and so
-  does the acknowledgment of a blocked action
-  ([Detail pages](#detail-pages)), which has no verb: its only button is
-  `Cerrar`.
+  changes. A new kind of confirmation gets its own component there. The
+  acknowledgment of a blocked action ([Detail pages](#detail-pages)) is
+  `BlockedActionDialog`, which has no verb: its only button is `Cerrar`.
 
 Both keep their default width: no `size` prop, no `max-w-*`. The one exception
 is an `AlertDialog` that carries a list, a preview or an alert, such as the
 withdrawn dancers a save names: it widens with `className="sm:max-w-lg"`, the
-`Dialog` width, so each line fits on one. `DeleteDialog` keeps the default
-even with its alert and `details`.
+`Dialog` width, so each line fits on one. `BlockedActionDialog` always does,
+blocked deletes included; a confirmable `DeleteDialog` keeps the default even
+with its alert and `details`.
 
 ## Navigation
 
@@ -641,15 +641,15 @@ instead.
     not reach touch screens.
   - **A block that is the record's normal state** (it holds money, takes part
     in the active event, has inscriptions) stays enabled, and the click opens
-    an acknowledgment instead of the action: an `AlertDialog` whose title says
-    what cannot be done (`No se puede bonificar la coreografía`), whose
-    description says what it takes, and whose `info` `Alert` lists every
-    reason, with `Cerrar` as its only button. An alert on the page would sit
+    an acknowledgment instead of the action, `BlockedActionDialog`: its title
+    says what cannot be done (`No se puede bonificar la coreografía`), its
+    description says what it takes, its `info` `Alert` lists every reason, and
+    `Cerrar` is its only button. An alert on the page would sit
     on nearly every record and stop being read.
 
-  The blocked mode of `DeleteDialog` is that acknowledgment for a deletion,
-  and also what a dialog opened straight from the URL shows when the block is
-  a rare one. The server still refuses, for the race.
+  The blocked mode of `DeleteDialog` is built on it for a deletion, and is
+  also what a dialog opened straight from the URL shows when the block is a
+  rare one. The server still refuses, for the race.
 
 - Every shared field draws the lock icon when disabled, `TextareaField`
   included. A `Switch` does not: its disabled look already reads as locked.
