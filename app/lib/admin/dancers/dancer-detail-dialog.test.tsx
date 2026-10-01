@@ -80,6 +80,22 @@ describe("DancerDetailRouteView dialogs", () => {
 
     expect(getFirstNameInput().value).toBe("Bea");
     expect(getButton("Guardar").disabled).toBe(false);
+
+    const form = getFirstNameInput().form;
+
+    if (!form) {
+      throw new Error("The first name field is not inside a form.");
+    }
+
+    expect(Object.fromEntries(new FormData(form))).toMatchObject({
+      birthDate: "2012-07-12",
+      documentBackImageStorageKey: "document-back",
+      documentFrontImageStorageKey: "document-front",
+      documentNumber: "12345678",
+      documentType: "dni",
+      firstName: "Bea",
+      lastName: "Detalle",
+    });
   });
 
   test("changing a dancer's status confirms without a correction reason field", async () => {
