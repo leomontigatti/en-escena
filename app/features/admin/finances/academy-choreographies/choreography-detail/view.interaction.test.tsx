@@ -775,6 +775,39 @@ describe("inscriptions table filters", () => {
     await applyTableFilter("Estado", "Retirada");
     expect(renderedDancerNames()).toEqual(["Carla Díaz"]);
   });
+
+  test("filters the waived inscriptions on `Bonificada`", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          element: (
+            <ChoreographyFinanceDetailView
+              loaderData={loaderDataFixture({
+                inscriptions: [
+                  ...roster,
+                  inscriptionFixture({
+                    allocatedAmount: 0,
+                    dancerId: "dancer_4",
+                    financialStatus: "waived",
+                    firstName: "Dana",
+                    inscriptionId: "inscription_4",
+                    lastName: "Suárez",
+                    owedBalanceAmount: 0,
+                  }),
+                ],
+              })}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await applyTableFilter("Estado", "Bonificada");
+    expect(renderedDancerNames()).toEqual(["Dana Suárez"]);
+  });
 });
 
 function searchInput(): HTMLInputElement {

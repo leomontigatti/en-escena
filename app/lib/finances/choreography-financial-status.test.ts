@@ -14,6 +14,7 @@ const everyStatus: InscriptionFinancialStatus[] = [
   "depositPending",
   "depositMet",
   "paidInFull",
+  "waived",
 ];
 const everyAnomaly: InscriptionAnomaly[] = ["overAllocated"];
 
@@ -41,13 +42,19 @@ describe("formatInscriptionStatusBadge", () => {
     });
   });
 
-  test("labels each of the three statuses", () => {
+  test("labels each of the four statuses", () => {
     expect(
       everyStatus.map(
         (status) =>
           formatInscriptionStatusBadge({ kind: "status", status }).label,
       ),
-    ).toEqual(["Seña pendiente", "Señada", "Pagada"]);
+    ).toEqual(["Seña pendiente", "Señada", "Pagada", "Bonificada"]);
+  });
+
+  test("paints `Bonificada` green like `Pagada`: both owe nothing", () => {
+    expect(
+      formatInscriptionStatusBadge({ kind: "status", status: "waived" }),
+    ).toMatchObject({ label: "Bonificada", variant: "success" });
   });
 });
 

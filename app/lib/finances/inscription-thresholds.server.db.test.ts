@@ -265,6 +265,86 @@ describe("a waived inscription", () => {
   });
 });
 
+describe("a choreography's status with waived inscriptions", () => {
+  /** One choreography with three inscriptions, `waived` naming which are. */
+  async function seedChoreography(waived: boolean[]) {
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academy, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Rollup",
+        email: `rollup.${crypto.randomUUID()}@example.com`,
+        choreographyName: "Rollup",
+        event,
+      });
+    const [price] = await db
+      .select({ id: prices.id })
+      .from(prices)
+      .where(eq(prices.eventId, event.id));
+    await registerPaymentForTest({
+      academyId: academy.academy.id,
+      amount: "50000",
+      eventId: event.id,
+      paymentDate: "2026-04-10",
+    });
+    const [payment] = await db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.academyId, academy.academy.id));
+
+    for (const [index, isWaived] of waived.entries()) {
+      const dancer = await createDancer(academy.academy.id, {
+        firstName: `Bailarín ${index}`,
+        lastName: "Rollup",
+      });
+      const [inscription] = await db
+        .insert(choreographyDancers)
+        .values({
+          ageAtEventStart: 14,
+          choreographyId: choreography.id,
+          dancerId: dancer.id,
+          selectedPriceId: price.id,
+          waivedAt: isWaived ? new Date("2026-04-01T12:00:00Z") : null,
+        })
+        .returning();
+
+      // Every paying inscription covers its deposit of 3000.
+      if (!isWaived) {
+        await db.insert(paymentAllocations).values({
+          academyId: academy.academy.id,
+          amount: 3000,
+          choreographyInscriptionId: inscription.id,
+          eventId: event.id,
+          paymentId: payment.id,
+        });
+      }
+    }
+
+    const detail = await readAcademyEventOperationalFinanceDetail({
+      academyId: academy.academy.id,
+      eventId: event.id,
+    });
+
+    return detail.choreographyFinanceRows.find(
+      (row) => row.id === choreography.id,
+    );
+  }
+
+  test("takes the minimum over the paying inscriptions only", async () => {
+    expect(await seedChoreography([false, false, true])).toMatchObject({
+      financialStatus: "depositMet",
+      owedDepositAmount: { amount: 0 },
+    });
+  });
+
+  test("reads `waived` when every active inscription is waived, owing nothing", async () => {
+    expect(await seedChoreography([true, true, true])).toMatchObject({
+      financialStatus: "waived",
+      owedBalanceAmount: { amount: 0 },
+      totalAmount: { amount: 0 },
+    });
+  });
+});
+
 /**
  * One `solo` inscription storing the **more expensive** of the event's two price
  * rows, with an arbitrary amount already allocated to it.

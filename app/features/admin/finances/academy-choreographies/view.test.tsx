@@ -744,6 +744,44 @@ describe("AcademyFinancesRouteView", () => {
     expect(columnValues("Nombre")).toEqual(["Tango"]);
   });
 
+  const waivedRows = () => [
+    choreographyFinanceRowFixture({
+      financialStatus: "depositMet",
+      id: "choreography_1",
+      name: "Aire",
+    }),
+    choreographyFinanceRowFixture({
+      choreographyNumber: 2,
+      financialStatus: "waived",
+      id: "choreography_2",
+      name: "Tango",
+    }),
+  ];
+
+  test("badges a choreography whose every inscription is waived `Bonificada`", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: waivedRows(),
+      }),
+    });
+
+    expect(statusBadges()).toEqual([
+      [{ text: "Señada", destructive: false }],
+      [{ text: "Bonificada", destructive: false }],
+    ]);
+  });
+
+  test("filters the list down to the waived choreographies on `Bonificada`", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?estado=waived",
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: waivedRows(),
+      }),
+    });
+
+    expect(columnValues("Nombre")).toEqual(["Tango"]);
+  });
+
   async function renderListIntoDocument(
     props: {
       initialEntry?: string;
