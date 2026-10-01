@@ -27,7 +27,9 @@ type InscriptionWaiverInput = {
   academyId: string;
   choreographyId: string;
   eventId: string;
-  inscriptionIds: string[];
+  /** One inscription, or every active inscription of the choreography. */
+  scope:
+    { inscriptionId: string; kind: "inscription" } | { kind: "choreography" };
 };
 
 export async function waiveInscriptions(
@@ -49,7 +51,7 @@ export async function waiveInscriptions(
         return {
           ok: false,
           message:
-            inscriptions.ids.length === 1
+            input.scope.kind === "inscription"
               ? "Para bonificar la inscripción, quitá primero su dinero."
               : "Para bonificar la coreografía, quitá primero el dinero de sus inscripciones.",
         };
@@ -94,8 +96,8 @@ export async function unwaiveInscriptions(
 }
 
 /**
- * The requested inscriptions, resolved against the choreography, the academy
- * and the event of the request and taken **`FOR UPDATE`**, in id order. The
+ * The inscriptions in scope, resolved against the choreography, the academy and
+ * the event of the request and taken **`FOR UPDATE`**, in id order. The
  * allocation path takes the same lock before it reads whether a row is waived,
  * so a waiver and an allocation racing for one row are serialized and the loser
  * reads what the winner wrote. A withdrawn inscription is off the roster and
@@ -118,27 +120,29 @@ async function lockActiveInscriptions(
     return { ok: false, message: choreographyNotFoundMessage };
   }
 
-  const requestedIds = [...new Set(input.inscriptionIds)];
-
-  if (requestedIds.length === 0) {
-    return { ok: false, message: "No encontramos esa inscripción." };
-  }
-
   const rows = await tx
     .select({ id: choreographyDancers.id })
     .from(choreographyDancers)
     .where(
       and(
-        inArray(choreographyDancers.id, requestedIds),
         eq(choreographyDancers.choreographyId, input.choreographyId),
         isNull(choreographyDancers.withdrawnAt),
+        input.scope.kind === "inscription"
+          ? eq(choreographyDancers.id, input.scope.inscriptionId)
+          : undefined,
       ),
     )
     .orderBy(asc(choreographyDancers.id))
     .for("update");
 
-  if (rows.length !== requestedIds.length) {
-    return { ok: false, message: "No encontramos esa inscripción." };
+  if (rows.length === 0) {
+    return {
+      ok: false,
+      message:
+        input.scope.kind === "inscription"
+          ? "No encontramos esa inscripción."
+          : "La coreografía no tiene inscripciones activas.",
+    };
   }
 
   return { ok: true, ids: rows.map((row) => row.id) };

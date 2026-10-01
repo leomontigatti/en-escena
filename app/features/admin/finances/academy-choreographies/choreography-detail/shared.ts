@@ -21,3 +21,15 @@ export function choreographyDetailUrl(
 // and a seminar inscription has no waiver.
 export const waiveInscriptionIntent = "waive-inscription";
 export const unwaiveInscriptionIntent = "unwaive-inscription";
+// The same waiver over every active inscription of the choreography.
+export const waiveChoreographyIntent = "waive-choreography";
+export const unwaiveChoreographyIntent = "unwaive-choreography";
+
+export const waiverIntents = [
+  waiveInscriptionIntent,
+  unwaiveInscriptionIntent,
+  waiveChoreographyIntent,
+  unwaiveChoreographyIntent,
+] as const;
+
+export type WaiverIntent = (typeof waiverIntents)[number];

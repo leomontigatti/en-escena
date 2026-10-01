@@ -49,8 +49,12 @@ import {
 import {
   choreographyDetailUrl,
   type ChoreographyFinanceActionData,
+  unwaiveChoreographyIntent,
   unwaiveInscriptionIntent,
+  waiveChoreographyIntent,
   waiveInscriptionIntent,
+  type WaiverIntent,
+  waiverIntents,
 } from "./shared";
 
 export async function loadChoreographyFinanceDetail(input: {
@@ -214,10 +218,7 @@ export async function handleChoreographyFinanceAction(input: {
     throw redirectToDetail(academyId, choreographyId, eventId);
   }
 
-  if (
-    intent === waiveInscriptionIntent ||
-    intent === unwaiveInscriptionIntent
-  ) {
+  if (isWaiverIntent(intent)) {
     return await runWaiverIntent({
       academyId,
       choreographyId,
@@ -311,37 +312,53 @@ async function runInscriptionMoneyIntent(input: {
   return result.ok ? null : { status: "error", message: result.message };
 }
 
+function isWaiverIntent(intent: string): intent is WaiverIntent {
+  return (waiverIntents as readonly string[]).includes(intent);
+}
+
+const waiverSuccessMessages = {
+  [waiveInscriptionIntent]: "Inscripción bonificada.",
+  [unwaiveInscriptionIntent]: "Bonificación quitada.",
+  [waiveChoreographyIntent]: "Coreografía bonificada.",
+  [unwaiveChoreographyIntent]: "Bonificación quitada.",
+} satisfies Record<WaiverIntent, string>;
+
 /**
- * The `Bonificada` waiver of one inscription. It stays on the page
- * (form-feedback matrix): the loader revalidates, and the outcome travels back
- * as a toast.
+ * The `Bonificada` waiver, of one inscription or of the whole choreography. It
+ * stays on the page (form-feedback matrix): the loader revalidates, and the
+ * outcome travels back as a toast.
  */
 async function runWaiverIntent(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;
   formData: FormData;
-  intent: typeof waiveInscriptionIntent | typeof unwaiveInscriptionIntent;
+  intent: WaiverIntent;
 }): Promise<ChoreographyFinanceActionData> {
   const waiver = {
     academyId: input.academyId,
     choreographyId: input.choreographyId,
     eventId: input.eventId,
-    inscriptionIds: [String(input.formData.get("inscriptionId") ?? "").trim()],
+    scope:
+      input.intent === waiveInscriptionIntent ||
+      input.intent === unwaiveInscriptionIntent
+        ? {
+            inscriptionId: String(
+              input.formData.get("inscriptionId") ?? "",
+            ).trim(),
+            kind: "inscription" as const,
+          }
+        : { kind: "choreography" as const },
   };
-  const waiving = input.intent === waiveInscriptionIntent;
-  const result = waiving
-    ? await waiveInscriptions(waiver)
-    : await unwaiveInscriptions(waiver);
+  const result =
+    input.intent === waiveInscriptionIntent ||
+    input.intent === waiveChoreographyIntent
+      ? await waiveInscriptions(waiver)
+      : await unwaiveInscriptions(waiver);
 
-  if (!result.ok) {
-    return { status: "error", message: result.message };
-  }
-
-  return {
-    status: "success",
-    message: waiving ? "Inscripción bonificada." : "Bonificación quitada.",
-  };
+  return result.ok
+    ? { status: "success", message: waiverSuccessMessages[input.intent] }
+    : { status: "error", message: result.message };
 }
 
 function redirectToDetail(

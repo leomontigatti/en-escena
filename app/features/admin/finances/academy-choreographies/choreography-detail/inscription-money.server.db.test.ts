@@ -766,3 +766,96 @@ describe("waiving an inscription through the route action", () => {
     expect(inscription?.waivedAt).toBeNull();
   });
 });
+
+describe("waiving a whole choreography through the route action", () => {
+  /** A second dancer on the same choreography, with nothing allocated. */
+  async function addInscription(
+    fixture: Awaited<ReturnType<typeof seedInscription>>,
+  ) {
+    const dancer = await createDancer(fixture.academyId, {
+      firstName: "Bea",
+      lastName: "Lagos",
+    });
+    const [inscription] = await db
+      .insert(choreographyDancers)
+      .values({
+        ageAtEventStart: 14,
+        choreographyId: fixture.choreographyId,
+        dancerId: dancer.id,
+      })
+      .returning();
+
+    return inscription.id;
+  }
+
+  async function post(
+    fixture: Awaited<ReturnType<typeof seedInscription>>,
+    intent: "waive-choreography" | "unwaive-choreography",
+  ) {
+    return await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: { intent },
+    });
+  }
+
+  test("waives every active inscription and reads the choreography `Bonificada`", async () => {
+    const fixture = await seedInscription();
+    await addInscription(fixture);
+
+    expect(await post(fixture, "waive-choreography")).toMatchObject({
+      status: "success",
+      message: "Coreografía bonificada.",
+    });
+
+    const detail = await loadDetail(fixture);
+    expect(
+      detail.inscriptions.map((inscription) => inscription.financialStatus),
+    ).toEqual(["waived", "waived"]);
+    expect(detail.choreography).toMatchObject({ financialStatus: "waived" });
+  });
+
+  test("waives none while any inscription holds money", async () => {
+    const fixture = await seedInscription();
+    await addInscription(fixture);
+    await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: fixture.priceId,
+        amount: "2000",
+      },
+    });
+
+    expect(await post(fixture, "waive-choreography")).toMatchObject({
+      status: "error",
+      message:
+        "Para bonificar la coreografía, quitá primero el dinero de sus inscripciones.",
+    });
+    expect(
+      (await loadDetail(fixture)).inscriptions.map(
+        (inscription) => inscription.financialStatus,
+      ),
+    ).not.toContain("waived");
+  });
+
+  test("takes the waiver off every inscription", async () => {
+    const fixture = await seedInscription();
+    await addInscription(fixture);
+    await post(fixture, "waive-choreography");
+
+    expect(await post(fixture, "unwaive-choreography")).toMatchObject({
+      status: "success",
+      message: "Bonificación quitada.",
+    });
+    expect(
+      (await loadDetail(fixture)).inscriptions.map(
+        (inscription) => inscription.financialStatus,
+      ),
+    ).toEqual(["depositPending", "depositPending"]);
+  });
+});

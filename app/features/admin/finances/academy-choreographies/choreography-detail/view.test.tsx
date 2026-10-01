@@ -517,6 +517,117 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
   });
 });
 
+describe("ChoreographyFinanceDetailView whole-choreography waiver", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  const paying = inscriptionFixture({
+    allocatedAmount: 10000,
+    dancerId: "dancer_1",
+    firstName: "Bea",
+    inscriptionId: "inscription_1",
+    lastName: "Lagos",
+  });
+  const empty = inscriptionFixture({
+    allocatedAmount: 0,
+    dancerId: "dancer_2",
+    financialStatus: "depositPending",
+    firstName: "Eva",
+    inscriptionId: "inscription_2",
+    lastName: "Molina",
+  });
+  const waived = (row: InscriptionRow) => ({
+    ...row,
+    allocatedAmount: 0,
+    financialStatus: "waived" as const,
+  });
+
+  async function mount(inscriptions: InscriptionRow[]) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          element: (
+            <ChoreographyFinanceDetailView
+              loaderData={loaderDataFixture({ inscriptions })}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+
+  function alertDialogButtons() {
+    return [...document.querySelectorAll('[role="alertdialog"] button')].map(
+      (button) => button.textContent?.trim(),
+    );
+  }
+
+  test("explains, instead of acting, which inscriptions hold money", async () => {
+    await mount([paying, empty]);
+
+    await openActionsMenu();
+    await clickMenuItem("Bonificar coreografía");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+    expect(dialog?.textContent).toContain(
+      "No se puede bonificar la coreografía",
+    );
+    expect(dialog?.textContent).toContain(
+      "Bea Lagos tiene $ 10.000 asignados.",
+    );
+    expect(dialog?.textContent).not.toContain("Eva Molina");
+    expect(alertDialogButtons()).toEqual(["Cerrar"]);
+  });
+
+  test("asks before waiving every inscription, naming how many", async () => {
+    await mount([{ ...paying, allocatedAmount: 0 }, empty]);
+
+    await openActionsMenu();
+    await clickMenuItem("Bonificar coreografía");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+    expect(dialog?.textContent).toContain("¿Bonificar la coreografía?");
+    expect(dialog?.textContent).toContain(
+      "Sus 2 inscripciones pasan a ser gratis: no adeudan nada y participan igual que las demás.",
+    );
+    expect(alertDialogButtons()).toEqual(["Cancelar", "Bonificar"]);
+  });
+
+  test("offers to take the waiver off once every inscription is waived", async () => {
+    await mount([waived(paying), waived(empty)]);
+
+    await openActionsMenu();
+    const labels = [...document.querySelectorAll('[role="menuitem"]')].map(
+      (item) => item.textContent?.trim(),
+    );
+    expect(labels).toContain("Quitar bonificación");
+    expect(labels).not.toContain("Bonificar coreografía");
+
+    await clickMenuItem("Quitar bonificación");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+    expect(dialog?.textContent).toContain(
+      "¿Quitar la bonificación de la coreografía?",
+    );
+    expect(dialog?.textContent).toContain(
+      "Sus 2 inscripciones vuelven al precio que les corresponde y quedan con la seña pendiente. Si ya tiene número de presentación, lo conserva.",
+    );
+    expect(alertDialogButtons()).toEqual(["Cancelar", "Quitar"]);
+  });
+
+  test("shows no standing alert about the waiver", async () => {
+    await mount([paying, empty]);
+
+    expect(document.body.textContent).not.toContain("bonificar");
+    expect(document.body.textContent).not.toContain("Coreografía bonificada");
+  });
+});
+
 async function clickMenuItem(label: string) {
   const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
     (candidate) => candidate.textContent?.includes(label),
