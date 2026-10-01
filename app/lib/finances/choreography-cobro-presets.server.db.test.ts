@@ -340,6 +340,40 @@ describe("payChoreographiesPreset", () => {
     expect(row.selectedPriceId).toBe(cheaper.id);
   });
 
+  test("neither re-prices nor funds a waived inscription", async () => {
+    const fixture = await seedPresetFixture([20000]);
+    const [cheaper] = await insertTestPrices([
+      {
+        amount: 8000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo temprano",
+        paymentDeadline: "2026-02-28",
+      },
+    ]);
+    const [inscriptionId] = fixture.inscriptionIds;
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: fixture.priceId, waivedAt: new Date() })
+      .where(eq(choreographyDancers.id, inscriptionId));
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: fixture.choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: cheaper.id },
+      stage: "deposit",
+    });
+
+    expect(result.ok).toBe(true);
+    const [row] = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, inscriptionId));
+    expect(row.selectedPriceId).toBe(fixture.priceId);
+    expect(await readAllocations([inscriptionId])).toEqual([]);
+  });
+
   test("keeps the price of an inscription that already covers its deposit", async () => {
     const fixture = await seedPresetFixture([20000]);
     const [cheaper] = await insertTestPrices([

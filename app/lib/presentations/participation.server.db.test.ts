@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { presentations } from "@/db/schema";
+import { choreographyDancers, presentations } from "@/db/schema";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import {
   createChoreographyRecord,
@@ -65,13 +65,15 @@ async function seedEvent() {
 
   /**
    * One choreography with one dancer, `Señada` unless the caller keeps the
-   * money off it.
+   * money off it. `waived` keeps the money off and waives the inscription, so
+   * the choreography reads `Bonificada`.
    */
   const addChoreography = async (input: {
     belowDeposit?: boolean;
     experienceLevelId?: ExperienceLevel | null;
     name: string;
     orderNumber?: number;
+    waived?: boolean;
   }) => {
     const choreography = await createChoreographyRecord({
       academyId: academy.academy.id,
@@ -89,11 +91,16 @@ async function seedEvent() {
 
     await createSelectedPriceInscriptionForTest({
       academyId: academy.academy.id,
-      allocatedAmount: input.belowDeposit ? undefined : paidInFullAmount,
+      allocatedAmount:
+        input.belowDeposit || input.waived ? undefined : paidInFullAmount,
       choreographyId: choreography.id,
       dancerId: dancer.id,
       eventId: event.id,
     });
+
+    if (input.waived) {
+      await setWaived(choreography.id, true);
+    }
 
     if (input.orderNumber !== undefined) {
       await db.insert(presentations).values({
@@ -107,6 +114,13 @@ async function seedEvent() {
   };
 
   return { academy, addChoreography, catalog, event };
+}
+
+async function setWaived(choreographyId: string, waived: boolean) {
+  await db
+    .update(choreographyDancers)
+    .set({ waivedAt: waived ? new Date("2026-04-01T12:00:00Z") : null })
+    .where(eq(choreographyDancers.choreographyId, choreographyId));
 }
 
 async function readOrder(eventId: string) {
@@ -318,6 +332,52 @@ describe("runAutomaticOrdering", () => {
       reason: "nothingToOrder",
     });
     expect(await readOrder(event.id)).toEqual([]);
+  });
+});
+
+describe("a waived choreography (`Bonificada`)", () => {
+  test("gets a number in the automatic ordering with no money on it", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const waived = await addChoreography({ name: "Bonificada", waived: true });
+
+    const result = await runAutomaticOrdering(event.id);
+
+    expect(result).toEqual({ ok: true, frozenCount: 0, orderedCount: 1 });
+    expect(await readOrder(event.id)).toEqual([
+      expect.objectContaining({ choreographyId: waived.id, orderNumber: 1 }),
+    ]);
+  });
+
+  test("can be placed by hand as a late row", async () => {
+    const { addChoreography, event } = await seedEvent();
+    await addChoreography({ name: "Primera", orderNumber: 1 });
+    const late = await addChoreography({ name: "Tardía", waived: true });
+
+    const result = await movePresentation({
+      choreographyId: late.id,
+      eventId: event.id,
+      fromOrderNumber: null,
+      toOrderNumber: 2,
+    });
+
+    expect(result).toEqual({ ok: true, movedToOrderNumber: 2 });
+  });
+
+  test("keeps its number once the waiver is taken off", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const waived = await addChoreography({ name: "Bonificada", waived: true });
+    await runAutomaticOrdering(event.id);
+
+    await setWaived(waived.id, false);
+
+    const rows = await readParticipationRows(event.id);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        choreographyId: waived.id,
+        financialStatus: "depositPending",
+        orderNumber: 1,
+      }),
+    ]);
   });
 });
 

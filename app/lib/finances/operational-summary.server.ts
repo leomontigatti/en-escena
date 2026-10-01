@@ -24,8 +24,7 @@ import {
   buildOperationalFinanceSummaryFromRows,
   type ChoreographyGroupType,
   type ChoreographyOperationalFinanceRow,
-  computeDancerDiscountAmounts,
-  type DancerDiscount,
+  computeRosterDancerDiscounts,
   type FinanceChoreographyRow,
   type FinancePriceRow,
   type ResolvedInscription,
@@ -43,6 +42,7 @@ type InscriptionRow = {
   choreographyId: string;
   dancerId: string;
   selectedPriceId: string | null;
+  waivedAt: Date | null;
   withdrawnAt: Date | null;
 };
 
@@ -218,6 +218,7 @@ async function readAcademyEventFinance(input: {
             choreographyId: choreographyDancers.choreographyId,
             dancerId: choreographyDancers.dancerId,
             selectedPriceId: choreographyDancers.selectedPriceId,
+            waivedAt: choreographyDancers.waivedAt,
             withdrawnAt: choreographyDancers.withdrawnAt,
           })
           // No `activeInscription()` here, and not because of a display
@@ -315,8 +316,8 @@ async function readAcademyEventFinance(input: {
     ]),
   );
 
-  const dancerDiscounts = buildDancerDiscounts({
-    inscriptionRows,
+  const dancerDiscounts = computeRosterDancerDiscounts({
+    inscriptions: inscriptionRows,
     priceAmountByInscription,
   });
 
@@ -341,6 +342,7 @@ async function readAcademyEventFinance(input: {
             priceAmount === null
               ? null
               : calculateTotalAmount({ dancerDiscountAmount, priceAmount }),
+          waived: inscription.waivedAt !== null,
         },
       });
 
@@ -390,55 +392,6 @@ async function readAcademyEventFinance(input: {
     paidByAcademy,
     seminarFinanceRowsByAcademy: seminarFinance,
   };
-}
-
-/**
- * The `Descuento por bailarín` qualifies over the **live roster**: every
- * inscription of the dancer with a resolvable price counts. It cannot depend on
- * the financial state, which is derived from the total, which already contains
- * this discount.
- *
- * Live roster means without the withdrawn ones: an inscription that was taken
- * off the roster cannot keep making its siblings cheaper.
- */
-function buildDancerDiscounts(input: {
-  inscriptionRows: InscriptionRow[];
-  priceAmountByInscription: Map<string, number | null>;
-}): Map<string, DancerDiscount> {
-  const qualifyingByDancer = new Map<
-    string,
-    Array<{ id: string; priceAmount: number }>
-  >();
-
-  for (const inscription of input.inscriptionRows) {
-    const priceAmount = input.priceAmountByInscription.get(inscription.id);
-
-    if (
-      inscription.withdrawnAt !== null ||
-      priceAmount === null ||
-      priceAmount === undefined
-    ) {
-      continue;
-    }
-
-    const bucket = qualifyingByDancer.get(inscription.dancerId);
-    const entry = { id: inscription.id, priceAmount };
-
-    if (bucket) {
-      bucket.push(entry);
-    } else {
-      qualifyingByDancer.set(inscription.dancerId, [entry]);
-    }
-  }
-
-  const discounts = new Map<string, DancerDiscount>();
-  for (const group of qualifyingByDancer.values()) {
-    for (const [id, discount] of computeDancerDiscountAmounts(group)) {
-      discounts.set(id, discount);
-    }
-  }
-
-  return discounts;
 }
 
 /**

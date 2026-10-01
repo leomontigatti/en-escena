@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import { TriangleAlert } from "lucide-react";
 import { Form } from "react-router";
 
 import { DestroyButton } from "@/components/shared/action-buttons";
+import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
 import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -57,6 +56,10 @@ function DeleteDialog({ isBlocked = false, ...props }: DeleteDialogProps) {
   );
 }
 
+/**
+ * The blocked delete is the shared acknowledgment, with the delete's details
+ * kept below the reasons in the same scrolling region the confirmable one uses.
+ */
 function BlockedDeleteDialog({
   blockedDescription,
   blockedTitle = "No se puede eliminar",
@@ -74,24 +77,20 @@ function BlockedDeleteDialog({
   | "onOpenChange"
 >) {
   return (
-    <DeleteDialogShell
-      alert={
-        <Alert variant="warning">
-          <TriangleAlert aria-hidden="true" />
-          <AlertTitle>Acción no disponible</AlertTitle>
-          <AlertDescription>
-            {blockedDescription ??
-              "Esta acción no está disponible para este registro."}
-          </AlertDescription>
-        </Alert>
-      }
-      cancelLabel="Cerrar"
+    <BlockedActionDialog
+      className={deleteDialogContentClassName(details)}
       description={description}
-      details={details}
       onOpenChange={onOpenChange}
       open={open}
+      reasons={
+        blockedDescription ??
+        "Esta acción no está disponible para este registro."
+      }
+      reasonsTitle="Acción no disponible"
       title={blockedTitle}
-    />
+    >
+      {details ? <DeleteDialogDetails details={details} /> : null}
+    </BlockedActionDialog>
   );
 }
 
@@ -132,7 +131,6 @@ function ConfirmDeleteDialog({
         </Form>
       }
       alert={<IrreversibleActionAlert />}
-      cancelLabel="Cancelar"
       description={description}
       details={details}
       isPending={isPending}
@@ -146,7 +144,6 @@ function ConfirmDeleteDialog({
 function DeleteDialogShell({
   action,
   alert,
-  cancelLabel,
   description,
   details,
   isPending = false,
@@ -154,9 +151,8 @@ function DeleteDialogShell({
   open,
   title,
 }: {
-  action?: ReactNode;
+  action: ReactNode;
   alert: ReactNode;
-  cancelLabel: string;
   description: ReactNode;
   details?: ReactNode;
   isPending?: boolean;
@@ -166,39 +162,45 @@ function DeleteDialogShell({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
-        // The dialog itself is bounded to the viewport, so the footer can never
-        // be pushed off screen — not even on a phone in landscape, where the
-        // chrome alone eats most of the height. Within that bound the details
-        // are the flexible row, because they are the only part that grows with
-        // the record: a payment can reach dozens of choreographies (#708).
-        className={cn(
-          "max-h-[calc(100dvh-2rem)]",
-          details ? "grid-rows-[auto_auto_1fr_auto]" : undefined,
-        )}
-      >
+      <AlertDialogContent className={deleteDialogContentClassName(details)}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         {alert}
-        {details ? (
-          <div
-            data-slot="delete-dialog-details"
-            className="min-h-0 overflow-y-auto overscroll-contain"
-          >
-            {details}
-          </div>
-        ) : null}
+        <DeleteDialogDetails details={details} />
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>
-            {cancelLabel}
-          </AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           {action}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
+}
+
+/**
+ * Both modes are bounded to the viewport, so the footer can never be pushed off
+ * screen — not even on a phone in landscape, where the chrome alone eats most
+ * of the height. Within that bound the details are the flexible row, because
+ * they are the only part that grows with the record: a payment can reach dozens
+ * of choreographies (#708).
+ */
+function deleteDialogContentClassName(details: ReactNode) {
+  return cn(
+    "max-h-[calc(100dvh-2rem)]",
+    details ? "grid-rows-[auto_auto_1fr_auto]" : undefined,
+  );
+}
+
+function DeleteDialogDetails({ details }: { details: ReactNode }) {
+  return details ? (
+    <div
+      data-slot="delete-dialog-details"
+      className="min-h-0 overflow-y-auto overscroll-contain"
+    >
+      {details}
+    </div>
+  ) : null;
 }
 
 export { DeleteDialog };

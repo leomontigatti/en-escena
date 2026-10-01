@@ -553,6 +553,172 @@ describe("DancerNameCell interaction", () => {
   }
 });
 
+describe("waiving an inscription from its money dialog", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  const emptyRow = inscriptionFixture({
+    allocatedAmount: 0,
+    financialStatus: "depositPending",
+    owedBalanceAmount: 10000,
+    owedDepositAmount: 3000,
+  });
+  const waivedRow = inscriptionFixture({
+    allocatedAmount: 0,
+    depositAmount: 0,
+    financialStatus: "waived",
+    owedBalanceAmount: 0,
+    owedDepositAmount: 0,
+    totalAmount: 0,
+  });
+
+  async function mount(
+    inscriptions: InscriptionRow[],
+    action: (formData: FormData) => unknown = () => null,
+  ) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          action: async ({ request }) => action(await request.formData()),
+          loader: () => loaderDataFixture({ inscriptions }),
+          Component: function Route() {
+            return (
+              <ChoreographyFinanceDetailView
+                loaderData={
+                  useLoaderData() as ChoreographyFinanceDetailLoaderData
+                }
+              />
+            );
+          },
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+
+  function button(label: string) {
+    return (
+      [...document.querySelectorAll("button")].find(
+        (candidate) => candidate.textContent?.trim() === label,
+      ) ?? null
+    );
+  }
+
+  function confirmationText() {
+    return document.querySelector('[role="alertdialog"]')?.textContent ?? "";
+  }
+
+  test("disables Bonificar while the inscription holds money, saying how much and how to clear it", async () => {
+    await mount([inscriptionFixture()]);
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(dialogText()).toContain("Para bonificarla, quitá su dinero");
+    expect(dialogText()).toContain("Tiene $ 3.000 asignados.");
+    expect(button("Bonificar")?.disabled).toBe(true);
+    expect(button("Quitar dinero")?.disabled).toBe(false);
+  });
+
+  // Review regression: a fully paid row opens straight on removal, and the
+  // waiver was missing from that shape.
+  test("tells a fully paid row how to become waivable from its removal shape", async () => {
+    await mount([
+      inscriptionFixture({
+        allocatedAmount: 10000,
+        financialStatus: "paidInFull",
+        owedBalanceAmount: 0,
+      }),
+    ]);
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(dialogText()).toContain(removeDescription);
+    expect(dialogText()).toContain("Tiene $ 10.000 asignados.");
+    expect(button("Bonificar")?.disabled).toBe(true);
+  });
+
+  // Review regression: a withdrawn row was offered a waiver the server refuses.
+  test("offers no waiver on a withdrawn inscription", async () => {
+    await mount([{ ...emptyRow, withdrawn: true }]);
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(button("Bonificar")).toBeNull();
+    expect(dialogText()).not.toContain("bonificar");
+  });
+
+  test("asks before waiving an inscription with no money, and posts the waiver", async () => {
+    const posted: FormData[] = [];
+    await mount([emptyRow], (formData) => {
+      posted.push(formData);
+      return { status: "success", message: "Inscripción bonificada." };
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    expect(dialogText()).not.toContain("Para bonificarla");
+    await clickReactDomButton("Bonificar", { exact: true });
+
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+    expect(confirmationText()).toContain("¿Bonificar la inscripción?");
+    expect(confirmationText()).toContain(
+      "La inscripción de Bruno Benítez pasa a ser gratis: no adeuda nada y participa igual que las demás.",
+    );
+
+    await clickReactDomButton("Bonificar", { exact: true });
+
+    expect(posted.map((formData) => formData.get("intent"))).toEqual([
+      "waive-inscription",
+    ]);
+    expect(posted[0]?.get("inscriptionId")).toBe("inscription_orphan");
+  });
+
+  test("opens a waived inscription on its waiver, with no money fields", async () => {
+    await mount([waivedRow]);
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(dialogText()).toContain("Inscripción bonificada: no adeuda nada.");
+    expect(dialogText()).toContain(
+      "No se le puede asignar dinero. Para cobrarla, quitá la bonificación.",
+    );
+    expect(document.querySelector("input#inscription-amount")).toBeNull();
+    expect(
+      [
+        ...document.querySelectorAll(
+          '[data-slot="dialog-content"] button:not([data-slot="dialog-close"])',
+        ),
+      ].map((candidate) => candidate.textContent?.trim()),
+    ).toEqual(["Quitar bonificación", "Cerrar"]);
+  });
+
+  test("asks before removing the waiver, as a destructive Quitar", async () => {
+    const posted: FormData[] = [];
+    await mount([waivedRow], (formData) => {
+      posted.push(formData);
+      return { status: "success", message: "Bonificación quitada." };
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await clickReactDomButton("Quitar bonificación");
+
+    expect(confirmationText()).toContain("¿Quitar la bonificación?");
+    expect(confirmationText()).toContain(
+      "La inscripción de Bruno Benítez vuelve al precio que le corresponde y queda con la seña pendiente. Si la coreografía ya tiene número de presentación, lo conserva.",
+    );
+    expect(button("Quitar")?.dataset.variant).toBe("destructive");
+
+    await clickReactDomButton("Quitar", { exact: true });
+
+    expect(posted.map((formData) => formData.get("intent"))).toEqual([
+      "unwaive-inscription",
+    ]);
+  });
+});
+
 describe("inscriptions table filters", () => {
   const renderer = createReactDomTestRenderer();
 
@@ -628,6 +794,39 @@ describe("inscriptions table filters", () => {
 
     await applyTableFilter("Estado", "Retirada");
     expect(renderedDancerNames()).toEqual(["Carla Díaz"]);
+  });
+
+  test("filters the waived inscriptions on `Bonificada`", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          element: (
+            <ChoreographyFinanceDetailView
+              loaderData={loaderDataFixture({
+                inscriptions: [
+                  ...roster,
+                  inscriptionFixture({
+                    allocatedAmount: 0,
+                    dancerId: "dancer_4",
+                    financialStatus: "waived",
+                    firstName: "Dana",
+                    inscriptionId: "inscription_4",
+                    lastName: "Suárez",
+                    owedBalanceAmount: 0,
+                  }),
+                ],
+              })}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await applyTableFilter("Estado", "Bonificada");
+    expect(renderedDancerNames()).toEqual(["Dana Suárez"]);
   });
 });
 

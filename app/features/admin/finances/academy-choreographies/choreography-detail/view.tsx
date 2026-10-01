@@ -1,5 +1,6 @@
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -13,7 +14,10 @@ import {
 } from "@/components/shared/data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatDancerName } from "@/lib/finances/formatters";
 
@@ -24,7 +28,15 @@ import {
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
+import { useServerActionToast } from "@/lib/shared/toasts";
+
 import type { loadChoreographyFinanceDetail } from "./server";
+import type { ChoreographyFinanceActionData } from "./shared";
+import {
+  ChoreographyWaiverBlockedDialog,
+  useWaiverConfirmation,
+  WaiverConfirmationDialog,
+} from "./waiver-confirmation";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadChoreographyFinanceDetail>
@@ -172,6 +184,12 @@ function OverAllocatedAlert() {
  * The menu is always there, and with nothing left to bill what gets disabled is
  * the option: a button that comes and goes does not teach what can be done in the
  * view, and "it is there but it cannot be used" says more than "it is not there".
+ *
+ * `Bonificar coreografía` (ADR-0017) is the exception to that disabling: money
+ * on an inscription is the normal state of a paid choreography, so the item
+ * stays enabled and the click explains what blocks it, with no standing alert
+ * on the page (style guide, Detail pages). Once every inscription is waived it
+ * becomes `Quitar bonificación`.
  */
 function ChoreographyActions({
   loaderData,
@@ -183,10 +201,14 @@ function ChoreographyActions({
   // persists the comprobante and revalidates the detail, which stops being
   // billable. Unmounting there would take the `recovered` state with it (#577).
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
+  const waiver = readChoreographyWaiver(loaderData.inscriptions);
+  const [isWaiverBlocked, setIsWaiverBlocked] = useState(false);
+  const waiverConfirmation = useWaiverConfirmation();
+  const waiverFetcher = useWaiverFetcher();
 
   return (
     <>
-      <ResourceActionsMenu contentClassName="w-48">
+      <ResourceActionsMenu contentClassName="w-56">
         <DropdownMenuItem
           disabled={!canEmit || !invoicing}
           onSelect={(event) => {
@@ -199,7 +221,53 @@ function ChoreographyActions({
         >
           Emitir factura
         </DropdownMenuItem>
+        {waiver.allWaived ? (
+          <>
+            {/* It reverses the waiver: destructive, so last and apart. */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() =>
+                waiverConfirmation.show({
+                  count: waiver.active.length,
+                  kind: "unwaiveChoreography",
+                })
+              }
+            >
+              Quitar bonificación
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <DropdownMenuItem
+            disabled={waiver.toWaive.length === 0}
+            onSelect={() => {
+              if (waiver.withMoney.length > 0) {
+                setIsWaiverBlocked(true);
+              } else {
+                waiverConfirmation.show({
+                  count: waiver.toWaive.length,
+                  kind: "waiveChoreography",
+                });
+              }
+            }}
+          >
+            Bonificar coreografía
+          </DropdownMenuItem>
+        )}
       </ResourceActionsMenu>
+      {isWaiverBlocked ? (
+        <ChoreographyWaiverBlockedDialog
+          inscriptionsWithMoney={waiver.withMoney}
+          onClose={() => setIsWaiverBlocked(false)}
+        />
+      ) : null}
+      {waiverConfirmation.state ? (
+        <WaiverConfirmationDialog
+          {...waiverConfirmation.state}
+          fetcher={waiverFetcher}
+          onClose={waiverConfirmation.close}
+        />
+      ) : null}
       {emission ? (
         <EmissionDialog
           billableAmount={emission.billableAmount}
@@ -209,6 +277,45 @@ function ChoreographyActions({
       ) : null}
     </>
   );
+}
+
+/**
+ * Where the whole-choreography waiver stands, over the inscriptions on the
+ * roster (withdrawn ones are off it). `Bonificar coreografía` is all or
+ * nothing: any money on a paying inscription blocks it.
+ */
+function readChoreographyWaiver(inscriptions: InscriptionRow[]) {
+  const active = inscriptions.filter(
+    (inscription) =>
+      inscription.inscriptionId !== null && !inscription.withdrawn,
+  );
+  const toWaive = active.filter(
+    (inscription) => inscription.financialStatus !== "waived",
+  );
+
+  return {
+    active,
+    allWaived: active.length > 0 && toWaive.length === 0,
+    toWaive,
+    withMoney: toWaive.filter((inscription) => inscription.allocatedAmount > 0),
+  };
+}
+
+/**
+ * The fetcher a waiver confirmation submits through. It belongs to the
+ * component that opens the confirmation and not to the confirmation, which
+ * closes on the click: the answer comes back to something still mounted to
+ * toast it.
+ */
+function useWaiverFetcher() {
+  const fetcher = useFetcher<ChoreographyFinanceActionData>();
+  useServerActionToast(
+    fetcher.data?.status === "success" || fetcher.data?.status === "error"
+      ? fetcher.data
+      : null,
+  );
+
+  return fetcher;
 }
 
 /**
@@ -228,6 +335,8 @@ function InscriptionsTable({
   priceOptions: PriceOption[];
 }) {
   const [openDancerId, setOpenDancerId] = useState<string | null>(null);
+  const waiverConfirmation = useWaiverConfirmation();
+  const waiverFetcher = useWaiverFetcher();
   // Stable, so the columns are not rebuilt — and the rows not remounted — by a
   // re-render of the view.
   const openMoneyDialog = useCallback((dancerId: string) => {
@@ -267,6 +376,35 @@ function InscriptionsTable({
           onOpenChange={closeMoneyDialog}
           priceOptions={priceOptions}
           targetKind="choreography"
+          // A withdrawn inscription is off the roster and cannot be waived,
+          // so its dialog offers no waiver at all.
+          waiver={
+            openInscription.withdrawn
+              ? null
+              : {
+                  onUnwaive: () => {
+                    setOpenDancerId(null);
+                    waiverConfirmation.show({
+                      inscription: openInscription,
+                      kind: "unwaiveInscription",
+                    });
+                  },
+                  onWaive: () => {
+                    setOpenDancerId(null);
+                    waiverConfirmation.show({
+                      inscription: openInscription,
+                      kind: "waiveInscription",
+                    });
+                  },
+                }
+          }
+        />
+      ) : null}
+      {waiverConfirmation.state ? (
+        <WaiverConfirmationDialog
+          {...waiverConfirmation.state}
+          fetcher={waiverFetcher}
+          onClose={waiverConfirmation.close}
         />
       ) : null}
     </section>

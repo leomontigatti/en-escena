@@ -156,6 +156,13 @@ export const choreographyDancers = createTable(
       mode: "date",
       withTimezone: true,
     }),
+    // `Bonificada` (ADR-0017): when administration granted the inscription for
+    // free. A yes/no fact like `withdrawnAt`, not a money figure: it zeroes both
+    // thresholds on read, and nothing can be allocated to it while it is set.
+    waivedAt: timestamp("waived_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
   },
   (table) => [
     foreignKey({

@@ -267,6 +267,13 @@
       "when": 1790799860947,
       "tag": "0037_drop_requires_password_change",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790870535397,
+      "tag": "0038_waived_inscription",
+      "breakpoints": true
     }
   ]
 }

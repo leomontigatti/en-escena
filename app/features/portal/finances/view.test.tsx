@@ -266,6 +266,31 @@ describe("PortalAcademyFinancesRouteView", () => {
     expect(columnValues("Nombre")).toEqual(["Tango"]);
   });
 
+  test("shows a waived choreography `Bonificada` to the academy, and filters by it", async () => {
+    await renderPortalFinances(
+      renderer,
+      portalFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            financialStatus: "depositMet",
+            id: "choreography_1",
+            name: "Aire",
+          }),
+          choreographyFinanceRowFixture({
+            choreographyNumber: 2,
+            financialStatus: "waived",
+            id: "choreography_2",
+            name: "Tango",
+          }),
+        ],
+      }),
+      "/portal/finanzas?estado=waived",
+    );
+
+    expect(columnValues("Nombre")).toEqual(["Tango"]);
+    expect(columnValues("Estado")).toEqual(["Bonificada"]);
+  });
+
   test("shows the empty state when there is no active event", async () => {
     await renderPortalFinances(renderer, {
       activeEvent: null,

@@ -14,6 +14,7 @@ import {
   calculateTotalAmount,
   deriveInscriptionFinancialFigures,
   hasCrossedDepositThreshold,
+  type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 import {
   buildOperationalFinanceAmount,
@@ -34,6 +35,9 @@ export type PresetInscription = {
   choreographyId: string;
   dancerDiscountAmount: number;
   depositAmount: number | null;
+  // Required, so a loader that drops it fails to typecheck: without it a
+  // waived inscription would be re-priced in the projection.
+  financialStatus: InscriptionFinancialStatus;
   id: string;
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
@@ -171,12 +175,14 @@ export function hasRePriceableInscription(
 
 /**
  * Whether a pick reaches an inscription at all, which is the writer's own rule:
- * off the roster it is not touched, and once its deposit is covered its price is
- * fixed — money on the row does not fix it, only the crossing does.
+ * off the roster it is not touched, a waived one owes nothing whatever its
+ * price, and once its deposit is covered its price is fixed — money on the row
+ * does not fix it, only the crossing does.
  */
 function canBeRePriced(inscription: PresetInscription): boolean {
   return (
     !inscription.withdrawn &&
+    inscription.financialStatus !== "waived" &&
     !hasCrossedDepositThreshold({
       allocatedAmount: inscription.allocatedAmount,
       depositAmount: inscription.depositAmount,

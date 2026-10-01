@@ -6,6 +6,7 @@
  * | Row                            | What opens                                    |
  * | ------------------------------ | --------------------------------------------- |
  * | over-allocated                 | Release the excess. One button, nothing else.  |
+ * | waived (`Bonificada`)          | The waiver, and the way to take it off         |
  * | nothing owed, money on it      | Remove money, prefilled with everything        |
  * | anything else                  | Price + amount, hinting the deposit then the balance |
  *
@@ -80,6 +81,11 @@ import {
   type PriceOption,
 } from "./figures";
 import {
+  type InscriptionMoneyWaiver,
+  WaivedInscriptionDialog,
+  WaiverBlockedAlert,
+} from "./dialog-waiver";
+import {
   allocateInscriptionIntent,
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
@@ -90,6 +96,7 @@ export function InscriptionMoneyDialog({
   onOpenChange,
   priceOptions,
   targetKind,
+  waiver = null,
 }: {
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
@@ -98,6 +105,7 @@ export function InscriptionMoneyDialog({
   // inscription table the action writes against, so an omission at a call site
   // has to fail to typecheck instead of silently allocating to the other kind.
   targetKind: AllocationTargetKind;
+  waiver?: InscriptionMoneyWaiver | null;
 }) {
   const shape = readInscriptionMoneyDialogShape(inscription);
   const [removing, setRemoving] = useState(shape === "remove");
@@ -112,10 +120,21 @@ export function InscriptionMoneyDialog({
     );
   }
 
+  if (shape === "waived") {
+    return (
+      <WaivedInscriptionDialog
+        inscription={inscription}
+        onOpenChange={onOpenChange}
+        onUnwaive={waiver?.onUnwaive ?? null}
+      />
+    );
+  }
+
   if (removing) {
     return (
       <RemoveMoneyDialog
         inscription={inscription}
+        isWaivable={waiver !== null}
         onOpenChange={onOpenChange}
         targetKind={targetKind}
       />
@@ -129,6 +148,7 @@ export function InscriptionMoneyDialog({
       onRemoveMoney={
         inscription.allocatedAmount > 0 ? () => setRemoving(true) : null
       }
+      onWaive={waiver?.onWaive ?? null}
       priceOptions={priceOptions}
       targetKind={targetKind}
     />
@@ -150,12 +170,14 @@ function AllocateMoneyDialog({
   inscription,
   onOpenChange,
   onRemoveMoney,
+  onWaive,
   priceOptions,
   targetKind,
 }: {
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
   onRemoveMoney: (() => void) | null;
+  onWaive: (() => void) | null;
   priceOptions: PriceOption[];
   targetKind: AllocationTargetKind;
 }) {
@@ -177,6 +199,15 @@ function AllocateMoneyDialog({
   // against. The academy's pool is another ceiling, and that one is not known
   // here: it stays an alert.
   const owedBalanceAmount = owed.owedBalanceAmount;
+  const holdsMoney = inscription.allocatedAmount > 0;
+  const isSubmitDisabled =
+    isSaving ||
+    amount === "" ||
+    isAmountOutOfRange(amount, owedBalanceAmount) ||
+    (!isPriceLocked && priceOptions.length === 0);
+  // Waiving needs no money on the row: the alert says how to clear it, and the
+  // server refuses all the same.
+  const waive = onWaive ? { disabled: holdsMoney, run: onWaive } : null;
 
   return (
     <MoneyDialog
@@ -193,6 +224,9 @@ function AllocateMoneyDialog({
             name="intent"
             value={allocateInscriptionIntent}
           />
+          {waive?.disabled ? (
+            <WaiverBlockedAlert allocatedAmount={inscription.allocatedAmount} />
+          ) : null}
           {isPriceLocked ? <LockedPriceAlert /> : null}
 
           <MoneyTargetFields
@@ -222,20 +256,16 @@ function AllocateMoneyDialog({
 
           {/* The two owed figures only once there is money on it: on an empty
             inscription they restate the price sitting right above. */}
-          {inscription.allocatedAmount > 0 ? <OwedSummary owed={owed} /> : null}
+          {holdsMoney ? <OwedSummary owed={owed} /> : null}
 
           <FetcherError data={fetcher.data} />
 
           <AllocationFooter
             isSaving={isSaving}
-            isSubmitDisabled={
-              isSaving ||
-              amount === "" ||
-              isAmountOutOfRange(amount, owedBalanceAmount) ||
-              (!isPriceLocked && priceOptions.length === 0)
-            }
+            isSubmitDisabled={isSubmitDisabled}
             onCancel={requestClose}
             onRemoveMoney={onRemoveMoney}
+            onWaive={waive}
           />
         </fetcher.Form>
       )}
@@ -356,32 +386,50 @@ function MoneyAmountField({
 }
 
 /**
- * The allocation footer. `Quitar dinero` is the way into the removal shape and
- * is pushed to the far side, away from the confirming pair: it is a different
- * gesture, not a second way of saving.
+ * The allocation footer. `Quitar dinero` and `Bonificar` are pushed to the far
+ * side, away from the confirming pair: they are different gestures, not second
+ * ways of saving.
  */
 function AllocationFooter({
   isSaving,
   isSubmitDisabled,
   onCancel,
   onRemoveMoney,
+  onWaive,
 }: {
   isSaving: boolean;
   isSubmitDisabled: boolean;
   onCancel: () => void;
   onRemoveMoney: (() => void) | null;
+  onWaive: { disabled: boolean; run: () => void } | null;
 }) {
+  const hasSideGestures = onRemoveMoney !== null || onWaive !== null;
+
   return (
-    <DialogFooter className={onRemoveMoney ? "sm:justify-between" : ""}>
-      {onRemoveMoney ? (
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={isSaving}
-          onClick={onRemoveMoney}
-        >
-          Quitar dinero
-        </Button>
+    <DialogFooter className={hasSideGestures ? "sm:justify-between" : ""}>
+      {hasSideGestures ? (
+        <div className="flex gap-2">
+          {onRemoveMoney ? (
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isSaving}
+              onClick={onRemoveMoney}
+            >
+              Quitar dinero
+            </Button>
+          ) : null}
+          {onWaive ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving || onWaive.disabled}
+              onClick={onWaive.run}
+            >
+              Bonificar
+            </Button>
+          ) : null}
+        </div>
       ) : null}
       <div className="flex gap-2">
         <Button
@@ -421,10 +469,13 @@ function AllocationFooter({
  */
 function RemoveMoneyDialog({
   inscription,
+  isWaivable,
   onOpenChange,
   targetKind,
 }: {
   inscription: InscriptionRow;
+  /** Whether the row could be waived once its money is off (ADR-0017). */
+  isWaivable: boolean;
   onOpenChange: (open: boolean) => void;
   targetKind: AllocationTargetKind;
 }) {
@@ -448,6 +499,9 @@ function RemoveMoneyDialog({
             name="intent"
             value={removeInscriptionMoneyIntent}
           />
+          {isWaivable ? (
+            <WaiverBlockedAlert allocatedAmount={inscription.allocatedAmount} />
+          ) : null}
           <MoneyTargetFields
             inscription={inscription}
             targetKind={targetKind}
@@ -466,23 +520,32 @@ function RemoveMoneyDialog({
 
           <FetcherError data={fetcher.data} />
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSaving}
-              onClick={requestClose}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="destructive"
-              disabled={isSaving || amount === "" || isOutOfRange}
-            >
-              <SubmitIcon isSaving={isSaving} />
-              Quitar
-            </Button>
+          <DialogFooter className={isWaivable ? "sm:justify-between" : ""}>
+            {/* Disabled for as long as there is money on the row: this shape
+                is the way to take it off, and the alert above says so. */}
+            {isWaivable ? (
+              <Button type="button" variant="outline" disabled>
+                Bonificar
+              </Button>
+            ) : null}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                onClick={requestClose}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={isSaving || amount === "" || isOutOfRange}
+              >
+                <SubmitIcon isSaving={isSaving} />
+                Quitar
+              </Button>
+            </div>
           </DialogFooter>
         </fetcher.Form>
       )}

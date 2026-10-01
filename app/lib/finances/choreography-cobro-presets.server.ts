@@ -18,7 +18,7 @@
  * can trust that nothing moved.
  */
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import {
   choreographies,
@@ -94,6 +94,7 @@ export async function payChoreographiesPreset(input: {
         choreographyId: choreographyDancers.choreographyId,
         id: choreographyDancers.id,
         selectedPriceId: choreographyDancers.selectedPriceId,
+        waivedAt: choreographyDancers.waivedAt,
       })
       .from(choreographyDancers)
       .where(
@@ -101,7 +102,12 @@ export async function payChoreographiesPreset(input: {
           inArray(choreographyDancers.choreographyId, choreographyIds),
           activeInscription(),
         ),
-      );
+      )
+      // The lock the waiver and the pool take, in the same id order: a waiver
+      // racing this preset either commits first, and is read here, or waits
+      // until the preset has priced and funded.
+      .orderBy(asc(choreographyDancers.id))
+      .for("update");
 
     if (inscriptions.length === 0) {
       return {
@@ -256,6 +262,7 @@ async function applySelectedPrices(
       choreographyId: string;
       id: string;
       selectedPriceId: string | null;
+      waivedAt: Date | null;
     }>;
     priceIdByGroupType: PresetPriceSelection;
   },
@@ -275,7 +282,9 @@ async function applySelectedPrices(
       ? input.priceIdByGroupType[choreography.groupType]
       : undefined;
 
-    if (!choreography || !priceId) {
+    // A waived inscription owes nothing whatever its price, so a pick does not
+    // reach it: it keeps the row it goes back to if the waiver is taken off.
+    if (!choreography || !priceId || inscription.waivedAt !== null) {
       continue;
     }
 

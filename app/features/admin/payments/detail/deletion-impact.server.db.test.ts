@@ -285,6 +285,44 @@ describe("readPaymentDeletionImpact", () => {
     expect(statuses.get(fixture.choreographyIds[1])).toBe("depositMet");
   });
 
+  // A waived sibling (`Bonificada`) owes nothing and holds no money: it is out
+  // of the choreography's minimum, so the paying inscription alone decides
+  // where the choreography lands.
+  test("leaves a waived sibling out of the resulting status", async () => {
+    const fixture = await seedDeletionFixture();
+    const doomedPayment = fixture.paymentRows[0];
+    const sibling = await createDancer(fixture.academyId, {
+      firstName: "Hermana",
+      lastName: "Bonificada",
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: fixture.choreographyIds[0],
+      dancerId: sibling.id,
+      waivedAt: new Date("2026-04-01T12:00:00Z"),
+    });
+    await spreadFromPool(db, {
+      academyId: fixture.academyId,
+      amount: 3000,
+      eventId: fixture.eventId,
+      target: choreographyTarget(fixture.inscriptionIds[0]),
+    });
+
+    const impact = await readPaymentDeletionImpact({
+      academyId: fixture.academyId,
+      eventId: fixture.eventId,
+      paymentId: doomedPayment.id,
+    });
+
+    expect(impact).toEqual([
+      expect.objectContaining({
+        id: fixture.choreographyIds[0],
+        resultingStatus: "depositPending",
+        uncrossingInscriptionCount: 1,
+      }),
+    ]);
+  });
+
   test("names no resulting status when nothing un-crosses", async () => {
     const fixture = await seedDeletionFixture();
     const doomedPayment = fixture.paymentRows[0];

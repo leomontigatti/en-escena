@@ -744,6 +744,31 @@ describe("AcademyFinancesRouteView", () => {
     expect(columnValues("Nombre")).toEqual(["Tango"]);
   });
 
+  const waivedRows = () => [
+    choreographyFinanceRowFixture({
+      financialStatus: "depositMet",
+      id: "choreography_1",
+      name: "Aire",
+    }),
+    choreographyFinanceRowFixture({
+      choreographyNumber: 2,
+      financialStatus: "waived",
+      id: "choreography_2",
+      name: "Tango",
+    }),
+  ];
+
+  test("filters the list down to the waived choreographies on `Bonificada`", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?estado=waived",
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: waivedRows(),
+      }),
+    });
+
+    expect(columnValues("Nombre")).toEqual(["Tango"]);
+  });
+
   async function renderListIntoDocument(
     props: {
       initialEntry?: string;
@@ -921,6 +946,7 @@ function presetInscriptionFixture(
     allocatedAmount: 0,
     basePriceAmount: 10000,
     basePriceId: "price_1",
+    financialStatus: "depositPending",
     choreographyId: "choreography_1",
     dancerDiscountAmount: 0,
     depositAmount: 3000,

@@ -8,12 +8,16 @@ const inscriptionFinancialStatusLabels = {
   depositPending: "Seña pendiente",
   depositMet: "Señada",
   paidInFull: "Pagada",
+  waived: "Bonificada",
 } as const satisfies Record<InscriptionFinancialStatus, string>;
 
 const inscriptionFinancialStatusBadgeVariants = {
   depositPending: "warning",
   depositMet: "info",
   paidInFull: "success",
+  // Green like `Pagada`: both owe nothing. The label is what tells a free place
+  // from a paid one (ADR-0017).
+  waived: "success",
 } as const satisfies Record<InscriptionFinancialStatus, string>;
 
 const inscriptionAnomalyLabels = {
@@ -28,6 +32,10 @@ const inscriptionAnomalyBadgeVariants = {
   overAllocated: "destructive",
 } as const satisfies Record<InscriptionAnomaly, string>;
 
+/**
+ * The paying scale's options. `Bonificada` is not among them: a seminar
+ * inscription cannot be waived, and the seminar filters build on this list.
+ */
 export const inscriptionFinancialStatusOptions = [
   { label: "Seña pendiente", value: "depositPending" },
   { label: "Señada", value: "depositMet" },
@@ -36,6 +44,15 @@ export const inscriptionFinancialStatusOptions = [
   label: string;
   value: InscriptionFinancialStatus;
 }>;
+
+/**
+ * The `Bonificada` option (ADR-0017), for the filters over choreographies and
+ * their inscriptions: the only rows that can be waived.
+ */
+export const waivedStatusFilterOption = {
+  label: inscriptionFinancialStatusLabels.waived,
+  value: "waived",
+} as const satisfies { label: string; value: InscriptionFinancialStatus };
 
 /**
  * `Retirada` is a separate derived axis —like `Facturada`—, not a fourth value
@@ -113,6 +130,7 @@ export const withdrawnStatusFilterOption = {
  */
 export const choreographyStatusFilterOptions = [
   ...inscriptionFinancialStatusOptions,
+  waivedStatusFilterOption,
   { label: inscriptionAnomalyLabels.overAllocated, value: "overAllocated" },
   withdrawnStatusFilterOption,
 ] as const satisfies ReadonlyArray<{ label: string; value: string }>;

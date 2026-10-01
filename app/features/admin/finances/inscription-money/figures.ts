@@ -12,6 +12,7 @@ import {
   calculateTotalAmount,
   deriveInscriptionFinancialFigures,
   hasCrossedDepositThreshold,
+  type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 
 import { formatAmount } from "@/lib/finances/formatters";
@@ -41,6 +42,8 @@ export type InscriptionRow = {
   dancerDiscountAmount: number;
   depositAmount: number | null;
   effectivePrice: PriceOption | null;
+  /** Only read for `waived`, which a choreography inscription alone can be. */
+  financialStatus?: InscriptionFinancialStatus;
   firstName: string;
   /** `null` for a roster person with no inscription yet: nothing to fund. */
   inscriptionId: string | null;
@@ -51,7 +54,7 @@ export type InscriptionRow = {
 };
 
 export type InscriptionMoneyDialogShape =
-  "releaseExcess" | "remove" | "allocate";
+  "releaseExcess" | "waived" | "remove" | "allocate";
 
 export type OwedAgainstPrice = {
   owedBalanceAmount: number | null;
@@ -61,17 +64,25 @@ export type OwedAgainstPrice = {
 /**
  * Which shape the row opens on. The excess outranks everything: an
  * over-allocated row is fully paid too, and the only sane act on it is getting
- * the surplus off. A row that owes nothing and holds money opens on removal,
+ * the surplus off. A waived row (`Bonificada`) opens on its waiver: nothing can
+ * be allocated to it. A row that owes nothing and holds money opens on removal,
  * because allocating onto it would be refused.
  */
 export function readInscriptionMoneyDialogShape(
   inscription: Pick<
     InscriptionRow,
-    "allocatedAmount" | "overAllocatedAmount" | "owedBalanceAmount"
+    | "allocatedAmount"
+    | "financialStatus"
+    | "overAllocatedAmount"
+    | "owedBalanceAmount"
   >,
 ): InscriptionMoneyDialogShape {
   if ((inscription.overAllocatedAmount ?? 0) > 0) {
     return "releaseExcess";
+  }
+
+  if (inscription.financialStatus === "waived") {
+    return "waived";
   }
 
   return inscription.owedBalanceAmount === 0 && inscription.allocatedAmount > 0

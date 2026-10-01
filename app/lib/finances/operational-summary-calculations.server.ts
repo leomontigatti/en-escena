@@ -194,6 +194,55 @@ export type DancerDiscount = {
 };
 
 /**
+ * The `Descuento por bailarín` of every inscription of a roster, over the one
+ * qualifying set both readers use: the dancer's live roster with a resolvable
+ * price. A withdrawn inscription keeps its price — its deposit has to stay
+ * readable — but cannot go on discounting its siblings once off the roster. A
+ * waived one (`Bonificada`) leaves the set too: being free already is its
+ * benefit (ADR-0017).
+ */
+export function computeRosterDancerDiscounts(input: {
+  inscriptions: Array<{
+    dancerId: string;
+    id: string;
+    waivedAt: Date | null;
+    withdrawnAt: Date | null;
+  }>;
+  priceAmountByInscription: Map<string, number | null>;
+}): Map<string, DancerDiscount> {
+  const qualifyingByDancer = new Map<
+    string,
+    Array<{ id: string; priceAmount: number }>
+  >();
+
+  for (const inscription of input.inscriptions) {
+    const priceAmount = input.priceAmountByInscription.get(inscription.id);
+
+    if (
+      inscription.withdrawnAt !== null ||
+      inscription.waivedAt !== null ||
+      priceAmount === null ||
+      priceAmount === undefined
+    ) {
+      continue;
+    }
+
+    const bucket = qualifyingByDancer.get(inscription.dancerId) ?? [];
+    bucket.push({ id: inscription.id, priceAmount });
+    qualifyingByDancer.set(inscription.dancerId, bucket);
+  }
+
+  const discounts = new Map<string, DancerDiscount>();
+  for (const group of qualifyingByDancer.values()) {
+    for (const [id, discount] of computeDancerDiscountAmounts(group)) {
+      discounts.set(id, discount);
+    }
+  }
+
+  return discounts;
+}
+
+/**
  * `Descuento por bailarín` per inscription. The qualifying set is the dancer's
  * live roster, not their money: the discount goes into the total, and the total
  * decides the state, so making it depend on the state would be circular. One
