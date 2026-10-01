@@ -2,7 +2,7 @@
 # `.agents/agents/reviewer.md`, shared with Claude Code's `.claude/agents/reviewer.md`.
 # The model matches `scripts/agents/sol.sh`, which Claude Code's relay runs; change both together.
 name = "reviewer"
-description = "Reviews a diff against the brief it is given and reports back. Use for every review sub-agent: the Standards and Spec axes of code-review, and the readback."
+description = "Reviews a diff against the brief it is given and reports back. Use for every review sub-agent: the Standards and Spec axes of code-review, the correctness axis, and the readback."
 model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 developer_instructions = "Before anything else, read `.agents/agents/reviewer.md` and follow it: it holds this agent's instructions."

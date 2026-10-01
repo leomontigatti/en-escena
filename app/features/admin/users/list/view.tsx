@@ -39,7 +39,6 @@ type FilterSelectOption = {
 
 const stateFilterOptions = [
   { label: "Activo", value: "active" },
-  { label: "Cambio obligatorio", value: "mandatory-password-change" },
   { label: "Suspendido", value: "suspended" },
 ] satisfies FilterSelectOption[];
 
@@ -223,8 +222,6 @@ function getStateLabel(state: UserListState) {
   switch (state) {
     case "active":
       return "Activo";
-    case "mandatory-password-change":
-      return "Cambio obligatorio";
     case "suspended":
       return "Suspendido";
   }
@@ -234,8 +231,6 @@ function getStateBadgeVariant(state: UserListState) {
   switch (state) {
     case "active":
       return "success";
-    case "mandatory-password-change":
-      return "warning";
     case "suspended":
       return "destructive";
   }

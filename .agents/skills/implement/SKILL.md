@@ -61,12 +61,24 @@ Tier the review by risk:
 
 - **Full review** when the diff touches money (payments, prices, finances, comprobantes),
   results or judging, auth, a migration, or a term defined in `CONTEXT.md`: call the Skill tool
-  with "code-review" on the changes since the branch point.
+  with "code-review" on the changes since the branch point, and add the third axis in
+  [CORRECTNESS.md](CORRECTNESS.md): one sub-agent that assumes the diff has a bug and traces the
+  path that triggers it.
 - **Readback** for everything else: follow [READBACK.md](READBACK.md). One sub-agent restates
   what the diff does and flags anything surprising, in under 200 words.
 
-Fix what it finds, then repeat step 3 for anything you touched. Refactoring belongs here, under
-green tests.
+A finding is a claim to check, never an instruction. Verify each one against the code on the
+branch, running the test or the call when reading does not settle it, then give it one verb:
+
+- **fix**: the claim holds and the change is in scope.
+- **decline**: the code disproves it. Keep the disproof (a `file:line`, a test, the invariant
+  that covers it) for the final report.
+- **ask**: the call is the user's, which includes every finding on the always-ask list of
+  [coderabbit-triage.md](../babysit-pr/coderabbit-triage.md#the-three-verbs) that you cannot
+  settle from the issue. Bring it to them in the final report.
+
+Done when every finding carries a verb and every **fix** is made. Repeat step 3 for anything you
+touched. Refactoring belongs here, under green tests.
 
 ## 6. Commit
 

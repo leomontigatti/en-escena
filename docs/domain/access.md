@@ -18,12 +18,12 @@ Rules for public academy registration, users, sessions and internal invitations.
 - Where an internal user's identity is shown — the `Panel de administración` sidebar footer and the `Juzgamiento` and `Auditoría` headers — the app shows their name, their `Permiso principal` and their `Nombre de usuario interno`. The users list finds an internal user by name or username, and an academy by name or email.
 - A `Usuario` auditor is read-only and cannot create, edit, publish, unpublish, cancel, correct or annul.
 - Session inactivity limit is 8 hours for all permissions; logout affects only current session.
-- Admins create internal users directly with a temporary password; the first internal login requires a `Cambio obligatorio de contraseña`.
+- Admins create internal users directly with their password, typed once on the form and shared with the person out of band; there is no first-login password change.
 - Academy users recover access by email through the access auth provider and define the new password on `Cambio de contraseña`.
-- Internal password recovery is an administrative reset that assigns a temporary password and requires a `Cambio obligatorio de contraseña`.
+- Internal password recovery is an administrative reset: an admin types the new password, the user's open sessions close, and the user signs in with it. `/cambiar-contrasena` serves academy recovery only.
 - Admins can create, edit, suspend, reactivate, reset passwords and change permissions for internal users; auditors can view users read-only.
 - An administrator's main permission cannot be changed from the application: the edit form locks it and the server refuses any change away from `admin` on an account that already holds it. Promoting another internal user to `admin` is allowed; demoting one is a database-only operation.
-- Creating internal users, changing permissions, suspending or reactivating users, administrative password resets and completing mandatory password changes leave no administrative audit trail: there is no record of who changed what. Raw passwords and password hashes are never persisted outside the credential store.
+- Creating internal users, changing permissions, suspending or reactivating users and administrative password resets leave no administrative audit trail: there is no record of who changed what. Raw passwords and password hashes are never persisted outside the credential store.
 - Internal users use the app-owned credential store and the same 8-hour session policy as academy users.
 - Better Auth owns production academy credentials, public registration email confirmation, academy password recovery and academy sessions; app code owns academy onboarding, invitations and the local test harness. Pre-cutover `sb-*` cookies are only expired by a migration shim (`app/lib/auth/legacy-session-cookies.server.ts`), not read by any provider.
 

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { TriangleAlert } from "lucide-react";
+import { Form } from "react-router";
 
 import { DestroyButton } from "@/components/shared/action-buttons";
 import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
@@ -13,7 +14,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
+import {
+  isRouteFormPending,
+  useCloseOnceSettled,
+  useOptionalNavigation,
+} from "@/lib/shared/forms";
 import { cn } from "@/lib/shared/utils";
 
 type DeleteDialogProps = {
@@ -110,10 +115,12 @@ function ConfirmDeleteDialog({
     fields: { id: recordId },
   });
 
+  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
+
   return (
     <DeleteDialogShell
       action={
-        <form method="post">
+        <Form method="post">
           <input type="hidden" name="intent" value={intentValue} />
           <input type="hidden" name="id" value={recordId} />
           <input
@@ -122,7 +129,7 @@ function ConfirmDeleteDialog({
             value={confirmFieldValue ?? recordId}
           />
           <DestroyButton isPending={isPending} />
-        </form>
+        </Form>
       }
       alert={<IrreversibleActionAlert />}
       cancelLabel="Cancelar"

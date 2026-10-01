@@ -360,11 +360,12 @@ describe("getSubmissionError", () => {
 });
 
 describe("getSubmissionWarning", () => {
-  test("names the piece the academy already registered and the ids to acknowledge", () => {
+  test("carries the pieces the academy already registered and the ids to acknowledge", () => {
     expect(getSubmissionWarning(duplicateChoreographyActionData())).toEqual({
       matchIds: ["choreography_1"],
-      message:
-        "Ya registraste «Luna Llena» (N.º 7) con los mismos bailarines en este evento.",
+      matches: [
+        { choreographyNumber: 7, id: "choreography_1", name: "Luna Llena" },
+      ],
     });
   });
 
@@ -427,7 +428,7 @@ function duplicateChoreographyActionData(): CreateActionData {
       ok: false as const,
       code: "duplicate-choreography" as const,
       error:
-        "Ya registraste «Luna Llena» (N.º 7) con los mismos bailarines en este evento.",
+        "Ya existe una coreografía con el mismo nombre y los mismos bailarines en este evento: Luna Llena.",
       warning: {
         kind: "choreography-cast" as const,
         matches: [

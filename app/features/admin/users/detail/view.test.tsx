@@ -50,7 +50,7 @@ describe("InternalUserDetailRouteView", () => {
 
     const dialog = document.querySelector('[role="dialog"]');
 
-    expect(dialog?.textContent).toContain("Guardar contraseña temporal");
+    expect(dialog?.textContent).toContain("Guardar contraseña");
     expect(dialog?.textContent).toContain("Cancelar");
   });
 
@@ -60,7 +60,7 @@ describe("InternalUserDetailRouteView", () => {
 
     expect(getResetSubmit().disabled).toBe(true);
 
-    await typePassword("Temporal-2026");
+    await typePassword("clave-nueva");
 
     expect(getResetSubmit().disabled).toBe(false);
   });
@@ -72,7 +72,7 @@ describe("InternalUserDetailRouteView", () => {
       navigation: { formData, formMethod: "post", state: "submitting" },
     });
     await chooseMenuItem("Restablecer contraseña");
-    await typePassword("Temporal-2026");
+    await typePassword("clave-nueva");
 
     expect(getResetSubmit().disabled).toBe(true);
   });
@@ -83,7 +83,7 @@ describe("InternalUserDetailRouteView", () => {
         buildDetailActionSuccess("usuario-interno-restablecido"),
     });
     await chooseMenuItem("Restablecer contraseña");
-    await typePassword("Temporal-2026");
+    await typePassword("clave-nueva");
 
     await act(async () => {
       getResetSubmit().click();
@@ -105,11 +105,11 @@ describe("InternalUserDetailRouteView", () => {
         fieldErrors: {},
         resetPasswordFieldErrors: {},
         editValues: { name: "", role: "judge" as const },
-        resetPasswordValues: { temporaryPassword: "Temporal-2026" },
+        resetPasswordValues: { password: "clave-nueva" },
       }),
     });
     await chooseMenuItem("Restablecer contraseña");
-    await typePassword("Temporal-2026");
+    await typePassword("clave-nueva");
 
     await act(async () => {
       getResetSubmit().click();
@@ -129,7 +129,7 @@ describe("InternalUserDetailRouteView", () => {
   test("asks before closing with a typed password", async () => {
     await renderDetail();
     await chooseMenuItem("Restablecer contraseña");
-    await typePassword("Temporal-2026");
+    await typePassword("clave-nueva");
 
     await act(async () => {
       getButtonByText("Cancelar", '[role="dialog"]').click();
@@ -227,7 +227,7 @@ describe("InternalUserDetailRouteView", () => {
         fieldErrors: {},
         resetPasswordFieldErrors: {},
         editValues: { name: "", email: "", role: "judge" as const },
-        resetPasswordValues: { temporaryPassword: "" },
+        resetPasswordValues: { password: "" },
       }),
     });
     await chooseMenuItem("Suspender usuario");
@@ -299,7 +299,7 @@ function DetailRoute({ user }: { user?: Partial<DetailUser> }) {
 }
 
 function getResetSubmit() {
-  return getButtonByText("Guardar contraseña temporal", '[role="dialog"]');
+  return getButtonByText("Guardar contraseña", '[role="dialog"]');
 }
 
 function getButtonByText(text: string, scope: string) {
@@ -316,7 +316,7 @@ function getButtonByText(text: string, scope: string) {
 
 async function typePassword(value: string) {
   const input = document.querySelector<HTMLInputElement>(
-    'input[name="temporaryPassword"]',
+    'input[name="password"]',
   );
 
   if (!input) {

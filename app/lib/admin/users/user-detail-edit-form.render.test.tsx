@@ -177,7 +177,7 @@ describe("InternalUserEditCard", () => {
       fieldErrors: {},
       resetPasswordFieldErrors: {},
       editValues: { name: "Ana Jueza", role: "judge" },
-      resetPasswordValues: { temporaryPassword: "" },
+      resetPasswordValues: { password: "" },
     });
 
     // The refusal refills the form with what was typed, which still differs
@@ -195,7 +195,7 @@ describe("InternalUserEditCard", () => {
       fieldErrors: {},
       resetPasswordFieldErrors: {},
       editValues: { name: "", role: "judge" },
-      resetPasswordValues: { temporaryPassword: "" },
+      resetPasswordValues: { password: "" },
     });
 
     // A suspension refusal carries this form's empty `editValues`; adopting

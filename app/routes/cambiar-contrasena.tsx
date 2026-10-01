@@ -18,10 +18,6 @@ import {
   verifyAccessRecoveryTokenHash,
 } from "@/lib/auth/access-recovery.server";
 import {
-  completeMandatoryPasswordChange,
-  requireMandatoryPasswordChangeUser,
-} from "@/lib/auth/mandatory-password-change.server";
-import {
   authToastIds,
   passwordField,
   passwordMismatchMessage,
@@ -36,6 +32,8 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/cambiar-contrasena";
 
+// Academy access recovery only: an internal user's password is set by an
+// administrator from the panel and never changed here.
 const passwordConfirmationSchema = z
   .object({
     newPassword: passwordField(),
@@ -45,32 +43,13 @@ const passwordConfirmationSchema = z
     message: passwordMismatchMessage,
     path: ["confirmPassword"],
   });
-const changePasswordSchema = passwordConfirmationSchema.extend({
-  currentPassword: requiredTextField(),
-});
-const mandatoryChangeFields = [
-  "currentPassword",
-  "newPassword",
-  "confirmPassword",
-] as const;
 const recoveryChangeFields = ["newPassword", "confirmPassword"] as const;
-type MandatoryChangeField = (typeof mandatoryChangeFields)[number];
 type RecoveryChangeField = (typeof recoveryChangeFields)[number];
-type MandatoryChangeValues = {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-};
 type RecoveryChangeValues = {
   newPassword: string;
   confirmPassword: string;
 };
 
-const emptyMandatoryChangeValues: MandatoryChangeValues = {
-  currentPassword: "",
-  newPassword: "",
-  confirmPassword: "",
-};
 const emptyRecoveryChangeValues: RecoveryChangeValues = {
   newPassword: "",
   confirmPassword: "",
@@ -125,53 +104,14 @@ export async function loader({ request }: Route.LoaderArgs) {
     };
   }
 
-  await requireMandatoryPasswordChangeUser(request);
-
-  return {
-    mode: "mandatory" as const,
-  };
+  // Nothing to change without a recovery in progress.
+  throw redirect("/ingresar");
 }
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-  const mode = readFormMode(formData.get("mode"));
-
-  if (mode === "recovery") {
-    const values = emptyRecoveryChangeValues;
-    const parsed = passwordConfirmationSchema.safeParse({
-      newPassword: formData.get("newPassword"),
-      confirmPassword: formData.get("confirmPassword"),
-    });
-
-    if (!parsed.success) {
-      return {
-        status: "error" as const,
-        message: "Revisá los campos marcados.",
-        fieldErrors: getFieldErrors(parsed.error, recoveryChangeFields),
-        values,
-      };
-    }
-
-    const result = await updateAccessRecoveryPassword({
-      newPassword: parsed.data.newPassword,
-      request,
-    });
-
-    if (!result.ok) {
-      return {
-        status: "error" as const,
-        message: result.error,
-        fieldErrors: getEmptyFieldErrors<RecoveryChangeField>(),
-        values,
-      };
-    }
-
-    throw redirect("/ingresar?recuperacion=ok", { headers: result.headers });
-  }
-
-  const values = emptyMandatoryChangeValues;
-  const parsed = changePasswordSchema.safeParse({
-    currentPassword: formData.get("currentPassword"),
+  const values = emptyRecoveryChangeValues;
+  const parsed = passwordConfirmationSchema.safeParse({
     newPassword: formData.get("newPassword"),
     confirmPassword: formData.get("confirmPassword"),
   });
@@ -180,27 +120,26 @@ export async function action({ request }: Route.ActionArgs) {
     return {
       status: "error" as const,
       message: "Revisá los campos marcados.",
-      fieldErrors: getFieldErrors(parsed.error, mandatoryChangeFields),
+      fieldErrors: getFieldErrors(parsed.error, recoveryChangeFields),
       values,
     };
   }
 
-  const result = await completeMandatoryPasswordChange({
-    request,
-    currentPassword: parsed.data.currentPassword,
+  const result = await updateAccessRecoveryPassword({
     newPassword: parsed.data.newPassword,
+    request,
   });
 
   if (!result.ok) {
     return {
       status: "error" as const,
       message: result.error,
-      fieldErrors: getEmptyFieldErrors<MandatoryChangeField>(),
+      fieldErrors: getEmptyFieldErrors<RecoveryChangeField>(),
       values,
     };
   }
 
-  throw redirect(result.redirectTo);
+  throw redirect("/ingresar?recuperacion=ok", { headers: result.headers });
 }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -224,85 +163,7 @@ export default function CambiarContrasenaRoute() {
     );
   }
 
-  const isRecoveryFlow = loaderData.mode === "recovery";
-
-  return isRecoveryFlow ? (
-    <RecoveryPasswordChangeForm actionData={actionData} />
-  ) : (
-    <MandatoryPasswordChangeForm actionData={actionData} />
-  );
-}
-
-function MandatoryPasswordChangeForm({
-  actionData,
-}: {
-  actionData: ReturnType<typeof useActionData<typeof action>>;
-}) {
-  const mandatoryActionData = isMandatoryActionData(actionData)
-    ? actionData
-    : null;
-  const navigation = useNavigation();
-  const isSubmitting =
-    navigation.state !== "idle" &&
-    navigation.formMethod?.toLowerCase() === "post";
-  const form = useAccessForm({
-    schema: changePasswordSchema,
-    values: mandatoryActionData?.values ?? emptyMandatoryChangeValues,
-  });
-
-  useServerActionToast(actionData, {
-    toastId: authToastIds.mandatoryPasswordChangeError,
-  });
-
-  return (
-    <AccessPage>
-      <AccessHeader
-        eyebrow="Cambio obligatorio"
-        title="Definí una nueva contraseña"
-        description="Antes de entrar a tu área privada, reemplazá la contraseña temporal por una propia."
-      />
-
-      <Form
-        method="post"
-        noValidate
-        className="mt-8"
-        onSubmit={form.handleSubmit}
-      >
-        <input type="hidden" name="mode" value="mandatory" />
-        <FieldGroup>
-          <AccessTextField
-            controller={form}
-            autoComplete="current-password"
-            label="Contraseña actual"
-            name="currentPassword"
-            type="password"
-          />
-
-          <AccessTextField
-            controller={form}
-            autoComplete="new-password"
-            label="Nueva contraseña"
-            name="newPassword"
-            placeholder="Usá al menos 8 caracteres."
-            type="password"
-          />
-
-          <AccessTextField
-            controller={form}
-            autoComplete="new-password"
-            label="Confirmar contraseña"
-            name="confirmPassword"
-            type="password"
-          />
-
-          <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Spinner aria-hidden="true" data-icon /> : null}
-            Guardar contraseña
-          </Button>
-        </FieldGroup>
-      </Form>
-    </AccessPage>
-  );
+  return <RecoveryPasswordChangeForm actionData={actionData} />;
 }
 
 function RecoveryPasswordChangeForm({
@@ -310,16 +171,13 @@ function RecoveryPasswordChangeForm({
 }: {
   actionData: ReturnType<typeof useActionData<typeof action>>;
 }) {
-  const recoveryActionData = isRecoveryActionData(actionData)
-    ? actionData
-    : null;
   const navigation = useNavigation();
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formMethod?.toLowerCase() === "post";
   const form = useAccessForm({
     schema: passwordConfirmationSchema,
-    values: recoveryActionData?.values ?? emptyRecoveryChangeValues,
+    values: actionData?.values ?? emptyRecoveryChangeValues,
   });
 
   useServerActionToast(actionData, {
@@ -340,7 +198,6 @@ function RecoveryPasswordChangeForm({
         className="mt-8"
         onSubmit={form.handleSubmit}
       >
-        <input type="hidden" name="mode" value="recovery" />
         <FieldGroup>
           <AccessTextField
             controller={form}
@@ -367,30 +224,4 @@ function RecoveryPasswordChangeForm({
       </Form>
     </AccessPage>
   );
-}
-
-function readFormMode(value: FormDataEntryValue | null) {
-  return value === "recovery" ? "recovery" : "mandatory";
-}
-
-function isMandatoryActionData(
-  actionData: ReturnType<typeof useActionData<typeof action>>,
-): actionData is {
-  status: "error";
-  message: string;
-  fieldErrors: Record<MandatoryChangeField, string | undefined>;
-  values: MandatoryChangeValues;
-} {
-  return !!actionData && "currentPassword" in actionData.values;
-}
-
-function isRecoveryActionData(
-  actionData: ReturnType<typeof useActionData<typeof action>>,
-): actionData is {
-  status: "error";
-  message: string;
-  fieldErrors: Record<RecoveryChangeField, string | undefined>;
-  values: RecoveryChangeValues;
-} {
-  return !!actionData && !("currentPassword" in actionData.values);
 }

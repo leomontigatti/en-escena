@@ -862,8 +862,9 @@ runners follow from their prompts — test-first through the `tdd` skill at the 
 seams**, typecheck and single test files as you go, the list in
 [`docs/agents/validation.md`](validation.md) once at the end, a browser check
 for rendered changes ([UI verification](#ui-verification)), then a review tiered by risk: the
-full two-axis `code-review` for money, results or judging, auth, migrations and `CONTEXT.md`
-terms, a single-agent readback for everything else.
+full two-axis `code-review` plus a correctness axis for money, results or judging, auth,
+migrations and `CONTEXT.md` terms, a single-agent readback for everything else. Either way a
+finding is verified against the code before it is fixed, declined or brought to the user.
 
 Two rules sit on top of it for a local session: keep the change scoped to the requested
 behaviour, and do not commit unless the user explicitly asks for a commit.

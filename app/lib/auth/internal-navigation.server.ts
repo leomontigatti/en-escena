@@ -4,10 +4,7 @@ import { redirect } from "react-router";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import {
-  MANDATORY_PASSWORD_CHANGE_PATH,
-  PUBLIC_ACADEMY_ONBOARDING_PATH,
-} from "@/lib/auth/access-paths.shared";
+import { PUBLIC_ACADEMY_ONBOARDING_PATH } from "@/lib/auth/access-paths.shared";
 import { createLegacySessionCookieClearHeaders } from "@/lib/auth/legacy-session-cookies.server";
 import {
   requireSignedInAccessState,
@@ -47,7 +44,7 @@ export async function getPostLoginPathForUserId(
   redirectTo?: string | null,
 ) {
   const appUser = await db.query.user.findFirst({
-    columns: { role: true, requiresPasswordChange: true },
+    columns: { role: true },
     where: eq(user.id, userId),
   });
 
@@ -86,9 +83,7 @@ export async function getPostLoginPathForRequest(
   request: Request,
   redirectTo?: string | null,
 ) {
-  const accessState = await requireSignedInAccessState(request, {
-    allowMandatoryPasswordChange: true,
-  });
+  const accessState = await requireSignedInAccessState(request);
 
   if (accessState.kind === "academy-onboarding") {
     return PUBLIC_ACADEMY_ONBOARDING_PATH;
@@ -100,15 +95,10 @@ export async function getPostLoginPathForRequest(
 async function getPostLoginPathForAppUser(
   appUser: {
     id: string;
-    requiresPasswordChange: boolean;
     role: AppRole;
   },
   redirectTo?: string | null,
 ) {
-  if (appUser.role !== "academy" && appUser.requiresPasswordChange) {
-    return MANDATORY_PASSWORD_CHANGE_PATH;
-  }
-
   if (appUser.role === "academy") {
     const academy = await db.query.academies.findFirst({
       columns: { id: true },
