@@ -12,6 +12,7 @@ import {
 import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
 import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
+import type { ChoreographyCastMatch } from "@/lib/choreographies/choreography-duplicates";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
@@ -457,7 +458,7 @@ export function getSubmissionError(
 
 export type CreateChoreographyDuplicateWarning = {
   matchIds: string[];
-  message: string;
+  matches: ChoreographyCastMatch[];
 };
 
 export function getSubmissionWarning(
@@ -478,7 +479,7 @@ export function getSubmissionWarning(
 
   return {
     matchIds: warning.matches.map((match) => match.id),
-    message: data.result.error,
+    matches: warning.matches,
   };
 }
 

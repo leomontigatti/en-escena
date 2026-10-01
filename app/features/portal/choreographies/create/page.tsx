@@ -64,7 +64,7 @@ export function CreateChoreographyPage({
       {submission.warning ? (
         <ChoreographyDuplicateWarning
           isSubmitting={submission.isSubmitting}
-          message={submission.warning.message}
+          matches={submission.warning.matches}
           warning={submission.warning}
           onContinue={() => submission.confirm(submission.warning?.matchIds)}
         />
