@@ -32,11 +32,9 @@ export type WaiverConfirmation =
 const waiverFormId = "waiver-form";
 
 /**
- * Which confirmation is up, and whether it is open. Closing keeps it mounted:
- * the verb closes the dialog on the very click that submits its form, and a
- * form unmounted inside that click is one the browser no longer submits. Left
- * mounted with `open` off, the dialog keeps its content —form included— through
- * its exit, which is when the submission happens.
+ * Which confirmation is up, and whether it is open. Closing keeps it mounted
+ * with `open` off, so the dialog keeps its content through its exit instead of
+ * vanishing mid-animation.
  */
 export function useWaiverConfirmation() {
   const [state, setState] = useState<{
