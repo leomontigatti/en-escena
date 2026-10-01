@@ -533,7 +533,8 @@ Rules:
 A single explicit rule for choosing the component:
 
 - **`AlertDialog`**: yes/no confirmations and consequential actions (delete,
-  archive, verify, save changes on a consequential record). It exposes
+  archive, verify, save changes on a consequential record), and the
+  acknowledgment of a blocked action ([Detail pages](#detail-pages)). It exposes
   `role="alertdialog"`, traps focus and does **not** close on outside click;
   Escape closes it, as `Cancelar` does. Its look is smaller, with a centered
   header and a footer bar: that is the "confirmation" look.
@@ -561,7 +562,10 @@ A confirmation reads the same wherever it appears:
 - A confirmation is a shared component in `app/components/shared/`, not an
   `AlertDialog` written inline in a view: `DeleteDialog` for deletions,
   `WithdrawDialog` for withdrawals, `DiscardChangesDialog` for leaving unsaved
-  changes. A new kind of confirmation gets its own component there.
+  changes. A new kind of confirmation gets its own component there, and so
+  does the acknowledgment of a blocked action
+  ([Detail pages](#detail-pages)), which has no verb: its only button is
+  `Cerrar`.
 
 Both keep their default width: no `size` prop, no `max-w-*`. The one exception
 is an `AlertDialog` that carries a list, a preview or an alert, such as the
@@ -628,12 +632,25 @@ instead.
 
 - When the record's state locks fields, an `Alert` above the form says why and
   what unlocks them.
-- An action the record's state forbids is disabled before it is clicked, never
-  refused after: the `⋯` menu item or button is `disabled`, and an `info`
-  `Alert` above the form lists every reason, for auditors too. The disabled
-  control gets no tooltip: a tooltip cannot hold a list and does not reach
-  touch screens. The blocked mode of `DeleteDialog` is only for the dialog
-  opened straight from the URL. The server still refuses, for the race.
+- An action the record's state forbids is never refused after the submit. How
+  it says so depends on how common the block is:
+  - **A rare block** (an evaluated presentation, a price in use) is disabled
+    before it is clicked: the `⋯` menu item or button is `disabled`, and an
+    `info` `Alert` above the form lists every reason, for auditors too. The
+    disabled control gets no tooltip: a tooltip cannot hold a list and does
+    not reach touch screens.
+  - **A block that is the record's normal state** (it holds money, takes part
+    in the active event, has inscriptions) stays enabled, and the click opens
+    an acknowledgment instead of the action: an `AlertDialog` whose title says
+    what cannot be done (`No se puede bonificar la coreografía`), whose
+    description says what it takes, and whose `info` `Alert` lists every
+    reason, with `Cerrar` as its only button. An alert on the page would sit
+    on nearly every record and stop being read.
+
+  The blocked mode of `DeleteDialog` is that acknowledgment for a deletion,
+  and also what a dialog opened straight from the URL shows when the block is
+  a rare one. The server still refuses, for the race.
+
 - Every shared field draws the lock icon when disabled, `TextareaField`
   included. A `Switch` does not: its disabled look already reads as locked.
 
