@@ -103,7 +103,7 @@ async function seedEvent() {
 }
 
 describe("readAcademyPresentations", () => {
-  test("lists the numbered rows, the late ones and nothing else, in reading order", async () => {
+  test("lists the numbered rows, then the late ones, in reading order", async () => {
     const { addAcademy, event } = await seedEvent();
     const { academy, addChoreography } = await addAcademy();
     const late = await addChoreography({ name: "Tardía" });
@@ -116,7 +116,10 @@ describe("readAcademyPresentations", () => {
       name: "Sin seña numerada",
       orderNumber: 2,
     });
-    await addChoreography({ belowDeposit: true, name: "Sin seña sin número" });
+    const belowDepositLate = await addChoreography({
+      belowDeposit: true,
+      name: "Sin seña sin número",
+    });
 
     const rows = await readAcademyPresentations({
       academyId: academy.id,
@@ -127,10 +130,16 @@ describe("readAcademyPresentations", () => {
       belowDepositNumbered.id,
       numbered.id,
       late.id,
+      belowDepositLate.id,
     ]);
-    expect(rows[0].isBelowDeposit).toBe(true);
-    expect(rows[1].isBelowDeposit).toBe(false);
+    expect(rows.map((row) => row.isBelowDeposit)).toEqual([
+      true,
+      false,
+      false,
+      true,
+    ]);
     expect(rows[2].orderNumber).toBeNull();
+    expect(rows[3].orderNumber).toBeNull();
   });
 
   test("leaves out another academy's rows", async () => {

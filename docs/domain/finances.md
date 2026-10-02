@@ -95,7 +95,8 @@ over-allocation is tolerated.
 An inscription whose price cannot be resolved has no thresholds, and reads
 `Seña pendiente`: a threshold that cannot be computed cannot have been crossed.
 
-`Señada` is the competability signal, and it is computed **undiscounted** —
+`Señada` says the deposit is covered and nothing more: it neither gives nor
+takes a `presentation`. It is computed **undiscounted** —
 `depositAmount` comes off the price before any discount, so the threshold cannot
 move under an academy when a sibling roster changes a discount tier.
 
@@ -103,8 +104,8 @@ move under an academy when a sibling roster changes a discount tier.
 
 - The **minimum** over the choreography's active inscriptions on the scale
   `depositPending < depositMet < paidInFull`. One uncovered dancer pulls the
-  whole choreography down, because the badge answers _can this be performed as
-  choreographed_.
+  whole choreography down, because the badge answers _is every dancer of this
+  choreography covered_.
 - It is a minimum and **not a watermark**. The watermark it replaced let a
   choreography with a straggler read `Señada`, and `deriveChoreographyNeedsAttention`
   existed only to compensate for that; both are gone.

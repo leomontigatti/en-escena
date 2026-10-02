@@ -36,7 +36,7 @@ describe("PortalPresentationsListView", () => {
 
     expect(markup).toContain("Tu academia no tiene presentaciones");
     expect(markup).toContain(
-      "Una coreografía entra en el programa cuando cubre su seña.",
+      "Cuando tu academia inscriba una coreografía en el evento activo, va a aparecer acá.",
     );
   });
 
