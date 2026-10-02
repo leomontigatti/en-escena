@@ -638,8 +638,8 @@ Rules:
 ## Page header
 
 Every page opens with its surface's shared header: `AdminResourceLayout` in the
-admin panel, the portal's shared header in the academy portal (`PortalListPage`
-on a list).
+admin panel, `PortalPageHeader` in the academy portal (`PortalListPage` renders
+it on a list).
 
 - The title is an `h2` on every page, detail pages included, and a description
   always follows it.

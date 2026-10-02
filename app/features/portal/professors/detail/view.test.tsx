@@ -23,7 +23,7 @@ describe("PortalProfessorDetailRouteView", () => {
       },
     });
 
-    expect(markup).toContain(">Ana Perez</h1>");
+    expect(markup).toContain(">Ana Perez</h2>");
     expect(markup).not.toContain("Editar Profesor");
     expect(markup).toContain('name="firstName" value="Ana"');
     expect(markup).toContain('name="lastName" value="Perez"');
@@ -132,7 +132,7 @@ describe("PortalProfessorDetailRouteView", () => {
       },
     });
 
-    expect(markup).toContain(">Ana Zapata</h1>");
+    expect(markup).toContain(">Ana Zapata</h2>");
     expect(markup).not.toContain("Faltan datos de identificación.");
   });
 
