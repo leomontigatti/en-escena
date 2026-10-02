@@ -35,6 +35,7 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { PresentationListActions } from "./actions-menu";
 import { JudgeAssignmentDialog } from "./judge-dialogs";
+import { MusicDownloadDialog } from "./music-download-dialog";
 import { ResultsPrintDialog } from "./results-print-dialog";
 import {
   OrderingConfirmationDialog,
@@ -406,8 +407,7 @@ export function PresentationsListView({
   const [judgeDialogMode, setJudgeDialogMode] = useState<
     "assign" | "remove" | null
   >(null);
-  const [isResultsPrintDialogOpen, setIsResultsPrintDialogOpen] =
-    useState(false);
+  const [outputDialog, setOutputDialog] = useState<OutputDialog | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const { isSortedByNumberAscending, moving, rows } =
     usePresentationMoving(loaderData);
@@ -428,14 +428,18 @@ export function PresentationsListView({
       }}
       headerAction={
         <PresentationListActions
+          canDownloadMusic={
+            loaderData.canOrder && loaderData.musicDownloadDays.length > 0
+          }
           canOrderRows={loaderData.canOrder && loaderData.hasAnyRow}
           canPrintResults={
             loaderData.canOrder && loaderData.printableSchedules.length > 0
           }
           hasSelection={selectedRows.length > 0}
+          onDownloadMusic={() => setOutputDialog("musicDownload")}
           onJudges={setJudgeDialogMode}
           onOrder={() => setIsOrderingDialogOpen(true)}
-          onPrintResults={() => setIsResultsPrintDialogOpen(true)}
+          onPrintResults={() => setOutputDialog("resultsPrint")}
         />
       }
     >
@@ -491,13 +495,11 @@ export function PresentationsListView({
           onOpenChange={setIsOrderingDialogOpen}
         />
       ) : null}
-      {isResultsPrintDialogOpen ? (
-        <ResultsPrintDialog
-          open
-          onOpenChange={setIsResultsPrintDialogOpen}
-          schedules={loaderData.printableSchedules}
-        />
-      ) : null}
+      <PresentationOutputDialog
+        dialog={outputDialog}
+        loaderData={loaderData}
+        onClose={() => setOutputDialog(null)}
+      />
       {loaderData.canOrder && judgeDialogMode !== null ? (
         <JudgeAssignmentDialog
           assignableJudges={loaderData.assignableJudges}
@@ -514,6 +516,48 @@ export function PresentationsListView({
       ) : null}
     </AdminResourceLayout>
   );
+}
+
+/** The two dialogs that hand something out of the list rather than change it. */
+type OutputDialog = "musicDownload" | "resultsPrint";
+
+function PresentationOutputDialog({
+  dialog,
+  loaderData,
+  onClose,
+}: {
+  dialog: OutputDialog | null;
+  loaderData: PresentationListResult;
+  onClose: () => void;
+}) {
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
+  if (dialog === "resultsPrint") {
+    return (
+      <ResultsPrintDialog
+        open
+        onOpenChange={onOpenChange}
+        schedules={loaderData.printableSchedules}
+      />
+    );
+  }
+
+  if (dialog === "musicDownload") {
+    return (
+      <MusicDownloadDialog
+        days={loaderData.musicDownloadDays}
+        defaultDay={loaderData.filters.day}
+        open
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+
+  return null;
 }
 
 function PresentationStatusBadge({ row }: { row: PresentationListItem }) {
