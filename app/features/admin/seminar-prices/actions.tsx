@@ -41,7 +41,7 @@ export function SeminarPriceActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar el precio de seminario?"
-        description={`Esta acción borra ${seminarPrice.name} si no tiene dependencias asociadas.`}
+        description={`Esta acción elimina ${seminarPrice.name} si no tiene dependencias asociadas.`}
         intentValue="delete-seminar-price"
         recordId={seminarPrice.id}
         open={deleteDialogOpen}

@@ -376,7 +376,7 @@ describe("`Bases del evento` repository", () => {
       deletePrice(general.id, { hasDependencies: async () => true }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "Este precio está en uso. No se puede borrar.",
+      error: "Este precio está en uso. No se puede eliminar.",
     });
   });
 
@@ -416,7 +416,7 @@ describe("`Bases del evento` repository", () => {
     });
     await expect(deletePrice(price.id)).resolves.toMatchObject({
       ok: false,
-      error: "Este precio está en uso. No se puede borrar.",
+      error: "Este precio está en uso. No se puede eliminar.",
     });
   });
 
@@ -743,11 +743,11 @@ describe("`Bases del evento` repository", () => {
 
 const frozenUpdateError =
   "Este precio está en uso. Solo podés cambiar el nombre.";
-const frozenDeleteError = "Este precio está en uso. No se puede borrar.";
+const frozenDeleteError = "Este precio está en uso. No se puede eliminar.";
 const uncoveredUpdateError =
   "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto.";
 const uncoveredDeleteError =
-  "Este precio es necesario mientras haya inscripciones activas. No se puede borrar.";
+  "Este precio es necesario mientras haya inscripciones activas. No se puede eliminar.";
 
 describe("a special price covering several schedules", () => {
   async function createThreeScheduleFixture() {

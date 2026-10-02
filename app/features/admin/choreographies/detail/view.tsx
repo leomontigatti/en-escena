@@ -79,7 +79,7 @@ export function ChoreographyDetailRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       requireSelectedEvent={false}
-      title={`Detalle coreografía # ${formatEventSequenceNumber(
+      title={`${loaderData.choreography.name} # ${formatEventSequenceNumber(
         loaderData.choreography.choreographyNumber,
       )}`}
       description="Revisá y/o modificá la información y el elenco de la coreografía registrada."

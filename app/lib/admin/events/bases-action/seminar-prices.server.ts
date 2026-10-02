@@ -74,7 +74,7 @@ function getSeminarPriceConfirmationError(
     input.confirmDeletion !== input.id
   ) {
     return {
-      message: "Confirmá el borrado del precio.",
+      message: "Confirmá la eliminación del precio.",
       fieldErrors: {},
     };
   }

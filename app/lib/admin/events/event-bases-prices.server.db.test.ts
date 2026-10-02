@@ -181,7 +181,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       action(routeArgs(blockedDeleteRequest.request)),
     ).resolves.toEqual({
       status: "error",
-      message: "Confirmá el borrado del precio.",
+      message: "Confirmá la eliminación del precio.",
       fieldErrors: {},
       scope: {
         intent: "delete-price",
@@ -385,7 +385,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       action(routeArgs(deletePriceRequest.request)),
     ).resolves.toEqual({
       status: "error",
-      message: "Este precio está en uso. No se puede borrar.",
+      message: "Este precio está en uso. No se puede eliminar.",
       fieldErrors: {},
       scope: {
         intent: "delete-price",

@@ -30,7 +30,7 @@ export function PortalChoreographyDetailRouteView({
     >
       <PortalPageHeader
         titleId="choreography-title"
-        title={`Editar coreografía # ${formatEventSequenceNumber(
+        title={`${loaderData.choreography.name} # ${formatEventSequenceNumber(
           loaderData.choreography.choreographyNumber,
         )}`}
         description="Actualizá la música de esta coreografía. El resto de los datos se editan desde administración."
