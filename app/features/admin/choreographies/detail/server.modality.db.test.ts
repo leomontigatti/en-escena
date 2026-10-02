@@ -550,14 +550,11 @@ async function createModalityScenario(input: {
   async function readModalityDraft(modalityId: string) {
     const { request } = await createSignedInAdminRequest({
       email: nextEmail("admin"),
-      requestUrl: `http://localhost/administracion/coreografias/${choreography.academyId}/${choreography.id}`,
+      requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,
       role: "admin",
     });
     const detail = await loadChoreographyDetailRouteData({
-      params: {
-        academyId: choreography.academyId,
-        choreographyId: choreography.id,
-      },
+      params: { choreographyId: choreography.id },
       request,
     });
 
@@ -580,15 +577,12 @@ async function createModalityScenario(input: {
     async loadDetail(role: "admin" | "auditor" = "admin") {
       const { request } = await createSignedInAdminRequest({
         email: nextEmail(role),
-        requestUrl: `http://localhost/administracion/coreografias/${choreography.academyId}/${choreography.id}`,
+        requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,
         role,
       });
 
       return await loadChoreographyDetailRouteData({
-        params: {
-          academyId: choreography.academyId,
-          choreographyId: choreography.id,
-        },
+        params: { choreographyId: choreography.id },
         request,
       });
     },
@@ -749,26 +743,15 @@ async function submitDetailAction(input: {
   email: string;
   role: "admin" | "auditor";
 }) {
-  const params = await readDetailParams(input.choreographyId);
   const { request } = await createSignedInAdminRequest({
     body: input.body,
     email: input.email,
-    requestUrl: `http://localhost/administracion/coreografias/${params.academyId}/${input.choreographyId}`,
+    requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
     role: input.role,
   });
 
-  return await handleChoreographyDetailAction({ params, request });
-}
-
-async function readDetailParams(choreographyId: string) {
-  const row = await db.query.choreographies.findFirst({
-    columns: { academyId: true },
-    where: eq(choreographies.id, choreographyId),
+  return await handleChoreographyDetailAction({
+    params: { choreographyId: input.choreographyId },
+    request,
   });
-
-  if (!row) {
-    throw new Error(`Choreography ${choreographyId} is not seeded`);
-  }
-
-  return { academyId: row.academyId, choreographyId };
 }

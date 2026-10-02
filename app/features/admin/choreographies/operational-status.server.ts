@@ -10,9 +10,8 @@ import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operat
 
 /**
  * What the admin reads a choreography's operational status off, as a select
- * over `choreographies` joined to its category. The academy list counts the
- * incomplete ones and the academy's list labels each row, so both ask the same
- * question with the same columns.
+ * over `choreographies` joined to its category, which the operational list
+ * spreads into its own select to label each row.
  */
 export const operationalStatusColumns = {
   categoryAgeBasis: choreographies.categoryAgeBasis,

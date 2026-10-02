@@ -52,8 +52,6 @@ export type PresentationJudgeScore = {
 };
 
 export type PresentationScoresView = {
-  /** The choreography's academy, which its admin address is under. */
-  academyId: string;
   academyName: string;
   /** Null for a disqualified presentation and when no judge has saved a score. */
   average: number | null;
@@ -82,7 +80,6 @@ export async function readPresentationScores(
 ): Promise<PresentationScoresView | null> {
   const [presentation] = await executor
     .select({
-      academyId: academies.id,
       academyName: academies.name,
       categoryName: categories.name,
       choreographyId: choreographies.id,
@@ -122,7 +119,6 @@ export async function readPresentationScores(
   const average = presentationAverage({ disqualified, scores: judges });
 
   return {
-    academyId: presentation.academyId,
     academyName: presentation.academyName,
     average,
     categoryName: presentation.categoryName,

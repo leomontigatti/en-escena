@@ -1,5 +1,4 @@
 import { AudioLines, Clock, Settings, Users } from "lucide-react";
-import { useMemo } from "react";
 
 import {
   AdminEmptyState,
@@ -67,81 +66,82 @@ const choreographyGroupTypeFilterOptions = [
   { label: "Grupal", value: "grupal" },
 ];
 
-/** The number links to the detail, which lives under the academy's list. */
-function buildChoreographyColumns(
-  academyId: string,
-): DataTableColumn<ChoreographyRow>[] {
-  return [
-    {
-      id: "numero",
-      header: "#",
-      width: 7,
-      className: "font-medium tabular-nums",
-      cell: (choreography) => (
-        <DataTableLink
-          to={choreographyDetailPath({
-            academyId,
-            choreographyId: choreography.id,
-          })}
-        >
-          {formatEventSequenceNumber(choreography.choreographyNumber)}
-        </DataTableLink>
-      ),
-      filterValue: (choreography) =>
-        formatEventSequenceNumber(choreography.choreographyNumber),
-      sortValue: (choreography) => choreography.choreographyNumber,
-    },
-    {
-      id: "nombre",
-      header: "Nombre",
-      width: 30,
-      className: "font-medium",
-      // The number is the row's only way into the detail. Linking the name too
-      // gave one destination two targets, which reads as a choice and is not.
-      cell: (choreography) => (
-        <DataTableTruncatedText value={choreography.name} />
-      ),
-      filterValue: (choreography) => choreography.name,
-      sortValue: (choreography) => choreography.name,
-    },
-    {
-      id: "modalidadSubmodalidad",
-      header: "Modalidad / Submodalidad",
-      width: 27,
-      className: "text-muted-foreground",
-      cell: (choreography) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            choreography.modalityName,
-            choreography.submodalityName,
-          )}
-        />
-      ),
-    },
-    {
-      id: "categoriaTipoGrupo",
-      header: "Categoría / Tipo de grupo",
-      width: 24,
-      className: "text-muted-foreground",
-      cell: (choreography) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            choreography.categoryName,
-            formatGroupTypeLabel(choreography.groupType),
-          )}
-        />
-      ),
-    },
-    {
-      id: "estado",
-      header: "Estado",
-      width: 12,
-      cell: (choreography) => (
-        <ChoreographyStatusBadge choreography={choreography} />
-      ),
-    },
-  ];
-}
+const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
+  {
+    id: "numero",
+    header: "#",
+    width: 7,
+    className: "font-medium tabular-nums",
+    cell: (choreography) => (
+      <DataTableLink to={choreographyDetailPath(choreography.id)}>
+        {formatEventSequenceNumber(choreography.choreographyNumber)}
+      </DataTableLink>
+    ),
+    filterValue: (choreography) =>
+      formatEventSequenceNumber(choreography.choreographyNumber),
+    sortValue: (choreography) => choreography.choreographyNumber,
+  },
+  {
+    id: "nombre",
+    header: "Nombre",
+    width: 21,
+    className: "font-medium",
+    // The number is the row's only way into the detail. Linking the name too
+    // gave one destination two targets, which reads as a choice and is not.
+    cell: (choreography) => (
+      <DataTableTruncatedText value={choreography.name} />
+    ),
+    filterValue: (choreography) => choreography.name,
+    sortValue: (choreography) => choreography.name,
+  },
+  {
+    id: "academia",
+    header: "Academia",
+    width: 21,
+    className: "text-muted-foreground",
+    cell: (choreography) => (
+      <DataTableTruncatedText value={choreography.academyName} />
+    ),
+    filterValue: (choreography) => choreography.academyName,
+    sortValue: (choreography) => choreography.academyName,
+  },
+  {
+    id: "modalidadSubmodalidad",
+    header: "Modalidad / Submodalidad",
+    width: 21,
+    className: "text-muted-foreground",
+    cell: (choreography) => (
+      <DataTableTruncatedText
+        value={formatPrimaryAndSecondaryValue(
+          choreography.modalityName,
+          choreography.submodalityName,
+        )}
+      />
+    ),
+  },
+  {
+    id: "categoriaTipoGrupo",
+    header: "Categoría / Tipo de grupo",
+    width: 20,
+    className: "text-muted-foreground",
+    cell: (choreography) => (
+      <DataTableTruncatedText
+        value={formatPrimaryAndSecondaryValue(
+          choreography.categoryName,
+          formatGroupTypeLabel(choreography.groupType),
+        )}
+      />
+    ),
+  },
+  {
+    id: "estado",
+    header: "Estado",
+    width: 10,
+    cell: (choreography) => (
+      <ChoreographyStatusBadge choreography={choreography} />
+    ),
+  },
+];
 
 /**
  * `Retirada` **replaces** the readiness badge rather than sitting next to it: a
@@ -165,8 +165,8 @@ export function ChoreographiesListRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={loaderData.academy.name}
-      description="Revisá las coreografías que la academia registró para el evento activo y su estado operativo."
+      title="Coreografías"
+      description="Revisá las coreografías registradas para el evento activo y su estado operativo."
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para revisar coreografías",
         description:
@@ -177,8 +177,8 @@ export function ChoreographiesListRouteView({
         <ChoreographyTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
-          title="Esta academia no tiene coreografías en este evento"
-          description="Cuando la academia registre coreografías para el evento activo, vas a poder revisarlas desde este listado."
+          title={emptyChoreographyList.nothingYet}
+          description="Cuando las academias registren coreografías para el evento activo, vas a poder revisarlas desde este listado."
         />
       )}
     </AdminResourceLayout>
@@ -186,21 +186,15 @@ export function ChoreographiesListRouteView({
 }
 
 function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
-  const academyId = loaderData.academy.id;
-  const columns = useMemo(
-    () => buildChoreographyColumns(academyId),
-    [academyId],
-  );
-
   return (
     <ServerDataTable
       rows={loaderData.choreographies}
-      columns={columns}
+      columns={choreographyColumns}
       getRowKey={(choreography) => choreography.id}
       // The widths above share the row out, so it cannot outgrow the page and
       // the list never asks the reader to scroll sideways.
       layout="fit"
-      searchPlaceholder="Buscar por número o nombre"
+      searchPlaceholder="Buscar por número, nombre o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildChoreographyFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildChoreographyInitialFilters(loaderData)}
@@ -224,7 +218,7 @@ function hasChoreographyTableContent(loaderData: LoaderData) {
 /**
  * Whether the reader narrowed this list rather than landed on it. An admin who
  * filtered their way to nothing is told nothing matched, and keeps the table to
- * undo it with; the empty state is for an academy with nothing in the event yet.
+ * undo it with; the empty state is for an event that has no choreographies yet.
  * The order and the page narrow nothing — a sort reorders the same rows, and a
  * page past the last one is clamped — so neither keeps the table up.
  */
