@@ -571,7 +571,14 @@ function PresentationOutputDialog({
 
 function PresentationStatusBadge({ row }: { row: PresentationListItem }) {
   if (row.orderNumber === null) {
-    return <Badge variant="info">Sin número</Badge>;
+    // The deposit warning is informational and applies to unnumbered rows
+    // too, so it sits next to the badge that says the row has no number yet.
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        <Badge variant="info">Sin número</Badge>
+        <PresentationWarningBadge warnings={row.warnings} />
+      </div>
+    );
   }
 
   if (row.evaluationStatus !== "pending") {
@@ -582,7 +589,15 @@ function PresentationStatusBadge({ row }: { row: PresentationListItem }) {
     return <Badge variant={badge.variant}>{badge.label}</Badge>;
   }
 
-  const sorted = [...row.warnings].sort(
+  return <PresentationWarningBadge warnings={row.warnings} />;
+}
+
+function PresentationWarningBadge({
+  warnings,
+}: {
+  warnings: PresentationListItem["warnings"];
+}) {
+  const sorted = [...warnings].sort(
     (left, right) => triageRank(left.kind) - triageRank(right.kind),
   );
   const top = warningTriage.find((entry) => entry.kind === sorted[0]?.kind);
