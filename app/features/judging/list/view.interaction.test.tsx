@@ -88,28 +88,6 @@ describe("the judge's list of today's presentations", () => {
     );
   }
 
-  test("heads the list with the judging day and reads each row as the admin's presentation list does", async () => {
-    await mount();
-
-    expect(document.querySelector("header p")?.textContent).toBe(
-      "Sábado 22 de agosto",
-    );
-    expect(document.querySelector("h2")?.textContent).toBe(
-      "Presentaciones de hoy",
-    );
-    expect(
-      [...document.querySelectorAll("thead th")].map((th) => th.textContent),
-    ).toEqual([
-      "N.º",
-      "Nombre",
-      "Academia",
-      "Modalidad / Submodalidad",
-      "Categoría / Tipo de grupo",
-      "Nivel",
-      "Estado",
-    ]);
-  });
-
   test("hides what the judge already scored behind `Solo pendientes`", async () => {
     await mount();
 

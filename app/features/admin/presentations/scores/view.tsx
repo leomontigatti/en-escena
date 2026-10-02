@@ -412,15 +412,22 @@ function SingleScoreForm({
   scoreId: string;
   value: string | null;
 }) {
+  const saved = { value: formatScoreFieldValue(value) };
   const form = useForm<JudgeScoreFormValues>({
-    defaultValues: { value: formatScoreFieldValue(value) },
+    defaultValues: saved,
     resolver: zodResolver(judgeScoreFormSchema),
   });
+  const { isDirty } = useFormState({ control: form.control });
   const submit = useSubmit();
   const isSubmitting = isRouteFormPending(useNavigation(), {
     fields: { scoreId },
     intent: "edit-score",
   });
+
+  // A saved correction is the row's new starting point, so `Guardar` waits for
+  // the next change instead of offering to post the same number again.
+  useSavedFormValues(form, saved);
+
   return (
     <form
       className="flex items-start gap-2"
@@ -446,7 +453,7 @@ function SingleScoreForm({
         maximum={singleScoreMaximum}
         name="value"
       />
-      <SubmitButton isPending={isSubmitting} />
+      <SubmitButton disabled={!isDirty} isPending={isSubmitting} size="sm" />
     </form>
   );
 }

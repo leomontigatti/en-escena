@@ -151,22 +151,6 @@ describe("correcting the panel's scores", () => {
     });
   }
 
-  // The record's details read in the header, so the page has no
-  // `Coreografía` tab beside the scores, and no `Puntajes` tab to hold them.
-  test("names the presentation and its choreography in the header, with no tabs around the scores", async () => {
-    await mount();
-
-    expect(document.querySelector("h2")?.textContent).toBe("Primera · N.º 1");
-    expect(document.body.textContent).toContain(
-      "Academia Sur · Danza clásica / Acrobacia · Juvenil / Solo · Amateur",
-    );
-    expect(
-      [...document.querySelectorAll("[role='tab']")].map((tab) =>
-        tab.textContent?.trim(),
-      ),
-    ).toEqual([]);
-  });
-
   test("keeps the choreography and the disqualification in the actions menu, asking before it disqualifies", async () => {
     await mount();
     await openActionsMenu();

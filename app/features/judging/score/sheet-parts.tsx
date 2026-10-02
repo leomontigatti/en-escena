@@ -3,13 +3,18 @@ import { useWatch, type Control } from "react-hook-form";
 
 import {
   FieldDescription,
+  FieldGroup,
   FieldLegend,
   FieldSeparator,
   FieldSet,
 } from "@/components/ui/field";
 import { experienceLevelLabel } from "@/lib/events/experience-levels";
 import { singleScoreMaximum } from "@/lib/judging/score-value";
-import { sheetTotal, type SheetCriterion } from "@/lib/judging/sheet-total";
+import {
+  sheetPartSum,
+  sheetTotal,
+  type SheetCriterion,
+} from "@/lib/judging/sheet-total";
 
 import type { JudgeSheetFormValues } from "./form-shared";
 import { ScoreInputField } from "./score-input-field";
@@ -56,17 +61,10 @@ export function SheetParts({
               deducts={part.deducts}
               label={part.label}
               maximum={sumOfMaxima(part.criteria)}
-              // Each part is summed as additions: a part that only adds is its
-              // own total, and the clamp at zero cannot swallow the deductions.
-              total={sheetTotal(
-                entriesOf(part.criteria).map((entry) => ({
-                  ...entry,
-                  kind: "adds" as const,
-                })),
-              )}
+              total={sheetPartSum(entriesOf(part.criteria))}
             />
             <FieldDescription>{part.description}</FieldDescription>
-            <div className="grid gap-4 md:grid-cols-3">
+            <FieldGroup className="grid gap-4 md:grid-cols-3">
               {part.criteria.map((criterion) => (
                 <ScoreInputField
                   control={control}
@@ -78,7 +76,7 @@ export function SheetParts({
                   name={`values.${criterion.id}`}
                 />
               ))}
-            </div>
+            </FieldGroup>
           </FieldSet>
         </Fragment>
       ))}

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -58,29 +58,46 @@ describe("submodality criteria", () => {
     expect(saved.map((criterion) => criterion.name)).toEqual(["Otra Cosa"]);
   });
 
-  test("replaces only the general criteria, leaving every level's alone", async () => {
-    const fixture = await seedJudgingFixture();
-    await fixture.addCriterion({ maximum: 100, name: "Todo" });
-    await fixture.addCriterion({
-      experienceLevel: "amateur",
-      maximum: 40,
-      name: "Figuras",
-    });
+  // The dialog checks the general criteria alone against 100, but once a level
+  // has criteria of its own every sheet is general plus level, so a save from
+  // it could leave a sheet out of 140, or out of 40. Until the levels have an
+  // editor, their submodality's criteria are refused here whole.
+  test.each([
+    [[{ kind: "adds" as const, maximum: "100", name: "Otra cosa" }]],
+    [[]],
+  ])(
+    "refuses to change a submodality that has level criteria, leaving both sets alone (%#)",
+    async (criteria) => {
+      const fixture = await seedJudgingFixture();
+      await fixture.addCriterion({ maximum: 60, name: "Técnica" });
+      await fixture.addCriterion({
+        experienceLevel: "amateur",
+        maximum: 40,
+        name: "Figuras",
+      });
 
-    await replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
-      criteria: [{ kind: "adds", maximum: "100", name: "Otra cosa" }],
-    });
+      await expect(
+        replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
+          criteria,
+        }),
+      ).resolves.toMatchObject({
+        code: "event-bases-has-dependencies",
+        ok: false,
+      });
 
-    const level = await db.query.submodalityCriteria.findMany({
-      where: eq(submodalityCriteria.experienceLevel, "amateur"),
-    });
-    expect(level.map((criterion) => criterion.name)).toEqual(["Figuras"]);
-    await expect(
-      listSubmodalityCriteria(fixture.event.id).then((saved) =>
-        saved.map((criterion) => criterion.name),
-      ),
-    ).resolves.toEqual(["Otra Cosa"]);
-  });
+      const names = await db.query.submodalityCriteria.findMany({
+        orderBy: asc(submodalityCriteria.position),
+        where: eq(
+          submodalityCriteria.submodalityId,
+          fixture.catalog.submodality.id,
+        ),
+      });
+      expect(names.map((criterion) => criterion.name).sort()).toEqual([
+        "Figuras",
+        "Técnica",
+      ]);
+    },
+  );
 
   test("clears the criteria when the submitted list is empty", async () => {
     const fixture = await seedJudgingFixture();

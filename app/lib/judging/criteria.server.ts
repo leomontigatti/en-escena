@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -28,6 +28,9 @@ import {
 const lockedSubmodalityCriteriaError =
   "No se pueden cambiar los criterios porque la submodalidad ya tiene puntajes.";
 
+const levelCriteriaError =
+  "No se pueden cambiar los criterios porque la submodalidad tiene criterios por nivel.";
+
 export type SubmodalityCriterionInput = {
   kind: CriterionKind;
   maximum: string;
@@ -39,7 +42,8 @@ export type SubmodalityCriterionInput = {
  * to hand each submodality row its own set. The page already holds the whole
  * catalog of the active event, so one query per page beats one per
  * submodality. The levels' own criteria have no editor here yet, so they are
- * neither listed nor touched by the save below.
+ * neither listed nor touched, and a submodality that has any refuses the save
+ * below.
  */
 export async function listSubmodalityCriteria(eventId: string) {
   return db.query.submodalityCriteria.findMany({
@@ -146,6 +150,17 @@ export async function replaceSubmodalityCriteria(
     };
   }
 
+  // The general set is checked against 100 on its own, which only describes a
+  // sheet while no level adds to it. Once one does, every sheet is general plus
+  // level, and that needs the levels' editor to be checked whole.
+  if (await hasLevelCriteria(submodalityId)) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: levelCriteriaError,
+    };
+  }
+
   const validation = validateSubmodalityCriteriaInput(input.criteria);
 
   if (!validation.ok) {
@@ -179,6 +194,21 @@ export async function replaceSubmodalityCriteria(
   });
 
   return { ok: true };
+}
+
+async function hasLevelCriteria(submodalityId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: submodalityCriteria.id })
+    .from(submodalityCriteria)
+    .where(
+      and(
+        eq(submodalityCriteria.submodalityId, submodalityId),
+        isNotNull(submodalityCriteria.experienceLevel),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(row);
 }
 
 function validateSubmodalityCriteriaInput(

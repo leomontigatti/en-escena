@@ -43,6 +43,21 @@ export function sheetTotal(entries: readonly SheetCriterionValue[]): number {
   return Math.min(Math.max(total, 0), singleScoreMaximum);
 }
 
+/**
+ * What one part of the sheet adds up to, as its heading shows it: the lines it
+ * holds, each counted as `sheetTotal` counts it, but with no clamp. The clamp is
+ * the sheet's, applied once to its total; a part that lost 120 says so.
+ */
+export function sheetPartSum(
+  entries: readonly Omit<SheetCriterionValue, "kind">[],
+): number {
+  return entries.reduce(
+    (running, entry) =>
+      running + (parseScoreValue(entry.value, entry.maximum) ?? 0),
+    0,
+  );
+}
+
 export type SheetCriterion = {
   /** Null on a general criterion, the level's own on a level criterion. */
   experienceLevel: ExperienceLevel | null;

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { sheetTotal, validateSheetValues } from "./sheet-total";
+import { sheetPartSum, sheetTotal, validateSheetValues } from "./sheet-total";
 
 describe("the sheet's live total", () => {
   test("adds the adding criteria", () => {
@@ -48,6 +48,29 @@ describe("the sheet's live total", () => {
         { kind: "adds", maximum: 100, value: "100" },
       ]),
     ).toBe(100);
+  });
+});
+
+describe("a part's live sum", () => {
+  // Regression: the parts were summed with `sheetTotal`, whose clamp at 100
+  // showed two deductions of 60 as −100 rather than −120.
+  test("sums its lines without the sheet's clamp", () => {
+    expect(
+      sheetPartSum([
+        { maximum: 60, value: "60" },
+        { maximum: 60, value: "60" },
+      ]),
+    ).toBe(120);
+  });
+
+  test("counts a value the sheet could not save as nothing", () => {
+    expect(
+      sheetPartSum([
+        { maximum: 40, value: "30" },
+        { maximum: 30, value: "12." },
+        { maximum: 30, value: "31" },
+      ]),
+    ).toBe(30);
   });
 });
 

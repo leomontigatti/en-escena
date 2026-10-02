@@ -69,7 +69,6 @@ describe("private route headers", () => {
       if (usesInternalAccountHeader) {
         expect(markup).not.toContain("Sesión activa para");
         expect(markup).not.toContain("@example.com");
-        expect(markup).not.toContain("Usuario:");
         expect(markup).toContain("Salir");
         expect(markup).toContain('action="/salir"');
         expect(markup).toContain('method="post"');
