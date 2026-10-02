@@ -7,6 +7,9 @@
 // - `tabs-line-variant`: Navigation, `Tabs` take `variant="line"`.
 // - `data-icon-position`: Buttons, an icon says which side of the label it is on.
 // - `dialog-width`: Destructive actions, dialogs keep their default width.
+// - `actions-menu-text-only`: Actions menu, no icon inside the JSX of a
+//   `ResourceActionsMenu`. It reads one file: items a child component renders
+//   are out of its sight.
 //
 // `Trash2` over `Trash` (Buttons) is the built-in `no-restricted-imports`, in
 // `.oxlintrc.json`.

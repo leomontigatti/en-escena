@@ -218,7 +218,8 @@ detail page's header or on a table row.
 - The trigger keeps its default size (`icon-lg`): `ResourceActionsMenu` takes
   no `size`.
 - Menu items are text only: no icon, the destructive ones included.
-  `pnpm lint` enforces this (`ui/actions-menu-text-only`).
+  `pnpm lint` enforces this (`ui/actions-menu-text-only`) for the items
+  written inside the menu's own JSX.
 - Put a `DropdownMenuSeparator` before the destructive items, so they sit last
   and apart.
 
