@@ -299,7 +299,7 @@ function InstructorPictureField({
   onSelectedPictureChange: (isSelected: boolean) => void;
 }) {
   return (
-    <div className="sm:col-span-2">
+    <div className="md:col-span-2">
       {/* Tells the action this body carries the picture at all, so a submission
           without the field cannot read an empty input as "remove the picture". */}
       <input

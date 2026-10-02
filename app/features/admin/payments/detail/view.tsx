@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { useForm, useFormState } from "react-hook-form";
 import { useSubmit } from "react-router";
-import { Info } from "lucide-react";
+import { Info, Trash2 } from "lucide-react";
 
 import {
   AdminResourceFormCard,
@@ -151,6 +151,7 @@ export function PaymentDetailRouteView({
                   setIsDeleteDialogOpen(true);
                 }}
               >
+                <Trash2 aria-hidden="true" />
                 Eliminar
               </DropdownMenuItem>
             </ResourceActionsMenu>

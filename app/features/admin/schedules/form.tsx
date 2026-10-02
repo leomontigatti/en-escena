@@ -173,14 +173,14 @@ export function ScheduleForm({
         />
         <TimeOnlyField control={form.control} label="Hora" name="startTime" />
         <ScheduleMultipleSelectField
-          className="sm:col-span-2"
+          className="md:col-span-2"
           form={form}
           name="modalityIds"
           options={modalityOptions}
           title="Modalidades"
         />
         <ScheduleCategoriesField
-          className="sm:col-span-2"
+          className="md:col-span-2"
           categories={categories}
           form={form}
         />

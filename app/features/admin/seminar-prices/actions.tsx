@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { DeleteDialog } from "@/components/shared/delete-dialog";
@@ -35,6 +36,7 @@ export function SeminarPriceActions({
             disabled={Boolean(deletionBlock)}
             onSelect={() => setDeleteDialogOpen(true)}
           >
+            <Trash2 aria-hidden="true" />
             Eliminar
           </DropdownMenuItem>
         </DropdownMenuGroup>

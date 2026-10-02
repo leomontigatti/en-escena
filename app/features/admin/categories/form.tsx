@@ -190,7 +190,7 @@ function CategoryForm({
             value: modality.id,
             label: modality.name,
           }))}
-          className="sm:col-span-2"
+          className="md:col-span-2"
           placeholder="Seleccioná modalidades"
         />
       </FieldGroup>
