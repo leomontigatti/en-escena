@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 
-import { PortalEventDocumentsMenu } from "@/components/portal/event-documents-menu";
+import { PortalEventDocumentDownloads } from "@/components/portal/event-document-downloads";
 import { Button } from "@/components/ui/button";
 import type {
   EventDocumentDownloadUrls,
@@ -8,10 +8,11 @@ import type {
 } from "@/lib/events/event-documents";
 
 /**
- * The header of a portal list: the button that creates a record, and beside it
- * the menu that downloads the event documents this list is the right place for.
- * Both lists that carry documents render the same pair, so the pairing — and
- * the order the tooltip depends on — lives here instead of in each view.
+ * The header of a portal list: the downloads of the event documents this list
+ * is the right place for, and beside them the button that creates a record.
+ * Both lists that carry documents render the same pair, so the pairing lives
+ * here instead of in each view. It wraps, so a narrow screen stacks the two
+ * instead of squeezing their labels.
  */
 export function PortalListPageActions({
   createLabel,
@@ -25,15 +26,15 @@ export function PortalListPageActions({
   onCreate: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <PortalEventDocumentDownloads
+        documentDownloadUrls={documentDownloadUrls}
+        kinds={kinds}
+      />
       <Button type="button" onClick={onCreate}>
         <Plus aria-hidden="true" data-icon="inline-start" />
         {createLabel}
       </Button>
-      <PortalEventDocumentsMenu
-        documentDownloadUrls={documentDownloadUrls}
-        kinds={kinds}
-      />
     </div>
   );
 }

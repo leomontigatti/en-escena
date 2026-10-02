@@ -3,13 +3,15 @@
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { PortalEventDocumentsMenu } from "@/components/portal/event-documents-menu";
+import { PortalEventDocumentDownloads } from "@/components/portal/event-document-downloads";
+import type { EventDocumentKind } from "@/lib/events/event-documents";
 import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 const dancerKinds = ["minor_authorization", "adult_contract"] as const;
+const professorKinds = ["professor_contract"] as const;
 
-describe("PortalEventDocumentsMenu", () => {
+describe("PortalEventDocumentDownloads", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -68,13 +70,31 @@ describe("PortalEventDocumentsMenu", () => {
     ).not.toBeNull();
   });
 
+  // One document still sits behind the same button as several, so the download
+  // looks the same on every list.
+  test("offers a lone document through the same menu", async () => {
+    await renderMenu(
+      eventDocumentDownloadUrls({
+        professor_contract: "/almacenamiento?key=profesores",
+      }),
+      professorKinds,
+    );
+
+    await openMenu();
+
+    expect(
+      getMenuItem("Descargar contrato para profesores").getAttribute("href"),
+    ).toBe("/almacenamiento?key=profesores");
+  });
+
   async function renderMenu(
     documentDownloadUrls: ReturnType<typeof eventDocumentDownloadUrls>,
+    kinds: readonly EventDocumentKind[] = dancerKinds,
   ) {
     await renderer.renderAsync(
-      <PortalEventDocumentsMenu
+      <PortalEventDocumentDownloads
         documentDownloadUrls={documentDownloadUrls}
-        kinds={dancerKinds}
+        kinds={kinds}
       />,
     );
   }
@@ -91,15 +111,19 @@ describe("PortalEventDocumentsMenu", () => {
   }
 
   function getTrigger() {
-    const trigger = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Acciones"]',
-    );
+    return getButton("Descargar documentos");
+  }
 
-    if (!trigger) {
-      throw new Error("Expected the event documents trigger to be rendered.");
+  function getButton(label: string) {
+    const button = Array.from(
+      document.querySelectorAll<HTMLElement>("button, a"),
+    ).find((element) => element.textContent?.trim() === label);
+
+    if (!button) {
+      throw new Error(`Expected a button labelled "${label}".`);
     }
 
-    return trigger;
+    return button;
   }
 
   function getMenuItem(label: string) {
