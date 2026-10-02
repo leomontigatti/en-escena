@@ -78,6 +78,20 @@ async function readMenuItemDisabled(label: string) {
   return item.getAttribute("aria-disabled") === "true";
 }
 
+/** Opens the actions menu and picks an item, as a click on it would. */
+async function selectMenuItem(label: string) {
+  await readMenuItemDisabled(label);
+
+  const item = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ).find((candidate) => candidate.textContent === label);
+
+  await act(async () => {
+    item?.click();
+    await Promise.resolve();
+  });
+}
+
 async function renderAt(path: string, element: React.ReactElement) {
   const router = createMemoryRouter(
     [{ path, action: async () => null, element }],
@@ -195,20 +209,50 @@ describe("SeminarDetailView", () => {
     );
   });
 
-  // An inscription that has not covered its deposit locks no field, but it
-  // still keeps the seminar from being deleted, so it gets its own reason.
-  test("says the seminar cannot be deleted while an uncovered inscription stands", async () => {
+  // An inscription that has not covered its deposit locks no field, and it is
+  // what nearly every seminar in use has: a standing alert explaining only the
+  // delete would sit on all of them. `Eliminar` says why when it is clicked.
+  test("shows no alert while only uncovered inscriptions stand", async () => {
     await renderDetail(
       buildSeminar({ inscriptionCount: 1, registeredCount: 1 }),
     );
 
-    expect(document.body.textContent).toContain(seminarHasInscriptionsMessage);
-    expect(document.body.textContent).not.toContain(coveredSeminarMessage);
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(await readMenuItemDisabled("Eliminar")).toBe(false);
   });
 
-  // The alert above the tabs is what says why, so the item can be disabled.
-  test("disables `Eliminar` while an inscription stands", async () => {
-    await renderDetail(buildSeminar({ inscriptionCount: 1 }));
+  test("answers `Eliminar` on a seminar with uncovered inscriptions with the blocked acknowledgment", async () => {
+    await renderDetail(
+      buildSeminar({ inscriptionCount: 1, registeredCount: 1 }),
+    );
+    await selectMenuItem("Eliminar");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("No se puede eliminar el seminario");
+    expect(dialog?.textContent).toContain(
+      "Este seminario tiene inscripciones y no puede eliminarse directamente.",
+    );
+    expect(dialog?.textContent).toContain(
+      "Importante: seguir el orden para eliminarlo correctamente. Quitar el dinero de todas las inscripciones y después eliminarlas desde la lista de inscriptos.",
+    );
+    expect(dialog?.querySelector("form")).toBeNull();
+    expect(
+      Array.from(dialog?.querySelectorAll("button") ?? []).map(
+        (button) => button.textContent,
+      ),
+    ).toEqual(["Cerrar"]);
+  });
+
+  // The covered reason above the tabs already names the delete, so the item
+  // can be disabled on sight.
+  test("disables `Eliminar` once an inscription is covered", async () => {
+    await renderDetail(
+      buildSeminar({ inscriptionCount: 1, registeredCount: 1 }),
+      null,
+      [],
+      true,
+    );
 
     expect(await readMenuItemDisabled("Eliminar")).toBe(true);
   });
@@ -518,7 +562,7 @@ describe("SeminarDetailView delete dialog", () => {
     const dialog = document.querySelector('[role="alertdialog"]');
 
     expect(dialog?.textContent).toContain(
-      "Este seminario tiene inscripciones. No podés eliminarlo.",
+      "Este seminario tiene inscripciones y no puede eliminarse directamente.",
     );
     expect(dialog?.querySelector("form")).toBeNull();
   });
@@ -547,7 +591,12 @@ describe("SeminarDetailView delete dialog", () => {
     const dialog = document.querySelector('[role="alertdialog"]');
 
     expect(dialog?.textContent).toContain(
-      "Este seminario tiene inscripciones. No podés eliminarlo.",
+      "Este seminario tiene inscripciones y no puede eliminarse directamente.",
+    );
+    // Nobody is left to remove: a withdrawn row keeps its money or its
+    // comprobante, so the way out the other case names does not exist here.
+    expect(dialog?.textContent).toContain(
+      "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
     );
     expect(dialog?.querySelector("form")).toBeNull();
   });

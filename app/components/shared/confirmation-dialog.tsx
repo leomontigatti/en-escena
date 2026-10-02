@@ -26,8 +26,8 @@ type ConfirmationDialogProps = {
   description: ReactNode;
   /** Only for an action that destroys or reverses something. */
   destructive?: boolean;
-  /** The id of the form the verb submits. Without it, the verb is a plain
-   * button that runs `onConfirm`. */
+  /** The id of the form the verb submits. Without it, the verb only runs
+   * `onConfirm`. */
   form?: string;
   onConfirm?: () => void;
   onOpenChange: (open: boolean) => void;
@@ -66,9 +66,18 @@ export function ConfirmationDialog({
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             disabled={confirmDisabled}
-            form={form}
-            onClick={onConfirm}
-            type={form ? "submit" : "button"}
+            // The form submits from the click itself, not from a submit
+            // button's default action: the click also closes the dialog, a
+            // caller may unmount it —form included— on close, and a browser
+            // drops the submission of a form that is no longer in the
+            // document.
+            onClick={() => {
+              if (form) {
+                getConfirmationForm(form).requestSubmit();
+              }
+              onConfirm?.();
+            }}
+            type="button"
             variant={destructive ? "destructive" : "default"}
           >
             {ConfirmIcon ? (
@@ -80,4 +89,14 @@ export function ConfirmationDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
+}
+
+function getConfirmationForm(id: string) {
+  const form = document.getElementById(id);
+
+  if (!(form instanceof HTMLFormElement)) {
+    throw new Error(`Expected the form "${id}" to be rendered.`);
+  }
+
+  return form;
 }
