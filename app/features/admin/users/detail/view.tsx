@@ -6,6 +6,7 @@ import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   AcademyUserFormCard,
@@ -152,6 +153,7 @@ function UserActionsMenu({
           >
             Restablecer contraseña
           </DropdownMenuItem>
+          {user.state === "suspended" ? null : <DropdownMenuSeparator />}
           <StatusActionItem
             onSuspend={() => setIsSuspendDialogOpen(true)}
             user={user}

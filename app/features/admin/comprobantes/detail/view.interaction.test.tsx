@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import {
   createMemoryRouter,
   RouterProvider,
@@ -51,6 +52,43 @@ function comprobanteFixture(
 }
 
 // A route with a real loader, so the fetcher's revalidation shows up in the view.
+// The detail shows its data as locked inputs, whose value is not text content.
+function lockedFieldValue(label: string) {
+  const labelElement = Array.from(document.querySelectorAll("label")).find(
+    (element) => element.textContent === label,
+  );
+  const input = labelElement
+    ? document.getElementById(labelElement.htmlFor)
+    : null;
+
+  if (!(input instanceof HTMLInputElement) || !input.disabled) {
+    throw new Error(`No locked field labelled ${label}`);
+  }
+
+  return input.value;
+}
+
+/**
+ * The actions menu only mounts its items once it opens, and the trigger opens on
+ * `pointerdown` rather than on `click`.
+ */
+async function openActionsMenu() {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    'button[aria-label="Acciones"]',
+  );
+
+  if (!trigger) {
+    throw new Error("Expected the actions menu trigger to be rendered.");
+  }
+
+  await act(async () => {
+    trigger.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+}
+
 function LoadedComprobanteDetail() {
   const loaderData = useLoaderData() as ComprobanteDetailLoaderData;
 
@@ -222,9 +260,9 @@ describe("ComprobanteDetailRouteView", () => {
 
     // Data from the fiscal snapshot.
     expect(document.body.textContent).toContain("0001-00000041");
-    expect(document.body.textContent).toContain("Factura C");
-    expect(document.body.textContent).toContain("Academia Centro");
-    expect(document.body.textContent).toContain("Aire");
+    expect(lockedFieldValue("Tipo")).toBe("Factura C");
+    expect(lockedFieldValue("Academia")).toBe("Academia Centro");
+    expect(lockedFieldValue("Coreografía")).toBe("Aire");
     // `porcion` is deleted, so the detail no longer carries a `Porción` field.
     expect(document.body.textContent).not.toContain("Porción");
 
@@ -249,16 +287,18 @@ describe("ComprobanteDetailRouteView", () => {
       },
     });
 
-    expect(document.body.textContent).toContain("Seminario");
-    expect(document.body.textContent).toContain(
+    expect(lockedFieldValue("Seminario")).toBe(
       "Seminario Abril Sosa, 10/10/2030",
     );
     expect(document.body.textContent).not.toContain("Coreografía");
-    expect(
-      document.querySelector(
-        'a[href="/administracion/finanzas/academy_1/seminarios/seminar_1"]',
-      ),
-    ).not.toBeNull();
+
+    await openActionsMenu();
+
+    const unitLink = document.querySelector(
+      'a[href="/administracion/finanzas/academy_1/seminarios/seminar_1"]',
+    );
+    expect(unitLink?.getAttribute("role")).toBe("menuitem");
+    expect(unitLink?.textContent).toBe("Ver el seminario");
   });
 
   test("confirms annulment through an alertdialog without a checkbox", async () => {
@@ -291,7 +331,7 @@ describe("ComprobanteDetailRouteView", () => {
       initialAnnulDialogOpen: true,
     });
 
-    expect(document.body.textContent).toContain("Anulada");
+    expect(lockedFieldValue("Estado")).toBe("Anulada");
     // With no comprobante in force there is no possible annulment: neither dialog
     // nor action.
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();

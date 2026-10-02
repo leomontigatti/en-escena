@@ -5,7 +5,10 @@ import { useForm, type UseFormReturn } from "react-hook-form";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useSavedFormValues } from "@/lib/shared/forms";
 
 import {
@@ -81,15 +84,15 @@ export function ProfessorActionsMenu({
   onSelectMerge: () => void;
   statusAction: ProfessorStatusAction;
 }) {
+  // `Archivar` and `Fusionar` are both destructive, so nothing ordinary comes
+  // before them; the reactivation is, and a separator sets `Fusionar` apart.
+  const isArchive = statusAction.intent === "archive-professor";
+
   return (
     <ResourceActionsMenu contentClassName="w-40">
       <DropdownMenuItem
         disabled={statusAction.disabled}
-        variant={
-          statusAction.intent === "archive-professor"
-            ? "destructive"
-            : "default"
-        }
+        variant={isArchive ? "destructive" : "default"}
         onSelect={(event) => {
           event.preventDefault();
           onSelect(statusAction.intent);
@@ -97,6 +100,7 @@ export function ProfessorActionsMenu({
       >
         {statusAction.label}
       </DropdownMenuItem>
+      {isArchive ? null : <DropdownMenuSeparator />}
       <DropdownMenuItem
         variant="destructive"
         onSelect={(event) => {

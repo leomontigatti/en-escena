@@ -33,7 +33,10 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -74,6 +77,10 @@ export function DancerDetailHeaderActions({
     return null;
   }
 
+  // The destructive items sit last, after a separator: `Archivar` and
+  // `Fusionar`, or `Fusionar` alone when the status action is the reactivation.
+  const isArchive = statusAction.intent === "archive-dancer";
+
   return (
     <ResourceActionsMenu>
       {canVerifyIdentity ? (
@@ -86,11 +93,10 @@ export function DancerDetailHeaderActions({
           Verificar
         </DropdownMenuItem>
       ) : null}
+      {canVerifyIdentity && isArchive ? <DropdownMenuSeparator /> : null}
       <DropdownMenuItem
         disabled={statusAction.disabled}
-        variant={
-          statusAction.intent === "archive-dancer" ? "destructive" : "default"
-        }
+        variant={isArchive ? "destructive" : "default"}
         onSelect={(event) => {
           event.preventDefault();
           onSelectIntent(statusAction.intent);
@@ -98,6 +104,7 @@ export function DancerDetailHeaderActions({
       >
         {statusAction.label}
       </DropdownMenuItem>
+      {isArchive ? null : <DropdownMenuSeparator />}
       <DropdownMenuItem
         variant="destructive"
         onSelect={(event) => {
