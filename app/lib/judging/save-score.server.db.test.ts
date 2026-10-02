@@ -225,6 +225,26 @@ describe("saving a judge's `Devolución`", () => {
 });
 
 describe("saving a judge's score", () => {
+  // A sheet left short of 100 could be scored, and the first score locks the
+  // submodality's criteria, so the sheet could never be completed after.
+  test("refuses a score on a sheet whose adding maxima miss 100, storing nothing", async () => {
+    const open = await seedOpenPresentation();
+    const tecnica = await open.fixture.addCriterion({
+      maximum: 60,
+      name: "Técnica",
+    });
+
+    await expect(
+      saveJudgeScore({
+        audio: { intent: "keep" },
+        criteriaValues: { [tecnica.id]: "50" },
+        judgeId: open.judge.judgeId,
+        presentationId: open.presentation.presentationId,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "incomplete-sheet" });
+    await expect(readScores(open.judge.judgeAssignmentId)).resolves.toEqual([]);
+  });
+
   test("creates the score row on the judge's first save", async () => {
     const { judge, presentation } = await seedOpenPresentation();
 

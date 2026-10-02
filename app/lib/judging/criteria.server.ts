@@ -60,8 +60,7 @@ export async function listSubmodalityCriteria(eventId: string) {
 /**
  * Which sheets each modality of the event is scored on, read off the categories
  * that offer it: one per level they admit, and the general criteria on their
- * own where one admits none. A modality no category offers yet is treated as
- * the latter, the one sheet it would have.
+ * own where one admits none. A modality no category offers yet has neither.
  */
 export async function readModalitySheets(
   eventId: string,
@@ -86,7 +85,10 @@ export async function readModalitySheets(
 
     levelsByModality.set(row.modalityId, levels);
 
-    if (!row.experienceLevels || row.experienceLevels.length === 0) {
+    // A modality no category offers has a row with no category at all, and no
+    // sheet: only a category that admits no levels scores on the general
+    // criteria alone.
+    if (row.experienceLevels?.length === 0) {
       standsAlone.add(row.modalityId);
     }
 
@@ -201,38 +203,49 @@ export async function replaceSheetCriteria(
     };
   }
 
-  const [stored, sheets] = await Promise.all([
-    db.query.submodalityCriteria.findMany({
-      where: eq(submodalityCriteria.submodalityId, submodalityId),
-    }),
-    readModalitySheets(submodality.eventId),
-  ]);
-  const validation = validateSheetCriteria(
-    input.criteria,
-    sheetRuleFor(
-      input.experienceLevel,
-      stored,
-      sheets.get(submodality.modalityId) ?? {
-        generalStandsAlone: true,
-        levels: [],
-      },
-    ),
-  );
+  const sheets = await readModalitySheets(submodality.eventId);
 
-  if (!validation.ok) {
-    return {
-      ok: false,
-      code: Object.values(validation.fieldErrors).includes(
-        duplicateCriterionNameMessage,
-      )
-        ? "duplicate-name"
-        : "invalid-event-bases",
-      error: invalidCriteriaError,
-      fieldErrors: validation.fieldErrors,
-    };
-  }
+  return await db.transaction(async (tx) => {
+    // One save per submodality at a time: the rule reads the other sheets'
+    // names and totals, so two saves of different sheets must not both pass on
+    // the same snapshot and leave one sheet with a repeated name.
+    await tx
+      .select({ id: submodalities.id })
+      .from(submodalities)
+      .where(eq(submodalities.id, submodalityId))
+      .for("update");
 
-  await db.transaction(async (tx) => {
+    const stored = await tx
+      .select({
+        experienceLevel: submodalityCriteria.experienceLevel,
+        kind: submodalityCriteria.kind,
+        maximum: submodalityCriteria.maximum,
+        name: submodalityCriteria.name,
+      })
+      .from(submodalityCriteria)
+      .where(eq(submodalityCriteria.submodalityId, submodalityId));
+    const validation = validateSheetCriteria(
+      input.criteria,
+      sheetRuleFor(
+        input.experienceLevel,
+        stored,
+        sheets.get(submodality.modalityId) ?? noOfferedSheets,
+      ),
+    );
+
+    if (!validation.ok) {
+      return {
+        ok: false,
+        code: Object.values(validation.fieldErrors).includes(
+          duplicateCriterionNameMessage,
+        )
+          ? "duplicate-name"
+          : "invalid-event-bases",
+        error: invalidCriteriaError,
+        fieldErrors: validation.fieldErrors,
+      } as const;
+    }
+
     await tx
       .delete(submodalityCriteria)
       .where(
@@ -244,24 +257,28 @@ export async function replaceSheetCriteria(
         ),
       );
 
-    if (input.criteria.length === 0) {
-      return;
+    if (input.criteria.length > 0) {
+      await tx.insert(submodalityCriteria).values(
+        input.criteria.map((criterion, position) => ({
+          eventId: submodality.eventId,
+          experienceLevel: input.experienceLevel,
+          kind: criterion.kind,
+          maximum: Number.parseInt(criterion.maximum.trim(), 10),
+          name: toTitleCase(criterion.name),
+          position,
+          submodalityId,
+        })),
+      );
     }
 
-    await tx.insert(submodalityCriteria).values(
-      input.criteria.map((criterion, position) => ({
-        eventId: submodality.eventId,
-        experienceLevel: input.experienceLevel,
-        kind: criterion.kind,
-        maximum: Number.parseInt(criterion.maximum.trim(), 10),
-        name: toTitleCase(criterion.name),
-        position,
-        submodalityId,
-      })),
-    );
+    return { ok: true } as const;
   });
-
-  return { ok: true };
 }
+
+/** A modality no category offers yet: no sheet is scored on it so far. */
+const noOfferedSheets: OfferedSheets = {
+  generalStandsAlone: false,
+  levels: [],
+};
 
 const invalidCriteriaError = "Revisá los criterios de la submodalidad.";

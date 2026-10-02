@@ -47,6 +47,9 @@ const invalidFeedbackAudioMessage = "No se pudo guardar la devolución.";
 const closedJudgingDayMessage =
   "La jornada ya cerró, no se pueden guardar puntajes.";
 
+const incompleteSheetMessage =
+  "La planilla no suma 100. Avisale a administración para que la complete.";
+
 const disqualifiedSaveMessage =
   "La presentación está descalificada, se guardó solo la devolución.";
 
@@ -104,6 +107,15 @@ async function saveScore(
       fieldErrors: result.fieldErrors,
       intent,
       message: invalidScoreMessage,
+      status: "error",
+      values: { presentationId },
+    };
+  }
+
+  if (result.reason === "incomplete-sheet") {
+    return {
+      intent,
+      message: incompleteSheetMessage,
       status: "error",
       values: { presentationId },
     };

@@ -11,6 +11,7 @@ import {
   sheetRuleFor,
   validateSheetCriteria,
 } from "@/lib/judging/sheet-criteria";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 
 const stored = [
   {
@@ -166,6 +167,18 @@ describe("a sheet's maxima", () => {
       ),
     ).toEqual({
       fieldErrors: { criteria: addingCriteriaTotalMessage },
+      ok: false,
+    });
+  });
+
+  test("asks for an empty maximum as a required field", () => {
+    expect(
+      validateSheetCriteria(
+        [{ kind: "adds", maximum: " ", name: "Técnica" }],
+        rule,
+      ),
+    ).toEqual({
+      fieldErrors: { "criteria.0.maximum": requiredFieldMessage },
       ok: false,
     });
   });

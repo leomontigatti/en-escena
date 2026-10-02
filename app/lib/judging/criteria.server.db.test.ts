@@ -141,6 +141,28 @@ describe("submodality criteria", () => {
     ).resolves.toEqual({ ok: true });
   });
 
+  test("reads no sheet for a modality no category offers yet, so the general criteria may be short", async () => {
+    const fixture = await seedJudgingFixture();
+    await db
+      .delete(categoryModalities)
+      .where(eq(categoryModalities.modalityId, fixture.catalog.modality.id));
+
+    await expect(readModalitySheets(fixture.event.id)).resolves.toEqual(
+      new Map([
+        [
+          fixture.catalog.modality.id,
+          { generalStandsAlone: false, levels: [] },
+        ],
+      ]),
+    );
+    await expect(
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        criteria: [{ kind: "adds", maximum: "60", name: "Técnica" }],
+        experienceLevel: null,
+      }),
+    ).resolves.toEqual({ ok: true });
+  });
+
   test("clears the criteria when the submitted list is empty", async () => {
     const fixture = await seedJudgingFixture();
     await fixture.addCriterion({ maximum: 100, name: "Todo" });

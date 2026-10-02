@@ -100,7 +100,9 @@ export function validateSheetCriteria(
       fieldErrors[`criteria.${index}.name`] = requiredFieldMessage;
     }
 
-    if (parseCriterionMaximum(criterion.maximum) === null) {
+    if (String(criterion.maximum).trim() === "") {
+      fieldErrors[`criteria.${index}.maximum`] = requiredFieldMessage;
+    } else if (parseCriterionMaximum(criterion.maximum) === null) {
       fieldErrors[`criteria.${index}.maximum`] = criterionMaximumMessage;
     }
   });
@@ -151,6 +153,18 @@ export function sheetTotalError(
   }
 
   return total === addingCriteriaTotal ? null : addingCriteriaTotalMessage;
+}
+
+/**
+ * Whether a sheet can be scored: its adding maxima reach exactly 100. The
+ * editor lets the general criteria leave a level short until it is completed,
+ * but a score given on it would lock the submodality with the sheet still
+ * short, so a judge's save refuses it.
+ */
+export function isSheetComplete(
+  criteria: readonly CriterionMaximumInput[],
+): boolean {
+  return sumAddingCriteriaMaxima(criteria) === addingCriteriaTotal;
 }
 
 export type SheetGap = {

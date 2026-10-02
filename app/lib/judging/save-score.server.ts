@@ -9,6 +9,7 @@ import {
   parseScoreValue,
   singleScoreMaximum,
 } from "@/lib/judging/score-value";
+import { isSheetComplete } from "@/lib/judging/sheet-criteria";
 import { validateSheetValues } from "@/lib/judging/sheet-total";
 import {
   writeSheetValues,
@@ -46,7 +47,8 @@ import {
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type SaveJudgeScoreRefusal = "not-assigned" | "closed" | "invalid-value";
+export type SaveJudgeScoreRefusal =
+  "not-assigned" | "closed" | "incomplete-sheet" | "invalid-value";
 
 export type SaveJudgeScoreResult =
   | { disqualified?: true; ok: true }
@@ -390,6 +392,10 @@ async function readSheet(
     return value === null
       ? { ok: false, result: { ok: false, reason: "invalid-value" } }
       : { ok: true, total: value, values: null };
+  }
+
+  if (!isSheetComplete(criteria)) {
+    return { ok: false, result: { ok: false, reason: "incomplete-sheet" } };
   }
 
   const validated = validateSheetValues(criteria, input.criteriaValues ?? {});

@@ -101,7 +101,7 @@ export function EventModalityDetailView({
                 lockedSubmodalityIds: loaderData.lockedSubmodalityIds,
                 modalityId: modality.id,
                 sheets: loaderData.modalitySheets[modality.id] ?? {
-                  generalStandsAlone: true,
+                  generalStandsAlone: false,
                   levels: [],
                 },
                 submodalities: modalitySubmodalities,

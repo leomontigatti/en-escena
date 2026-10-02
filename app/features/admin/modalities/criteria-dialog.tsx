@@ -136,9 +136,6 @@ function SheetList({
   const general = criteria.filter(
     (criterion) => criterion.experienceLevel === null,
   );
-  const gaps = sheetGaps(criteria, sheets);
-  const isGap = (experienceLevel: ExperienceLevel | null) =>
-    gaps.some((gap) => gap.experienceLevel === experienceLevel);
   const levels = [
     ...sheets.levels,
     ...criteria.flatMap((criterion) =>
@@ -148,6 +145,11 @@ function SheetList({
         : [],
     ),
   ].filter((level, index, all) => all.indexOf(level) === index);
+  // A level no category offers any more is still a sheet while it has
+  // criteria, so its total is checked like the others.
+  const gaps = sheetGaps(criteria, { ...sheets, levels });
+  const isGap = (experienceLevel: ExperienceLevel | null) =>
+    gaps.some((gap) => gap.experienceLevel === experienceLevel);
 
   return (
     <div className="flex flex-col gap-4">
@@ -166,7 +168,7 @@ function SheetList({
           incomplete={isGap(null)}
           onOpen={() => onOpen(null)}
           title={mandatoryTechniqueLabel}
-          total={sumAddingCriteriaMaxima(general)}
+          total={general.length > 0 ? sumAddingCriteriaMaxima(general) : null}
         />
       </SheetGroup>
       {levels.length > 0 ? (
@@ -183,7 +185,11 @@ function SheetList({
                 key={level}
                 onOpen={() => onOpen(level)}
                 title={experienceLevelLabel(level) ?? level}
-                total={sumAddingCriteriaMaxima([...general, ...own])}
+                total={
+                  general.length + own.length > 0
+                    ? sumAddingCriteriaMaxima([...general, ...own])
+                    : null
+                }
               />
             );
           })}
@@ -219,7 +225,8 @@ function SheetRow({
   incomplete: boolean;
   onOpen: () => void;
   title: string;
-  total: number;
+  /** Null on a sheet with no criteria at all, scored with a single value. */
+  total: number | null;
 }) {
   return (
     <Button
@@ -238,9 +245,14 @@ function SheetRow({
         </Badge>
       </span>
       <span className="flex items-center gap-2">
-        <Badge data-sheet-row-part variant={incomplete ? "warning" : "success"}>
-          {`${total}/${addingCriteriaTotal}`}
-        </Badge>
+        {total === null ? null : (
+          <Badge
+            data-sheet-row-part
+            variant={incomplete ? "warning" : "success"}
+          >
+            {`${total}/${addingCriteriaTotal}`}
+          </Badge>
+        )}
         <ChevronRight aria-hidden="true" />
       </span>
     </Button>

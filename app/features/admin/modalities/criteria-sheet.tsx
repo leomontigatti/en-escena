@@ -65,6 +65,9 @@ type SheetForm = UseFormReturn<SheetCriteriaFormValues>;
 
 export const mandatoryTechniqueLabel = "Técnico obligatorio";
 
+/** A criterion's row and the column labels over it share one grid. */
+const criterionRowColumns = "grid grid-cols-[minmax(0,1fr)_6rem_2rem] gap-2";
+
 /**
  * One sheet of a submodality, saved on its own: what adds above the separator,
  * what deducts below, each with its own add button, so a criterion's kind is
@@ -141,6 +144,7 @@ export function SheetCriteriaView({
             }
             form={sheet.form}
             locked={locked}
+            saving={sheet.isSaving}
             totalErrorOf={(values) => sheetTotalError(values, sheet.rule)}
           />
         </form>
@@ -321,13 +325,14 @@ function useBackAfterSave({
   saved: SheetCriteriaFormValues;
 }) {
   const submitted = useRef(false);
+  const { getValues } = form;
 
   useEffect(() => {
-    if (submitted.current && sameSheet(form.getValues(), saved)) {
+    if (submitted.current && sameSheet(getValues(), saved)) {
       submitted.current = false;
       onBack();
     }
-  }, [form, onBack, saved]);
+  }, [getValues, onBack, saved]);
 
   return {
     forget: () => {
@@ -360,12 +365,15 @@ function SheetFields({
   fixedAddingTotal,
   form,
   locked,
+  saving,
   totalErrorOf,
 }: {
   /** The general criteria's share on a level sheet; null on the general one. */
   fixedAddingTotal: number | null;
   form: SheetForm;
   locked: boolean;
+  /** While a save is in flight: an edit then would be dropped when it lands. */
+  saving: boolean;
   /** Why the typed sheet does not add up, or null; the save asks the same. */
   totalErrorOf: (
     criteria: SheetCriteriaFormValues["criteria"],
@@ -391,6 +399,7 @@ function SheetFields({
     kind,
     locked,
     onAppend: () => append({ kind, maximum: "", name: "" }),
+    saving,
     onRemove: remove,
     rows: rowsOf(kind),
   });
@@ -462,6 +471,7 @@ function KindSection({
   onAppend,
   onRemove,
   rows,
+  saving,
 }: {
   addLabel: string;
   children: ReactNode;
@@ -472,11 +482,22 @@ function KindSection({
   onAppend: () => void;
   onRemove: (index: number) => void;
   rows: { fieldId: string; index: number }[];
+  saving: boolean;
 }) {
   return (
-    <FieldSet className="gap-2">
+    <FieldSet className="gap-2" data-invalid={error ? true : undefined}>
       {children}
       {error ? <FieldError>{error}</FieldError> : null}
+      {rows.length > 0 ? (
+        <div
+          aria-hidden="true"
+          className={cn(criterionRowColumns, "text-sm font-medium")}
+        >
+          <div>Criterio</div>
+          <div>Máximo</div>
+          <div />
+        </div>
+      ) : null}
       {rows.map(({ fieldId, index }) => (
         <CriterionRow
           form={form}
@@ -485,6 +506,7 @@ function KindSection({
           kind={kind}
           locked={locked}
           onRemove={() => onRemove(index)}
+          saving={saving}
         />
       ))}
       {locked ? null : (
@@ -493,6 +515,7 @@ function KindSection({
           variant="outline"
           className="w-fit"
           aria-label={addLabel}
+          disabled={saving}
           onClick={onAppend}
         >
           <Plus aria-hidden="true" data-icon="inline-start" />
@@ -509,15 +532,17 @@ function CriterionRow({
   kind,
   locked,
   onRemove,
+  saving,
 }: {
   form: SheetForm;
   index: number;
   kind: CriterionKind;
   locked: boolean;
   onRemove: () => void;
+  saving: boolean;
 }) {
   return (
-    <FieldGroup className="grid grid-cols-[minmax(0,1fr)_6rem_2rem] items-start gap-2">
+    <FieldGroup className={cn(criterionRowColumns, "items-start")}>
       {/* The kind is where the row sits, not a field, so the post carries it here. */}
       <input type="hidden" name={`criteria.${index}.kind`} value={kind} />
       <TextInputField
@@ -525,6 +550,7 @@ function CriterionRow({
         disabled={locked}
         id={`criterion-name-${index}`}
         label="Criterio"
+        readOnly={saving}
         labelClassName="sr-only"
         name={`criteria.${index}.name`}
       />
@@ -533,6 +559,7 @@ function CriterionRow({
         disabled={locked}
         id={`criterion-maximum-${index}`}
         label="Máximo"
+        readOnly={saving}
         labelClassName="sr-only"
         name={`criteria.${index}.maximum`}
       />
@@ -542,6 +569,7 @@ function CriterionRow({
           variant="destructive"
           size="icon-sm"
           aria-label="Quitar criterio"
+          disabled={saving}
           onClick={onRemove}
         >
           <Trash2 aria-hidden="true" />
