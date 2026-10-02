@@ -57,7 +57,7 @@ function ChoreographyStep({ loaderData, wizard }: StepProps) {
     <>
       <StepIntro
         title="La coreografía"
-        hint="Su nombre y en qué modalidad compite."
+        hint="Su nombre y en qué modalidad participa."
       />
       <TextInputField
         autoComplete="off"
