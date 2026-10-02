@@ -1,11 +1,5 @@
 import { Ellipsis } from "lucide-react";
-import {
-  useId,
-  useRef,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,19 +18,12 @@ type ResourceActionsMenuProps = {
   children: ReactNode;
   contentClassName?: string;
   label?: string;
-  /**
-   * Where the tooltip sits. Defaults to the left, which is empty in the
-   * detail-view headers this menu was written for; a surface that puts another
-   * control there has to move it or the tooltip covers that control.
-   */
-  tooltipSide?: ComponentProps<typeof TooltipContent>["side"];
 };
 
 export function ResourceActionsMenu({
   children,
   contentClassName = "w-56",
   label = "Acciones",
-  tooltipSide = "left",
 }: ResourceActionsMenuProps) {
   const tooltipId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -95,7 +82,7 @@ export function ResourceActionsMenu({
             {children}
           </DropdownMenuContent>
         </DropdownMenu>
-        <TooltipContent id={tooltipId} side={tooltipSide} sideOffset={6}>
+        <TooltipContent id={tooltipId} side="left" sideOffset={6}>
           {label}
         </TooltipContent>
       </Tooltip>
