@@ -1,4 +1,4 @@
-import { RotateCcw, Trash2 } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
@@ -159,7 +159,6 @@ function ChoreographyDetailActionsMenu({
               onDelete();
             }}
           >
-            <Trash2 aria-hidden="true" />
             Eliminar
           </DropdownMenuItem>
         )}
