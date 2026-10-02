@@ -136,7 +136,8 @@ function selectEmptyState(loaderData: PortalPresentationsLoaderData) {
   if (loaderData.rows.length === 0) {
     return {
       title: "Tu academia no tiene presentaciones",
-      description: "Una coreografía entra en el programa cuando cubre su seña.",
+      description:
+        "Cuando tu academia inscriba una coreografía en el evento activo, va a aparecer acá.",
     };
   }
 

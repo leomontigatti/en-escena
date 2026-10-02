@@ -80,6 +80,21 @@ describe("PresentationsListView", () => {
     expect(markup).not.toContain(">Fuera de bloque<");
   });
 
+  test("keeps the deposit warning on an unnumbered row next to its badge", () => {
+    const markup = renderView({
+      presentations: [
+        buildItem({
+          orderNumber: null,
+          warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
+        }),
+      ],
+      unorderedCount: 1,
+    });
+
+    expect(markup).toContain("Sin número");
+    expect(markup).toContain("Seña pendiente");
+  });
+
   test("lets a numbered row be chosen and leaves an unnumbered one out", () => {
     const markup = renderView({
       presentations: [

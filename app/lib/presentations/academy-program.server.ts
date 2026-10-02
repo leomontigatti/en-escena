@@ -15,7 +15,6 @@ import type { Executor } from "@/lib/finances/choreography-cobro-support.server"
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
 import { experienceLevelLabel } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
-import { isPresentationEligible } from "@/lib/presentations/ordering";
 import {
   listsDancerNames,
   readProgramDancerNames,
@@ -37,7 +36,7 @@ export type AcademyPresentationRow = {
   /** Named for a solo and a duo only; a group's list would outgrow the row. */
   dancerNames: string[];
   groupType: ChoreographyGroupType;
-  /** Numbered and below its deposit: it keeps the number the academy was told. */
+  /** Below its deposit, numbered or not: a notice on the row, never a bar. */
   isBelowDeposit: boolean;
   /** The label of the level the choreography competes at, or `null`. */
   levelLabel: string | null;
@@ -50,10 +49,10 @@ export type AcademyPresentationRow = {
 };
 
 /**
- * Every choreography of the academy that is part of the order or can enter it:
- * one that has a presentation, whatever its money says, and one that is at
- * least `Señada`. A withdrawn one is never listed, numbered or not. Numbered rows come first by their number, the rest after them
- * by choreography number, which is the reading order of the list.
+ * Every choreography of the academy, numbered or not, whatever its money says;
+ * only a withdrawn one is left out. Numbered rows come first by their number,
+ * the rest after them by choreography number, which is the reading order of
+ * the list.
  */
 export async function readAcademyPresentations(
   input: { academyId: string; eventId: string },
@@ -101,22 +100,14 @@ export async function readAcademyPresentations(
     readEventChoreographyFinancialStatuses(input.eventId, executor),
   ]);
 
-  const listed = rows.filter(
-    (row) =>
-      row.orderNumber !== null ||
-      isPresentationEligible({
-        financialStatus:
-          financialStatuses.get(row.choreographyId) ?? "depositPending",
-      }),
-  );
   const dancerNamesByChoreography = await readProgramDancerNames(
     executor,
-    listed
+    rows
       .filter((row) => listsDancerNames(row.groupType as ChoreographyGroupType))
       .map((row) => row.choreographyId),
   );
 
-  return listed
+  return rows
     .map((row) => ({
       categoryName: row.categoryName,
       choreographyId: row.choreographyId,

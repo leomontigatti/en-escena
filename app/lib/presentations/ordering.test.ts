@@ -4,7 +4,6 @@ import {
   computeAutomaticOrder,
   computeManualMove,
   findFrozenChoreographyIds,
-  isPresentationEligible,
   movePosition,
   type PresentationOrderingRow,
 } from "./ordering";
@@ -25,7 +24,6 @@ function row({
     choreographyId,
     choreographyNumber,
     experienceLevel: null,
-    financialStatus: "depositMet",
     groupType: "solo",
     orderNumber: null,
     schedule: {
@@ -106,38 +104,12 @@ function hash(value: string) {
   return result;
 }
 
-describe("isPresentationEligible", () => {
-  test("requires the choreography to be at least `Señada`", () => {
-    expect(isPresentationEligible({ financialStatus: "depositPending" })).toBe(
-      false,
-    );
-    expect(isPresentationEligible({ financialStatus: "depositMet" })).toBe(
-      true,
-    );
-    expect(isPresentationEligible({ financialStatus: "paidInFull" })).toBe(
-      true,
-    );
-  });
-});
-
 describe("computeAutomaticOrder", () => {
   test("refuses when there is nothing to order", () => {
     expect(computeAutomaticOrder([])).toEqual({
       ok: false,
       reason: "nothingToOrder",
     });
-  });
-
-  test("refuses when every choreography is below `Señada` and unnumbered", () => {
-    expect(
-      computeAutomaticOrder([
-        row({
-          choreographyId: "a",
-          choreographyNumber: 1,
-          financialStatus: "depositPending",
-        }),
-      ]),
-    ).toEqual({ ok: false, reason: "nothingToOrder" });
   });
 
   test("orders a block by choreography number", () => {
@@ -570,13 +542,12 @@ describe("computeAutomaticOrder", () => {
     });
   });
 
-  test("orders and counts a numbered choreography that fell below `Señada`", () => {
+  test("orders a numbered choreography like any other", () => {
     const rows = [
       row({
         choreographyId: "below",
         choreographyNumber: 1,
         activeDancerIds: ["ana"],
-        financialStatus: "depositPending",
         orderNumber: 7,
       }),
       row({
@@ -858,12 +829,6 @@ describe("computeAutomaticOrder with frozen rows", () => {
         choreographyNumber: 1,
         orderNumber: 1,
         schedule: dayOne,
-      }),
-      row({
-        choreographyId: "below",
-        choreographyNumber: 2,
-        financialStatus: "depositPending",
-        schedule: dayTwo,
       }),
     ];
 
