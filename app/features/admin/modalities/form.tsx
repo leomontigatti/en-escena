@@ -18,6 +18,7 @@ import type {
   ModalityActionValues,
   NameActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
+import type { OfferedSheets } from "@/lib/judging/sheet-criteria";
 import {
   createValidatedRouteSubmitHandler,
   type RouteFormPendingScope,
@@ -163,6 +164,8 @@ type SubmodalityCriteriaSetup = {
   criteria: EventSubmodalityCriterionRow[];
   lockedSubmodalityIds: string[];
   modalityId: string;
+  /** The sheets the modality's categories score on. */
+  sheets: OfferedSheets;
   submodalities: EventSubmodalityRow[];
 };
 
@@ -303,6 +306,7 @@ function SubmodalityCriteriaAction({
         modalityId={criteriaSetup.modalityId}
         onOpenChange={setOpen}
         open={open}
+        sheets={criteriaSetup.sheets}
         submodality={submodality}
       />
     </>

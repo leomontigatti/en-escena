@@ -1,9 +1,12 @@
-import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  categories,
+  categoryModalities,
   choreographies,
   judgeAssignments,
+  modalities,
   presentations,
   scores,
   submodalities,
@@ -11,25 +14,25 @@ import {
 } from "@/db/schema";
 import {
   eventBaseEntityNotFound,
-  normalizeEventBaseName,
-  requiredFieldMessage,
   toTitleCase,
 } from "@/lib/events/bases-repository/shared.server";
-import type {
-  EventBaseFailure,
-  EventBasesDeleteResult,
-} from "@/lib/events/bases-repository/shared.server";
+import type { EventBasesDeleteResult } from "@/lib/events/bases-repository/shared.server";
 import {
-  duplicateCriterionNameErrors,
-  validateCriteriaMaxima,
+  experienceLevelOrder,
+  type ExperienceLevel,
+} from "@/lib/events/experience-levels";
+import {
+  duplicateCriterionNameMessage,
   type CriterionKind,
 } from "@/lib/judging/criteria";
+import {
+  sheetRuleFor,
+  validateSheetCriteria,
+  type OfferedSheets,
+} from "@/lib/judging/sheet-criteria";
 
 const lockedSubmodalityCriteriaError =
   "No se pueden cambiar los criterios porque la submodalidad ya tiene puntajes.";
-
-const levelCriteriaError =
-  "No se pueden cambiar los criterios porque la submodalidad tiene criterios por nivel.";
 
 export type SubmodalityCriterionInput = {
   kind: CriterionKind;
@@ -38,24 +41,71 @@ export type SubmodalityCriterionInput = {
 };
 
 /**
- * Every general criterion of the event, in sheet order, for the modality page
- * to hand each submodality row its own set. The page already holds the whole
+ * Every criterion of the event, general and per level, for the modality page to
+ * hand each submodality's editor its own. The page already holds the whole
  * catalog of the active event, so one query per page beats one per
- * submodality. The levels' own criteria have no editor here yet, so they are
- * neither listed nor touched, and a submodality that has any refuses the save
- * below.
+ * submodality.
  */
 export async function listSubmodalityCriteria(eventId: string) {
   return db.query.submodalityCriteria.findMany({
-    where: and(
-      eq(submodalityCriteria.eventId, eventId),
-      isNull(submodalityCriteria.experienceLevel),
-    ),
+    where: eq(submodalityCriteria.eventId, eventId),
     orderBy: [
       asc(submodalityCriteria.submodalityId),
+      asc(sql`${submodalityCriteria.experienceLevel} is not null`),
       asc(submodalityCriteria.position),
     ],
   });
+}
+
+/**
+ * Which sheets each modality of the event is scored on, read off the categories
+ * that offer it: one per level they admit, and the general criteria on their
+ * own where one admits none. A modality no category offers yet has neither.
+ */
+export async function readModalitySheets(
+  eventId: string,
+): Promise<Map<string, OfferedSheets>> {
+  const rows = await db
+    .select({
+      experienceLevels: categories.experienceLevels,
+      modalityId: modalities.id,
+    })
+    .from(modalities)
+    .leftJoin(
+      categoryModalities,
+      eq(categoryModalities.modalityId, modalities.id),
+    )
+    .leftJoin(categories, eq(categories.id, categoryModalities.categoryId))
+    .where(eq(modalities.eventId, eventId));
+  const levelsByModality = new Map<string, Set<ExperienceLevel>>();
+  const standsAlone = new Set<string>();
+
+  for (const row of rows) {
+    const levels = levelsByModality.get(row.modalityId) ?? new Set();
+
+    levelsByModality.set(row.modalityId, levels);
+
+    // A modality no category offers has a row with no category at all, and no
+    // sheet: only a category that admits no levels scores on the general
+    // criteria alone.
+    if (row.experienceLevels?.length === 0) {
+      standsAlone.add(row.modalityId);
+    }
+
+    for (const level of row.experienceLevels ?? []) {
+      levels.add(level);
+    }
+  }
+
+  return new Map(
+    [...levelsByModality].map(([modalityId, levels]) => [
+      modalityId,
+      {
+        generalStandsAlone: standsAlone.has(modalityId),
+        levels: experienceLevelOrder.filter((level) => levels.has(level)),
+      },
+    ]),
+  );
 }
 
 /**
@@ -120,19 +170,22 @@ export async function isSubmodalityScoreLocked(
 }
 
 /**
- * Saves a submodality's general criteria as a whole. They are part of every
- * sheet, so a half-applied change would leave sheets that add up to something
- * other than 100; the whole set is deleted and written again inside one
- * transaction.
+ * Saves one sheet of a submodality as a whole: its general criteria, or one
+ * level's own. Each is checked against the sheets it belongs to
+ * (`sheet-criteria.ts`) with the rest of the submodality as stored, so the save
+ * and the editor refuse the same lists.
  *
  * Deleting rather than diffing is safe precisely because a locked submodality is
  * refused first: with no score pointing at any criterion, no identity has to
- * survive the save, and rewriting sidesteps the `(submodality, lower(name))`
- * index rejecting a rename that only swaps two names.
+ * survive the save, and rewriting sidesteps the name indexes rejecting a rename
+ * that only swaps two names.
  */
-export async function replaceSubmodalityCriteria(
+export async function replaceSheetCriteria(
   submodalityId: string,
-  input: { criteria: SubmodalityCriterionInput[] },
+  input: {
+    criteria: SubmodalityCriterionInput[];
+    experienceLevel: ExperienceLevel | null;
+  },
 ): Promise<EventBasesDeleteResult> {
   const submodality = await db.query.submodalities.findFirst({
     where: eq(submodalities.id, submodalityId),
@@ -150,107 +203,82 @@ export async function replaceSubmodalityCriteria(
     };
   }
 
-  // The general set is checked against 100 on its own, which only describes a
-  // sheet while no level adds to it. Once one does, every sheet is general plus
-  // level, and that needs the levels' editor to be checked whole.
-  if (await hasLevelCriteria(submodalityId)) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: levelCriteriaError,
-    };
-  }
+  const sheets = await readModalitySheets(submodality.eventId);
 
-  const validation = validateSubmodalityCriteriaInput(input.criteria);
+  return await db.transaction(async (tx) => {
+    // One save per submodality at a time: the rule reads the other sheets'
+    // names and totals, so two saves of different sheets must not both pass on
+    // the same snapshot and leave one sheet with a repeated name.
+    await tx
+      .select({ id: submodalities.id })
+      .from(submodalities)
+      .where(eq(submodalities.id, submodalityId))
+      .for("update");
 
-  if (!validation.ok) {
-    return validation;
-  }
+    const stored = await tx
+      .select({
+        experienceLevel: submodalityCriteria.experienceLevel,
+        kind: submodalityCriteria.kind,
+        maximum: submodalityCriteria.maximum,
+        name: submodalityCriteria.name,
+      })
+      .from(submodalityCriteria)
+      .where(eq(submodalityCriteria.submodalityId, submodalityId));
+    const validation = validateSheetCriteria(
+      input.criteria,
+      sheetRuleFor(
+        input.experienceLevel,
+        stored,
+        sheets.get(submodality.modalityId) ?? noOfferedSheets,
+      ),
+    );
 
-  await db.transaction(async (tx) => {
+    if (!validation.ok) {
+      return {
+        ok: false,
+        code: Object.values(validation.fieldErrors).includes(
+          duplicateCriterionNameMessage,
+        )
+          ? "duplicate-name"
+          : "invalid-event-bases",
+        error: invalidCriteriaError,
+        fieldErrors: validation.fieldErrors,
+      } as const;
+    }
+
     await tx
       .delete(submodalityCriteria)
       .where(
         and(
           eq(submodalityCriteria.submodalityId, submodalityId),
-          isNull(submodalityCriteria.experienceLevel),
+          input.experienceLevel === null
+            ? isNull(submodalityCriteria.experienceLevel)
+            : eq(submodalityCriteria.experienceLevel, input.experienceLevel),
         ),
       );
 
-    if (input.criteria.length === 0) {
-      return;
+    if (input.criteria.length > 0) {
+      await tx.insert(submodalityCriteria).values(
+        input.criteria.map((criterion, position) => ({
+          eventId: submodality.eventId,
+          experienceLevel: input.experienceLevel,
+          kind: criterion.kind,
+          maximum: Number.parseInt(criterion.maximum.trim(), 10),
+          name: toTitleCase(criterion.name),
+          position,
+          submodalityId,
+        })),
+      );
     }
 
-    await tx.insert(submodalityCriteria).values(
-      input.criteria.map((criterion, position) => ({
-        eventId: submodality.eventId,
-        kind: criterion.kind,
-        maximum: Number.parseInt(criterion.maximum.trim(), 10),
-        name: toTitleCase(criterion.name),
-        position,
-        submodalityId,
-      })),
-    );
+    return { ok: true } as const;
   });
-
-  return { ok: true };
 }
 
-async function hasLevelCriteria(submodalityId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ id: submodalityCriteria.id })
-    .from(submodalityCriteria)
-    .where(
-      and(
-        eq(submodalityCriteria.submodalityId, submodalityId),
-        isNotNull(submodalityCriteria.experienceLevel),
-      ),
-    )
-    .limit(1);
-
-  return Boolean(row);
-}
-
-function validateSubmodalityCriteriaInput(
-  criteria: SubmodalityCriterionInput[],
-): { ok: true } | EventBaseFailure {
-  const fieldErrors: Record<string, string> = {};
-
-  criteria.forEach((criterion, index) => {
-    if (!normalizeEventBaseName(criterion.name)) {
-      fieldErrors[`criteria.${index}.name`] = requiredFieldMessage;
-    }
-  });
-
-  const duplicates = duplicateCriterionNameErrors(
-    criteria.map((criterion) => criterion.name),
-  );
-
-  for (const [index, message] of duplicates) {
-    fieldErrors[`criteria.${index}.name`] = message;
-  }
-
-  if (Object.keys(fieldErrors).length > 0) {
-    return {
-      ok: false,
-      code: duplicates.size > 0 ? "duplicate-name" : "invalid-event-bases",
-      error: invalidCriteriaError,
-      fieldErrors,
-    };
-  }
-
-  const maximaValidation = validateCriteriaMaxima(criteria);
-
-  if (!maximaValidation.ok) {
-    return {
-      ok: false,
-      code: "invalid-event-bases",
-      error: invalidCriteriaError,
-      fieldErrors: maximaValidation.fieldErrors,
-    };
-  }
-
-  return { ok: true };
-}
+/** A modality no category offers yet: no sheet is scored on it so far. */
+const noOfferedSheets: OfferedSheets = {
+  generalStandsAlone: false,
+  levels: [],
+};
 
 const invalidCriteriaError = "Revisá los criterios de la submodalidad.";

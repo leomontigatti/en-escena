@@ -1,4 +1,5 @@
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
+import type { OfferedSheets } from "@/lib/judging/sheet-criteria";
 import type {
   modalities,
   submodalities,
@@ -18,6 +19,8 @@ export type EventModalitiesLoaderData = {
   submodalities: EventSubmodalityRow[];
   submodalityCriteria: EventSubmodalityCriterionRow[];
   lockedSubmodalityIds: string[];
+  /** The sheets each modality is scored on, keyed by modality. */
+  modalitySheets: Record<string, OfferedSheets>;
 };
 
 const basePath = "/administracion/modalidades";

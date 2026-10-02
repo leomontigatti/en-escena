@@ -1,68 +1,34 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Info, Plus, Trash } from "lucide-react";
-import { useMemo } from "react";
-import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
+import { ChevronRight, Info, TriangleAlert } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
 
-import { SubmitButton } from "@/components/shared/action-buttons";
-import {
-  DiscardChangesDialog,
-  useDiscardGuard,
-} from "@/components/shared/discard-guard";
-import { IntegerInputField } from "@/components/shared/integer-input-field";
-import { SelectField } from "@/components/shared/select-field";
-import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldSet,
-  FieldTitle,
-} from "@/components/ui/field";
+  experienceLevelLabel,
+  type ExperienceLevel,
+} from "@/lib/events/experience-levels";
 import {
   addingCriteriaTotal,
-  addingCriteriaTotalMessage,
   sumAddingCriteriaMaxima,
 } from "@/lib/judging/criteria";
-import {
-  createValidatedRouteSubmitHandler,
-  isRouteFormPending,
-  useOptionalFormAction,
-  useOptionalNavigation,
-  useOptionalSubmit,
-  useSavedFormValues,
-} from "@/lib/shared/forms";
+import { sheetGaps, type OfferedSheets } from "@/lib/judging/sheet-criteria";
 
+import { mandatoryTechniqueLabel, SheetCriteriaView } from "./criteria-sheet";
 import type {
   EventSubmodalityCriterionRow,
   EventSubmodalityRow,
 } from "./shared";
-import {
-  submodalityCriteriaFormSchema,
-  type SubmodalityCriteriaFormValues,
-} from "./view-shared";
-
-const emptyCriteriaCopy =
-  "Sin criterios, se puntúa con un único valor de 0 a 100";
 
 const lockedCriteriaCopy =
   "Esta submodalidad ya tiene puntajes, así que sus criterios no se pueden cambiar.";
-
-const kindOptions = [
-  { value: "adds", label: "Suma" },
-  { value: "deducts", label: "Descuenta" },
-] as const;
-
-type CriteriaFormController = UseFormReturn<SubmodalityCriteriaFormValues>;
 
 type SubmodalityCriteriaDialogProps = {
   criteria: EventSubmodalityCriterionRow[];
@@ -70,14 +36,19 @@ type SubmodalityCriteriaDialogProps = {
   modalityId: string;
   onOpenChange: (open: boolean) => void;
   open: boolean;
+  sheets: OfferedSheets;
   submodality: EventSubmodalityRow;
 };
 
+/** The sheet being edited: a level, or null for the general criteria. */
+type OpenSheet = { experienceLevel: ExperienceLevel | null };
+
 /**
- * Where a submodality's scoring sheet is defined. The counter against 100 is
- * live because the total is the whole point of the screen: a sheet whose adding
- * maxima do not reach 100 could never give a 100, so the administrator has to
- * see the shortfall while distributing it rather than on submitting.
+ * Where a submodality's scoring sheets are defined. Every sheet is the general
+ * criteria (`Técnico obligatorio`) plus one level's own, so the dialog opens on
+ * the list of them with each one's total, and edits one at a time: the general
+ * criteria, or a level's. The list is what tells the administrator which sheets
+ * still miss 100 after a change to the general ones, which reach every level.
  */
 export function SubmodalityCriteriaDialog({
   criteria,
@@ -85,232 +56,205 @@ export function SubmodalityCriteriaDialog({
   modalityId,
   onOpenChange,
   open,
+  sheets,
   submodality,
 }: SubmodalityCriteriaDialogProps) {
-  const form = useSubmodalityCriteriaForm(criteria);
-  const { append, fields, remove } = useFieldArray({
-    control: form.control,
-    keyName: "fieldId",
-    name: "criteria",
-  });
-  const formAction = useOptionalFormAction();
-  const submit = useOptionalSubmit();
-  const navigation = useOptionalNavigation();
-  const isSaving = isRouteFormPending(navigation, {
-    fields: { id: submodality.id },
-    intent: "save-submodality-criteria",
-  });
-  const watchedCriteria = form.watch("criteria");
-  const addingTotal = sumAddingCriteriaMaxima(watchedCriteria ?? []);
-  const totalInvalid = fields.length > 0 && addingTotal !== addingCriteriaTotal;
-  const { discardDialogProps, requestClose } = useDiscardGuard({
-    isAudioDirty: false,
-    isFormDirty: form.formState.isDirty,
-    // A discarded draft is not what the dialog shows when it opens again.
-    onClose: () => {
-      form.reset();
-      onOpenChange(false);
-    },
-  });
+  const [openSheet, setOpenSheet] = useState<OpenSheet | null>(null);
+  // The open sheet holds the draft, so closing the dialog over it asks there.
+  const requestCloseRef = useRef<(() => void) | null>(null);
+  const close = () => {
+    setOpenSheet(null);
+    onOpenChange(false);
+  };
 
   return (
-    <>
-      <Dialog
-        open={open}
-        onOpenChange={(nextOpen) => {
-          if (nextOpen) {
-            onOpenChange(true);
-          } else if (!isSaving) {
-            // Esc and the close button are held like `Cancelar` while saving.
-            requestClose();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{`Criterios de ${submodality.name}`}</DialogTitle>
-            <DialogDescription>
-              {fields.length === 0 ? emptyCriteriaCopy : null}
-            </DialogDescription>
-          </DialogHeader>
-          {locked ? (
-            <Alert variant="info">
-              <Info aria-hidden="true" />
-              <AlertTitle>Criterios bloqueados</AlertTitle>
-              <AlertDescription>{lockedCriteriaCopy}</AlertDescription>
-            </Alert>
-          ) : null}
-          <form
-            id={`submodality-criteria-form-${submodality.id}`}
-            method="post"
-            className="flex w-full flex-col gap-4"
-            onSubmit={createValidatedRouteSubmitHandler(
-              form,
-              submit,
-              formAction,
-            )}
-          >
-            <input
-              type="hidden"
-              name="intent"
-              value="save-submodality-criteria"
-            />
-            <input type="hidden" name="id" value={submodality.id} />
-            <input type="hidden" name="modalityId" value={modalityId} />
-            <FieldSet>
-              <ul className="flex flex-col gap-3">
-                {fields.map((field, index) => (
-                  <li key={field.fieldId}>
-                    <CriterionFields
-                      disabled={locked}
-                      form={form}
-                      index={index}
-                      onRemove={() => remove(index)}
-                    />
-                  </li>
-                ))}
-              </ul>
-              <AddingTotalCounter invalid={totalInvalid} total={addingTotal} />
-            </FieldSet>
-          </form>
-          <DialogFooter className="sm:justify-between">
-            {locked ? null : (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSaving}
-                onClick={() => append({ kind: "adds", maximum: "", name: "" })}
-              >
-                <Plus aria-hidden="true" />
-                Agregar criterio
-              </Button>
-            )}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSaving}
-                onClick={requestClose}
-              >
-                {locked ? "Cerrar" : "Cancelar"}
-              </Button>
-              {locked ? null : (
-                <SubmitButton
-                  disabled={!form.formState.isDirty}
-                  form={`submodality-criteria-form-${submodality.id}`}
-                  isPending={isSaving}
-                />
-              )}
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <DiscardChangesDialog {...discardDialogProps} />
-    </>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) {
+          onOpenChange(true);
+        } else {
+          (requestCloseRef.current ?? close)();
+        }
+      }}
+    >
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{`Criterios de ${submodality.name}`}</DialogTitle>
+          <DialogDescription>
+            Cada planilla suma el técnico obligatorio y los criterios de su
+            nivel, y tiene que llegar a 100.
+          </DialogDescription>
+        </DialogHeader>
+        {locked ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertTitle>Criterios bloqueados</AlertTitle>
+            <AlertDescription>{lockedCriteriaCopy}</AlertDescription>
+          </Alert>
+        ) : null}
+        {openSheet ? (
+          <SheetCriteriaView
+            criteria={criteria}
+            experienceLevel={openSheet.experienceLevel}
+            key={openSheet.experienceLevel ?? "general"}
+            locked={locked}
+            modalityId={modalityId}
+            onBack={() => setOpenSheet(null)}
+            onClose={close}
+            requestCloseRef={requestCloseRef}
+            sheets={sheets}
+            submodalityId={submodality.id}
+          />
+        ) : (
+          <SheetList
+            criteria={criteria}
+            onOpen={(experienceLevel) => setOpenSheet({ experienceLevel })}
+            sheets={sheets}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
 /**
- * The counter and its label, red together: the label names what is being
- * counted, so leaving it black while the number turns red would read as if the
- * number were the only thing at fault. The `Field` is what makes them red — it
- * carries the invalid state its own error message hangs off, exactly as a field
- * with an input does.
+ * The submodality's sheets as saved, each with its adding total. A level's
+ * total counts the general criteria too, since that is the sheet a judge
+ * fills; a level no category offers any more is still listed while it has
+ * criteria, so they can be cleared.
  */
-function AddingTotalCounter({
-  invalid,
+function SheetList({
+  criteria,
+  onOpen,
+  sheets,
+}: {
+  criteria: EventSubmodalityCriterionRow[];
+  onOpen: (experienceLevel: ExperienceLevel | null) => void;
+  sheets: OfferedSheets;
+}) {
+  const general = criteria.filter(
+    (criterion) => criterion.experienceLevel === null,
+  );
+  const levels = [
+    ...sheets.levels,
+    ...criteria.flatMap((criterion) =>
+      criterion.experienceLevel &&
+      !sheets.levels.includes(criterion.experienceLevel)
+        ? [criterion.experienceLevel]
+        : [],
+    ),
+  ].filter((level, index, all) => all.indexOf(level) === index);
+  // A level no category offers any more is still a sheet while it has
+  // criteria, so its total is checked like the others.
+  const gaps = sheetGaps(criteria, { ...sheets, levels });
+  const isGap = (experienceLevel: ExperienceLevel | null) =>
+    gaps.some((gap) => gap.experienceLevel === experienceLevel);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {gaps.length > 0 ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Planillas incompletas</AlertTitle>
+          <AlertDescription>
+            Corregí los criterios de las planillas listadas más abajo.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <SheetGroup title="Criterios generales">
+        <SheetRow
+          count={general.length}
+          incomplete={isGap(null)}
+          onOpen={() => onOpen(null)}
+          title={mandatoryTechniqueLabel}
+          total={general.length > 0 ? sumAddingCriteriaMaxima(general) : null}
+        />
+      </SheetGroup>
+      {levels.length > 0 ? (
+        <SheetGroup title="Criterios por nivel">
+          {levels.map((level) => {
+            const own = criteria.filter(
+              (criterion) => criterion.experienceLevel === level,
+            );
+
+            return (
+              <SheetRow
+                count={own.length}
+                incomplete={isGap(level)}
+                key={level}
+                onOpen={() => onOpen(level)}
+                title={experienceLevelLabel(level) ?? level}
+                total={
+                  general.length + own.length > 0
+                    ? sumAddingCriteriaMaxima([...general, ...own])
+                    : null
+                }
+              />
+            );
+          })}
+        </SheetGroup>
+      ) : null}
+    </div>
+  );
+}
+
+function SheetGroup({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function SheetRow({
+  count,
+  incomplete,
+  onOpen,
+  title,
   total,
 }: {
-  invalid: boolean;
-  total: number;
+  count: number;
+  incomplete: boolean;
+  onOpen: () => void;
+  title: string;
+  /** Null on a sheet with no criteria at all, scored with a single value. */
+  total: number | null;
 }) {
   return (
-    <Field data-adding-total data-invalid={invalid ? "true" : undefined}>
-      <div className="flex items-center justify-between gap-2">
-        <FieldTitle>Suman</FieldTitle>
-        <span className="text-sm font-medium" role="status">
-          {`${total} / ${addingCriteriaTotal}`}
+    <Button
+      type="button"
+      variant="outline"
+      className="h-auto w-full justify-between py-3 text-left"
+      data-sheet-row
+      onClick={onOpen}
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="font-medium" data-sheet-row-part>
+          {title}
         </span>
-      </div>
-      <FieldError>{invalid ? addingCriteriaTotalMessage : null}</FieldError>
-    </Field>
+        <Badge data-sheet-row-part variant="secondary">
+          {count === 1 ? "1 criterio" : `${count} criterios`}
+        </Badge>
+      </span>
+      <span className="flex items-center gap-2">
+        {total === null ? null : (
+          <Badge
+            data-sheet-row-part
+            variant={incomplete ? "warning" : "success"}
+          >
+            {`${total}/${addingCriteriaTotal}`}
+          </Badge>
+        )}
+        <ChevronRight aria-hidden="true" />
+      </span>
+    </Button>
   );
-}
-
-function CriterionFields({
-  disabled,
-  form,
-  index,
-  onRemove,
-}: {
-  disabled: boolean;
-  form: CriteriaFormController;
-  index: number;
-  onRemove: () => void;
-}) {
-  return (
-    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_7rem_9rem_2rem] sm:items-start">
-      <TextInputField
-        control={form.control}
-        disabled={disabled}
-        id={`criterion-name-${index}`}
-        label="Criterio"
-        labelClassName="sr-only"
-        name={`criteria.${index}.name`}
-      />
-      <IntegerInputField
-        control={form.control}
-        disabled={disabled}
-        id={`criterion-maximum-${index}`}
-        label="Máximo"
-        labelClassName="sr-only"
-        name={`criteria.${index}.maximum`}
-      />
-      <SelectField
-        control={form.control}
-        disabled={disabled}
-        id={`criterion-kind-${index}`}
-        label="Suma o descuenta"
-        labelClassName="sr-only"
-        name={`criteria.${index}.kind`}
-        options={kindOptions}
-      />
-      {disabled ? null : (
-        <Button
-          type="button"
-          variant="destructive"
-          size="icon-sm"
-          aria-label="Quitar criterio"
-          onClick={onRemove}
-        >
-          <Trash aria-hidden="true" />
-        </Button>
-      )}
-    </FieldGroup>
-  );
-}
-
-function useSubmodalityCriteriaForm(
-  criteria: EventSubmodalityCriterionRow[],
-): CriteriaFormController {
-  const defaultValues = useMemo(
-    (): SubmodalityCriteriaFormValues => ({
-      criteria: criteria.map((criterion) => ({
-        kind: criterion.kind,
-        maximum: String(criterion.maximum),
-        name: criterion.name,
-      })),
-    }),
-    [criteria],
-  );
-  const form = useForm<SubmodalityCriteriaFormValues>({
-    defaultValues,
-    mode: "onSubmit",
-    resolver: zodResolver(submodalityCriteriaFormSchema),
-  });
-
-  // Compared by content: the caller filters the criteria on every render.
-  useSavedFormValues(form, defaultValues);
-
-  return form;
 }

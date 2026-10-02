@@ -1,6 +1,7 @@
 import { modalityFormSchema } from "@/features/admin/modalities/view-shared";
 import { readIndexedFormEntries } from "@/lib/admin/events/bases-action/input.server";
-import { replaceSubmodalityCriteria } from "@/lib/judging/criteria.server";
+import { replaceSheetCriteria } from "@/lib/judging/criteria.server";
+import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { criterionKinds, type CriterionKind } from "@/lib/judging/criteria";
 import type {
   ActionErrorScope,
@@ -54,6 +55,11 @@ type CriterionActionInput = {
 
 type ModalityActionInput = EventBasesActionBaseInput & {
   criteria: CriterionActionInput[];
+  /**
+   * The sheet the criteria belong to as posted: a level, or empty for the
+   * general criteria. Read by `saveCriteriaSheet`, which refuses anything else.
+   */
+  experienceLevel: string;
   modalityId: string;
   name: string;
   submodalities: NameActionValuesWithId[];
@@ -77,6 +83,7 @@ function readModalityActionInput(
   return {
     ...baseInput,
     criteria: readCriteriaInput(formData),
+    experienceLevel: String(formData.get("experienceLevel") ?? ""),
     modalityId: String(formData.get("modalityId") ?? ""),
     name: String(formData.get("name") ?? ""),
     submodalities: readSubmodalitiesInput(formData),
@@ -136,6 +143,26 @@ function readCriteriaInput(formData: FormData) {
         entry.name = value;
       }
     },
+  });
+}
+
+/**
+ * Saves the posted sheet. An empty level is the general criteria; a value that
+ * is no level is a request the editor could not have made, refused rather than
+ * read as the general sheet, which it would then overwrite.
+ */
+function saveCriteriaSheet(input: ModalityActionInput) {
+  if (
+    input.experienceLevel !== "" &&
+    !isExperienceLevel(input.experienceLevel)
+  ) {
+    return invalidEventBasesActionResult();
+  }
+
+  return replaceSheetCriteria(input.id, {
+    criteria: input.criteria,
+    experienceLevel:
+      input.experienceLevel === "" ? null : input.experienceLevel,
   });
 }
 
@@ -281,7 +308,7 @@ async function runModalityIntent(
     case "delete-submodality":
       return deleteSubmodality(input.id);
     case "save-submodality-criteria":
-      return replaceSubmodalityCriteria(input.id, { criteria: input.criteria });
+      return saveCriteriaSheet(input);
     default:
       return invalidEventBasesActionResult();
   }

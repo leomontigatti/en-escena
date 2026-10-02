@@ -19,6 +19,7 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import type { JudgePanelActionData } from "./action.server";
+import { incompleteSheetNoticeMessage } from "./incomplete-sheet";
 
 const criteria = [
   {
@@ -388,6 +389,25 @@ describe("scoring a submodality with criteria", () => {
     expect(criterionInput("tecnica")?.value).toBe("50");
     expect(saveButton()?.disabled).toBe(true);
     expect(router.state.location.search).toBe("?presentacion=a");
+  });
+
+  test("will not save a sheet whose criteria do not reach 100", async () => {
+    await mount({
+      presentationId: "a",
+      rows: [
+        buildRow({
+          criteria: criteria.filter(
+            (criterion) => criterion.id !== "interpretacion",
+          ),
+          name: "Primera",
+          presentationId: "a",
+        }),
+      ],
+    });
+    await type("tecnica", "50");
+
+    expect(document.body.textContent).toContain(incompleteSheetNoticeMessage);
+    expect(saveButton()?.disabled).toBe(true);
   });
 
   test("leaves a clean sheet without asking", async () => {

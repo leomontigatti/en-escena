@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import type { InternalAccount } from "@/lib/auth/internal-account";
 import { formatScheduleDayHeading } from "@/lib/choreographies/schedule-formatters";
+import { isSheetComplete } from "@/lib/judging/sheet-criteria";
 import {
   feedbackAudioFieldSubmission,
   feedbackAudioFieldUrl,
@@ -39,6 +40,7 @@ import {
 import type { JudgePanelActionData } from "./action.server";
 import { DisqualifiedNotice } from "./disqualification";
 import { FeedbackRecorder } from "./feedback-recorder";
+import { IncompleteSheetNotice } from "./incomplete-sheet";
 import {
   buildJudgeSheetFormSchema,
   buildJudgeSheetSubmission,
@@ -101,7 +103,7 @@ export function JudgeScoreSheet({
     isSaving,
   });
   const isSavePending = useJudgeSavePending(presentation.presentationId);
-  const disqualified = presentation.status === "disqualified";
+  const { disqualified, incomplete } = readSheetState(presentation);
 
   // A line the client accepted and the server did not — a criterion added to
   // the submodality since the page loaded, say — belongs on its own field.
@@ -152,9 +154,7 @@ export function JudgeScoreSheet({
         description={formatPresentationSummary(presentation)}
       />
 
-      <AlertStack className="mt-6">
-        {disqualified ? <DisqualifiedNotice /> : null}
-      </AlertStack>
+      <SheetNotices disqualified={disqualified} incomplete={incomplete} />
 
       {/* `overflow-clip` rather than the card's own `overflow-hidden`, so the
           footer can stick to the bottom of a sheet longer than the screen. */}
@@ -212,7 +212,7 @@ export function JudgeScoreSheet({
               </Button>
             ) : null}
             <SubmitButton
-              disabled={!isDirty}
+              disabled={!isDirty || incomplete}
               form="judge-sheet-form"
               isPending={isSavePending}
             />
@@ -274,4 +274,37 @@ function useSpentPass({
       isSaving.current = false;
     }
   }, [actionData, isSaving]);
+}
+
+/**
+ * Why the sheet takes less than a score, if it does: a disqualified
+ * presentation takes only the take, whatever its sheet's total, and an
+ * incomplete sheet takes nothing until administration completes it.
+ */
+function readSheetState(presentation: JudgePresentationRow) {
+  const disqualified = presentation.status === "disqualified";
+
+  return {
+    disqualified,
+    // No criteria is a single 0-100 value, not a sheet left short.
+    incomplete:
+      !disqualified &&
+      presentation.criteria.length > 0 &&
+      !isSheetComplete(presentation.criteria),
+  };
+}
+
+function SheetNotices({
+  disqualified,
+  incomplete,
+}: {
+  disqualified: boolean;
+  incomplete: boolean;
+}) {
+  return (
+    <AlertStack className="mt-6">
+      {disqualified ? <DisqualifiedNotice /> : null}
+      {incomplete ? <IncompleteSheetNotice /> : null}
+    </AlertStack>
+  );
 }

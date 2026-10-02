@@ -95,5 +95,6 @@ function buildLoaderData(): EventModalitiesLoaderData {
     submodalities: [],
     submodalityCriteria: [],
     lockedSubmodalityIds: [],
+    modalitySheets: {},
   };
 }

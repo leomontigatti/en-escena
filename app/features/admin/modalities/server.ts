@@ -5,6 +5,7 @@ import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
   findScoreLockedSubmodalityIds,
   listSubmodalityCriteria,
+  readModalitySheets,
 } from "@/lib/judging/criteria.server";
 import {
   listModalities,
@@ -34,16 +35,23 @@ async function loadEventModalitiesData(request: Request) {
       submodalities: [],
       submodalityCriteria: [],
       lockedSubmodalityIds: [],
+      modalitySheets: {},
     };
   }
 
-  const [modalities, submodalities, submodalityCriteria, lockedSubmodalityIds] =
-    await Promise.all([
-      listModalities(selectedEventId),
-      listSubmodalities(selectedEventId),
-      listSubmodalityCriteria(selectedEventId),
-      findScoreLockedSubmodalityIds(selectedEventId),
-    ]);
+  const [
+    modalities,
+    submodalities,
+    submodalityCriteria,
+    lockedSubmodalityIds,
+    modalitySheets,
+  ] = await Promise.all([
+    listModalities(selectedEventId),
+    listSubmodalities(selectedEventId),
+    listSubmodalityCriteria(selectedEventId),
+    findScoreLockedSubmodalityIds(selectedEventId),
+    readModalitySheets(selectedEventId),
+  ]);
 
   return {
     selectedEventId,
@@ -51,6 +59,7 @@ async function loadEventModalitiesData(request: Request) {
     submodalities,
     submodalityCriteria,
     lockedSubmodalityIds: [...lockedSubmodalityIds],
+    modalitySheets: Object.fromEntries(modalitySheets),
   };
 }
 
