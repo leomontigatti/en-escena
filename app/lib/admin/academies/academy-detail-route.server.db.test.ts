@@ -71,10 +71,12 @@ function isFieldDisabled(markup: string, fieldName: string) {
 
 async function buildFormRequest(input: {
   academyId: string;
+  city?: string;
   contactName: string;
   email: string;
   name: string;
   phone: string;
+  province?: string;
   role: "admin" | "auditor";
 }) {
   const signedIn = await createSignedInRequest({
@@ -88,6 +90,8 @@ async function buildFormRequest(input: {
   formData.set("name", input.name);
   formData.set("contactName", input.contactName);
   formData.set("phone", input.phone);
+  formData.set("city", input.city ?? "rosario");
+  formData.set("province", input.province ?? "santa fe");
 
   return new Request(detailUrl(input.academyId), {
     method: "POST",
@@ -211,17 +215,21 @@ describe("`/administracion/academias` detail", () => {
 
     const [stored] = await db
       .select({
+        city: academies.city,
         contactName: academies.contactName,
         name: academies.name,
         phone: academies.phone,
+        province: academies.province,
       })
       .from(academies)
       .where(eq(academies.id, academy.academy.id));
 
     expect(stored).toEqual({
+      city: "Rosario",
       contactName: "Nora Norte",
       name: "Academia Sur Renombrada",
       phone: "3415551234",
+      province: "Santa Fe",
     });
   });
 
