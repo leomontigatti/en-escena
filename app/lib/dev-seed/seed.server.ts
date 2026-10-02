@@ -34,7 +34,7 @@ import { deleteSeededRows } from "@/lib/dev-seed/delete-seeded-rows.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";
-import { disqualifyPresentation } from "@/lib/judging/disqualification.server";
+import { setPresentationDisqualified } from "@/lib/judging/score-settlement.server";
 import { saveJudgeScore } from "@/lib/judging/save-score.server";
 import { assignJudges } from "@/lib/presentations/judge-assignments.server";
 import { runAutomaticOrdering } from "@/lib/presentations/participation.server";
@@ -530,10 +530,10 @@ async function invoiceChoreography(input: {
 }
 
 /**
- * Numbers the event and has the demo judge close both afternoon presentations:
- * one disqualified, one scored. Either counts as evaluated, which freezes
- * every number in that schedule. Judges only write on the schedule's own day,
- * so both writes are dated then.
+ * Numbers the event and closes both afternoon presentations: administration
+ * disqualifies one and the demo judge scores the other. Either counts as
+ * evaluated, which freezes every number in that schedule. Judges only write on
+ * the schedule's own day, so the score is dated then.
  */
 async function judgeAfternoonSchedule(input: {
   disqualifiedChoreographyId: string;
@@ -567,9 +567,8 @@ async function judgeAfternoonSchedule(input: {
   const now = new Date(`${input.scheduledDate}T15:00:00Z`);
 
   expectOk(
-    await disqualifyPresentation({
-      judgeId: input.judgeUserId,
-      now,
+    await setPresentationDisqualified({
+      disqualified: true,
       presentationId: presentationOf(input.disqualifiedChoreographyId),
     }),
     "disqualify the afternoon presentation",

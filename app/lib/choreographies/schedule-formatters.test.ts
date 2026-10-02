@@ -4,6 +4,7 @@ import {
   appendScheduleOccupancySuffix,
   formatScheduleDateTime,
   formatScheduleDayLabel,
+  formatScheduleDayHeading,
   formatScheduleDayTabLabel,
 } from "@/lib/choreographies/schedule-formatters";
 
@@ -51,6 +52,11 @@ describe("schedule formatters", () => {
     expect(formatScheduleDateTime(schedule)).toBe(
       "1 de mayo de 2026 - 14:00 hs.",
     );
+  });
+
+  test("heads a day with its weekday, day and month", () => {
+    expect(formatScheduleDayHeading("2024-08-22")).toBe("Jueves 22 de agosto");
+    expect(formatScheduleDayHeading("not-a-date")).toBe("not-a-date");
   });
 
   test("names a day the same way the schedule label does, without its time", () => {

@@ -10,7 +10,7 @@ import {
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
-import { disqualifyPresentation } from "./disqualification.server";
+import { setPresentationDisqualified } from "./score-settlement.server";
 import { seedJudgingFixture } from "./judging.test-support";
 import { judgingDate } from "./judging-day";
 import { saveJudgeScore } from "./save-score.server";
@@ -426,8 +426,8 @@ describe("saving on a presentation a colleague disqualified", () => {
       presentationId: presentation.presentationId,
       value: "80",
     });
-    await disqualifyPresentation({
-      judgeId: judge.judgeId,
+    await setPresentationDisqualified({
+      disqualified: true,
       presentationId: presentation.presentationId,
     });
 
@@ -449,8 +449,8 @@ describe("saving on a presentation a colleague disqualified", () => {
     const { judge, presentation } = await seedOpenPresentation();
     const audio = createAudioStorage();
 
-    await disqualifyPresentation({
-      judgeId: judge.judgeId,
+    await setPresentationDisqualified({
+      disqualified: true,
       presentationId: presentation.presentationId,
     });
 
@@ -471,8 +471,8 @@ describe("saving on a presentation a colleague disqualified", () => {
   test("writes no score at all for a judge who saves neither a value nor a take", async () => {
     const { judge, presentation } = await seedOpenPresentation();
 
-    await disqualifyPresentation({
-      judgeId: judge.judgeId,
+    await setPresentationDisqualified({
+      disqualified: true,
       presentationId: presentation.presentationId,
     });
 
@@ -490,8 +490,8 @@ describe("saving on a presentation a colleague disqualified", () => {
     const { judge, presentation } = await seedOpenPresentation();
     const audio = createAudioStorage();
 
-    await disqualifyPresentation({
-      judgeId: judge.judgeId,
+    await setPresentationDisqualified({
+      disqualified: true,
       presentationId: presentation.presentationId,
     });
     await saveJudgeScore({

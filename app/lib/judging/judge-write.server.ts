@@ -14,8 +14,8 @@ import { isOpenForJudges } from "@/lib/judging/judging-day";
  * What every write a judge makes has to establish first: that the presentation
  * is theirs to write on, that its day is still open, and how it stands right
  * now. It is read under a `FOR UPDATE` on the presentation so that a panel
- * moving around a judge mid-dialog — a colleague disqualifying, the day turning
- * — decides the write, rather than whatever the page was rendered with.
+ * moving around a judge mid-dialog — administration disqualifying, the day
+ * turning — decides the write, rather than whatever the page was rendered with.
  *
  * The two refusals are different in kind and stay apart: writing on a
  * presentation one is not assigned to is not a mistake the interface can make,

@@ -331,7 +331,7 @@ The day the judges are working on: the business date of three hours before now, 
 _Avoid_: `schedule`, event date, score window, deadline flag
 
 **`disqualification`** — ui: "Descalificación"
-A `presentation` closed for the whole panel and taken out of the results, held as its `disqualifiedAt` timestamp. Any assigned judge sets it while the `judgingDay` is open and any assigned judge clears it, with no confirmation and no reason; administration does both from the scores view at any time. Who did it is not stored, and the scores saved before it are kept, so reinstating brings them back untouched. A judge may still record a `feedbackAudio` on it, stored with no value.
+A `presentation` closed for the whole panel and taken out of the results, held as its `disqualifiedAt` timestamp. Only administration sets and clears it, from the scores view at any time, with no reason; judges never do. The scores saved before it are kept, so reinstating brings them back untouched. A judge may still record a `feedbackAudio` on it, stored with no value.
 _Avoid_: absence, `withdrawnChoreography`, `participationStatus`
 
 **`judgeAssignment`** — ui: "Asignación de juez"

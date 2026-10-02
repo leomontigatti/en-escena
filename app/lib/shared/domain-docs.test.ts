@@ -215,7 +215,7 @@ const judgingScoringRequirements = [
   "business date of three hours before",
   "03:00",
   "A presentation is **evaluated** when it is disqualified or when any score row exists for it",
-  "Any assigned judge reinstates",
+  "Only administration disqualifies a presentation",
   "rounded to two decimals",
   "| below 60        | `Mención especial`  |",
   "| 60 to below 80  | `Medalla de bronce` |",

@@ -170,7 +170,7 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   | Choreography    | Dancer, block   | State                                                                                                  |
   | --------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
   | `Luna de Papel` | Ana, morning    | Deposit paid and numbered; open to correction.                                                         |
-  | `Viento Sur`    | Bea, afternoon  | Deposit paid, numbered, disqualified by the demo judge.                                                |
+  | `Viento Sur`    | Bea, afternoon  | Deposit paid, numbered, disqualified by administration.                                                |
   | `Río Arriba`    | Caro, afternoon | Deposit paid, numbered, scored 87 by the demo judge under `Contemporáneo`, and invoiced (`Factura C`). |
   | `Sal y Arena`   | Dani, morning   | Nothing paid, so it has no number.                                                                     |
 

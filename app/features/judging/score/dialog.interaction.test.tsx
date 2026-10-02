@@ -16,16 +16,13 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import type { JudgePanelActionData } from "./action.server";
-import {
-  disqualifiedNoticeMessage,
-  disqualifyLabel,
-  reinstateLabel,
-} from "./disqualification";
+import { disqualifiedNoticeMessage } from "./disqualification";
 
 function buildRow(
   overrides: Partial<JudgePresentationRow> & { presentationId: string },
 ): JudgePresentationRow {
   return {
+    academyName: "Academia Sur",
     categoryAdmitsExperienceLevels: true,
     categoryName: "Juvenil",
     criteria: [],
@@ -97,6 +94,7 @@ describe("scoring a presentation without criteria", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                judgingDate: "2026-08-22",
                 presentations: options.rows ?? presentations,
               }}
             />
@@ -168,8 +166,26 @@ describe("scoring a presentation without criteria", () => {
     expect(document.body.textContent).not.toContain(discardChangesTitle);
   });
 
-  test("errors on an empty score only once the judge saves", async () => {
+  test("waits for a change before `Guardar` does anything", async () => {
     await mount({ presentationId: "b" });
+
+    expect(saveButton()?.disabled).toBe(true);
+  });
+
+  test("errors on an emptied score only once the judge saves", async () => {
+    await mount({
+      presentationId: "b",
+      rows: [
+        buildRow({ presentationId: "b", status: "noFeedback", value: "90.5" }),
+      ],
+    });
+    const input = scoreInput();
+
+    await updateReactDomForm(() => {
+      if (input) {
+        setInputValue(input, "");
+      }
+    });
 
     expect(errorMessages()).toEqual([]);
 
@@ -178,6 +194,26 @@ describe("scoring a presentation without criteria", () => {
     });
 
     expect(errorMessages()).toEqual([scoreValueMessage()]);
+  });
+
+  test("puts the saved score back with `Descartar cambios`, staying open", async () => {
+    await mount({
+      presentationId: "b",
+      rows: [
+        buildRow({ presentationId: "b", status: "noFeedback", value: "90.5" }),
+      ],
+    });
+    const input = scoreInput();
+
+    await updateReactDomForm(() => {
+      if (input) {
+        setInputValue(input, "70");
+      }
+    });
+    await clickReactDomButton("Descartar cambios");
+
+    expect(scoreInput()?.value).toBe("90.5");
+    expect(saveButton()?.disabled).toBe(true);
   });
 
   test("errors on a value that is not a half step, and clears it once it is", async () => {
@@ -254,7 +290,6 @@ describe("scoring a presentation without criteria", () => {
     expect(saveButton()?.disabled).toBe(true);
     expect(saveButton()?.querySelector('[data-slot="spinner"]')).not.toBeNull();
     expect(getButton("Cancelar").disabled).toBe(true);
-    expect(getButton(disqualifyLabel).disabled).toBe(true);
 
     releaseSave();
   });
@@ -335,7 +370,9 @@ describe("scoring a presentation without criteria", () => {
     expect(scoreInput()?.value).toBe("90.5");
 
     await clickReactDomButton("Cancelar");
-    await clickReactDomButton("Descartar");
+    await clickReactDomButton("Descartar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
 
     expect(router.state.location.search).toBe("");
     expect(scoreInput()).toBeNull();
@@ -396,7 +433,7 @@ describe("scoring a presentation without criteria", () => {
   });
 });
 
-describe("disqualifying from the score dialog", () => {
+describe("a disqualified presentation in the score dialog", () => {
   const renderer = createReactDomTestRenderer();
 
   beforeEach(() => {
@@ -405,26 +442,11 @@ describe("disqualifying from the score dialog", () => {
 
   afterEach(renderer.cleanup);
 
-  const submitted: FormData[] = [];
-
-  beforeEach(() => {
-    submitted.length = 0;
-  });
-
   async function mount(rows: JudgePresentationRow[], presentationId: string) {
     const router = createMemoryRouter(
       [
         {
           path: "/juzgamiento",
-          action: async ({ request }) => {
-            submitted.push(await request.formData());
-
-            return {
-              intent: "disqualify",
-              message: "Descalificaste la presentación.",
-              status: "success",
-            };
-          },
           element: (
             <JudgePanelView
               loaderData={{
@@ -433,6 +455,7 @@ describe("disqualifying from the score dialog", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                judgingDate: "2026-08-22",
                 presentations: rows,
               }}
             />
@@ -443,35 +466,17 @@ describe("disqualifying from the score dialog", () => {
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
-
-    return router;
   }
 
-  test("asks before closing the presentation for the whole panel", async () => {
+  // Disqualifying is administration's, from the scores view: the judge's form
+  // offers neither closing a presentation nor opening it again.
+  test("offers the judge no way to disqualify", async () => {
     await mount(presentations, "b");
 
-    await clickReactDomButton(disqualifyLabel);
-
-    expect(document.body.textContent).toContain(
-      "¿Descalificar la presentación?",
-    );
-    expect(submitted).toEqual([]);
+    expect(buttonLabels()).not.toContain("Descalificar");
   });
 
-  test("posts the disqualify intent once the judge confirms", async () => {
-    await mount(presentations, "b");
-
-    await clickReactDomButton(disqualifyLabel);
-    await updateReactDomForm(() => {
-      confirmButton()?.click();
-    });
-
-    expect(submitted.map((body) => Object.fromEntries(body))).toEqual([
-      { intent: "disqualify", presentationId: "b" },
-    ]);
-  });
-
-  test("offers to score a disqualified presentation again, with nothing to confirm", async () => {
+  test("takes only a `Devolución`, with no way to score it again", async () => {
     const rows = presentations.map((row) =>
       row.presentationId === "b"
         ? { ...row, status: "disqualified" as const }
@@ -482,26 +487,16 @@ describe("disqualifying from the score dialog", () => {
 
     expect(document.body.textContent).toContain(disqualifiedNoticeMessage);
     expect(scoreInput()).toBeNull();
-
-    await updateReactDomForm(async () => {
-      await clickReactDomButton(reinstateLabel);
-    });
-
-    expect(submitted.map((body) => Object.fromEntries(body))).toEqual([
-      { intent: "reinstate", presentationId: "b" },
-    ]);
+    expect(buttonLabels()).not.toContain("Volver a calificar");
   });
 
   function scoreInput() {
     return document.querySelector<HTMLInputElement>("#judge-score-value");
   }
 
-  /** The `Descalificar` inside the confirmation, not the one that opened it. */
-  function confirmButton() {
-    return [
-      ...(document
-        .querySelector("[role='alertdialog']")
-        ?.querySelectorAll("button") ?? []),
-    ].find((button) => button.textContent?.trim() === disqualifyLabel);
+  function buttonLabels() {
+    return [...document.querySelectorAll("button")].map((button) =>
+      button.textContent?.trim(),
+    );
   }
 });

@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { ChevronLeft, Undo2 } from "lucide-react";
+import { useForm } from "react-hook-form";
 
 import {
   AccessHeader,
@@ -11,16 +12,14 @@ import {
   DiscardChangesDialog,
   useUnsavedChangesGuard,
 } from "@/components/shared/discard-guard";
+import { SubmitButton } from "@/components/shared/action-buttons";
+import { AlertStack } from "@/components/shared/alert-stack";
+import { PinnedActions } from "@/components/shared/pinned-actions";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { FieldGroup } from "@/components/ui/field";
 import type { InternalAccount } from "@/lib/auth/internal-account";
+import { formatScheduleDayHeading } from "@/lib/choreographies/schedule-formatters";
 import {
   feedbackAudioFieldSubmission,
   feedbackAudioFieldUrl,
@@ -30,14 +29,15 @@ import {
   type FeedbackAudioFieldEvent,
 } from "@/lib/judging/feedback-audio-field";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
-import { singleScoreMaximum } from "@/lib/judging/score-value";
-import { sheetTotal } from "@/lib/judging/sheet-total";
 import { hasUnsavedChanges } from "@/lib/shared/discard-guard";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
+import {
+  formatPresentationSummary,
+  formatPresentationTitle,
+} from "./presentation-heading";
 import type { JudgePanelActionData } from "./action.server";
-import { DisqualificationAction, DisqualifiedNotice } from "./disqualification";
+import { DisqualifiedNotice } from "./disqualification";
 import { FeedbackRecorder } from "./feedback-recorder";
 import {
   buildJudgeSheetFormSchema,
@@ -46,7 +46,7 @@ import {
   type JudgeSheetFormValues,
   useJudgeSavePending,
 } from "./form-shared";
-import { ScoreInputField } from "./score-input-field";
+import { SheetParts } from "./sheet-parts";
 
 type JudgeScoreSheetProps = {
   account: InternalAccount;
@@ -54,20 +54,24 @@ type JudgeScoreSheetProps = {
    * the fields the server refused, and to know its pass through the discard
    * guard has been spent. */
   actionData?: JudgePanelActionData;
+  /** The judging day, as a `YYYY-MM-DD` date. */
+  judgingDate: string;
   onClose: () => void;
   presentation: JudgePresentationRow;
 };
 
 /**
- * Where a submodality judged on criteria is scored: the whole page, one field
- * per line, and the total the sheet adds up to in the corner the judge's eye
- * goes back to between two dances. It is a page and not a dialog because a
- * sheet is longer than a thumb's reach, and it has no previous or next buttons
- * — the way on is saving, which opens whatever the judge still owes.
+ * Where a submodality judged on criteria is scored: the whole page, laid out
+ * like the sheet administration corrects (`SheetParts`) — the `Devolución`
+ * first, then the parts with their live sums and the total under them. It is a
+ * page and not a dialog because a sheet is longer than a thumb's reach, and it
+ * has no previous or next buttons — the way on is saving, which opens whatever
+ * the judge still owes. `Guardar` waits for a change, as on every form.
  */
 export function JudgeScoreSheet({
   account,
   actionData,
+  judgingDate,
   onClose,
   presentation,
 }: JudgeScoreSheetProps) {
@@ -111,6 +115,11 @@ export function JudgeScoreSheet({
     }
   }, [criteria, fieldErrors, setError]);
 
+  function discard() {
+    form.reset();
+    setAudio(initialFeedbackAudioField(presentation.feedbackAudioUrl));
+  }
+
   function applyAudioEvent(event: FeedbackAudioFieldEvent) {
     setAudio((current) => reduceFeedbackAudioField(current, event));
   }
@@ -134,34 +143,26 @@ export function JudgeScoreSheet({
   }
 
   return (
-    <AccessPage width="xl">
+    <AccessPage width="2xl">
       <PrivateAccessHeader account={account} />
       <AccessHeader
-        eyebrow="Juzgamiento"
-        title={presentation.name}
-        description={formatPrimaryAndSecondaryValue(
-          `${presentation.orderNumber}. ${presentation.categoryName}`,
-          presentation.submodalityName ?? presentation.modalityName,
-        )}
+        eyebrow={formatScheduleDayHeading(judgingDate)}
+        title={formatPresentationTitle(presentation)}
+        titleLevel={2}
+        description={formatPresentationSummary(presentation)}
       />
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Planilla</CardTitle>
-          <CardAction>
-            <SheetTotal control={form.control} criteria={criteria} />
-          </CardAction>
-        </CardHeader>
+      <AlertStack className="mt-6">
+        {disqualified ? <DisqualifiedNotice /> : null}
+      </AlertStack>
+
+      {/* `overflow-clip` rather than the card's own `overflow-hidden`, so the
+          footer can stick to the bottom of a sheet longer than the screen. */}
+      <Card className="mt-6 overflow-clip">
         <CardContent>
-          {disqualified ? (
-            <div className="mb-4">
-              <DisqualifiedNotice />
-            </div>
-          ) : null}
           <form
             id="judge-sheet-form"
             method="post"
-            className="flex w-full flex-col gap-4"
             // A disqualified presentation takes nothing but the take, so the
             // sheet is not there to be filled or validated.
             onSubmit={
@@ -173,82 +174,54 @@ export function JudgeScoreSheet({
                 : form.handleSubmit(save)
             }
           >
-            {disqualified
-              ? null
-              : criteria.map((criterion) => (
-                  <ScoreInputField
-                    control={form.control}
-                    id={`criterio-${criterion.id}`}
-                    key={criterion.id}
-                    label={criterion.name}
-                    maximum={criterion.maximum}
-                    name={`values.${criterion.id}`}
-                  />
-                ))}
-            <FeedbackRecorder
-              audioUrl={feedbackAudioFieldUrl(audio)}
-              error={fieldErrors?.audio}
-              onDelete={() => applyAudioEvent({ type: "deleted" })}
-              onRecorded={(take) => applyAudioEvent({ take, type: "recorded" })}
-            />
+            <FieldGroup>
+              <FeedbackRecorder
+                audioUrl={feedbackAudioFieldUrl(audio)}
+                error={fieldErrors?.audio}
+                legendVariant="legend"
+                onDelete={() => applyAudioEvent({ type: "deleted" })}
+                onRecorded={(take) =>
+                  applyAudioEvent({ take, type: "recorded" })
+                }
+              />
+              {disqualified ? null : (
+                <SheetParts
+                  control={form.control}
+                  criteria={criteria}
+                  fieldIdPrefix="criterio"
+                />
+              )}
+            </FieldGroup>
           </form>
         </CardContent>
-        <CardFooter className="justify-between gap-2">
-          <DisqualificationAction
-            disabled={isSavePending}
-            disqualified={disqualified}
-            // The post is a navigation the page's own guard would otherwise
-            // stop, and there is nothing in the form it can lose.
-            onSubmitting={() => {
-              isSaving.current = true;
-            }}
-            presentationId={presentation.presentationId}
-          />
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Volver
-            </Button>
-            <Button
-              disabled={isSavePending}
-              type="submit"
+        <PinnedActions>
+          <Button type="button" variant="outline" onClick={onClose}>
+            <ChevronLeft aria-hidden="true" data-icon="inline-start" />
+            Volver
+          </Button>
+          <div className="flex items-center gap-3">
+            {isDirty ? (
+              <Button
+                disabled={isSavePending}
+                onClick={discard}
+                type="button"
+                variant="outline"
+              >
+                <Undo2 aria-hidden="true" data-icon="inline-start" />
+                Descartar cambios
+              </Button>
+            ) : null}
+            <SubmitButton
+              disabled={!isDirty}
               form="judge-sheet-form"
-            >
-              Guardar
-            </Button>
+              isPending={isSavePending}
+            />
           </div>
-        </CardFooter>
+        </PinnedActions>
       </Card>
 
       <DiscardChangesDialog {...discardDialog} />
     </AccessPage>
-  );
-}
-
-/**
- * What the sheet adds up to right now, read off the fields as they are typed.
- * A line the judge is halfway through counts as nothing, so the number never
- * jumps around under their thumb and always reads what could be saved.
- */
-function SheetTotal({
-  control,
-  criteria,
-}: {
-  control: ReturnType<typeof useForm<JudgeSheetFormValues>>["control"];
-  criteria: JudgePresentationRow["criteria"];
-}) {
-  const values = useWatch({ control, name: "values" });
-  const total = sheetTotal(
-    criteria.map((criterion) => ({
-      kind: criterion.kind,
-      maximum: criterion.maximum,
-      value: values?.[criterion.id] ?? "",
-    })),
-  );
-
-  return (
-    <span className="text-lg tabular-nums" data-sheet-total>
-      {`${total} / ${singleScoreMaximum}`}
-    </span>
   );
 }
 
@@ -273,7 +246,7 @@ function useSheetDiscardGuard({
 /**
  * Hands the guard back once the post the pass was granted for has answered and
  * left the judge looking at the same sheet — a day that closed, a take the
- * policy refused, a disqualification settled from the footer. The pass is for
+ * policy refused. The pass is for
  * one navigation, and without this it would outlive it: the sheet would keep
  * its unsaved lines and let the next `Volver`, back button or closing tab throw
  * them away without asking, which is the one thing the guard exists to stop.
@@ -297,7 +270,7 @@ function useSpentPass({
 
     answered.current = actionData;
 
-    if (actionData.status === "error" || actionData.intent !== "save-score") {
+    if (actionData.status === "error") {
       isSaving.current = false;
     }
   }, [actionData, isSaving]);

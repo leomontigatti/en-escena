@@ -84,17 +84,6 @@ describe("correcting the panel's scores", () => {
     return menuItems().find((item) => item.textContent?.trim() === label);
   }
 
-  function readOnlyValues() {
-    return Object.fromEntries(
-      [...document.querySelectorAll<HTMLInputElement>("input[readonly]")].map(
-        (field) => [
-          document.querySelector(`label[for='${field.id}']`)?.textContent,
-          field.value,
-        ],
-      ),
-    );
-  }
-
   function metrics() {
     return Object.fromEntries(
       [...document.querySelectorAll("[data-slot='card']")]
@@ -104,23 +93,6 @@ describe("correcting the panel's scores", () => {
           card.querySelector("p")?.textContent,
         ]),
     );
-  }
-
-  async function openTab(label: string) {
-    const tab = [...document.querySelectorAll("[role='tab']")].find(
-      (candidate) => candidate.textContent?.trim() === label,
-    );
-
-    if (!tab) {
-      throw new Error(`Expected a ${label} tab to be rendered.`);
-    }
-
-    await act(async () => {
-      tab.dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true, button: 0 }),
-      );
-      await Promise.resolve();
-    });
   }
 
   function dialogButton(label: string) {
@@ -179,43 +151,20 @@ describe("correcting the panel's scores", () => {
     });
   }
 
-  // Regression: the scores panel unmounted behind the other tab, and a
-  // correction typed before a look at the choreography came back as the saved
-  // number.
-  test("keeps an unsaved correction across a look at the choreography", async () => {
-    await mount({
-      criteria: [
-        {
-          experienceLevel: null,
-          id: "technique",
-          kind: "adds",
-          maximum: 100,
-          name: "Técnica",
-        },
-      ],
-      judges: [
-        buildJudge({
-          criteriaValues: { technique: "90.0" },
-          scoreId: "score-1",
-        }),
-        buildJudge({
-          criteriaValues: { technique: "80.0" },
-          judgeAssignmentId: "assignment-2",
-          judgeName: "Zulema Juez",
-          scoreId: "score-2",
-        }),
-      ],
-    });
+  // The record's details read in the header, so the page has no
+  // `Coreografía` tab beside the scores, and no `Puntajes` tab to hold them.
+  test("names the presentation and its choreography in the header, with no tabs around the scores", async () => {
+    await mount();
 
-    await type("criterio-score-2-technique", "70.5");
-    await openTab("Coreografía");
-
-    expect(readOnlyValues()).toMatchObject({ Academia: "Academia Sur" });
-
-    await openTab("Puntajes");
-
-    expect(input("criterio-score-2-technique")?.value).toBe("70.5");
-    expect(input("criterio-score-1-technique")?.value).toBe("90");
+    expect(document.querySelector("h2")?.textContent).toBe("Primera · N.º 1");
+    expect(document.body.textContent).toContain(
+      "Academia Sur · Danza clásica / Acrobacia · Juvenil / Solo · Amateur",
+    );
+    expect(
+      [...document.querySelectorAll("[role='tab']")].map((tab) =>
+        tab.textContent?.trim(),
+      ),
+    ).toEqual([]);
   });
 
   test("keeps the choreography and the disqualification in the actions menu, asking before it disqualifies", async () => {
@@ -509,6 +458,7 @@ function buildPresentation(
     criteria: [],
     disqualified: false,
     experienceLevel: "amateur",
+    groupType: "solo",
     judges: [buildJudge()],
     medal: "gold",
     modalityName: "Danza clásica",

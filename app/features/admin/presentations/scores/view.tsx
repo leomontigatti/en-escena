@@ -13,7 +13,6 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { MetricCard } from "@/components/shared/metric-card";
 import { PinnedActions } from "@/components/shared/pinned-actions";
-import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -42,9 +41,12 @@ import {
   type JudgeSheetFormValues,
 } from "@/features/judging/score/form-shared";
 import { ScoreInputField } from "@/features/judging/score/score-input-field";
+import {
+  formatPresentationSummary,
+  formatPresentationTitle,
+} from "@/features/judging/score/presentation-heading";
 import { SheetParts } from "@/features/judging/score/sheet-parts";
 import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { medalLabels } from "@/lib/judging/medal";
 import type { PresentationJudgeScore } from "@/lib/judging/presentation-scores.server";
@@ -92,13 +94,9 @@ export function PresentationScoresView({
 
   return (
     <AdminResourceLayout
-      description={
-        canEdit
-          ? "Revisá el resultado y corregí los puntajes del jurado."
-          : "Revisá el resultado y los puntajes del jurado."
-      }
+      description={formatPresentationSummary(presentation)}
       requireSelectedEvent={false}
-      title={`${presentation.name} · N.º ${presentation.orderNumber}`}
+      title={formatPresentationTitle(presentation)}
       headerAction={
         <PresentationActions canEdit={canEdit} presentation={presentation} />
       }
@@ -114,43 +112,24 @@ export function PresentationScoresView({
           </Alert>
         ) : null}
       </AlertStack>
-      {/* Above the tabs, so a corrected score shows its effect on the result
-          without leaving the tab it was corrected in. */}
       <div className="grid gap-4 md:grid-cols-2">
         <MetricCard title="Promedio" value={averageText(presentation)} />
         <MetricCard title="Medalla" value={medalText(presentation)} />
       </div>
-      <Tabs defaultValue="puntajes">
-        <TabsList variant="line">
-          <TabsTrigger value="puntajes">Puntajes</TabsTrigger>
-          <TabsTrigger value="coreografia">Coreografía</TabsTrigger>
-        </TabsList>
-        {/* Kept mounted behind the other tab, so a correction typed before a
-            look at the choreography is still there on the way back. */}
-        <TabsContent
-          className="pt-2 data-[state=inactive]:hidden"
-          forceMount
-          value="puntajes"
-        >
-          {presentation.criteria.length === 0 ? (
-            <SingleScoresTable
-              canEdit={canEdit}
-              fieldErrors={fieldErrors}
-              judges={presentation.judges}
-            />
-          ) : (
-            <JudgeSheets
-              canEdit={canEdit}
-              criteria={presentation.criteria}
-              fieldErrors={fieldErrors}
-              judges={presentation.judges}
-            />
-          )}
-        </TabsContent>
-        <TabsContent className="pt-2" value="coreografia">
-          <ChoreographyCard presentation={presentation} />
-        </TabsContent>
-      </Tabs>
+      {presentation.criteria.length === 0 ? (
+        <SingleScoresTable
+          canEdit={canEdit}
+          fieldErrors={fieldErrors}
+          judges={presentation.judges}
+        />
+      ) : (
+        <JudgeSheets
+          canEdit={canEdit}
+          criteria={presentation.criteria}
+          fieldErrors={fieldErrors}
+          judges={presentation.judges}
+        />
+      )}
     </AdminResourceLayout>
   );
 }
@@ -230,40 +209,6 @@ function PresentationActions({
         title="¿Descalificar la presentación?"
       />
     </>
-  );
-}
-
-/**
- * What the result was earned with, read-only: nothing here is edited on this
- * page, and the choreography's own page is one menu item away.
- */
-function ChoreographyCard({ presentation }: { presentation: Presentation }) {
-  return (
-    <AdminResourceFormCard
-      footer={
-        <PinnedActions>
-          <BackButton to="/administracion/presentacion" />
-        </PinnedActions>
-      }
-    >
-      <FieldGroup className="grid gap-5 md:grid-cols-2">
-        <ReadOnlyField label="Academia" value={presentation.academyName} />
-        <ReadOnlyField label="Categoría" value={presentation.categoryName} />
-        <ReadOnlyField label="Modalidad" value={presentation.modalityName} />
-        <ReadOnlyField
-          label="Submodalidad"
-          value={presentation.submodalityName ?? notApplicableText}
-        />
-        <ReadOnlyField
-          label="Nivel de experiencia"
-          value={
-            presentation.experienceLevel
-              ? experienceLevelLabels[presentation.experienceLevel]
-              : notApplicableText
-          }
-        />
-      </FieldGroup>
-    </AdminResourceFormCard>
   );
 }
 

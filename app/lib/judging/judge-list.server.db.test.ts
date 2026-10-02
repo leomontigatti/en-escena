@@ -51,7 +51,7 @@ describe("the judge's list of today's presentations", () => {
     expect(rows.map((row) => row.orderNumber)).toEqual([1, 2]);
   });
 
-  test("describes the row without naming the academy or another judge's work", async () => {
+  test("describes the row, academy included, without another judge's work", async () => {
     const fixture = await seedJudgingFixture();
     const presentation = await fixture.addPresentation({
       name: "Primera",
@@ -68,6 +68,7 @@ describe("the judge's list of today's presentations", () => {
     const [row] = await readJudgePresentations({ now: showNight, judgeId });
 
     expect(row).toMatchObject({
+      academyName: fixture.academy.academy.name,
       categoryAdmitsExperienceLevels: true,
       categoryName: fixture.catalog.categoryWithLevel.name,
       experienceLevel: "amateur",
@@ -77,7 +78,6 @@ describe("the judge's list of today's presentations", () => {
       status: "pending",
       submodalityName: fixture.catalog.submodality.name,
     });
-    expect(JSON.stringify(row)).not.toContain(fixture.academy.academy.name);
     expect(JSON.stringify(row)).not.toContain("90.0");
   });
 

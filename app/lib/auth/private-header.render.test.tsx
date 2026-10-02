@@ -44,17 +44,21 @@ describe("private route headers", () => {
       renderPrivateRoute(
         <AuditoriaRouteView loaderData={{ account: auditorAccount }} />,
       ),
-      "Usuario: ariel.auditor",
+      "Ariel Auditor",
       true,
     ],
     [
       "juzgamiento",
       renderPrivateRoute(
         <JuzgamientoRouteView
-          loaderData={{ account: judgeAccount, presentations: [] }}
+          loaderData={{
+            account: judgeAccount,
+            judgingDate: "2026-08-22",
+            presentations: [],
+          }}
         />,
       ),
-      "Usuario: juana.juez",
+      "Juana Juez",
       true,
     ],
   ])(
@@ -65,6 +69,7 @@ describe("private route headers", () => {
       if (usesInternalAccountHeader) {
         expect(markup).not.toContain("Sesión activa para");
         expect(markup).not.toContain("@example.com");
+        expect(markup).not.toContain("Usuario:");
         expect(markup).toContain("Salir");
         expect(markup).toContain('action="/salir"');
         expect(markup).toContain('method="post"');
