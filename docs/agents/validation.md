@@ -90,8 +90,8 @@ and how to bump its pins is in `docs/agents/workflows.md`.
 
 `oxlint`, configured in `.oxlintrc.json` — that file is the list of rules, read it
 there rather than trusting a count written down here. What `pnpm lint` owns is
-React hook mistakes, import cycles, un-awaited promises, and the two `ui` rules
-below.
+React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules
+and the `Trash` import restriction, both described below.
 
 The un-awaited-promise rules are type-aware (`oxlint-tsgolint`), which is why the
 run costs ~6.5 s instead of the ~1.5 s it cost before: type-aware linting builds a
@@ -122,9 +122,9 @@ focus state, `TabsList` in the line variant, a position on every button icon's
 formatting (Prettier's), on unused code (`tsc`'s) or on this repo's conventions
 (the `check:*` scripts').
 
-The `ui` rules carry the same kind of exemption: the files that broke them when
-they landed are listed under `overrides` in `.oxlintrc.json`, one list per rule,
-and those lists only shrink.
+The `ui` rules have no per-file exemption lists: the `overrides` entry in
+`.oxlintrc.json` that enables them excludes `app/components/ui/**` (where the
+primitives are defined) and test files, and nothing else.
 If it reports nothing, that is the expected result, not a reason to look for
 another linter.
 
