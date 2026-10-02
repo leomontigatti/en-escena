@@ -79,7 +79,7 @@ function SearchInputClearButton({ onClear }: { onClear: () => void }) {
         onMouseDown={(event) => event.preventDefault()}
         onClick={handleClick}
       >
-        <X aria-hidden="true" data-icon />
+        <X aria-hidden="true" />
         <span className="sr-only">Limpiar búsqueda</span>
       </InputGroupButton>
     </InputGroupAddon>

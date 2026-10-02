@@ -125,7 +125,9 @@ export function ResultsPublicationDialog({
               disabled={isPending}
               variant={isHiding ? "destructive" : "default"}
             >
-              {isPending ? <Spinner aria-hidden="true" data-icon /> : null}
+              {isPending ? (
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+              ) : null}
               {isHiding ? "Ocultar resultados" : "Publicar resultados"}
             </Button>
           </Form>

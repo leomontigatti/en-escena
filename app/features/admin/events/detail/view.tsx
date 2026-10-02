@@ -460,7 +460,9 @@ function RemoveDocumentsDialog({
             variant="destructive"
             onClick={onConfirm}
           >
-            {isPending ? <Spinner aria-hidden="true" data-icon /> : null}
+            {isPending ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : null}
             Eliminar y guardar
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -613,7 +615,9 @@ function EventActionItem({
           className="w-full justify-start whitespace-nowrap"
         >
           <span className="inline-flex items-center gap-2">
-            {isPending ? <Spinner aria-hidden="true" data-icon /> : null}
+            {isPending ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : null}
             {label}
           </span>
         </button>

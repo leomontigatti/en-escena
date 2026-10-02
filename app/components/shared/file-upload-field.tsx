@@ -665,7 +665,7 @@ function FileUploadActions({
       {state.downloadHref ? (
         <Button asChild variant="outline" size="icon-sm">
           <a href={state.downloadHref} target="_blank" rel="noreferrer">
-            <Download aria-hidden="true" data-icon />
+            <Download aria-hidden="true" />
             <span className="sr-only">{config.downloadLabel}</span>
           </a>
         </Button>
@@ -677,7 +677,7 @@ function FileUploadActions({
           size="icon-sm"
           onClick={state.clearFile}
         >
-          <Trash2 aria-hidden="true" data-icon />
+          <Trash2 aria-hidden="true" />
           <span className="sr-only">{config.removeLabel}</span>
         </Button>
       ) : null}

@@ -24,7 +24,6 @@ type ResourceActionsMenuProps = {
   children: ReactNode;
   contentClassName?: string;
   label?: string;
-  size?: ComponentProps<typeof Button>["size"];
   /**
    * Where the tooltip sits. Defaults to the left, which is empty in the
    * detail-view headers this menu was written for; a surface that puts another
@@ -37,7 +36,6 @@ export function ResourceActionsMenu({
   children,
   contentClassName = "w-56",
   label = "Acciones",
-  size = "icon-lg",
   tooltipSide = "left",
 }: ResourceActionsMenuProps) {
   const tooltipId = useId();
@@ -80,7 +78,7 @@ export function ResourceActionsMenu({
                 ref={triggerRef}
                 type="button"
                 variant="outline"
-                size={size}
+                size="icon-lg"
                 aria-describedby={tooltipId}
                 aria-label={label}
               >

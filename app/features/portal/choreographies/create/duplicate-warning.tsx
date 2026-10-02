@@ -34,7 +34,7 @@ export function ChoreographyDuplicateWarning({
       confirmButton={
         <Button type="button" disabled={isSubmitting} onClick={onContinue}>
           {isSubmitting ? (
-            <Spinner aria-hidden="true" data-icon />
+            <Spinner aria-hidden="true" data-icon="inline-start" />
           ) : (
             <Check aria-hidden="true" data-icon="inline-start" />
           )}

@@ -98,7 +98,7 @@ export function CreateChoreographyPage({
               disabled={submission.isSubmitting}
               onClick={wizard.goBack}
             >
-              <ChevronLeft aria-hidden="true" data-icon />
+              <ChevronLeft aria-hidden="true" data-icon="inline-start" />
               Anterior
             </Button>
           )}
@@ -125,9 +125,9 @@ function CreateChoreographyNextAction({
         onClick={wizard.goNext}
       >
         {submission.isSubmitting ? (
-          <Spinner aria-hidden="true" data-icon />
+          <Spinner aria-hidden="true" data-icon="inline-start" />
         ) : (
-          <Check aria-hidden="true" data-icon />
+          <Check aria-hidden="true" data-icon="inline-start" />
         )}
         Guardar
       </Button>
@@ -142,9 +142,9 @@ function CreateChoreographyNextAction({
     >
       Siguiente
       {isResolving ? (
-        <Spinner aria-hidden="true" data-icon />
+        <Spinner aria-hidden="true" data-icon="inline-end" />
       ) : (
-        <ChevronRight aria-hidden="true" data-icon />
+        <ChevronRight aria-hidden="true" data-icon="inline-end" />
       )}
     </Button>
   );

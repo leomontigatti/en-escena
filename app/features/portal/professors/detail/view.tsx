@@ -379,7 +379,7 @@ function ProfessorStatusDialog({
                   disabled={isPending}
                 >
                   {isPending ? (
-                    <Spinner aria-hidden="true" data-icon />
+                    <Spinner aria-hidden="true" data-icon="inline-start" />
                   ) : (
                     <ProfessorStatusActionIcon intent={action.intent} />
                   )}

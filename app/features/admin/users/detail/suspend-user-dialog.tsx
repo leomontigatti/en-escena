@@ -64,7 +64,7 @@ export function SuspendUserDialog({
             <input type="hidden" name="intent" value={suspendUserIntent} />
             <Button type="submit" variant="destructive" disabled={isPending}>
               {isPending ? (
-                <Spinner aria-hidden="true" data-icon />
+                <Spinner aria-hidden="true" data-icon="inline-start" />
               ) : (
                 <UserX aria-hidden="true" data-icon="inline-start" />
               )}

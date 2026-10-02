@@ -113,7 +113,9 @@ export default function RecuperarAccesoRoute() {
           />
 
           <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Spinner aria-hidden="true" data-icon /> : null}
+            {isSubmitting ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : null}
             Enviar enlace
           </Button>
         </FieldGroup>

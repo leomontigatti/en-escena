@@ -29,7 +29,7 @@ export function SeminarActions({
 
   return (
     <>
-      <ResourceActionsMenu contentClassName="w-48" size="icon">
+      <ResourceActionsMenu contentClassName="w-48">
         <DropdownMenuGroup>
           {/* A covered inscription locks fields, and the alert explaining
               them above the tabs names the delete too, so the item is

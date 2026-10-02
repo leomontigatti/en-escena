@@ -148,7 +148,7 @@ function FileUploadCompactActions({
       className="shrink-0"
       onClick={state.clearFile}
     >
-      <Trash2 aria-hidden="true" data-icon />
+      <Trash2 aria-hidden="true" />
       <span className="sr-only">{removeLabel}</span>
     </Button>
   );
