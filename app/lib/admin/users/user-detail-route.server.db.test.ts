@@ -512,7 +512,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       internalUser.userId,
     );
 
-    expect(internalMarkup).toContain("Editar usuario");
+    expect(internalMarkup).toMatch(/<h2[^>]*>Ada Admin<\/h2>/);
     expect(internalMarkup).toContain("Ada Admin");
     expect(internalMarkup).toContain("ada.admin");
     expect(internalMarkup).not.toContain("admin.detalle.usuario@example.com");

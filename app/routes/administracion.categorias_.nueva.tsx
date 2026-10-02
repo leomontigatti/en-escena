@@ -16,7 +16,7 @@ import type { Route } from "./+types/administracion.categorias_.nueva";
 export const handle = {
   adminBreadcrumbs: [
     { label: "Categorías", to: "/administracion/categorias" },
-    { label: "Nueva" },
+    { label: "Nueva categoría" },
   ],
 } satisfies AdminRouteHandle;
 

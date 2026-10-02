@@ -48,7 +48,7 @@ export function SeminarDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Editar seminario"
+      title={seminar.instructorName}
       description="Editá el instructor, su foto, el tipo, la fecha, la hora, el cupo y la seña del seminario."
       headerAction={
         <SeminarActions

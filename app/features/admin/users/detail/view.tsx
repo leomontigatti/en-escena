@@ -54,7 +54,7 @@ export function InternalUserDetailRouteView({
 
   return (
     <AdminResourceLayout
-      title="Editar usuario"
+      title={savedUser.name}
       description={getDetailDescription(
         savedUser.userType,
         loaderData.canManage,

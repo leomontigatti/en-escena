@@ -42,7 +42,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
       eventId: event.id,
       isReady: false,
     });
-    expect(markup).toContain("Editar evento");
+    expect(markup).toMatch(/<h2[^>]*>Regional 2026<\/h2>/);
     expect(markup).toContain(
       "Este evento no está listo para inscribir coreografías.",
     );
