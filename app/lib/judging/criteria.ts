@@ -1,13 +1,12 @@
 /**
- * The rule a submodality's scoring sheet has to satisfy, kept away from both the
- * form and the database because the same rule is asked twice: once by the
- * criteria dialog as the administrator types, and once by the save on the
- * server. See docs/domain/judging.md, "Scores And Feedback".
+ * The pieces a submodality's criteria are checked with: a criterion's kind and
+ * maximum, the adding total and the name comparison. How they combine into one
+ * sheet's rule is `sheet-criteria.ts`. See docs/domain/judging.md, "Scores And
+ * Feedback".
  *
  * The adding maxima total exactly 100, so a sheet can always reach 100, and the
  * deduction maxima sit outside that total because a deduction is a penalty and
- * not a share of the score. An empty list is valid and means the submodality is
- * scored with a single 0-100 value instead of a sheet.
+ * not a share of the score.
  */
 
 export const criterionKinds = ["adds", "deducts"] as const;
@@ -25,9 +24,6 @@ export type CriterionMaximumInput = {
   kind: CriterionKind;
   maximum: number | string;
 };
-
-export type CriteriaMaximaValidation =
-  { ok: true } | { ok: false; fieldErrors: Record<string, string> };
 
 /**
  * The typed maximum as a number, or null when it is not a whole number from 1.
@@ -61,39 +57,6 @@ export function sumAddingCriteriaMaxima(
 
     return total + (parseCriterionMaximum(criterion.maximum) ?? 0);
   }, 0);
-}
-
-/**
- * The whole-sheet rule. A bad maximum is reported on its own row and holds the
- * total error back: until every maximum is a number, the total says nothing
- * about whether the sheet adds up.
- */
-export function validateCriteriaMaxima(
-  criteria: readonly CriterionMaximumInput[],
-): CriteriaMaximaValidation {
-  const fieldErrors: Record<string, string> = {};
-
-  criteria.forEach((criterion, index) => {
-    if (parseCriterionMaximum(criterion.maximum) === null) {
-      fieldErrors[`criteria.${index}.maximum`] = criterionMaximumMessage;
-    }
-  });
-
-  if (Object.keys(fieldErrors).length > 0) {
-    return { ok: false, fieldErrors };
-  }
-
-  if (
-    criteria.length > 0 &&
-    sumAddingCriteriaMaxima(criteria) !== addingCriteriaTotal
-  ) {
-    return {
-      ok: false,
-      fieldErrors: { criteria: addingCriteriaTotalMessage },
-    };
-  }
-
-  return { ok: true };
 }
 
 export const duplicateCriterionNameMessage =

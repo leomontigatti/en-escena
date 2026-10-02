@@ -1,10 +1,10 @@
 import { z } from "zod";
 
+import { criterionKinds } from "@/lib/judging/criteria";
 import {
-  criterionKinds,
-  duplicateCriterionNameErrors,
-  validateCriteriaMaxima,
-} from "@/lib/judging/criteria";
+  validateSheetCriteria,
+  type SheetRule,
+} from "@/lib/judging/sheet-criteria";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 const nameFormSchema = z.object({
@@ -55,51 +55,41 @@ export type ModalityFormValues = z.infer<typeof modalityFormSchema>;
 const criterionFormSchema = z.object({
   kind: z.enum(criterionKinds),
   maximum: z.string(),
-  name: z.string().trim().min(1, requiredFieldMessage),
+  name: z.string(),
 });
 
 /**
- * The criteria dialog's schema. The sheet rule itself lives in
- * `app/lib/judging/criteria.ts`, which the save asks too, so the dialog and the
- * server refuse the same lists; all that happens here is turning its field names
- * back into form paths.
+ * One sheet's schema in the criteria editor. The rule itself lives in
+ * `app/lib/judging/sheet-criteria.ts`, which the save asks too with the same
+ * stored criteria, so the editor and the server refuse the same lists; all
+ * that happens here is turning its field names back into form paths.
  */
-export const submodalityCriteriaFormSchema = z
-  .object({
-    criteria: z.array(criterionFormSchema),
-  })
-  .superRefine((values, context) => {
-    const duplicates = duplicateCriterionNameErrors(
-      values.criteria.map((criterion) => criterion.name),
-    );
+export function buildSheetCriteriaFormSchema(rule: SheetRule) {
+  return z
+    .object({
+      criteria: z.array(criterionFormSchema),
+    })
+    .superRefine((values, context) => {
+      const validation = validateSheetCriteria(values.criteria, rule);
 
-    for (const [index, message] of duplicates) {
-      context.addIssue({
-        code: "custom",
-        message,
-        path: ["criteria", index, "name"],
-      });
-    }
+      if (validation.ok) {
+        return;
+      }
 
-    const maximaValidation = validateCriteriaMaxima(values.criteria);
+      for (const [fieldName, message] of Object.entries(
+        validation.fieldErrors,
+      )) {
+        context.addIssue({
+          code: "custom",
+          message,
+          path: toCriteriaFieldPath(fieldName),
+        });
+      }
+    });
+}
 
-    if (maximaValidation.ok) {
-      return;
-    }
-
-    for (const [fieldName, message] of Object.entries(
-      maximaValidation.fieldErrors,
-    )) {
-      context.addIssue({
-        code: "custom",
-        message,
-        path: toCriteriaFieldPath(fieldName),
-      });
-    }
-  });
-
-export type SubmodalityCriteriaFormValues = z.infer<
-  typeof submodalityCriteriaFormSchema
+export type SheetCriteriaFormValues = z.infer<
+  ReturnType<typeof buildSheetCriteriaFormSchema>
 >;
 
 function toCriteriaFieldPath(fieldName: string) {

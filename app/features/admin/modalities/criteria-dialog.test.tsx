@@ -1,31 +1,27 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-
-const useNavigationMock = vi.hoisted(() => vi.fn());
-
-vi.mock("react-router", async () => {
-  const actual =
-    await vi.importActual<typeof import("react-router")>("react-router");
-
-  return {
-    ...actual,
-    useNavigation: useNavigationMock,
-  };
-});
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useLoaderData,
+} from "react-router";
+import { afterEach, describe, expect, test } from "vitest";
 
 import { SubmodalityCriteriaDialog } from "@/features/admin/modalities/criteria-dialog";
 import type {
   EventSubmodalityCriterionRow,
   EventSubmodalityRow,
 } from "@/features/admin/modalities/shared";
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import type { OfferedSheets } from "@/lib/judging/sheet-criteria";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
   getButton,
   setInputValue,
   updateReactDomForm,
+  waitFor,
 } from "@/lib/test-support/react-dom";
 
 const submodality: EventSubmodalityRow = {
@@ -36,295 +32,254 @@ const submodality: EventSubmodalityRow = {
   createdAt: new Date("2026-01-01T00:00:00Z"),
 };
 
-describe("SubmodalityCriteriaDialog", () => {
+const sheets: OfferedSheets = {
+  generalStandsAlone: false,
+  levels: ["amateur", "profesional"],
+};
+
+describe("the submodality criteria editor", () => {
   const renderer = createReactDomTestRenderer();
 
-  beforeEach(() => {
-    useNavigationMock.mockReturnValue({ state: "idle" });
-  });
+  afterEach(renderer.cleanup);
 
-  afterEach(() => {
-    renderer.cleanup();
-    useNavigationMock.mockReset();
-  });
-
-  async function renderDialog(
-    criteria: EventSubmodalityCriterionRow[],
-    options: { locked?: boolean; onOpenChange?: (open: boolean) => void } = {},
-  ) {
-    await renderer.renderAsync(
-      <SubmodalityCriteriaDialog
-        criteria={criteria}
-        locked={options.locked ?? false}
-        modalityId="modality_1"
-        onOpenChange={options.onOpenChange ?? (() => {})}
-        open
-        submodality={submodality}
-      />,
-    );
-  }
-
-  test("says what an empty list means", async () => {
-    await renderDialog([]);
-
-    expect(document.body.textContent).toContain(
-      "Sin criterios, se puntúa con un único valor de 0 a 100",
-    );
-    expect(getCounter().textContent).toBe("0 / 100");
-    expect(getTotalField().dataset.invalid).toBeUndefined();
-  });
-
-  test("counts the adding maxima against 100 and leaves the deductions out", async () => {
-    await renderDialog([
-      criterion({ id: "criterion_1", maximum: 70, name: "Técnica" }),
-      criterion({ id: "criterion_2", maximum: 30, name: "Interpretación" }),
-      criterion({
-        id: "criterion_3",
-        kind: "deducts",
-        maximum: 10,
-        name: "Caídas",
-      }),
+  test("lists each sheet with its total, and warns about the ones short of 100", async () => {
+    await mount([
+      criterion("Técnica", 60),
+      criterion("Figuras", 40, { experienceLevel: "amateur" }),
     ]);
 
-    expect(getCounter().textContent).toBe("100 / 100");
-    expect(getTotalField().dataset.invalid).toBeUndefined();
-    expect(document.body.textContent).not.toContain(
-      "El total de los criterios que suman debe ser igual a 100.",
-    );
+    expect(sheetRows()).toEqual([
+      "Técnico obligatorio · 1 criterio · 60/100",
+      "Amateur · 1 criterio · 100/100",
+      "Profesional · 0 criterios · 60/100",
+    ]);
+    expect(document.body.textContent).toContain("Planillas incompletas");
   });
 
-  test("turns the counter and its label red while the total is wrong", async () => {
-    await renderDialog([
-      criterion({ id: "criterion_1", maximum: 70, name: "Técnica" }),
-    ]);
+  test("saves a level's own criteria, with the kind each one was added under", async () => {
+    const { posted } = await mount([criterion("Técnica", 60)]);
 
-    expect(getCounter().textContent).toBe("70 / 100");
-    expect(getTotalField().dataset.invalid).toBe("true");
-    expect(getTotalField().textContent).toContain("Suman");
-    expect(document.body.textContent).toContain(
-      "El total de los criterios que suman debe ser igual a 100.",
-    );
+    await clickReactDomButton("Profesional");
+    await addCriterion("Agregar criterio que suma", "Dificultad", "40");
+    await addCriterion("Agregar criterio que descuenta", "Caída", "5");
+
+    expect(counter()).toBe("60 + 40 / 100");
+
+    await clickReactDomButton("Guardar");
+    await waitFor(() => posted.length === 1);
+
+    expect(Object.fromEntries(posted[0])).toMatchObject({
+      "criteria.0.kind": "adds",
+      "criteria.0.maximum": "40",
+      "criteria.0.name": "Dificultad",
+      "criteria.1.kind": "deducts",
+      "criteria.1.maximum": "5",
+      "criteria.1.name": "Caída",
+      experienceLevel: "profesional",
+      id: submodality.id,
+      intent: "save-submodality-criteria",
+    });
+    // The save landed, so the editor is back on the list of sheets.
+    await waitFor(() => findButton("Volver") === undefined);
+    expect(sheetRows()[2]).toBe("Profesional · 2 criterios · 100/100");
   });
 
-  test("follows the typed maxima as the total is distributed", async () => {
-    await renderDialog([
-      criterion({ id: "criterion_1", maximum: 70, name: "Técnica" }),
-    ]);
+  test("refuses a level sheet short of 100 on `Guardar`, without posting, until it adds up", async () => {
+    const { posted } = await mount([criterion("Técnica", 60)]);
+
+    await clickReactDomButton("Amateur");
+    await addCriterion("Agregar criterio que suma", "Figuras", "30");
+
+    expect(document.body.textContent).not.toContain("debe ser igual a 100");
 
     await updateReactDomForm(() => {
-      setInputValue(getMaximumInput(0), "100");
+      getButton("Guardar").click();
     });
 
-    expect(getCounter().textContent).toBe("100 / 100");
-    expect(getTotalField().dataset.invalid).toBeUndefined();
-  });
+    await waitFor(() =>
+      document.body.textContent!.includes(
+        "El total de los criterios que suman debe ser igual a 100.",
+      ),
+    );
+    // The post would have landed by now; give it the time to.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(posted).toEqual([]);
 
-  test("errors a maximum that is not a whole number from 1 only on submit", async () => {
-    await renderDialog([
-      criterion({ id: "criterion_1", maximum: 100, name: "Técnica" }),
-    ]);
-
+    // From then on the message follows what is typed.
     await updateReactDomForm(() => {
-      setInputValue(getMaximumInput(0), "0");
-    });
-
-    expect(document.body.textContent).not.toContain(
-      "Ingresá un número entero desde 1.",
-    );
-
-    await submitDialogForm();
-
-    expect(document.body.textContent).toContain(
-      "Ingresá un número entero desde 1.",
-    );
-  });
-
-  test("opens read-only with a notice when the submodality already has scores", async () => {
-    await renderDialog(
-      [criterion({ id: "criterion_1", maximum: 100, name: "Técnica" })],
-      { locked: true },
-    );
-
-    expect(document.body.textContent).toContain(
-      "Esta submodalidad ya tiene puntajes, así que sus criterios no se pueden cambiar.",
-    );
-    expect(findButtonByLabel("Guardar")).toBeUndefined();
-    expect(findButtonByLabel("Agregar criterio")).toBeUndefined();
-    expect(getMaximumInput(0).disabled).toBe(true);
-  });
-
-  test("holds `Guardar` until something changes", async () => {
-    await renderDialog([
-      criterion({ id: "criterion_1", maximum: 100, name: "Técnica" }),
-    ]);
-
-    expect(getButton("Guardar").disabled).toBe(true);
-
-    await updateReactDomForm(() => {
-      setInputValue(getMaximumInput(0), "90");
-    });
-
-    expect(getButton("Guardar").disabled).toBe(false);
-  });
-
-  test("disables `Cancelar` with `Guardar` while the save is in flight", async () => {
-    const formData = new FormData();
-    formData.set("intent", "save-submodality-criteria");
-    formData.set("id", submodality.id);
-    useNavigationMock.mockReturnValue({
-      formData,
-      formMethod: "post",
-      state: "submitting",
-    });
-
-    await renderDialog([
-      criterion({ id: "criterion_1", maximum: 100, name: "Técnica" }),
-    ]);
-
-    expect(getButton("Guardar").disabled).toBe(true);
-    expect(
-      getButton("Guardar").querySelector('[data-slot="spinner"]'),
-    ).not.toBeNull();
-    expect(getButton("Cancelar").disabled).toBe(true);
-    expect(getButton("Agregar criterio").disabled).toBe(true);
-  });
-
-  test("ignores Esc while the save is in flight", async () => {
-    const formData = new FormData();
-    formData.set("intent", "save-submodality-criteria");
-    formData.set("id", submodality.id);
-    useNavigationMock.mockReturnValue({
-      formData,
-      formMethod: "post",
-      state: "submitting",
-    });
-    const onOpenChange = vi.fn();
-    await renderDialog(
-      [criterion({ id: "criterion_1", maximum: 100, name: "Técnica" })],
-      { onOpenChange },
-    );
-
-    await updateReactDomForm(() => {
-      document.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      setInputValue(
+        document.querySelector<HTMLInputElement>("#criterion-maximum-0")!,
+        "40",
       );
     });
 
-    expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    expect(getButton("Guardar")).toBeDefined();
+    expect(document.body.textContent).not.toContain("debe ser igual a 100");
   });
 
-  test("closes straight away on `Cancelar` while clean", async () => {
-    const onOpenChange = vi.fn();
-    await renderDialog([], { onOpenChange });
+  // Regression: the dialog is portalled out of the modality form but sits inside
+  // it in React's tree, and its submit bubbled to that form's handler, which
+  // posted the sheet again without its validation.
+  test("keeps its submit from the page's form around it", async () => {
+    const outerSubmits: string[] = [];
 
-    await clickReactDomButton("Cancelar");
-
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
-  });
-
-  test("asks before `Cancelar` drops typed changes", async () => {
-    const onOpenChange = vi.fn();
-    await renderDialog(
-      [criterion({ id: "criterion_1", maximum: 100, name: "Técnica" })],
-      { onOpenChange },
-    );
-
-    await updateReactDomForm(() => {
-      setInputValue(getMaximumInput(0), "90");
+    await mount([criterion("Técnica", 60)], {
+      onOuterSubmit: () => outerSubmits.push("outer"),
     });
-    await clickReactDomButton("Cancelar");
+    await clickReactDomButton("Amateur");
+    await addCriterion("Agregar criterio que suma", "Figuras", "30");
+    await updateReactDomForm(() => {
+      getButton("Guardar").click();
+    });
+
+    expect(outerSubmits).toEqual([]);
+  });
+
+  test("asks before `Volver` drops a typed sheet", async () => {
+    await mount([criterion("Técnica", 60)]);
+
+    await clickReactDomButton("Amateur");
+    await addCriterion("Agregar criterio que suma", "Figuras", "40");
+    await clickReactDomButton("Volver");
 
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
-    expect(onOpenChange).not.toHaveBeenCalled();
-
-    await clickReactDomButton("Descartar", { exact: true });
-
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-    // The dialog stays mounted behind its trigger, so it opens again clean.
-    expect(getMaximumInput(0).value).toBe("100");
-    expect(getButton("Guardar").disabled).toBe(true);
   });
 
-  test("appends an empty criterion, which starts out of the total", async () => {
-    await renderDialog([]);
+  test("shows a scored submodality's sheets read-only", async () => {
+    await mount([criterion("Técnica", 100)], { locked: true });
 
-    await clickReactDomButton("Agregar criterio");
+    await clickReactDomButton("Técnico obligatorio");
 
-    expect(getCounter().textContent).toBe("0 / 100");
-    expect(getTotalField().dataset.invalid).toBe("true");
+    expect(findButton("Guardar")).toBeUndefined();
+    expect(findButton("Agregar criterio que suma")).toBeUndefined();
+    expect(
+      document.querySelector<HTMLInputElement>("#criterion-name-0")?.disabled,
+    ).toBe(true);
   });
+
+  async function mount(
+    initial: EventSubmodalityCriterionRow[],
+    options: { locked?: boolean; onOuterSubmit?: () => void } = {},
+  ) {
+    let stored = initial;
+    const posted: FormData[] = [];
+
+    function Page() {
+      const criteria = useLoaderData() as EventSubmodalityCriterionRow[];
+
+      return (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            options.onOuterSubmit?.();
+          }}
+        >
+          <SubmodalityCriteriaDialog
+            criteria={criteria}
+            locked={options.locked ?? false}
+            modalityId="modality_1"
+            onOpenChange={() => {}}
+            open
+            sheets={sheets}
+            submodality={submodality}
+          />
+        </form>
+      );
+    }
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          action: async ({ request }) => {
+            const formData = await request.formData();
+            const level = String(formData.get("experienceLevel")) || null;
+
+            posted.push(formData);
+            stored = [
+              ...stored.filter(
+                (criterion) => criterion.experienceLevel !== level,
+              ),
+              ...readPostedCriteria(formData, level as ExperienceLevel | null),
+            ];
+
+            return null;
+          },
+          element: <Page />,
+          loader: () => stored,
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    return { posted };
+  }
 });
 
 function criterion(
-  overrides: Partial<EventSubmodalityCriterionRow> & { id: string },
+  name: string,
+  maximum: number,
+  overrides: Partial<EventSubmodalityCriterionRow> = {},
 ): EventSubmodalityCriterionRow {
   return {
     eventId: "event_1",
     experienceLevel: null,
+    id: `criterion-${name}`,
     kind: "adds",
-    maximum: 100,
-    name: "Criterio",
+    maximum,
+    name,
     position: 0,
     submodalityId: submodality.id,
     ...overrides,
   };
 }
 
-function findButtonByLabel(label: string) {
-  return Array.from(document.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.trim() === label,
-  );
-}
+function readPostedCriteria(
+  formData: FormData,
+  experienceLevel: ExperienceLevel | null,
+): EventSubmodalityCriterionRow[] {
+  const rows: EventSubmodalityCriterionRow[] = [];
 
-function getCounter() {
-  const counter = document.querySelector<HTMLElement>('[role="status"]');
-
-  if (!counter) {
-    throw new Error("Expected the adding total counter to be rendered.");
-  }
-
-  return counter;
-}
-
-/**
- * The field the label, the counter and the message share, and which carries the
- * invalid state all three read their colour from.
- */
-function getTotalField() {
-  const field = document.querySelector<HTMLElement>("[data-adding-total]");
-
-  if (!field) {
-    throw new Error("Expected the adding total field to be rendered.");
-  }
-
-  return field;
-}
-
-function getMaximumInput(index: number) {
-  const input = document.querySelector<HTMLInputElement>(
-    `#criterion-maximum-${index}`,
-  );
-
-  if (!input) {
-    throw new Error(`Expected the maximum field ${index} to be rendered.`);
-  }
-
-  return input;
-}
-
-async function submitDialogForm() {
-  const form = document.querySelector("form");
-
-  if (!form) {
-    throw new Error("Expected the criteria form to be rendered.");
-  }
-
-  await act(async () => {
-    form.dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true }),
+  for (let index = 0; formData.has(`criteria.${index}.name`); index += 1) {
+    rows.push(
+      criterion(String(formData.get(`criteria.${index}.name`)), 0, {
+        experienceLevel,
+        kind: formData.get(`criteria.${index}.kind`) as "adds" | "deducts",
+        maximum: Number(formData.get(`criteria.${index}.maximum`)),
+      }),
     );
-    await Promise.resolve();
+  }
+
+  return rows;
+}
+
+async function addCriterion(button: string, name: string, maximum: string) {
+  await clickReactDomButton(button);
+
+  const index = document.querySelectorAll("[id^='criterion-name-']").length - 1;
+
+  await updateReactDomForm(() => {
+    setInputValue(
+      document.querySelector<HTMLInputElement>(`#criterion-name-${index}`)!,
+      name,
+    );
+    setInputValue(
+      document.querySelector<HTMLInputElement>(`#criterion-maximum-${index}`)!,
+      maximum,
+    );
   });
+}
+
+/** Each sheet row as "title · count · total". */
+function sheetRows() {
+  return [...document.querySelectorAll("[data-sheet-row]")].map((row) =>
+    [...row.querySelectorAll("[data-sheet-row-part]")]
+      .map((part) => part.textContent)
+      .join(" · "),
+  );
+}
+
+function counter() {
+  return document.querySelector("[role='status']")?.textContent;
 }

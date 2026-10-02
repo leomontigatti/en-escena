@@ -2,13 +2,15 @@ import { asc, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { scores, submodalityCriteria } from "@/db/schema";
+import { categoryModalities, scores, submodalityCriteria } from "@/db/schema";
 import {
   findScoreLockedSubmodalityIds,
   isSubmodalityScoreLocked,
   listSubmodalityCriteria,
-  replaceSubmodalityCriteria,
+  readModalitySheets,
+  replaceSheetCriteria,
 } from "@/lib/judging/criteria.server";
+import { addingCriteriaTotalMessage } from "@/lib/judging/criteria";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -21,7 +23,8 @@ describe("submodality criteria", () => {
     const submodalityId = fixture.catalog.submodality.id;
 
     await expect(
-      replaceSubmodalityCriteria(submodalityId, {
+      replaceSheetCriteria(submodalityId, {
+        experienceLevel: null,
         criteria: [
           { kind: "adds", maximum: "60", name: " técnica " },
           { kind: "adds", maximum: "40", name: "Interpretación" },
@@ -50,7 +53,8 @@ describe("submodality criteria", () => {
     const submodalityId = fixture.catalog.submodality.id;
     await fixture.addCriterion({ maximum: 100, name: "Todo" });
 
-    await replaceSubmodalityCriteria(submodalityId, {
+    await replaceSheetCriteria(submodalityId, {
+      experienceLevel: null,
       criteria: [{ kind: "adds", maximum: "100", name: "Otra cosa" }],
     });
 
@@ -58,53 +62,92 @@ describe("submodality criteria", () => {
     expect(saved.map((criterion) => criterion.name)).toEqual(["Otra Cosa"]);
   });
 
-  // The dialog checks the general criteria alone against 100, but once a level
-  // has criteria of its own every sheet is general plus level, so a save from
-  // it could leave a sheet out of 140, or out of 40. Until the levels have an
-  // editor, their submodality's criteria are refused here whole.
-  test.each([
-    [[{ kind: "adds" as const, maximum: "100", name: "Otra cosa" }]],
-    [[]],
-  ])(
-    "refuses to change a submodality that has level criteria, leaving both sets alone (%#)",
-    async (criteria) => {
-      const fixture = await seedJudgingFixture();
-      await fixture.addCriterion({ maximum: 60, name: "Técnica" });
-      await fixture.addCriterion({
+  test("reads the sheets a modality's categories score on", async () => {
+    const fixture = await seedJudgingFixture();
+
+    const sheets = await readModalitySheets(fixture.event.id);
+
+    expect(sheets.get(fixture.catalog.modality.id)).toEqual({
+      generalStandsAlone: true,
+      levels: ["amateur"],
+    });
+  });
+
+  test("saves a level's own criteria, leaving the general ones and other levels alone", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addCriterion({ maximum: 60, name: "Técnica" });
+    await fixture.addCriterion({
+      experienceLevel: "profesional",
+      maximum: 40,
+      name: "Dificultad",
+    });
+
+    await expect(
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        criteria: [
+          { kind: "adds", maximum: "25", name: "Figuras" },
+          { kind: "adds", maximum: "15", name: "Coreografía" },
+          { kind: "deducts", maximum: "5", name: "Tiempo excedido" },
+        ],
         experienceLevel: "amateur",
-        maximum: 40,
-        name: "Figuras",
-      });
+      }),
+    ).resolves.toEqual({ ok: true });
 
-      await expect(
-        replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
-          criteria,
-        }),
-      ).resolves.toMatchObject({
-        code: "event-bases-has-dependencies",
-        ok: false,
-      });
+    await expect(
+      readSheetNames(fixture.catalog.submodality.id),
+    ).resolves.toEqual([
+      "amateur Figuras",
+      "amateur Coreografía",
+      "amateur Tiempo Excedido",
+      "profesional Dificultad",
+      "null Técnica",
+    ]);
+  });
 
-      const names = await db.query.submodalityCriteria.findMany({
-        orderBy: asc(submodalityCriteria.position),
-        where: eq(
-          submodalityCriteria.submodalityId,
-          fixture.catalog.submodality.id,
+  test("refuses a level sheet that does not complete the general criteria to 100", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addCriterion({ maximum: 60, name: "Técnica" });
+
+    await expect(
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        criteria: [{ kind: "adds", maximum: "30", name: "Figuras" }],
+        experienceLevel: "amateur",
+      }),
+    ).resolves.toMatchObject({
+      fieldErrors: { criteria: addingCriteriaTotalMessage },
+      ok: false,
+    });
+    await expect(
+      readSheetNames(fixture.catalog.submodality.id),
+    ).resolves.toEqual(["null Técnica"]);
+  });
+
+  test("lets the general criteria leave a level short when every category has levels", async () => {
+    const fixture = await seedJudgingFixture();
+    await db
+      .delete(categoryModalities)
+      .where(
+        eq(
+          categoryModalities.categoryId,
+          fixture.catalog.categoryWithoutLevel.id,
         ),
-      });
-      expect(names.map((criterion) => criterion.name).sort()).toEqual([
-        "Figuras",
-        "Técnica",
-      ]);
-    },
-  );
+      );
+
+    await expect(
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        criteria: [{ kind: "adds", maximum: "60", name: "Técnica" }],
+        experienceLevel: null,
+      }),
+    ).resolves.toEqual({ ok: true });
+  });
 
   test("clears the criteria when the submitted list is empty", async () => {
     const fixture = await seedJudgingFixture();
     await fixture.addCriterion({ maximum: 100, name: "Todo" });
 
     await expect(
-      replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        experienceLevel: null,
         criteria: [],
       }),
     ).resolves.toMatchObject({ ok: true });
@@ -118,7 +161,8 @@ describe("submodality criteria", () => {
     await fixture.addCriterion({ maximum: 100, name: "Todo" });
 
     await expect(
-      replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        experienceLevel: null,
         criteria: [{ kind: "adds", maximum: "90", name: "Casi" }],
       }),
     ).resolves.toMatchObject({
@@ -136,7 +180,8 @@ describe("submodality criteria", () => {
     const fixture = await seedJudgingFixture();
 
     await expect(
-      replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        experienceLevel: null,
         criteria: [
           { kind: "adds", maximum: "50", name: "Técnica" },
           { kind: "adds", maximum: "50", name: " técnica " },
@@ -149,7 +194,8 @@ describe("submodality criteria", () => {
     const fixture = await seedJudgingFixture();
 
     await expect(
-      replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        experienceLevel: null,
         criteria: [{ kind: "adds", maximum: "100", name: "  " }],
       }),
     ).resolves.toMatchObject({
@@ -194,7 +240,8 @@ describe("submodality criteria", () => {
     await db.insert(scores).values({ judgeAssignmentId, value: "90" });
 
     await expect(
-      replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
+      replaceSheetCriteria(fixture.catalog.submodality.id, {
+        experienceLevel: null,
         criteria: [{ kind: "adds", maximum: "100", name: "Técnica" }],
       }),
     ).resolves.toMatchObject({
@@ -209,7 +256,23 @@ describe("submodality criteria", () => {
 
   test("reports a submodality outside the event", async () => {
     await expect(
-      replaceSubmodalityCriteria("submodality_missing", { criteria: [] }),
+      replaceSheetCriteria("submodality_missing", {
+        criteria: [],
+        experienceLevel: null,
+      }),
     ).resolves.toMatchObject({ ok: false, code: "event-bases-not-found" });
   });
 });
+
+/** Each level's criteria in the enum's order, and the general ones last. */
+async function readSheetNames(submodalityId: string) {
+  const rows = await db.query.submodalityCriteria.findMany({
+    orderBy: [
+      asc(submodalityCriteria.experienceLevel),
+      asc(submodalityCriteria.position),
+    ],
+    where: eq(submodalityCriteria.submodalityId, submodalityId),
+  });
+
+  return rows.map((row) => `${row.experienceLevel} ${row.name}`);
+}

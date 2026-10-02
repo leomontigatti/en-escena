@@ -100,6 +100,10 @@ export function EventModalityDetailView({
                 criteria: loaderData.submodalityCriteria,
                 lockedSubmodalityIds: loaderData.lockedSubmodalityIds,
                 modalityId: modality.id,
+                sheets: loaderData.modalitySheets[modality.id] ?? {
+                  generalStandsAlone: true,
+                  levels: [],
+                },
                 submodalities: modalitySubmodalities,
               }}
               form={form}

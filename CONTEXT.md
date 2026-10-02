@@ -351,7 +351,7 @@ What one judge gave one `presentation`, one row per `judgeAssignment`, **created
 _Avoid_: `presentation`, price, `payment`, confirmed score, draft score
 
 **`submodalityCriterion`** — ui: "Criterio"
-One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality`. It is either a `generalCriterion` or a `levelCriterion`. The adding maxima of a sheet total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them from the modality page, and they lock as soon as a presentation whose sheet holds them has a `score`.
+One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality`. It is either a `generalCriterion` or a `levelCriterion`. The adding maxima of a sheet total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them from the modality page one sheet at a time —the `mandatoryTechnique`, or one level's own— and a level's are only saved when they complete the `mandatoryTechnique` to 100; a sheet the `mandatoryTechnique` leaves short is shown as incomplete (`Planilla incompleta`) until it is. They lock as soon as any presentation of the submodality has a `score`.
 _Avoid_: `medal`, weight, percentage
 
 **`generalCriterion`** — ui: "Criterio general"

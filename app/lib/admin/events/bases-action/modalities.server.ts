@@ -1,6 +1,10 @@
 import { modalityFormSchema } from "@/features/admin/modalities/view-shared";
 import { readIndexedFormEntries } from "@/lib/admin/events/bases-action/input.server";
-import { replaceSubmodalityCriteria } from "@/lib/judging/criteria.server";
+import { replaceSheetCriteria } from "@/lib/judging/criteria.server";
+import {
+  isExperienceLevel,
+  type ExperienceLevel,
+} from "@/lib/events/experience-levels";
 import { criterionKinds, type CriterionKind } from "@/lib/judging/criteria";
 import type {
   ActionErrorScope,
@@ -54,6 +58,8 @@ type CriterionActionInput = {
 
 type ModalityActionInput = EventBasesActionBaseInput & {
   criteria: CriterionActionInput[];
+  /** The sheet the criteria belong to: a level, or null for the general criteria. */
+  experienceLevel: ExperienceLevel | null;
   modalityId: string;
   name: string;
   submodalities: NameActionValuesWithId[];
@@ -77,6 +83,9 @@ function readModalityActionInput(
   return {
     ...baseInput,
     criteria: readCriteriaInput(formData),
+    experienceLevel: toExperienceLevel(
+      String(formData.get("experienceLevel") ?? ""),
+    ),
     modalityId: String(formData.get("modalityId") ?? ""),
     name: String(formData.get("name") ?? ""),
     submodalities: readSubmodalitiesInput(formData),
@@ -137,6 +146,11 @@ function readCriteriaInput(formData: FormData) {
       }
     },
   });
+}
+
+/** Anything that is not a level is the general sheet, which the rule then checks. */
+function toExperienceLevel(value: string): ExperienceLevel | null {
+  return isExperienceLevel(value) ? value : null;
 }
 
 function toCriterionKind(value: string): CriterionKind {
@@ -281,7 +295,10 @@ async function runModalityIntent(
     case "delete-submodality":
       return deleteSubmodality(input.id);
     case "save-submodality-criteria":
-      return replaceSubmodalityCriteria(input.id, { criteria: input.criteria });
+      return replaceSheetCriteria(input.id, {
+        criteria: input.criteria,
+        experienceLevel: input.experienceLevel,
+      });
     default:
       return invalidEventBasesActionResult();
   }

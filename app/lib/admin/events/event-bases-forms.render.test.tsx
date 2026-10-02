@@ -348,6 +348,7 @@ function buildLoaderData(): EventBasesLoaderData {
     registrationOpenBlockers: [],
     submodalityCriteria: [],
     lockedSubmodalityIds: [],
+    modalitySheets: {},
     modalities: [
       {
         id: "modality_1",

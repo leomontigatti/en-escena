@@ -75,6 +75,7 @@ export type EventBasesLoaderData = {
   submodalities: SubmodalityRow[];
   submodalityCriteria: EventModalitiesLoaderData["submodalityCriteria"];
   lockedSubmodalityIds: string[];
+  modalitySheets: EventModalitiesLoaderData["modalitySheets"];
   categories: CategoryRow[];
   schedules: ScheduleListItem[];
   prices: PriceListItem[];
@@ -394,6 +395,7 @@ export async function loader({ request }: { request: Request }) {
       : [],
     submodalityCriteria: [],
     lockedSubmodalityIds: [],
+    modalitySheets: {},
     ...eventBases,
   } satisfies EventBasesLoaderData;
 }
