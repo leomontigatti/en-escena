@@ -682,7 +682,7 @@ instead.
   - **A block an alert already explains**, because the same state also locks
     fields (a price in use, a seminar with a covered inscription), is disabled
     like a rare one, and that alert's sentence names the action too
-    (`Solo podés cambiar el nombre y no se puede borrar`). A dialog would only
+    (`Solo podés cambiar el nombre y no se puede eliminar`). A dialog would only
     repeat it.
 
   The blocked mode of `DeleteDialog` is built on it for a deletion; its

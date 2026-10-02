@@ -17,21 +17,21 @@ export const frozenPriceUpdateError =
 export const frozenSpecialPriceUpdateError =
   "Este precio está en uso. Solo podés cambiar el nombre y los cronogramas.";
 export const frozenPriceDeleteError =
-  "Este precio está en uso. No se puede borrar.";
+  "Este precio está en uso. No se puede eliminar.";
 export const uncoveredPriceUpdateError =
   "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto.";
 export const uncoveredPriceDeleteError =
-  "Este precio es necesario mientras haya inscripciones activas. No se puede borrar.";
+  "Este precio es necesario mientras haya inscripciones activas. No se puede eliminar.";
 
 // The alert above the form names both limits, because `Eliminar` is
 // disabled on sight and a disabled menu item cannot say why itself. Each
 // refusal above keeps naming only the action that was refused.
 export const frozenPriceNotice =
-  "Este precio está en uso. Solo podés cambiar el nombre y no se puede borrar.";
+  "Este precio está en uso. Solo podés cambiar el nombre y no se puede eliminar.";
 export const frozenSpecialPriceNotice =
-  "Este precio está en uso. Solo podés cambiar el nombre y los cronogramas, y no se puede borrar.";
+  "Este precio está en uso. Solo podés cambiar el nombre y los cronogramas, y no se puede eliminar.";
 export const uncoveredPriceNotice =
-  "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto, y no se puede borrar.";
+  "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto, y no se puede eliminar.";
 
 /** What a list item carries so a screen can read the guards on sight. */
 export type PriceGuardFlags = {
