@@ -4,14 +4,16 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import { matchesPresentationSearch } from "@/lib/presentations/search";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
-import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
 
+import {
+  allDaysTabValue,
+  ScheduleDayTabs,
+  useScheduleDayTab,
+} from "./day-tabs";
 import {
   formatProgramOrderNumber,
   listProgramDays,
@@ -22,10 +24,8 @@ import {
  * The list of an event's order as everyone outside the administration reads it:
  * the academy's own page on the portal and the public program. It is written
  * once so the two surfaces stay one design — the public page adds the academy
- * column and drops the state, and nothing else differs.
+ * column and the portal the level, and nothing else differs.
  */
-
-const allDaysTabValue = "todos";
 
 export type ProgramListProps = {
   /** Where a row's name links, or `null` to render it as plain text. */
@@ -51,11 +51,7 @@ export function ProgramList({
   // already here. It is in the URL all the same, so a reload or a link shared
   // from a phone lands on the day it was read on.
   const days = listProgramDays(rows);
-  const tab = useUrlTab({
-    defaultValue: allDaysTabValue,
-    param: dayTabParam,
-    values: [allDaysTabValue, ...days],
-  });
+  const tab = useScheduleDayTab(days);
   const visibleRows =
     tab.value === allDaysTabValue
       ? rows
@@ -63,16 +59,7 @@ export function ProgramList({
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs value={tab.value} onValueChange={tab.onValueChange}>
-        <TabsList variant="line">
-          <TabsTrigger value={allDaysTabValue}>Todos</TabsTrigger>
-          {days.map((eventDay) => (
-            <TabsTrigger key={eventDay} value={eventDay}>
-              {formatScheduleDayLabel(eventDay)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <ScheduleDayTabs days={days} tab={tab} />
 
       <ClientDataTable
         rows={visibleRows}
@@ -83,18 +70,21 @@ export function ProgramList({
         })}
         getRowKey={(row) => row.choreographyId}
         layout="fit"
+        // One search on every list of the order; the academy only where the
+        // list shows it.
+        matchesSearch={(row, search) =>
+          matchesPresentationSearch(search, {
+            academyName: showAcademy ? row.academyName : undefined,
+            choreographyNumber: row.choreographyNumber,
+            name: row.name,
+            orderNumber: row.orderNumber,
+          })
+        }
         searchPlaceholder={
           showAcademy
-            ? "Buscar por número de presentación, nombre o academia"
-            : "Buscar por número de presentación o nombre"
+            ? "Buscar por número, nombre o academia"
+            : "Buscar por número o nombre"
         }
-        textFilterColumnId="nombre"
-        // The whole program is worth reading at once, and it has to print.
-        hidePagination
-        // `hidePagination` only hides the control, so the page size is what
-        // decides whether a large event is truncated on screen: the program
-        // holds one page, whatever the event's size.
-        pageSize={Math.max(visibleRows.length, 1)}
         initialSort={{ columnId: "orden", direction: "asc" }}
         emptyMessage="No hay presentaciones que coincidan con la búsqueda."
       />
@@ -121,7 +111,13 @@ function buildProgramColumns({
       header: "N.º",
       width: 8,
       className: "font-medium tabular-nums",
-      cell: formatProgramOrderNumber,
+      // As tall as the participation list's number input, so a row of the
+      // program is as tall as a row there.
+      cell: (row) => (
+        <div className="flex h-8 items-center">
+          {formatProgramOrderNumber(row)}
+        </div>
+      ),
       // The only sortable column, as on the participation list.
       sortValue: (row) => row.orderNumber,
     },
@@ -142,16 +138,6 @@ function buildProgramColumns({
         ) : (
           <DataTableTruncatedText value={row.name} />
         ),
-      // Everything meant to be searchable travels in this column.
-      filterValue: (row) =>
-        [
-          formatProgramOrderNumber(row),
-          formatEventSequenceNumber(row.choreographyNumber),
-          row.name,
-          showAcademy ? row.academyName : "",
-        ]
-          .filter(Boolean)
-          .join(" "),
     },
     showAcademy
       ? {
@@ -195,7 +181,9 @@ function buildProgramColumns({
       header: "Bailarines",
       width: showLevel ? 14 : 17,
       className: "text-muted-foreground",
-      cell: (row) => <ProgramDancerNames row={row} />,
+      cell: (row) => (
+        <DataTableTruncatedText value={formatProgramDancer(row)} />
+      ),
     },
     showLevel
       ? {
@@ -208,26 +196,6 @@ function buildProgramColumns({
           ),
         }
       : null,
-    // The academy's own page keeps the participation list's `Estado`, with the
-    // two badges that can reach it; the public program carries no state.
-    showAcademy
-      ? null
-      : {
-          id: "estado",
-          header: "Estado",
-          width: 11,
-          cell: (row) => {
-            // The pending deposit leads: it is the one thing the academy can
-            // act on, and a row without a number is only waiting.
-            if (row.isBelowDeposit) {
-              return <Badge variant="warning">Seña pendiente</Badge>;
-            }
-
-            return row.orderNumber === null ? (
-              <Badge variant="info">Sin número</Badge>
-            ) : null;
-          },
-        },
   ];
 
   return columns.filter(
@@ -250,19 +218,14 @@ function selectNameWidth({
     return 19;
   }
 
-  return showLevel ? 17 : 26;
+  // The width the state column held before it left the academy's page.
+  return showLevel ? 28 : 37;
 }
 
 /**
- * Always two lines tall, whatever it holds, so a duo does not make its row
- * taller than the rest of the program.
+ * Only a solo names its dancer: one line per row keeps the program's rows as
+ * tall as the participation list's, and a group's names would not fit anyway.
  */
-function ProgramDancerNames({ row }: { row: ProgramListRow }) {
-  return (
-    <div className="flex h-10 flex-col justify-center">
-      {row.dancerNames.map((dancerName) => (
-        <DataTableTruncatedText key={dancerName} value={dancerName} />
-      ))}
-    </div>
-  );
+function formatProgramDancer(row: ProgramListRow) {
+  return row.groupType === "solo" ? (row.dancerNames[0] ?? "—") : "—";
 }

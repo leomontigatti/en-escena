@@ -106,35 +106,55 @@ describe("the program list everyone outside the administration reads", () => {
     });
   }
 
-  // The two placeholders promise the number, the name and the academy, and the
-  // modality and the category are deliberately not facets on this surface.
-  test("searches the number, the name and the academy and nothing else", async () => {
-    await mount({
-      rows: [
-        buildRow({
-          academyName: "Academia Sur",
-          categoryName: "Infantil",
-          choreographyId: "one",
-          modalityName: "Jazz",
-          name: "Primera",
-          orderNumber: 1,
-        }),
-        buildRow({
-          academyName: "Academia Norte",
-          categoryName: "Juvenil",
-          choreographyId: "two",
-          modalityName: "Urbano",
-          name: "Segunda",
-          orderNumber: 2,
-        }),
-      ],
-    });
+  test("labels each day tab by its weekday and day/month, as the admin's do", async () => {
+    await mount({ rows: twoDays });
+
+    const labels = [...document.querySelectorAll('[role="tab"]')].map(
+      (tab) => tab.textContent,
+    );
+
+    expect(labels).toEqual(["Todos", "Viernes 1/5", "Sábado 2/5"]);
+  });
+
+  // The academy column is searched only where it is shown.
+  test("searches the numbers, the name and the academy and nothing else", async () => {
+    const rows = [
+      buildRow({
+        academyName: "Academia Sur",
+        categoryName: "Infantil",
+        choreographyId: "one",
+        choreographyNumber: 34,
+        modalityName: "Jazz",
+        name: "Primera",
+        orderNumber: 1,
+      }),
+      buildRow({
+        academyName: "Academia Norte",
+        categoryName: "Juvenil",
+        choreographyId: "two",
+        choreographyNumber: 12,
+        modalityName: "Urbano",
+        name: "Segunda",
+        orderNumber: 2,
+      }),
+    ];
+
+    await mount({ rows });
 
     await search("Segunda");
     expect(document.body.textContent).not.toContain("Primera");
     expect(document.body.textContent).toContain("Segunda");
 
     await search("Academia Sur");
+    expect(document.body.textContent).toContain("Primera");
+    expect(document.body.textContent).not.toContain("Segunda");
+
+    // The presentation's number, and the choreography's, matched whole.
+    await search("1");
+    expect(document.body.textContent).toContain("Primera");
+    expect(document.body.textContent).not.toContain("Segunda");
+
+    await search("00034");
     expect(document.body.textContent).toContain("Primera");
     expect(document.body.textContent).not.toContain("Segunda");
 
@@ -149,24 +169,66 @@ describe("the program list everyone outside the administration reads", () => {
     );
   });
 
-  // The program hides the pagination, so a page size below the event's size
-  // would drop the rest of the rows with nothing on screen to reach them.
-  test("renders every row of an event larger than a default page", async () => {
+  test("leaves the academy out of the search where it is not shown", async () => {
+    await mount({ rows: twoDays, showAcademy: false });
+
+    await search("Academia Sur");
+    expect(document.body.textContent).toContain(
+      "No hay presentaciones que coincidan con la búsqueda.",
+    );
+  });
+
+  test("pages a long program, and goes back to the first page on another day", async () => {
     const rows = Array.from(
-      { length: defaultClientDataTablePageSize * 2 + 3 },
+      { length: defaultClientDataTablePageSize + 3 },
       (_row, index) =>
         buildRow({
           choreographyId: `choreography-${index + 1}`,
-          name: `Pieza ${index + 1}`,
+          name: index === 0 ? "Apertura" : `Pieza ${index + 1}`,
           orderNumber: index + 1,
+          scheduledDate: index === 0 ? "2026-05-02" : "2026-05-01",
         }),
     );
 
-    await mount({ rows });
+    await mount({ entry: "/programa?pagina=2", rows });
 
-    for (const row of rows) {
-      expect(document.body.textContent).toContain(row.name);
-    }
+    expect(document.body.textContent).not.toContain("Apertura");
+    expect(document.body.textContent).toContain("Pieza 13");
+
+    await selectTab(2);
+    expect(urlSearch).toBe("?dia=2026-05-02");
+    expect(document.body.textContent).toContain("Apertura");
+  });
+
+  // One line per row, so the program's rows are as tall as the admin's.
+  test("names the solo's dancer and dashes every other group", async () => {
+    await mount({
+      rows: [
+        buildRow({ choreographyId: "one", dancerNames: ["Ana Paz"] }),
+        buildRow({
+          choreographyId: "two",
+          dancerNames: ["Bea Lagos", "Caro Vera"],
+          groupType: "duo",
+          orderNumber: 2,
+        }),
+      ],
+    });
+
+    const dancerCells = [...document.querySelectorAll("tbody tr")].map(
+      (row) => row.querySelectorAll("td")[5]?.textContent,
+    );
+
+    expect(dancerCells).toEqual(["Ana Paz", "—"]);
+  });
+
+  test("carries no state column on either surface", async () => {
+    await mount({
+      rows: [buildRow({ isBelowDeposit: true, orderNumber: null })],
+      showAcademy: false,
+    });
+
+    expect(document.body.textContent).not.toContain("Estado");
+    expect(document.body.textContent).not.toContain("Seña pendiente");
   });
 });
 

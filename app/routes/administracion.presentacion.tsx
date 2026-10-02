@@ -10,11 +10,11 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import type { Route } from "./+types/administracion.presentacion";
 
 export const meta = () => [
-  { title: "Presentación | Panel de administración | En Escena" },
+  { title: "Presentaciones | Panel de administración | En Escena" },
 ];
 
 export const handle = {
-  adminBreadcrumbs: [{ label: "Presentación" }],
+  adminBreadcrumbs: [{ label: "Presentaciones" }],
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {

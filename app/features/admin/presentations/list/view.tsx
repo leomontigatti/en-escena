@@ -419,7 +419,7 @@ export function PresentationsListView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Presentación"
+      title="Presentaciones"
       description="Ordená las presentaciones del evento activo y asigná jueces."
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para ordenar la presentación",
@@ -471,7 +471,7 @@ export function PresentationsListView({
               canSelectRow={(row) => row.orderNumber !== null}
               selectedRowIds={selectedRowIds}
               onSelectedRowIdsChange={setSelectedRowIds}
-              searchPlaceholder="Buscar por número de coreografía, nombre o academia"
+              searchPlaceholder="Buscar por número, nombre o academia"
               initialSearchValue={loaderData.filters.query}
               initialSort={loaderData.filters.order}
               emptyMessage={emptyPresentationList.nothingMatched}

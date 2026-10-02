@@ -2,7 +2,6 @@ import { data, redirect } from "react-router";
 
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
-  matchesListSearch,
   paginateList,
   readListFacet,
   readListQuery,
@@ -11,7 +10,7 @@ import {
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { matchesPresentationSearch } from "@/lib/presentations/search";
 import {
   assignJudges,
   readAssignableJudges,
@@ -439,11 +438,7 @@ function matchesPresentationFilters(
 }
 
 function matchesPresentationQuery(item: PresentationListItem, query: string) {
-  return matchesListSearch(query, [
-    item.name,
-    item.academyName,
-    formatEventSequenceNumber(item.choreographyNumber),
-  ]);
+  return matchesPresentationSearch(query, item);
 }
 
 /**

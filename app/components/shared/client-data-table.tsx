@@ -116,6 +116,7 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
     columnVisibility,
     columns: props.columns,
     getRowKey: props.getRowKey,
+    matchesSearch: props.matchesSearch,
     pagination,
     rows: props.rows,
     rowSelection,
@@ -233,6 +234,7 @@ function useClientReactTable<TData>({
   columnVisibility,
   columns,
   getRowKey,
+  matchesSearch,
   pagination,
   rows,
   rowSelection,
@@ -251,6 +253,7 @@ function useClientReactTable<TData>({
   columnVisibility: Record<string, boolean>;
   columns: ClientDataTableProps<TData>["columns"];
   getRowKey: ClientDataTableProps<TData>["getRowKey"];
+  matchesSearch?: ClientDataTableProps<TData>["matchesSearch"];
   pagination: PaginationState;
   rows: TData[];
   rowSelection: RowSelectionState;
@@ -269,11 +272,13 @@ function useClientReactTable<TData>({
   // derived from the search rather than stored beside it, so a search arriving
   // from the address bar filters the rows the same way one the reader typed
   // does.
-  const tableGlobalFilter = textFilterColumnId ? "" : searchQuery;
-  const tableColumnFilters: ColumnFiltersState = textFilterColumnId
+  // A row-wide matcher is the global filter, whatever column is named.
+  const textColumnId = matchesSearch ? undefined : textFilterColumnId;
+  const tableGlobalFilter = textColumnId ? "" : searchQuery;
+  const tableColumnFilters: ColumnFiltersState = textColumnId
     ? [
-        ...columnFilters.filter((filter) => filter.id !== textFilterColumnId),
-        { id: textFilterColumnId, value: searchQuery },
+        ...columnFilters.filter((filter) => filter.id !== textColumnId),
+        { id: textColumnId, value: searchQuery },
       ]
     : columnFilters;
 
@@ -319,7 +324,13 @@ function useClientReactTable<TData>({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getRowId: getRowKey,
-    globalFilterFn: createGlobalFilterFn(columns),
+    globalFilterFn: matchesSearch
+      ? (row, _columnId, filterValue) =>
+          matchesSearch(row.original, String(filterValue))
+      : createGlobalFilterFn(columns),
+    // The engine runs the global filter only through columns it can read a
+    // string or number from; a row-wide matcher reads none, so any column will.
+    ...(matchesSearch ? { getColumnCanGlobalFilter: () => true } : {}),
   });
 }
 

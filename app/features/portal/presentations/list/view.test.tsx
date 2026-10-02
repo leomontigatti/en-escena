@@ -81,7 +81,9 @@ describe("PortalPresentationsListView", () => {
     );
   });
 
-  test("badges the pending deposit ahead of the missing number and nothing else", () => {
+  // The deposit is told by the notice above the list, and a missing number by
+  // its empty cell: the list itself carries no state.
+  test("carries no state column", () => {
     const markup = renderView({
       rows: [
         buildRow({
@@ -89,15 +91,12 @@ describe("PortalPresentationsListView", () => {
           isBelowDeposit: true,
           orderNumber: null,
         }),
-        buildRow({ choreographyId: "waiting", orderNumber: null }),
         buildRow({ choreographyId: "numbered", orderNumber: 3 }),
       ],
     });
 
-    expect(markup).toContain("Seña pendiente");
-    expect(markup).toContain("Sin número");
-    expect(markup).not.toContain("Fuera de bloque");
-    expect(markup).not.toContain("Separación");
+    expect(markup).not.toContain("Estado");
+    expect(markup).not.toContain("Sin número");
   });
 
   test("names each presentation's level, and dashes the ones without one", () => {

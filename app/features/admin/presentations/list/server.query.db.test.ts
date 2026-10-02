@@ -29,6 +29,22 @@ describe("the participation list's query", () => {
     ]);
   });
 
+  // A number is matched whole, so 12 does not bring presentation 2 along.
+  test("finds a presentation by its own number", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({ name: "Vals", orderNumber: 2 });
+    const twelfth = await fixture.addPresentation({
+      name: "Tango",
+      orderNumber: 12,
+    });
+
+    const result = await loadTheList("?busqueda=12");
+
+    expect(result.presentations.map((row) => row.id)).toEqual([
+      twelfth.choreographyId,
+    ]);
+  });
+
   // `orden` is both the parameter and the running-order column's id.
   test("keeps sorting the running order descending from an `orden:desc` link", async () => {
     const fixture = await seedJudgingFixture();

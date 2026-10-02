@@ -16,7 +16,7 @@ export const meta = () => [
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Presentación", to: "/administracion/presentacion" },
+    { label: "Presentaciones", to: "/administracion/presentacion" },
     (match) => {
       const data = match.data as PresentationScoresLoaderData | undefined;
 
