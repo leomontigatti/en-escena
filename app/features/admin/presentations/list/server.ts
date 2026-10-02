@@ -35,6 +35,8 @@ import {
 } from "@/lib/presentations/warnings";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
+import { readMusicDownloadDays } from "../music-download/server";
+
 import {
   assignJudgesIntent,
   formatAutomaticOrderingMessage,
@@ -112,6 +114,7 @@ async function loadPresentationList(input: {
       hasAnyRow: false,
       hasPresentations: false,
       highestOrderNumber: 0,
+      musicDownloadDays: [],
       presentations: [],
       printableSchedules: [],
       selectedEventId: null,
@@ -130,11 +133,13 @@ async function loadPresentationList(input: {
   // on one page at a time, so the page's rows are all it can ever need — but
   // the read is one query either way, and scoping it to the page would have to
   // wait for the page to be resolved.
-  const [assignableJudges, assigned, evaluationStatuses] = await Promise.all([
-    readAssignableJudges(),
-    readAssignedJudges(rows.map((row) => row.choreographyId)),
-    readPresentationEvaluationStatuses(rows.map((row) => row.choreographyId)),
-  ]);
+  const [assignableJudges, assigned, evaluationStatuses, musicDownloadDays] =
+    await Promise.all([
+      readAssignableJudges(),
+      readAssignedJudges(rows.map((row) => row.choreographyId)),
+      readPresentationEvaluationStatuses(rows.map((row) => row.choreographyId)),
+      readMusicDownloadDays(input.selectedEventId),
+    ]);
   const items = rows.map((row) =>
     buildPresentationListItem(row, {
       assignedJudgeIds: assigned.byChoreography,
@@ -171,6 +176,7 @@ async function loadPresentationList(input: {
       0,
       ...items.map((item) => item.orderNumber ?? 0),
     ),
+    musicDownloadDays,
     presentations: filteredItems.slice(offset, offset + limit),
     printableSchedules: listPrintableSchedules(rows),
     selectedEventId: input.selectedEventId,
