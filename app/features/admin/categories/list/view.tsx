@@ -111,7 +111,7 @@ function CategoriesListView({ loaderData }: CategoriesListViewProps) {
       ) : (
         <AdminEmptyState
           title={emptyCategoryList.nothingYet}
-          description="Creá la primera categoría para definir rangos de edad y aplicabilidad competitiva del evento activo."
+          description="Creá la primera categoría para definir rangos de edad y aplicabilidad participativa del evento activo."
         />
       )}
     </AdminResourceLayout>

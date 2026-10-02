@@ -57,7 +57,7 @@ function CategoryDetailView({
       title={category ? "Editar categoría" : "Categoría no encontrada"}
       description={
         category
-          ? "Editá la categoría y su aplicabilidad competitiva."
+          ? "Editá la categoría y su aplicabilidad participativa."
           : "No encontramos esa categoría dentro del evento activo."
       }
       headerAction={category ? <CategoryActions category={category} /> : null}
