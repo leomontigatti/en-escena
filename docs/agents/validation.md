@@ -117,7 +117,8 @@ style guide clauses a machine can judge: the `ui` ones, listed in the header of
 `scripts/oxlint-ui-plugin.mjs` (no raw form element where an `app/components/ui`
 component exists, no `className` overriding a ui component's height, radius or
 focus state, `TabsList` in the line variant, a position on every button icon's
-`data-icon`, dialogs at their default width), and `Trash2` over `Trash` through
+`data-icon`, dialogs at their default width, no icon in an actions menu), and
+`Trash2` over `Trash` through
 `no-restricted-imports`. It has no opinion on
 formatting (Prettier's), on unused code (`tsc`'s) or on this repo's conventions
 (the `check:*` scripts').

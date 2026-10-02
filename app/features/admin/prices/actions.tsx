@@ -43,7 +43,7 @@ export function PriceActions({
             disabled={Boolean(deletionBlock)}
             onSelect={() => setDeleteDialogOpen(true)}
           >
-            Borrar precio
+            Eliminar
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </ResourceActionsMenu>

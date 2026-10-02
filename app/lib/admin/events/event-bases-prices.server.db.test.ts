@@ -85,7 +85,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
     expect(markup).toContain("Precio bloque");
     expect(markup).toContain("Nuevo precio");
     expect(markup).toContain("/administracion/precios/nuevo");
-    expect(markup).not.toContain("Borrar precio");
+    expect(markup).not.toContain("Eliminar");
   });
 
   test("creates, edits and deletes prices through dedicated create and detail routes", async () => {

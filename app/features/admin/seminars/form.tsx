@@ -197,7 +197,7 @@ export function SeminarForm({
       onSubmit={handleSubmit}
     >
       <input type="hidden" name="intent" value={intent} />
-      <FieldGroup className="grid gap-4 sm:grid-cols-2">
+      <FieldGroup className="grid gap-5 md:grid-cols-2">
         <TextInputField
           control={form.control}
           id="instructorName"
@@ -299,7 +299,7 @@ function InstructorPictureField({
   onSelectedPictureChange: (isSelected: boolean) => void;
 }) {
   return (
-    <div className="sm:col-span-2">
+    <div className="md:col-span-2">
       {/* Tells the action this body carries the picture at all, so a submission
           without the field cannot read an empty input as "remove the picture". */}
       <input

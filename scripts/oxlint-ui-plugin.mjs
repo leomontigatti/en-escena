@@ -7,6 +7,9 @@
 // - `tabs-line-variant`: Navigation, `Tabs` take `variant="line"`.
 // - `data-icon-position`: Buttons, an icon says which side of the label it is on.
 // - `dialog-width`: Destructive actions, dialogs keep their default width.
+// - `actions-menu-text-only`: Actions menu, no icon inside the JSX of a
+//   `ResourceActionsMenu`. It reads one file: items a child component renders
+//   are out of its sight.
 //
 // `Trash2` over `Trash` (Buttons) is the built-in `no-restricted-imports`, in
 // `.oxlintrc.json`.
@@ -392,6 +395,56 @@ const dialogWidth = {
   },
 };
 
+const ICON_PACKAGE = "lucide-react";
+const ACTIONS_MENU = "ResourceActionsMenu";
+
+function isInActionsMenu(openingElement) {
+  for (let node = openingElement.parent?.parent; node; node = node.parent) {
+    if (
+      node.type === "JSXElement" &&
+      node.openingElement.name.type === "JSXIdentifier" &&
+      node.openingElement.name.name === ACTIONS_MENU
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const actionsMenuTextOnly = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description: "The items of a ResourceActionsMenu carry no icon.",
+    },
+    messages: {
+      icon: "Drop <{{icon}}> from the actions menu: its items are text only (style guide, Actions menu).",
+    },
+    schema: [],
+  },
+  create(context) {
+    const icons = new Set();
+
+    return {
+      ImportDeclaration(node) {
+        if (node.source.value !== ICON_PACKAGE) return;
+        for (const specifier of node.specifiers) {
+          icons.add(specifier.local.name);
+        }
+      },
+      JSXOpeningElement(node) {
+        if (node.name.type !== "JSXIdentifier") return;
+        if (!icons.has(node.name.name) || !isInActionsMenu(node)) return;
+        context.report({
+          node,
+          messageId: "icon",
+          data: { icon: node.name.name },
+        });
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: "ui" },
   rules: {
@@ -400,5 +453,6 @@ export default {
     "tabs-line-variant": tabsLineVariant,
     "data-icon-position": dataIconPosition,
     "dialog-width": dialogWidth,
+    "actions-menu-text-only": actionsMenuTextOnly,
   },
 };

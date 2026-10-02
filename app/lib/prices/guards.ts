@@ -23,7 +23,7 @@ export const uncoveredPriceUpdateError =
 export const uncoveredPriceDeleteError =
   "Este precio es necesario mientras haya inscripciones activas. No se puede borrar.";
 
-// The alert above the form names both limits, because `Borrar precio` is
+// The alert above the form names both limits, because `Eliminar` is
 // disabled on sight and a disabled menu item cannot say why itself. Each
 // refusal above keeps naming only the action that was refused.
 export const frozenPriceNotice =

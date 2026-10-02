@@ -289,15 +289,22 @@ function SubmodalityCriteriaAction({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        aria-label={`Criterios de ${submodality.name}`}
-        onClick={() => setOpen(true)}
-      >
-        <ListChecks aria-hidden="true" />
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label={`Criterios de ${submodality.name}`}
+              onClick={() => setOpen(true)}
+            >
+              <ListChecks aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{`Criterios de ${submodality.name}`}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <SubmodalityCriteriaDialog
         criteria={criteriaSetup.criteria.filter(
           (criterion) => criterion.submodalityId === submodalityId,
