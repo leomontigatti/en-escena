@@ -139,7 +139,7 @@ const operationNavigationItems = [
     icon: Music2,
   },
   {
-    label: "Presentación",
+    label: "Presentaciones",
     to: "/administracion/presentacion",
     icon: ListOrdered,
   },

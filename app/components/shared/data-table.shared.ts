@@ -166,6 +166,12 @@ export const defaultClientDataTablePageSize = 10;
 export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
   DataTableRowSelectionProps<TData> & {
     textFilterColumnId?: string;
+    /**
+     * The search as one judgement on the whole row, for a list whose search is
+     * more than a substring of its columns. It takes the place of the columns'
+     * `filterValue` and of `textFilterColumnId`.
+     */
+    matchesSearch?: (row: TData, search: string) => boolean;
     hideSearch?: boolean;
     hidePagination?: boolean;
     /**

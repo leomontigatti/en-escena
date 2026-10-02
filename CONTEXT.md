@@ -83,7 +83,7 @@ Administrative choreography view centered on financial state.
 _Avoid_: `choreographyOperationalList`, `academyAccountBalance`
 
 **`choreographyParticipationList`** — ui: "Lista de participación de coreografías"
-Administrative choreography view centered on presentations, program and evaluation, shown as `Presentación` in the sidebar: where the administrator orders the presentations of the active event and assigns judges. It lists the choreographies that have a `presentation` or are at least `Señada`.
+Administrative choreography view centered on presentations, program and evaluation, shown as `Presentaciones` in the sidebar: where the administrator orders the presentations of the active event and assigns judges. It lists the choreographies that have a `presentation` or are at least `Señada`.
 _Avoid_: `choreographyOperationalList`, `choreographyFinancialList`
 
 **`participating`** — ui: "Participando"

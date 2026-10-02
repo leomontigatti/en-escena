@@ -611,7 +611,12 @@ function DataTableBodyRowCells<TData>({
         <TableCell
           key={cell.id}
           className={cn(
-            "px-3",
+            // Every list's rows are one height, whatever their cells hold: a
+            // link, a badge or plain text each sit a pixel apart on their own.
+            // A cell's height counts its padding, and is a floor: a taller
+            // control still grows its row, so a list that needs one trims that
+            // cell's padding to fit.
+            "h-10 px-3",
             cell.column.columnDef.meta?.className,
             cell.column.columnDef.meta?.cellClassName?.(row.original),
           )}

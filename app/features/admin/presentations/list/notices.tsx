@@ -20,15 +20,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
 import {
   isRouteFormPending,
   useCloseOnceSettled,
   useOptionalNavigation,
 } from "@/lib/shared/forms";
 import { listQueryParamNames } from "@/lib/list-query/list-query";
-import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
+import {
+  ScheduleDayTabs,
+  useScheduleDayTab,
+} from "@/features/program/day-tabs";
 
 import {
   orderAutomaticallyIntent,
@@ -41,8 +42,6 @@ import {
  * action opens. None of them touches a row, which is why they live apart from
  * the columns and the moving seam.
  */
-
-const allDaysTabValue = "todos";
 
 export function PresentationNotices({
   loaderData,
@@ -153,32 +152,9 @@ export function PresentationDayTabs({
 }: {
   loaderData: PresentationListResult;
 }) {
-  const tab = useUrlTab({
-    defaultValue: allDaysTabValue,
-    param: dayTabParam,
-    resets: [listQueryParamNames.page],
-    values: [allDaysTabValue, ...loaderData.days],
-  });
+  const tab = useScheduleDayTab(loaderData.days);
 
-  return (
-    <Tabs
-      value={tab.value}
-      onValueChange={tab.onValueChange}
-      // An event with more days than the page is wide scrolls its tabs rather
-      // than widening the page; the padding keeps the active underline, drawn
-      // below the list, inside the scroll box that would otherwise clip it.
-      className="max-w-full overflow-x-auto pb-1"
-    >
-      <TabsList variant="line">
-        <TabsTrigger value={allDaysTabValue}>Todos</TabsTrigger>
-        {loaderData.days.map((day) => (
-          <TabsTrigger key={day} value={day}>
-            {formatScheduleDayTabLabel(day)}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
+  return <ScheduleDayTabs days={loaderData.days} tab={tab} />;
 }
 
 /**
