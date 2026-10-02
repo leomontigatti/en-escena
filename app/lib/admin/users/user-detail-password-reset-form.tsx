@@ -149,7 +149,9 @@ export function InternalUserResetPasswordDialog({
               form={resetPasswordFormId}
               disabled={password.length === 0 || isSaving}
             >
-              {isSaving ? <Spinner aria-hidden="true" data-icon /> : null}
+              {isSaving ? (
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+              ) : null}
               Guardar contraseña
             </Button>
           </DialogFooter>

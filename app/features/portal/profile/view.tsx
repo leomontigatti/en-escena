@@ -285,7 +285,7 @@ function ProfileActionsMenu() {
               disabled={isSending}
             >
               {isSending ? (
-                <Spinner aria-hidden="true" data-icon />
+                <Spinner aria-hidden="true" data-icon="inline-start" />
               ) : (
                 <Check aria-hidden="true" data-icon="inline-start" />
               )}

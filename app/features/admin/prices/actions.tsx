@@ -36,7 +36,7 @@ export function PriceActions({
 
   return (
     <>
-      <ResourceActionsMenu contentClassName="w-48" size="icon">
+      <ResourceActionsMenu contentClassName="w-48">
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"

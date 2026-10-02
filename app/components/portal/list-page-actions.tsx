@@ -27,7 +27,7 @@ export function PortalListPageActions({
   return (
     <div className="flex items-center gap-2">
       <Button type="button" onClick={onCreate}>
-        <Plus aria-hidden="true" data-icon />
+        <Plus aria-hidden="true" data-icon="inline-start" />
         {createLabel}
       </Button>
       <PortalEventDocumentsMenu

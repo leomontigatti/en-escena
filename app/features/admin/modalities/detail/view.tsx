@@ -133,7 +133,7 @@ function ModalityActions({
 
   return (
     <>
-      <ResourceActionsMenu contentClassName="w-48" size="icon-sm">
+      <ResourceActionsMenu contentClassName="w-48">
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"

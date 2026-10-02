@@ -130,7 +130,7 @@ function SummaryRow({
           aria-label={`Cambiar ${label}`}
           onClick={onEdit}
         >
-          <Pencil aria-hidden="true" data-icon />
+          <Pencil aria-hidden="true" data-icon="inline-start" />
           Cambiar
         </Button>
       ) : null}

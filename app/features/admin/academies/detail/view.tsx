@@ -82,7 +82,7 @@ export function AcademyDetailRouteView({
       description="Consultá y actualizá los datos de contacto de la academia."
       headerAction={
         canEdit ? (
-          <ResourceActionsMenu contentClassName="w-48" size="icon">
+          <ResourceActionsMenu contentClassName="w-48">
             <DropdownMenuGroup>
               <DropdownMenuItem
                 variant="destructive"

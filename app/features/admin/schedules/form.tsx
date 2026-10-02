@@ -1,4 +1,4 @@
-import { Plus, Trash } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import {
   useFieldArray,
@@ -457,7 +457,7 @@ function ScheduleCapacityInlineFields({
         aria-label="Quitar cupo de cronograma"
         onClick={onRemove}
       >
-        <Trash aria-hidden="true" />
+        <Trash2 aria-hidden="true" />
       </Button>
     </FieldGroup>
   );

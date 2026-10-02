@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ListChecks, Plus, Trash } from "lucide-react";
+import { ListChecks, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 
@@ -265,7 +265,7 @@ function SubmodalityInlineFields({
         aria-label="Quitar submodalidad"
         onClick={onRemove}
       >
-        <Trash aria-hidden="true" />
+        <Trash2 aria-hidden="true" />
       </Button>
     </FieldGroup>
   );

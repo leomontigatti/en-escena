@@ -32,7 +32,7 @@ export function SubmitButton({
   return (
     <Button {...buttonProps} type="submit" disabled={disabled || isPending}>
       {isPending ? (
-        <Spinner aria-hidden="true" data-icon />
+        <Spinner aria-hidden="true" data-icon="inline-start" />
       ) : (
         <Check aria-hidden="true" data-icon="inline-start" />
       )}
@@ -54,7 +54,7 @@ export function DestroyButton({
       disabled={disabled || isPending}
     >
       {isPending ? (
-        <Spinner aria-hidden="true" data-icon />
+        <Spinner aria-hidden="true" data-icon="inline-start" />
       ) : (
         <Trash2 aria-hidden="true" data-icon="inline-start" />
       )}
