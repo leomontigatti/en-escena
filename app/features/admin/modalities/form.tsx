@@ -205,28 +205,19 @@ function SubmodalitiesInlineFieldArray({
       {fields.length > 0 ? (
         <>
           <FieldTitle>Submodalidades</FieldTitle>
-          <div className="flex flex-col gap-2">
-            {/* Each row keeps its own `sr-only` label; this one is for the eye. */}
-            <div
-              aria-hidden="true"
-              className="hidden text-sm font-medium sm:block"
-            >
-              Submodalidad
-            </div>
-            <ul className="flex flex-col gap-3">
-              {fields.map((field, index) => (
-                <li key={field.fieldId}>
-                  <SubmodalityInlineFields
-                    criteriaSetup={criteriaSetup}
-                    field={field}
-                    form={form}
-                    index={index}
-                    onRemove={() => remove(index)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ul className="flex flex-col gap-3">
+            {fields.map((field, index) => (
+              <li key={field.fieldId}>
+                <SubmodalityInlineFields
+                  criteriaSetup={criteriaSetup}
+                  field={field}
+                  form={form}
+                  index={index}
+                  onRemove={() => remove(index)}
+                />
+              </li>
+            ))}
+          </ul>
         </>
       ) : null}
     </FieldSet>
