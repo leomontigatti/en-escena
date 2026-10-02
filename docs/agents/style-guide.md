@@ -197,9 +197,11 @@ Rules:
 - Page and form buttons use the default size. `sm` is for buttons inside a table
   row or an alert.
 - A leading icon takes `data-icon="inline-start"`, which gives it the button's
-  icon padding; a bare `data-icon` skips it.
+  icon padding; a bare `data-icon` skips it. A trailing icon takes
+  `inline-end`, and an icon-only button takes no `data-icon`. `pnpm lint`
+  enforces this (`ui/data-icon-position`).
 - An icon repeats what the label says. `Check` is for saving, `Trash2` for
-  deleting; a destructive action other than a delete carries its own icon or
+  deleting (`pnpm lint` rejects the `Trash` import); a destructive action other than a delete carries its own icon or
   none. `Cancelar` has no icon.
 - Delete reads `Eliminar` with `Trash2`, on a button, a menu item and the
   confirmation alike. The record is already named by the page.
@@ -212,7 +214,8 @@ Rules:
 A record's actions live in `ResourceActionsMenu`, the `⋯` button, whether on a
 detail page's header or on a table row.
 
-- Keep the trigger at its default size (`icon-lg`).
+- The trigger keeps its default size (`icon-lg`): `ResourceActionsMenu` takes
+  no `size`.
 - Menu items are text only.
 - Put a `DropdownMenuSeparator` before the destructive items, so they sit last
   and apart.
@@ -578,7 +581,8 @@ is an `AlertDialog` that carries a list, a preview or an alert, such as the
 withdrawn dancers a save names: it widens with `className="sm:max-w-lg"`, the
 `Dialog` width, so each line fits on one. `BlockedActionDialog` always does,
 blocked deletes included; a confirmable `DeleteDialog` keeps the default even
-with its alert and `details`.
+with its alert and `details`. `pnpm lint` enforces the width on classes written
+in place (`ui/dialog-width`).
 
 ## Navigation
 
@@ -603,7 +607,8 @@ Rules:
   installed and the case needs it, add it before creating custom markup. Do not
   use them to split one form whose fields affect each other
   ([Editing and saving](#editing-and-saving)).
-- `Tabs` take `variant="line"`.
+- `Tabs` take `variant="line"`, on `TabsList`. `pnpm lint` enforces this
+  (`ui/tabs-line-variant`).
 - Tabs that switch what a whole page lists (`Coreografías` / `Seminarios`, the
   days of an event) keep the active tab in the URL through `useUrlTab`
   (`app/lib/shared/url-tab.ts`), so a reload or a shared link lands on the same

@@ -101,7 +101,7 @@ export function InternalUserResetPasswordDialog({
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Restablecer contraseña</DialogTitle>
             <DialogDescription>
