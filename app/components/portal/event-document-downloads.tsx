@@ -40,9 +40,9 @@ export function PortalEventDocumentDownloads({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="outline">
-          <Download aria-hidden="true" data-icon />
+          <Download aria-hidden="true" data-icon="inline-start" />
           Descargar documentos
-          <ChevronDown aria-hidden="true" data-icon />
+          <ChevronDown aria-hidden="true" data-icon="inline-end" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
