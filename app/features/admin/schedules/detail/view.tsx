@@ -85,7 +85,7 @@ export function EventScheduleDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={schedule ? "Editar cronograma" : scheduleName}
+      title={scheduleName}
       description={
         schedule
           ? "Editá fecha, hora, cupo total, y modalidades y categorías aceptadas."

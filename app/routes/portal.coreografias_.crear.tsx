@@ -17,7 +17,7 @@ export const meta = () => [
 export const handle = {
   portalBreadcrumbs: [
     { label: "Coreografías", to: "/portal/coreografias" },
-    { label: "Nueva" },
+    { label: "Nueva coreografía" },
   ],
 } satisfies PortalRouteHandle;
 

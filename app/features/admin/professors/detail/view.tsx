@@ -84,7 +84,7 @@ export function ProfessorDetailRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       requireSelectedEvent={false}
-      title="Detalle profesor"
+      title={`${professor.firstName} ${professor.lastName}`}
       description="Revisá la información administrativa de este profesor."
       headerAction={
         <ProfessorDetailHeaderActions
