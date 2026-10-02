@@ -1,4 +1,4 @@
-import { Ban, CircleAlert, Printer } from "lucide-react";
+import { Ban, CircleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useFetcher } from "react-router";
 
@@ -63,7 +63,7 @@ type ComprobanteDetailRouteViewProps = {
 
 /**
  * Detail view of a comprobante (ADR-0011): it hosts the fiscal snapshot's data
- * and the actions menu (print, annul). The number on the global list is now its
+ * and the actions menu (the invoiced unit, print, annul). The number on the global list is now its
  * ONLY entry point — the choreography financial detail's amount cards used to
  * link here through the `porción` badges, and both went with the field, which is
  * the navigation cost #723 took knowingly. Annulment lives here, next to the
@@ -90,10 +90,8 @@ export function ComprobanteDetailRouteView({
         title={`Comprobante ${formatComprobanteNumber(comprobante)}`}
         description="Consultá los datos del comprobante y ejecutá sus acciones."
         headerAction={
-          <div className="flex items-center gap-2">
-            {/* A locked input cannot carry a link, so the way to the unit the
-                comprobante invoices sits beside the menu. */}
-            <Button asChild variant="outline">
+          <ResourceActionsMenu>
+            <DropdownMenuItem asChild>
               <Link
                 to={comprobanteAnchorHref({
                   academyId: comprobante.academyId,
@@ -104,31 +102,27 @@ export function ComprobanteDetailRouteView({
                   ? "Ver la coreografía"
                   : "Ver el seminario"}
               </Link>
-            </Button>
-            <ResourceActionsMenu>
-              <DropdownMenuItem asChild>
-                <a href={printHref} target="_blank" rel="noreferrer">
-                  <Printer aria-hidden="true" />
-                  Imprimir
-                </a>
-              </DropdownMenuItem>
-              {comprobante.canAnnul ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      setIsAnnulDialogOpen(true);
-                    }}
-                  >
-                    <Ban aria-hidden="true" />
-                    Anular
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </ResourceActionsMenu>
-          </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={printHref} target="_blank" rel="noreferrer">
+                Imprimir
+              </a>
+            </DropdownMenuItem>
+            {comprobante.canAnnul ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setIsAnnulDialogOpen(true);
+                  }}
+                >
+                  Anular
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </ResourceActionsMenu>
         }
       >
         <ComprobanteDetailCard comprobante={comprobante} />

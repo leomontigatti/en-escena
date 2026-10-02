@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import {
   createMemoryRouter,
   RouterProvider,
@@ -65,6 +66,27 @@ function lockedFieldValue(label: string) {
   }
 
   return input.value;
+}
+
+/**
+ * The actions menu only mounts its items once it opens, and the trigger opens on
+ * `pointerdown` rather than on `click`.
+ */
+async function openActionsMenu() {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    'button[aria-label="Acciones"]',
+  );
+
+  if (!trigger) {
+    throw new Error("Expected the actions menu trigger to be rendered.");
+  }
+
+  await act(async () => {
+    trigger.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
 }
 
 function LoadedComprobanteDetail() {
@@ -269,11 +291,14 @@ describe("ComprobanteDetailRouteView", () => {
       "Seminario Abril Sosa, 10/10/2030",
     );
     expect(document.body.textContent).not.toContain("Coreografía");
-    expect(
-      document.querySelector(
-        'a[href="/administracion/finanzas/academy_1/seminarios/seminar_1"]',
-      ),
-    ).not.toBeNull();
+
+    await openActionsMenu();
+
+    const unitLink = document.querySelector(
+      'a[href="/administracion/finanzas/academy_1/seminarios/seminar_1"]',
+    );
+    expect(unitLink?.getAttribute("role")).toBe("menuitem");
+    expect(unitLink?.textContent).toBe("Ver el seminario");
   });
 
   test("confirms annulment through an alertdialog without a checkbox", async () => {
