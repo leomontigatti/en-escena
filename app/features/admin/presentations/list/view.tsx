@@ -104,7 +104,9 @@ function buildPresentationColumns({
             // the 1152 px content width with real event data. The category and
             // modality columns were widened later: their headers did not fit.
             width: 3,
-            className: "px-1",
+            // The grip is an icon button; like the number input, it takes its
+            // room from the cell's padding to keep to the shared row height.
+            className: "px-1 py-0.5",
             headerClassName: "px-1",
             // A frozen row has no grip: its schedule already ran, so there
             // is nowhere for it to go.
@@ -119,7 +121,10 @@ function buildPresentationColumns({
       id: "orden",
       header: "N.º",
       width: 8,
-      className: "font-medium tabular-nums",
+      // The input is taller than the row's line of text: with the cell's usual
+      // padding it would outgrow the row height every list shares, so the cell
+      // gives it the room instead.
+      className: "py-0.5 font-medium tabular-nums",
       cell: (row) => <PresentationOrderCell moving={moving} row={row} />,
       sortValue: (row) => row.orderNumber ?? Number.MAX_SAFE_INTEGER,
     },
@@ -453,32 +458,36 @@ export function PresentationsListView({
               }
               onOrderAutomatically={() => setIsOrderingDialogOpen(true)}
             />
-            <PresentationDayTabs loaderData={loaderData} />
-            <ServerDataTable
-              rows={rows}
-              columns={columns}
-              reorder={{
-                enabled: moving.canDrag,
-                onMove: (activeRowId, overRowId) =>
-                  moveDraggedRow({ activeRowId, moving, overRowId, rows }),
-              }}
-              getRowKey={(row) => row.id}
-              layout="fit"
-              selectableRows={loaderData.canOrder}
-              // Only a numbered row can carry a judge: there is nothing to
-              // hang the assignment off until the choreography has a
-              // presentation.
-              canSelectRow={(row) => row.orderNumber !== null}
-              selectedRowIds={selectedRowIds}
-              onSelectedRowIdsChange={setSelectedRowIds}
-              searchPlaceholder="Buscar por número, nombre o academia"
-              initialSearchValue={loaderData.filters.query}
-              initialSort={loaderData.filters.order}
-              emptyMessage={emptyPresentationList.nothingMatched}
-              currentPage={loaderData.filters.page}
-              totalPages={loaderData.totalPages}
-              totalRows={loaderData.totalCount}
-            />
+            {/* `gap-3` and the tab row's `pb-1` add up to the 16px every
+                list keeps between its tabs and its search. */}
+            <div className="flex flex-col gap-3">
+              <PresentationDayTabs loaderData={loaderData} />
+              <ServerDataTable
+                rows={rows}
+                columns={columns}
+                reorder={{
+                  enabled: moving.canDrag,
+                  onMove: (activeRowId, overRowId) =>
+                    moveDraggedRow({ activeRowId, moving, overRowId, rows }),
+                }}
+                getRowKey={(row) => row.id}
+                layout="fit"
+                selectableRows={loaderData.canOrder}
+                // Only a numbered row can carry a judge: there is nothing to
+                // hang the assignment off until the choreography has a
+                // presentation.
+                canSelectRow={(row) => row.orderNumber !== null}
+                selectedRowIds={selectedRowIds}
+                onSelectedRowIdsChange={setSelectedRowIds}
+                searchPlaceholder="Buscar por número, nombre o academia"
+                initialSearchValue={loaderData.filters.query}
+                initialSort={loaderData.filters.order}
+                emptyMessage={emptyPresentationList.nothingMatched}
+                currentPage={loaderData.filters.page}
+                totalPages={loaderData.totalPages}
+                totalRows={loaderData.totalCount}
+              />
+            </div>
           </div>
         </TooltipProvider>
       ) : (

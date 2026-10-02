@@ -58,7 +58,9 @@ export function ProgramList({
       : rows.filter((row) => row.scheduledDate === tab.value);
 
   return (
-    <div className="flex flex-col gap-4">
+    // `gap-3` and the tab row's `pb-1` add up to the 16px every list keeps
+    // between its tabs and its search.
+    <div className="flex flex-col gap-3">
       <ScheduleDayTabs days={days} tab={tab} />
 
       <ClientDataTable
@@ -111,13 +113,7 @@ function buildProgramColumns({
       header: "N.º",
       width: 8,
       className: "font-medium tabular-nums",
-      // As tall as the participation list's number input, so a row of the
-      // program is as tall as a row there.
-      cell: (row) => (
-        <div className="flex h-8 items-center">
-          {formatProgramOrderNumber(row)}
-        </div>
-      ),
+      cell: formatProgramOrderNumber,
       // The only sortable column, as on the participation list.
       sortValue: (row) => row.orderNumber,
     },
