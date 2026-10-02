@@ -66,7 +66,7 @@ export function EventModalityDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={modality ? "Editar modalidad" : "Modalidad no encontrada"}
+      title={modality ? modality.name : "Modalidad no encontrada"}
       description={
         modality
           ? "Editá la modalidad y gestioná sus submodalidades."

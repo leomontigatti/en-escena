@@ -50,7 +50,7 @@ export function EventPriceDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={price ? "Editar precio" : "Precio no encontrado"}
+      title={price ? getEventPriceDisplayName(price) : "Precio no encontrado"}
       description={
         price
           ? "Editá el alcance, importe y fecha límite de pago."

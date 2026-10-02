@@ -25,7 +25,7 @@ export const meta: Route.MetaFunction = () => [
 export const handle = {
   adminBreadcrumbs: [
     { label: "Pagos", to: "/administracion/pagos" },
-    { label: "Registrar pago" },
+    { label: "Nuevo pago" },
   ],
 } satisfies AdminRouteHandle;
 

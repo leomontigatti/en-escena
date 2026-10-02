@@ -139,7 +139,7 @@ export function PaymentDetailRouteView({
     <>
       <AdminResourceLayout
         selectedEventId={loaderData.selectedEventId}
-        title="Detalle pago"
+        title={getPaymentDisplayName(payment)}
         description="Consultá y editá los datos registrados del pago."
         headerAction={
           loaderData.canDelete ? (
@@ -291,7 +291,7 @@ export function getPaymentDisplayName(
   payment: LoaderData["payment"] | undefined,
 ) {
   return payment
-    ? `# ${formatEventSequenceNumber(payment.paymentNumber)}`
+    ? `Pago # ${formatEventSequenceNumber(payment.paymentNumber)}`
     : "Pago";
 }
 
