@@ -160,7 +160,7 @@ describe("correcting the panel's scores", () => {
       "Descalificar",
     ]);
     expect(menuItem("Ver la coreografía")?.getAttribute("href")).toBe(
-      "/administracion/coreografias/academy-1/choreography-1",
+      "/administracion/coreografias/choreography-1",
     );
 
     await act(async () => {
@@ -434,7 +434,6 @@ function buildPresentation(
   overrides: Partial<PresentationScores> = {},
 ): PresentationScores {
   return {
-    academyId: "academy-1",
     academyName: "Academia Sur",
     average: 90,
     categoryName: "Juvenil",

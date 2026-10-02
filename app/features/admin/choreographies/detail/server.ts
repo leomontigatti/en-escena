@@ -10,7 +10,7 @@ import {
   removeChoreography,
 } from "@/lib/choreographies/choreography-removal.server";
 import { restoreChoreography } from "@/lib/choreographies/choreography-restoration.server";
-import { academyChoreographiesPath } from "@/lib/choreographies/admin-paths";
+import { choreographiesPath } from "@/lib/choreographies/admin-paths";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
   listDancerOptionsForChoreography,
@@ -115,7 +115,6 @@ function assertChoreographyAcceptsIntent(input: {
 }
 
 type ChoreographyDetailParams = {
-  academyId?: string;
   choreographyId?: string;
 };
 
@@ -176,7 +175,7 @@ export async function loadChoreographyDetailRouteData(input: {
   return {
     availableDancers,
     availableProfessors,
-    backToList: academyChoreographiesPath(choreography.academyId),
+    backToList: choreographiesPath,
     canEdit,
     choreography,
     deletion: {
@@ -274,7 +273,7 @@ export async function handleChoreographyDetailAction(input: {
   if (intent === deleteChoreographyIntent) {
     const outcome = await deleteChoreography(choreography);
     return redirectWithFlashNotification(
-      academyChoreographiesPath(choreography.academyId),
+      choreographiesPath,
       outcome === "withdrawn"
         ? "coreografia-retirada"
         : "coreografia-eliminada",
@@ -362,19 +361,18 @@ function getChoreographyDeleteBlockers(
 }
 
 /**
- * The choreography the URL names, or its 404. The academy is part of the
- * address: a choreography of the active event reached through another
- * academy's URL is not found, so the loader and the action refuse it alike.
+ * The choreography the URL names in the active event, or its 404, so the
+ * loader and the action refuse it alike.
  */
 async function findRoutedChoreography(input: {
   params: ChoreographyDetailParams;
   selectedEventId: string | null;
 }) {
-  const { academyId, choreographyId } = input.params;
+  const { choreographyId } = input.params;
   const selectedEventId = input.selectedEventId;
   const notFound = new Response(choreographyNotFoundMessage, { status: 404 });
 
-  if (!academyId || !choreographyId || !selectedEventId) {
+  if (!choreographyId || !selectedEventId) {
     throw notFound;
   }
 
@@ -383,7 +381,7 @@ async function findRoutedChoreography(input: {
     selectedEventId,
   });
 
-  if (!choreography || choreography.academyId !== academyId) {
+  if (!choreography) {
     throw notFound;
   }
 

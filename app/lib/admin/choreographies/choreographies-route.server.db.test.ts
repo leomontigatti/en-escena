@@ -31,7 +31,7 @@ import {
   ChoreographiesListRouteView,
   handle,
   loader,
-} from "@/routes/administracion.coreografias_.$academyId";
+} from "@/routes/administracion.coreografias";
 import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
@@ -41,69 +41,46 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("`/administracion/coreografias/:academyId` route", () => {
+describe("`/administracion/coreografias` route", () => {
   test("allows auditor access and blocks academy and judge users", async () => {
     const event = await createSavedEvent();
-    const academy = await createAcademyUser({
-      email: "academia.acceso@example.com",
-      academyName: "Academia Acceso",
-    });
-    const academyId = academy.academy.id;
-    const url = academyUrl(academyId);
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.coreografias@example.com",
       role: "auditor",
-      requestUrl: url,
+      requestUrl: `http://localhost/administracion/coreografias`,
     });
 
-    await expect(
-      loader(routeArgs(auditorRequest, academyId)),
-    ).resolves.toMatchObject({
+    await expect(loader(routeArgs(auditorRequest))).resolves.toMatchObject({
       selectedEventId: event.id,
     });
 
     const { request: academyRequest } = await createSignedInRequest({
       email: "academy.coreografias@example.com",
       role: "academy",
-      requestUrl: url,
+      requestUrl: `http://localhost/administracion/coreografias`,
     });
     const { request: judgeRequest } = await createSignedInRequest({
       email: "judge.coreografias@example.com",
       role: "judge",
-      requestUrl: url,
+      requestUrl: `http://localhost/administracion/coreografias`,
     });
 
-    await expectThrownResponse(
-      loader(routeArgs(academyRequest, academyId)),
-      403,
-    );
-    await expectThrownResponse(loader(routeArgs(judgeRequest, academyId)), 403);
+    await expectThrownResponse(loader(routeArgs(academyRequest)), 403);
+    await expectThrownResponse(loader(routeArgs(judgeRequest)), 403);
   });
 
-  test("responds 404 for an unknown academy", async () => {
-    await createSavedEvent();
-    const unknownId = "00000000-0000-4000-8000-000000000000";
-    const { request } = await createSignedInRequest({
-      email: "admin.coreografias.desconocida@example.com",
-      role: "admin",
-      requestUrl: academyUrl(unknownId),
-    });
-
-    await expectThrownResponse(loader(routeArgs(request, unknownId)), 404);
-  });
-
-  test("renders one academy's active-event choreography list with the approved columns and badges", async () => {
+  test("renders the active-event choreography operational list with the approved columns and badges", async () => {
     const event = await createSavedEvent();
     const otherEvent = await createInactiveEvent("Regional 2025");
-    const otherAcademy = await createAcademyUser({
-      email: "academia.otra@example.com",
-      academyName: "Academia Otra",
+    const archivedAcademy = await createAcademyUser({
+      email: "academia.archivada@example.com",
+      academyName: "Academia Archivo",
+      suspended: true,
     });
     const activeAcademy = await createAcademyUser({
       email: "academia.activa@example.com",
       academyName: "Academia Norte",
     });
-    const academyId = activeAcademy.academy.id;
 
     const completeCatalog = await createEventCatalog(event.id, "Jazz");
     const incompleteCatalog = await createEventCatalog(
@@ -111,10 +88,10 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       "Contemporáneo",
     );
     const otherCatalog = await createEventCatalog(otherEvent.id, "Tap");
-    const professor = await createProfessor(academyId);
+    const professor = await createProfessor(archivedAcademy.academy.id);
 
     await createChoreographyRecord({
-      academyId,
+      academyId: archivedAcademy.academy.id,
       categoryId: completeCatalog.category.id,
       eventId: event.id,
       experienceLevelId: completeCatalog.level.id,
@@ -127,7 +104,7 @@ describe("`/administracion/coreografias/:academyId` route", () => {
     });
 
     await createChoreographyRecord({
-      academyId,
+      academyId: activeAcademy.academy.id,
       categoryId: incompleteCatalog.category.id,
       eventId: event.id,
       modalityId: incompleteCatalog.modality.id,
@@ -137,18 +114,7 @@ describe("`/administracion/coreografias/:academyId` route", () => {
     });
 
     await createChoreographyRecord({
-      academyId: otherAcademy.academy.id,
-      categoryId: completeCatalog.category.id,
-      eventId: event.id,
-      experienceLevelId: completeCatalog.level.id,
-      modalityId: completeCatalog.modality.id,
-      name: "Ajena Otra Academia",
-      scheduleCapacityId: completeCatalog.scheduleCapacity.id,
-      submodalityId: completeCatalog.submodality.id,
-    });
-
-    await createChoreographyRecord({
-      academyId,
+      academyId: activeAcademy.academy.id,
       categoryId: otherCatalog.category.id,
       eventId: otherEvent.id,
       experienceLevelId: otherCatalog.level.id,
@@ -162,13 +128,13 @@ describe("`/administracion/coreografias/:academyId` route", () => {
     const { request } = await createSignedInRequest({
       email: "admin.coreografias@example.com",
       role: "admin",
-      requestUrl: academyUrl(academyId),
+      requestUrl: `http://localhost/administracion/coreografias`,
     });
 
-    const loaderData = await loader(routeArgs(request, academyId));
+    const loaderData = await loader(routeArgs(request));
     const markup = renderRoute({
       childLoaderData: loaderData,
-      initialEntry: `/administracion/coreografias/${academyId}`,
+      initialEntry: "/administracion/coreografias",
       parentLoaderData: {
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
@@ -176,17 +142,13 @@ describe("`/administracion/coreografias/:academyId` route", () => {
     });
 
     expect(loaderData.selectedEventId).toBe(event.id);
-    expect(loaderData.academy).toEqual({
-      id: academyId,
-      name: "Academia Norte",
-    });
     expect(loaderData.choreographies.map((row) => row.name)).toEqual([
       "Abrazo Final",
       "Bosque Vivo",
     ]);
-    expect(markup).toContain("Academia Norte");
+    expect(markup).toContain("Coreografías");
     expect(markup).toContain(
-      "Revisá las coreografías que la academia registró para el evento activo y su estado operativo.",
+      "Revisá las coreografías registradas para el evento activo y su estado operativo.",
     );
     expect(markup).toContain('href="/administracion/coreografias"');
     expect(markup.indexOf("Eventos")).toBeLessThan(
@@ -198,6 +160,7 @@ describe("`/administracion/coreografias/:academyId` route", () => {
 
     for (const column of [
       "Nombre",
+      "Academia",
       "Modalidad / Submodalidad",
       "Categoría / Tipo de grupo",
       "Estado",
@@ -205,7 +168,7 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       expect(markup).toContain(column);
     }
 
-    expect(markup).not.toContain("Academia Otra");
+    expect(markup).toContain("Academia Archivo");
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Juvenil · Solo");
     expect(markup).toContain("Contemporáneo · Lyrical");
@@ -214,43 +177,15 @@ describe("`/administracion/coreografias/:academyId` route", () => {
     expect(markup).toContain('data-variant="success"');
     expect(markup).toContain('data-variant="warning"');
     expect(markup).toContain(
-      `href="/administracion/coreografias/${academyId}/${loaderData.choreographies[0]?.id}"`,
+      `href="/administracion/coreografias/${loaderData.choreographies[0]?.id}"`,
     );
     expect(markup).toContain(
-      `href="/administracion/coreografias/${academyId}/${loaderData.choreographies[1]?.id}"`,
+      `href="/administracion/coreografias/${loaderData.choreographies[1]?.id}"`,
     );
     expect(markup).not.toContain("Zeta Histórica");
-    expect(markup).not.toContain("Ajena Otra Academia");
   });
 
-  test("shows the academy empty state when it has no choreographies in the event", async () => {
-    const event = await createSavedEvent();
-    const academy = await createAcademyUser({
-      email: "academia.vacia@example.com",
-      academyName: "Academia Vacía",
-    });
-    const academyId = academy.academy.id;
-    const loaderData = await loadRouteData({
-      academyId,
-      email: "admin.coreografias.academia-vacia@example.com",
-      requestUrl: academyUrl(academyId),
-    });
-    const markup = renderRoute({
-      childLoaderData: loaderData,
-      initialEntry: `/administracion/coreografias/${academyId}`,
-      parentLoaderData: {
-        events: [{ id: event.id, name: event.name, active: true }],
-        selectedEventId: event.id,
-      },
-    });
-
-    expect(loaderData.hasAnyChoreography).toBe(false);
-    expect(markup).toContain(
-      "Esta academia no tiene coreografías en este evento",
-    );
-  });
-
-  test("uses server-side search by choreography name or number and keeps filtered empties inside the table", async () => {
+  test("uses server-side search by choreography and academy name and keeps filtered empties inside the table", async () => {
     const event = await createSavedEvent();
     const academyNorth = await createAcademyUser({
       email: "academia.norte.busqueda@example.com",
@@ -260,7 +195,6 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       email: "academia.sur.busqueda@example.com",
       academyName: "Academia Sur",
     });
-    const academyId = academyNorth.academy.id;
     const jazzCatalog = await createEventCatalog(event.id, "Jazz");
     const contemporaryCatalog = await createEventCatalog(
       event.id,
@@ -268,7 +202,7 @@ describe("`/administracion/coreografias/:academyId` route", () => {
     );
 
     await createChoreographyRecord({
-      academyId,
+      academyId: academyNorth.academy.id,
       categoryId: jazzCatalog.category.id,
       eventId: event.id,
       experienceLevelId: jazzCatalog.level.id,
@@ -280,7 +214,7 @@ describe("`/administracion/coreografias/:academyId` route", () => {
     });
 
     await createChoreographyRecord({
-      academyId,
+      academyId: academySouth.academy.id,
       categoryId: contemporaryCatalog.category.id,
       eventId: event.id,
       experienceLevelId: contemporaryCatalog.level.id,
@@ -291,28 +225,15 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       submodalityId: contemporaryCatalog.submodality.id,
     });
 
-    // Another academy's choreography matches the same search term but must
-    // never appear in this academy's list.
-    await createChoreographyRecord({
-      academyId: academySouth.academy.id,
-      categoryId: jazzCatalog.category.id,
-      eventId: event.id,
-      experienceLevelId: jazzCatalog.level.id,
-      modalityId: jazzCatalog.modality.id,
-      name: "Luna Ajena",
-      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
-      submodalityId: jazzCatalog.submodality.id,
-    });
-
-    const nameUrl = academyUrl(academyId, "?busqueda=Luna");
-    const nameData = await loadRouteData({
-      academyId,
+    const { request: nameRequest } = await createSignedInRequest({
       email: "admin.coreografias.nombre@example.com",
-      requestUrl: nameUrl,
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias?busqueda=Luna`,
     });
+    const nameData = await loader(routeArgs(nameRequest));
     const nameMarkup = renderRoute({
       childLoaderData: nameData,
-      initialEntry: `/administracion/coreografias/${academyId}?busqueda=Luna`,
+      initialEntry: `/administracion/coreografias?busqueda=Luna`,
       parentLoaderData: {
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
@@ -325,25 +246,27 @@ describe("`/administracion/coreografias/:academyId` route", () => {
     ]);
     expect(nameMarkup).toContain('value="Luna"');
     expect(nameMarkup).toContain("busqueda=Luna");
-    expect(nameMarkup).toContain("Buscar por número o nombre");
 
-    // The academy name is not searchable any more: the academy is the page.
-    const academyNameData = await loadRouteData({
-      academyId,
+    const { request: academyRequest } = await createSignedInRequest({
       email: "admin.coreografias.academia@example.com",
-      requestUrl: academyUrl(academyId, "?busqueda=Academia+Norte"),
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias?busqueda=Academia+Sur`,
     });
+    const academyData = await loader(routeArgs(academyRequest));
 
-    expect(academyNameData.choreographies).toHaveLength(0);
+    expect(academyData.choreographies.map((row) => row.name)).toEqual([
+      "Bosque Azul",
+    ]);
 
-    const emptyData = await loadRouteData({
-      academyId,
+    const { request: emptyRequest } = await createSignedInRequest({
       email: "admin.coreografias.vacia@example.com",
-      requestUrl: academyUrl(academyId, "?busqueda=Tap"),
+      role: "admin",
+      requestUrl: `http://localhost/administracion/coreografias?busqueda=Tap`,
     });
+    const emptyData = await loader(routeArgs(emptyRequest));
     const emptyMarkup = renderRoute({
       childLoaderData: emptyData,
-      initialEntry: `/administracion/coreografias/${academyId}?busqueda=Tap`,
+      initialEntry: `/administracion/coreografias?busqueda=Tap`,
       parentLoaderData: {
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
@@ -357,68 +280,91 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       "No hay coreografías que coincidan con la búsqueda o los filtros.",
     );
     expect(emptyMarkup).not.toContain(
-      "Esta academia no tiene coreografías en este evento",
+      "Todavía no hay coreografías para mostrar.",
     );
   });
 
-  test("sorts by number by default and supports name", async () => {
+  test("sorts by number by default and supports academy and name", async () => {
     const event = await createSavedEvent();
-    const academy = await createAcademyUser({
+    const academyNorth = await createAcademyUser({
       email: "academia.norte.orden@example.com",
       academyName: "Academia Norte",
     });
-    const otherAcademy = await createAcademyUser({
+    const academySouth = await createAcademyUser({
       email: "academia.sur.orden@example.com",
       academyName: "Academia Sur",
     });
-    const academyId = academy.academy.id;
     const jazzCatalog = await createEventCatalog(event.id, "Jazz");
 
-    for (const [ownerId, name] of [
-      [academyId, "Beta"],
-      [otherAcademy.academy.id, "Ajena"],
-      [academyId, "Gamma"],
-      [academyId, "Alfa"],
-    ] as const) {
-      await createChoreographyRecord({
-        academyId: ownerId,
-        categoryId: jazzCatalog.category.id,
-        eventId: event.id,
-        experienceLevelId: jazzCatalog.level.id,
-        modalityId: jazzCatalog.modality.id,
-        name,
-        scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
-        submodalityId: jazzCatalog.submodality.id,
-      });
-    }
+    await createChoreographyRecord({
+      academyId: academySouth.academy.id,
+      categoryId: jazzCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: jazzCatalog.level.id,
+      modalityId: jazzCatalog.modality.id,
+      name: "Beta",
+      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
+      submodalityId: jazzCatalog.submodality.id,
+    });
+    await createChoreographyRecord({
+      academyId: academyNorth.academy.id,
+      categoryId: jazzCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: jazzCatalog.level.id,
+      modalityId: jazzCatalog.modality.id,
+      name: "Gamma",
+      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
+      submodalityId: jazzCatalog.submodality.id,
+    });
+    await createChoreographyRecord({
+      academyId: academySouth.academy.id,
+      categoryId: jazzCatalog.category.id,
+      eventId: event.id,
+      experienceLevelId: jazzCatalog.level.id,
+      modalityId: jazzCatalog.modality.id,
+      name: "Alfa",
+      scheduleCapacityId: jazzCatalog.scheduleCapacity.id,
+      submodalityId: jazzCatalog.submodality.id,
+    });
 
-    const [defaultData, numberDescData, nameAscData, nameDescData] =
-      await Promise.all([
-        loadRouteData({
-          academyId,
-          email: "admin.coreografias.orden.default@example.com",
-          requestUrl: academyUrl(academyId),
-        }),
-        loadRouteData({
-          academyId,
-          email: "admin.coreografias.orden.numero-desc@example.com",
-          requestUrl: academyUrl(academyId, "?orden=numero:desc"),
-        }),
-        loadRouteData({
-          academyId,
-          email: "admin.coreografias.orden.nombre-asc@example.com",
-          requestUrl: academyUrl(academyId, "?orden=nombre:asc"),
-        }),
-        loadRouteData({
-          academyId,
-          email: "admin.coreografias.orden.nombre-desc@example.com",
-          requestUrl: academyUrl(academyId, "?orden=nombre:desc"),
-        }),
-      ]);
+    const baseUrl = `http://localhost/administracion/coreografias`;
+    const [
+      defaultData,
+      numberDescData,
+      academyAscData,
+      academyDescData,
+      nameAscData,
+      nameDescData,
+    ] = await Promise.all([
+      loadRouteData({
+        email: "admin.coreografias.orden.default@example.com",
+        requestUrl: baseUrl,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.numero-desc@example.com",
+        requestUrl: `${baseUrl}?orden=numero:desc`,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.academia-asc@example.com",
+        requestUrl: `${baseUrl}?orden=academia:asc`,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.academia-desc@example.com",
+        requestUrl: `${baseUrl}?orden=academia:desc`,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.nombre-asc@example.com",
+        requestUrl: `${baseUrl}?orden=nombre:asc`,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.nombre-desc@example.com",
+        requestUrl: `${baseUrl}?orden=nombre:desc`,
+      }),
+    ]);
 
-    // The academy's three were created as Beta, Gamma, Alfa, so they carry
-    // numbers in an order that matches neither the names nor their reverse.
-    // The other academy's choreography never shows up.
+    // The three were created as Beta, Gamma, Alfa, so they carry numbers 1, 2
+    // and 3 in an order that matches neither the names nor the academies. That
+    // is what makes the three orderings below tell each other apart.
     expect(defaultData.filters.order).toEqual({
       columnId: "numero",
       direction: "asc",
@@ -433,6 +379,19 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       "Gamma",
       "Beta",
     ]);
+
+    expect(getChoreographyOrderLabels(academyAscData)).toEqual([
+      "Academia Norte:Gamma",
+      "Academia Sur:Alfa",
+      "Academia Sur:Beta",
+    ]);
+
+    expect(getChoreographyOrderLabels(academyDescData)).toEqual([
+      "Academia Sur:Alfa",
+      "Academia Sur:Beta",
+      "Academia Norte:Gamma",
+    ]);
+
     expect(getChoreographyNames(nameAscData)).toEqual([
       "Alfa",
       "Beta",
@@ -443,39 +402,6 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       "Beta",
       "Alfa",
     ]);
-  });
-
-  test("redirects the removed academy sort to the canonical URL", async () => {
-    const event = await createSavedEvent();
-    const academy = await createAcademyUser({
-      email: "academia.orden-removido@example.com",
-      academyName: "Academia Orden",
-    });
-    const catalog = await createEventCatalog(event.id, "Jazz");
-
-    await createChoreographyRecord({
-      academyId: academy.academy.id,
-      categoryId: catalog.category.id,
-      eventId: event.id,
-      experienceLevelId: catalog.level.id,
-      modalityId: catalog.modality.id,
-      name: "Unica",
-      scheduleCapacityId: catalog.scheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-
-    const response = await expectThrownResponse(
-      loadRouteData({
-        academyId: academy.academy.id,
-        email: "admin.coreografias.orden-academia@example.com",
-        requestUrl: academyUrl(academy.academy.id, "?orden=academia:asc"),
-      }),
-      302,
-    );
-
-    expect(response.headers.get("Location")).toBe(
-      `/administracion/coreografias/${academy.academy.id}`,
-    );
   });
 
   test("redirects invalid sort and out-of-range pagination to the canonical URL", async () => {
@@ -492,46 +418,40 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       eventId: event.id,
     });
 
-    const academyId = academy.academy.id;
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.canonica@example.com",
       role: "admin",
-      requestUrl: academyUrl(
-        academyId,
+      requestUrl:
+        "http://localhost/administracion/coreografias" +
         "?busqueda=Pieza&orden=invalido&pagina=9",
-      ),
     });
 
     const response = await expectThrownResponse(
-      loader(routeArgs(request, academyId)),
+      loader(routeArgs(request)),
       302,
     );
 
     expect(response.headers.get("Location")).toBe(
-      `/administracion/coreografias/${academyId}?busqueda=Pieza&pagina=2`,
+      "/administracion/coreografias?busqueda=Pieza&pagina=2",
     );
   });
 
   test("removes invalid pagina values and omits pagina for the first page", async () => {
-    await createSavedEvent();
-    const academy = await createAcademyUser({
-      email: "academia.pagina-invalida@example.com",
-      academyName: "Academia Pagina",
-    });
-    const academyId = academy.academy.id;
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.pagina-invalida@example.com",
       role: "admin",
-      requestUrl: academyUrl(academyId, "?busqueda=Bosque&pagina=0"),
+      requestUrl:
+        "http://localhost/administracion/coreografias" +
+        "?busqueda=Bosque&pagina=0",
     });
 
     const response = await expectThrownResponse(
-      loader(routeArgs(request, academyId)),
+      loader(routeArgs(request)),
       302,
     );
 
     expect(response.headers.get("Location")).toBe(
-      `/administracion/coreografias/${academyId}?busqueda=Bosque`,
+      "/administracion/coreografias?busqueda=Bosque",
     );
   });
 
@@ -549,19 +469,15 @@ describe("`/administracion/coreografias/:academyId` route", () => {
       eventId: event.id,
     });
 
-    const academyId = academy.academy.id;
-    const base = `/administracion/coreografias/${academyId}`;
     const loaderData = await loadRouteData({
-      academyId,
       email: "admin.coreografias.urls@example.com",
-      requestUrl: academyUrl(
-        academyId,
+      requestUrl:
+        "http://localhost/administracion/coreografias" +
         "?busqueda=Pieza&orden=nombre:asc&pagina=2",
-      ),
     });
     const markup = renderRoute({
       childLoaderData: loaderData,
-      initialEntry: `${base}?busqueda=Pieza&orden=nombre:asc&pagina=2`,
+      initialEntry: `/administracion/coreografias?busqueda=Pieza&orden=nombre:asc&pagina=2`,
       parentLoaderData: {
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
@@ -570,38 +486,39 @@ describe("`/administracion/coreografias/:academyId` route", () => {
 
     expect(markup).toContain("busqueda=Pieza&amp;orden=nombre%3Aasc");
     expect(markup).toContain(
-      `href="${base}?busqueda=Pieza&amp;orden=nombre%3Aasc"`,
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=nombre%3Aasc"',
     );
     expect(markup).toContain(
-      `href="${base}?busqueda=Pieza&amp;orden=nombre%3Aasc&amp;pagina=2"`,
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=nombre%3Aasc&amp;pagina=2"',
     );
     expect(markup).toContain(
-      `href="${base}?busqueda=Pieza&amp;orden=nombre%3Adesc"`,
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=nombre%3Aasc"',
     );
-    expect(markup).not.toContain("orden=academia");
+    expect(markup).toContain(
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=academia%3Aasc"',
+    );
+    expect(markup).toContain(
+      'href="/administracion/coreografias?busqueda=Pieza&amp;orden=nombre%3Adesc"',
+    );
   });
 });
 
-function academyUrl(academyId: string, search = "") {
-  return `http://localhost/administracion/coreografias/${academyId}${search}`;
-}
-
-async function loadRouteData(input: {
-  academyId: string;
-  email: string;
-  requestUrl: string;
-}) {
+async function loadRouteData(input: { email: string; requestUrl: string }) {
   const { request } = await createSignedInRequest({
     email: input.email,
     role: "admin",
     requestUrl: input.requestUrl,
   });
 
-  return await loader(routeArgs(request, input.academyId));
+  return await loader(routeArgs(request));
 }
 
 function getChoreographyNames(data: Awaited<ReturnType<typeof loader>>) {
   return data.choreographies.map((row) => row.name);
+}
+
+function getChoreographyOrderLabels(data: Awaited<ReturnType<typeof loader>>) {
+  return data.choreographies.map((row) => `${row.academyName}:${row.name}`);
 }
 
 async function createChoreographyPageRecords(input: {
@@ -623,13 +540,13 @@ async function createChoreographyPageRecords(input: {
   }
 }
 
-function routeArgs(request: Request, academyId: string) {
+function routeArgs(request: Request) {
   return {
     request,
-    params: { academyId },
+    params: {},
     context: {},
     url: new URL(request.url),
-    pattern: "/administracion/coreografias/:academyId",
+    pattern: "/administracion/coreografias",
   };
 }
 
@@ -646,7 +563,7 @@ function renderRoute(input: {
     childHandle: handle,
     childId: "coreografias",
     childLoaderData: input.childLoaderData,
-    childPath: "coreografias/:academyId",
+    childPath: "coreografias",
     initialEntry: input.initialEntry,
     parentLoaderData: input.parentLoaderData,
   });

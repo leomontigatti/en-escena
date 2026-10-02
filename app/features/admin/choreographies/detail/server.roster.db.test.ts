@@ -1580,27 +1580,16 @@ async function createArchivedRosterScenario(input: {
 }
 
 async function loadRosterDetail(choreographyId: string) {
-  const params = await readDetailParams(choreographyId);
   const { request } = await createSignedInAdminRequest({
     email: `admin.roster.loader.${(submitCount += 1)}.${choreographyId}@example.com`,
-    requestUrl: `http://localhost/administracion/coreografias/${params.academyId}/${choreographyId}`,
+    requestUrl: `http://localhost/administracion/coreografias/${choreographyId}`,
     role: "admin",
   });
 
-  return await loadChoreographyDetailRouteData({ params, request });
-}
-
-async function readDetailParams(choreographyId: string) {
-  const row = await db.query.choreographies.findFirst({
-    columns: { academyId: true },
-    where: eq(choreographies.id, choreographyId),
+  return await loadChoreographyDetailRouteData({
+    params: { choreographyId },
+    request,
   });
-
-  if (!row) {
-    throw new Error(`Choreography ${choreographyId} is not seeded`);
-  }
-
-  return { academyId: row.academyId, choreographyId };
 }
 
 test("refuses a roster change that resolves to no category, writing nothing", async () => {
@@ -1724,15 +1713,17 @@ async function postDraft(input: {
     typeof resolveChoreographyDraftIntent | typeof saveChoreographyDraftIntent;
   previewedCategoryId?: string | null;
 }) {
-  const params = await readDetailParams(input.choreographyId);
   const { request } = await createSignedInAdminRequest({
     body: toChoreographyDraftFormData(input),
     email: `admin.roster.${(submitCount += 1)}.${input.choreographyId}@example.com`,
-    requestUrl: `http://localhost/administracion/coreografias/${params.academyId}/${input.choreographyId}`,
+    requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
     role: "admin",
   });
 
-  return await handleChoreographyDetailAction({ params, request });
+  return await handleChoreographyDetailAction({
+    params: { choreographyId: input.choreographyId },
+    request,
+  });
 }
 
 function readDraftPreview(

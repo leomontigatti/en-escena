@@ -54,8 +54,6 @@ import {
 } from "./shared";
 
 export type InscriptionsSectionProps = {
-  /** The dancer's academy, which each choreography's admin address is under. */
-  academyId: string;
   inscriptions: DancerDetailLoaderData["dancer"]["inscriptions"];
   selectedEventId: string | null;
 };
@@ -119,7 +117,6 @@ export function DancerDetailHeaderActions({
 }
 
 export function DancerDetailAlerts({
-  academyId,
   active,
   canEdit,
   canVerifyIdentity,
@@ -130,8 +127,6 @@ export function DancerDetailAlerts({
   participatingAlert,
   recategorisedChoreographies,
 }: {
-  /** The dancer's academy, which each choreography's admin address is under. */
-  academyId: string;
   active: boolean;
   canEdit: boolean;
   canVerifyIdentity: boolean;
@@ -153,9 +148,7 @@ export function DancerDetailAlerts({
     <AlertStack>
       {recategorisedChoreographies.length > 0 ? (
         <RecategorisedChoreographiesAlert
-          buildChoreographyHref={(choreographyId) =>
-            choreographyDetailPath({ academyId, choreographyId })
-          }
+          buildChoreographyHref={choreographyDetailPath}
           choreographies={recategorisedChoreographies}
           surface="admin"
         />
@@ -262,7 +255,6 @@ export function DancerDetailForm({
       </TabsContent>
       <TabsContent value="inscripciones" className="pt-2">
         <InscriptionsSection
-          academyId={dancer.academy.id}
           inscriptions={dancer.inscriptions}
           selectedEventId={selectedEventId}
         />
@@ -402,7 +394,6 @@ function DancerAlert({
 }
 
 export function InscriptionsSection({
-  academyId,
   inscriptions,
   selectedEventId,
 }: InscriptionsSectionProps) {
@@ -417,9 +408,7 @@ export function InscriptionsSection({
 
   return (
     <DancerInscriptionsTable
-      buildChoreographyHref={(choreographyId) =>
-        choreographyDetailPath({ academyId, choreographyId })
-      }
+      buildChoreographyHref={choreographyDetailPath}
       inscriptions={inscriptions}
     />
   );
