@@ -34,7 +34,7 @@ The scripts that exist and what owns what:
 | Command                             | Owns                                                                                                                                                                                                                                                                                    |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm typecheck`                    | Types, unused locals and parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) — flags in `tsconfig.json` — also run by the `Stop` hook |
-| `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, raw form elements and restyled ui components — **only** these; also run by the `Stop` hook                                                                                                                                     |
+| `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules and the `Trash` import — **only** these; also run by the `Stop` hook                                                                                                                                |
 | `pnpm format` / `:check`            | All formatting — also applied per file by the `PostToolUse` hook                                                                                                                                                                                                                        |
 | `pnpm test:unit`                    | Unit and React suites                                                                                                                                                                                                                                                                   |
 | `pnpm test:db <path>`               | DB suite on in-process PGlite                                                                                                                                                                                                                                                           |
@@ -112,10 +112,13 @@ carry information, and this repo treats exactly two cases as settled:
 `void` on **any other** promise needs a reason in the code, and a reviewer should
 ask for one — `await` it, or handle the rejection.
 
-It checks structure, **not** formatting or taste. Its only UI rules are the two
-`ui` ones (no raw form element where an `app/components/ui` component exists, no
-`className` overriding a ui component's height, radius or focus state). It has
-no opinion on
+It checks structure, **not** formatting or taste. Its only UI rules are the
+style guide clauses a machine can judge: the `ui` ones, listed in the header of
+`scripts/oxlint-ui-plugin.mjs` (no raw form element where an `app/components/ui`
+component exists, no `className` overriding a ui component's height, radius or
+focus state, `TabsList` in the line variant, a position on every button icon's
+`data-icon`, dialogs at their default width), and `Trash2` over `Trash` through
+`no-restricted-imports`. It has no opinion on
 formatting (Prettier's), on unused code (`tsc`'s) or on this repo's conventions
 (the `check:*` scripts').
 

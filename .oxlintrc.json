@@ -18,6 +18,18 @@
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "error",
     "import/no-cycle": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "lucide-react",
+            "importNames": ["Trash"],
+            "message": "Use Trash2: it is the delete icon everywhere (style guide, Buttons)."
+          }
+        ]
+      }
+    ],
     "typescript/no-floating-promises": [
       "error",
       {
@@ -60,7 +72,10 @@
       "excludeFiles": ["app/components/ui/**", "**/*.test.tsx"],
       "rules": {
         "ui/no-raw-form-element": "error",
-        "ui/no-restyle": "error"
+        "ui/no-restyle": "error",
+        "ui/tabs-line-variant": "error",
+        "ui/data-icon-position": "error",
+        "ui/dialog-width": "error"
       }
     }
   ]
