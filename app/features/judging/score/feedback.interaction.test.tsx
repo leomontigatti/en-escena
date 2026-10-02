@@ -67,6 +67,7 @@ function installRecorderStubs() {
 
 function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
   return {
+    academyName: "Academia Sur",
     categoryAdmitsExperienceLevels: true,
     categoryName: "Juvenil",
     criteria: [],
@@ -128,6 +129,7 @@ describe("recording a `Devolución` with the score", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                judgingDate: "2026-08-22",
                 presentations: [buildRow(feedbackAudioUrl)],
               }}
             />

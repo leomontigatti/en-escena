@@ -17,7 +17,8 @@ const accessTextLinkClassName =
 
 type AccessPageProps = {
   children: ReactNode;
-  width?: "md" | "lg" | "xl";
+  /** `2xl` is for a panel without the admin's sidebar, laid out for a laptop. */
+  width?: "md" | "lg" | "xl" | "2xl";
 };
 
 export function AccessPage({ children, width = "md" }: AccessPageProps) {
@@ -39,6 +40,7 @@ export function AccessPage({ children, width = "md" }: AccessPageProps) {
             width === "md" && "max-w-md",
             width === "lg" && "max-w-lg",
             width === "xl" && "max-w-4xl",
+            width === "2xl" && "max-w-6xl",
           )}
         >
           {children}
@@ -49,22 +51,30 @@ export function AccessPage({ children, width = "md" }: AccessPageProps) {
 }
 
 type AccessHeaderProps = {
+  /** A control kept on the title's line, at its end. */
+  action?: ReactNode;
   className?: string;
   eyebrow?: string;
   media?: ReactNode;
   title: string;
+  /** `h2` on a private panel's page, as on the admin's; `h1` on the public forms. */
+  titleLevel?: 1 | 2;
   description?: ReactNode;
   tone?: "default" | "danger";
 };
 
 export function AccessHeader({
+  action,
   className,
   eyebrow,
   media,
   title,
+  titleLevel = 1,
   description,
   tone = "default",
 }: AccessHeaderProps) {
+  const Title = titleLevel === 1 ? "h1" : "h2";
+
   return (
     <header className={className}>
       {media}
@@ -78,11 +88,25 @@ export function AccessHeader({
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="mt-3 text-3xl font-semibold text-pretty text-foreground">
-        {title}
-      </h1>
+      <div className="mt-3 flex items-center justify-between gap-4">
+        <Title
+          className={cn(
+            "font-semibold text-pretty text-foreground",
+            titleLevel === 1 ? "text-3xl" : "text-xl",
+          )}
+        >
+          {title}
+        </Title>
+        {action}
+      </div>
       {description ? (
-        <p className="mt-4 text-sm leading-6 text-pretty text-muted-foreground">
+        <p
+          className={cn(
+            "text-sm leading-6 text-pretty text-muted-foreground",
+            // A panel's title sits on its description as the admin's does.
+            titleLevel === 1 ? "mt-4" : "mt-1",
+          )}
+        >
           {description}
         </p>
       ) : null}
@@ -109,9 +133,6 @@ export function PrivateAccessHeader({ account }: PrivateAccessHeaderProps) {
           </p>
           <p className="text-sm leading-5 text-muted-foreground">
             {account.roleLabel}
-          </p>
-          <p className="text-sm leading-5 text-muted-foreground">
-            Usuario: {account.username}
           </p>
         </div>
       </div>

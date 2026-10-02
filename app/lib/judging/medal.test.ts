@@ -11,10 +11,7 @@ describe("a presentation's average", () => {
     expect(
       presentationAverage({
         disqualified: false,
-        scores: [
-          { annulled: false, value: "80.0" },
-          { annulled: false, value: "90.0" },
-        ],
+        scores: [{ value: "80.0" }, { value: "90.0" }],
       }),
     ).toBe(80 + 5);
   });
@@ -23,24 +20,16 @@ describe("a presentation's average", () => {
     expect(
       presentationAverage({
         disqualified: false,
-        scores: [
-          { annulled: false, value: "80.0" },
-          { annulled: false, value: "85.5" },
-          { annulled: false, value: "90.0" },
-        ],
+        scores: [{ value: "80.0" }, { value: "85.5" }, { value: "90.0" }],
       }),
     ).toBe(85.17);
   });
 
-  test("leaves out an annulled score and one that has no value", () => {
+  test("leaves out a score that has no value", () => {
     expect(
       presentationAverage({
         disqualified: false,
-        scores: [
-          { annulled: true, value: "10.0" },
-          { annulled: false, value: null },
-          { annulled: false, value: "90.0" },
-        ],
+        scores: [{ value: null }, { value: "90.0" }],
       }),
     ).toBe(90);
   });
@@ -49,14 +38,11 @@ describe("a presentation's average", () => {
     expect(
       presentationAverage({
         disqualified: true,
-        scores: [{ annulled: false, value: "90.0" }],
+        scores: [{ value: "90.0" }],
       }),
     ).toBeNull();
     expect(
-      presentationAverage({
-        disqualified: false,
-        scores: [{ annulled: true, value: "90.0" }],
-      }),
+      presentationAverage({ disqualified: false, scores: [{ value: null }] }),
     ).toBeNull();
     expect(presentationAverage({ disqualified: false, scores: [] })).toBeNull();
   });

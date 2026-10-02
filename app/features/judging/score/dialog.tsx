@@ -1,13 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
+import { Undo2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
+import { SubmitButton } from "@/components/shared/action-buttons";
 import {
   DiscardChangesDialog,
   useDiscardGuard,
 } from "@/components/shared/discard-guard";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -30,9 +31,12 @@ import {
   singleScoreMaximum,
 } from "@/lib/judging/score-value";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
-import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
-import { DisqualificationAction, DisqualifiedNotice } from "./disqualification";
+import {
+  formatPresentationSummary,
+  formatPresentationTitle,
+} from "./presentation-heading";
+import { DisqualifiedNotice } from "./disqualification";
 import { FeedbackRecorder } from "./feedback-recorder";
 import {
   buildJudgeScoreSubmission,
@@ -49,8 +53,9 @@ type JudgeScoreDialogProps = {
 };
 
 /**
- * Where a presentation without criteria is scored: one field, one button, and
- * nothing else to read between two dances. It never closes on an outside tap —
+ * Where a presentation without criteria is scored: the `Devolución` and one
+ * field, laid out like the sheet (`sheet.tsx`) so the two read the same, and
+ * saved by a `Guardar` that waits for a change. It never closes on an outside tap —
  * in a dark theatre that tap is an accident, and behind it is a score nobody
  * would get back — and every other way out asks first when there is a score in
  * there to lose.
@@ -70,10 +75,12 @@ export function JudgeScoreDialog({
   const [audio, setAudio] = useState(() =>
     initialFeedbackAudioField(presentation.feedbackAudioUrl),
   );
+  // A take recorded or deleted over an untouched score is a change the form
+  // state knows nothing about, and is exactly what the judge would lose.
+  const isAudioDirty = isFeedbackAudioFieldDirty(audio);
+  const isDirty = form.formState.isDirty || isAudioDirty;
   const { discardDialogProps, requestClose } = useDiscardGuard({
-    // A take recorded or deleted over untouched fields is a change the form
-    // state knows nothing about, and is exactly what the judge would lose.
-    isAudioDirty: isFeedbackAudioFieldDirty(audio),
+    isAudioDirty,
     isFormDirty: form.formState.isDirty,
     onClose,
   });
@@ -96,6 +103,11 @@ export function JudgeScoreDialog({
 
   function applyAudioEvent(event: FeedbackAudioFieldEvent) {
     setAudio((current) => reduceFeedbackAudioField(current, event));
+  }
+
+  function discard() {
+    form.reset();
+    setAudio(initialFeedbackAudioField(presentation.feedbackAudioUrl));
   }
 
   function save(values: JudgeScoreFormValues) {
@@ -127,14 +139,12 @@ export function JudgeScoreDialog({
       >
         <DialogContent onInteractOutside={(event) => event.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>{presentation.name}</DialogTitle>
+            <DialogTitle>{formatPresentationTitle(presentation)}</DialogTitle>
             <DialogDescription>
-              {formatPrimaryAndSecondaryValue(
-                `${presentation.orderNumber}. ${presentation.categoryName}`,
-                presentation.submodalityName ?? presentation.modalityName,
-              )}
+              {formatPresentationSummary(presentation)}
             </DialogDescription>
           </DialogHeader>
+          {disqualified ? <DisqualifiedNotice /> : null}
           <form
             id="judge-score-form"
             method="post"
@@ -150,9 +160,13 @@ export function JudgeScoreDialog({
                 : form.handleSubmit(save)
             }
           >
-            {disqualified ? (
-              <DisqualifiedNotice />
-            ) : (
+            <FeedbackRecorder
+              audioUrl={feedbackAudioFieldUrl(audio)}
+              error={fieldErrors?.audio}
+              onDelete={() => applyAudioEvent({ type: "deleted" })}
+              onRecorded={(take) => applyAudioEvent({ take, type: "recorded" })}
+            />
+            {disqualified ? null : (
               <ScoreInputField
                 autoFocus
                 control={form.control}
@@ -162,33 +176,32 @@ export function JudgeScoreDialog({
                 name="value"
               />
             )}
-            <FeedbackRecorder
-              audioUrl={feedbackAudioFieldUrl(audio)}
-              error={fieldErrors?.audio}
-              onDelete={() => applyAudioEvent({ type: "deleted" })}
-              onRecorded={(take) => applyAudioEvent({ take, type: "recorded" })}
-            />
           </form>
-          <DialogFooter className="sm:justify-between">
-            <DisqualificationAction
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
               disabled={isSaving}
-              disqualified={disqualified}
-              presentationId={presentation.presentationId}
-            />
-            <div className="flex gap-2">
+              onClick={requestClose}
+            >
+              Cancelar
+            </Button>
+            {isDirty ? (
               <Button
                 type="button"
                 variant="outline"
                 disabled={isSaving}
-                onClick={requestClose}
+                onClick={discard}
               >
-                Cancelar
+                <Undo2 aria-hidden="true" data-icon="inline-start" />
+                Descartar cambios
               </Button>
-              <Button disabled={isSaving} type="submit" form="judge-score-form">
-                {isSaving ? <Spinner aria-hidden="true" data-icon /> : null}
-                Guardar
-              </Button>
-            </div>
+            ) : null}
+            <SubmitButton
+              disabled={!isDirty}
+              form="judge-score-form"
+              isPending={isSaving}
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>

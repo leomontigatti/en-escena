@@ -11,12 +11,14 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { JudgePanelActionData } from "@/features/judging/score/action.server";
 import { JudgeScoreDialog } from "@/features/judging/score/dialog";
 import { JudgeScoreSheet } from "@/features/judging/score/sheet";
+import { formatScheduleDayHeading } from "@/lib/choreographies/schedule-formatters";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import {
@@ -91,6 +93,7 @@ export function JudgePanelView({
       <JudgeScoreSheet
         account={loaderData.account}
         actionData={actionData}
+        judgingDate={loaderData.judgingDate}
         key={openPresentation.presentationId}
         onClose={() => setOpenPresentationId(null)}
         presentation={openPresentation}
@@ -99,25 +102,27 @@ export function JudgePanelView({
   }
 
   return (
-    <AccessPage width="xl">
+    <AccessPage width="2xl">
       <PrivateAccessHeader account={loaderData.account} />
       <AccessHeader
-        eyebrow="Juzgamiento"
+        eyebrow={formatScheduleDayHeading(loaderData.judgingDate)}
         title="Presentaciones de hoy"
+        titleLevel={2}
+        action={
+          <div className="flex items-center gap-2">
+            <Switch
+              id="solo-pendientes"
+              aria-label="Solo pendientes"
+              checked={onlyPending}
+              onCheckedChange={setOnlyPending}
+            />
+            <Label htmlFor="solo-pendientes">Solo pendientes</Label>
+          </div>
+        }
         description="Las presentaciones que tenés asignadas hoy, en el orden del programa."
       />
 
-      <div className="mt-6 flex items-center gap-2">
-        <Switch
-          id="solo-pendientes"
-          aria-label="Solo pendientes"
-          checked={onlyPending}
-          onCheckedChange={setOnlyPending}
-        />
-        <Label htmlFor="solo-pendientes">Solo pendientes</Label>
-      </div>
-
-      <div className="mt-4" ref={tableRef}>
+      <div className="mt-6" ref={tableRef}>
         <ClientDataTable
           columns={judgePresentationColumns}
           emptyMessage="No tenés presentaciones asignadas para hoy."
@@ -130,6 +135,7 @@ export function JudgePanelView({
           })}
           hidePagination
           hideSearch
+          layout="fit"
           rows={rows}
           searchPlaceholder="Buscar presentación"
         />
@@ -223,19 +229,6 @@ function useJudgeScoreFeedback({
       return;
     }
 
-    // Closing or reopening a presentation leaves the judge looking at it: the
-    // panel is still deciding, and moving them on would take the form they are
-    // talking about out from under them.
-    if (actionData.intent !== "save-score") {
-      showToastMessage({
-        id: judgeScoreToastId,
-        message: actionData.message,
-        variant: "success",
-      });
-
-      return;
-    }
-
     const nextPresentationId = findResumePresentationId(
       presentations,
       openPresentationId,
@@ -292,45 +285,78 @@ function formatExperienceLevel(row: JudgePresentationRow) {
   return experienceLevelLabels[row.experienceLevel] ?? row.experienceLevel;
 }
 
+// The admin's presentation list, column for column and muted the same way,
+// with the number's share moved to the level so `Profesional` fits the
+// narrower card. Laid out `fit`: four free-text columns share the row, so each keeps its share
+// and a long academy or name is cut rather than pushing `Estado` off the card.
 const judgePresentationColumns: DataTableColumn<JudgePresentationRow>[] = [
   {
     id: "orden",
-    header: "N°",
+    header: "N.º",
     cell: (row) => row.orderNumber,
     leading: true,
-    className: "tabular-nums",
+    className: "font-medium tabular-nums",
+    width: 6,
   },
   {
     id: "nombre",
     header: "Nombre",
+    className: "font-medium",
     cell: (row) => (
-      <DataTableLink
-        to={`?presentacion=${row.presentationId}`}
-        onClick={() => rememberOpenedPresentation(row.presentationId)}
-      >
-        {row.name}
-      </DataTableLink>
+      <DataTableTruncatedText value={row.name}>
+        <DataTableLink
+          to={`?presentacion=${row.presentationId}`}
+          onClick={() => rememberOpenedPresentation(row.presentationId)}
+        >
+          {row.name}
+        </DataTableLink>
+      </DataTableTruncatedText>
     ),
+    width: 14,
   },
   {
-    id: "categoria",
-    header: "Categoría",
-    cell: (row) =>
-      formatPrimaryAndSecondaryValue(
-        row.categoryName,
-        formatGroupTypeLabel(row.groupType),
-      ),
+    id: "academia",
+    header: "Academia",
+    className: "text-muted-foreground",
+    cell: (row) => <DataTableTruncatedText value={row.academyName} />,
+    width: 13,
+  },
+  {
+    id: "modalidadSubmodalidad",
+    header: "Modalidad / Submodalidad",
+    className: "text-muted-foreground",
+    cell: (row) => (
+      <DataTableTruncatedText
+        value={formatPrimaryAndSecondaryValue(
+          row.modalityName,
+          row.submodalityName,
+        )}
+      />
+    ),
+    width: 21,
+  },
+  {
+    id: "categoriaTipoGrupo",
+    header: "Categoría / Tipo de grupo",
+    className: "text-muted-foreground",
+    cell: (row) => (
+      <DataTableTruncatedText
+        value={formatPrimaryAndSecondaryValue(
+          row.categoryName,
+          formatGroupTypeLabel(row.groupType),
+        )}
+      />
+    ),
+    width: 20,
   },
   {
     id: "nivel",
     header: "Nivel",
-    cell: formatExperienceLevel,
-  },
-  {
-    id: "modalidad",
-    header: "Modalidad",
-    cell: (row) =>
-      formatPrimaryAndSecondaryValue(row.modalityName, row.submodalityName),
+    className: "text-muted-foreground",
+    cell: (row) => (
+      <DataTableTruncatedText value={formatExperienceLevel(row)} />
+    ),
+    width: 10,
   },
   {
     id: "estado",
@@ -340,5 +366,6 @@ const judgePresentationColumns: DataTableColumn<JudgePresentationRow>[] = [
         {judgeScoreStatusLabels[row.status]}
       </Badge>
     ),
+    width: 11,
   },
 ];

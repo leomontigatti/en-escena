@@ -16,6 +16,7 @@ import type { Executor } from "@/lib/finances/choreography-cobro-support.server"
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
 import { readSubmodalityCriteria } from "@/lib/judging/submodality-criteria.server";
+import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
   medalForAverage,
   presentationAverage,
@@ -39,7 +40,6 @@ import {
  */
 
 export type PresentationJudgeScore = {
-  annulled: boolean;
   /** The judge's sheet by criterion; empty when the submodality has no criteria. */
   criteriaValues: Record<string, string>;
   feedbackAudioUrl: string | null;
@@ -55,7 +55,7 @@ export type PresentationScoresView = {
   /** The choreography's academy, which its admin address is under. */
   academyId: string;
   academyName: string;
-  /** Null for a disqualified presentation and when nothing counts. */
+  /** Null for a disqualified presentation and when no judge has saved a score. */
   average: number | null;
   categoryName: string;
   choreographyId: string;
@@ -63,6 +63,7 @@ export type PresentationScoresView = {
   criteria: JudgeSheetCriterion[];
   disqualified: boolean;
   experienceLevel: string | null;
+  groupType: ChoreographyGroupType;
   judges: PresentationJudgeScore[];
   medal: Medal | null;
   modalityName: string;
@@ -87,6 +88,7 @@ export async function readPresentationScores(
       choreographyId: choreographies.id,
       disqualifiedAt: presentations.disqualifiedAt,
       experienceLevel: choreographies.experienceLevelId,
+      groupType: choreographies.groupType,
       modalityName: modalities.name,
       name: choreographies.name,
       orderNumber: presentations.orderNumber,
@@ -110,7 +112,11 @@ export async function readPresentationScores(
 
   const [judges, criteria] = await Promise.all([
     readPanel(executor, input),
-    readSubmodalityCriteria(executor, presentation.submodalityId),
+    readSubmodalityCriteria(
+      executor,
+      presentation.submodalityId,
+      presentation.experienceLevel,
+    ),
   ]);
   const disqualified = presentation.disqualifiedAt !== null;
   const average = presentationAverage({ disqualified, scores: judges });
@@ -124,6 +130,7 @@ export async function readPresentationScores(
     criteria,
     disqualified,
     experienceLevel: presentation.experienceLevel,
+    groupType: presentation.groupType as ChoreographyGroupType,
     judges,
     medal: average === null ? null : medalForAverage(average),
     modalityName: presentation.modalityName,
@@ -141,7 +148,6 @@ async function readPanel(
 ): Promise<PresentationJudgeScore[]> {
   const rows = await executor
     .select({
-      annulled: scores.annulled,
       feedbackAudioStorageKey: scores.feedbackAudioStorageKey,
       judgeAssignmentId: judgeAssignments.id,
       judgeId: user.id,
@@ -167,7 +173,6 @@ async function readPanel(
 
   return await Promise.all(
     rows.map(async (row) => ({
-      annulled: row.annulled ?? false,
       criteriaValues: (row.scoreId && sheets.get(row.scoreId)) || {},
       feedbackAudioUrl: storage
         ? await loadFeedbackAudioDownloadUrl({

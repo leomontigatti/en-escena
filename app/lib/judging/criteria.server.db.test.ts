@@ -1,7 +1,8 @@
+import { asc, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { scores } from "@/db/schema";
+import { scores, submodalityCriteria } from "@/db/schema";
 import {
   findScoreLockedSubmodalityIds,
   isSubmodalityScoreLocked,
@@ -56,6 +57,47 @@ describe("submodality criteria", () => {
     const saved = await listSubmodalityCriteria(fixture.event.id);
     expect(saved.map((criterion) => criterion.name)).toEqual(["Otra Cosa"]);
   });
+
+  // The dialog checks the general criteria alone against 100, but once a level
+  // has criteria of its own every sheet is general plus level, so a save from
+  // it could leave a sheet out of 140, or out of 40. Until the levels have an
+  // editor, their submodality's criteria are refused here whole.
+  test.each([
+    [[{ kind: "adds" as const, maximum: "100", name: "Otra cosa" }]],
+    [[]],
+  ])(
+    "refuses to change a submodality that has level criteria, leaving both sets alone (%#)",
+    async (criteria) => {
+      const fixture = await seedJudgingFixture();
+      await fixture.addCriterion({ maximum: 60, name: "Técnica" });
+      await fixture.addCriterion({
+        experienceLevel: "amateur",
+        maximum: 40,
+        name: "Figuras",
+      });
+
+      await expect(
+        replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
+          criteria,
+        }),
+      ).resolves.toMatchObject({
+        code: "event-bases-has-dependencies",
+        ok: false,
+      });
+
+      const names = await db.query.submodalityCriteria.findMany({
+        orderBy: asc(submodalityCriteria.position),
+        where: eq(
+          submodalityCriteria.submodalityId,
+          fixture.catalog.submodality.id,
+        ),
+      });
+      expect(names.map((criterion) => criterion.name).sort()).toEqual([
+        "Figuras",
+        "Técnica",
+      ]);
+    },
+  );
 
   test("clears the criteria when the submitted list is empty", async () => {
     const fixture = await seedJudgingFixture();

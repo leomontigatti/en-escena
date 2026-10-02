@@ -193,6 +193,7 @@ export function FeedbackRecorder({
   audioUrl,
   disabled = false,
   error,
+  legendVariant = "label",
   onDelete,
   onRecorded,
 }: {
@@ -200,6 +201,8 @@ export function FeedbackRecorder({
   disabled?: boolean;
   /** What a save refused the take for, which the mic itself cannot report. */
   error?: string;
+  /** `legend` on a sheet, where it heads a part like the criteria's. */
+  legendVariant?: "label" | "legend";
   onDelete: () => void;
   onRecorded: (take: RecordedTake) => void;
 }) {
@@ -239,7 +242,7 @@ export function FeedbackRecorder({
 
   return (
     <FieldSet>
-      <FieldLegend variant="label">
+      <FieldLegend variant={legendVariant}>
         Devolución{" "}
         <span className="font-normal text-muted-foreground">(opcional)</span>
       </FieldLegend>

@@ -14,7 +14,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { createTable, uuidPrimaryKey } from "./core";
+import { createTable, experienceLevel, uuidPrimaryKey } from "./core";
 import { events, submodalities } from "./events";
 import { judgeAssignments } from "./presentations";
 
@@ -48,6 +48,11 @@ export const submodalityCriteria = createTable(
     maximum: integer("maximum").notNull(),
     kind: criterionKind("kind").notNull(),
     position: integer("position").notNull(),
+    /**
+     * Null for a general criterion, on every sheet of the submodality; set for
+     * a level criterion, only on the sheets of choreographies at that level.
+     */
+    experienceLevel: experienceLevel("experience_level"),
   },
   (table) => [
     foreignKey({
@@ -61,10 +66,15 @@ export const submodalityCriteria = createTable(
       name: "submodality_criterion_submodality_fk",
     }).onDelete("cascade"),
     index("submodality_criterion_submodality_idx").on(table.submodalityId),
-    uniqueIndex("submodality_criterion_submodality_name_unique").on(
-      table.submodalityId,
-      sql`lower(${table.name})`,
-    ),
+    // A name is unique on its sheet. Two levels are different sheets, so each
+    // level and the general criteria keep their own names; a level line that
+    // repeats a general one is the criteria save's to refuse.
+    uniqueIndex("submodality_criterion_submodality_name_unique")
+      .on(table.submodalityId, sql`lower(${table.name})`)
+      .where(sql`${table.experienceLevel} is null`),
+    uniqueIndex("submodality_criterion_level_name_unique")
+      .on(table.submodalityId, table.experienceLevel, sql`lower(${table.name})`)
+      .where(sql`${table.experienceLevel} is not null`),
     check("submodality_criterion_maximum_whole", sql`${table.maximum} >= 1`),
   ],
 ).enableRLS();
@@ -92,6 +102,9 @@ export const scores = createTable(
     }).notNull(),
     value: numeric("value", { mode: "string", precision: 4, scale: 1 }),
     feedbackAudioStorageKey: text("feedback_audio_storage_key"),
+    // Retired: score annulment no longer exists and nothing reads or writes
+    // this. It stays until the release that stops reading it is deployed, then
+    // goes in its own migration (the contract step, docs/db/migrations.md).
     annulled: boolean("annulled").notNull().default(false),
     createdAt: timestamp("created_at", {
       mode: "date",

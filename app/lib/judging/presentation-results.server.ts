@@ -39,7 +39,6 @@ export async function readPresentationResults(
   // or an assignment with nothing saved yet.
   const rows = await executor
     .select({
-      annulled: scores.annulled,
       choreographyId: presentations.choreographyId,
       disqualifiedAt: presentations.disqualifiedAt,
       value: scores.value,
@@ -64,7 +63,7 @@ export async function readPresentationResults(
     };
 
     if (row.value !== null) {
-      entry.scores.push({ annulled: row.annulled ?? false, value: row.value });
+      entry.scores.push({ value: row.value });
     }
 
     byChoreography.set(row.choreographyId, entry);

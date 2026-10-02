@@ -9,8 +9,20 @@ import type {
 } from "./server";
 
 const criteria = [
-  { id: "tecnica", kind: "adds" as const, maximum: 100, name: "Técnica" },
-  { id: "caidas", kind: "deducts" as const, maximum: 10, name: "Caídas" },
+  {
+    experienceLevel: null,
+    id: "tecnica",
+    kind: "adds" as const,
+    maximum: 100,
+    name: "Técnica",
+  },
+  {
+    experienceLevel: null,
+    id: "caidas",
+    kind: "deducts" as const,
+    maximum: 10,
+    name: "Caídas",
+  },
 ];
 
 describe("PortalPresentationEvaluationView", () => {
@@ -63,14 +75,35 @@ describe("PortalPresentationEvaluationView", () => {
     const markup = renderView({
       average: null,
       disqualified: true,
-      judges: [buildJudge({ judgeName: "Ana Juez" })],
+      judges: [
+        buildJudge({
+          feedbackAudioUrl: "https://audio.example/ana.webm",
+          judgeName: "Ana Juez",
+        }),
+      ],
       medal: null,
     });
 
     expect(markup).toContain("Descalificada");
     expect(markup).toContain("no tiene puntaje ni premio");
     expect(markup).toContain("Ana Juez");
+    expect(markup).toContain("Las devoluciones del jurado están abajo.");
     expect(markup).not.toContain("/ 100");
+  });
+
+  // Regression: the pointer read the judges, not their feedback, so a judge who
+  // scored and left no audio was pointed at with "Este juez no dejó devolución."
+  // under it.
+  test("points at the feedback only when a judge left some", () => {
+    const markup = renderView({
+      average: null,
+      disqualified: true,
+      judges: [buildJudge({ judgeName: "Ana Juez" })],
+      medal: null,
+    });
+
+    expect(markup).toContain("no tiene puntaje ni premio");
+    expect(markup).not.toContain("Las devoluciones del jurado están abajo.");
   });
 
   test("says there is nothing to show when no judge survived the filter", () => {
@@ -94,6 +127,8 @@ describe("PortalPresentationEvaluationView", () => {
 
     expect(markup).toContain("no tiene puntaje ni premio");
     expect(markup).not.toContain("no tiene puntajes para mostrar");
+    // Nor does it point at feedback that is not there.
+    expect(markup).not.toContain("Las devoluciones del jurado están abajo.");
   });
 
   test("shows neither medal nor average when nothing counted", () => {
@@ -136,7 +171,7 @@ function renderView(
     disqualified: false,
     judges: [buildJudge()],
     medal: "gold",
-    title: "N.º 1 · Pieza",
+    title: "Pieza · N.º 1",
     ...overrides,
   };
 

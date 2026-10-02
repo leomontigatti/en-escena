@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -139,7 +139,10 @@ async function readScoreCriteria(
   target: ScoreSettlementTarget,
 ): Promise<SheetCriterion[] | null> {
   const [found] = await tx
-    .select({ submodalityId: choreographies.submodalityId })
+    .select({
+      experienceLevel: choreographies.experienceLevelId,
+      submodalityId: choreographies.submodalityId,
+    })
     .from(scores)
     .innerJoin(
       judgeAssignments,
@@ -165,38 +168,11 @@ async function readScoreCriteria(
     return null;
   }
 
-  return await readSubmodalityCriteria(tx, found.submodalityId);
-}
-
-/**
- * The toggle that takes a score out of the average and brings it back. The row
- * stays exactly as the judge left it — the value, the sheet and the take — so
- * an annulment is a decision about what counts, not a deletion dressed up as
- * one.
- */
-export async function annulScore(
-  input: ScoreSettlementTarget & { annulled: boolean },
-): Promise<ScoreSettlementResult> {
-  const updated = await db
-    .update(scores)
-    .set({ annulled: input.annulled, updatedAt: new Date() })
-    .where(
-      and(
-        eq(scores.id, input.scoreId),
-        inArray(
-          scores.judgeAssignmentId,
-          db
-            .select({ id: judgeAssignments.id })
-            .from(judgeAssignments)
-            .where(eq(judgeAssignments.presentationId, input.presentationId)),
-        ),
-      ),
-    )
-    .returning({ id: scores.id });
-
-  return updated.length === 0
-    ? { ok: false, reason: "not-found" }
-    : { ok: true };
+  return await readSubmodalityCriteria(
+    tx,
+    found.submodalityId,
+    found.experienceLevel,
+  );
 }
 
 /**

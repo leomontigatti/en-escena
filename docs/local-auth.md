@@ -154,8 +154,8 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   on `/portal`.
 - `auditoria@enescena.local` and `jurado@enescena.local`: an auditor and a
   judge, landing on `/auditoria` and `/juzgamiento`. The judge is assigned to
-  both afternoon presentations: they disqualified `Viento Sur` and scored
-  `Río Arriba` 87.
+  both afternoon presentations: they scored `Río Arriba` 87, and
+  administration disqualified `Viento Sur`.
 - All four are email-verified and share one password, `DEV_SEED_PASSWORD` in
   `app/lib/dev-seed/seed.server.ts`; the command prints it.
 - Three events: `Evento Activo` (active, 60 days out), `Evento Futuro` and
@@ -170,7 +170,7 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   | Choreography    | Dancer, block   | State                                                                                                  |
   | --------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
   | `Luna de Papel` | Ana, morning    | Deposit paid and numbered; open to correction.                                                         |
-  | `Viento Sur`    | Bea, afternoon  | Deposit paid, numbered, disqualified by the demo judge.                                                |
+  | `Viento Sur`    | Bea, afternoon  | Deposit paid, numbered, disqualified by administration.                                                |
   | `Río Arriba`    | Caro, afternoon | Deposit paid, numbered, scored 87 by the demo judge under `Contemporáneo`, and invoiced (`Factura C`). |
   | `Sal y Arena`   | Dani, morning   | Nothing paid, so it has no number.                                                                     |
 

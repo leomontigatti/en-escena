@@ -22,7 +22,7 @@ type JudgingFixture = Awaited<ReturnType<typeof seedJudgingFixture>>;
 
 async function addScoredPresentation(
   fixture: JudgingFixture,
-  input: { annulled?: boolean; name: string; orderNumber: number },
+  input: { name: string; orderNumber: number },
 ) {
   const presentation = await fixture.addPresentation({
     name: input.name,
@@ -32,7 +32,6 @@ async function addScoredPresentation(
   const judge = await fixture.assignJudge(presentation.presentationId);
 
   await db.insert(scores).values({
-    annulled: input.annulled ?? false,
     judgeAssignmentId: judge.judgeAssignmentId,
     value: "70.0",
   });
@@ -56,14 +55,9 @@ describe("publishing an event's results", () => {
       name: "Con puntaje",
       orderNumber: 1,
     });
-    const annulled = await addScoredPresentation(fixture, {
-      annulled: true,
-      name: "Anulada",
-      orderNumber: 2,
-    });
     const disqualified = await fixture.addPresentation({
       name: "Descalificada",
-      orderNumber: 3,
+      orderNumber: 2,
     });
     await db
       .update(presentations)
@@ -71,16 +65,13 @@ describe("publishing an event's results", () => {
       .where(eq(presentations.id, disqualified.presentationId));
     const pending = await fixture.addPresentation({
       name: "Sin evaluar",
-      orderNumber: 4,
+      orderNumber: 3,
     });
 
     const publishedCount = await publishResults(fixture.event.id);
 
-    expect(publishedCount).toBe(3);
+    expect(publishedCount).toBe(2);
     expect(await readPublishedStamp(scored.presentationId)).toBeInstanceOf(
-      Date,
-    );
-    expect(await readPublishedStamp(annulled.presentationId)).toBeInstanceOf(
       Date,
     );
     expect(
@@ -134,23 +125,22 @@ describe("publishing an event's results", () => {
  * Publishing and the choreography lock ask the same question of the same rows,
  * and the predicate they ask it with lives in one place
  * (`isPresentationEvaluated`). These two cases are the ones a second copy would
- * have drifted on: a score that no longer counts still counts as evaluated, and
- * a disqualification counts with no score at all.
+ * have drifted on: a saved score counts as evaluated, and a disqualification
+ * counts with no score at all.
  */
 describe("publishing and the evaluation lock", () => {
-  test("agree on a presentation whose only score is annulled", async () => {
+  test("agree on a presentation with a saved score", async () => {
     const fixture = await seedJudgingFixture();
-    const annulled = await addScoredPresentation(fixture, {
-      annulled: true,
-      name: "Anulada",
+    const scored = await addScoredPresentation(fixture, {
+      name: "Con puntaje",
       orderNumber: 1,
     });
 
     expect(await publishResults(fixture.event.id)).toBe(1);
-    expect(await readPublishedStamp(annulled.presentationId)).toBeInstanceOf(
+    expect(await readPublishedStamp(scored.presentationId)).toBeInstanceOf(
       Date,
     );
-    expect(await hasEvaluatedPresentation(annulled.choreographyId)).toBe(true);
+    expect(await hasEvaluatedPresentation(scored.choreographyId)).toBe(true);
   });
 
   test("agree on a disqualified presentation with no scores", async () => {

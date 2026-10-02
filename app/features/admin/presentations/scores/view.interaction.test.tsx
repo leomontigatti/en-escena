@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, afterEach, describe, expect, test } from "vitest";
 
@@ -33,9 +34,12 @@ describe("correcting the panel's scores", () => {
 
   afterEach(renderer.cleanup);
 
-  async function mount(overrides: Partial<PresentationScores> = {}) {
+  async function mount(
+    overrides: Partial<PresentationScores> = {},
+    options: { canEdit?: boolean } = {},
+  ) {
     const loaderData: PresentationScoresLoaderData = {
-      canEdit: true,
+      canEdit: options.canEdit ?? true,
       presentation: buildPresentation(overrides),
     };
     const router = createMemoryRouter(
@@ -72,10 +76,69 @@ describe("correcting the panel's scores", () => {
     );
   }
 
+  function menuItems() {
+    return [...document.querySelectorAll("[role='menuitem']")];
+  }
+
+  function menuItem(label: string) {
+    return menuItems().find((item) => item.textContent?.trim() === label);
+  }
+
+  function metrics() {
+    return Object.fromEntries(
+      [...document.querySelectorAll("[data-slot='card']")]
+        .filter((card) => card.querySelector("p"))
+        .map((card) => [
+          card.querySelector("[data-slot='card-title']")?.textContent,
+          card.querySelector("p")?.textContent,
+        ]),
+    );
+  }
+
+  function dialogButton(label: string) {
+    return [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        "[role='alertdialog'] button",
+      ),
+    ].find((button) => button.textContent?.trim() === label);
+  }
+
+  async function openActionsMenu() {
+    const button = document.querySelector('button[aria-label="Acciones"]');
+
+    if (!button) {
+      throw new Error("Expected the actions menu button to be rendered.");
+    }
+
+    const pointerDown = new MouseEvent("pointerdown", {
+      bubbles: true,
+      button: 0,
+      cancelable: true,
+    });
+    Object.defineProperty(pointerDown, "pointerType", { value: "mouse" });
+
+    await act(async () => {
+      button.dispatchEvent(pointerDown);
+      await Promise.resolve();
+    });
+  }
+
   function saveButtons() {
     return [...document.querySelectorAll("button")].filter(
       (button) => button.textContent?.trim() === "Guardar",
     );
+  }
+
+  function discardButton() {
+    return [...document.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Descartar cambios",
+    );
+  }
+
+  function sheetSums() {
+    return [
+      ...document.querySelectorAll("form legend, form [data-sheet-total]"),
+    ].map((element) => element.textContent);
   }
 
   async function type(id: string, value: string) {
@@ -88,20 +151,58 @@ describe("correcting the panel's scores", () => {
     });
   }
 
-  test("links to the choreography under its academy, with no create icon", async () => {
+  test("keeps the choreography and the disqualification in the actions menu, asking before it disqualifies", async () => {
     await mount();
-    const link = [...document.querySelectorAll("a")].find(
-      (anchor) => anchor.textContent?.trim() === "Ver la coreografía",
-    );
+    await openActionsMenu();
 
-    expect(link?.getAttribute("href")).toBe(
+    expect(menuItems().map((item) => item.textContent?.trim())).toEqual([
+      "Ver la coreografía",
+      "Descalificar",
+    ]);
+    expect(menuItem("Ver la coreografía")?.getAttribute("href")).toBe(
       "/administracion/coreografias/academy-1/choreography-1",
     );
-    expect(link?.getAttribute("data-variant")).toBe("link");
+
+    await act(async () => {
+      (menuItem("Descalificar") as HTMLElement | undefined)?.click();
+      await Promise.resolve();
+    });
+
+    expect(submitted).toEqual([]);
+    expect(document.querySelector("[role='alertdialog'] h2")?.textContent).toBe(
+      "¿Descalificar la presentación?",
+    );
+
+    await updateReactDomForm(() => {
+      dialogButton("Descalificar")?.click();
+    });
+
+    expect(submitted.map((body) => Object.fromEntries(body))).toEqual([
+      { intent: "disqualify" },
+    ]);
+  });
+
+  test("offers a reader who may not edit only the way to the choreography", async () => {
+    await mount({}, { canEdit: false });
+    await openActionsMenu();
+
+    expect(menuItems().map((item) => item.textContent?.trim())).toEqual([
+      "Ver la coreografía",
+    ]);
+  });
+
+  test("offers to reinstate a disqualified presentation and says why it has no result", async () => {
+    await mount({ average: null, disqualified: true, medal: null });
+    await openActionsMenu();
+
+    expect(menuItems().map((item) => item.textContent?.trim())).toEqual([
+      "Ver la coreografía",
+      "Volver a calificar",
+    ]);
     expect(
-      link?.querySelector("svg.lucide-square-arrow-out-up-right"),
-    ).not.toBeNull();
-    expect(link?.querySelector("svg.lucide-plus")).toBeNull();
+      document.querySelector("[data-slot='alert-title']")?.textContent,
+    ).toBe("Presentación descalificada");
+    expect(metrics()).toEqual({ Medalla: "No aplica", Promedio: "No aplica" });
   });
 
   test("opens every stored score on the number the judge gave", async () => {
@@ -165,8 +266,20 @@ describe("correcting the panel's scores", () => {
   test("posts a whole sheet as one save, each line named for its criterion", async () => {
     await mount({
       criteria: [
-        { id: "technique", kind: "adds", maximum: 100, name: "Técnica" },
-        { id: "falls", kind: "deducts", maximum: 10, name: "Caídas" },
+        {
+          experienceLevel: null,
+          id: "technique",
+          kind: "adds",
+          maximum: 100,
+          name: "Técnica",
+        },
+        {
+          experienceLevel: null,
+          id: "falls",
+          kind: "deducts",
+          maximum: 10,
+          name: "Caídas",
+        },
       ],
       judges: [
         buildJudge({
@@ -196,9 +309,92 @@ describe("correcting the panel's scores", () => {
     ]);
   });
 
+  test("splits the sheet by level and sums each part as a line is retyped", async () => {
+    await mount({
+      criteria: [
+        {
+          experienceLevel: null,
+          id: "technique",
+          kind: "adds",
+          maximum: 60,
+          name: "Técnica",
+        },
+        {
+          experienceLevel: "amateur",
+          id: "style",
+          kind: "adds",
+          maximum: 40,
+          name: "Estilo",
+        },
+        {
+          experienceLevel: null,
+          id: "falls",
+          kind: "deducts",
+          maximum: 10,
+          name: "Caídas",
+        },
+      ],
+      judges: [
+        buildJudge({
+          criteriaValues: { falls: "5.0", style: "30.0", technique: "50.0" },
+          scoreId: "score-1",
+          value: "75.0",
+        }),
+      ],
+    });
+
+    await type("criterio-score-1-technique", "55.5");
+
+    expect(sheetSums()).toEqual([
+      "Devolución",
+      "Técnico obligatorio55.5 / 60",
+      "Específicos del nivel30 / 40",
+      "Descuentan−5 / 10",
+      "Total del jurado80.5 / 100",
+    ]);
+  });
+
+  test("offers `Guardar` and `Descartar cambios` only once the sheet differs from what is saved", async () => {
+    await mount({
+      criteria: [
+        {
+          experienceLevel: null,
+          id: "technique",
+          kind: "adds",
+          maximum: 100,
+          name: "Técnica",
+        },
+      ],
+      judges: [buildJudge({ criteriaValues: { technique: "90.0" } })],
+    });
+
+    expect(saveButtons()[0]?.disabled).toBe(true);
+    expect(discardButton()).toBeUndefined();
+
+    await type("criterio-score-1-technique", "80");
+
+    expect(saveButtons()[0]?.disabled).toBe(false);
+
+    await updateReactDomForm(() => {
+      discardButton()?.click();
+    });
+
+    expect(input("criterio-score-1-technique")?.value).toBe("90");
+    expect(saveButtons()[0]?.disabled).toBe(true);
+    expect(discardButton()).toBeUndefined();
+  });
+
   test("refuses a line over its own criterion's maximum", async () => {
     await mount({
-      criteria: [{ id: "falls", kind: "deducts", maximum: 10, name: "Caídas" }],
+      criteria: [
+        {
+          experienceLevel: null,
+          id: "falls",
+          kind: "deducts",
+          maximum: 10,
+          name: "Caídas",
+        },
+      ],
       judges: [
         buildJudge({
           criteriaValues: { falls: "5.0" },
@@ -223,7 +419,6 @@ function buildJudge(
   overrides: Partial<PresentationJudgeScore> = {},
 ): PresentationJudgeScore {
   return {
-    annulled: false,
     criteriaValues: {},
     feedbackAudioUrl: null,
     judgeAssignmentId: "assignment-1",
@@ -247,6 +442,7 @@ function buildPresentation(
     criteria: [],
     disqualified: false,
     experienceLevel: "amateur",
+    groupType: "solo",
     judges: [buildJudge()],
     medal: "gold",
     modalityName: "Danza clásica",

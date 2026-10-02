@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -28,6 +28,9 @@ import {
 const lockedSubmodalityCriteriaError =
   "No se pueden cambiar los criterios porque la submodalidad ya tiene puntajes.";
 
+const levelCriteriaError =
+  "No se pueden cambiar los criterios porque la submodalidad tiene criterios por nivel.";
+
 export type SubmodalityCriterionInput = {
   kind: CriterionKind;
   maximum: string;
@@ -35,13 +38,19 @@ export type SubmodalityCriterionInput = {
 };
 
 /**
- * Every criterion of the event, in sheet order, for the modality page to hand
- * each submodality row its own set. The page already holds the whole catalog of
- * the active event, so one query per page beats one per submodality.
+ * Every general criterion of the event, in sheet order, for the modality page
+ * to hand each submodality row its own set. The page already holds the whole
+ * catalog of the active event, so one query per page beats one per
+ * submodality. The levels' own criteria have no editor here yet, so they are
+ * neither listed nor touched, and a submodality that has any refuses the save
+ * below.
  */
 export async function listSubmodalityCriteria(eventId: string) {
   return db.query.submodalityCriteria.findMany({
-    where: eq(submodalityCriteria.eventId, eventId),
+    where: and(
+      eq(submodalityCriteria.eventId, eventId),
+      isNull(submodalityCriteria.experienceLevel),
+    ),
     orderBy: [
       asc(submodalityCriteria.submodalityId),
       asc(submodalityCriteria.position),
@@ -111,9 +120,10 @@ export async function isSubmodalityScoreLocked(
 }
 
 /**
- * Saves a submodality's sheet as a whole. The criteria describe one sheet, so a
- * half-applied change would leave a sheet that adds up to something other than
- * 100; the whole set is deleted and written again inside one transaction.
+ * Saves a submodality's general criteria as a whole. They are part of every
+ * sheet, so a half-applied change would leave sheets that add up to something
+ * other than 100; the whole set is deleted and written again inside one
+ * transaction.
  *
  * Deleting rather than diffing is safe precisely because a locked submodality is
  * refused first: with no score pointing at any criterion, no identity has to
@@ -140,6 +150,17 @@ export async function replaceSubmodalityCriteria(
     };
   }
 
+  // The general set is checked against 100 on its own, which only describes a
+  // sheet while no level adds to it. Once one does, every sheet is general plus
+  // level, and that needs the levels' editor to be checked whole.
+  if (await hasLevelCriteria(submodalityId)) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: levelCriteriaError,
+    };
+  }
+
   const validation = validateSubmodalityCriteriaInput(input.criteria);
 
   if (!validation.ok) {
@@ -149,7 +170,12 @@ export async function replaceSubmodalityCriteria(
   await db.transaction(async (tx) => {
     await tx
       .delete(submodalityCriteria)
-      .where(eq(submodalityCriteria.submodalityId, submodalityId));
+      .where(
+        and(
+          eq(submodalityCriteria.submodalityId, submodalityId),
+          isNull(submodalityCriteria.experienceLevel),
+        ),
+      );
 
     if (input.criteria.length === 0) {
       return;
@@ -168,6 +194,21 @@ export async function replaceSubmodalityCriteria(
   });
 
   return { ok: true };
+}
+
+async function hasLevelCriteria(submodalityId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: submodalityCriteria.id })
+    .from(submodalityCriteria)
+    .where(
+      and(
+        eq(submodalityCriteria.submodalityId, submodalityId),
+        isNotNull(submodalityCriteria.experienceLevel),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(row);
 }
 
 function validateSubmodalityCriteriaInput(

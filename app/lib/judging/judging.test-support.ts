@@ -125,6 +125,8 @@ export async function seedJudgingFixture() {
   };
 
   const addCriterion = async (input: {
+    /** Absent for a general criterion, on every sheet of the submodality. */
+    experienceLevel?: ExperienceLevel;
     kind?: "adds" | "deducts";
     maximum: number;
     name: string;
@@ -134,6 +136,7 @@ export async function seedJudgingFixture() {
       .insert(submodalityCriteria)
       .values({
         eventId: event.id,
+        experienceLevel: input.experienceLevel ?? null,
         kind: input.kind ?? "adds",
         maximum: input.maximum,
         name: input.name,

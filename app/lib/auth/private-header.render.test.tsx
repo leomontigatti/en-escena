@@ -44,17 +44,21 @@ describe("private route headers", () => {
       renderPrivateRoute(
         <AuditoriaRouteView loaderData={{ account: auditorAccount }} />,
       ),
-      "Usuario: ariel.auditor",
+      "Ariel Auditor",
       true,
     ],
     [
       "juzgamiento",
       renderPrivateRoute(
         <JuzgamientoRouteView
-          loaderData={{ account: judgeAccount, presentations: [] }}
+          loaderData={{
+            account: judgeAccount,
+            judgingDate: "2026-08-22",
+            presentations: [],
+          }}
         />,
       ),
-      "Usuario: juana.juez",
+      "Juana Juez",
       true,
     ],
   ])(

@@ -44,6 +44,27 @@ export function formatScheduleDayTabLabel(scheduledDate: string) {
   return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${day}/${month}`;
 }
 
+const scheduleDayHeadingFormatter = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+/**
+ * The day as a page heads it, "Jueves 22 de agosto": the weekday the organizers
+ * plan by and the day and month, without the year every day of an event shares.
+ */
+export function formatScheduleDayHeading(scheduledDate: string) {
+  if (!isDateOnly(scheduledDate)) {
+    return scheduledDate;
+  }
+
+  const date = new Date(`${scheduledDate}T00:00:00Z`);
+  const weekday = scheduleWeekdayFormatter.format(date);
+
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${scheduleDayHeadingFormatter.format(date)}`;
+}
+
 export type ScheduleDateTimeInput = {
   name: string;
   scheduledDate: string;

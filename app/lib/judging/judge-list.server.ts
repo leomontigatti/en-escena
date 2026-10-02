@@ -2,6 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  academies,
   categories,
   choreographies,
   judgeAssignments,
@@ -19,7 +20,10 @@ import {
 import { judgingDate } from "@/lib/judging/judging-day";
 import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
-import { readCriteriaBySubmodality } from "@/lib/judging/submodality-criteria.server";
+import {
+  readCriteriaBySubmodality,
+  sheetForLevel,
+} from "@/lib/judging/submodality-criteria.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
   type FeedbackAudioStorage,
@@ -32,9 +36,10 @@ import {
  * day is open, in the order the show runs them. See docs/domain/judging.md,
  * "Scores And Feedback".
  *
- * The row carries what the judge needs to recognise the dance on stage and
- * nothing else — no academy, no other judge's work — so that the list cannot
- * leak what the panel is not supposed to compare notes on.
+ * The row carries what the judge needs to recognise the dance on stage — the
+ * academy is as public as the program that prints it — and none of the other
+ * judges' work, so that the list cannot leak what the panel is not supposed to
+ * compare notes on.
  *
  * The judge's own score does come back, because correcting it is the one thing
  * a judge does more than once: reopening a scored presentation has to show the
@@ -48,6 +53,7 @@ import {
 export type JudgeSheetCriterion = SheetCriterion;
 
 export type JudgePresentationRow = {
+  academyName: string;
   /** Empty when the submodality is scored with a single 0-100 value. */
   criteria: JudgeSheetCriterion[];
   /**
@@ -81,6 +87,7 @@ export async function readJudgePresentations(
 ): Promise<JudgePresentationRow[]> {
   const rows = await executor
     .select({
+      academyName: academies.name,
       categoryExperienceLevels: categories.experienceLevels,
       categoryName: categories.name,
       disqualifiedAt: presentations.disqualifiedAt,
@@ -106,6 +113,7 @@ export async function readJudgePresentations(
       choreographies,
       eq(choreographies.id, presentations.choreographyId),
     )
+    .innerJoin(academies, eq(academies.id, choreographies.academyId))
     .innerJoin(categories, eq(categories.id, choreographies.categoryId))
     .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
     .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
@@ -139,10 +147,14 @@ export async function readJudgePresentations(
 
   return await Promise.all(
     rows.map(async (row) => ({
+      academyName: row.academyName,
       categoryAdmitsExperienceLevels: row.categoryExperienceLevels.length > 0,
       categoryName: row.categoryName,
       criteria: row.submodalityId
-        ? (criteriaBySubmodality.get(row.submodalityId) ?? [])
+        ? sheetForLevel(
+            criteriaBySubmodality.get(row.submodalityId) ?? [],
+            row.experienceLevel,
+          )
         : [],
       criteriaValues: (row.scoreId && sheetsByScore.get(row.scoreId)) || {},
       experienceLevel: row.experienceLevel,

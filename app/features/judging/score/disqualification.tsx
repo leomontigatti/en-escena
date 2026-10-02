@@ -1,119 +1,25 @@
-import { useState } from "react";
-import { TriangleAlert } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 
 /**
- * How a judge closes a presentation for the whole panel, and opens it again.
- * It sits at the bottom left of both the dialog and the sheet, away from
- * `Guardar`: in a dark theatre the two must not be next to each other.
- *
- * Disqualifying asks first, because it takes the presentation out of the
- * results for every judge. Reinstating asks nothing — it undoes a mistake, and
- * the scores saved before come back with it.
+ * What a judge's form shows for a presentation administration disqualified.
+ * Judges do not disqualify — it is settled from the presentation's scores view
+ * — but one may still leave a `Devolución` on it so the academy hears why.
  */
 
-export const disqualifyLabel = "Descalificar";
-
-export const reinstateLabel = "Volver a calificar";
-
-const confirmTitle = "¿Descalificar la presentación?";
-
-const confirmDescription =
-  "Se cierra para todo el jurado y queda fuera de los resultados. Cualquier jurado asignado puede volver a calificarla.";
-
 export const disqualifiedNoticeMessage =
-  "La presentación está descalificada. Podés dejar una devolución o volver a calificarla.";
+  "La presentación está descalificada. Podés dejar una devolución.";
 
-export function DisqualificationAction({
-  disabled = false,
-  disqualified,
-  onSubmitting,
-  presentationId,
-}: {
-  /** While the score beside it is being saved: the two must not race. */
-  disabled?: boolean;
-  disqualified: boolean;
-  /** Told before the post, so a page-level discard guard lets it through. */
-  onSubmitting?: () => void;
-  presentationId: string;
-}) {
-  const [isConfirming, setIsConfirming] = useState(false);
-  const formAction = useOptionalFormAction();
-  const submit = useOptionalSubmit();
-
-  function post(intent: "disqualify" | "reinstate") {
-    const body = new FormData();
-
-    body.set("intent", intent);
-    body.set("presentationId", presentationId);
-    onSubmitting?.();
-    void submit(body, { action: formAction, method: "post" });
-  }
-
-  if (disqualified) {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        disabled={disabled}
-        onClick={() => post("reinstate")}
-      >
-        {reinstateLabel}
-      </Button>
-    );
-  }
-
-  return (
-    <>
-      <Button
-        type="button"
-        variant="destructive"
-        disabled={disabled}
-        onClick={() => setIsConfirming(true)}
-      >
-        {disqualifyLabel}
-      </Button>
-      <AlertDialog open={isConfirming} onOpenChange={setIsConfirming}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmDescription}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => post("disqualify")}
-            >
-              {disqualifyLabel}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
-}
-
-/** Why the form in front of the judge will not take a score. */
+/**
+ * Why the form in front of the judge will not take a score. A lock, so `info`:
+ * the judge has nothing to fix. It sits above the form, as every alert about a
+ * form does.
+ */
 export function DisqualifiedNotice() {
   return (
-    <Alert variant="warning">
-      <TriangleAlert aria-hidden="true" />
+    <Alert variant="info">
+      <Info aria-hidden="true" />
       <AlertTitle>Presentación descalificada</AlertTitle>
       <AlertDescription>{disqualifiedNoticeMessage}</AlertDescription>
     </Alert>

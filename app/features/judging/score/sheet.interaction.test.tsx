@@ -21,14 +21,22 @@ import {
 import type { JudgePanelActionData } from "./action.server";
 
 const criteria = [
-  { id: "tecnica", kind: "adds" as const, maximum: 60, name: "Técnica" },
   {
+    experienceLevel: null,
+    id: "tecnica",
+    kind: "adds" as const,
+    maximum: 60,
+    name: "Técnica",
+  },
+  {
+    experienceLevel: null,
     id: "interpretacion",
     kind: "adds" as const,
     maximum: 40,
     name: "Interpretación",
   },
   {
+    experienceLevel: null,
     id: "penalizacion",
     kind: "deducts" as const,
     maximum: 20,
@@ -40,6 +48,7 @@ function buildRow(
   overrides: Partial<JudgePresentationRow> & { presentationId: string },
 ): JudgePresentationRow {
   return {
+    academyName: "Academia Sur",
     categoryAdmitsExperienceLevels: true,
     categoryName: "Juvenil",
     criteria: [],
@@ -98,6 +107,7 @@ describe("scoring a submodality with criteria", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                judgingDate: "2026-08-22",
                 presentations: options.rows ?? presentations,
               }}
             />
@@ -119,7 +129,8 @@ describe("scoring a submodality with criteria", () => {
   }
 
   function total() {
-    return document.querySelector("[data-sheet-total]")?.textContent;
+    return document.querySelector("[data-sheet-total] > span:last-child")
+      ?.textContent;
   }
 
   function errorMessages() {
@@ -177,6 +188,7 @@ describe("scoring a submodality with criteria", () => {
     expect(criterionInput("interpretacion")?.value).toBe("30");
     expect(criterionInput("penalizacion")?.value).toBe("2.5");
     expect(total()).toBe("78 / 100");
+    expect(saveButton()?.disabled).toBe(true);
 
     // Nothing was touched, so there is nothing to lose and nothing to ask.
     await clickReactDomButton("Volver");
@@ -185,7 +197,7 @@ describe("scoring a submodality with criteria", () => {
     expect(router.state.location.search).toBe("");
   });
 
-  test("saves a reopened sheet without retyping a line, so only the take changes", async () => {
+  test("saves a corrected line with the rest of the reopened sheet as it was", async () => {
     await mount({
       presentationId: "a",
       rows: [
@@ -204,6 +216,7 @@ describe("scoring a submodality with criteria", () => {
       ],
     });
 
+    await type("tecnica", "45");
     await updateReactDomForm(() => {
       saveButton()?.click();
     });
@@ -213,7 +226,7 @@ describe("scoring a submodality with criteria", () => {
         audioIntent: "keep",
         "criterio.interpretacion": "30",
         "criterio.penalizacion": "0",
-        "criterio.tecnica": "50",
+        "criterio.tecnica": "45",
         intent: "save-score",
         presentationId: "a",
       },
@@ -261,6 +274,7 @@ describe("scoring a submodality with criteria", () => {
     await type("tecnica", "50");
     await type("interpretacion", "30");
 
+    await type("tecnica", "45");
     await updateReactDomForm(() => {
       saveButton()?.click();
     });
@@ -270,7 +284,7 @@ describe("scoring a submodality with criteria", () => {
         audioIntent: "keep",
         "criterio.interpretacion": "30",
         "criterio.penalizacion": "0",
-        "criterio.tecnica": "50",
+        "criterio.tecnica": "45",
         intent: "save-score",
         presentationId: "a",
       },
@@ -305,6 +319,7 @@ describe("scoring a submodality with criteria", () => {
             roleLabel: "Jurado",
             username: "ana.juez",
           },
+          judgingDate: "2026-08-22",
           presentations: rows,
         }}
       />
@@ -354,6 +369,27 @@ describe("scoring a submodality with criteria", () => {
     expect(router.state.location.search).toBe("?presentacion=a");
   });
 
+  test("puts the saved lines back with `Descartar cambios`, staying on the sheet", async () => {
+    const router = await mount({
+      presentationId: "a",
+      rows: [
+        buildRow({
+          criteria,
+          criteriaValues: { tecnica: "50.0" },
+          name: "Primera",
+          presentationId: "a",
+        }),
+      ],
+    });
+
+    await type("tecnica", "20");
+    await clickReactDomButton("Descartar cambios");
+
+    expect(criterionInput("tecnica")?.value).toBe("50");
+    expect(saveButton()?.disabled).toBe(true);
+    expect(router.state.location.search).toBe("?presentacion=a");
+  });
+
   test("leaves a clean sheet without asking", async () => {
     const router = await mount({ presentationId: "a" });
 
@@ -380,7 +416,9 @@ describe("scoring a submodality with criteria", () => {
     expect(criterionInput("tecnica")?.value).toBe("50");
 
     await clickReactDomButton("Volver");
-    await clickReactDomButton("Descartar");
+    await clickReactDomButton("Descartar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
 
     expect(router.state.location.search).toBe("");
   });

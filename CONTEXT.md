@@ -331,8 +331,8 @@ The day the judges are working on: the business date of three hours before now, 
 _Avoid_: `schedule`, event date, score window, deadline flag
 
 **`disqualification`** — ui: "Descalificación"
-A `presentation` closed for the whole panel and taken out of the results, held as its `disqualifiedAt` timestamp. Any assigned judge sets it while the `judgingDay` is open and any assigned judge clears it, with no confirmation and no reason; administration does both from the scores view at any time. Who did it is not stored, and the scores saved before it are kept, so reinstating brings them back untouched. A judge may still record a `feedbackAudio` on it, stored with no value.
-_Avoid_: `scoreAnnulment`, absence, `withdrawnChoreography`, `participationStatus`
+A `presentation` closed for the whole panel and taken out of the results, held as its `disqualifiedAt` timestamp. Only administration sets and clears it, from the scores view at any time, with no reason; judges never do. The scores saved before it are kept, so reinstating brings them back untouched. A judge may still record a `feedbackAudio` on it, stored with no value.
+_Avoid_: absence, `withdrawnChoreography`, `participationStatus`
 
 **`judgeAssignment`** — ui: "Asignación de juez"
 Relation between one judge and one `presentation` they must evaluate, unique per pair. Assigned and removed in bulk from the `choreographyParticipationList`; it survives a reordering, and the judge's suspension or change of role. Removing it is refused once that judge has a `score` for that presentation, and a bulk removal removes the rest and reports how many it kept.
@@ -343,7 +343,7 @@ Public view of the active event's presentations in order, at `/programa`, withou
 _Avoid_: `resultsPublication`, score, medal
 
 **`academyResults`** — ui: "Resultados de academia"
-The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `medal` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Annulled scores and judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no medal, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
+The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `medal` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no medal, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
 _Avoid_: `resultsPublication`, public results, ranking
 
 **`score`** — ui: "Puntaje"
@@ -351,19 +351,27 @@ What one judge gave one `presentation`, one row per `judgeAssignment`, **created
 _Avoid_: `presentation`, price, `payment`, confirmed score, draft score
 
 **`submodalityCriterion`** — ui: "Criterio"
-One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality` and unique by name within it. The adding maxima total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them as a whole from the modality page, and they lock as soon as any presentation of that submodality has a `score`.
+One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality`. It is either a `generalCriterion` or a `levelCriterion`. The adding maxima of a sheet total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them from the modality page, and they lock as soon as a presentation whose sheet holds them has a `score`.
 _Avoid_: `medal`, weight, percentage
 
+**`generalCriterion`** — ui: "Criterio general"
+A `submodalityCriterion` with no `experienceLevel`: it is on every `scoreSheet` of its submodality, whatever the level of the choreography.
+_Avoid_: `mandatoryTechnique`, default criterion
+
+**`levelCriterion`** — ui: "Criterio de nivel"
+A `submodalityCriterion` tied to one `experienceLevel`: it is only on the sheets of the submodality's choreographies at that level.
+_Avoid_: `generalCriterion`, level sheet
+
+**`mandatoryTechnique`** — ui: "Técnico obligatorio"
+The group of a submodality's `generalCriterion` lines, as administration configures it and as a sheet shows it, above the lines of the choreography's level. It means nothing outside scoring, and the judge's sheet shows it under the same name.
+_Avoid_: `generalCriterion`, general sheet
+
 **`scoreSheet`** — ui: "Planilla"
-How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
+How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `mandatoryTechnique` and then the `levelCriterion` lines of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
 _Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
-**`scoreAnnulment`** — ui: "Anulación de puntaje"
-Administrative exclusion of a `score` from the average that neither deletes it nor changes it, held as the `annulled` flag and reversed with the same toggle. An annulled score keeps its value, stays visible to administration and is not shown to the academy in published results.
-_Avoid_: `disqualification`, assignment deletion, score deletion
-
 **`medal`** — ui: "Medalla"
-The recognition a `presentation` earns, read off its average —the mean of its non-annulled score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same medal. A disqualified presentation has no average and no medal. It is the single recognition term of the domain —what used to be called `Premio`— and there is no award rule, no award type and no ranking beside it.
+The recognition a `presentation` earns, read off its average —the mean of its saved score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same medal. A disqualified presentation has no average and no medal. It is the single recognition term of the domain —what used to be called `Premio`— and there is no award rule, no award type and no ranking beside it.
 _Avoid_: `award`, `premio`, position, tie, ranking
 
 **`judgeScoreStatus`** — ui: "Estado"

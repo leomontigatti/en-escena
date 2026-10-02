@@ -1,0 +1,4 @@
+DROP INDEX "submodality_criterion_submodality_name_unique";--> statement-breakpoint
+ALTER TABLE "en_escena_submodality_criterion" ADD COLUMN "experience_level" "en_escena_experience_level";--> statement-breakpoint
+CREATE UNIQUE INDEX "submodality_criterion_level_name_unique" ON "en_escena_submodality_criterion" USING btree ("submodality_id","experience_level",lower("name")) WHERE "en_escena_submodality_criterion"."experience_level" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "submodality_criterion_submodality_name_unique" ON "en_escena_submodality_criterion" USING btree ("submodality_id",lower("name")) WHERE "en_escena_submodality_criterion"."experience_level" is null;

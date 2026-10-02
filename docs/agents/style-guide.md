@@ -446,6 +446,13 @@ Rules:
   simple forms where it does not complicate consistency.
 - Show errors with `FieldError`; mark `data-invalid` on `Field` and
   `aria-invalid` on the control.
+- Validate on submit (`mode: "onSubmit"`, React Hook Form's default): a field
+  shows no error until `Guardar` is pressed, and from then on its error follows
+  what is typed. Do not validate on blur or on change before the first submit:
+  an error that appears while the form is still being filled in reads as a
+  reproach for unfinished work. A running sum or counter beside the fields (a
+  sheet's total, the criteria's `n / 100`) is not a field and may show its
+  state live.
 - Validate required fields on the client. For empty required fields, always use
   the message `Este campo es obligatorio.`, including `Select`, `Combobox`,
   multiple checkboxes and empty arrays. Reserve specific messages for values that
@@ -632,7 +639,11 @@ on a list).
 - The title is an `h2` on every page, detail pages included, and a description
   always follows it.
 - A detail page's title is the record's name (`Luna de Papel`), not its type
-  (`Detalle coreografía`).
+  (`Detalle coreografía`), followed by its number when it has one:
+  `Luna de Papel # 007` for a choreography, `Luna de Papel · N.º 1` for a
+  presentation. The two markers stay apart because the numbers do: `#` is the
+  choreography's registration number in the event, `N.º` its place in the
+  program.
 - The actions slot holds the list's create button (`action`, which always draws
   `Plus`), the detail page's `⋯` menu ([Actions menu](#actions-menu)), or
   nothing. Any other link or button goes through `headerAction` or the menu.

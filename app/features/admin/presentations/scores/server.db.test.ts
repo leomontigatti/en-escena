@@ -189,34 +189,19 @@ describe("the scores route's writes", () => {
     });
   });
 
-  test("annuls a score and restores it", async () => {
+  test("refuses an annulment, which no longer exists", async () => {
     const presentation = await seedScoredPresentation();
 
-    await submitAsAdmin(presentation.presentationId, {
+    const result = await submitAsAdmin(presentation.presentationId, {
       annulled: "true",
       intent: "annul-score",
       scoreId: presentation.scoreId,
     });
 
-    const [annulled] = await db
-      .select({ annulled: scores.annulled })
-      .from(scores)
-      .where(eq(scores.id, presentation.scoreId));
-
-    expect(annulled.annulled).toBe(true);
-
-    await submitAsAdmin(presentation.presentationId, {
-      annulled: "false",
-      intent: "annul-score",
-      scoreId: presentation.scoreId,
+    expect(result).toMatchObject({
+      data: { message: "No se reconoció la acción solicitada." },
+      init: { status: 400 },
     });
-
-    const [restored] = await db
-      .select({ annulled: scores.annulled })
-      .from(scores)
-      .where(eq(scores.id, presentation.scoreId));
-
-    expect(restored.annulled).toBe(false);
   });
 
   test("disqualifies and reinstates the presentation", async () => {
@@ -245,9 +230,9 @@ describe("the scores route's writes", () => {
     const presentation = await seedScoredPresentation();
 
     const result = await submitAsAdmin(presentation.presentationId, {
-      intent: "annul-score",
-      annulled: "true",
+      intent: "edit-score",
       scoreId: "00000000-0000-0000-0000-000000000000",
+      value: "60",
     });
 
     expect(result).toMatchObject({

@@ -16,6 +16,7 @@ function buildRow(
   overrides: Partial<JudgePresentationRow> & { presentationId: string },
 ): JudgePresentationRow {
   return {
+    academyName: "Academia Sur",
     categoryAdmitsExperienceLevels: true,
     categoryName: "Juvenil",
     criteria: [],
@@ -68,6 +69,7 @@ describe("the judge's list of today's presentations", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                judgingDate: "2026-08-22",
                 presentations,
               }}
             />
