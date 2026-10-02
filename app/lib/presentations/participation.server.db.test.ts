@@ -154,9 +154,12 @@ describe("readParticipationRows", () => {
     expect(rows[1].orderNumber).toBeNull();
   });
 
-  test("leaves out a choreography below its deposit that was never numbered", async () => {
+  test("keeps a choreography below its deposit, numbered or not, and says so", async () => {
     const { addChoreography, event } = await seedEvent();
-    await addChoreography({ belowDeposit: true, name: "Sin seña" });
+    const late = await addChoreography({
+      belowDeposit: true,
+      name: "Sin seña",
+    });
     const numbered = await addChoreography({
       belowDeposit: true,
       name: "Sin seña numerada",
@@ -165,8 +168,14 @@ describe("readParticipationRows", () => {
 
     const rows = await readParticipationRows(event.id);
 
-    expect(rows.map((row) => row.choreographyId)).toEqual([numbered.id]);
-    expect(rows[0].financialStatus).toBe("depositPending");
+    expect(rows.map((row) => row.choreographyId)).toEqual([
+      numbered.id,
+      late.id,
+    ]);
+    expect(rows.map((row) => row.financialStatus)).toEqual([
+      "depositPending",
+      "depositPending",
+    ]);
   });
 
   test("leaves out a withdrawn choreography, numbered or not", async () => {
@@ -323,9 +332,25 @@ describe("runAutomaticOrdering", () => {
     expect((await readOrder(event.id))[0].orderNumber).toBe(3);
   });
 
-  test("refuses when there is nothing to order", async () => {
+  test("numbers a choreography below its deposit", async () => {
     const { addChoreography, event } = await seedEvent();
-    await addChoreography({ belowDeposit: true, name: "Sin seña" });
+    const unpaid = await addChoreography({
+      belowDeposit: true,
+      name: "Sin seña",
+    });
+
+    expect(await runAutomaticOrdering(event.id)).toEqual({
+      ok: true,
+      frozenCount: 0,
+      orderedCount: 1,
+    });
+    expect(await readOrder(event.id)).toEqual([
+      expect.objectContaining({ choreographyId: unpaid.id, orderNumber: 1 }),
+    ]);
+  });
+
+  test("refuses when there is nothing to order", async () => {
+    const { event } = await seedEvent();
 
     expect(await runAutomaticOrdering(event.id)).toEqual({
       ok: false,
@@ -465,9 +490,9 @@ describe("movePresentation", () => {
     ]);
   });
 
-  test("refuses a late row that is below its deposit", async () => {
+  test("places a late row that is below its deposit", async () => {
     const { addChoreography, event } = await seedEvent();
-    await addChoreography({ name: "Primera", orderNumber: 1 });
+    const first = await addChoreography({ name: "Primera", orderNumber: 1 });
     const late = await addChoreography({
       belowDeposit: true,
       name: "Sin seña",
@@ -480,8 +505,11 @@ describe("movePresentation", () => {
       toOrderNumber: 1,
     });
 
-    expect(result).toEqual({ ok: false, reason: "notFound" });
-    expect((await readOrder(event.id)).length).toBe(1);
+    expect(result).toEqual({ ok: true, movedToOrderNumber: 1 });
+    expect(await readOrder(event.id)).toEqual([
+      expect.objectContaining({ choreographyId: late.id, orderNumber: 1 }),
+      expect.objectContaining({ choreographyId: first.id, orderNumber: 2 }),
+    ]);
   });
 
   test("refuses to move a frozen row, and refuses a frozen number as the target", async () => {

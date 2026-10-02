@@ -24,7 +24,6 @@ import {
   computeAutomaticOrder,
   computeManualMove,
   findFrozenChoreographyIds,
-  isPresentationEligible,
   type PresentationOrderingRow,
   type PresentationPlacement,
 } from "@/lib/presentations/ordering";
@@ -67,10 +66,9 @@ export type AutomaticOrderingResult =
   | { ok: false; reason: "nothingToOrder" };
 
 /**
- * Every choreography that is part of the order or can enter it: one that has a
- * presentation, whatever its money says, and one that is at least `Señada`.
- * A choreography below the deposit that was never numbered is not listed, and
- * neither is a withdrawn one — it will not be performed, so no filter of this
+ * Every choreography of the event, numbered or not, whatever its money says:
+ * what it owes is a warning on the row, never a reason to leave it out. Only a
+ * withdrawn one is missing — it will not be performed, so no filter of this
  * list brings it back.
  *
  * The result is the reading order of the list: the numbered rows by their
@@ -164,7 +162,6 @@ export async function readParticipationRows(
         submodalityName: row.submodalityName,
       } satisfies ParticipationRow;
     })
-    .filter((row) => row.orderNumber !== null || isPresentationEligible(row))
     .sort(compareParticipationRows);
 }
 
@@ -177,7 +174,7 @@ export async function readParticipationRows(
  * Every numbered row of a schedule with an evaluated presentation keeps its
  * number (`findFrozenChoreographyIds`); the rest are placed over the free
  * positions. Existing presentations are updated in place, keeping their id and
- * everything hanging off it; the late eligible ones are inserted; nothing is
+ * everything hanging off it; the late ones are inserted; nothing is
  * deleted. A number is not taken away from a choreography that fell below its
  * deposit after being numbered.
  */
@@ -358,8 +355,6 @@ export async function movePresentation(input: {
       return { ok: false, reason: "notOrdered" };
     }
 
-    // A row below its deposit that was never numbered is not in the list at
-    // all, so a late row that cannot be placed is refused by not being found.
     const row = rows.find(
       (candidate) => candidate.choreographyId === input.choreographyId,
     );

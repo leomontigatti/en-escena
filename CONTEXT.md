@@ -83,7 +83,7 @@ Administrative choreography view centered on financial state.
 _Avoid_: `choreographyOperationalList`, `academyAccountBalance`
 
 **`choreographyParticipationList`** — ui: "Lista de participación de coreografías"
-Administrative choreography view centered on presentations, program and evaluation, shown as `Presentaciones` in the sidebar: where the administrator orders the presentations of the active event and assigns judges. It lists the choreographies that have a `presentation` or are at least `Señada`.
+Administrative choreography view centered on presentations, program and evaluation, shown as `Presentaciones` in the sidebar: where the administrator orders the presentations of the active event and assigns judges. It lists every choreography of the event, numbered or not.
 _Avoid_: `choreographyOperationalList`, `choreographyFinancialList`
 
 **`participating`** — ui: "Participando"
@@ -307,7 +307,7 @@ Financial situation of a choreography: the **minimum** `inscriptionFinancialStat
 _Avoid_: `choreographyOperationalStatus`, `eventStatus`, watermark, needs attention
 
 **`presentation`** — ui: "Presentación"
-Ordered instance of a choreography for the event day: a row of its own, one-to-one with the choreography, holding its order number (`N.º`) within the event. A choreography needs to be at least `Señada` —or `Bonificada`— to get one and nothing to keep it. Created only by the automatic ordering or by placing a late choreography by hand.
+Ordered instance of a choreography for the event day: a row of its own, one-to-one with the choreography, holding its order number (`N.º`) within the event. Nothing is needed to get one or to keep it: what the choreography owes is a `presentationWarning`, never a bar to a number. Created only by the automatic ordering or by placing a late choreography by hand.
 _Avoid_: `choreography`, `choreographyNumber` (the number a choreography is searched by, not its place in the order), `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`dancerSpacing`** — ui: "Separación de bailarines"
@@ -458,7 +458,7 @@ Status of an inscription derived on read from `Σ allocations` against its two t
 _Avoid_: `choreographyFinancialState` (retired), watermark, needs attention
 
 **`waivedInscription`** — ui: "Bonificada"
-Choreography inscription that administration has granted for free, case by case: it competes like any other and is judged, scored and ranked, but owes nothing. Both its thresholds are zero and its status is `waived` (`Bonificada`), never `Pagada`, so a free place is never mistaken for a paid one. It holds no money: marking one is refused while it carries allocations, which must be taken off first, and nothing can be allocated to it. It stays out of its choreography's minimum, which is the minimum of the paying inscriptions, and a choreography whose every active inscription is waived reads `Bonificada` itself; for getting a `presentation` it counts as a met deposit. It is outside the `dancerDiscount` qualifying set, because being free already is the benefit. It produces no `comprobante`, carries no reason, and reads `Bonificada` on the portal as well as in administration. Revoking it restores the ordinary price and `Seña pendiente`, and a `presentation` already held stays. Only all-or-nothing: a partial reduction is the reserved `administrativeDiscount`, not this. It applies to choreography inscriptions only; a `seminarInscription` has no such state.
+Choreography inscription that administration has granted for free, case by case: it competes like any other and is judged, scored and ranked, but owes nothing. Both its thresholds are zero and its status is `waived` (`Bonificada`), never `Pagada`, so a free place is never mistaken for a paid one. It holds no money: marking one is refused while it carries allocations, which must be taken off first, and nothing can be allocated to it. It stays out of its choreography's minimum, which is the minimum of the paying inscriptions, and a choreography whose every active inscription is waived reads `Bonificada` itself. It is outside the `dancerDiscount` qualifying set, because being free already is the benefit. It produces no `comprobante`, carries no reason, and reads `Bonificada` on the portal as well as in administration. Revoking it restores the ordinary price and `Seña pendiente`, and a `presentation` already held stays. Only all-or-nothing: a partial reduction is the reserved `administrativeDiscount`, not this. It applies to choreography inscriptions only; a `seminarInscription` has no such state.
 _Avoid_: 100% discount, zero price, `administrativeDiscount`, `Pagada`, scholarship (`Becada`), exempt (`Exenta`)
 
 **`choreographyPrice`** — ui: "Precio de coreografía"
