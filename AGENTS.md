@@ -34,8 +34,8 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   the whole validation surface — check the script index below before running one
   that is not, rather than after it fails.** `pnpm lint` is oxlint over what
   `.oxlintrc.json` enables — React hook mistakes, import cycles, un-awaited
-  promises, and the `ui` rules against raw form elements and restyled
-  `app/components/ui` components — and is not a formatter; formatting is
+  promises, and the `ui` rules, which are the style guide clauses a machine can
+  judge — and is not a formatter; formatting is
   Prettier's, unused code is `tsc`'s, and repo conventions belong to the
   `check:*` scripts.
 - **Subagents**: spawn every review sub-agent (`code-review`'s Standards and Spec axes, the

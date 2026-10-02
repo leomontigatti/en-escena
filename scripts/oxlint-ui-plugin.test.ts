@@ -76,6 +76,60 @@ export function Compliant(props: { active: boolean; className?: string; extra: s
 }
 `;
 
+const conventionsViolatingFixture = `
+import { Trash } from "lucide-react";
+import { AlertDialogContent } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { DialogContent } from "@/components/ui/dialog";
+import { TabsList } from "@/components/ui/tabs";
+
+export function Violating() {
+  return (
+    <div>
+      <TabsList />
+      <TabsList variant="default" />
+      <Button><Trash data-icon />Eliminar</Button>
+      <Button><Trash data-icon="start" />Eliminar</Button>
+      <Button><Trash data-icon={true} />Eliminar</Button>
+      <AlertDialogContent size="sm" />
+      <AlertDialogContent className="max-h-full sm:max-w-sm" />
+      <DialogContent className="sm:max-w-lg" />
+    </div>
+  );
+}
+`;
+
+const conventionsCompliantFixture = `
+import { Trash2 } from "lucide-react";
+import { AlertDialogContent } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { DialogContent } from "@/components/ui/dialog";
+import { TabsList } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+
+function TabsListLookalike(props: { size?: string; className?: string }) {
+  return <div className={props.className} />;
+}
+
+export function Compliant(props: { end: boolean; className?: string }) {
+  return (
+    <div>
+      <TabsList variant="line" />
+      <Button><Trash2 data-icon="inline-start" />Eliminar</Button>
+      <Button>Siguiente<Trash2 data-icon="inline-end" /></Button>
+      <Button><Trash2 data-icon={props.end ? "inline-end" : "inline-start"} /></Button>
+      <Button size="icon"><Trash2 aria-hidden="true" /></Button>
+      <AlertDialogContent />
+      <AlertDialogContent className={cn("max-h-[calc(100dvh-2rem)] sm:max-w-lg", props.className)} />
+      <DialogContent className="max-h-[90vh] overflow-y-auto" />
+      <DialogContent className={props.end ? "w-full" : "max-w-2xl"} />
+      <TabsListLookalike size="sm" className="max-w-2xl" />
+      <div className="max-w-md" />
+    </div>
+  );
+}
+`;
+
 type Diagnostic = {
   code: string;
   message: string;
@@ -103,6 +157,9 @@ describe("ui oxlint plugin", () => {
   let tempRoot: string;
 
   beforeAll(async () => {
+    const repoConfig = JSON.parse(
+      await readFile(path.join(repoRoot, ".oxlintrc.json"), "utf8"),
+    ) as { rules: Record<string, unknown> };
     tempRoot = await mkdtemp(path.join(tmpdir(), "oxlint-ui-plugin-"));
     await mkdir(path.join(tempRoot, "app", "features"), { recursive: true });
     await writeFile(
@@ -114,6 +171,11 @@ describe("ui oxlint plugin", () => {
         rules: {
           "ui/no-raw-form-element": "error",
           "ui/no-restyle": "error",
+          "ui/tabs-line-variant": "error",
+          "ui/data-icon-position": "error",
+          "ui/dialog-width": "error",
+          // The repo's own entry, so the test judges the config that ships.
+          "no-restricted-imports": repoConfig.rules["no-restricted-imports"],
         },
       }),
     );
@@ -124,6 +186,14 @@ describe("ui oxlint plugin", () => {
     await writeFile(
       path.join(tempRoot, "app", "features", "compliant.tsx"),
       compliantFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "conventions-violating.tsx"),
+      conventionsViolatingFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "conventions-compliant.tsx"),
+      conventionsCompliantFixture,
     );
   });
 
@@ -197,6 +267,67 @@ describe("ui oxlint plugin", () => {
 
   test("stays silent on hidden inputs, variants, layout classes, slot children, dynamic classes, visually hidden overlays, standalone documents and table cell heights", () => {
     expect(lint(tempRoot, "app/features/compliant.tsx")).toEqual([]);
+  });
+
+  test("flags tabs without the line variant, unpositioned button icons, dialog width overrides and the Trash icon", () => {
+    const diagnostics = lint(
+      tempRoot,
+      "app/features/conventions-violating.tsx",
+    );
+
+    expect(diagnostics).toEqual([
+      {
+        rule: "eslint(no-restricted-imports)",
+        line: 2,
+        message: expect.stringContaining("'Trash' import from 'lucide-react'"),
+      },
+      {
+        rule: "ui(tabs-line-variant)",
+        line: 11,
+        message: expect.stringContaining('variant="line"'),
+      },
+      {
+        rule: "ui(tabs-line-variant)",
+        line: 12,
+        message: expect.stringContaining('variant="line"'),
+      },
+      {
+        rule: "ui(data-icon-position)",
+        line: 13,
+        message: expect.stringContaining("inline-start"),
+      },
+      {
+        rule: "ui(data-icon-position)",
+        line: 14,
+        message: expect.stringContaining("inline-start"),
+      },
+      {
+        rule: "ui(data-icon-position)",
+        line: 15,
+        message: expect.stringContaining("inline-start"),
+      },
+      {
+        rule: "ui(dialog-width)",
+        line: 16,
+        message: expect.stringContaining("`size`"),
+      },
+      {
+        rule: "ui(dialog-width)",
+        line: 17,
+        message: expect.stringContaining("`sm:max-w-sm`"),
+      },
+      {
+        rule: "ui(dialog-width)",
+        line: 18,
+        message: expect.stringContaining("`sm:max-w-lg`"),
+      },
+    ]);
+  });
+
+  test("stays silent on line tabs, positioned and icon-only button icons, the wide alert dialog, dialog heights, dynamic classes and lookalike components", () => {
+    expect(lint(tempRoot, "app/features/conventions-compliant.tsx")).toEqual(
+      [],
+    );
   });
 
   test("the repo config enables every rule the plugin defines, and only those", async () => {

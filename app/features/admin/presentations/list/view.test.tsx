@@ -238,6 +238,7 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
     hasAnyRow: true,
     hasPresentations: true,
     highestOrderNumber: 1,
+    musicDownloadDays: [],
     presentations: [buildItem()],
     selectedEventId: "event-1",
     totalCount: 1,
