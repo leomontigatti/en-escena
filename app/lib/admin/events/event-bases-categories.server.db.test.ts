@@ -315,7 +315,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       refreshedData,
       createdCategoryId,
     );
-    expect(detailMarkup).toContain("Editar categoría");
+    expect(detailMarkup).toMatch(/<h2[^>]*>Mayores<\/h2>/);
     expect(detailMarkup).toContain("Acciones");
     expect(detailMarkup).toContain("/administracion/categorias");
 

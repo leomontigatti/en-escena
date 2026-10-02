@@ -19,7 +19,7 @@ type NewModalityRouteProps = {
 export const handle = {
   adminBreadcrumbs: [
     { label: "Modalidades", to: "/administracion/modalidades" },
-    { label: "Nueva" },
+    { label: "Nueva modalidad" },
   ],
 } satisfies AdminRouteHandle;
 

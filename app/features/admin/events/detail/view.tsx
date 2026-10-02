@@ -94,7 +94,7 @@ export function EventDetailView({
 
   return (
     <AdminResourceLayout
-      title="Editar evento"
+      title={loaderData.event.name}
       description="Editá fechas, visibilidad y estado operativo del evento."
       requireSelectedEvent={false}
       headerAction={
