@@ -1,5 +1,15 @@
-// The `ui` oxlint JS plugin: the two clauses of docs/agents/style-guide.md that a
+// The `ui` oxlint JS plugin: the clauses of docs/agents/style-guide.md that a
 // machine can judge. `.oxlintrc.json` decides which files it runs on.
+//
+// - `no-raw-form-element`: Components, a raw form element where a ui one exists.
+// - `no-restyle`: Components, a class overriding a ui component's height,
+//   radius or focus state.
+// - `tabs-line-variant`: Navigation, `Tabs` take `variant="line"`.
+// - `data-icon-position`: Buttons, an icon says which side of the label it is on.
+// - `dialog-width`: Destructive actions, dialogs keep their default width.
+//
+// `Trash2` over `Trash` (Buttons) is the built-in `no-restricted-imports`, in
+// `.oxlintrc.json`.
 import path from "node:path";
 
 const RAW_FORM_ELEMENTS = new Set(["button", "select", "textarea", "input"]);
@@ -7,10 +17,14 @@ const CLASS_HELPERS = new Set(["cn", "clsx"]);
 const UI_ALIAS_PREFIX = "@/components/ui/";
 const UI_DIRECTORY_SEGMENT = `${path.sep}app${path.sep}components${path.sep}ui${path.sep}`;
 
-function stringAttribute(openingElement, name) {
-  const attribute = openingElement.attributes.find(
+function findAttribute(openingElement, name) {
+  return openingElement.attributes.find(
     (item) => item.type === "JSXAttribute" && item.name.name === name,
   );
+}
+
+function stringAttribute(openingElement, name) {
+  const attribute = findAttribute(openingElement, name);
   if (!attribute || !attribute.value) return undefined;
   if (attribute.value.type === "Literal") return attribute.value.value;
   const expression = attribute.value.expression;
@@ -187,6 +201,29 @@ function uiComponentName(name, uiNames, uiNamespaces) {
   return namespaced ? `${name.object.name}.${name.property.name}` : undefined;
 }
 
+// The names a file imports from app/components/ui, so a rule about a ui
+// component judges that component and not a local one that shares its name.
+function trackUiImports(context) {
+  const uiNames = new Set();
+  const uiNamespaces = new Set();
+
+  return {
+    ImportDeclaration(node) {
+      if (!importsUiComponent(node.source.value, context.filename)) return;
+      for (const specifier of node.specifiers) {
+        if (specifier.type === "ImportNamespaceSpecifier") {
+          uiNamespaces.add(specifier.local.name);
+        } else {
+          uiNames.add(specifier.local.name);
+        }
+      }
+    },
+    componentName(name) {
+      return uiComponentName(name, uiNames, uiNamespaces);
+    },
+  };
+}
+
 function classTokens(value) {
   if (!value) return [];
   const strings =
@@ -214,27 +251,14 @@ const noRestyle = {
     schema: [],
   },
   create(context) {
-    const uiNames = new Set();
-    const uiNamespaces = new Set();
+    const uiImports = trackUiImports(context);
 
     return {
-      ImportDeclaration(node) {
-        if (!importsUiComponent(node.source.value, context.filename)) return;
-        for (const specifier of node.specifiers) {
-          if (specifier.type === "ImportNamespaceSpecifier") {
-            uiNamespaces.add(specifier.local.name);
-          } else {
-            uiNames.add(specifier.local.name);
-          }
-        }
-      },
+      ImportDeclaration: uiImports.ImportDeclaration,
       JSXOpeningElement(node) {
-        const component = uiComponentName(node.name, uiNames, uiNamespaces);
+        const component = uiImports.componentName(node.name);
         if (!component) return;
-        const attribute = node.attributes.find(
-          (item) =>
-            item.type === "JSXAttribute" && item.name.name === "className",
-        );
+        const attribute = findAttribute(node, "className");
         const restyled = restyledClasses(attribute?.value, component);
         if (restyled.length === 0) return;
         context.report({
@@ -247,10 +271,134 @@ const noRestyle = {
   },
 };
 
+const tabsLineVariant = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description: 'Tabs take variant="line".',
+    },
+    messages: {
+      variant:
+        'Give <TabsList> variant="line": every tab bar uses the line variant (style guide, Navigation).',
+    },
+    schema: [],
+  },
+  create(context) {
+    const uiImports = trackUiImports(context);
+
+    return {
+      ImportDeclaration: uiImports.ImportDeclaration,
+      JSXOpeningElement(node) {
+        if (uiImports.componentName(node.name) !== "TabsList") return;
+        if (stringAttribute(node, "variant") === "line") return;
+        context.report({ node, messageId: "variant" });
+      },
+    };
+  },
+};
+
+const ICON_POSITIONS = new Set(["inline-start", "inline-end"]);
+
+// A value the rule cannot read (a conditional, a prop) is left alone, the way
+// `no-restyle` leaves a dynamic class.
+function hasUnreadableValue(attribute) {
+  return (
+    attribute.value?.type === "JSXExpressionContainer" &&
+    attribute.value.expression.type !== "Literal"
+  );
+}
+
+const dataIconPosition = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "A button icon's data-icon says which side of the label it is on.",
+    },
+    messages: {
+      position:
+        'Write `data-icon="inline-start"` or `data-icon="inline-end"`: Button only applies its icon padding for those two values, and an icon-only button takes no `data-icon` at all (style guide, Buttons).',
+    },
+    schema: [],
+  },
+  create(context) {
+    return {
+      JSXOpeningElement(node) {
+        const attribute = findAttribute(node, "data-icon");
+        if (!attribute || hasUnreadableValue(attribute)) return;
+        if (ICON_POSITIONS.has(stringAttribute(node, "data-icon"))) return;
+        context.report({ node: attribute, messageId: "position" });
+      },
+    };
+  },
+};
+
+// The one width a dialog may set: an AlertDialog carrying a list, a preview or
+// an alert widens to the Dialog width.
+const WIDE_ALERT_DIALOG_CLASS = "sm:max-w-lg";
+
+function widthClasses(value, component) {
+  return classTokens(value).filter(
+    (token) =>
+      token.split(":").pop().replace(/^!/, "").startsWith("max-w-") &&
+      !(
+        component === "AlertDialogContent" && token === WIDE_ALERT_DIALOG_CLASS
+      ),
+  );
+}
+
+const dialogWidth = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description: "AlertDialog and Dialog keep their default width.",
+    },
+    messages: {
+      size: "Drop `size` from <AlertDialogContent>: a confirmation keeps its default width (style guide, Destructive actions).",
+      width:
+        "`{{className}}` sets the width of <{{component}}>: a dialog keeps its default width, and only an AlertDialog carrying a list, a preview or an alert widens, with `sm:max-w-lg` (style guide, Destructive actions).",
+    },
+    schema: [],
+  },
+  create(context) {
+    const uiImports = trackUiImports(context);
+
+    return {
+      ImportDeclaration: uiImports.ImportDeclaration,
+      JSXOpeningElement(node) {
+        const component = uiImports.componentName(node.name);
+        if (
+          component !== "AlertDialogContent" &&
+          component !== "DialogContent"
+        ) {
+          return;
+        }
+
+        const size = findAttribute(node, "size");
+        if (size && component === "AlertDialogContent") {
+          context.report({ node: size, messageId: "size" });
+        }
+
+        const attribute = findAttribute(node, "className");
+        const widths = widthClasses(attribute?.value, component);
+        if (widths.length === 0) return;
+        context.report({
+          node: attribute,
+          messageId: "width",
+          data: { className: widths.join(" "), component },
+        });
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: "ui" },
   rules: {
     "no-raw-form-element": noRawFormElement,
     "no-restyle": noRestyle,
+    "tabs-line-variant": tabsLineVariant,
+    "data-icon-position": dataIconPosition,
+    "dialog-width": dialogWidth,
   },
 };
