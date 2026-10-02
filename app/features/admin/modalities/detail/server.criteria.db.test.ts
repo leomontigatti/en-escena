@@ -53,6 +53,22 @@ describe("the modality action's criteria intent", () => {
     ).toEqual(["null Técnica", "amateur Figuras"]);
   });
 
+  test("refuses a level the editor could not have posted, leaving the general criteria alone", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addCriterion({ maximum: 100, name: "Técnica" });
+
+    await expect(
+      submitCriteria(
+        fixture,
+        [{ kind: "adds", maximum: "100", name: "Otra" }],
+        "cualquiera",
+      ),
+    ).resolves.toMatchObject({ status: "error" });
+
+    const saved = await listSubmodalityCriteria(fixture.event.id);
+    expect(saved.map((criterion) => criterion.name)).toEqual(["Técnica"]);
+  });
+
   test("returns the total field error when the adding maxima do not total 100", async () => {
     const fixture = await seedJudgingFixture();
 

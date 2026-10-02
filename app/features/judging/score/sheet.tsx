@@ -286,7 +286,11 @@ function readSheetState(presentation: JudgePresentationRow) {
 
   return {
     disqualified,
-    incomplete: !disqualified && !isSheetComplete(presentation.criteria),
+    // No criteria is a single 0-100 value, not a sheet left short.
+    incomplete:
+      !disqualified &&
+      presentation.criteria.length > 0 &&
+      !isSheetComplete(presentation.criteria),
   };
 }
 
