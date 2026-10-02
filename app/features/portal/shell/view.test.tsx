@@ -42,7 +42,6 @@ describe("portal route view", () => {
     expect(markup).toContain("Saltar al contenido principal");
     expect(markup).toContain("Inicio");
     expect(markup).toContain("Contacto");
-    expect(markup).toContain("Academia de Prueba");
     expect(markup).not.toContain("Teléfono");
   });
 
@@ -139,7 +138,6 @@ function renderPortal(input: {
       <PortalShell
         userEmail={loaderData.email}
         contactName={loaderData.academy.contactName}
-        academyName={loaderData.academy.name}
         eventContext={loaderData.eventContext}
         breadcrumbItems={[{ label: "Inicio" }]}
       >

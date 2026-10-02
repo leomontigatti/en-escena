@@ -1,30 +1,31 @@
-import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { LogoutMenuItem } from "@/components/shared/logout-menu-item";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 type AccountMenuProps = {
   /** The avatar's letters. */
   initials: string;
-  /** Who is signed in, as the first line of the trigger. */
+  /** Who is signed in: the first line of the menu's header. */
   name: string;
-  /** The second line: the academy for the portal, the role for the panel. */
+  /** The second line: the access email for an academy, the username for the panel. */
   detail: string;
-  /** The menu's items, grouped and separated by the caller. */
-  children: ReactNode;
+  /** Items between the header and `Salir`, already grouped; none for the panel. */
+  children?: ReactNode;
 };
 
 /**
- * The account menu of the admin and portal shells, at the right end of the top
- * bar. It used to be the sidebar's footer, where neither an administrator nor
- * an academy noticed it: the top-right corner is where people look for who they
- * are and how to leave.
+ * The account menu of the admin and portal shells: a round avatar at the right
+ * end of the top bar, as on GitHub. It used to be the sidebar's footer, where
+ * neither an administrator nor an academy noticed it.
  */
 export function AccountMenu({
   initials,
@@ -34,28 +35,30 @@ export function AccountMenu({
 }: AccountMenuProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          aria-label={`Cuenta: ${name}`}
-          className="ml-auto h-auto max-w-72 px-2 py-1.5"
-        >
-          <Avatar shape="square">
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <span className="hidden min-w-0 text-left leading-tight sm:grid">
-            <span className="truncate font-medium">{name}</span>
-            <span className="truncate text-xs font-normal text-muted-foreground">
-              {detail}
-            </span>
-          </span>
-          <ChevronDown aria-hidden="true" className="text-muted-foreground" />
-        </Button>
+      <DropdownMenuTrigger aria-label={`Cuenta: ${name}`}>
+        <Avatar>
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        {children}
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="grid gap-0.5 font-normal">
+          <span className="truncate text-sm font-medium text-foreground">
+            {name}
+          </span>
+          <span className="truncate">{detail}</span>
+        </DropdownMenuLabel>
+        {children ? (
+          <>
+            <DropdownMenuSeparator />
+            {children}
+          </>
+        ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <LogoutMenuItem />
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

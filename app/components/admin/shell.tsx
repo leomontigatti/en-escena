@@ -25,7 +25,7 @@ import {
 } from "@/lib/auth/internal-account";
 import { AccountMenu } from "@/components/shared/account-menu";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
-import { LogoutMenuItem } from "@/components/shared/logout-menu-item";
+import { TopBarTools } from "@/components/shared/top-bar-tools";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -39,11 +39,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -289,21 +284,16 @@ export function AdminShell({
                       })}
                 </BreadcrumbList>
               </Breadcrumb>
-              <AccountMenu
-                initials={getInternalAccountInitials(account.name)}
-                name={account.name}
-                detail={account.roleLabel}
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuItem disabled>
-                    Usuario: {account.username}
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <LogoutMenuItem />
-                </DropdownMenuGroup>
-              </AccountMenu>
+              <div className="ml-auto flex items-center gap-2">
+                <TopBarTools />
+                <AccountMenu
+                  initials={getInternalAccountInitials(account.name)}
+                  name={account.name}
+                  detail={[account.username, account.roleLabel]
+                    .filter(Boolean)
+                    .join(" · ")}
+                />
+              </div>
             </div>
           </header>
 

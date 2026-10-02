@@ -17,8 +17,8 @@ import {
 import { Link, useLocation, type UIMatch } from "react-router";
 
 import { AccountMenu } from "@/components/shared/account-menu";
+import { TopBarTools } from "@/components/shared/top-bar-tools";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
-import { LogoutMenuItem } from "@/components/shared/logout-menu-item";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -35,7 +35,6 @@ import {
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Empty,
@@ -73,7 +72,6 @@ import type {
 type PortalShellProps = {
   userEmail: string;
   contactName: string | null;
-  academyName: string;
   eventContext: PortalShellEventContext;
   children: ReactNode;
   breadcrumbItems?: PortalShellBreadcrumbItem[];
@@ -301,7 +299,6 @@ const creationAvailabilityPresentationByTone: Record<
 export function PortalShell({
   userEmail,
   contactName,
-  academyName,
   eventContext,
   children,
   breadcrumbItems,
@@ -347,24 +344,23 @@ export function PortalShell({
                 isHome={isHome}
                 items={resolvedBreadcrumbItems}
               />
-              <AccountMenu
-                initials={getUserInitials(displayName)}
-                name={displayName}
-                detail={academyName}
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuItem asChild>
-                    <Link to="/portal/perfil">
-                      <User aria-hidden="true" />
-                      Perfil
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <LogoutMenuItem />
-                </DropdownMenuGroup>
-              </AccountMenu>
+              <div className="ml-auto flex items-center gap-2">
+                <TopBarTools />
+                <AccountMenu
+                  initials={getUserInitials(displayName)}
+                  name={displayName}
+                  detail={userEmail}
+                >
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link to="/portal/perfil">
+                        <User aria-hidden="true" />
+                        Perfil
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </AccountMenu>
+              </div>
             </div>
           </header>
 
