@@ -1,11 +1,3 @@
-import {
-  Download,
-  ListOrdered,
-  Printer,
-  UserMinus,
-  UserPlus,
-} from "lucide-react";
-
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   DropdownMenuItem,
@@ -52,7 +44,6 @@ export function PresentationListActions({
             onPrintResults();
           }}
         >
-          <Printer aria-hidden="true" />
           Imprimir resultados
         </DropdownMenuItem>
       ) : null}
@@ -63,7 +54,6 @@ export function PresentationListActions({
             onDownloadMusic();
           }}
         >
-          <Download aria-hidden="true" />
           Descargar audios
         </DropdownMenuItem>
       ) : null}
@@ -76,7 +66,6 @@ export function PresentationListActions({
               onOrder();
             }}
           >
-            <ListOrdered aria-hidden="true" />
             Ordenar automáticamente
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -87,7 +76,6 @@ export function PresentationListActions({
               onJudges("assign");
             }}
           >
-            <UserPlus aria-hidden="true" />
             Asignar jueces
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -97,7 +85,6 @@ export function PresentationListActions({
               onJudges("remove");
             }}
           >
-            <UserMinus aria-hidden="true" />
             Quitar jueces
           </DropdownMenuItem>
         </>

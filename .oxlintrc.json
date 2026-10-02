@@ -75,7 +75,8 @@
         "ui/no-restyle": "error",
         "ui/tabs-line-variant": "error",
         "ui/data-icon-position": "error",
-        "ui/dialog-width": "error"
+        "ui/dialog-width": "error",
+        "ui/actions-menu-text-only": "error"
       }
     }
   ]

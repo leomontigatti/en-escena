@@ -1,4 +1,3 @@
-import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
@@ -147,7 +146,6 @@ function ChoreographyDetailActionsMenu({
               onRestore();
             }}
           >
-            <RotateCcw aria-hidden="true" />
             Restaurar coreografía
           </DropdownMenuItem>
         ) : (

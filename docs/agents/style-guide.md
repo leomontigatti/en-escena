@@ -203,8 +203,9 @@ Rules:
 - An icon repeats what the label says. `Check` is for saving, `Trash2` for
   deleting (`pnpm lint` rejects the `Trash` import); a destructive action other than a delete carries its own icon or
   none. `Cancelar` has no icon.
-- Delete reads `Eliminar` with `Trash2`, on a button, a menu item and the
-  confirmation alike. The record is already named by the page.
+- Delete reads `Eliminar`, on a button, a menu item and the confirmation
+  alike: with `Trash2` on the two buttons, and as text alone in an
+  [actions menu](#actions-menu). The record is already named by the page.
 - Obvious icons need no tooltip: `Trash2`, `X`, play and pause, `Download`,
   `Copy` and a drag handle. Every other icon-only button gets one. Text cut by
   truncation keeps a native `title` instead.
@@ -216,7 +217,8 @@ detail page's header or on a table row.
 
 - The trigger keeps its default size (`icon-lg`): `ResourceActionsMenu` takes
   no `size`.
-- Menu items are text only.
+- Menu items are text only: no icon, the destructive ones included.
+  `pnpm lint` enforces this (`ui/actions-menu-text-only`).
 - Put a `DropdownMenuSeparator` before the destructive items, so they sit last
   and apart.
 

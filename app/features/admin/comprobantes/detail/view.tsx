@@ -1,4 +1,4 @@
-import { Ban, Check, CircleAlert, Printer } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useFetcher } from "react-router";
 
@@ -90,7 +90,6 @@ export function ComprobanteDetailRouteView({
           <ResourceActionsMenu>
             <DropdownMenuItem asChild>
               <a href={printHref} target="_blank" rel="noreferrer">
-                <Printer aria-hidden="true" />
                 Imprimir
               </a>
             </DropdownMenuItem>
@@ -102,7 +101,6 @@ export function ComprobanteDetailRouteView({
                   setIsAnnulDialogOpen(true);
                 }}
               >
-                <Ban aria-hidden="true" />
                 Anular
               </DropdownMenuItem>
             ) : null}

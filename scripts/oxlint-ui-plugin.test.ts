@@ -82,6 +82,8 @@ import { AlertDialogContent } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
 import { TabsList } from "@/components/ui/tabs";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 export function Violating() {
   return (
@@ -94,6 +96,14 @@ export function Violating() {
       <AlertDialogContent size="sm" />
       <AlertDialogContent className="max-h-full sm:max-w-sm" />
       <DialogContent className="sm:max-w-lg" />
+      <ResourceActionsMenu>
+        <DropdownMenuItem><Trash aria-hidden="true" />Eliminar</DropdownMenuItem>
+        {true ? (
+          <DropdownMenuItem asChild>
+            <a href="/imprimir"><Trash />Imprimir</a>
+          </DropdownMenuItem>
+        ) : null}
+      </ResourceActionsMenu>
     </div>
   );
 }
@@ -105,6 +115,8 @@ import { AlertDialogContent } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
 import { TabsList } from "@/components/ui/tabs";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 function TabsListLookalike(props: { size?: string; className?: string }) {
@@ -125,6 +137,10 @@ export function Compliant(props: { end: boolean; className?: string }) {
       <DialogContent className={props.end ? "w-full" : "max-w-2xl"} />
       <TabsListLookalike size="sm" className="max-w-2xl" />
       <div className="max-w-md" />
+      <ResourceActionsMenu>
+        <DropdownMenuItem>Eliminar</DropdownMenuItem>
+      </ResourceActionsMenu>
+      <DropdownMenuItem><Trash2 aria-hidden="true" />Salir</DropdownMenuItem>
     </div>
   );
 }
@@ -174,6 +190,7 @@ describe("ui oxlint plugin", () => {
           "ui/tabs-line-variant": "error",
           "ui/data-icon-position": "error",
           "ui/dialog-width": "error",
+          "ui/actions-menu-text-only": "error",
           // The repo's own entry, so the test judges the config that ships.
           "no-restricted-imports": repoConfig.rules["no-restricted-imports"],
         },
@@ -269,7 +286,7 @@ describe("ui oxlint plugin", () => {
     expect(lint(tempRoot, "app/features/compliant.tsx")).toEqual([]);
   });
 
-  test("flags tabs without the line variant, unpositioned button icons, dialog width overrides and the Trash icon", () => {
+  test("flags tabs without the line variant, unpositioned button icons, dialog width overrides, the Trash icon and icons in an actions menu", () => {
     const diagnostics = lint(
       tempRoot,
       "app/features/conventions-violating.tsx",
@@ -283,23 +300,13 @@ describe("ui oxlint plugin", () => {
       },
       {
         rule: "ui(tabs-line-variant)",
-        line: 11,
+        line: 13,
         message: expect.stringContaining('variant="line"'),
       },
       {
         rule: "ui(tabs-line-variant)",
-        line: 12,
-        message: expect.stringContaining('variant="line"'),
-      },
-      {
-        rule: "ui(data-icon-position)",
-        line: 13,
-        message: expect.stringContaining("inline-start"),
-      },
-      {
-        rule: "ui(data-icon-position)",
         line: 14,
-        message: expect.stringContaining("inline-start"),
+        message: expect.stringContaining('variant="line"'),
       },
       {
         rule: "ui(data-icon-position)",
@@ -307,24 +314,44 @@ describe("ui oxlint plugin", () => {
         message: expect.stringContaining("inline-start"),
       },
       {
-        rule: "ui(dialog-width)",
+        rule: "ui(data-icon-position)",
         line: 16,
-        message: expect.stringContaining("`size`"),
+        message: expect.stringContaining("inline-start"),
       },
       {
-        rule: "ui(dialog-width)",
+        rule: "ui(data-icon-position)",
         line: 17,
-        message: expect.stringContaining("`sm:max-w-sm`"),
+        message: expect.stringContaining("inline-start"),
       },
       {
         rule: "ui(dialog-width)",
         line: 18,
+        message: expect.stringContaining("`size`"),
+      },
+      {
+        rule: "ui(dialog-width)",
+        line: 19,
+        message: expect.stringContaining("`sm:max-w-sm`"),
+      },
+      {
+        rule: "ui(dialog-width)",
+        line: 20,
         message: expect.stringContaining("`sm:max-w-lg`"),
+      },
+      {
+        rule: "ui(actions-menu-text-only)",
+        line: 22,
+        message: expect.stringContaining("Drop <Trash>"),
+      },
+      {
+        rule: "ui(actions-menu-text-only)",
+        line: 25,
+        message: expect.stringContaining("Drop <Trash>"),
       },
     ]);
   });
 
-  test("stays silent on line tabs, positioned and icon-only button icons, the wide alert dialog, dialog heights, dynamic classes and lookalike components", () => {
+  test("stays silent on line tabs, positioned and icon-only button icons, the wide alert dialog, dialog heights, dynamic classes, lookalike components, a text-only actions menu and an icon in another menu", () => {
     expect(lint(tempRoot, "app/features/conventions-compliant.tsx")).toEqual(
       [],
     );

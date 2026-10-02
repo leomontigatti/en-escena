@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Info, KeyRound } from "lucide-react";
+import { Check, Info } from "lucide-react";
 import { useState } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { Form, useNavigation, useSubmit } from "react-router";
@@ -257,7 +257,6 @@ function ProfileActionsMenu() {
             setIsPasswordDialogOpen(true);
           }}
         >
-          <KeyRound aria-hidden="true" />
           Cambiar contraseña
         </DropdownMenuItem>
       </ResourceActionsMenu>
