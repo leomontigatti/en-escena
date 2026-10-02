@@ -94,7 +94,7 @@ export function PortalSeminarDetailRouteView({
         action={
           closedReason ? null : (
             <Button type="button" onClick={() => setIsRegistering(true)}>
-              <Plus aria-hidden="true" data-icon />
+              <Plus aria-hidden="true" data-icon="inline-start" />
               Inscribir
             </Button>
           )

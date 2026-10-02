@@ -1,11 +1,5 @@
 import { Ellipsis } from "lucide-react";
-import {
-  useId,
-  useRef,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,14 +18,12 @@ type ResourceActionsMenuProps = {
   children: ReactNode;
   contentClassName?: string;
   label?: string;
-  size?: ComponentProps<typeof Button>["size"];
 };
 
 export function ResourceActionsMenu({
   children,
   contentClassName = "w-56",
   label = "Acciones",
-  size = "icon-lg",
 }: ResourceActionsMenuProps) {
   const tooltipId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -73,7 +65,7 @@ export function ResourceActionsMenu({
                 ref={triggerRef}
                 type="button"
                 variant="outline"
-                size={size}
+                size="icon-lg"
                 aria-describedby={tooltipId}
                 aria-label={label}
               >

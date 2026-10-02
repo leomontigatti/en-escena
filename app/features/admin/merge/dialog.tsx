@@ -139,7 +139,7 @@ export function MergeDialog({
             </DialogClose>
             <Button type="submit" variant="destructive" disabled={isPending}>
               {isPending ? (
-                <Spinner aria-hidden="true" data-icon />
+                <Spinner aria-hidden="true" data-icon="inline-start" />
               ) : (
                 <Merge aria-hidden="true" data-icon="inline-start" />
               )}

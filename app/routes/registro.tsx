@@ -148,7 +148,9 @@ export default function RegistroRoute() {
           />
 
           <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Spinner aria-hidden="true" data-icon /> : null}
+            {isSubmitting ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : null}
             Continuar con el registro
           </Button>
         </FieldGroup>

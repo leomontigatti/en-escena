@@ -180,7 +180,7 @@ function AdminResourceHeader({
         (action ? (
           <Button asChild>
             <Link to={action.to}>
-              <Plus aria-hidden="true" data-icon />
+              <Plus aria-hidden="true" data-icon="inline-start" />
               {action.label}
             </Link>
           </Button>

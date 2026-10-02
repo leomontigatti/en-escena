@@ -259,7 +259,9 @@ export default function IngresarRoute() {
           />
 
           <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Spinner aria-hidden="true" data-icon /> : null}
+            {isSubmitting ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : null}
             Ingresar
           </Button>
         </FieldGroup>

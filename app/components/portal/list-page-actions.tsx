@@ -32,7 +32,7 @@ export function PortalListPageActions({
         kinds={kinds}
       />
       <Button type="button" onClick={onCreate}>
-        <Plus aria-hidden="true" data-icon />
+        <Plus aria-hidden="true" data-icon="inline-start" />
         {createLabel}
       </Button>
     </div>

@@ -35,7 +35,7 @@ export function ScheduleActions({
 
   return (
     <>
-      <ResourceActionsMenu contentClassName="w-56" size="icon">
+      <ResourceActionsMenu contentClassName="w-56">
         <DropdownMenuGroup>
           {schedule.registrationOpen ? (
             <ScheduleRegistrationActionItem
@@ -110,7 +110,9 @@ function ScheduleRegistrationActionItem({
           className="w-full justify-start whitespace-nowrap"
         >
           <span className="inline-flex items-center gap-2">
-            {isPending ? <Spinner aria-hidden="true" data-icon /> : null}
+            {isPending ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : null}
             {label}
           </span>
         </button>

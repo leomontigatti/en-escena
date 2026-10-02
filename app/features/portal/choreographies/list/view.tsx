@@ -351,7 +351,7 @@ function NewChoreographyButton({ canCreate }: { canCreate: boolean }) {
   if (!canCreate) {
     return (
       <Button type="button" disabled>
-        <Plus aria-hidden="true" data-icon />
+        <Plus aria-hidden="true" data-icon="inline-start" />
         Nueva coreografía
       </Button>
     );
@@ -360,7 +360,7 @@ function NewChoreographyButton({ canCreate }: { canCreate: boolean }) {
   return (
     <Button asChild>
       <Link to="/portal/coreografias/crear">
-        <Plus aria-hidden="true" data-icon />
+        <Plus aria-hidden="true" data-icon="inline-start" />
         Nueva coreografía
       </Link>
     </Button>
