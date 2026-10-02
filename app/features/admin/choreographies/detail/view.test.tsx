@@ -79,7 +79,7 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(markup).toContain("Detalle coreografía");
+    expect(markup).toMatch(/<h2[^>]*>Danza lunar # 00001<\/h2>/);
     expect(markup).toContain('value="Danza lunar"');
     expect(markup).toContain("disabled");
     expect(markup).not.toContain("Guardar");

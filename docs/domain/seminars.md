@@ -102,7 +102,7 @@ rule fits; every difference is named.
   `regular` row of a participant cell cannot be deleted or restructured while
   any active seminar inscription of the event exists, even unreferenced; its
   amount and name may change. On the form the guards show on sight — the locked
-  fields render through the shared read-only look, `Borrar precio` is disabled,
+  fields render through the shared read-only look, `Eliminar` is disabled,
   and an `info` alert above the form card says why, naming both the locked
   fields and the delete — and the server refuses all the same, for the race. The
   sentences are the choreography list's, shared in `app/lib/prices/guards.ts`,

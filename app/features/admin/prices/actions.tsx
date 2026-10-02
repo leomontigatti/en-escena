@@ -49,7 +49,7 @@ export function PriceActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar el precio?"
-        description={`Esta acción borra ${getPriceDisplayName(price)} si no tiene dependencias asociadas. No se puede deshacer.`}
+        description={`Esta acción elimina ${getPriceDisplayName(price)} si no tiene dependencias asociadas. No se puede deshacer.`}
         intentValue="delete-price"
         recordId={price.id}
         open={deleteDialogOpen}

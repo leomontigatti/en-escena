@@ -13,7 +13,7 @@ type NewEventRouteProps = {
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Crear Evento | Panel de administración | En Escena" },
+  { title: "Nuevo evento | Panel de administración | En Escena" },
 ];
 
 export const handle = {

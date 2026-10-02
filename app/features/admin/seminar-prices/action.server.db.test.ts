@@ -129,7 +129,7 @@ describe("administrative seminar price action", () => {
       }),
     ).resolves.toMatchObject({
       status: "error",
-      message: "Confirmá el borrado del precio.",
+      message: "Confirmá la eliminación del precio.",
     });
     await expect(listSeminarPrices(event.id)).resolves.toHaveLength(1);
   });

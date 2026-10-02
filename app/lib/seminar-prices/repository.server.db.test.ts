@@ -28,7 +28,7 @@ installDatabaseTestHooks();
 
 const frozenUpdateError =
   "Este precio está en uso. Solo podés cambiar el nombre.";
-const frozenDeleteError = "Este precio está en uso. No se puede borrar.";
+const frozenDeleteError = "Este precio está en uso. No se puede eliminar.";
 
 const participantTail: SeminarPriceInput = {
   name: "Precio participantes",

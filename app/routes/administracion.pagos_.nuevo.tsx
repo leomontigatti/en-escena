@@ -19,7 +19,7 @@ type NewPaymentRouteProps = {
 };
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Registrar pago | Panel de administración | En Escena" },
+  { title: "Nuevo pago | Panel de administración | En Escena" },
 ];
 
 export const handle = {
