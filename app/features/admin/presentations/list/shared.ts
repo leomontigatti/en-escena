@@ -9,6 +9,8 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { PresentationWarning } from "@/lib/presentations/warnings";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
+import type { MusicDownloadDay } from "../music-download/shared";
+
 /**
  * What the participation list's page and its server agree on: the shape of a
  * row, the filters the URL carries and the two intents the page submits. It is
@@ -107,6 +109,8 @@ export type PresentationListResult = {
   frozenCount: number;
   hasAnyRow: boolean;
   hasPresentations: boolean;
+  /** The days the music download offers, in date order. */
+  musicDownloadDays: MusicDownloadDay[];
   /** The highest number in the order; `0` before the first ordering. */
   highestOrderNumber: number;
   presentations: PresentationListItem[];
