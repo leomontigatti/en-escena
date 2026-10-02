@@ -56,6 +56,8 @@ export function AcademyDetailRouteView({
       name: academy.name,
       contactName: academy.contactName,
       phone: academy.phone,
+      city: academy.city,
+      province: academy.province,
     },
     submitted: errorData?.values,
   });
@@ -79,7 +81,7 @@ export function AcademyDetailRouteView({
       requireSelectedEvent={false}
       selectedEventId={loaderData.selectedEventId}
       title={academy.name}
-      description="Consultá y actualizá los datos de contacto de la academia."
+      description="Consultá y actualizá los datos de contacto y la ubicación de la academia."
       headerAction={
         canEdit ? (
           <ResourceActionsMenu contentClassName="w-48">
@@ -151,6 +153,20 @@ export function AcademyDetailRouteView({
               name="phone"
               placeholder={argentinePhonePlaceholder}
               type="tel"
+            />
+            <TextInputField
+              autoComplete="address-level2"
+              control={form.form.control}
+              disabled={!canEdit}
+              label="Ciudad"
+              name="city"
+            />
+            <TextInputField
+              autoComplete="address-level1"
+              control={form.form.control}
+              disabled={!canEdit}
+              label="Provincia"
+              name="province"
             />
           </FieldGroup>
         </form>

@@ -66,6 +66,8 @@ export function PortalProfileRouteView({
     name: loaderData.academy.name,
     contactName: loaderData.academy.contactName,
     phone: loaderData.academy.phone,
+    city: loaderData.academy.city ?? "",
+    province: loaderData.academy.province ?? "",
   };
   const values = actionData?.values ?? savedValues;
   const form = useAcademyProfileForm({
@@ -92,7 +94,7 @@ export function PortalProfileRouteView({
       <PortalPageHeader
         titleId="perfil-title"
         title="Perfil"
-        description="Actualizá los datos para identificar a tu academia y contactar a la persona responsable."
+        description="Actualizá los datos para identificar a tu academia, saber de dónde es y contactar a la persona responsable."
         action={<ProfileActionsMenu />}
       />
 
@@ -148,6 +150,18 @@ export function PortalProfileRouteView({
                 name="phone"
                 placeholder={argentinePhonePlaceholder}
                 type="tel"
+              />
+              <AcademyProfileTextField
+                autoComplete="address-level2"
+                form={form.form}
+                label="Ciudad"
+                name="city"
+              />
+              <AcademyProfileTextField
+                autoComplete="address-level1"
+                form={form.form}
+                label="Provincia"
+                name="province"
               />
             </FieldGroup>
           </form>

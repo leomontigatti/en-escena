@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import {
   CalendarDays,
-  ChevronsUpDown,
   Building2,
   GraduationCap,
   Home,
@@ -24,7 +23,7 @@ import {
   getInternalAccountInitials,
   type InternalAccount,
 } from "@/lib/auth/internal-account";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AccountMenu } from "@/components/shared/account-menu";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import { LogoutMenuItem } from "@/components/shared/logout-menu-item";
 import {
@@ -41,18 +40,14 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -255,48 +250,6 @@ export function AdminShell({
               rootPath="/administracion"
             />
           </SidebarContent>
-
-          <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton size="lg">
-                      <Avatar shape="square">
-                        <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                          {getInternalAccountInitials(account.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-medium">
-                          {account.name}
-                        </span>
-                        <span className="truncate text-xs">
-                          {account.roleLabel}
-                        </span>
-                      </div>
-                      <ChevronsUpDown aria-hidden="true" />
-                    </SidebarMenuButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    side="top"
-                    align="end"
-                    className="w-(--radix-dropdown-menu-trigger-width)"
-                  >
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem disabled>
-                        Usuario: {account.username}
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <LogoutMenuItem />
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
         </Sidebar>
 
         <SidebarInset>
@@ -336,6 +289,21 @@ export function AdminShell({
                       })}
                 </BreadcrumbList>
               </Breadcrumb>
+              <AccountMenu
+                initials={getInternalAccountInitials(account.name)}
+                name={account.name}
+                detail={account.roleLabel}
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuItem disabled>
+                    Usuario: {account.username}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <LogoutMenuItem />
+                </DropdownMenuGroup>
+              </AccountMenu>
             </div>
           </header>
 

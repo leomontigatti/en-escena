@@ -17,6 +17,11 @@ export const academies = createTable(
     name: text("name").notNull(),
     contactName: text("contact_name").notNull(),
     phone: text("phone").notNull(),
+    // Where the academy is: free text, because academies come from any
+    // province or neighbouring country. Null on academies registered before
+    // the fields existed; every form that saves the academy requires both.
+    city: text("city"),
+    province: text("province"),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

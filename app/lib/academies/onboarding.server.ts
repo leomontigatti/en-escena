@@ -62,8 +62,10 @@ export async function requireAcademyOnboardingUser(request: Request) {
 export async function completeAcademyOnboarding(input: {
   academyName: string;
   acknowledgedDuplicateIds: readonly string[];
+  city: string;
   contactName: string;
   phone: string;
+  province: string;
   request: Request;
 }) {
   const onboardingUser = await requireAcademyOnboardingUser(input.request);
@@ -104,6 +106,8 @@ export async function completeAcademyOnboarding(input: {
         name,
         contactName: toTitleCase(input.contactName),
         phone: input.phone,
+        city: toTitleCase(input.city),
+        province: toTitleCase(input.province),
       });
     });
   } catch (error) {

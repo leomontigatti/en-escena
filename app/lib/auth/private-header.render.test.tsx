@@ -80,7 +80,7 @@ describe("private route headers", () => {
     },
   );
 
-  test("admin panel renders session context in the sidebar dropdown trigger", () => {
+  test("admin panel renders session context in the account menu trigger", () => {
     const markup = renderAdminRoute();
 
     expect(markup).toContain("Ada Admin");

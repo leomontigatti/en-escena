@@ -31,11 +31,13 @@ async function renderDialog() {
         element: (
           <AcademyMergeDialog
             academy={{
+              city: "Rosario",
               contactName: "Nora Norte",
               email: "fork@example.com",
               id: "academy-fork",
               name: "Academia Fork",
               phone: "3415551234",
+              province: "Santa Fe",
             }}
             merge={{
               candidates: [

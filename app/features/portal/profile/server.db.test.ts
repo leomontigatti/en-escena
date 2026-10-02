@@ -52,8 +52,10 @@ describe("portal profile server", () => {
         session.cookie,
         academyProfileFormData({
           name: " Academia Manipulada ",
+          city: " villa maría ",
           contactName: " responsable nueva ",
           phone: "1199990000",
+          province: " córdoba ",
         }),
       ),
     );
@@ -69,8 +71,49 @@ describe("portal profile server", () => {
       }),
     ).resolves.toMatchObject({
       name: "Academia Original",
+      city: "Villa María",
       contactName: "Responsable Nueva",
       phone: "1199990000",
+      province: "Córdoba",
+    });
+  });
+
+  test("returns field errors without persisting an empty city or province", async () => {
+    const session = await createAcademySession({
+      email: "perfil.location@example.com",
+      academyName: "Academia Sin Lugar",
+    });
+
+    const result = await handlePortalProfileAction(
+      createPortalPostRequest(
+        "http://localhost/portal/perfil",
+        session.cookie,
+        academyProfileFormData({
+          name: "Academia Sin Lugar",
+          city: "  ",
+          contactName: "Responsable",
+          phone: "1112345678",
+          province: "",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        city: "Este campo es obligatorio.",
+        province: "Este campo es obligatorio.",
+      },
+    });
+
+    await expect(
+      db.query.academies.findFirst({
+        where: eq(academies.id, session.academyId),
+      }),
+    ).resolves.toMatchObject({
+      city: null,
+      contactName: "Contacto",
+      province: null,
     });
   });
 
@@ -158,14 +201,18 @@ describe("portal profile server", () => {
 
 function academyProfileFormData(input: {
   name: string;
+  city?: string;
   contactName: string;
   phone: string;
+  province?: string;
 }) {
   const formData = new FormData();
   formData.set("intent", "update-academy-profile");
   formData.set("name", input.name);
   formData.set("contactName", input.contactName);
   formData.set("phone", input.phone);
+  formData.set("city", input.city ?? "Ciudad");
+  formData.set("province", input.province ?? "Provincia");
 
   return formData;
 }

@@ -12,6 +12,8 @@ export type AcademyProfileInput = {
   name: string;
   contactName: string;
   phone: string;
+  city: string;
+  province: string;
 };
 
 export type AcademyProfileField = keyof AcademyProfileInput;
@@ -36,11 +38,15 @@ export async function updateAcademyProfile(
     name: input.name,
     contactName: input.contactName,
     phone: input.phone,
+    city: input.city,
+    province: input.province,
   };
   const normalizedValues = {
     name: toTitleCase(input.name),
     contactName: toTitleCase(input.contactName),
     phone: input.phone,
+    city: toTitleCase(input.city),
+    province: toTitleCase(input.province),
   };
   const fieldErrors = getAcademyProfileFieldErrors(normalizedValues);
 
@@ -74,6 +80,8 @@ function getAcademyProfileFieldErrors(input: AcademyProfileInput) {
     name: input.name ? undefined : requiredFieldMessage,
     contactName: input.contactName ? undefined : requiredFieldMessage,
     phone: getPhoneFieldError(input.phone),
+    city: input.city ? undefined : requiredFieldMessage,
+    province: input.province ? undefined : requiredFieldMessage,
   } satisfies Partial<Record<AcademyProfileField, string>>;
 }
 

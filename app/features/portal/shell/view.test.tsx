@@ -21,7 +21,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Portal de academias");
     expect(markup).toContain("Inicio");
-    expect(markup).not.toContain("Perfil");
+    expect(markup).toContain('href="/portal/perfil"');
     expect(markup).toContain("Finanzas");
     expect(markup).toContain("Resumen");
     expect(markup).toContain('href="/portal/finanzas"');
@@ -128,6 +128,8 @@ function renderPortal(input: {
       name: "Academia de Prueba",
       contactName: "Contacto",
       phone: "1112345678",
+      city: null,
+      province: null,
     },
     eventContext: input.eventContext,
   } satisfies PortalLoaderData;
