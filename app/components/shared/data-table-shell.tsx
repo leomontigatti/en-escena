@@ -1,5 +1,5 @@
 import {
-  flexRender,
+  type ColumnDefTemplate,
   type Column,
   type Header,
   type Row,
@@ -455,7 +455,10 @@ function DataTableHeaderContent<TData>({
     isFit && typeof definition === "string" && definition !== "" ? (
       <DataTableTruncatedText className="min-w-0" value={definition} />
     ) : (
-      flexRender(definition, header.getContext())
+      <DataTableTemplate
+        definition={definition}
+        context={header.getContext()}
+      />
     );
   // The `-ml-2` lines the label up with the cells below, so the button starts
   // half a unit left of the content box and may end that far past `100%`.
@@ -621,11 +624,32 @@ function DataTableBodyRowCells<TData>({
             cell.column.columnDef.meta?.cellClassName?.(row.original),
           )}
         >
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          <DataTableTemplate
+            definition={cell.column.columnDef.cell}
+            context={cell.getContext()}
+          />
         </TableCell>
       ))}
     </TableRow>
   );
+}
+
+/**
+ * What a column declares for a header or a cell, drawn. TanStack's `flexRender`
+ * mounts the declared function as the component itself, so a view that builds
+ * its columns while rendering —most of them do— hands React a new component on
+ * every render, and every cell is unmounted and mounted again: its state is
+ * lost and its effects re-run, on each tick of a checkbox. Calling the function
+ * from this one component keeps what it draws mounted.
+ */
+function DataTableTemplate<TContext extends object>({
+  context,
+  definition,
+}: {
+  context: TContext;
+  definition: ColumnDefTemplate<TContext> | undefined;
+}): React.ReactNode {
+  return typeof definition === "function" ? definition(context) : definition;
 }
 
 /**

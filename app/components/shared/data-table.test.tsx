@@ -424,6 +424,74 @@ describe("DataTable", () => {
     // off that same row alone rather than waiting for one it can never reach.
     expect(selections.at(-1)).toEqual(["choreography_1"]);
   });
+
+  test("keeps a cell mounted when ticking a row re-renders a view that rebuilds its columns", async () => {
+    function DraftCell() {
+      const [draft, setDraft] = useState("");
+
+      return (
+        <input
+          aria-label="Borrador"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+      );
+    }
+
+    // The selection lives in the view, so a tick re-renders it, and the view
+    // declares its columns inline: every render hands the table new ones.
+    function View() {
+      const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+
+      return (
+        <ClientDataTable
+          rows={[
+            {
+              id: "choreography_1",
+              academy: "Academia Norte",
+              name: "Aire",
+              status: "active",
+            },
+          ]}
+          columns={[
+            ...columns,
+            { id: "draft", header: "Borrador", cell: () => <DraftCell /> },
+          ]}
+          getRowKey={(row) => row.id}
+          searchPlaceholder="Buscar coreografía por nombre"
+          selectableRows
+          selectedRowIds={selectedRowIds}
+          onSelectedRowIdsChange={setSelectedRowIds}
+          textFilterColumnId="name"
+        />
+      );
+    }
+
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/presentacion"]}>
+        <View />
+      </MemoryRouter>,
+    );
+
+    const getDraftInput = () =>
+      renderer.getContainer().querySelector('input[aria-label="Borrador"]');
+    const draftInput = getDraftInput();
+    const checkboxes = getRenderedCheckboxes();
+
+    if (!(draftInput instanceof HTMLInputElement)) {
+      throw new Error("Expected the draft input to be rendered.");
+    }
+
+    await act(async () => {
+      setInputValue(draftInput, "12");
+    });
+    await clickCheckbox(checkboxes[1]);
+
+    expect(getRenderedCheckboxes()[1]).toBe(checkboxes[1]);
+    expect(getRenderedCheckboxes()[1].ariaChecked).toBe("true");
+    expect(getDraftInput()).toBe(draftInput);
+    expect(draftInput.value).toBe("12");
+  });
 });
 
 describe("DataTable fit layout", () => {
