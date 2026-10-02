@@ -26,9 +26,9 @@ function PortalIndexRouteView() {
   return (
     <>
       <section className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           ¡Bienvenido al portal de academias!
-        </h1>
+        </h2>
         <p className="text-sm text-muted-foreground">
           Desde acá vas a poder gestionar todos los datos referidos a tu
           academia para participar del evento.

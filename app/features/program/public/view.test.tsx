@@ -16,7 +16,7 @@ describe("PublicProgramView", () => {
       "La organización todavía no publicó el programa del evento. Volvé a consultar más cerca de la fecha.",
     );
     // Nothing on the page tells the two cases apart.
-    expect(markup).not.toContain("Programa</h1>");
+    expect(markup).not.toContain("Programa</h2>");
     expect(markup).not.toContain("Imprimir");
   });
 
