@@ -403,9 +403,8 @@ async function registerSolo(input: SeedRegistration) {
 
 /**
  * One payment covering every inscription past its deposit (30% of 25000).
- * Crossing the deposit locks the inscription's price, the allocation locks the
- * payment's academy, and a covered deposit is what makes a choreography
- * eligible for a presentation number.
+ * Crossing the deposit locks the inscription's price and the allocation locks
+ * the payment's academy.
  */
 async function coverDeposits(input: {
   academyId: string;

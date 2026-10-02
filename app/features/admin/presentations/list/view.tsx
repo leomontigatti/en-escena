@@ -494,7 +494,7 @@ export function PresentationsListView({
         <AdminEmptyState
           icon={ListOrdered}
           title={emptyPresentationList.nothingYet}
-          description="Una coreografía entra en esta lista cuando cubre su seña. Cuando haya alguna, vas a poder ordenarlas acá."
+          description="Una coreografía entra en esta lista cuando se inscribe en el evento activo. Cuando haya alguna, vas a poder ordenarlas acá."
         />
       )}
       {loaderData.canOrder ? (

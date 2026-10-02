@@ -85,7 +85,7 @@ describe("derivePresentationWarnings", () => {
     expect(messagesOf(warnings, "levelless-category")).toEqual([]);
   });
 
-  test("marks a choreography below `Señada`, numbered or not", () => {
+  test("marks a choreography with its deposit pending, numbered or not", () => {
     const warnings = derivePresentationWarnings([
       row({
         choreographyId: "numbered",

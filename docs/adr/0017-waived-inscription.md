@@ -35,3 +35,14 @@ is derived still holds.
 - It is outside the `dancerDiscount` qualifying set and produces no `comprobante`.
 - Choreography inscriptions only; a seminar inscription, whose deposit crossing
   also takes a quota place, would need its own rule.
+
+## Amendment 2026-10-02: a `presentation` no longer needs `Señada`
+
+The motivation above says a free place had no path to a number because
+`Señada` was required for a `presentation`. That requirement was dropped:
+every choreography of the event is numbered by the automatic ordering and
+listed, whatever it owes, and `Seña pendiente` is a warning on the row only
+(`docs/domain/judging.md`, "Participation And Judging"). The waiver stays for
+what it still does: reading a free place as `Bonificada` rather than `Pagada`
+or `Seña pendiente`, holding no money, and staying out of the choreography's
+minimum.

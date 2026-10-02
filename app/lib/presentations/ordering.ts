@@ -3,12 +3,11 @@ import {
   type ExperienceLevel,
 } from "@/lib/events/experience-levels";
 import { groupTypeValues, type GroupType } from "@/lib/events/group-types";
-import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 
 /**
  * The order of the event's presentations, derived from plain rows. Nothing here
- * reads the database or the clock, and nothing here computes money: the caller
- * passes the choreography's financial status already derived. See
+ * reads the database or the clock, and nothing here reads money: what a
+ * choreography owes neither gives nor takes a number. See
  * docs/domain/judging.md, "Participation And Judging".
  */
 
@@ -38,7 +37,6 @@ export type PresentationOrderingRow = PresentationBlock & {
   activeDancerIds: string[];
   choreographyId: string;
   choreographyNumber: number;
-  financialStatus: ChoreographyFinancialStatus;
   /** `null` while the choreography has no presentation. */
   orderNumber: number | null;
 };
@@ -99,16 +97,6 @@ export function findFrozenChoreographyIds(
 }
 
 /**
- * Whether a choreography can *get* a number: at least `Señada`. Keeping one has
- * no condition, so this never asks about a row that already has a presentation.
- */
-export function isPresentationEligible(row: {
-  financialStatus: ChoreographyFinancialStatus;
-}) {
-  return row.financialStatus !== "depositPending";
-}
-
-/**
  * The block order: schedule (date, time, name), then experience level from
  * `nudo` to `pro_am` and no level last, then category age order, then group
  * type. Modality plays no part — a schedule already restricts the modalities
@@ -139,8 +127,8 @@ export function comparePresentationBlocks(
 
 /**
  * The order of an event, keeping the frozen rows where they are. The input is
- * every choreography that has a presentation or is eligible for one; the
- * output is a number for every row that is not frozen. A frozen row keeps its
+ * every choreography of the event, numbered or not; the output is a number for
+ * every row that is not frozen. A frozen row keeps its
  * exact number, and the rest fill the free positions in ascending order —
  * every position not held by a frozen row and not inside a frozen run — so a
  * late row of a schedule that already ran lands right after that schedule
@@ -151,13 +139,10 @@ export function computeAutomaticOrder(
   rows: PresentationOrderingRow[],
   frozenChoreographyIds: Set<string> = new Set(),
 ): AutomaticOrderResult {
-  const candidates = rows.filter(
-    (row) => row.orderNumber !== null || isPresentationEligible(row),
-  );
-  const frozen = candidates.filter((row) =>
+  const frozen = rows.filter((row) =>
     frozenChoreographyIds.has(row.choreographyId),
   );
-  const unfrozen = candidates.filter(
+  const unfrozen = rows.filter(
     (row) => !frozenChoreographyIds.has(row.choreographyId),
   );
 
@@ -176,7 +161,7 @@ export function computeAutomaticOrder(
     frozen.map((row) => [row.orderNumber!, row]),
   );
   const freePositions = listFreePositions(
-    candidates,
+    rows,
     frozenChoreographyIds,
     unfrozen.length,
   );
