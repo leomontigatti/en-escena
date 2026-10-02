@@ -7,6 +7,7 @@ import {
 } from "react-hook-form";
 
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
+import { PasswordInput } from "@/components/shared/password-input";
 import {
   SharedFieldLayout,
   type SharedFieldOrientation,
@@ -61,10 +62,13 @@ function TextInputField<
   orientation,
   disabled = false,
   placeholder,
+  type,
   ...inputProps
 }: TextInputFieldProps<TFieldValues, TName>) {
   const generatedId = useId();
   const id = providedId ?? generatedId;
+  // A locked password has nothing to reveal, so it keeps the plain input and its lock.
+  const revealsPassword = type === "password" && !disabled;
   return (
     <Controller
       control={control}
@@ -84,21 +88,34 @@ function TextInputField<
             labelClassName={labelClassName}
             orientation={orientation}
           >
-            {({ describedBy, isInvalid }) => (
-              <div className="relative">
-                <Input
+            {({ describedBy, isInvalid }) =>
+              revealsPassword ? (
+                <PasswordInput
                   {...inputProps}
                   {...field}
                   id={id}
                   aria-describedby={describedBy || undefined}
                   aria-invalid={isInvalid ? true : undefined}
-                  className={cn(disabled && "pr-9", inputClassName)}
-                  disabled={disabled}
+                  className={inputClassName}
                   placeholder={placeholder}
                 />
-                {disabled ? <FieldControlLockIcon /> : null}
-              </div>
-            )}
+              ) : (
+                <div className="relative">
+                  <Input
+                    {...inputProps}
+                    {...field}
+                    id={id}
+                    type={type}
+                    aria-describedby={describedBy || undefined}
+                    aria-invalid={isInvalid ? true : undefined}
+                    className={cn(disabled && "pr-9", inputClassName)}
+                    disabled={disabled}
+                    placeholder={placeholder}
+                  />
+                  {disabled ? <FieldControlLockIcon /> : null}
+                </div>
+              )
+            }
           </SharedFieldLayout>
         );
       }}
