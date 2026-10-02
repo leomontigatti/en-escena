@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  boolean,
   check,
   foreignKey,
   index,
@@ -102,10 +101,6 @@ export const scores = createTable(
     }).notNull(),
     value: numeric("value", { mode: "string", precision: 4, scale: 1 }),
     feedbackAudioStorageKey: text("feedback_audio_storage_key"),
-    // Retired: score annulment no longer exists and nothing reads or writes
-    // this. It stays until the release that stops reading it is deployed, then
-    // goes in its own migration (the contract step, docs/db/migrations.md).
-    annulled: boolean("annulled").notNull().default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,
