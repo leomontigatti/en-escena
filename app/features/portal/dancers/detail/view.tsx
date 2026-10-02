@@ -2,7 +2,7 @@ import { Archive, Info, RotateCcw, TriangleAlert } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Form, useNavigation, useSubmit } from "react-router";
 
-import { PortalEmptyState } from "@/components/portal/ui";
+import { PortalEmptyState, PortalPageHeader } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -135,32 +135,26 @@ export function PortalDancerDetailRouteView({
         className="flex flex-1 flex-col gap-6"
         aria-labelledby="bailarin-detail-title"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-1">
-            <h1
-              id="bailarin-detail-title"
-              className="text-xl font-semibold"
-              style={viewTransitionStyle}
-            >
-              {viewModel.title}
-            </h1>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Actualizá los datos de este bailarín.
-            </p>
-          </div>
-          <ResourceActionsMenu contentClassName="w-40">
-            <DropdownMenuItem
-              disabled={viewModel.statusAction.disabled}
-              variant={viewModel.statusAction.confirmButtonVariant}
-              onSelect={(event) => {
-                event.preventDefault();
-                setStatusDialogIntent(viewModel.statusAction.intent);
-              }}
-            >
-              {viewModel.statusAction.label}
-            </DropdownMenuItem>
-          </ResourceActionsMenu>
-        </div>
+        <PortalPageHeader
+          titleId="bailarin-detail-title"
+          title={viewModel.title}
+          titleStyle={viewTransitionStyle}
+          description="Actualizá los datos de este bailarín."
+          action={
+            <ResourceActionsMenu contentClassName="w-40">
+              <DropdownMenuItem
+                disabled={viewModel.statusAction.disabled}
+                variant={viewModel.statusAction.confirmButtonVariant}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setStatusDialogIntent(viewModel.statusAction.intent);
+                }}
+              >
+                {viewModel.statusAction.label}
+              </DropdownMenuItem>
+            </ResourceActionsMenu>
+          }
+        />
 
         <PortalDancerAlertsSection
           dancerActive={loaderData.dancer.active}

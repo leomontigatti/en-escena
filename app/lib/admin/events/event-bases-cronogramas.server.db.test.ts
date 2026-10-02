@@ -124,7 +124,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     expect(createMarkup).toContain("Nuevo cronograma");
     expect(createMarkup).toContain('name="intent" value="create-schedule"');
     expect(createMarkup).toContain("Dividir cupo");
-    expect(detailMarkup).toContain("Editar cronograma");
+    expect(detailMarkup).toMatch(/<h2[^>]*>Domingo Tarde<\/h2>/);
     expect(detailMarkup).toContain('name="intent" value="update-schedule"');
     expect(detailMarkup).not.toContain("Cupos de cronograma");
     expect(detailMarkup).toContain("Dividir cupo");

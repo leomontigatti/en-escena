@@ -9,6 +9,7 @@ import {
   type SubmitFunction,
 } from "react-router";
 
+import { PortalPageHeader } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -136,32 +137,26 @@ export function PortalProfessorDetailRouteView({
         className="flex flex-1 flex-col gap-6"
         aria-labelledby="profesor-detail-title"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-1">
-            <h1
-              id="profesor-detail-title"
-              className="text-xl font-semibold"
-              style={viewTransitionStyle}
-            >
-              {title}
-            </h1>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Actualizá los datos de este profesor.
-            </p>
-          </div>
-          <ResourceActionsMenu contentClassName="w-40">
-            <DropdownMenuItem
-              disabled={statusAction.disabled}
-              variant={statusAction.confirmButtonVariant}
-              onSelect={(event) => {
-                event.preventDefault();
-                setStatusDialogIntent(statusAction.intent);
-              }}
-            >
-              {statusAction.label}
-            </DropdownMenuItem>
-          </ResourceActionsMenu>
-        </div>
+        <PortalPageHeader
+          titleId="profesor-detail-title"
+          title={title}
+          titleStyle={viewTransitionStyle}
+          description="Actualizá los datos de este profesor."
+          action={
+            <ResourceActionsMenu contentClassName="w-40">
+              <DropdownMenuItem
+                disabled={statusAction.disabled}
+                variant={statusAction.confirmButtonVariant}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setStatusDialogIntent(statusAction.intent);
+                }}
+              >
+                {statusAction.label}
+              </DropdownMenuItem>
+            </ResourceActionsMenu>
+          }
+        />
 
         <PortalProfessorAlertsSection
           isIncomplete={loaderData.professor.isIncomplete}

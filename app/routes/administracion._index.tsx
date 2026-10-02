@@ -84,9 +84,9 @@ export function DashboardRouteView({ loaderData }: DashboardRouteProps) {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           Panel de administración
-        </h1>
+        </h2>
         <p className="text-sm text-muted-foreground">
           Este panel concentra la operación del evento, sus excepciones y la
           configuración principal.

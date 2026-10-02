@@ -341,7 +341,7 @@ describe("`/administracion/profesores` route", () => {
 
     expect(loaderData).not.toHaveProperty("email");
     expect(loaderData).not.toHaveProperty("eventOptions");
-    expect(markup).toContain("Detalle profesor");
+    expect(markup).toMatch(/<h2[^>]*>Julia Detalle<\/h2>/);
     expect(markup).toContain(
       "Revisá la información administrativa de este profesor.",
     );
@@ -421,7 +421,7 @@ describe("`/administracion/profesores` route", () => {
     expect(listMarkup.match(/Saltar al contenido principal/g)).toHaveLength(1);
     expect(listMarkup).toContain("Profesores");
     expect(listMarkup).toContain("Evento activo");
-    expect(detailMarkup).toContain("Detalle profesor");
+    expect(detailMarkup).toMatch(/<h2[^>]*>Julia Pérez<\/h2>/);
     expect(detailMarkup).toContain('href="/administracion/profesores"');
     expect(detailMarkup).toContain("Julia Pérez");
   });

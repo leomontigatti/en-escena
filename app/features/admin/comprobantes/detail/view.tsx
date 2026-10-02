@@ -1,5 +1,5 @@
-import { Check, CircleAlert } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Ban, CircleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useFetcher } from "react-router";
 
 import {
@@ -8,6 +8,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
 import { PinnedActions } from "@/components/shared/pinned-actions";
+import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -19,9 +20,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
@@ -34,7 +38,6 @@ import {
   resolveContingencySubmitState,
 } from "@/lib/comprobantes/contingency-alert";
 import {
-  comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
   formatComprobanteStatusLabel,
@@ -60,7 +63,7 @@ type ComprobanteDetailRouteViewProps = {
 
 /**
  * Detail view of a comprobante (ADR-0011): it hosts the fiscal snapshot's data
- * and the actions menu (print, annul). The number on the global list is now its
+ * and the actions menu (the invoiced unit, print, annul). The number on the global list is now its
  * ONLY entry point — the choreography financial detail's amount cards used to
  * link here through the `porción` badges, and both went with the field, which is
  * the navigation cost #723 took knowingly. Annulment lives here, next to the
@@ -89,20 +92,35 @@ export function ComprobanteDetailRouteView({
         headerAction={
           <ResourceActionsMenu>
             <DropdownMenuItem asChild>
+              <Link
+                to={comprobanteAnchorHref({
+                  academyId: comprobante.academyId,
+                  reading: comprobante.anchor,
+                })}
+              >
+                {comprobante.anchor.kind === "choreography"
+                  ? "Ver la coreografía"
+                  : "Ver el seminario"}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
               <a href={printHref} target="_blank" rel="noreferrer">
                 Imprimir
               </a>
             </DropdownMenuItem>
             {comprobante.canAnnul ? (
-              <DropdownMenuItem
-                variant="destructive"
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setIsAnnulDialogOpen(true);
-                }}
-              >
-                Anular
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setIsAnnulDialogOpen(true);
+                  }}
+                >
+                  Anular
+                </DropdownMenuItem>
+              </>
             ) : null}
           </ResourceActionsMenu>
         }
@@ -133,61 +151,34 @@ function ComprobanteDetailCard({
 }) {
   return (
     <AdminResourceFormCard
-      contentClassName="gap-4"
       footer={
         <PinnedActions>
           <BackButton to="/administracion/comprobantes" />
         </PinnedActions>
       }
     >
-      <div className="flex flex-col gap-3">
-        <DetailRow
+      <FieldGroup className="grid gap-5 md:grid-cols-2">
+        <ReadOnlyField
           label="Tipo"
-          value={
-            <Badge variant={comprobanteTipoBadgeVariant(comprobante.cbteTipo)}>
-              {formatComprobanteTipoLabel(comprobante.cbteTipo)}
-            </Badge>
-          }
+          value={formatComprobanteTipoLabel(comprobante.cbteTipo)}
         />
-        <DetailRow
+        <ReadOnlyField
           label="Estado"
-          value={
-            <Badge
-              variant={
-                comprobante.status === "vigente" ? "success" : "destructive"
-              }
-            >
-              {formatComprobanteStatusLabel(comprobante.status)}
-            </Badge>
-          }
+          value={formatComprobanteStatusLabel(comprobante.status)}
         />
-        <DetailRow label="Academia" value={comprobante.academyName} />
-        <DetailRow
-          label={
-            comprobante.anchor.kind === "choreography"
-              ? "Coreografía"
-              : "Seminario"
-          }
-          value={
-            <Link
-              className="text-primary underline-offset-4 hover:underline"
-              to={comprobanteAnchorHref({
-                academyId: comprobante.academyId,
-                reading: comprobante.anchor,
-              })}
-            >
-              {formatComprobanteAnchorLabel(comprobante.anchor)}
-            </Link>
-          }
+        <ReadOnlyField label="Academia" value={comprobante.academyName} />
+        <ReadOnlyField
+          label={anchorKindLabel(comprobante.anchor)}
+          value={formatComprobanteAnchorLabel(comprobante.anchor)}
         />
-        <DetailRow label="Evento" value={comprobante.eventName} />
-        <DetailRow
+        <ReadOnlyField label="Evento" value={comprobante.eventName} />
+        <ReadOnlyField
           label="Fecha"
           value={formatComprobanteArcaDate(comprobante.cbteFch)}
         />
-        <DetailRow label="CAE" value={comprobante.cae} />
+        <ReadOnlyField label="CAE" value={comprobante.cae} />
         {comprobante.fchServDesde && comprobante.fchServHasta ? (
-          <DetailRow
+          <ReadOnlyField
             label="Período de servicio"
             value={`${formatComprobanteArcaDate(
               comprobante.fchServDesde,
@@ -195,44 +186,22 @@ function ComprobanteDetailCard({
           />
         ) : null}
         {comprobante.fchVtoPago ? (
-          <DetailRow
+          <ReadOnlyField
             label="Vencimiento de pago"
             value={formatComprobanteArcaDate(comprobante.fchVtoPago)}
           />
         ) : null}
-        <DetailRow
+        <ReadOnlyField
           label="Importe"
-          strong
           value={formatAmount(comprobante.impTotal)}
         />
-      </div>
+      </FieldGroup>
     </AdminResourceFormCard>
   );
 }
 
-function DetailRow({
-  label,
-  strong = false,
-  value,
-}: {
-  label: string;
-  strong?: boolean;
-  value: ReactNode;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span
-        className={
-          strong
-            ? "text-sm font-medium tabular-nums"
-            : "text-right text-sm tabular-nums"
-        }
-      >
-        {value}
-      </span>
-    </div>
-  );
+function anchorKindLabel(anchor: ComprobanteDetail["anchor"]) {
+  return anchor.kind === "choreography" ? "Coreografía" : "Seminario";
 }
 
 /**
@@ -340,7 +309,7 @@ function AnnulDialog({
                 {isSaving ? (
                   <Spinner aria-hidden="true" data-icon="inline-start" />
                 ) : (
-                  <Check aria-hidden="true" data-icon="inline-start" />
+                  <Ban aria-hidden="true" data-icon="inline-start" />
                 )}
                 Anular comprobante
               </Button>

@@ -54,7 +54,7 @@ function CategoryDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={category ? "Editar categoría" : "Categoría no encontrada"}
+      title={category ? category.name : "Categoría no encontrada"}
       description={
         category
           ? "Editá el rango de edad, los tipos de grupo y las modalidades de la categoría."

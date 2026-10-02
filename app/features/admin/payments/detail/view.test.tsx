@@ -20,7 +20,7 @@ describe("PaymentDetailRouteView", () => {
   test("renders an editable payment form for admins", async () => {
     await renderDetailIntoDocument();
 
-    expect(document.body.textContent).toContain("Detalle pago");
+    expect(document.querySelector("h2")?.textContent).toBe("Pago # 00001");
     expect(document.body.textContent).toContain("Academia Norte");
     expect(document.body.textContent).toContain("Fecha de pago");
     expect(document.body.textContent).toContain("Referencia");
@@ -60,7 +60,7 @@ describe("PaymentDetailRouteView", () => {
       }),
     });
 
-    expect(document.body.textContent).toContain("Detalle pago");
+    expect(document.querySelector("h2")?.textContent).toBe("Pago # 00001");
     expect(getInputValue("Academia")).toBe("Academia Norte");
     expect(document.body.textContent).not.toContain("Guardar");
     expect(document.body.textContent).not.toContain("¿Eliminar el pago?");

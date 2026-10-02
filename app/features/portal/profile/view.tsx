@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import { Form, useNavigation, useSubmit } from "react-router";
 
+import { PortalPageHeader } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
@@ -88,18 +89,12 @@ export function PortalProfileRouteView({
       className="flex flex-1 flex-col gap-6"
       aria-labelledby="perfil-title"
     >
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 id="perfil-title" className="text-xl font-semibold">
-            Perfil
-          </h1>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            Actualizá los datos para identificar a tu academia y contactar a la
-            persona responsable.
-          </p>
-        </div>
-        <ProfileActionsMenu />
-      </header>
+      <PortalPageHeader
+        titleId="perfil-title"
+        title="Perfil"
+        description="Actualizá los datos para identificar a tu academia y contactar a la persona responsable."
+        action={<ProfileActionsMenu />}
+      />
 
       <AlertStack>
         <Alert variant="info">

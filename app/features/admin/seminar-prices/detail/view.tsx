@@ -54,7 +54,9 @@ export function SeminarPriceDetailView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title={
-        seminarPrice ? "Editar precio de seminario" : "Precio no encontrado"
+        seminarPrice
+          ? getSeminarPriceDisplayName(seminarPrice)
+          : "Precio no encontrado"
       }
       description={
         seminarPrice

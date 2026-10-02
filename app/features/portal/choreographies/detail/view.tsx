@@ -1,3 +1,4 @@
+import { PortalPageHeader } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { OperationalStatusSummary } from "@/features/portal/choreographies/detail/operational-status-summary";
@@ -27,20 +28,13 @@ export function PortalChoreographyDetailRouteView({
       className="flex flex-1 flex-col gap-6"
       aria-labelledby="choreography-title"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 id="choreography-title" className="text-xl font-semibold">
-            Editar coreografía #{" "}
-            {formatEventSequenceNumber(
-              loaderData.choreography.choreographyNumber,
-            )}
-          </h1>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            Actualizá la música de esta coreografía. El resto de los datos se
-            editan desde administración.
-          </p>
-        </div>
-      </div>
+      <PortalPageHeader
+        titleId="choreography-title"
+        title={`Editar coreografía # ${formatEventSequenceNumber(
+          loaderData.choreography.choreographyNumber,
+        )}`}
+        description="Actualizá la música de esta coreografía. El resto de los datos se editan desde administración."
+      />
 
       <AlertStack>
         {hasOperationalStatusAlert ? (
