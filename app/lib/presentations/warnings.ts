@@ -4,7 +4,6 @@ import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-fin
 import {
   comparePresentationBlocks,
   dancerSpacingGap,
-  isPresentationEligible,
   type PresentationBlock,
 } from "./ordering";
 
@@ -83,7 +82,7 @@ export function derivePresentationWarnings(
 
   // The two per-row kinds, which hold numbered and unnumbered rows alike.
   for (const row of rows) {
-    if (!isPresentationEligible(row)) {
+    if (row.financialStatus === "depositPending") {
       add(row.choreographyId, {
         kind: "belowDeposit",
         message: "Seña pendiente",
