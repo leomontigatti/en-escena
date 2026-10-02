@@ -257,8 +257,8 @@ What the dialog announced is advisory.
 - The financial choreography list and the participation choreography list are
   separate administrative views, not implicit variants of the operational list.
 - The participation list is `Presentación` in the administration sidebar, a
-  sibling of the operational list. It lists every choreography of the active
-  event: numbered rows by order number, then the ones without a number by
+  sibling of the operational list. It lists every non-withdrawn choreography of
+  the active event: numbered rows by order number, then the ones without a number by
   choreography number. It is where the
   administrator runs `Ordenar automáticamente`, moves presentations and assigns
   judges; the rules are in `docs/domain/judging.md`.
