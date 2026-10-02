@@ -87,7 +87,7 @@ export function PortalPresentationEvaluationView({
           <TriangleAlert aria-hidden="true" />
           <AlertTitle>Presentación descalificada</AlertTitle>
           <AlertDescription>
-            {loaderData.judges.length > 0
+            {loaderData.judges.some((judge) => judge.feedbackAudioUrl)
               ? `${disqualifiedEvaluationMessage} ${disqualifiedFeedbackPointer}`
               : disqualifiedEvaluationMessage}
           </AlertDescription>

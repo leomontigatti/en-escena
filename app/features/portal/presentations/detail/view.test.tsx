@@ -75,7 +75,12 @@ describe("PortalPresentationEvaluationView", () => {
     const markup = renderView({
       average: null,
       disqualified: true,
-      judges: [buildJudge({ judgeName: "Ana Juez" })],
+      judges: [
+        buildJudge({
+          feedbackAudioUrl: "https://audio.example/ana.webm",
+          judgeName: "Ana Juez",
+        }),
+      ],
       medal: null,
     });
 
@@ -84,6 +89,21 @@ describe("PortalPresentationEvaluationView", () => {
     expect(markup).toContain("Ana Juez");
     expect(markup).toContain("Las devoluciones del jurado están abajo.");
     expect(markup).not.toContain("/ 100");
+  });
+
+  // Regression: the pointer read the judges, not their feedback, so a judge who
+  // scored and left no audio was pointed at with "Este juez no dejó devolución."
+  // under it.
+  test("points at the feedback only when a judge left some", () => {
+    const markup = renderView({
+      average: null,
+      disqualified: true,
+      judges: [buildJudge({ judgeName: "Ana Juez" })],
+      medal: null,
+    });
+
+    expect(markup).toContain("no tiene puntaje ni premio");
+    expect(markup).not.toContain("Las devoluciones del jurado están abajo.");
   });
 
   test("says there is nothing to show when no judge survived the filter", () => {
