@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -35,6 +35,7 @@ import {
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
 type ChoreographyRow = {
+  academyName: string;
   categoryAgeBasis: number | null;
   categoryId: string;
   categoryMaxAge: number;
@@ -93,7 +94,7 @@ type HydratedChoreographyRow = ChoreographyListItem & {
   scheduleDate: string;
 };
 
-type ChoreographySortColumn = "numero" | "nombre";
+type ChoreographySortColumn = "numero" | "academia" | "nombre";
 
 type ChoreographyOrder = {
   columnId: ChoreographySortColumn;
@@ -101,6 +102,7 @@ type ChoreographyOrder = {
 };
 
 export type ChoreographyListItem = {
+  academyName: string;
   categoryName: string;
   choreographyNumber: number;
   groupType: ChoreographyGroupType;
@@ -125,7 +127,6 @@ type ChoreographyFacets = {
 };
 
 export type ChoreographyListResult = {
-  academy: ChoreographyListAcademy;
   choreographies: ChoreographyListItem[];
   facets: ChoreographyFacets;
   filters: ChoreographyListFilters;
@@ -135,16 +136,8 @@ export type ChoreographyListResult = {
   totalPages: number;
 };
 
-/** The academy the list is scoped to, which titles the page. */
-type ChoreographyListAcademy = {
-  id: string;
-  name: string;
-};
-
-const academyNotFoundMessage = "No encontramos esa academia.";
-
 const choreographyListSpec: ListQuerySpec<ChoreographySortColumn> = {
-  orderColumnIds: ["numero", "nombre"],
+  orderColumnIds: ["numero", "academia", "nombre"],
   defaultOrder: { columnId: "numero", direction: "asc" },
 };
 
@@ -168,13 +161,11 @@ function readChoreographyFilters(
 }
 
 export async function loadChoreographies(input: {
-  academy: ChoreographyListAcademy;
   filters: ChoreographyListFilters;
   selectedEventId: string | null;
 }): Promise<ChoreographyListResult> {
   if (input.selectedEventId === null) {
     return {
-      academy: input.academy,
       choreographies: [],
       facets: {
         categories: [],
@@ -193,6 +184,7 @@ export async function loadChoreographies(input: {
   const rows = await db
     .select({
       ...operationalStatusColumns,
+      academyName: academies.name,
       categoryId: choreographies.categoryId,
       choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
@@ -206,16 +198,12 @@ export async function loadChoreographies(input: {
       withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
+    .innerJoin(academies, eq(choreographies.academyId, academies.id))
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
     .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
-    .where(
-      and(
-        eq(choreographies.eventId, selectedEventId),
-        eq(choreographies.academyId, input.academy.id),
-      ),
-    );
+    .where(eq(choreographies.eventId, selectedEventId));
   const hasAnyChoreography = rows.length > 0;
   const facets = buildChoreographyFacets(rows);
   const filters = normalizeChoreographyFilters(input.filters, facets);
@@ -243,7 +231,6 @@ export async function loadChoreographies(input: {
     );
 
   return {
-    academy: input.academy,
     choreographies: paginatedRows,
     facets,
     filters: {
@@ -257,11 +244,7 @@ export async function loadChoreographies(input: {
   };
 }
 
-export async function loadChoreographyListRouteData(input: {
-  request: Request;
-  params: { academyId?: string };
-}) {
-  const { request } = input;
+export async function loadChoreographyListRouteData(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadEventContext(request);
 
@@ -269,11 +252,9 @@ export async function loadChoreographyListRouteData(input: {
     throw redirect(eventContext.redirectTo);
   }
 
-  const academy = await readChoreographyListAcademy(input.params);
   const url = new URL(request.url);
   const filters = readChoreographyFilters(url.searchParams);
   const listResult = await loadChoreographies({
-    academy,
     filters,
     selectedEventId: eventContext.selectedEventId,
   });
@@ -298,31 +279,13 @@ export async function loadChoreographyListRouteData(input: {
   return listResult;
 }
 
-/**
- * The academy in the URL, or its 404. An academy with nothing in the event is
- * still found: the list is empty, not missing.
- */
-async function readChoreographyListAcademy(params: { academyId?: string }) {
-  const academy = params.academyId
-    ? await db.query.academies.findFirst({
-        columns: { id: true, name: true },
-        where: eq(academies.id, params.academyId),
-      })
-    : undefined;
-
-  if (!academy) {
-    throw new Response(academyNotFoundMessage, { status: 404 });
-  }
-
-  return academy;
-}
-
 async function hydrateChoreographies(
   rows: ChoreographyRow[],
 ): Promise<HydratedChoreographyRow[]> {
   const statusedRows = await deriveAdminOperationalStatuses(rows);
 
   return statusedRows.map(({ operationalStatus, row }) => ({
+    academyName: row.academyName,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
     choreographyNumber: row.choreographyNumber,
@@ -497,6 +460,7 @@ function matchesChoreographyQuery(row: HydratedChoreographyRow, query: string) {
   // still gets there.
   return matchesListSearch(query, [
     row.name,
+    row.academyName,
     formatEventSequenceNumber(row.choreographyNumber),
   ]);
 }
@@ -515,15 +479,25 @@ function compareChoreographies(
     );
   }
 
-  // Two choreographies of one academy may share a name: the number breaks the
-  // tie, in reading order whichever way the names run.
-  const comparison = compareText(firstRow.name, secondRow.name);
+  // Whichever text column leads, the other one breaks its ties, and the number
+  // breaks what is left, in reading order whichever way the lead runs.
+  const nameComparison = compareText(firstRow.name, secondRow.name);
+  const academyComparison = compareText(
+    firstRow.academyName,
+    secondRow.academyName,
+  );
+  const [leading, following] =
+    order.columnId === "nombre"
+      ? [nameComparison, academyComparison]
+      : [academyComparison, nameComparison];
 
-  if (comparison !== 0) {
-    return applySortDirection(comparison, order.direction);
+  if (leading !== 0) {
+    return applySortDirection(leading, order.direction);
   }
 
-  return firstRow.choreographyNumber - secondRow.choreographyNumber;
+  return (
+    following || firstRow.choreographyNumber - secondRow.choreographyNumber
+  );
 }
 
 function compareText(firstValue: string, secondValue: string) {

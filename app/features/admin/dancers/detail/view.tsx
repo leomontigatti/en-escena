@@ -95,7 +95,6 @@ export function DancerDetailRouteView({
       }
     >
       <DancerDetailAlerts
-        academyId={dancer.academy.id}
         active={dancer.active}
         canEdit={loaderData.canEdit}
         canVerifyIdentity={viewState.canVerifyIdentity}

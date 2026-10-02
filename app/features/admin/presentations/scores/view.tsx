@@ -166,12 +166,7 @@ function PresentationActions({
       <ResourceActionsMenu contentClassName="w-48">
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link
-              to={choreographyDetailPath({
-                academyId: presentation.academyId,
-                choreographyId: presentation.choreographyId,
-              })}
-            >
+            <Link to={choreographyDetailPath(presentation.choreographyId)}>
               Ver la coreografía
             </Link>
           </DropdownMenuItem>

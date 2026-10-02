@@ -208,22 +208,16 @@ What the dialog announced is advisory.
 
 ## Administrative Choreography Lists
 
-- The `Panel de administración` reaches choreographies academy by academy.
-  `/administracion/coreografias` lists every academy with at least one
-  choreography in the `Evento activo`, withdrawn ones included, with how many
-  take part, how many of those are incomplete and how many were withdrawn.
-  There is no list across academies.
-- Each academy's operational choreography list, at
-  `/administracion/coreografias/:academyId`, reviews data completeness and
-  consistency for the active event. An academy with nothing in the event is an
-  empty list, not a missing page.
+- The `Panel de administración`'s operational choreography list, at
+  `/administracion/coreografias`, reviews data completeness and consistency
+  for the active event across every academy.
 - The operational list allows administrative actions for `admin` users and is
   read-only for `auditor` users.
 - The operational list links to an administrative instance view of the
   choreography; removal is an `Acción de instancia`, not a list action.
 - The administrative instance view lives at
-  `/administracion/coreografias/:academyId/:choreographyId` and resolves only
-  choreographies of the `Evento activo` that belong to the academy in the URL.
+  `/administracion/coreografias/:choreographyId` and resolves only
+  choreographies of the `Evento activo`.
 - In the administrative instance view, only the name and the removal are
   mutable within this scope; dancers, professors and `Archivo de música` are shown
   read-only. A withdrawn choreography is read-only throughout and offers
@@ -234,7 +228,7 @@ What the dialog announced is advisory.
 - After renaming a choreography from administration, the user stays in the
   instance view and gets a save confirmation.
 - After deleting a choreography from administration, the user returns to the
-  academy's operational list with a deletion confirmation. After a withdrawal the user
+  operational list with a deletion confirmation. After a withdrawal the user
   stays in the instance view, which is now the read-only one, with a
   confirmation saying the money is still allocated.
 - The administrative action to remove a choreography is shown in the instance

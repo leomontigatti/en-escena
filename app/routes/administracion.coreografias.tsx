@@ -1,13 +1,12 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
-import { loadChoreographyAcademies } from "@/features/admin/choreographies/academies/server";
-import { ChoreographyAcademiesRouteView } from "@/features/admin/choreographies/academies/view";
+import { loadChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
+import { ChoreographiesListRouteView } from "@/features/admin/choreographies/list/view";
 
 import type { Route } from "./+types/administracion.coreografias";
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
-type ChoreographyAcademiesRouteProps = {
+type ChoreographiesListRouteProps = {
   loaderData: LoaderData;
 };
 
@@ -20,13 +19,13 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return await loadChoreographyAcademies(request);
+  return await loadChoreographyListRouteData(request);
 }
 
-export const shouldRevalidate = createDataTableShouldRevalidate();
+export { ChoreographiesListRouteView };
 
-export default function ChoreographyAcademiesRoute({
+export default function ChoreographiesListRoute({
   loaderData,
-}: ChoreographyAcademiesRouteProps) {
-  return <ChoreographyAcademiesRouteView loaderData={loaderData} />;
+}: ChoreographiesListRouteProps) {
+  return <ChoreographiesListRouteView loaderData={loaderData} />;
 }
