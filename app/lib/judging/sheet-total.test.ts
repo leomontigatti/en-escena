@@ -53,8 +53,15 @@ describe("the sheet's live total", () => {
 
 describe("validating a whole sheet", () => {
   const criteria = [
-    { id: "tecnica", kind: "adds" as const, maximum: 60, name: "Técnica" },
     {
+      experienceLevel: null,
+      id: "tecnica",
+      kind: "adds" as const,
+      maximum: 60,
+      name: "Técnica",
+    },
+    {
+      experienceLevel: null,
       id: "penal",
       kind: "deducts" as const,
       maximum: 20,

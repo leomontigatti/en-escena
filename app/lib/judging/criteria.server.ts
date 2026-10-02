@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -35,13 +35,18 @@ export type SubmodalityCriterionInput = {
 };
 
 /**
- * Every criterion of the event, in sheet order, for the modality page to hand
- * each submodality row its own set. The page already holds the whole catalog of
- * the active event, so one query per page beats one per submodality.
+ * Every general criterion of the event, in sheet order, for the modality page
+ * to hand each submodality row its own set. The page already holds the whole
+ * catalog of the active event, so one query per page beats one per
+ * submodality. The levels' own criteria have no editor here yet, so they are
+ * neither listed nor touched by the save below.
  */
 export async function listSubmodalityCriteria(eventId: string) {
   return db.query.submodalityCriteria.findMany({
-    where: eq(submodalityCriteria.eventId, eventId),
+    where: and(
+      eq(submodalityCriteria.eventId, eventId),
+      isNull(submodalityCriteria.experienceLevel),
+    ),
     orderBy: [
       asc(submodalityCriteria.submodalityId),
       asc(submodalityCriteria.position),
@@ -111,9 +116,10 @@ export async function isSubmodalityScoreLocked(
 }
 
 /**
- * Saves a submodality's sheet as a whole. The criteria describe one sheet, so a
- * half-applied change would leave a sheet that adds up to something other than
- * 100; the whole set is deleted and written again inside one transaction.
+ * Saves a submodality's general criteria as a whole. They are part of every
+ * sheet, so a half-applied change would leave sheets that add up to something
+ * other than 100; the whole set is deleted and written again inside one
+ * transaction.
  *
  * Deleting rather than diffing is safe precisely because a locked submodality is
  * refused first: with no score pointing at any criterion, no identity has to
@@ -149,7 +155,12 @@ export async function replaceSubmodalityCriteria(
   await db.transaction(async (tx) => {
     await tx
       .delete(submodalityCriteria)
-      .where(eq(submodalityCriteria.submodalityId, submodalityId));
+      .where(
+        and(
+          eq(submodalityCriteria.submodalityId, submodalityId),
+          isNull(submodalityCriteria.experienceLevel),
+        ),
+      );
 
     if (input.criteria.length === 0) {
       return;

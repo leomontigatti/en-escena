@@ -18,7 +18,6 @@ export const medalLabels: Record<Medal, string> = {
 };
 
 export type AveragedScore = {
-  annulled: boolean;
   /** The saved score, as the numeric column reads it, or null when there is none. */
   value: string | null;
 };
@@ -29,10 +28,9 @@ export type PresentationAverageInput = {
 };
 
 /**
- * The mean of what still counts, rounded to two decimals, or null when there is
- * nothing to average. An annulled score keeps its number but stops counting,
- * and a disqualified presentation is out of the results altogether — so both
- * read as "no average" rather than as a lower one.
+ * The mean of the values the judges saved, rounded to two decimals, or null when
+ * there is nothing to average. A disqualified presentation is out of the results
+ * altogether, so it reads as "no average" rather than as a lower one.
  */
 export function presentationAverage(
   input: PresentationAverageInput,
@@ -42,7 +40,7 @@ export function presentationAverage(
   }
 
   const counted = input.scores
-    .filter((score) => !score.annulled && score.value !== null)
+    .filter((score) => score.value !== null)
     .map((score) => Number.parseFloat(score.value as string));
 
   if (counted.length === 0) {

@@ -21,14 +21,22 @@ import {
 import type { JudgePanelActionData } from "./action.server";
 
 const criteria = [
-  { id: "tecnica", kind: "adds" as const, maximum: 60, name: "Técnica" },
   {
+    experienceLevel: null,
+    id: "tecnica",
+    kind: "adds" as const,
+    maximum: 60,
+    name: "Técnica",
+  },
+  {
+    experienceLevel: null,
     id: "interpretacion",
     kind: "adds" as const,
     maximum: 40,
     name: "Interpretación",
   },
   {
+    experienceLevel: null,
     id: "penalizacion",
     kind: "deducts" as const,
     maximum: 20,

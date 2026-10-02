@@ -44,7 +44,11 @@ const medalBadgeVariants: Record<
 const noFeedbackMessage = "Este juez no dejó devolución.";
 
 const disqualifiedEvaluationMessage =
-  "Esta presentación fue descalificada: no tiene puntaje ni premio. Las devoluciones del jurado están abajo.";
+  "Esta presentación fue descalificada: no tiene puntaje ni premio.";
+
+// Only said when there is a judge below to listen to: a presentation
+// disqualified before anyone scored it reaches the page with no panel at all.
+const disqualifiedFeedbackPointer = "Las devoluciones del jurado están abajo.";
 
 const noScoresMessage = "Esta presentación no tiene puntajes para mostrar.";
 
@@ -82,7 +86,11 @@ export function PortalPresentationEvaluationView({
         <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
           <AlertTitle>Presentación descalificada</AlertTitle>
-          <AlertDescription>{disqualifiedEvaluationMessage}</AlertDescription>
+          <AlertDescription>
+            {loaderData.judges.length > 0
+              ? `${disqualifiedEvaluationMessage} ${disqualifiedFeedbackPointer}`
+              : disqualifiedEvaluationMessage}
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -97,9 +105,9 @@ export function PortalPresentationEvaluationView({
 
 /**
  * A card per judge — and a notice instead when there is no card to lay out.
- * Every judge the loader dropped, annulled or never scored, leaves nothing
- * behind, so a published presentation can reach the page with an empty panel;
- * the academy is told that rather than shown a blank page. A disqualified one
+ * A judge the loader dropped for never scoring leaves nothing behind, so a
+ * panel with no saved score reaches the page empty; the academy is told that
+ * rather than shown a blank page. A disqualified one
  * says it in its own alert above, so it stays silent here.
  */
 function JudgeCards({

@@ -262,6 +262,7 @@ function criterion(
 ): EventSubmodalityCriterionRow {
   return {
     eventId: "event_1",
+    experienceLevel: null,
     kind: "adds",
     maximum: 100,
     name: "Criterio",

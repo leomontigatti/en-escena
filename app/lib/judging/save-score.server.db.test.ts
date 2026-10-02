@@ -236,7 +236,7 @@ describe("saving a judge's score", () => {
 
     expect(result).toEqual({ ok: true });
     expect(await readScores(judge.judgeAssignmentId)).toMatchObject([
-      { annulled: false, value: "90.5" },
+      { value: "90.5" },
     ]);
   });
 

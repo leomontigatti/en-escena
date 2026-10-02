@@ -79,7 +79,6 @@ export function ScoreInputField<
                 autoFocus={autoFocus}
                 aria-describedby={describedBy || undefined}
                 aria-invalid={isInvalid ? true : undefined}
-                className="text-lg"
                 id={id}
                 inputMode="decimal"
                 onChange={(event) => {
@@ -131,7 +130,7 @@ function ScoreInputSuffix({
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-y-0 left-2.5 flex max-w-[calc(100%-1.25rem)] items-center overflow-hidden whitespace-pre text-lg"
+      className="pointer-events-none absolute inset-y-0 left-2.5 flex max-w-[calc(100%-1.25rem)] items-center overflow-hidden whitespace-pre text-base md:text-sm"
     >
       <span className="invisible">{value ?? ""}</span>
       <span className="text-muted-foreground">{` / ${maximum}`}</span>

@@ -5,7 +5,6 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import {
-  annulScore,
   editScore,
   setPresentationDisqualified,
   type ScoreSettlementResult,
@@ -64,10 +63,6 @@ const savedScoreMessage = "Guardaste el puntaje.";
 
 const invalidScoreMessage = "Revisá el puntaje.";
 
-const annulledMessage = "Anulaste el puntaje.";
-
-const restoredMessage = "El puntaje vuelve a contar.";
-
 const disqualifiedMessage = "Descalificaste la presentación.";
 
 const reinstatedMessage = "La presentación vuelve a calificarse.";
@@ -98,12 +93,8 @@ export async function handlePresentationScoresAction(input: {
   const intent = readFormString(formData, "intent");
 
   if (intent === "disqualify" || intent === "reinstate") {
-    return answer(
-      {
-        message:
-          intent === "disqualify" ? disqualifiedMessage : reinstatedMessage,
-        notFound: presentationNotFoundMessage,
-      },
+    return answerDisqualification(
+      intent === "disqualify" ? disqualifiedMessage : reinstatedMessage,
       await setPresentationDisqualified({
         disqualified: intent === "disqualify",
         presentationId,
@@ -112,23 +103,6 @@ export async function handlePresentationScoresAction(input: {
   }
 
   const scoreId = readFormString(formData, "scoreId");
-
-  if (intent === "annul-score") {
-    return answer(
-      {
-        message:
-          readFormString(formData, "annulled") === "true"
-            ? annulledMessage
-            : restoredMessage,
-        notFound: unknownScoreMessage,
-      },
-      await annulScore({
-        annulled: readFormString(formData, "annulled") === "true",
-        presentationId,
-        scoreId,
-      }),
-    );
-  }
 
   if (intent === "edit-score") {
     return answerEdit(
@@ -149,19 +123,19 @@ export async function handlePresentationScoresAction(input: {
 }
 
 /**
- * A settled write, or the 404 for the row it could not find. What is missing
- * differs by intent — the presentation for a disqualification, the score for an
- * annulment — and the message has to name the right one, or an administrator is
- * told to look for a score when the link they followed is the broken part.
+ * A settled disqualification, or the 404 for the presentation it could not
+ * find. It names the presentation rather than a score, as `answerEdit` does, or
+ * an administrator is told to look for a score when the link they followed is
+ * the broken part.
  */
-function answer(
-  outcome: { message: string; notFound: string },
+function answerDisqualification(
+  message: string,
   result: ScoreSettlementResult,
 ): PresentationScoresActionData | ReturnType<typeof data> {
   return result.ok
-    ? { message: outcome.message, status: "success" }
+    ? { message, status: "success" }
     : data(
-        { message: outcome.notFound, status: "error" as const },
+        { message: presentationNotFoundMessage, status: "error" as const },
         { status: 404 },
       );
 }

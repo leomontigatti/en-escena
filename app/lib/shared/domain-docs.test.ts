@@ -237,6 +237,9 @@ const retiredJudgingRules = [
 
 const judgingGlossaryRequirements = [
   '**`submodalityCriterion`** — ui: "Criterio"',
+  '**`generalCriterion`** — ui: "Criterio general"',
+  '**`levelCriterion`** — ui: "Criterio de nivel"',
+  '**`mandatoryTechnique`** — ui: "Técnico obligatorio"',
   '**`scoreSheet`** — ui: "Planilla"',
   '**`judgingDay`** — ui: "Jornada"',
   '**`medal`** — ui: "Medalla"',
@@ -272,7 +275,6 @@ const resultsJudgingRequirements = [
   "`Ocultar resultados`",
   "reaches the academy immediately, with no need to publish again",
   "behind its login and only for its own published presentations",
-  "says that it has no scores to show",
 ];
 
 const resultsGlossaryRequirements = [
@@ -532,6 +534,8 @@ describe("domain documentation", () => {
 
     expect(glossary).not.toContain("scoreCorrection");
     expect(glossary).not.toContain("Corrección de puntaje");
+    expect(glossary).not.toContain("scoreAnnulment");
+    expect(glossary).not.toContain("Anulación de puntaje");
   });
 
   test("marks the `Devolución` as built in the glossary", async () => {

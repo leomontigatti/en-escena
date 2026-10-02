@@ -57,22 +57,18 @@ describe("an academy's evaluation detail", () => {
     const { fixture, presentation } = await seedPublishedEvaluation();
     const scored = await fixture.assignJudge(presentation.presentationId);
     const silent = await fixture.assignJudge(presentation.presentationId);
-    const annulled = await fixture.assignJudge(presentation.presentationId);
+    const other = await fixture.assignJudge(presentation.presentationId);
 
     await nameJudge(scored.judgeId, "Ana Juez");
     await nameJudge(silent.judgeId, "Beto Juez");
-    await nameJudge(annulled.judgeId, "Carla Juez");
+    await nameJudge(other.judgeId, "Carla Juez");
     await db.insert(scores).values([
       {
         feedbackAudioStorageKey: "takes/a.webm",
         judgeAssignmentId: scored.judgeAssignmentId,
         value: "92.0",
       },
-      {
-        annulled: true,
-        judgeAssignmentId: annulled.judgeAssignmentId,
-        value: "10.0",
-      },
+      { judgeAssignmentId: other.judgeAssignmentId, value: "88.0" },
     ]);
     await publishResults(fixture.event.id);
 
@@ -81,9 +77,9 @@ describe("an academy's evaluation detail", () => {
       presentation.choreographyId,
     );
 
-    expect(loaderData.title).toBe("N.º 1 · Primera");
+    expect(loaderData.title).toBe("Primera · N.º 1");
     expect(loaderData.details).toContain("Solo");
-    expect(loaderData.average).toBe(92);
+    expect(loaderData.average).toBe(90);
     expect(loaderData.medal).toBe("gold");
     expect(loaderData.judges).toEqual([
       {
@@ -92,6 +88,13 @@ describe("an academy's evaluation detail", () => {
         judgeId: scored.judgeId,
         judgeName: "Ana Juez",
         value: "92.0",
+      },
+      {
+        criteriaValues: {},
+        feedbackAudioUrl: null,
+        judgeId: other.judgeId,
+        judgeName: "Carla Juez",
+        value: "88.0",
       },
     ]);
   });
@@ -173,35 +176,6 @@ describe("an academy's evaluation detail", () => {
         value: null,
       },
     ]);
-  });
-
-  test("answers with no judges and no average when every score is annulled", async () => {
-    const { fixture, presentation } = await seedPublishedEvaluation();
-    const annulled = await fixture.assignJudge(presentation.presentationId);
-    const silent = await fixture.assignJudge(presentation.presentationId);
-
-    await nameJudge(annulled.judgeId, "Ana Juez");
-    await nameJudge(silent.judgeId, "Beto Juez");
-    await db.insert(scores).values({
-      annulled: true,
-      feedbackAudioStorageKey: "takes/a.webm",
-      judgeAssignmentId: annulled.judgeAssignmentId,
-      value: "80.0",
-    });
-    // Annulling every score does not take the presentation out of the
-    // snapshot: an annulled score row still counts as evaluated, so it is
-    // published with nothing left to show.
-    await publishResults(fixture.event.id);
-
-    const loaderData = await loadEvaluation(
-      fixture,
-      presentation.choreographyId,
-    );
-
-    expect(loaderData.judges).toEqual([]);
-    expect(loaderData.average).toBeNull();
-    expect(loaderData.medal).toBeNull();
-    expect(loaderData.disqualified).toBe(false);
   });
 
   test("reads a correction made after publishing", async () => {

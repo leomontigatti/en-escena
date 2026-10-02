@@ -1,17 +1,29 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { SquareArrowOutUpRight } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { Form, Link, useNavigation, useSubmit } from "react-router";
+import { Info, Undo2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { useForm, useFormState } from "react-hook-form";
+import { Link, useNavigation, useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { AlertStack } from "@/components/shared/alert-stack";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { MetricCard } from "@/components/shared/metric-card";
+import { PinnedActions } from "@/components/shared/pinned-actions";
+import { ReadOnlyField } from "@/components/shared/read-only-field";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FieldGroup } from "@/components/ui/field";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
   Table,
   TableBody,
@@ -30,6 +42,7 @@ import {
   type JudgeSheetFormValues,
 } from "@/features/judging/score/form-shared";
 import { ScoreInputField } from "@/features/judging/score/score-input-field";
+import { SheetParts } from "@/features/judging/score/sheet-parts";
 import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
@@ -39,7 +52,7 @@ import {
   formatScoreFieldValue,
   singleScoreMaximum,
 } from "@/lib/judging/score-value";
-import { isRouteFormPending } from "@/lib/shared/forms";
+import { isRouteFormPending, useSavedFormValues } from "@/lib/shared/forms";
 
 import type {
   PresentationScoresActionData,
@@ -63,6 +76,8 @@ import type {
  */
 
 const noValueText = "Sin puntaje";
+const noScoresText = "Sin puntajes";
+const notApplicableText = "No aplica";
 const noFeedbackText = "Sin devolución";
 
 export function PresentationScoresView({
@@ -77,122 +92,206 @@ export function PresentationScoresView({
 
   return (
     <AdminResourceLayout
-      description={describePresentation(presentation)}
+      description={
+        canEdit
+          ? "Revisá el resultado y corregí los puntajes del jurado."
+          : "Revisá el resultado y los puntajes del jurado."
+      }
       requireSelectedEvent={false}
-      title={presentation.name}
-      // A link and not the header's button: `action` draws a Plus, which reads
-      // as creating something, and this only leaves for the choreography.
+      title={`${presentation.name} · N.º ${presentation.orderNumber}`}
       headerAction={
-        <Button asChild variant="link">
-          <Link
-            to={choreographyDetailPath({
-              academyId: presentation.academyId,
-              choreographyId: presentation.choreographyId,
-            })}
-          >
-            <SquareArrowOutUpRight
-              aria-hidden="true"
-              data-icon="inline-start"
-            />
-            Ver la coreografía
-          </Link>
-        </Button>
+        <PresentationActions canEdit={canEdit} presentation={presentation} />
       }
     >
-      <ResultCard canEdit={canEdit} presentation={presentation} />
-      {presentation.criteria.length === 0 ? (
-        <SingleScoresCard
-          canEdit={canEdit}
-          fieldErrors={fieldErrors}
-          judges={presentation.judges}
-        />
-      ) : (
-        <SheetsCard
-          canEdit={canEdit}
-          criteria={presentation.criteria}
-          fieldErrors={fieldErrors}
-          judges={presentation.judges}
-        />
-      )}
+      <AlertStack>
+        {presentation.disqualified ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertTitle>Presentación descalificada</AlertTitle>
+            <AlertDescription>
+              Queda fuera de los resultados, sin promedio ni medalla.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+      </AlertStack>
+      {/* Above the tabs, so a corrected score shows its effect on the result
+          without leaving the tab it was corrected in. */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <MetricCard title="Promedio" value={averageText(presentation)} />
+        <MetricCard title="Medalla" value={medalText(presentation)} />
+      </div>
+      <Tabs defaultValue="puntajes">
+        <TabsList variant="line">
+          <TabsTrigger value="puntajes">Puntajes</TabsTrigger>
+          <TabsTrigger value="coreografia">Coreografía</TabsTrigger>
+        </TabsList>
+        {/* Kept mounted behind the other tab, so a correction typed before a
+            look at the choreography is still there on the way back. */}
+        <TabsContent
+          className="pt-2 data-[state=inactive]:hidden"
+          forceMount
+          value="puntajes"
+        >
+          {presentation.criteria.length === 0 ? (
+            <SingleScoresTable
+              canEdit={canEdit}
+              fieldErrors={fieldErrors}
+              judges={presentation.judges}
+            />
+          ) : (
+            <JudgeSheets
+              canEdit={canEdit}
+              criteria={presentation.criteria}
+              fieldErrors={fieldErrors}
+              judges={presentation.judges}
+            />
+          )}
+        </TabsContent>
+        <TabsContent className="pt-2" value="coreografia">
+          <ChoreographyCard presentation={presentation} />
+        </TabsContent>
+      </Tabs>
     </AdminResourceLayout>
   );
 }
 
-function ResultCard({
+type Presentation = PresentationScoresLoaderData["presentation"];
+
+/**
+ * The record's actions: the way to the choreography, and — for administration
+ * only — the disqualification. It is rare and pulls the presentation out of the
+ * results, so it asks first; reinstating puts back exactly what was there and
+ * does not.
+ */
+function PresentationActions({
   canEdit,
   presentation,
 }: {
   canEdit: boolean;
-  presentation: PresentationScoresLoaderData["presentation"];
+  presentation: Presentation;
 }) {
+  const submit = useSubmit();
+  const navigation = useNavigation();
+  // Either way the presentation is mid-change, so neither is offered again
+  // until the page has the answer.
+  const isSettling =
+    isRouteFormPending(navigation, { intent: "disqualify" }) ||
+    isRouteFormPending(navigation, { intent: "reinstate" });
+  const [isDisqualifyDialogOpen, setIsDisqualifyDialogOpen] = useState(false);
+  const submitIntent = (intent: "disqualify" | "reinstate") => {
+    void submit({ intent }, { method: "post" });
+  };
+
   return (
-    <AdminResourceFormCard title="Resultado">
-      {presentation.disqualified ? (
-        <div className="flex flex-col gap-2">
-          <Badge variant="destructive" className="w-fit">
-            Descalificada
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            Una presentación descalificada queda fuera de los resultados.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="flex flex-col gap-1">
-            <span className="text-sm text-muted-foreground">Promedio</span>
-            <span className="text-2xl font-semibold tabular-nums">
-              {presentation.average === null
-                ? "—"
-                : String(presentation.average)}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-sm text-muted-foreground">Medalla</span>
-            <span className="text-base font-medium">
-              {presentation.medal === null
-                ? "—"
-                : medalLabels[presentation.medal]}
-            </span>
-          </div>
-        </div>
-      )}
-      {canEdit ? (
-        <DisqualificationForm disqualified={presentation.disqualified} />
-      ) : null}
+    <>
+      <ResourceActionsMenu contentClassName="w-48">
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link
+              to={choreographyDetailPath({
+                academyId: presentation.academyId,
+                choreographyId: presentation.choreographyId,
+              })}
+            >
+              Ver la coreografía
+            </Link>
+          </DropdownMenuItem>
+          {canEdit && presentation.disqualified ? (
+            <DropdownMenuItem
+              disabled={isSettling}
+              onSelect={() => submitIntent("reinstate")}
+            >
+              Volver a calificar
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuGroup>
+        {canEdit && !presentation.disqualified ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                disabled={isSettling}
+                variant="destructive"
+                onSelect={() => setIsDisqualifyDialogOpen(true)}
+              >
+                Descalificar
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </>
+        ) : null}
+      </ResourceActionsMenu>
+      <ConfirmationDialog
+        confirmLabel="Descalificar"
+        description="Queda fuera de los resultados, sin promedio ni medalla. Los puntajes guardados se conservan y vuelven si la calificás de nuevo."
+        destructive
+        onConfirm={() => submitIntent("disqualify")}
+        onOpenChange={setIsDisqualifyDialogOpen}
+        open={isDisqualifyDialogOpen}
+        title="¿Descalificar la presentación?"
+      />
+    </>
+  );
+}
+
+/**
+ * What the result was earned with, read-only: nothing here is edited on this
+ * page, and the choreography's own page is one menu item away.
+ */
+function ChoreographyCard({ presentation }: { presentation: Presentation }) {
+  return (
+    <AdminResourceFormCard
+      footer={
+        <PinnedActions>
+          <BackButton to="/administracion/presentacion" />
+        </PinnedActions>
+      }
+    >
+      <FieldGroup className="grid gap-5 md:grid-cols-2">
+        <ReadOnlyField label="Academia" value={presentation.academyName} />
+        <ReadOnlyField label="Categoría" value={presentation.categoryName} />
+        <ReadOnlyField label="Modalidad" value={presentation.modalityName} />
+        <ReadOnlyField
+          label="Submodalidad"
+          value={presentation.submodalityName ?? notApplicableText}
+        />
+        <ReadOnlyField
+          label="Nivel de experiencia"
+          value={
+            presentation.experienceLevel
+              ? experienceLevelLabels[presentation.experienceLevel]
+              : notApplicableText
+          }
+        />
+      </FieldGroup>
     </AdminResourceFormCard>
   );
 }
 
 /**
- * Administration settles a disqualification whenever the question is settled,
- * which is routinely after the judges' day closed — so unlike the judge's own
- * button this one is never out of season, and never asks twice: the panel is
- * already on screen to undo it with.
+ * A disqualified presentation has no result to give, so its average and medal
+ * do not apply; one no judge has scored yet simply has none so far.
  */
-function DisqualificationForm({ disqualified }: { disqualified: boolean }) {
-  const isSubmitting = isRouteFormPending(useNavigation(), {
-    intent: disqualified ? "reinstate" : "disqualify",
-  });
+function averageText(presentation: Presentation) {
+  if (presentation.disqualified) {
+    return notApplicableText;
+  }
 
-  return (
-    <Form className="w-fit" method="post">
-      <input
-        name="intent"
-        type="hidden"
-        value={disqualified ? "reinstate" : "disqualify"}
-      />
-      <Button
-        disabled={isSubmitting}
-        type="submit"
-        variant={disqualified ? "outline" : "destructive"}
-      >
-        {disqualified ? "Volver a calificar" : "Descalificar"}
-      </Button>
-    </Form>
-  );
+  return presentation.average === null
+    ? noScoresText
+    : String(presentation.average);
 }
 
-function SingleScoresCard({
+function medalText(presentation: Presentation) {
+  if (presentation.disqualified) {
+    return notApplicableText;
+  }
+
+  return presentation.medal === null
+    ? noScoresText
+    : medalLabels[presentation.medal];
+}
+
+function SingleScoresTable({
   canEdit,
   fieldErrors,
   judges,
@@ -202,54 +301,49 @@ function SingleScoresCard({
   judges: readonly PresentationJudgeScore[];
 }) {
   return (
-    <AdminResourceFormCard title="Puntajes del jurado">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Jurado</TableHead>
-            <TableHead>Puntaje</TableHead>
-            <TableHead>Anular</TableHead>
-            <TableHead>Devolución</TableHead>
+    <ScoresTable>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Jurado</TableHead>
+          <TableHead>Puntaje</TableHead>
+          <TableHead>Devolución</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {judges.map((judge) => (
+          <TableRow key={judge.judgeAssignmentId}>
+            <TableCell>{judge.judgeName}</TableCell>
+            <TableCell>
+              {canEdit && judge.scoreId ? (
+                <SingleScoreForm
+                  error={fieldErrors[judge.scoreId]}
+                  scoreId={judge.scoreId}
+                  value={judge.value}
+                />
+              ) : (
+                <ScoreValue value={judge.value} />
+              )}
+            </TableCell>
+            <TableCell>
+              <FeedbackCell audioUrl={judge.feedbackAudioUrl} />
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {judges.map((judge) => (
-            <TableRow key={judge.judgeAssignmentId}>
-              <TableCell>{judge.judgeName}</TableCell>
-              <TableCell>
-                {canEdit && judge.scoreId ? (
-                  <SingleScoreForm
-                    error={fieldErrors[judge.scoreId]}
-                    scoreId={judge.scoreId}
-                    value={judge.value}
-                  />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <ScoreValue value={judge.value} />
-                    {judge.annulled ? (
-                      <Badge variant="outline">Anulado</Badge>
-                    ) : null}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>
-                {canEdit && judge.scoreId ? (
-                  <AnnulSwitch
-                    annulled={judge.annulled}
-                    scoreId={judge.scoreId}
-                  />
-                ) : judge.annulled ? (
-                  <Badge variant="outline">Anulado</Badge>
-                ) : null}
-              </TableCell>
-              <TableCell>
-                <FeedbackCell audioUrl={judge.feedbackAudioUrl} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </AdminResourceFormCard>
+        ))}
+      </TableBody>
+    </ScoresTable>
+  );
+}
+
+/**
+ * Framed like the app's data tables, so a list of scores reads as the lists
+ * everywhere else do; it has nothing to search, sort or page, so it takes the
+ * frame without the table machinery.
+ */
+function ScoresTable({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-lg border bg-background">
+      <Table className="[&_td]:px-3 [&_th]:px-3">{children}</Table>
+    </div>
   );
 }
 
@@ -257,7 +351,7 @@ function SingleScoresCard({
  * A sheet is a table on its own, so the panel is read one judge at a time
  * rather than as a grid nobody can scan on a phone at the side of a stage.
  */
-function SheetsCard({
+function JudgeSheets({
   canEdit,
   criteria,
   fieldErrors,
@@ -275,33 +369,34 @@ function SheetsCard({
   }
 
   return (
-    <AdminResourceFormCard title="Planillas del jurado">
-      <Tabs defaultValue={first.judgeAssignmentId}>
-        <TabsList variant="line">
-          {judges.map((judge) => (
-            <TabsTrigger
-              key={judge.judgeAssignmentId}
-              value={judge.judgeAssignmentId}
-            >
-              {judge.judgeName}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+    <Tabs defaultValue={first.judgeAssignmentId}>
+      <TabsList variant="line">
         {judges.map((judge) => (
-          <TabsContent
-            className="flex flex-col gap-4"
+          <TabsTrigger
             key={judge.judgeAssignmentId}
             value={judge.judgeAssignmentId}
           >
-            {canEdit && judge.scoreId ? (
-              <SheetForm
-                criteria={criteria}
-                fieldErrors={fieldErrors}
-                judge={judge}
-                scoreId={judge.scoreId}
-              />
-            ) : (
-              <Table>
+            {judge.judgeName}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {judges.map((judge) => (
+        <TabsContent
+          className="flex flex-col gap-4 pt-2 data-[state=inactive]:hidden"
+          forceMount
+          key={judge.judgeAssignmentId}
+          value={judge.judgeAssignmentId}
+        >
+          {canEdit && judge.scoreId ? (
+            <SheetForm
+              criteria={criteria}
+              fieldErrors={fieldErrors}
+              judge={judge}
+              scoreId={judge.scoreId}
+            />
+          ) : (
+            <>
+              <ScoresTable>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Criterio</TableHead>
@@ -339,20 +434,17 @@ function SheetsCard({
                         <span className="text-sm text-muted-foreground">
                           {`/ ${singleScoreMaximum}`}
                         </span>
-                        {judge.annulled ? (
-                          <Badge variant="outline">Anulado</Badge>
-                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>
                 </TableBody>
-              </Table>
-            )}
-            <FeedbackCell audioUrl={judge.feedbackAudioUrl} />
-          </TabsContent>
-        ))}
-      </Tabs>
-    </AdminResourceFormCard>
+              </ScoresTable>
+              <FeedbackCell audioUrl={judge.feedbackAudioUrl} />
+            </>
+          )}
+        </TabsContent>
+      ))}
+    </Tabs>
   );
 }
 
@@ -409,9 +501,7 @@ function SingleScoreForm({
         maximum={singleScoreMaximum}
         name="value"
       />
-      <Button disabled={isSubmitting} size="sm" type="submit">
-        Guardar
-      </Button>
+      <SubmitButton isPending={isSubmitting} />
     </form>
   );
 }
@@ -422,9 +512,11 @@ function SingleScoreForm({
  * that no longer matches what is under it.
  *
  * Each line is the judge's own field under its own visible label, so the sheet
- * an administrator corrects reads as the sheet the judge filled. The total stays
- * the stored one — the server recomputes it from what is saved — so it is never
- * a number the page made up while a field was half typed.
+ * an administrator corrects reads as the sheet the judge filled. The judge's
+ * `Devolución` heads it, and the lines are split the way the criteria are
+ * configured (`sheetParts`), each part with its own sum and the judge's total
+ * apart under them. The sums are the judge sheet's own (`sheetTotal`): what the
+ * sheet would save right now, with a half-typed value counting as nothing.
  */
 function SheetForm({
   criteria,
@@ -437,19 +529,27 @@ function SheetForm({
   judge: PresentationJudgeScore;
   scoreId: string;
 }) {
+  // Exactly what the judge stored, and empty where they stored nothing:
+  // administration corrects the panel's work and never invents it.
+  const saved = {
+    values: Object.fromEntries(
+      criteria.map((criterion) => [
+        criterion.id,
+        formatScoreFieldValue(judge.criteriaValues[criterion.id]),
+      ]),
+    ),
+  };
   const form = useForm<JudgeSheetFormValues>({
-    // Exactly what the judge stored, and empty where they stored nothing:
-    // administration corrects the panel's work and never invents it.
-    defaultValues: {
-      values: Object.fromEntries(
-        criteria.map((criterion) => [
-          criterion.id,
-          formatScoreFieldValue(judge.criteriaValues[criterion.id]),
-        ]),
-      ),
-    },
+    defaultValues: saved,
+    mode: "onSubmit",
     resolver: zodResolver(buildJudgeSheetFormSchema(criteria)),
   });
+  const { isDirty } = useFormState({ control: form.control });
+
+  // A save starts a clean draft from what was saved; a refused one keeps what
+  // was typed, which still differs from it.
+  useSavedFormValues(form, saved);
+
   const submit = useSubmit();
   const isSubmitting = isRouteFormPending(useNavigation(), {
     fields: { scoreId },
@@ -457,7 +557,6 @@ function SheetForm({
   });
   return (
     <form
-      className="flex flex-col gap-4"
       method="post"
       onSubmit={form.handleSubmit((values) => {
         void submit(buildSheetEditSubmission({ scoreId, values }), {
@@ -465,78 +564,43 @@ function SheetForm({
         });
       })}
     >
-      <FieldGroup>
-        {criteria.map((criterion) => (
-          <ScoreInputField
-            className="max-w-sm"
+      <AdminResourceFormCard
+        footer={
+          // `FormActions` without its leave guard: a guard sits on the router
+          // and the router holds one, while every judge's tab holds a form.
+          <PinnedActions>
+            <BackButton to="/administracion/presentacion" />
+            <div className="flex items-center gap-3">
+              {isDirty ? (
+                <Button
+                  disabled={isSubmitting}
+                  onClick={() => form.reset()}
+                  type="button"
+                  variant="outline"
+                >
+                  <Undo2 aria-hidden="true" data-icon="inline-start" />
+                  Descartar cambios
+                </Button>
+              ) : null}
+              <SubmitButton disabled={!isDirty} isPending={isSubmitting} />
+            </div>
+          </PinnedActions>
+        }
+      >
+        <FieldGroup>
+          <FieldSet className="gap-2">
+            <FieldLegend>Devolución</FieldLegend>
+            <FeedbackCell audioUrl={judge.feedbackAudioUrl} />
+          </FieldSet>
+          <SheetParts
             control={form.control}
-            error={fieldErrors[criterion.id]}
-            id={`criterio-${scoreId}-${criterion.id}`}
-            key={criterion.id}
-            label={criterion.name}
-            labelAdornment={
-              criterion.kind === "deducts" ? (
-                <Badge variant="outline">Resta</Badge>
-              ) : undefined
-            }
-            maximum={criterion.maximum}
-            name={`values.${criterion.id}`}
+            criteria={criteria}
+            fieldErrors={fieldErrors}
+            fieldIdPrefix={`criterio-${scoreId}`}
           />
-        ))}
-      </FieldGroup>
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Total</span>
-        <ScoreValue value={judge.value} />
-        <span className="text-sm text-muted-foreground">{`/ ${singleScoreMaximum}`}</span>
-      </div>
-      <div className="flex items-center gap-4">
-        <Button disabled={isSubmitting} type="submit">
-          Guardar
-        </Button>
-        <AnnulSwitch annulled={judge.annulled} scoreId={scoreId} />
-      </div>
+        </FieldGroup>
+      </AdminResourceFormCard>
     </form>
-  );
-}
-
-/**
- * An annulment is a decision about what counts rather than an edit, so it saves
- * the moment it is made: there is nothing to type and nothing to confirm, and
- * the same switch brings the score back.
- */
-function AnnulSwitch({
-  annulled,
-  scoreId,
-}: {
-  annulled: boolean;
-  scoreId: string;
-}) {
-  const submit = useSubmit();
-  const isSubmitting = isRouteFormPending(useNavigation(), {
-    fields: { scoreId },
-    intent: "annul-score",
-  });
-  const id = `anular-${scoreId}`;
-
-  return (
-    <div className="flex items-center gap-2">
-      <Switch
-        checked={annulled}
-        disabled={isSubmitting}
-        id={id}
-        onCheckedChange={(checked) => {
-          void submit(
-            {
-              annulled: String(checked),
-              intent: "annul-score",
-              scoreId,
-            },
-            { method: "post" },
-          );
-        }}
-      />
-      <Label htmlFor={id}>Anular</Label>
-    </div>
   );
 }
 
@@ -550,7 +614,7 @@ function ScoreValue({ value }: { value: string | null }) {
 
 function FeedbackCell({ audioUrl }: { audioUrl: string | null }) {
   return audioUrl === null ? (
-    <span className="text-sm text-muted-foreground">{noFeedbackText}</span>
+    <Badge variant="secondary">{noFeedbackText}</Badge>
   ) : (
     <FeedbackPlayback audioUrl={audioUrl} />
   );
@@ -562,22 +626,4 @@ function FeedbackCell({ audioUrl }: { audioUrl: string | null }) {
  */
 function formatScoreText(value: string) {
   return String(Number.parseFloat(value));
-}
-
-function describePresentation(
-  presentation: PresentationScoresLoaderData["presentation"],
-) {
-  const level = presentation.experienceLevel
-    ? experienceLevelLabels[presentation.experienceLevel]
-    : "No aplica";
-
-  return [
-    `N.º ${presentation.orderNumber}`,
-    presentation.academyName,
-    presentation.categoryName,
-    level,
-    presentation.submodalityName
-      ? `${presentation.modalityName} · ${presentation.submodalityName}`
-      : presentation.modalityName,
-  ].join(" · ");
 }

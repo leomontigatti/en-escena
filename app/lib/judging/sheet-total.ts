@@ -1,3 +1,4 @@
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { CriterionKind } from "@/lib/judging/criteria";
 import {
   parseScoreValue,
@@ -43,6 +44,8 @@ export function sheetTotal(entries: readonly SheetCriterionValue[]): number {
 }
 
 export type SheetCriterion = {
+  /** Null on a general criterion, the level's own on a level criterion. */
+  experienceLevel: ExperienceLevel | null;
   id: string;
   kind: CriterionKind;
   maximum: number;

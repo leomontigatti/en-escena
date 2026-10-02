@@ -9,8 +9,20 @@ import type {
 } from "./server";
 
 const criteria = [
-  { id: "tecnica", kind: "adds" as const, maximum: 100, name: "Técnica" },
-  { id: "caidas", kind: "deducts" as const, maximum: 10, name: "Caídas" },
+  {
+    experienceLevel: null,
+    id: "tecnica",
+    kind: "adds" as const,
+    maximum: 100,
+    name: "Técnica",
+  },
+  {
+    experienceLevel: null,
+    id: "caidas",
+    kind: "deducts" as const,
+    maximum: 10,
+    name: "Caídas",
+  },
 ];
 
 describe("PortalPresentationEvaluationView", () => {
@@ -70,6 +82,7 @@ describe("PortalPresentationEvaluationView", () => {
     expect(markup).toContain("Descalificada");
     expect(markup).toContain("no tiene puntaje ni premio");
     expect(markup).toContain("Ana Juez");
+    expect(markup).toContain("Las devoluciones del jurado están abajo.");
     expect(markup).not.toContain("/ 100");
   });
 
@@ -94,6 +107,8 @@ describe("PortalPresentationEvaluationView", () => {
 
     expect(markup).toContain("no tiene puntaje ni premio");
     expect(markup).not.toContain("no tiene puntajes para mostrar");
+    // Nor does it point at feedback that is not there.
+    expect(markup).not.toContain("Las devoluciones del jurado están abajo.");
   });
 
   test("shows neither medal nor average when nothing counted", () => {
@@ -136,7 +151,7 @@ function renderView(
     disqualified: false,
     judges: [buildJudge()],
     medal: "gold",
-    title: "N.º 1 · Pieza",
+    title: "Pieza · N.º 1",
     ...overrides,
   };
 

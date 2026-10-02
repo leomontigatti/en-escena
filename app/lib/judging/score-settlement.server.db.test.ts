@@ -7,7 +7,6 @@ import { presentations, scoreCriterionValues, scores } from "@/db/schema";
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 import {
-  annulScore,
   editScore,
   setPresentationDisqualified,
 } from "./score-settlement.server";
@@ -124,64 +123,6 @@ describe("editing a score as administration", () => {
         presentationId: "00000000-0000-0000-0000-000000000000",
         scoreId: "00000000-0000-0000-0000-000000000000",
         value: "90",
-      }),
-    ).resolves.toEqual({ ok: false, reason: "not-found" });
-  });
-});
-
-describe("annulling a score as administration", () => {
-  test("takes the score out of the average without deleting it", async () => {
-    const { fixture, presentation, score } = await seedScoredPresentation({
-      submodalityId: null,
-    });
-    const other = await fixture.assignJudge(presentation.presentationId);
-
-    await db
-      .insert(scores)
-      .values({ judgeAssignmentId: other.judgeAssignmentId, value: "90.0" });
-
-    expect(
-      await annulScore({
-        annulled: true,
-        presentationId: presentation.presentationId,
-        scoreId: score.id,
-      }),
-    ).toEqual({
-      ok: true,
-    });
-    expect((await readScore(score.id)).value).toBe("70.0");
-    await expect(
-      readPresentationScores({ presentationId: presentation.presentationId }),
-    ).resolves.toMatchObject({ average: 90 });
-  });
-
-  test("brings a restored score back into the average", async () => {
-    const { presentation, score } = await seedScoredPresentation({
-      submodalityId: null,
-    });
-
-    await annulScore({
-      annulled: true,
-      presentationId: presentation.presentationId,
-      scoreId: score.id,
-    });
-    await annulScore({
-      annulled: false,
-      presentationId: presentation.presentationId,
-      scoreId: score.id,
-    });
-
-    await expect(
-      readPresentationScores({ presentationId: presentation.presentationId }),
-    ).resolves.toMatchObject({ average: 70 });
-  });
-
-  test("refuses a score that does not exist", async () => {
-    await expect(
-      annulScore({
-        annulled: true,
-        presentationId: "00000000-0000-0000-0000-000000000000",
-        scoreId: "00000000-0000-0000-0000-000000000000",
       }),
     ).resolves.toEqual({ ok: false, reason: "not-found" });
   });

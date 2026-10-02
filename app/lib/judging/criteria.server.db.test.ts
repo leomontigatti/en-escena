@@ -1,7 +1,8 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { scores } from "@/db/schema";
+import { scores, submodalityCriteria } from "@/db/schema";
 import {
   findScoreLockedSubmodalityIds,
   isSubmodalityScoreLocked,
@@ -55,6 +56,30 @@ describe("submodality criteria", () => {
 
     const saved = await listSubmodalityCriteria(fixture.event.id);
     expect(saved.map((criterion) => criterion.name)).toEqual(["Otra Cosa"]);
+  });
+
+  test("replaces only the general criteria, leaving every level's alone", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addCriterion({ maximum: 100, name: "Todo" });
+    await fixture.addCriterion({
+      experienceLevel: "amateur",
+      maximum: 40,
+      name: "Figuras",
+    });
+
+    await replaceSubmodalityCriteria(fixture.catalog.submodality.id, {
+      criteria: [{ kind: "adds", maximum: "100", name: "Otra cosa" }],
+    });
+
+    const level = await db.query.submodalityCriteria.findMany({
+      where: eq(submodalityCriteria.experienceLevel, "amateur"),
+    });
+    expect(level.map((criterion) => criterion.name)).toEqual(["Figuras"]);
+    await expect(
+      listSubmodalityCriteria(fixture.event.id).then((saved) =>
+        saved.map((criterion) => criterion.name),
+      ),
+    ).resolves.toEqual(["Otra Cosa"]);
   });
 
   test("clears the criteria when the submitted list is empty", async () => {

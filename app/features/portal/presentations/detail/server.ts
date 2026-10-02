@@ -28,13 +28,8 @@ import type { FeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
  * that it exists.
  *
  * What must not reach the browser is dropped here rather than hidden in the
- * view: an annulled score, a judge who never scored, and — on a disqualified
- * presentation — every number, leaving the audio.
- *
- * An annulled score is left out entirely, its `Devolución` with it, so a
- * presentation whose every score was annulled is published and answers with no
- * judges and no average. That is the rule, not an oversight: the view says as
- * much in place of the empty panel.
+ * view: a judge who never scored, and — on a disqualified presentation — every
+ * number, leaving the audio.
  */
 
 export type PortalEvaluationJudge = {
@@ -121,9 +116,8 @@ export async function loadPortalPresentationEvaluation(input: {
     }),
     disqualified: view.disqualified,
     judges: view.judges
-      // A judge who saved nothing is nobody's result, and an annulled score
-      // stopped counting the moment administration annulled it.
-      .filter((judge) => judge.scoreId !== null && !judge.annulled)
+      // A judge who saved nothing is nobody's result.
+      .filter((judge) => judge.scoreId !== null)
       .map((judge) => ({
         criteriaValues: view.disqualified ? {} : judge.criteriaValues,
         feedbackAudioUrl: judge.feedbackAudioUrl,
@@ -132,7 +126,7 @@ export async function loadPortalPresentationEvaluation(input: {
         value: view.disqualified ? null : judge.value,
       })),
     medal: view.medal,
-    title: `N.º ${view.orderNumber} · ${view.name}`,
+    title: `${view.name} · N.º ${view.orderNumber}`,
   };
 }
 

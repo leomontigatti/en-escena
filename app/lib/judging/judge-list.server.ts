@@ -19,7 +19,10 @@ import {
 import { judgingDate } from "@/lib/judging/judging-day";
 import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
-import { readCriteriaBySubmodality } from "@/lib/judging/submodality-criteria.server";
+import {
+  readCriteriaBySubmodality,
+  sheetForLevel,
+} from "@/lib/judging/submodality-criteria.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
   type FeedbackAudioStorage,
@@ -142,7 +145,10 @@ export async function readJudgePresentations(
       categoryAdmitsExperienceLevels: row.categoryExperienceLevels.length > 0,
       categoryName: row.categoryName,
       criteria: row.submodalityId
-        ? (criteriaBySubmodality.get(row.submodalityId) ?? [])
+        ? sheetForLevel(
+            criteriaBySubmodality.get(row.submodalityId) ?? [],
+            row.experienceLevel,
+          )
         : [],
       criteriaValues: (row.scoreId && sheetsByScore.get(row.scoreId)) || {},
       experienceLevel: row.experienceLevel,

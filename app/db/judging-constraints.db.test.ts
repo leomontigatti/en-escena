@@ -49,7 +49,6 @@ describe("the score table", () => {
       .returning();
 
     expect(saved.value).toBeNull();
-    expect(saved.annulled).toBe(false);
   });
 
   test.each([

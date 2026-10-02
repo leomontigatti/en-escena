@@ -52,9 +52,8 @@ describe("a presentation's scores, as administration reads them", () => {
     expect(view?.choreographyId).toBe(presentation.choreographyId);
     expect(view?.criteria).toEqual([]);
     expect(view?.judges).toMatchObject([
-      { annulled: false, judgeName: "Ana Juez", value: null },
+      { judgeName: "Ana Juez", value: null },
       {
-        annulled: false,
         feedbackAudioUrl: "https://example.test/takes/a.webm",
         judgeName: "Zulema Juez",
         value: "90.0",
@@ -62,7 +61,7 @@ describe("a presentation's scores, as administration reads them", () => {
     ]);
   });
 
-  test("averages what counts and reads the medal off it", async () => {
+  test("averages every saved score and reads the medal off it", async () => {
     const fixture = await seedJudgingFixture();
     const presentation = await fixture.addPresentation({
       name: "Primera",
@@ -70,25 +69,23 @@ describe("a presentation's scores, as administration reads them", () => {
     });
     const first = await fixture.assignJudge(presentation.presentationId);
     const second = await fixture.assignJudge(presentation.presentationId);
-    const annulled = await fixture.assignJudge(presentation.presentationId);
+    const third = await fixture.assignJudge(presentation.presentationId);
 
     await db.insert(scores).values([
       { judgeAssignmentId: first.judgeAssignmentId, value: "80.0" },
       { judgeAssignmentId: second.judgeAssignmentId, value: "90.0" },
-      {
-        annulled: true,
-        judgeAssignmentId: annulled.judgeAssignmentId,
-        value: "10.0",
-      },
+      { judgeAssignmentId: third.judgeAssignmentId, value: "88.5" },
     ]);
 
     const view = await readPresentationScores({
       presentationId: presentation.presentationId,
     });
 
-    expect(view?.average).toBe(85);
+    expect(view?.average).toBe(86.17);
     expect(view?.medal).toBe("silver");
     expect(view?.disqualified).toBe(false);
+    // Nothing takes a saved score out of the average, so no flag says so.
+    expect(view?.judges[0]).not.toHaveProperty("annulled");
   });
 
   test("has no average and no medal once the presentation is disqualified", async () => {
