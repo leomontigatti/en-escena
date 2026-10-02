@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import {
   AudioLines,
   ChevronsUpDown,
@@ -99,6 +99,41 @@ export type PortalRouteHandle = {
   >;
 };
 
+type PortalPageHeaderProps = {
+  titleId: string;
+  /** A node, not a string: a title can carry a badge beside it. */
+  title: ReactNode;
+  titleStyle?: CSSProperties;
+  description: ReactNode;
+  action?: ReactNode;
+};
+
+/**
+ * The portal's page header, for a page that is not a list: `PortalListPage`
+ * renders the same one above its content.
+ */
+export function PortalPageHeader({
+  titleId,
+  title,
+  titleStyle,
+  description,
+  action,
+}: PortalPageHeaderProps) {
+  return (
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-1">
+        <h2 id={titleId} className="text-xl font-semibold" style={titleStyle}>
+          {title}
+        </h2>
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          {description}
+        </p>
+      </div>
+      {action}
+    </header>
+  );
+}
+
 type PortalListPageProps = {
   titleId: string;
   /** A node, not a string: a title can carry a badge beside it. */
@@ -117,17 +152,12 @@ export function PortalListPage({
 }: PortalListPageProps) {
   return (
     <section className="flex flex-col gap-6" aria-labelledby={titleId}>
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 id={titleId} className="text-xl font-semibold">
-            {title}
-          </h2>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            {description}
-          </p>
-        </div>
-        {action}
-      </header>
+      <PortalPageHeader
+        titleId={titleId}
+        title={title}
+        description={description}
+        action={action}
+      />
 
       {children}
     </section>

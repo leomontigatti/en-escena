@@ -130,7 +130,7 @@ function PublicProgramHeader({
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Programa</h1>
+        <h2 className="text-xl font-semibold">Programa</h2>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           {name}, del {formatScheduleDayLabel(startsOn)} al{" "}
           {formatScheduleDayLabel(endsOn)}. El orden de las presentaciones puede
