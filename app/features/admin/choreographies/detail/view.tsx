@@ -1,4 +1,4 @@
-import { RotateCcw, Trash2 } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
@@ -159,8 +159,7 @@ function ChoreographyDetailActionsMenu({
               onDelete();
             }}
           >
-            <Trash2 aria-hidden="true" />
-            Eliminar coreografía
+            Eliminar
           </DropdownMenuItem>
         )}
       </DropdownMenuGroup>
@@ -169,7 +168,7 @@ function ChoreographyDetailActionsMenu({
 }
 
 /**
- * `Eliminar coreografía` is one action with two outcomes, and the dialog names
+ * `Eliminar` is one action with two outcomes, and the dialog names
  * the one that will happen before the admin confirms. The evaluated presentation
  * is the only thing that blocks it; the menu item is then disabled and the
  * evaluation alert says why, so there is no blocked dialog to render.

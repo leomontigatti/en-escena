@@ -157,7 +157,7 @@ export function SeminarPriceForm({
           name="paymentDeadline"
           value={values.paymentDeadline}
         />
-        <FieldGroup className="grid gap-4 sm:grid-cols-2">
+        <FieldGroup className="grid gap-5 md:grid-cols-2">
           <GuardedSelectField
             fieldId={`seminar-price-kind-${id ?? intent}`}
             form={form}

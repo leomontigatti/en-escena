@@ -35,7 +35,7 @@ export function SeminarPriceActions({
             disabled={Boolean(deletionBlock)}
             onSelect={() => setDeleteDialogOpen(true)}
           >
-            Borrar precio
+            Eliminar
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </ResourceActionsMenu>

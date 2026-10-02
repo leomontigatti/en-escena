@@ -144,7 +144,7 @@ function CategoryForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
-      <FieldGroup className="grid gap-4 sm:grid-cols-2">
+      <FieldGroup className="grid gap-5 md:grid-cols-2">
         <TextInputField
           control={form.control}
           label="Nombre"

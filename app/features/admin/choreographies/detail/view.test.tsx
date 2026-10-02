@@ -83,7 +83,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain('value="Danza lunar"');
     expect(markup).toContain("disabled");
     expect(markup).not.toContain("Guardar");
-    expect(markup).not.toContain("Eliminar coreografía");
+    expect(markup).not.toContain("Eliminar");
   });
 
   // The withdrawal closes the page, not the role: the fields read like an
@@ -102,7 +102,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('name="submodalityId"');
     expect(markup).not.toContain('name="scheduleCapacityId"');
     expect(markup).not.toContain('name="modalityId"');
-    expect(markup).not.toContain("Eliminar coreografía");
+    expect(markup).not.toContain("Eliminar");
   });
 
   test("reports the price blocker in the page alert instead of on the field", () => {
@@ -351,9 +351,9 @@ describe("ChoreographyDetailRouteView", () => {
     await renderDetailIntoDocument();
 
     await openActionsMenu();
-    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("Eliminar");
 
-    await clickMenuItem("Eliminar coreografía");
+    await clickMenuItem("Eliminar");
 
     expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
     expect(
@@ -375,7 +375,7 @@ describe("ChoreographyDetailRouteView", () => {
 
     const item = Array.from(
       document.querySelectorAll('[role="menuitem"]'),
-    ).find((element) => element.textContent?.includes("Eliminar coreografía"));
+    ).find((element) => element.textContent?.includes("Eliminar"));
 
     expect(item?.getAttribute("aria-disabled")).toBe("true");
   });
@@ -466,7 +466,7 @@ describe("ChoreographyDetailRouteView", () => {
 
     await openActionsMenu();
     expect(document.body.textContent).toContain("Restaurar coreografía");
-    expect(document.body.textContent).not.toContain("Eliminar coreografía");
+    expect(document.body.textContent).not.toContain("Eliminar");
 
     await clickMenuItem("Restaurar coreografía");
 

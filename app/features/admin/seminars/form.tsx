@@ -197,7 +197,7 @@ export function SeminarForm({
       onSubmit={handleSubmit}
     >
       <input type="hidden" name="intent" value={intent} />
-      <FieldGroup className="grid gap-4 sm:grid-cols-2">
+      <FieldGroup className="grid gap-5 md:grid-cols-2">
         <TextInputField
           control={form.control}
           id="instructorName"

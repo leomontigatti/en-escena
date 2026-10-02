@@ -6,11 +6,13 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
+import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import {
   SharedFieldLayout,
   type SharedFieldOrientation,
 } from "@/components/shared/field-layout";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/shared/utils";
 
 type TextareaFieldProps<
   TFieldValues extends FieldValues,
@@ -81,16 +83,21 @@ function TextareaField<
             orientation={orientation}
           >
             {({ describedBy, isInvalid }) => (
-              <Textarea
-                {...textareaProps}
-                {...field}
-                id={id}
-                aria-describedby={describedBy || undefined}
-                aria-invalid={isInvalid ? true : undefined}
-                className={inputClassName}
-                disabled={disabled}
-                value={typeof field.value === "string" ? field.value : ""}
-              />
+              <div className="relative">
+                <Textarea
+                  {...textareaProps}
+                  {...field}
+                  id={id}
+                  aria-describedby={describedBy || undefined}
+                  aria-invalid={isInvalid ? true : undefined}
+                  className={cn(disabled && "pr-9", inputClassName)}
+                  disabled={disabled}
+                  value={typeof field.value === "string" ? field.value : ""}
+                />
+                {disabled ? (
+                  <FieldControlLockIcon className="top-3 translate-y-0" />
+                ) : null}
+              </div>
             )}
           </SharedFieldLayout>
         );

@@ -232,7 +232,7 @@ describe("EventPriceDetailRouteView", () => {
     { flags: { keepsRegistrationOpen: true }, disabled: true },
     { flags: {}, disabled: false },
   ])(
-    "reads `Borrar precio` as disabled: $disabled for $flags",
+    "reads `Eliminar` as disabled: $disabled for $flags",
     async ({ flags, disabled }) => {
       const price = {
         ...createPrice({
@@ -257,7 +257,7 @@ describe("EventPriceDetailRouteView", () => {
         EventPriceDetailRouteView,
       });
 
-      expect(await readMenuItemDisabled("Borrar precio")).toBe(disabled);
+      expect(await readMenuItemDisabled("Eliminar")).toBe(disabled);
     },
   );
 

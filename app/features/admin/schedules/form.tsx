@@ -161,7 +161,7 @@ export function ScheduleForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
-      <FieldGroup className="grid gap-4 sm:grid-cols-2">
+      <FieldGroup className="grid gap-5 md:grid-cols-2">
         <ScheduleTextField form={form} label="Nombre" name="name" />
         <ScheduleTotalCapacityField form={form} occupiedCount={occupiedCount} />
         <DateOnlyField
