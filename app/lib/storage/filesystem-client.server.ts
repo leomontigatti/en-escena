@@ -5,6 +5,7 @@ import {
   readFile,
   readdir,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -183,6 +184,28 @@ export async function fsReadObject(input: {
     bytes.set(data);
 
     return bytes;
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * The object's path on the volume when it is there, for a caller that streams
+ * it itself, as an archive of many objects does; `null` when it is not.
+ */
+export async function fsLocateObject(input: {
+  baseDir: string;
+  bucket: string;
+  key: string;
+}): Promise<string | null> {
+  const target = resolveObjectPath(input);
+
+  try {
+    return (await stat(target)).isFile() ? target : null;
   } catch (error) {
     if (isNotFoundError(error)) {
       return null;

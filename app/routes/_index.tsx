@@ -9,7 +9,7 @@ export const meta: Route.MetaFunction = () => [
   { title: "En Escena" },
   {
     name: "description",
-    content: "Gestión integral de competencias de danza.",
+    content: "Gestión integral de eventos de danza.",
   },
 ];
 
