@@ -33,6 +33,8 @@ describe("PublicProgramView", () => {
     );
     // Its own line on screen, and again under the printed heading.
     expect(countOccurrences(markup, programNotice)).toBe(2);
+    // The alert is titled on screen only: paper keeps the one small line.
+    expect(countOccurrences(markup, "Programa sujeto a cambios")).toBe(1);
     expect(markup).toContain("Imprimir");
   });
 

@@ -3,7 +3,7 @@ import { Link } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ProgramList } from "@/features/program/list";
 import {
@@ -40,6 +40,7 @@ export function PublicProgramView({
             />
             <Alert variant="info">
               <Info aria-hidden="true" />
+              <AlertTitle>Programa sujeto a cambios</AlertTitle>
               <AlertDescription>{programScheduleNotice}</AlertDescription>
             </Alert>
             <ProgramList
