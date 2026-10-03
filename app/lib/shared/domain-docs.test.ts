@@ -298,7 +298,7 @@ const judgingCodebaseMapRequirements = [
   "`app/features/judging/list/`",
   "`app/features/judging/score/`",
   "`app/features/admin/presentations/scores/`",
-  "`app/routes/administracion.presentacion_.$presentationId.puntajes.tsx`",
+  "`app/routes/administracion.presentaciones_.$presentationId.puntajes.tsx`",
   "`app/lib/judging/results.server.ts`",
   "`app/features/portal/presentations/detail/`",
   "`app/routes/portal.presentaciones_.$choreographyId.tsx`",

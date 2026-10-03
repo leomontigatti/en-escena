@@ -15,7 +15,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-const listUrl = "http://localhost/administracion/presentacion";
+const listUrl = "http://localhost/administracion/presentaciones";
 
 /**
  * The route adapter alone: who reads the participation list and who may act on

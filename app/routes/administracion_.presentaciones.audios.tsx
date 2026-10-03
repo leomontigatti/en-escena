@@ -1,6 +1,6 @@
 import { loadMusicDownload } from "@/features/admin/presentations/music-download/server";
 
-import type { Route } from "./+types/administracion_.presentacion.audios";
+import type { Route } from "./+types/administracion_.presentaciones.audios";
 
 // A resource route: the day's music as one zip, downloaded from the
 // participation list's actions menu.

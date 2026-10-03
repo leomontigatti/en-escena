@@ -8,7 +8,7 @@ import { PresentationScoresView } from "@/features/admin/presentations/scores/vi
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type { Route } from "./+types/administracion.presentacion_.$presentationId.puntajes";
+import type { Route } from "./+types/administracion.presentaciones_.$presentationId.puntajes";
 
 export const meta = () => [
   { title: "Puntajes | Panel de administración | En Escena" },
@@ -16,7 +16,7 @@ export const meta = () => [
 
 export const handle = {
   adminBreadcrumbs: [
-    { label: "Presentaciones", to: "/administracion/presentacion" },
+    { label: "Presentaciones", to: "/administracion/presentaciones" },
     (match) => {
       const data = match.data as PresentationScoresLoaderData | undefined;
 

@@ -41,7 +41,7 @@ describe("the participation list moved by hand", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/administracion/presentacion",
+          path: "/administracion/presentaciones",
           action: async ({ request }) => {
             const formData = await request.formData();
             submissions.push(
@@ -60,7 +60,7 @@ describe("the participation list moved by hand", () => {
           ),
         },
       ],
-      { initialEntries: ["/administracion/presentacion"] },
+      { initialEntries: ["/administracion/presentaciones"] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);

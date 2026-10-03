@@ -516,7 +516,7 @@ function SheetForm({
           // `FormActions` without its leave guard: a guard sits on the router
           // and the router holds one, while every judge's tab holds a form.
           <PinnedActions>
-            <BackButton to="/administracion/presentacion" />
+            <BackButton to="/administracion/presentaciones" />
             <div className="flex items-center gap-3">
               {isDirty ? (
                 <Button

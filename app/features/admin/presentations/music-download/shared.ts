@@ -7,7 +7,7 @@ import { z } from "zod";
  * reads off the file list, and a list of the ones still missing it.
  */
 
-const musicDownloadPath = "/administracion/presentacion/audios";
+const musicDownloadPath = "/administracion/presentaciones/audios";
 export const musicDownloadDayParam = "dia";
 
 export const musicDownloadSchema = z.object({

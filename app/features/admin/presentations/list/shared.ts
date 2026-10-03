@@ -232,7 +232,7 @@ export function formatAutomaticOrderingMessage(input: {
  */
 export function presentationRowPath(row: PresentationListItem) {
   if (row.evaluationStatus !== "pending" && row.presentationId !== null) {
-    return `/administracion/presentacion/${row.presentationId}/puntajes`;
+    return `/administracion/presentaciones/${row.presentationId}/puntajes`;
   }
 
   return null;

@@ -313,7 +313,7 @@ describe("DataTable", () => {
 
   test("draws the leading columns before the selection checkbox", () => {
     const markup = renderToStaticMarkup(
-      <MemoryRouter initialEntries={["/administracion/presentacion"]}>
+      <MemoryRouter initialEntries={["/administracion/presentaciones"]}>
         <ServerDataTable
           rows={[
             {
@@ -352,7 +352,7 @@ describe("DataTable", () => {
 
   test("disables the checkbox of a row the view cannot select", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/presentacion"]}>
+      <MemoryRouter initialEntries={["/administracion/presentaciones"]}>
         <ClientDataTable
           rows={[
             {
@@ -388,7 +388,7 @@ describe("DataTable", () => {
     const selections: string[][] = [];
 
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/presentacion"]}>
+      <MemoryRouter initialEntries={["/administracion/presentaciones"]}>
         <ClientDataTable
           rows={[
             {
@@ -468,7 +468,7 @@ describe("DataTable", () => {
     }
 
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/presentacion"]}>
+      <MemoryRouter initialEntries={["/administracion/presentaciones"]}>
         <View />
       </MemoryRouter>,
     );

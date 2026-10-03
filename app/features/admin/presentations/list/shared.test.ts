@@ -182,7 +182,7 @@ describe("presentationRowPath", () => {
       presentationRowPath(
         buildItem({ evaluationStatus: "evaluated", presentationId: "p-1" }),
       ),
-    ).toBe("/administracion/presentacion/p-1/puntajes");
+    ).toBe("/administracion/presentaciones/p-1/puntajes");
   });
 
   test("sends a disqualified row to its scores", () => {
@@ -190,7 +190,7 @@ describe("presentationRowPath", () => {
       presentationRowPath(
         buildItem({ evaluationStatus: "disqualified", presentationId: "p-1" }),
       ),
-    ).toBe("/administracion/presentacion/p-1/puntajes");
+    ).toBe("/administracion/presentaciones/p-1/puntajes");
   });
 });
 

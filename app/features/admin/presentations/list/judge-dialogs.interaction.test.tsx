@@ -41,12 +41,12 @@ describe("the bulk judge dialogs", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/administracion/presentacion",
+          path: "/administracion/presentaciones",
           action: async () => null,
           element: <PresentationsListView loaderData={buildLoaderData()} />,
         },
       ],
-      { initialEntries: ["/administracion/presentacion"] },
+      { initialEntries: ["/administracion/presentaciones"] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
@@ -219,7 +219,7 @@ describe("the bulk judge dialogs", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/administracion/presentacion",
+          path: "/administracion/presentaciones",
           action: async ({ request }) => {
             const formData = await request.formData();
 
@@ -244,7 +244,7 @@ describe("the bulk judge dialogs", () => {
           ),
         },
       ],
-      { initialEntries: ["/administracion/presentacion"] },
+      { initialEntries: ["/administracion/presentaciones"] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
