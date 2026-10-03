@@ -21,10 +21,7 @@ import { JudgeScoreSheet } from "@/features/judging/score/sheet";
 import { formatScheduleDayHeading } from "@/lib/choreographies/schedule-formatters";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
-import {
-  judgeScoreStatusLabels,
-  type JudgeScoreStatus,
-} from "@/lib/judging/judge-status";
+import { judgeScoreStatusBadge } from "@/lib/judging/judge-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { showToastMessage } from "@/lib/shared/toasts";
@@ -41,21 +38,11 @@ export type JudgePanelViewProps = {
   loaderData: JudgePanelRouteData;
 };
 
-const statusVariants: Record<
-  JudgeScoreStatus,
-  "default" | "destructive" | "outline" | "secondary"
-> = {
-  complete: "default",
-  disqualified: "destructive",
-  noFeedback: "secondary",
-  pending: "outline",
-};
-
 /**
  * The judge's whole day on one page. It is read in a dark theatre between two
- * dances, so nothing here is paginated, nothing is hidden behind a filter panel
- * and no row carries a number: the judge is looking for the piece that is about
- * to go on, not comparing scores.
+ * dances, so nothing here is paginated and nothing is hidden behind a filter
+ * panel: the judge is looking for the piece that is about to go on. The only
+ * number a row carries is the judge's own score, once it is complete.
  */
 export function JudgePanelView({
   actionData,
@@ -361,11 +348,11 @@ const judgePresentationColumns: DataTableColumn<JudgePresentationRow>[] = [
   {
     id: "estado",
     header: "Estado",
-    cell: (row) => (
-      <Badge variant={statusVariants[row.status]}>
-        {judgeScoreStatusLabels[row.status]}
-      </Badge>
-    ),
+    cell: (row) => {
+      const badge = judgeScoreStatusBadge(row);
+
+      return <Badge variant={badge.variant}>{badge.label}</Badge>;
+    },
     width: 11,
   },
 ];

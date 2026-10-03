@@ -44,9 +44,9 @@ import {
  * The judge's own score does come back, because correcting it is the one thing
  * a judge does more than once: reopening a scored presentation has to show the
  * number they gave, or a correction is a blind retype and re-recording a
- * `Devolución` means entering a score again from memory. The list itself shows
- * none of it — no row carries a number — and it is the judge's own score and no
- * one else's.
+ * `Devolución` means entering a score again from memory. The list shows the
+ * number only once the score is complete, in place of the status word, and it
+ * is the judge's own score and no one else's.
  */
 
 /** One line of the sheet, exactly as the total and the validation read it. */
@@ -76,7 +76,8 @@ export type JudgePresentationRow = {
   submodalityName: string | null;
   /**
    * The judge's own score, as the numeric column reads it, or null when they
-   * have not saved one. It is what their form starts from, never a list column.
+   * have not saved one. It is what their form starts from, and what the status
+   * shows once the score is complete.
    */
   value: string | null;
 };

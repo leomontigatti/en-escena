@@ -42,9 +42,24 @@ const presentations = [
     orderNumber: 1,
     presentationId: "a",
     status: "complete",
+    value: "87.5",
   }),
   buildRow({ name: "Segunda", orderNumber: 2, presentationId: "b" }),
   buildRow({ name: "Tercera", orderNumber: 3, presentationId: "c" }),
+  buildRow({
+    name: "Cuarta",
+    orderNumber: 4,
+    presentationId: "d",
+    status: "noFeedback",
+    value: "80.0",
+  }),
+  buildRow({
+    name: "Quinta",
+    orderNumber: 5,
+    presentationId: "e",
+    status: "disqualified",
+    value: "90.0",
+  }),
 ];
 
 describe("the judge's list of today's presentations", () => {
@@ -88,10 +103,32 @@ describe("the judge's list of today's presentations", () => {
     );
   }
 
+  test("shows the judge's own score once it is complete, and only then", async () => {
+    await mount();
+
+    const statuses = [...document.querySelectorAll("tbody tr")].map((row) =>
+      row.querySelector("td:last-child")?.textContent?.trim(),
+    );
+
+    expect(statuses).toEqual([
+      "87.5",
+      "Pendiente",
+      "Pendiente",
+      "Sin devolución",
+      "Descalificada",
+    ]);
+  });
+
   test("hides what the judge already scored behind `Solo pendientes`", async () => {
     await mount();
 
-    expect(rowNames()).toEqual(["Primera", "Segunda", "Tercera"]);
+    expect(rowNames()).toEqual([
+      "Primera",
+      "Segunda",
+      "Tercera",
+      "Cuarta",
+      "Quinta",
+    ]);
 
     const onlyPending = document.querySelector<HTMLButtonElement>(
       '[aria-label="Solo pendientes"]',

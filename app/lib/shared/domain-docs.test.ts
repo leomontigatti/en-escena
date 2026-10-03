@@ -221,7 +221,8 @@ const judgingScoringRequirements = [
   "| 60 to below 80  | `Medalla de bronce` |",
   "| 80 to below 90  | `Medalla de plata`  |",
   "| 90 or more      | `Medalla de oro`    |",
-  "`Pendiente`, `Completa`, `Sin devolución` and `Descalificada`",
+  "The list shows `Pendiente`, the judge's own score in place of a word when complete, `Sin devolución` as a warning",
+  "The list shows only the judge's own score, and only once it is complete",
   "Removing a judge assignment is refused once that judge has a score row",
 ];
 
@@ -233,6 +234,8 @@ const retiredJudgingRules = [
   "even if value stays empty",
   "unconfirmed",
   "explicit reason and traceability",
+  "`Completa`",
+  "The list itself still shows no number",
 ];
 
 const judgingGlossaryRequirements = [
@@ -246,7 +249,7 @@ const judgingGlossaryRequirements = [
   '**`disqualification`** — ui: "Descalificación"',
   '**`judgeScoreStatus`** — ui: "Estado"',
   "`Pendiente`",
-  "`Completa`",
+  "the judge's own score itself (`87.5`)",
   "`Sin devolución`",
   "`Descalificada`",
   'which "Pendiente"',
