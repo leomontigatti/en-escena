@@ -108,14 +108,14 @@ export function JudgePanelView({
         eyebrow={formatScheduleDayHeading(loaderData.day)}
         title={isOpen ? "Presentaciones de hoy" : "Presentaciones del día"}
         titleLevel={2}
-        action={
+        description={describeDay(loaderData)}
+        descriptionAction={
           <JudgeListFilters
             loaderData={loaderData}
             onlyPending={onlyPending}
             onOnlyPendingChange={setOnlyPending}
           />
         }
-        description={describeDay(loaderData)}
       />
 
       <div className="mt-6 flex flex-col gap-4" ref={tableRef}>
@@ -172,8 +172,7 @@ const statusFilterGroupId = "estado";
 const pendingFilterValue = "pendientes";
 
 /**
- * The list's one filter button, in the header where the judge's thumb already
- * is. It always offers `Estado`, which hides what the judge already scored and
+ * The list's one filter button, on the line of the header's description. It always offers `Estado`, which hides what the judge already scored and
  * is held in the page's own state, and offers `Día` only to a judge with
  * another day to switch to.
  *
