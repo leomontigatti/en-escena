@@ -129,7 +129,11 @@ export function JudgePanelView({
         ) : null}
         <ClientDataTable
           columns={columns}
-          emptyMessage="No tenés presentaciones asignadas para hoy."
+          emptyMessage={
+            isOpen
+              ? "No tenés presentaciones asignadas para hoy."
+              : "No tenés presentaciones asignadas para este día."
+          }
           getRowKey={(row) => row.presentationId}
           getRowProps={(row) => ({
             "data-presentation-name": row.name,
