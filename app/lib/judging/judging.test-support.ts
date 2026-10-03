@@ -33,7 +33,9 @@ const paidInFullAmount = 100000;
 export async function seedJudgingFixture() {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
   const academy = await createAcademyUser({
-    academyName: `Academia ${crypto.randomUUID()}`,
+    // Fixed and digit-free: a search by number also matches the academy name,
+    // so a random one would make those tests flaky (#1423).
+    academyName: "Academia Pirueta",
     email: `${crypto.randomUUID()}@example.com`,
   });
   const catalog = await createEventCatalog(event.id);
