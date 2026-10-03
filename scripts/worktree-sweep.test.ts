@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { type WorktreeFacts, classifyWorktree } from "./worktree-sweep";
+import {
+  type WorktreeFacts,
+  classifyWorktree,
+  parseAcceptedList,
+  parseSweepArgs,
+  sweepVerdict,
+} from "./worktree-sweep";
 
 const merged: WorktreeFacts = {
   path: "/wt/t3code-1",
@@ -87,7 +93,58 @@ describe("classifyWorktree", () => {
     });
   });
 
+  it("keeps a worktree the user named with --keep, by folder or full path", () => {
+    expect(sweepVerdict(merged, { keep: ["t3code-1"] })).toEqual({
+      remove: false,
+      reason: "kept on request",
+    });
+    expect(sweepVerdict(merged, { keep: ["/wt/t3code-1"] }).remove).toBe(false);
+    expect(sweepVerdict(merged, { keep: ["t3code-2"] }).remove).toBe(true);
+  });
+
+  it("keeps a removable worktree the accepted dry run did not list", () => {
+    expect(
+      sweepVerdict(merged, { accepted: new Set(["/wt/t3code-2"]) }),
+    ).toEqual({ remove: false, reason: "not in the accepted dry run" });
+    expect(
+      sweepVerdict(merged, { accepted: new Set(["/wt/t3code-1"]) }).remove,
+    ).toBe(true);
+  });
+
   it("puts unsaved work ahead of a merged PR", () => {
     expect(classifyWorktree({ ...merged, dirty: true }).remove).toBe(false);
   });
+});
+
+describe("parseSweepArgs", () => {
+  it("reads --apply and every --keep", () => {
+    expect(
+      parseSweepArgs(["--keep", "t3code-1", "--apply", "--keep", "t3code-2"]),
+    ).toEqual({ apply: true, keep: ["t3code-1", "t3code-2"] });
+    expect(parseSweepArgs([])).toEqual({ apply: false, keep: [] });
+  });
+
+  it.each([
+    [["--keep"]],
+    [["--keep", "--apply"]],
+    [["--keep", "-x"]],
+    [["--apply", "--kep", "t3code-1"]],
+  ])("refuses %j rather than sweep without the intended exclusion", (args) => {
+    expect(() => parseSweepArgs(args)).toThrow();
+  });
+});
+
+describe("parseAcceptedList", () => {
+  it("reads the paths the dry run saved", () => {
+    expect(parseAcceptedList('["/wt/a","/wt/b"]', "list.json")).toEqual(
+      new Set(["/wt/a", "/wt/b"]),
+    );
+  });
+
+  it.each(["{not json", '{"path":"/wt/a"}', "[1]"])(
+    "refuses %j, naming the file, rather than sweep from it",
+    (text) => {
+      expect(() => parseAcceptedList(text, "list.json")).toThrow(/list\.json/);
+    },
+  );
 });

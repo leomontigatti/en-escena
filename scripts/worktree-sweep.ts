@@ -1,5 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, readlinkSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  readlinkSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -11,8 +19,10 @@ import { git, prune, run } from "./worktree-db";
 // `--apply`. A worktree goes only when nothing in it can be lost: its PR merged
 // or closed, or it never committed; no uncommitted change, no commit that is on
 // neither a remote nor the PR, and no process running inside it. Every other
-// worktree is kept and reported with the reason. Run by the `housekeeping`
-// skill.
+// worktree is kept and reported with the reason, as is each one named with
+// `--keep <folder or path>` (repeatable). `--apply` removes only what the last
+// dry run listed, the list the user accepted: a thread that became removable
+// since waits for the next dry run. Run by the `housekeeping` skill.
 
 type PullRequest = { number: number; state: "OPEN" | "MERGED" | "CLOSED" };
 
@@ -31,6 +41,35 @@ export type WorktreeFacts = {
 type Verdict = { remove: boolean; reason: string };
 
 const FALLOW_CACHE = /^fallow-audit-base-cache-/;
+
+type SweepOptions = {
+  /** Folders or paths the user spared with `--keep`. */
+  keep?: readonly string[];
+  /** The paths the accepted dry run listed for removal; `--apply` only. */
+  accepted?: ReadonlySet<string>;
+};
+
+/** `classifyWorktree`, then the user's say: `--keep` and the accepted list. */
+export function sweepVerdict(
+  facts: WorktreeFacts,
+  { keep = [], accepted }: SweepOptions = {},
+): Verdict {
+  if (
+    keep.some(
+      (name) => name === facts.path || name === path.basename(facts.path),
+    )
+  ) {
+    return { remove: false, reason: "kept on request" };
+  }
+
+  const verdict = classifyWorktree(facts);
+
+  if (verdict.remove && accepted && !accepted.has(facts.path)) {
+    return { remove: false, reason: "not in the accepted dry run" };
+  }
+
+  return verdict;
+}
 
 export function classifyWorktree(facts: WorktreeFacts): Verdict {
   const keep = (reason: string) => ({ remove: false, reason });
@@ -216,13 +255,81 @@ function removeWorktree({ facts, verdict }: Judged) {
   }
 }
 
-function sweep(apply: boolean) {
+export function parseSweepArgs(args: readonly string[]) {
+  const keep: string[] = [];
+  let apply = false;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === "--apply") {
+      apply = true;
+    } else if (arg === "--keep") {
+      const name = args[index + 1];
+
+      if (!name || name.startsWith("-")) {
+        throw new Error("--keep needs a worktree folder or path after it.");
+      }
+      keep.push(name);
+      index += 1;
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+
+  return { apply, keep };
+}
+
+// In the shared git dir, so the dry run and `--apply` agree from any worktree.
+function acceptedListFile() {
+  return path.resolve(
+    git(["rev-parse", "--git-common-dir"]),
+    "worktree-sweep-accepted.json",
+  );
+}
+
+function readAcceptedList(): Set<string> {
+  const file = acceptedListFile();
+
+  if (!existsSync(file)) {
+    throw new Error(
+      "No dry run to apply: run `pnpm worktree:sweep` first, and `--apply` removes what it listed.",
+    );
+  }
+
+  return parseAcceptedList(readFileSync(file, "utf8"), file);
+}
+
+export function parseAcceptedList(text: string, file: string): Set<string> {
+  let paths: unknown;
+
+  try {
+    paths = JSON.parse(text);
+  } catch {
+    paths = undefined;
+  }
+
+  if (
+    !Array.isArray(paths) ||
+    !paths.every((entry) => typeof entry === "string")
+  ) {
+    throw new Error(
+      `${file} is not a list of worktree paths: run \`pnpm worktree:sweep\` again to rewrite it.`,
+    );
+  }
+
+  return new Set(paths);
+}
+
+function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
+  const accepted = apply ? readAcceptedList() : undefined;
+
   run("git", ["worktree", "prune"]);
   run("git", ["fetch", "--quiet", "origin"]);
 
   const judged = gatherFacts().map((facts) => ({
     facts,
-    verdict: classifyWorktree(facts),
+    verdict: sweepVerdict(facts, { keep, accepted }),
   }));
   const removed = judged.filter(({ verdict }) => verdict.remove);
   const kept = judged.filter(({ verdict }) => !verdict.remove);
@@ -232,6 +339,15 @@ function sweep(apply: boolean) {
   console.log("");
 
   if (!apply) {
+    // Written beside the target and renamed over it, so an interrupted write
+    // cannot leave a truncated accepted list behind.
+    const listFile = acceptedListFile();
+    const tempFile = `${listFile}.${process.pid}.tmp`;
+    writeFileSync(
+      tempFile,
+      JSON.stringify(removed.map(({ facts }) => facts.path)),
+    );
+    renameSync(tempFile, listFile);
     prune(
       true,
       kept.map(({ facts }) => facts.path),
@@ -241,6 +357,7 @@ function sweep(apply: boolean) {
   }
 
   removed.forEach(removeWorktree);
+  rmSync(acceptedListFile(), { force: true });
   // Re-listed rather than taken from `kept`: a removal that failed keeps its
   // worktree, and with it its database.
   prune(false);
@@ -248,7 +365,7 @@ function sweep(apply: boolean) {
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {
   try {
-    sweep(process.argv.includes("--apply"));
+    sweep(parseSweepArgs(process.argv.slice(2)));
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
