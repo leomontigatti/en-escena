@@ -27,7 +27,11 @@ import {
 
 import type { ResultsPublication } from "@/lib/judging/results.server";
 
-import { hideResultsIntent, publishResultsIntent } from "./shared";
+import {
+  hideResultsIntent,
+  publishResultsIntent,
+  resultsEventIdFieldName,
+} from "./shared";
 
 /**
  * What the results list says while results are out: how many the academies see
@@ -77,10 +81,13 @@ export type ResultsAction = "hide-results" | "show-results" | "update-results";
  */
 export function ResultsPublicationDialog({
   action,
+  eventId,
   onClose,
   publication,
 }: {
   action: ResultsAction | null;
+  /** The event the list shows, which the action checks is still the active one. */
+  eventId: string;
   onClose: () => void;
   publication: ResultsPublication;
 }) {
@@ -120,6 +127,11 @@ export function ResultsPublicationDialog({
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <Form method="post">
             <input type="hidden" name="intent" value={intent} />
+            <input
+              type="hidden"
+              name={resultsEventIdFieldName}
+              value={eventId}
+            />
             <Button
               type="submit"
               disabled={isPending}

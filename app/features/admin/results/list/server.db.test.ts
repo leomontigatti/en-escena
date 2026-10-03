@@ -9,9 +9,15 @@ import {
 } from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { publishResults } from "@/lib/judging/results.server";
+import { activateEvent, deactivateEvent } from "@/lib/events/management.server";
+import { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
 
 import { handleResultsListAction, loadResultsListRouteData } from "./server";
-import { hideResultsIntent, publishResultsIntent } from "./shared";
+import {
+  hideResultsIntent,
+  publishResultsIntent,
+  resultsEventIdFieldName,
+} from "./shared";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -32,10 +38,12 @@ async function loadTheList(
 async function submit(
   email: string,
   intent: string,
+  eventId: string,
   role: "admin" | "auditor" = "admin",
 ) {
   const body = new FormData();
   body.set("intent", intent);
+  body.set(resultsEventIdFieldName, eventId);
   const { request } = await createSignedInRequest({
     body,
     email,
@@ -219,7 +227,11 @@ describe("the results list route", () => {
       .where(eq(presentations.id, presentation.presentationId));
 
     await expect(
-      submit("admin.resultados.publicar@example.com", publishResultsIntent),
+      submit(
+        "admin.resultados.publicar@example.com",
+        publishResultsIntent,
+        fixture.event.id,
+      ),
     ).resolves.toMatchObject({
       message: "Se publicaron los resultados de 1 presentación.",
       status: "success",
@@ -229,7 +241,11 @@ describe("the results list route", () => {
     ).resolves.toMatchObject({ resultsPublishedAt: expect.any(Date) });
 
     await expect(
-      submit("admin.resultados.ocultar@example.com", hideResultsIntent),
+      submit(
+        "admin.resultados.ocultar@example.com",
+        hideResultsIntent,
+        fixture.event.id,
+      ),
     ).resolves.toMatchObject({
       message: "Se ocultaron los resultados.",
       status: "success",
@@ -239,12 +255,47 @@ describe("the results list route", () => {
     ).resolves.toMatchObject({ resultsPublishedAt: null });
   });
 
+  test("refuses a publication confirmed for an event that is no longer the active one", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Evaluada",
+      orderNumber: 1,
+    });
+    await score(fixture, presentation.presentationId, ["75"]);
+    const other = await createAdminSavedEvent({ name: "Otro evento" });
+    // Another administrator switches the active event while the confirmation
+    // for the first one is still open.
+    await deactivateEvent(fixture.event.id);
+    await activateEvent(other.id);
+
+    await expect(
+      submit(
+        "admin.resultados.evento-cambiado@example.com",
+        publishResultsIntent,
+        fixture.event.id,
+      ),
+    ).resolves.toMatchObject({
+      init: { status: 409 },
+      data: { status: "error" },
+    });
+    await expect(
+      db.query.events.findMany({ columns: { resultsPublishedAt: true } }),
+    ).resolves.toEqual(
+      expect.not.arrayContaining([{ resultsPublishedAt: expect.any(Date) }]),
+    );
+  });
+
   test("refuses an auditor's publication submission", async () => {
     const fixture = await seedJudgingFixture();
 
     for (const intent of [publishResultsIntent, hideResultsIntent]) {
       await expectThrownResponse(
-        submit(`auditor.${intent}@example.com`, intent, "auditor"),
+        submit(
+          `auditor.${intent}@example.com`,
+          intent,
+          fixture.event.id,
+          "auditor",
+        ),
         403,
       );
     }

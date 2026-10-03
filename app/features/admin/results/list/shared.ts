@@ -15,6 +15,12 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 /** `Mostrar resultados` and `Actualizar resultados` alike: both publish what is evaluated now. */
 export const publishResultsIntent = "publish-results";
 export const hideResultsIntent = "hide-results";
+/**
+ * The event the confirmation was shown for. The action acts on the active
+ * event, and refuses when this is no longer it: another administrator may
+ * have switched events while the dialog was open.
+ */
+export const resultsEventIdFieldName = "evento";
 
 export type ResultsListActionData = {
   message: string;

@@ -28,6 +28,7 @@ import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   hideResultsIntent,
   publishResultsIntent,
+  resultsEventIdFieldName,
   type ResultsListActionData,
   type ResultsListFilters,
   type ResultsListItem,
@@ -181,7 +182,8 @@ export async function handleResultsListAction(
 ): Promise<ResultsListActionData | ReturnType<typeof data>> {
   await requireInternalUser(request, ["admin"]);
   const eventContext = await loadEventContext(request);
-  const intent = (await request.formData()).get("intent");
+  const formData = await request.formData();
+  const intent = formData.get("intent");
 
   if (!eventContext.selectedEventId) {
     return data(
@@ -190,6 +192,17 @@ export async function handleResultsListAction(
         status: "error" as const,
       },
       { status: 400 },
+    );
+  }
+
+  if (formData.get(resultsEventIdFieldName) !== eventContext.selectedEventId) {
+    return data(
+      {
+        message:
+          "El evento activo cambió mientras confirmabas: revisá sus resultados antes de publicarlos.",
+        status: "error" as const,
+      },
+      { status: 409 },
     );
   }
 

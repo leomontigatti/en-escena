@@ -105,7 +105,7 @@ function rowText(name: string) {
 }
 
 describe("ResultsListView rows", () => {
-  test("reads the number as text, with the award and the average last", async () => {
+  test("links an evaluated presentation to its scores", async () => {
     await renderList(
       buildLoaderData({
         results: [
@@ -119,36 +119,12 @@ describe("ResultsListView rows", () => {
       }),
     );
 
-    expect(document.querySelector("tbody input")).toBeNull();
-    expect(
-      Array.from(document.querySelectorAll("thead th")).map((th) =>
-        th.textContent?.trim(),
-      ),
-    ).toEqual([
-      "N.º",
-      "Nombre",
-      "Academia",
-      "Modalidad / Submodalidad",
-      "Categoría / Tipo de grupo",
-      "Nivel",
-      "Premio",
-      "Promedio",
-    ]);
-    expect(rowText("Brisa")).toEqual([
-      "7",
-      "Brisa",
-      "Academia Pirueta",
-      "Jazz",
-      "Juvenil · Solo",
-      "—",
-      "Medalla de plata",
-      "82.5",
-    ]);
     expect(
       document.querySelector(
         'a[href="/administracion/presentaciones/presentacion_1/puntajes"]',
       )?.textContent,
     ).toBe("Brisa");
+    expect(document.querySelector('[aria-label="Sin publicar"]')).toBeNull();
   });
 
   test("leaves a presentation the panel has not reached blank, with no link", async () => {

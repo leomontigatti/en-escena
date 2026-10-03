@@ -14,6 +14,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -169,14 +170,9 @@ function ResultAwardCell({ row }: { row: ResultsListItem }) {
       {row.published ? null : (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span
-              aria-label="Sin publicar"
-              className="inline-flex text-muted-foreground"
-              role="img"
-              tabIndex={0}
-            >
-              <EyeOff aria-hidden="true" className="size-4" />
-            </span>
+            <Badge aria-label="Sin publicar" tabIndex={0} variant="outline">
+              <EyeOff aria-hidden="true" />
+            </Badge>
           </TooltipTrigger>
           <TooltipContent>Sin publicar</TooltipContent>
         </Tooltip>
@@ -258,9 +254,10 @@ export function ResultsListView({
           description="Una presentación entra en esta lista cuando recibe su número en el orden del evento activo."
         />
       )}
-      {loaderData.canPublish ? (
+      {loaderData.canPublish && loaderData.selectedEventId ? (
         <ResultsPublicationDialog
           action={resultsAction}
+          eventId={loaderData.selectedEventId}
           onClose={() => setResultsAction(null)}
           publication={loaderData.publication}
         />
