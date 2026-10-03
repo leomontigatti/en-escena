@@ -5,6 +5,7 @@ import {
   academies,
   categories,
   choreographies,
+  events,
   judgeAssignments,
   modalities,
   presentations,
@@ -189,8 +190,10 @@ export async function readJudgePresentations(
 }
 
 /**
- * The schedule dates on which the judge has at least one assigned
- * presentation, each once and in date order: the days their list can show.
+ * The schedule dates of the active event on which the judge has at least one
+ * assigned presentation, each once and in date order: the days their list can
+ * show. A judge who also sat on an earlier event's panel is not offered its
+ * days.
  */
 export async function readJudgeAssignedDays(
   input: { judgeId: string },
@@ -208,7 +211,8 @@ export async function readJudgeAssignedDays(
       eq(choreographies.id, presentations.choreographyId),
     )
     .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
-    .where(eq(judgeAssignments.userId, input.judgeId))
+    .innerJoin(events, eq(events.id, presentations.eventId))
+    .where(and(eq(judgeAssignments.userId, input.judgeId), events.active))
     .orderBy(asc(schedules.scheduledDate));
 
   return rows.map((row) => row.scheduledDate);

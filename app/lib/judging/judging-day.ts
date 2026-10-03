@@ -31,3 +31,14 @@ export function isOpenForJudges(
 ): boolean {
   return scheduledDate === judgingDate(now);
 }
+
+/**
+ * Why a schedule is not open for its judges, which is all a refusal has to
+ * tell them apart by: its day has not started, or it closed at 03:00.
+ */
+export function isBeforeJudgingDay(
+  scheduledDate: string,
+  now: Date = new Date(),
+): boolean {
+  return scheduledDate > judgingDate(now);
+}

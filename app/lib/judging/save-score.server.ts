@@ -48,7 +48,11 @@ import {
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type SaveJudgeScoreRefusal =
-  "not-assigned" | "closed" | "incomplete-sheet" | "invalid-value";
+  | "not-assigned"
+  | "closed"
+  | "not-started"
+  | "incomplete-sheet"
+  | "invalid-value";
 
 export type SaveJudgeScoreResult =
   | { disqualified?: true; ok: true }

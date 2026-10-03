@@ -146,11 +146,19 @@ describe("the `/juzgamiento` action", () => {
 
   // The list shows the judge's other days read-only; none of them takes a write.
   test.each([
-    ["has closed", "2020-01-01"],
-    ["has not started", "2099-01-01"],
+    [
+      "has closed",
+      "2020-01-01",
+      "La jornada ya cerró, no se pueden guardar puntajes.",
+    ],
+    [
+      "has not started",
+      "2099-01-01",
+      "La jornada todavía no empezó, no se pueden guardar puntajes.",
+    ],
   ])(
     "refuses the score while the presentation's day %s",
-    async (_when, scheduledDate) => {
+    async (_when, scheduledDate, message) => {
       const judge = await signIn("judge", "Juana Juez");
       const { fixture, presentation } = await seedOpenPresentation();
       const assignment = await fixture.assignJudge(
@@ -171,10 +179,7 @@ describe("the `/juzgamiento` action", () => {
         }),
       );
 
-      expect(result).toMatchObject({
-        message: "La jornada ya cerró, no se pueden guardar puntajes.",
-        status: "error",
-      });
+      expect(result).toMatchObject({ message, status: "error" });
       expect(
         await db
           .select({ value: scores.value })

@@ -224,7 +224,7 @@ const judgingScoringRequirements = [
   "The list shows `Pendiente`, the judge's own score in place of a word when complete, `Sin devolución` as a warning",
   "The list shows only the judge's own score, and only once it is complete",
   "The judge's list and the write window are two rules.",
-  "reaches every other day the judge has presentations on, read-only",
+  "reaches every other day of the active event the judge has presentations on, read-only",
   "Removing a judge assignment is refused once that judge has a score row",
 ];
 

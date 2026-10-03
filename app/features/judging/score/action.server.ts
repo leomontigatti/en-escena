@@ -44,8 +44,11 @@ const invalidScoreMessage = "Revisá el puntaje.";
 
 const invalidFeedbackAudioMessage = "No se pudo guardar la devolución.";
 
-const closedJudgingDayMessage =
-  "La jornada ya cerró, no se pueden guardar puntajes.";
+/** What a judge is told when the presentation's day is not the open one. */
+const judgingDayRefusalMessages: Partial<Record<string, string>> = {
+  closed: "La jornada ya cerró, no se pueden guardar puntajes.",
+  "not-started": "La jornada todavía no empezó, no se pueden guardar puntajes.",
+};
 
 const incompleteSheetMessage =
   "La planilla no suma 100. Avisale a administración para que la complete.";
@@ -121,10 +124,12 @@ async function saveScore(
     };
   }
 
-  if (result.reason === "closed") {
+  const judgingDayRefusalMessage = judgingDayRefusalMessages[result.reason];
+
+  if (judgingDayRefusalMessage) {
     return {
       intent,
-      message: closedJudgingDayMessage,
+      message: judgingDayRefusalMessage,
       status: "error",
       values: { presentationId, value },
     };

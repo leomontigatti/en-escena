@@ -1,7 +1,12 @@
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { presentations, scoreCriterionValues, scores } from "@/db/schema";
+import {
+  events,
+  presentations,
+  scoreCriterionValues,
+  scores,
+} from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 import {
@@ -265,6 +270,31 @@ describe("the days a judge has presentations on", () => {
       showDay,
       "2026-05-03",
     ]);
+  });
+
+  test("leaves out the days of an event that is not the active one", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const { judgeId } = await fixture.assignJudge(presentation.presentationId);
+
+    await db
+      .update(events)
+      .set({ active: true })
+      .where(eq(events.id, fixture.event.id));
+
+    await expect(readJudgeAssignedDays({ judgeId })).resolves.toEqual([
+      showDay,
+    ]);
+
+    await db
+      .update(events)
+      .set({ active: false })
+      .where(eq(events.id, fixture.event.id));
+
+    await expect(readJudgeAssignedDays({ judgeId })).resolves.toEqual([]);
   });
 });
 
