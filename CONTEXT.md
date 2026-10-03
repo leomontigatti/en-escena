@@ -49,7 +49,7 @@ A programming slot of an event, with name, local date, local time, accepted moda
 _Avoid_: time block, loose time slot, full agenda
 
 **`awardCeremony`** — ui: "Entrega de premios"
-The occasion a `schedule` closes with, when its presentations' recognitions are handed out: a date and a time of its own, on any day, since one held after midnight falls on the next. A schedule has one or none, and the public program announces it.
+The occasion a `schedule` closes with, when its presentations' recognitions are handed out: a date and a time of its own, on any day, since one held after midnight falls on the next. A schedule has one or none.
 _Avoid_: `premiación`, `ceremonia`, `award` alone
 
 **`scheduleCapacity`** — ui: "Cupo de cronograma"

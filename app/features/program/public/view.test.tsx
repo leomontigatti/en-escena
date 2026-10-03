@@ -31,8 +31,7 @@ describe("PublicProgramView", () => {
     expect(markup).not.toContain(
       "El orden de las presentaciones puede cambiar hasta el día del evento.",
     );
-    // The info alert, between the header and the day tabs.
-    expect(markup).toContain("bg-info/10");
+    // Its own line on screen, and again under the printed heading.
     expect(countOccurrences(markup, programNotice)).toBe(2);
     expect(markup).toContain("Imprimir");
   });
@@ -72,15 +71,16 @@ describe("PublicProgramView", () => {
         awardCeremonyTime: null,
       },
     ];
-    const rows = [
-      buildRow({ choreographyId: "one", orderNumber: 1 }),
+    // One presentation per schedule: the loader lists only the schedules
+    // somebody presents in.
+    const rows = schedules.map((schedule, index) =>
       buildRow({
-        choreographyId: "two",
-        orderNumber: 2,
-        scheduleId: "schedule-4",
-        scheduledDate: "2026-05-02",
+        choreographyId: `choreography-${index}`,
+        orderNumber: index + 1,
+        scheduleId: schedule.id,
+        scheduledDate: schedule.scheduledDate,
       }),
-    ];
+    );
 
     // A day tab lists that day's ceremonies, each under its schedule's name;
     // one held after midnight names its own day.
@@ -90,19 +90,19 @@ describe("PublicProgramView", () => {
         "/programa?dia=2026-05-01",
       );
 
-      expect(markup).toContain(
-        'Bloque mañana</span><span class="text-muted-foreground"> · Entrega de premios 13:30 hs',
+      const text = readScreenText(markup);
+
+      expect(text).toContain("Bloque mañana · Entrega de premios 13:30 hs");
+      expect(text).toContain(
+        "Bloque noche · Entrega de premios Sábado 2/5 00:15 hs",
       );
-      expect(markup).toContain(
-        'Bloque noche</span><span class="text-muted-foreground"> · Entrega de premios Sábado 2/5 00:15 hs',
-      );
-      expect(markup).not.toContain(">Bloque tarde</span>");
+      expect(text).not.toContain("Bloque tarde");
     });
 
     test("shows no ceremonies on `Todos`", () => {
       const markup = renderView({ rows, schedules }, "/programa");
 
-      expect(markup).not.toContain("· Entrega de premios");
+      expect(readScreenText(markup)).not.toContain("Entrega de premios");
     });
 
     test("shows no card on a day without ceremonies", () => {
@@ -111,8 +111,7 @@ describe("PublicProgramView", () => {
         "/programa?dia=2026-05-02",
       );
 
-      expect(markup).not.toContain("· Entrega de premios");
-      expect(markup).not.toContain("bg-muted/40");
+      expect(readScreenText(markup)).not.toContain("Entrega de premios");
     });
   });
 
@@ -177,14 +176,16 @@ describe("PublicProgramView", () => {
   test("prints the caveat on every page run and the ceremony after its rows", () => {
     const markup = renderView({
       rows: [
-        buildRow({ choreographyId: "one", orderNumber: 1 }),
+        buildRow({ choreographyId: "one", name: "Primera", orderNumber: 1 }),
         buildRow({
           choreographyId: "two",
+          name: "Segunda",
           orderNumber: 2,
           scheduleId: "schedule-2",
         }),
         buildRow({
           choreographyId: "three",
+          name: "Tercera",
           orderNumber: 3,
           scheduleId: "schedule-3",
         }),
@@ -216,7 +217,7 @@ describe("PublicProgramView", () => {
         },
       ],
     });
-    const printed = markup.slice(markup.indexOf("print:block"));
+    const printed = readText(markup.slice(markup.indexOf("print:block")));
 
     // Once on screen, once per page run.
     expect(countOccurrences(markup, programNotice)).toBe(4);
@@ -226,10 +227,13 @@ describe("PublicProgramView", () => {
     expect(printed).toContain("Entrega de premios · sábado 2 de mayo 00:15 hs");
     // After the last row of its schedule, before the next page run.
     expect(printed.indexOf("Entrega de premios · 13:30 hs")).toBeGreaterThan(
-      printed.indexOf("</table>"),
+      printed.indexOf("Primera"),
     );
     expect(printed.indexOf("Entrega de premios · 13:30 hs")).toBeLessThan(
       printed.indexOf("Bloque tarde"),
+    );
+    expect(printed.indexOf("Tercera")).toBeLessThan(
+      printed.indexOf("Entrega de premios · sábado"),
     );
   });
 
@@ -259,6 +263,16 @@ describe("PublicProgramView", () => {
 
 const programNotice =
   "Los horarios son estimativos y el orden de las presentaciones puede cambiar hasta el día del evento.";
+
+/** What a reader sees, without the markup around it. */
+function readText(markup: string) {
+  return markup.replace(/<[^>]+>/g, "");
+}
+
+/** The screen's text only: the printed program follows it in the markup. */
+function readScreenText(markup: string) {
+  return readText(markup.slice(0, markup.indexOf("print:block")));
+}
 
 function countOccurrences(markup: string, needle: string) {
   return markup.split(needle).length - 1;

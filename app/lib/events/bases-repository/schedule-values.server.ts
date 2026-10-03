@@ -45,8 +45,7 @@ export function validateAwardCeremonyInput(
     return { [missingField]: halfSetAwardCeremonyMessage };
   }
 
-  const awardCeremonyDate = input.awardCeremonyDate?.trim() ?? "";
-  const awardCeremonyTime = input.awardCeremonyTime?.trim() ?? "";
+  const { awardCeremonyDate, awardCeremonyTime } = trimAwardCeremony(input);
   const fieldErrors: Record<string, string> = {};
 
   if (awardCeremonyDate !== "" && !isValidDate(awardCeremonyDate)) {
@@ -77,12 +76,19 @@ function readAwardCeremonyValues(input: ScheduleInput): {
     return {};
   }
 
-  const awardCeremonyDate = input.awardCeremonyDate?.trim() ?? "";
-  const awardCeremonyTime = input.awardCeremonyTime?.trim() ?? "";
+  const { awardCeremonyDate, awardCeremonyTime } = trimAwardCeremony(input);
 
   return {
     awardCeremonyDate: awardCeremonyDate === "" ? null : awardCeremonyDate,
     awardCeremonyTime:
       awardCeremonyTime === "" ? null : normalizeTime(awardCeremonyTime),
+  };
+}
+
+/** The pair as typed, blank for an absent half. */
+function trimAwardCeremony(input: ScheduleInput) {
+  return {
+    awardCeremonyDate: input.awardCeremonyDate?.trim() ?? "",
+    awardCeremonyTime: input.awardCeremonyTime?.trim() ?? "",
   };
 }

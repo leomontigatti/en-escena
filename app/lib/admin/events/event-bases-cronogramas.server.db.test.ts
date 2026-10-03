@@ -322,6 +322,51 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
       awardCeremonyDate: "2026-05-02",
       awardCeremonyTime: "13:30",
     });
+
+    // A form left open since before the fields existed posts neither half:
+    // that says nothing about the ceremony, so the saved pair survives it.
+    const staleFormRequest = await createScheduleAdminRequest({
+      email: "admin.form.viejo@example.com",
+      role: "admin",
+      requestUrl,
+      intent: "update-schedule",
+      scheduleId: schedule?.id ?? "",
+      schedule: buildScheduleDraft({ modalityIds, name: "Sábado temprano" }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(staleFormRequest.request)),
+      302,
+    );
+    await expect(
+      findSavedScheduleById(schedule?.id ?? ""),
+    ).resolves.toMatchObject({
+      name: "Sábado Temprano",
+      awardCeremonyDate: "2026-05-02",
+      awardCeremonyTime: "13:30",
+    });
+
+    // Both halves posted blank is the administrator clearing it.
+    const clearRequest = await createScheduleAdminRequest({
+      email: "admin.quita.entrega@example.com",
+      role: "admin",
+      requestUrl,
+      intent: "update-schedule",
+      scheduleId: schedule?.id ?? "",
+      schedule: buildScheduleDraft({
+        modalityIds,
+        awardCeremonyDate: "",
+        awardCeremonyTime: "",
+      }),
+    });
+
+    await expectThrownResponse(action(routeArgs(clearRequest.request)), 302);
+    await expect(
+      findSavedScheduleById(schedule?.id ?? ""),
+    ).resolves.toMatchObject({
+      awardCeremonyDate: null,
+      awardCeremonyTime: null,
+    });
   });
 
   test("creates schedule capacities through the admin action", async () => {

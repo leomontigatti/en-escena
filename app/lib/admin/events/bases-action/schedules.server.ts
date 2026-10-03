@@ -66,8 +66,9 @@ type ScheduleActionInput = EventBasesActionBaseInput & {
   scheduleId: string;
   scheduledDate: string;
   startTime: string;
-  awardCeremonyDate: string;
-  awardCeremonyTime: string;
+  /** Absent when the form that posted predates the ceremony fields. */
+  awardCeremonyDate?: string;
+  awardCeremonyTime?: string;
   totalCapacity: number;
 };
 
@@ -115,9 +116,32 @@ function readScheduleActionInput(
     scheduleId: String(formData.get("scheduleId") ?? ""),
     scheduledDate: formValues.scheduledDate,
     startTime: formValues.startTime,
+    ...readPostedAwardCeremony(formData, formValues),
+    totalCapacity: Number.parseInt(formValues.totalCapacity, 10),
+  };
+}
+
+/**
+ * The ceremony pair, only when the form posted it. A schedule form left open
+ * since before the ceremony fields existed posts neither, and reading that as
+ * two blanks would clear a ceremony someone saved since; absent, the
+ * repository leaves the stored pair alone. A form that has the fields always
+ * posts both, blank or not, so clearing on purpose still works.
+ */
+function readPostedAwardCeremony(
+  formData: FormData,
+  formValues: ScheduleActionValues,
+): Pick<ScheduleActionInput, "awardCeremonyDate" | "awardCeremonyTime"> {
+  if (
+    !formData.has("awardCeremonyDate") &&
+    !formData.has("awardCeremonyTime")
+  ) {
+    return {};
+  }
+
+  return {
     awardCeremonyDate: formValues.awardCeremonyDate,
     awardCeremonyTime: formValues.awardCeremonyTime,
-    totalCapacity: Number.parseInt(formValues.totalCapacity, 10),
   };
 }
 
