@@ -342,7 +342,7 @@ function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
     // Written beside the target and renamed over it, so an interrupted write
     // cannot leave a truncated accepted list behind.
     const listFile = acceptedListFile();
-    const tempFile = `${listFile}.tmp`;
+    const tempFile = `${listFile}.${process.pid}.tmp`;
     writeFileSync(
       tempFile,
       JSON.stringify(removed.map(({ facts }) => facts.path)),
