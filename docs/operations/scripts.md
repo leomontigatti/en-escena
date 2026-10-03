@@ -102,9 +102,9 @@ workflow, never by hand.
 
 ## Worktrees
 
-| Script                   | Purpose                                                                                                                                                                                                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ⚠️ `pnpm worktree:sweep` | List the worktrees finished threads left (PR merged or closed, or never committed; nothing unsaved; nothing running inside) and the ones kept, with the reason. `--apply` removes them, their branches and databases; `--keep <folder>` spares one. Run by the `housekeeping` skill. |
+| Script                   | Purpose                                                                                                                                                                                                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ⚠️ `pnpm worktree:sweep` | List the worktrees finished threads left (PR merged or closed, or never committed; nothing unsaved; nothing running inside) and the ones kept, with the reason. `--apply` removes what the last dry run listed, their branches and databases; `--keep <folder>` spares one. Run by the `housekeeping` skill. |
 
 ## Git Hooks
 

@@ -21,8 +21,8 @@ is removed until the user accepts the dry run's report.
    to see what could be removed ends here.
 
 2. On acceptance, run `pnpm worktree:sweep --apply`, adding `--keep <folder>` for each worktree
-   the user spared. It removes each worktree, its local branch and its `en-escena-wt-*` database.
-3. Report what was removed as a count, anything removed that the dry run did not list (the
-   apply re-judges the tree, so a thread that finished in between goes too), anything it left on
-   an error, and every kept worktree with its reason. A kept worktree is the user's call: name it
-   and leave it.
+   the user spared. It removes only what the dry run listed: each worktree, its local branch and
+   its `en-escena-wt-*` database. A worktree that became removable since is kept as "not in the
+   accepted dry run" and waits for the next report.
+3. Report what was removed as a count, anything it left on an error, and every kept worktree with
+   its reason. A kept worktree is the user's call: name it and leave it.
