@@ -1,8 +1,11 @@
+import { TriangleAlert } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -13,8 +16,10 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { noOfferedSheets } from "@/lib/judging/sheet-criteria";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
+import { incompleteSubmodalities } from "../criteria-status";
 import {
   getModalitySubmittedValues,
   ModalityForm,
@@ -26,6 +31,7 @@ import type {
   EventModalitiesLoaderData,
   EventModalityActionData,
   EventModalityRow,
+  EventSubmodalityRow,
 } from "../shared";
 
 export type EventModalityDetailViewProps = {
@@ -57,6 +63,7 @@ export function EventModalityDetailView({
     () => getModalitySubmittedValues(actionData, modalityId),
     [actionData, modalityId],
   );
+  const sheets = loaderData.modalitySheets[modalityId] ?? noOfferedSheets;
   const form = useEventModalityForm({
     name: modality?.name,
     submodalities: modalitySubmodalities,
@@ -83,6 +90,13 @@ export function EventModalityDetailView({
     >
       {modality ? (
         <>
+          <IncompleteSheetsAlert
+            submodalities={incompleteSubmodalities({
+              criteria: loaderData.submodalityCriteria,
+              sheets,
+              submodalities: modalitySubmodalities,
+            })}
+          />
           <ModalityFormPanel
             footer={
               <ModalityFormActions
@@ -100,10 +114,7 @@ export function EventModalityDetailView({
                 criteria: loaderData.submodalityCriteria,
                 lockedSubmodalityIds: loaderData.lockedSubmodalityIds,
                 modalityId: modality.id,
-                sheets: loaderData.modalitySheets[modality.id] ?? {
-                  generalStandsAlone: false,
-                  levels: [],
-                },
+                sheets,
                 submodalities: modalitySubmodalities,
               }}
               form={form}
@@ -117,6 +128,37 @@ export function EventModalityDetailView({
         <EmptyResourceState>No encontramos esa modalidad.</EmptyResourceState>
       )}
     </AdminResourceLayout>
+  );
+}
+
+const submodalityNames = new Intl.ListFormat("es-AR", {
+  style: "long",
+  type: "conjunction",
+});
+
+/**
+ * The submodalities a judge cannot score yet, told on the page that fixes
+ * them: above the form card, since it is about the modality and not a field.
+ */
+function IncompleteSheetsAlert({
+  submodalities,
+}: {
+  submodalities: EventSubmodalityRow[];
+}) {
+  return (
+    <AlertStack>
+      {submodalities.length > 0 ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Planillas incompletas</AlertTitle>
+          <AlertDescription>
+            {`Los criterios de ${submodalityNames.format(
+              submodalities.map((submodality) => submodality.name),
+            )} no suman 100 en todas sus planillas, y el jurado no puede puntuar las que quedan incompletas. Completalas desde los criterios de cada submodalidad.`}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </AlertStack>
   );
 }
 
