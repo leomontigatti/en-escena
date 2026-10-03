@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type ComponentProps } from "react";
-import { useFetcher } from "react-router";
+import type { ComponentProps } from "react";
 
 import { PortalListPageActions } from "@/components/portal/list-page-actions";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
@@ -14,21 +13,16 @@ import {
   getParticipationBadgeVariant,
   getParticipationLabel,
 } from "@/lib/participation/participation.shared";
-import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   defaultRosterPersonStatusFilter,
   getRosterPersonStatusBadgeVariant,
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
-import { CreateDancerDialog } from "@/features/portal/dancers/create/dialog";
-import { type CreateDancerActionData } from "@/features/portal/dancers/create/shared";
 import { type PortalDancersListLoaderData } from "@/features/portal/dancers/list/shared";
 
 type LoaderData = PortalDancersListLoaderData;
-type ActionData = CreateDancerActionData;
 type DancerRow = LoaderData["dancers"][number];
 
 const dancerDocumentKinds = ["minor_authorization", "adult_contract"] as const;
@@ -84,100 +78,32 @@ type DancerBadge = {
 
 export function PortalDancersListRouteView({
   loaderData,
-  actionData: providedActionData,
 }: {
   loaderData: LoaderData;
-  actionData?: ActionData;
 }) {
-  const createDancerFetcher = useFetcher<ActionData>();
-  // A warning keeps the dialog open exactly as an error does: the values stay,
-  // and the academy answers the question the server asked.
-  const actionData =
-    keepsCreateDancerDialogOpen(createDancerFetcher.data) ??
-    keepsCreateDancerDialogOpen(providedActionData);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
-    actionData?.modalOpen === true,
-  );
-  const [dismissServerState, setDismissServerState] = useState(false);
-  const [dialogResetKey, setDialogResetKey] = useState(0);
-  const previousCreateDancerFetcherState = useRef(createDancerFetcher.state);
-
-  useEffect(() => {
-    if (actionData?.modalOpen === true) {
-      setIsCreateDialogOpen(true);
-      setDismissServerState(false);
-    }
-  }, [actionData]);
-
-  useEffect(() => {
-    const previousState = previousCreateDancerFetcherState.current;
-    previousCreateDancerFetcherState.current = createDancerFetcher.state;
-
-    if (
-      previousState !== "idle" &&
-      createDancerFetcher.state === "idle" &&
-      !keepsCreateDancerDialogOpen(createDancerFetcher.data)
-    ) {
-      setIsCreateDialogOpen(false);
-      setDismissServerState(true);
-      setDialogResetKey((currentValue) => currentValue + 1);
-    }
-  }, [createDancerFetcher.data, createDancerFetcher.state]);
-
-  const visibleActionData = dismissServerState ? undefined : actionData;
-
-  useServerActionToast(
-    createDancerFetcher.data?.status === "success"
-      ? createDancerFetcher.data
-      : undefined,
-    { toastId: notificationToasts["bailarin-creado"].id },
-  );
-
   return (
-    <>
-      <PortalListPage
-        titleId="bailarines-title"
-        title="Bailarines"
-        description="Gestioná los bailarines de tu academia y priorizá los registros que todavía necesitan documento o imágenes."
-        action={
-          <PortalListPageActions
-            createLabel="Nuevo bailarín"
-            documentDownloadUrls={loaderData.documentDownloadUrls}
-            kinds={dancerDocumentKinds}
-            onCreate={() => {
-              setDismissServerState(true);
-              setIsCreateDialogOpen(true);
-            }}
-          />
-        }
-      >
-        {loaderData.dancers.length > 0 ? (
-          <DancersTable dancers={loaderData.dancers} />
-        ) : (
-          <PortalEmptyState
-            title="Todavía no cargaste bailarines"
-            description="Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías."
-          />
-        )}
-      </PortalListPage>
-
-      <CreateDancerDialog
-        key={dialogResetKey}
-        actionData={visibleActionData}
-        eventStartDate={loaderData.activeEventStartDate}
-        isOpen={isCreateDialogOpen}
-        isSubmitting={createDancerFetcher.state !== "idle"}
-        onOpenChange={(nextOpen) => {
-          setIsCreateDialogOpen(nextOpen);
-
-          if (!nextOpen) {
-            setDismissServerState(true);
-            setDialogResetKey((currentValue) => currentValue + 1);
-          }
-        }}
-        submit={createDancerFetcher.submit}
-      />
-    </>
+    <PortalListPage
+      titleId="bailarines-title"
+      title="Bailarines"
+      description="Gestioná los bailarines de tu academia y priorizá los registros que todavía necesitan documento o imágenes."
+      action={
+        <PortalListPageActions
+          create={{ to: "/portal/bailarines/nuevo" }}
+          createLabel="Nuevo bailarín"
+          documentDownloadUrls={loaderData.documentDownloadUrls}
+          kinds={dancerDocumentKinds}
+        />
+      }
+    >
+      {loaderData.dancers.length > 0 ? (
+        <DancersTable dancers={loaderData.dancers} />
+      ) : (
+        <PortalEmptyState
+          title="Todavía no cargaste bailarines"
+          description="Cuando cargues bailarines, van a aparecer en esta lista para usarlos en coreografías."
+        />
+      )}
+    </PortalListPage>
   );
 }
 
@@ -311,10 +237,4 @@ function formatDocument(dancer: DancerRow) {
     default:
       return `Otro ${dancer.documentNumber}`;
   }
-}
-
-function keepsCreateDancerDialogOpen(actionData?: ActionData) {
-  return actionData?.status === "error" || actionData?.status === "warning"
-    ? actionData
-    : undefined;
 }

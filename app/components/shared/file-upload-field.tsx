@@ -1,4 +1,4 @@
-import { CloudUpload, Download, Trash2 } from "lucide-react";
+import { Camera, CloudUpload, Download, ImageUp, Trash2 } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -135,9 +135,14 @@ function FileUploadControl(props: FileUploadControlProps) {
         {config.variant === "compact" ? (
           <FileUploadCompactControl config={config} state={state} />
         ) : (
-          <div className="relative">
-            <FileUploadDropzone config={config} state={state} />
-            <FileUploadActions config={config} state={state} />
+          <div className="flex flex-col gap-2">
+            <div className="relative">
+              <FileUploadDropzone config={config} state={state} />
+              <FileUploadActions config={config} state={state} />
+            </div>
+            {config.offersCamera ? (
+              <FileUploadCameraActions config={config} state={state} />
+            ) : null}
           </div>
         )}
       </div>
@@ -202,6 +207,7 @@ function getFileUploadControlConfig(
     label,
     maxFileSizeBytes,
     maxFileSizeMessage = "El archivo supera el tamaño máximo.",
+    offersCamera = false,
     onChange,
     onSelectedFileChange,
     onStorageKeyChange,
@@ -237,6 +243,7 @@ function getFileUploadControlConfig(
     label,
     maxFileSizeBytes,
     maxFileSizeMessage,
+    offersCamera,
     onChange,
     onSelectedFileChange,
     onStorageKeyChange,
@@ -632,14 +639,31 @@ function FileUploadPlaceholder({
   config: FileUploadControlConfig;
   state: FileUploadControlState;
 }) {
+  // On a touch screen the zone of a camera field is no button: it says what
+  // it holds, and the actions under it do the picking.
+  const readsAsEmptyOnTouch =
+    config.offersCamera && state.uploadLabel === config.label;
+
   return (
     <>
-      <span className="flex size-12 items-center justify-center rounded-lg bg-brand text-white">
+      <span
+        className={cn(
+          "flex size-12 items-center justify-center rounded-lg bg-brand text-white",
+          config.offersCamera && "pointer-coarse:hidden",
+        )}
+      >
         <CloudUpload aria-hidden="true" />
       </span>
       <span className="flex flex-col gap-1">
         <span className="break-all text-sm font-medium text-foreground">
-          {state.uploadLabel}
+          {readsAsEmptyOnTouch ? (
+            <>
+              <span className="pointer-coarse:hidden">{state.uploadLabel}</span>
+              <span className="hidden pointer-coarse:inline">Sin imagen</span>
+            </>
+          ) : (
+            state.uploadLabel
+          )}
         </span>
         <span className="text-xs text-muted-foreground">
           {config.helperText}
@@ -685,6 +709,61 @@ function FileUploadActions({
   );
 }
 
+/**
+ * `Tomar foto` and `Subir imagen`, on touch screens only. Both open the
+ * field's own input, so a photo is submitted, previewed and validated exactly
+ * as a picked file is; `capture` is set or cleared first, which decides
+ * between the rear camera and the gallery.
+ */
+function FileUploadCameraActions({
+  config,
+  state,
+}: {
+  config: FileUploadControlConfig;
+  state: FileUploadControlState;
+}) {
+  const disabled = config.disabled || state.isReplaceLocked;
+
+  function openPicker(capture: boolean) {
+    const input = state.inputRef.current;
+
+    if (!input) {
+      return;
+    }
+
+    if (capture) {
+      input.setAttribute("capture", "environment");
+    } else {
+      input.removeAttribute("capture");
+    }
+
+    input.click();
+  }
+
+  return (
+    <div className="hidden grid-cols-2 gap-2 pointer-coarse:grid">
+      <Button
+        type="button"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => openPicker(true)}
+      >
+        <Camera aria-hidden="true" data-icon="inline-start" />
+        Tomar foto
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => openPicker(false)}
+      >
+        <ImageUp aria-hidden="true" data-icon="inline-start" />
+        Subir imagen
+      </Button>
+    </div>
+  );
+}
+
 function getFileUploadDropzoneClassName(
   config: FileUploadControlConfig,
   state: FileUploadControlState,
@@ -693,6 +772,8 @@ function getFileUploadDropzoneClassName(
     "flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-input bg-background px-4 py-6 text-center transition-colors hover:bg-muted/50 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/50 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:bg-input/50 has-disabled:opacity-50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20",
     state.displayedPreviewUrl && config.previewKind === "image" && "px-3 py-3",
     config.disabled && "pr-9",
+    config.offersCamera &&
+      "pointer-coarse:pointer-events-none pointer-coarse:min-h-28",
     config.className,
   );
 }

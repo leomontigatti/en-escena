@@ -65,7 +65,7 @@ below or for simple repeated elements. Avoid dashboards with a large hero.
 
 ## Viewports
 
-The product is used on desktop. Design at **1440px** wide, and keep every
+Design at **1440px** wide, and keep every
 screen working down to **1280px**, the floor: a 1366×768 laptop, or a
 1920×1080 one at Windows' 150% scaling, which is 1280 CSS pixels. At 1280 the
 admin sidebar leaves about 1000px of content, and that is the budget a table
@@ -77,10 +77,14 @@ sideways, but must not overlap or become unreachable. Do not put a `min-width`
 on the page to enforce the floor; it breaks the mobile surfaces and browser
 zoom.
 
-Only the public program is designed for phones. Judging is not, and waits for
-a remake. Every other surface is desktop-only: responsive prefixes that keep a
-form usable on a narrow window are fine, but do not design a mobile layout for
-a screen that is not on this list.
+Two surfaces are designed for phones as well: the public program, and the
+academy portal, which academies fill in from their phones (registering a
+dancer, photographing its document). The portal gets there screen by screen: a
+portal screen that is built or changed must also work at **390px**, and the
+screens nobody has touched wait for the audit in #1416. Judging is not designed
+for phones and waits for a remake. The admin panel is desktop-only: responsive
+prefixes that keep a form usable on a narrow window are fine, but do not design
+a mobile layout for it.
 
 ## Base components
 

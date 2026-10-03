@@ -144,9 +144,11 @@ export function PortalProfessorsListRouteView({
             createLabel="Nuevo profesor"
             documentDownloadUrls={loaderData.documentDownloadUrls}
             kinds={professorDocumentKinds}
-            onCreate={() => {
-              setDismissServerState(true);
-              setIsCreateDialogOpen(true);
+            create={{
+              onClick: () => {
+                setDismissServerState(true);
+                setIsCreateDialogOpen(true);
+              },
             }}
           />
         }

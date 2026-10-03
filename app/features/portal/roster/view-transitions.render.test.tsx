@@ -55,7 +55,6 @@ describe("portal view transitions", () => {
       "/portal/bailarines",
       <PortalDancersListRouteView
         loaderData={{
-          activeEventStartDate: "2026-09-25",
           documentDownloadUrls: eventDocumentDownloadUrls(),
           dancers: [
             {

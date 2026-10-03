@@ -8,7 +8,6 @@ import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-sup
 type DancersListViewProps = Parameters<typeof PortalDancersListRouteView>[0];
 
 type DancersListViewInput = {
-  actionData?: DancersListViewProps["actionData"];
   loaderData?: Partial<DancersListViewProps["loaderData"]>;
 };
 
@@ -111,16 +110,13 @@ function renderDancersList(input: DancersListViewInput = {}) {
     [
       {
         path: "/portal/bailarines",
-        action: async () => null,
         element: (
           <PortalDancersListRouteView
             loaderData={{
-              activeEventStartDate: "2026-09-25",
               dancers: [],
               documentDownloadUrls: eventDocumentDownloadUrls(),
               ...input.loaderData,
             }}
-            actionData={input.actionData}
           />
         ),
       },

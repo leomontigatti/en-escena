@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { Link } from "react-router";
 
 import { PortalEventDocumentDownloads } from "@/components/portal/event-document-downloads";
 import { Button } from "@/components/ui/button";
@@ -15,26 +16,39 @@ import type {
  * instead of squeezing their labels.
  */
 export function PortalListPageActions({
+  create,
   createLabel,
   documentDownloadUrls,
   kinds,
-  onCreate,
 }: {
+  /** A page to go to (`to`), or a dialog to open (`onClick`). */
+  create: { to: string } | { onClick: () => void };
   createLabel: string;
   documentDownloadUrls: EventDocumentDownloadUrls;
   kinds: readonly EventDocumentKind[];
-  onCreate: () => void;
 }) {
+  const content = (
+    <>
+      <Plus aria-hidden="true" data-icon="inline-start" />
+      {createLabel}
+    </>
+  );
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <PortalEventDocumentDownloads
         documentDownloadUrls={documentDownloadUrls}
         kinds={kinds}
       />
-      <Button type="button" onClick={onCreate}>
-        <Plus aria-hidden="true" data-icon="inline-start" />
-        {createLabel}
-      </Button>
+      {"to" in create ? (
+        <Button asChild>
+          <Link to={create.to}>{content}</Link>
+        </Button>
+      ) : (
+        <Button type="button" onClick={create.onClick}>
+          {content}
+        </Button>
+      )}
     </div>
   );
 }

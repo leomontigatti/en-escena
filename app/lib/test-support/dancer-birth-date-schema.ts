@@ -1,6 +1,7 @@
 import { expect } from "vitest";
 
 import {
+  birthDateFormatMessage,
   futureBirthDateMessage,
   invalidBirthDateMessage,
   overageBirthDateMessage,
@@ -40,6 +41,9 @@ export function expectSharedBirthDateRules(input: {
   };
 
   expect(readMessages("no-es-fecha", eventStartDate)).toEqual([
+    birthDateFormatMessage,
+  ]);
+  expect(readMessages("2026-02-30", eventStartDate)).toEqual([
     invalidBirthDateMessage,
   ]);
   expect(readMessages("2999-01-01", eventStartDate)).toEqual([
@@ -59,7 +63,7 @@ export function expectSharedBirthDateRules(input: {
 
   // Without an active event the age is unmeasurable, so only the date checks
   // survive.
-  expect(readMessages("no-es-fecha", null)).toEqual([invalidBirthDateMessage]);
+  expect(readMessages("no-es-fecha", null)).toEqual([birthDateFormatMessage]);
   expect(readMessages("2999-01-01", null)).toEqual([futureBirthDateMessage]);
   expect(readMessages("2026-01-15", null)).toEqual([]);
   expect(readMessages("1925-09-25", null)).toEqual([]);

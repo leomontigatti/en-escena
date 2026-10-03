@@ -306,6 +306,55 @@ export async function resolvePortalDancerDocumentImageStorageKeys(input: {
   };
 }
 
+/**
+ * Uploads the images a dancer is created with. Unlike an edit there is no
+ * stored photo to keep, so a submitted key is ignored and only a picked file
+ * counts. `uploadedKeys` names every file stored before a failure too, so the
+ * caller can remove them: nothing on the volume points at a dancer that was
+ * never created.
+ */
+export async function uploadNewDancerDocumentImages(input: {
+  academyId: string;
+  dancerId: string;
+  formData: FormData;
+  storage: DancerDocumentStorage;
+}): Promise<
+  | {
+      ok: true;
+      keys: { back: string | null; front: string | null };
+      uploadedKeys: string[];
+    }
+  | { ok: false; message: string; uploadedKeys: string[] }
+> {
+  const keys: { back: string | null; front: string | null } = {
+    back: null,
+    front: null,
+  };
+  const uploadedKeys: string[] = [];
+
+  for (const side of ["front", "back"] as const) {
+    const file = readOptionalFormFile(
+      input.formData,
+      documentImageFieldsBySide[side].file,
+    );
+
+    if (!file) {
+      continue;
+    }
+
+    const uploaded = await uploadDancerDocumentImage({ ...input, file, side });
+
+    if (!uploaded.ok) {
+      return { ok: false, message: uploaded.message, uploadedKeys };
+    }
+
+    keys[side] = uploaded.storageKey;
+    uploadedKeys.push(uploaded.storageKey);
+  }
+
+  return { ok: true, keys, uploadedKeys };
+}
+
 const documentImageFieldsBySide = {
   back: {
     file: "documentBackImage",

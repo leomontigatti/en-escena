@@ -288,10 +288,7 @@ function DancerIdentificationSection({
             label="Apellido"
             name="lastName"
           />
-          <DancerBirthDateField
-            eventStartDate={editForm.eventStartDate}
-            form={editForm.form}
-          />
+          <DancerBirthDateField form={editForm.form} />
           <div aria-hidden="true" className="hidden md:block" />
           <SelectField
             allowEmpty

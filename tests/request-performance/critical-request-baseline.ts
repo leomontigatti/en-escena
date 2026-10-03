@@ -30,10 +30,8 @@ import {
 import { action as adminEventoCreateAction } from "@/routes/administracion.eventos_.nuevo";
 import { loader as adminProfessorsLoader } from "@/routes/administracion.profesores";
 import { loader as portalLayoutLoader } from "@/routes/portal";
-import {
-  action as portalBailarinAction,
-  loader as portalBailarinLoader,
-} from "@/routes/portal.bailarines";
+import { loader as portalBailarinLoader } from "@/routes/portal.bailarines";
+import { action as portalBailarinCreateAction } from "@/routes/portal.bailarines_.nuevo";
 import {
   action as portalBailarinDetailAction,
   loader as portalBailarinDetailLoader,
@@ -414,18 +412,17 @@ export async function measureCriticalRequestBaseline(): Promise<
     await measureScenario({
       id: "portal-bailarines-create-action",
       kind: "action",
-      route: "/portal/bailarines",
+      route: "/portal/bailarines/nuevo",
       surface: "portal",
       setupSpies: [
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
         trackAsync(portalDancersModule, "createDancerForAcademy", "actionMs"),
       ],
       run: () =>
-        portalBailarinAction({
+        portalBailarinCreateAction({
           request: fixture.portalPostRequest(
-            "/portal/bailarines",
+            "/portal/bailarines/nuevo",
             stringFormData({
-              intent: "create-dancer",
               firstName: "Mora",
               lastName: "Lima",
               birthDate: "2013-02-02",

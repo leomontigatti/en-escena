@@ -1,9 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import type { SubmitFunction } from "react-router";
 
-import { DateOnlyField } from "@/components/shared/date-only-field";
+import { BirthDateField } from "@/components/shared/birth-date-field";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import {
@@ -11,7 +11,6 @@ import {
   useSavedFormValues,
 } from "@/lib/shared/forms";
 
-import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 
 import {
@@ -61,7 +60,6 @@ export function usePortalDancerForm({
 
   return {
     discard: () => form.reset(savedValues),
-    eventStartDate,
     form,
     handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
       encType: "multipart/form-data",
@@ -93,22 +91,15 @@ export function PortalDancerTextField({
 }
 
 export function PortalDancerBirthDateField({
-  eventStartDate,
   form,
 }: {
-  eventStartDate: string | null;
   form: PortalDancerFormReturn;
 }) {
-  const id = useId();
-
   return (
-    <DateOnlyField
+    <BirthDateField
       control={form.control}
       name="birthDate"
-      id={id}
       label="Fecha de nacimiento"
-      buttonClassName="mt-0 h-8 w-full font-normal"
-      calendarBounds={getBirthDatePickerBounds(eventStartDate)}
     />
   );
 }
@@ -129,6 +120,7 @@ export function PortalDancerDocumentImageFields({
         fieldLabel="Imagen frente del documento"
         existingPreviewUrl={imageUrls.front}
         label="Arrastrá o hacé click"
+        offersCamera
         {...getAssetUploadFieldProps("dancerDocumentImage")}
       />
       <FileUploadField
@@ -138,6 +130,7 @@ export function PortalDancerDocumentImageFields({
         fieldLabel="Imagen dorso del documento"
         existingPreviewUrl={imageUrls.back}
         label="Arrastrá o hacé click"
+        offersCamera
         {...getAssetUploadFieldProps("dancerDocumentImage")}
       />
     </>

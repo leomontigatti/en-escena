@@ -8,7 +8,8 @@ import {
   type PortalDancerDetailLoaderData,
 } from "./shared";
 
-describe("portal dancer update schema", () => {
+// The create page parses with this schema too.
+describe("portal dancer schema", () => {
   test("applies the shared birth-date rules", () => {
     expectSharedBirthDateRules({
       buildSchema: buildPortalDancerSchema,
@@ -22,7 +23,41 @@ describe("portal dancer update schema", () => {
       },
     });
   });
+
+  test("accepts a dancer without a document", () => {
+    expect(
+      parseDocument({ documentType: "", documentNumber: "" }).success,
+    ).toBe(true);
+  });
+
+  test("refuses half a document pair", () => {
+    expect(
+      parseDocument({ documentType: "", documentNumber: "30111222" }).error
+        ?.issues,
+    ).toMatchObject([
+      { message: "Seleccioná el tipo de documento.", path: ["documentType"] },
+    ]);
+    expect(
+      parseDocument({ documentType: "dni", documentNumber: "" }).error?.issues,
+    ).toMatchObject([
+      { message: "Ingresá el número de documento.", path: ["documentNumber"] },
+    ]);
+  });
 });
+
+function parseDocument(document: {
+  documentType: string;
+  documentNumber: string;
+}) {
+  return buildPortalDancerSchema(null).safeParse({
+    firstName: "Ana",
+    lastName: "Paz",
+    birthDate: "2014-01-01",
+    documentFrontImageStorageKey: "",
+    documentBackImageStorageKey: "",
+    ...document,
+  });
+}
 
 const dancer = {
   active: true,
