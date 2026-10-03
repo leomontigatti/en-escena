@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { isOpenForJudges, judgingDate } from "@/lib/judging/judging-day";
+import {
+  isBeforeJudgingDay,
+  isOpenForJudges,
+  judgingDate,
+} from "@/lib/judging/judging-day";
 
 /**
  * Business time is UTC-3 all year, so a business instant is written here as the
@@ -35,6 +39,14 @@ describe("the judging day", () => {
     expect(isOpenForJudges("2026-10-10", now)).toBe(true);
     expect(isOpenForJudges("2026-10-11", now)).toBe(false);
     expect(isOpenForJudges("2026-10-09", now)).toBe(false);
+  });
+
+  test("tells a day that has not started from one that closed", () => {
+    const now = businessInstant("2026-10-11T01:00:00");
+
+    expect(isBeforeJudgingDay("2026-10-11", now)).toBe(true);
+    expect(isBeforeJudgingDay("2026-10-10", now)).toBe(false);
+    expect(isBeforeJudgingDay("2026-10-09", now)).toBe(false);
   });
 
   test("closes the day once 03:00 has passed", () => {

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   deriveJudgeScoreStatus,
-  judgeScoreStatusLabels,
+  judgeScoreStatusBadge,
 } from "@/lib/judging/judge-status";
 
 describe("a judge's own status on a presentation", () => {
@@ -50,10 +50,76 @@ describe("a judge's own status on a presentation", () => {
     ).toBe("noFeedback");
   });
 
-  test("names each status as the judge reads it", () => {
-    expect(judgeScoreStatusLabels.pending).toBe("Pendiente");
-    expect(judgeScoreStatusLabels.complete).toBe("Completa");
-    expect(judgeScoreStatusLabels.noFeedback).toBe("Sin devolución");
-    expect(judgeScoreStatusLabels.disqualified).toBe("Descalificada");
+  test("shows the judge's own score in place of `Completa`", () => {
+    expect(
+      judgeScoreStatusBadge({
+        isOpen: true,
+        status: "complete",
+        value: "87.5",
+      }),
+    ).toEqual({ label: "87.5", variant: "success" });
+    expect(
+      judgeScoreStatusBadge({
+        isOpen: true,
+        status: "complete",
+        value: "90.0",
+      }),
+    ).toEqual({ label: "90", variant: "success" });
+  });
+
+  test("warns about a score without a `Devolución`", () => {
+    expect(
+      judgeScoreStatusBadge({
+        isOpen: true,
+        status: "noFeedback",
+        value: "80.5",
+      }),
+    ).toEqual({ label: "Sin devolución", variant: "warning" });
+  });
+
+  test("keeps `Pendiente` and `Descalificada` as words, never a score", () => {
+    expect(
+      judgeScoreStatusBadge({ isOpen: true, status: "pending", value: null }),
+    ).toEqual({
+      label: "Pendiente",
+      variant: "outline",
+    });
+    expect(
+      judgeScoreStatusBadge({
+        isOpen: true,
+        status: "disqualified",
+        value: "90.0",
+      }),
+    ).toEqual({ label: "Descalificada", variant: "destructive" });
+  });
+
+  test("on a closed day, shows the score with or without a `Devolución`, since it can no longer be fixed", () => {
+    expect(
+      judgeScoreStatusBadge({
+        isOpen: false,
+        status: "noFeedback",
+        value: "80.0",
+      }),
+    ).toEqual({ label: "80", variant: "success" });
+    expect(
+      judgeScoreStatusBadge({
+        isOpen: false,
+        status: "complete",
+        value: "87.5",
+      }),
+    ).toEqual({ label: "87.5", variant: "success" });
+  });
+
+  test("on a closed day, keeps `Pendiente` and `Descalificada`", () => {
+    expect(
+      judgeScoreStatusBadge({ isOpen: false, status: "pending", value: null }),
+    ).toEqual({ label: "Pendiente", variant: "outline" });
+    expect(
+      judgeScoreStatusBadge({
+        isOpen: false,
+        status: "disqualified",
+        value: "90.0",
+      }),
+    ).toEqual({ label: "Descalificada", variant: "destructive" });
   });
 });

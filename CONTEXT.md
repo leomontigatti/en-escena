@@ -331,7 +331,7 @@ State derived from a choreography's presentation at the event, and the presentat
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, `judgeScoreStatus`
 
 **`judgingDay`** — ui: "Jornada"
-The day the judges are working on: the business date of three hours before now, so a show that runs past midnight keeps its date until 03:00 the next morning, when it closes for good. A `presentation` is open for its judges exactly while its choreography's schedule date is that day — before it there is nothing to score, after it every judge write is refused. It is computed on read from the current instant, with no stored flag and no job, and it binds the judge's list and the judge's editing window with one rule. Administration is not bound by it.
+The day the judges are working on: the business date of three hours before now, so a show that runs past midnight keeps its date until 03:00 the next morning, when it closes for good. A `presentation` is open for its judges exactly while its choreography's schedule date is that day — before it there is nothing to score, after it every judge write is refused. It is computed on read from the current instant, with no stored flag and no job. It binds the judge's writes only: the judge's list opens on it, but reaches every other day the judge has presentations on, read-only. Administration is not bound by it.
 _Avoid_: `schedule`, event date, score window, deadline flag
 
 **`disqualification`** — ui: "Descalificación"
@@ -379,7 +379,7 @@ The recognition a `presentation` earns, read off its average —the mean of its 
 _Avoid_: `premio`, position, tie, ranking. `award` is the name this term is being renamed to (#1419).
 
 **`judgeScoreStatus`** — ui: "Estado"
-How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, `Completa` with a value and a `feedbackAudio`, `Sin devolución` with a value and none —neutral in tone, not a fault— and `Descalificada` whenever the presentation is —`pending`, `complete`, `noFeedback` and `disqualified` in the code, which keeps the Spanish in its labels map. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.
+How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, the judge's own score itself (`87.5`) with a value and a `feedbackAudio`, `Sin devolución` with a value and none —a warning, since the `feedbackAudio` is optional but should not be forgotten while the day is open, so on any other day the score shows in its place— and `Descalificada` whenever the presentation is —`pending`, `complete`, `noFeedback` and `disqualified` in the code, which keeps the Spanish in `judgeScoreStatusBadge`. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.
 _Avoid_: `participationStatus`, `choreographyOperationalStatus`, score completeness
 
 **`feedbackAudio`** — ui: "Devolución"

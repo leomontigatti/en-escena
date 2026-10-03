@@ -53,6 +53,9 @@ describe("private route headers", () => {
         <JuzgamientoRouteView
           loaderData={{
             account: judgeAccount,
+            day: "2026-08-22",
+            dayOptions: [],
+            isOpen: true,
             judgingDate: "2026-08-22",
             presentations: [],
           }}

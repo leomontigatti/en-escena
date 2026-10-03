@@ -2,10 +2,12 @@ import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 /**
  * Which day the judges are working on, and therefore which presentations they
- * can see and write. A show runs past midnight, so the day it belongs to is the
- * business date of three hours ago: it starts with the date and lasts until
- * 03:00 the next morning, when it closes for good. See docs/domain/judging.md,
- * "Scores And Feedback".
+ * can write. The judge's list opens on it too, but may show any other day the
+ * judge has presentations on, read-only: this rule binds the writes, not what
+ * is read. A show runs past midnight, so the day it belongs to is the business
+ * date of three hours ago: it starts with the date and lasts until 03:00 the
+ * next morning, when it closes for good. See docs/domain/judging.md, "Scores
+ * And Feedback".
  *
  * It is computed on read from the current instant, so there is no flag to set,
  * no job to close the day, and nothing to go stale if a show runs long.
@@ -28,4 +30,15 @@ export function isOpenForJudges(
   now: Date = new Date(),
 ): boolean {
   return scheduledDate === judgingDate(now);
+}
+
+/**
+ * Why a schedule is not open for its judges, which is all a refusal has to
+ * tell them apart by: its day has not started, or it closed at 03:00.
+ */
+export function isBeforeJudgingDay(
+  scheduledDate: string,
+  now: Date = new Date(),
+): boolean {
+  return scheduledDate > judgingDate(now);
 }

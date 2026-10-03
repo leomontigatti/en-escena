@@ -8,7 +8,7 @@ import {
   schedules,
   scores,
 } from "@/db/schema";
-import { isOpenForJudges } from "@/lib/judging/judging-day";
+import { isBeforeJudgingDay, isOpenForJudges } from "@/lib/judging/judging-day";
 
 /**
  * What every write a judge makes has to establish first: that the presentation
@@ -24,7 +24,7 @@ import { isOpenForJudges } from "@/lib/judging/judging-day";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type JudgeWriteRefusal = "not-assigned" | "closed";
+export type JudgeWriteRefusal = "not-assigned" | "closed" | "not-started";
 
 export type JudgeWriteTarget = {
   disqualified: boolean;
@@ -76,8 +76,10 @@ export async function readJudgeWriteTarget(
     return { ok: false, reason: "not-assigned" };
   }
 
-  if (!(await isPresentationOpenForJudges(tx, input))) {
-    return { ok: false, reason: "closed" };
+  const closure = await readJudgingDayClosure(tx, input);
+
+  if (closure) {
+    return { ok: false, reason: closure };
   }
 
   return {
@@ -93,14 +95,18 @@ export async function readJudgeWriteTarget(
 }
 
 /**
+ * Null while the presentation's day is open, and otherwise which side of it
+ * the write fell on, so the judge is told a day that has not started apart
+ * from one that closed. The write is refused the same either way.
+ *
  * A presentation whose choreography has no schedule yet has no day to be open
  * on, so it is closed: the judges are given the program before they are given
  * anything to score.
  */
-async function isPresentationOpenForJudges(
+async function readJudgingDayClosure(
   tx: Transaction,
   input: { now?: Date; presentationId: string },
-): Promise<boolean> {
+): Promise<"closed" | "not-started" | null> {
   const [row] = await tx
     .select({ scheduledDate: schedules.scheduledDate })
     .from(presentations)
@@ -111,5 +117,15 @@ async function isPresentationOpenForJudges(
     .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
     .where(eq(presentations.id, input.presentationId));
 
-  return Boolean(row) && isOpenForJudges(row.scheduledDate, input.now);
+  if (!row) {
+    return "closed";
+  }
+
+  if (isOpenForJudges(row.scheduledDate, input.now)) {
+    return null;
+  }
+
+  return isBeforeJudgingDay(row.scheduledDate, input.now)
+    ? "not-started"
+    : "closed";
 }
