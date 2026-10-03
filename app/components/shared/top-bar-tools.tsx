@@ -26,11 +26,18 @@ export function TopBarTools() {
           <TooltipTrigger asChild>
             {/* A disabled button fires no pointer events, so the tooltip
                 hangs off a wrapper that still does. */}
-            <span className="inline-flex" tabIndex={0}>
+            <span
+              aria-disabled="true"
+              aria-label="Cambiar el tema"
+              className="inline-flex"
+              role="button"
+              tabIndex={0}
+            >
               <Button
-                aria-label="Cambiar el tema"
+                aria-hidden="true"
                 disabled
                 size="icon"
+                tabIndex={-1}
                 variant="ghost"
               >
                 <SunMoon aria-hidden="true" />
