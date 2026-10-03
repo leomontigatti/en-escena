@@ -49,10 +49,8 @@ import {
   action as portalPerfilAction,
   loader as portalPerfilLoader,
 } from "@/routes/portal.perfil";
-import {
-  action as portalProfesorAction,
-  loader as portalProfesorLoader,
-} from "@/routes/portal.profesores";
+import { loader as portalProfesorLoader } from "@/routes/portal.profesores";
+import { action as portalProfesorCreateAction } from "@/routes/portal.profesores_.nuevo";
 import {
   action as portalProfesorDetailAction,
   loader as portalProfesorDetailLoader,
@@ -513,7 +511,7 @@ export async function measureCriticalRequestBaseline(): Promise<
     await measureScenario({
       id: "portal-profesores-create-action",
       kind: "action",
-      route: "/portal/profesores",
+      route: "/portal/profesores/nuevo",
       surface: "portal",
       setupSpies: [
         trackAsync(internalAccessModule, "requireAcademyUser", "authSessionMs"),
@@ -524,11 +522,10 @@ export async function measureCriticalRequestBaseline(): Promise<
         ),
       ],
       run: () =>
-        portalProfesorAction({
+        portalProfesorCreateAction({
           request: fixture.portalPostRequest(
-            "/portal/profesores",
+            "/portal/profesores/nuevo",
             stringFormData({
-              intent: "create-professor",
               firstName: "Julia",
               lastName: "Sosa",
             }),

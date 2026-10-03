@@ -1,4 +1,4 @@
-import { useEffect, useRef, type SubmitEventHandler } from "react";
+import { useEffect, useRef, useState, type SubmitEventHandler } from "react";
 import type {
   FieldValues,
   SubmitHandler,
@@ -50,6 +50,23 @@ export function useSavedFormValues<
       form.reset(refused, { keepDefaultValues: true });
     }
   }, [form, savedKey, submittedKey]);
+}
+
+/**
+ * The values of the last refused save, kept while later answers carry none. A
+ * crash answers with a message alone: handing the form its empty values then
+ * would refill it and drop what was typed since the refusal.
+ */
+export function useLastRefusedValues<TFieldValues extends FieldValues>(
+  refused: TFieldValues | undefined,
+) {
+  const [lastRefused, setLastRefused] = useState(refused);
+
+  if (refused && refused !== lastRefused) {
+    setLastRefused(refused);
+  }
+
+  return refused ?? lastRefused;
 }
 
 // The only two options any caller of the handlers below actually sets. Derived

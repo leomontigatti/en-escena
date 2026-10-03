@@ -88,8 +88,8 @@ export function PortalDancersListRouteView({
       description="Gestioná los bailarines de tu academia y priorizá los registros que todavía necesitan documento o imágenes."
       action={
         <PortalListPageActions
-          create={{ to: "/portal/bailarines/nuevo" }}
           createLabel="Nuevo bailarín"
+          createTo="/portal/bailarines/nuevo"
           documentDownloadUrls={loaderData.documentDownloadUrls}
           kinds={dancerDocumentKinds}
         />
