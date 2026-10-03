@@ -107,7 +107,7 @@ export function PresentationScoresView({
             <Info aria-hidden="true" />
             <AlertTitle>Presentación descalificada</AlertTitle>
             <AlertDescription>
-              Queda fuera de los resultados, sin promedio ni medalla.
+              Queda fuera de los resultados, sin promedio ni premio.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -196,7 +196,7 @@ function PresentationActions({
       </ResourceActionsMenu>
       <ConfirmationDialog
         confirmLabel="Descalificar"
-        description="Queda fuera de los resultados, sin promedio ni medalla. Los puntajes guardados se conservan y vuelven si la calificás de nuevo."
+        description="Queda fuera de los resultados, sin promedio ni premio. Los puntajes guardados se conservan y vuelven si la calificás de nuevo."
         destructive
         onConfirm={() => submitIntent("disqualify")}
         onOpenChange={setIsDisqualifyDialogOpen}
