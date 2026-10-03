@@ -4,6 +4,7 @@ import {
   readFileSync,
   readdirSync,
   readlinkSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -338,10 +339,15 @@ function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {
   console.log("");
 
   if (!apply) {
+    // Written beside the target and renamed over it, so an interrupted write
+    // cannot leave a truncated accepted list behind.
+    const listFile = acceptedListFile();
+    const tempFile = `${listFile}.tmp`;
     writeFileSync(
-      acceptedListFile(),
+      tempFile,
       JSON.stringify(removed.map(({ facts }) => facts.path)),
     );
+    renameSync(tempFile, listFile);
     prune(
       true,
       kept.map(({ facts }) => facts.path),
