@@ -81,7 +81,7 @@ describe("PortalPresentationEvaluationView", () => {
           judgeName: "Ana Juez",
         }),
       ],
-      medal: null,
+      award: null,
     });
 
     expect(markup).toContain("Descalificada");
@@ -99,7 +99,7 @@ describe("PortalPresentationEvaluationView", () => {
       average: null,
       disqualified: true,
       judges: [buildJudge({ judgeName: "Ana Juez" })],
-      medal: null,
+      award: null,
     });
 
     expect(markup).toContain("no tiene puntaje ni premio");
@@ -107,7 +107,7 @@ describe("PortalPresentationEvaluationView", () => {
   });
 
   test("says there is nothing to show when no judge survived the filter", () => {
-    const markup = renderView({ average: null, judges: [], medal: null });
+    const markup = renderView({ average: null, judges: [], award: null });
 
     expect(markup).toContain(
       "Esta presentación no tiene puntajes para mostrar.",
@@ -122,7 +122,7 @@ describe("PortalPresentationEvaluationView", () => {
       average: null,
       disqualified: true,
       judges: [],
-      medal: null,
+      award: null,
     });
 
     expect(markup).toContain("no tiene puntaje ni premio");
@@ -131,11 +131,11 @@ describe("PortalPresentationEvaluationView", () => {
     expect(markup).not.toContain("Las devoluciones del jurado están abajo.");
   });
 
-  test("shows neither medal nor average when nothing counted", () => {
+  test("shows neither award nor average when nothing counted", () => {
     const markup = renderView({
       average: null,
       judges: [buildJudge({ judgeName: "Ana Juez" })],
-      medal: null,
+      award: null,
     });
 
     expect(markup).not.toContain("Medalla");
@@ -170,7 +170,7 @@ function renderView(
     details: "Infantil · Solo · Jazz",
     disqualified: false,
     judges: [buildJudge()],
-    medal: "gold",
+    award: "gold",
     title: "Pieza · N.º 1",
     ...overrides,
   };

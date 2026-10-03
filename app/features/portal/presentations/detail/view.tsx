@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FeedbackPlayback } from "@/features/judging/score/feedback-playback";
-import { medalLabels, type Medal } from "@/lib/judging/medal";
+import { awardLabels, type Award } from "@/lib/judging/award";
 import { formatScoreFieldValue } from "@/lib/judging/score-value";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
 
@@ -22,7 +22,7 @@ import type {
 } from "./server";
 
 /**
- * What the academy reads about one of its presentations: the medal beside the
+ * What the academy reads about one of its presentations: the award beside the
  * title, the average at the top right, and a card per judge with the score, the
  * sheet it came from and the `Devolución` to listen to.
  *
@@ -31,8 +31,8 @@ import type {
  * page only has to lay out what it was given.
  */
 
-const medalBadgeVariants: Record<
-  Medal,
+const awardBadgeVariants: Record<
+  Award,
   "info" | "outline" | "secondary" | "warning"
 > = {
   bronze: "outline",
@@ -65,7 +65,7 @@ export function PortalPresentationEvaluationView({
           {loaderData.title}
           <EvaluationBadge
             disqualified={loaderData.disqualified}
-            medal={loaderData.medal}
+            award={loaderData.award}
           />
         </span>
       }
@@ -134,20 +134,20 @@ function JudgeCards({
   );
 }
 
-/** A disqualification takes the medal's place; without either there is none. */
+/** A disqualification takes the award's place; without either there is none. */
 function EvaluationBadge({
   disqualified,
-  medal,
+  award,
 }: {
   disqualified: boolean;
-  medal: Medal | null;
+  award: Award | null;
 }) {
   if (disqualified) {
     return <Badge variant="destructive">Descalificada</Badge>;
   }
 
-  return medal === null ? null : (
-    <Badge variant={medalBadgeVariants[medal]}>{medalLabels[medal]}</Badge>
+  return award === null ? null : (
+    <Badge variant={awardBadgeVariants[award]}>{awardLabels[award]}</Badge>
   );
 }
 

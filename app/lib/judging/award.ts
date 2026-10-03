@@ -1,16 +1,16 @@
 /**
  * What the panel's work adds up to for one presentation: an average, and the
- * medal read off it. See docs/domain/judging.md, "Scores And Feedback".
+ * award read off it. See docs/domain/judging.md, "Scores And Feedback".
  *
  * There are no positions, no ties and no competitive grouping — a presentation
  * is measured against the bands and against nothing else, so two dances that
- * average the same take the same medal home. PRD 1 shows this to administration
+ * average the same take the same award home. PRD 1 shows this to administration
  * only; publishing it is PRD 2's.
  */
 
-export type Medal = "specialMention" | "bronze" | "silver" | "gold";
+export type Award = "specialMention" | "bronze" | "silver" | "gold";
 
-export const medalLabels: Record<Medal, string> = {
+export const awardLabels: Record<Award, string> = {
   bronze: "Medalla de bronce",
   gold: "Medalla de oro",
   silver: "Medalla de plata",
@@ -55,9 +55,9 @@ export function presentationAverage(
 
 /**
  * The bands are fixed in the domain and read off the rounded average, so what
- * administration sees on screen is exactly what decides the medal.
+ * administration sees on screen is exactly what decides the award.
  */
-export function medalForAverage(average: number): Medal {
+export function awardForAverage(average: number): Award {
   if (average >= 90) {
     return "gold";
   }

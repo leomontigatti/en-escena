@@ -248,7 +248,7 @@ const judgingGlossaryRequirements = [
   '**`mandatoryTechnique`** — ui: "Técnico obligatorio"',
   '**`scoreSheet`** — ui: "Planilla"',
   '**`judgingDay`** — ui: "Jornada"',
-  '**`medal`** — ui: "Medalla"',
+  '**`award`** — ui: "Premio"',
   '**`disqualification`** — ui: "Descalificación"',
   '**`judgeScoreStatus`** — ui: "Estado"',
   "It binds the judge's writes only",
