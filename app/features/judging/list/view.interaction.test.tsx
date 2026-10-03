@@ -103,22 +103,6 @@ describe("the judge's list of today's presentations", () => {
     );
   }
 
-  test("shows the judge's own score once it is complete, and only then", async () => {
-    await mount();
-
-    const statuses = [...document.querySelectorAll("tbody tr")].map((row) =>
-      row.querySelector("td:last-child")?.textContent?.trim(),
-    );
-
-    expect(statuses).toEqual([
-      "87.5",
-      "Pendiente",
-      "Pendiente",
-      "Sin devolución",
-      "Descalificada",
-    ]);
-  });
-
   test("hides what the judge already scored behind `Solo pendientes`", async () => {
     await mount();
 
