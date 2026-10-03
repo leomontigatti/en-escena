@@ -159,7 +159,7 @@ Financial record managed by an administrator, such as an invoice or a credit not
 _Avoid_: `payment`, `imputación`, `choreographyFinancialStatus`
 
 **`professor`** — ui: "Profesor"
-Person associated with an academy and loaded by that academy as part of its data. Their document **number** alone identifies them within their academy, whatever `documentType` was chosen and archived professors included, so the same number cannot be loaded twice; the creation dialog asks for the pair, optionally, so the rule acts from the first save. A second professor of the same **name** in the academy is a warning the academy confirms, not a refusal. Neither rule crosses into **`dancer`**: one academy may hold the same number on a dancer and on a professor, because a teacher who also dances is one person on two rosters.
+Person associated with an academy and loaded by that academy as part of its data. Their document **number** alone identifies them within their academy, whatever `documentType` was chosen and archived professors included, so the same number cannot be loaded twice; creation asks for the pair, optionally, so the rule acts from the first save. A second professor of the same **name** in the academy is a warning the academy confirms, not a refusal. Neither rule crosses into **`dancer`**: one academy may hold the same number on a dancer and on a professor, because a teacher who also dances is one person on two rosters.
 _Avoid_: `user`, `admin`
 
 **`seminar`** — ui: "Seminario"
@@ -279,7 +279,7 @@ The set of dancers and professors a choreography currently carries: the **`chore
 _Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
 
 **`dancer`** — ui: "Bailarín"
-Person loaded by an academy to take part in choreographies. Their document **number** is unique within their academy on the same terms as a **`professor`**'s, and the creation dialog asks for the pair optionally too; a second dancer of the same **name and birth date** is a warning the academy confirms, since two children of one academy may share both.
+Person loaded by an academy to take part in choreographies. Their document **number** is unique within their academy on the same terms as a **`professor`**'s, and creation asks for the pair optionally too; a second dancer of the same **name and birth date** is a warning the academy confirms, since two children of one academy may share both.
 _Avoid_: `professor`, `user`
 
 **`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"

@@ -1,0 +1,108 @@
+/** @vitest-environment jsdom */
+
+import { useState } from "react";
+import { createMemoryRouter, RouterProvider } from "react-router";
+import { describe, expect, test, vi } from "vitest";
+
+import {
+  installPortalSubmissionTestHooks,
+  portalSubmissionRouterMocks,
+  renderPortalSubmission,
+  updatePortalSubmissionForm,
+} from "@/features/portal/test-support/submission";
+import { setInputValue } from "@/lib/test-support/react-dom";
+
+import { CreateDancerPage } from "./page";
+import type { CreateDancerActionData } from "./shared";
+
+installPortalSubmissionTestHooks();
+
+const refusal: CreateDancerActionData = {
+  status: "error",
+  message: "Revisá los campos marcados.",
+  fieldErrors: {
+    documentNumber: "Ya existe un bailarín con ese documento en tu academia.",
+  },
+  values: {
+    firstName: "Ana",
+    lastName: "Paz",
+    birthDate: "2015-05-04",
+    documentType: "dni",
+    documentNumber: "30111222",
+    documentFrontImageStorageKey: "",
+    documentBackImageStorageKey: "",
+  },
+};
+
+describe("CreateDancerPage", () => {
+  test("refills what was typed after a refusal", async () => {
+    await renderPage(refusal);
+
+    expect(input("firstName").value).toBe("Ana");
+    expect(input("documentNumber").value).toBe("30111222");
+    expect(document.body.textContent).toContain(
+      "Ya existe un bailarín con ese documento en tu academia.",
+    );
+  });
+
+  test("keeps what was typed when the save after a refusal crashes", async () => {
+    await renderPage(refusal);
+    await updatePortalSubmissionForm(() => {
+      setInputValue(input("firstName"), "Analía");
+    });
+
+    await updatePortalSubmissionForm(() => {
+      answer({
+        status: "error",
+        message: "No pudimos completar la acción. Intentá nuevamente.",
+      });
+    });
+
+    expect(input("firstName").value).toBe("Analía");
+    expect(input("documentNumber").value).toBe("30111222");
+  });
+});
+
+type PageActionData = Parameters<typeof CreateDancerPage>[0]["actionData"];
+
+// The action's next answer, as the route would hand it to the mounted page.
+let answer: (actionData: PageActionData) => void = () => {};
+
+function PageUnderTest({ initial }: { initial: PageActionData }) {
+  const [actionData, setActionData] = useState(initial);
+  answer = setActionData;
+
+  return (
+    <CreateDancerPage actionData={actionData} eventStartDate="2026-09-25" />
+  );
+}
+
+async function renderPage(actionData: PageActionData) {
+  portalSubmissionRouterMocks.useNavigation.mockReturnValue({
+    formData: undefined,
+    state: "idle",
+  });
+  portalSubmissionRouterMocks.useSubmit.mockReturnValue(vi.fn());
+
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/portal/bailarines/nuevo",
+        element: <PageUnderTest initial={actionData} />,
+      },
+    ],
+    { initialEntries: ["/portal/bailarines/nuevo"] },
+  );
+
+  await renderPortalSubmission(<RouterProvider router={router} />);
+}
+
+function input(name: string) {
+  const element = document.querySelector(`input[name="${name}"]`);
+
+  if (!(element instanceof HTMLInputElement)) {
+    throw new Error(`Expected input "${name}" to be rendered.`);
+  }
+
+  return element;
+}

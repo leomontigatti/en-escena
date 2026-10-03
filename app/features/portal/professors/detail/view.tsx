@@ -1,13 +1,6 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
-import {
-  Form,
-  useNavigation,
-  useSubmit,
-  type SubmitFunction,
-} from "react-router";
+import { useState } from "react";
+import { Form, useNavigation, useSubmit } from "react-router";
 
 import { PortalPageHeader } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
@@ -15,14 +8,8 @@ import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
-import {
-  documentTypeEmptyLabel,
-  documentTypeOptions,
-} from "@/components/shared/document-type-options";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
-import { SelectField } from "@/components/shared/select-field";
-import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -36,16 +23,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  createValidatedReactRouterSubmitHandler,
-  isRouteFormPending,
-  useCloseOnceSettled,
-  useSavedFormValues,
-} from "@/lib/shared/forms";
+import { isRouteFormPending, useCloseOnceSettled } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
+import {
+  PortalProfessorIdentityFields,
+  usePortalProfessorForm,
+} from "@/features/portal/professors/detail/form";
 import {
   archiveProfessorIntent,
   buildPortalProfessorDetailViewModel,
@@ -53,7 +38,6 @@ import {
   portalProfessorStatusActions,
   professorDetailFormId,
   splitPortalProfessorActionData,
-  professorSchema,
   reactivateProfessorIntent,
   updateProfessorIntent,
   type PortalProfessorDetailActionData,
@@ -64,11 +48,6 @@ import {
 
 type LoaderData = PortalProfessorDetailLoaderData;
 type ActionData = Exclude<PortalProfessorDetailActionData, undefined>;
-type ProfessorFormReturn = UseFormReturn<
-  ProfessorFormValues,
-  unknown,
-  ProfessorFormValues
->;
 export type PortalProfessorDetailRouteViewProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
@@ -96,7 +75,7 @@ export function PortalProfessorDetailRouteView({
   const formValues = actionData?.values ?? nameWarning?.values ?? savedValues;
   const submit = useSubmit();
   const navigation = useNavigation();
-  const form = useProfessorForm({
+  const form = usePortalProfessorForm({
     savedValues,
     submit,
     values: formValues,
@@ -180,33 +159,10 @@ export function PortalProfessorDetailRouteView({
                 name="intent"
                 value={updateProfessorIntent}
               />
-              <FieldGroup className="grid gap-5 md:grid-cols-2">
-                <ProfessorTextField
-                  form={form.form}
-                  label="Nombre"
-                  name="firstName"
-                />
-                <ProfessorTextField
-                  form={form.form}
-                  label="Apellido"
-                  name="lastName"
-                />
-                <SelectField
-                  allowEmpty
-                  control={form.form.control}
-                  emptyLabel={documentTypeEmptyLabel}
-                  label="Tipo de documento"
-                  name="documentType"
-                  options={documentTypeOptions}
-                  placeholder={documentTypeEmptyLabel}
-                />
-                <ProfessorTextField
-                  description={documentConflictDescription}
-                  form={form.form}
-                  label="Número de documento"
-                  name="documentNumber"
-                />
-              </FieldGroup>
+              <PortalProfessorIdentityFields
+                documentConflictDescription={documentConflictDescription}
+                form={form.form}
+              />
             </form>
           </CardContent>
           <FormActions
@@ -271,60 +227,6 @@ function PortalProfessorAlertsSection({
         </Alert>
       ) : null}
     </AlertStack>
-  );
-}
-
-/**
- * `savedValues` is what "changed" is measured against; `values` is what the
- * form shows, which after a refused save is what was typed and still reads as
- * changed ({@link useSavedFormValues}).
- */
-function useProfessorForm({
-  savedValues,
-  submit,
-  values,
-}: {
-  savedValues: ProfessorFormValues;
-  submit: SubmitFunction;
-  values: ProfessorFormValues;
-}) {
-  const form = useForm<ProfessorFormValues, unknown, ProfessorFormValues>({
-    defaultValues: values,
-    mode: "onSubmit",
-    resolver: zodResolver(professorSchema),
-  });
-  useSavedFormValues(form, savedValues, values);
-
-  return {
-    discard: () => form.reset(savedValues),
-    form,
-    handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
-      method: "post",
-    }),
-  };
-}
-
-function ProfessorTextField({
-  description,
-  form,
-  label,
-  name,
-}: {
-  description?: ReactNode;
-  form: ProfessorFormReturn;
-  label: string;
-  name: FieldPath<ProfessorFormValues>;
-}) {
-  const autoComplete = getProfessorFieldAutoComplete(name);
-
-  return (
-    <TextInputField
-      autoComplete={autoComplete}
-      control={form.control}
-      description={description}
-      label={label}
-      name={name}
-    />
   );
 }
 
@@ -399,18 +301,6 @@ function ProfessorStatusActionIcon({
   }
 
   return <RotateCcw aria-hidden="true" data-icon="inline-start" />;
-}
-
-function getProfessorFieldAutoComplete(name: FieldPath<ProfessorFormValues>) {
-  switch (name) {
-    case "firstName":
-      return "given-name";
-    case "lastName":
-      return "family-name";
-    case "documentNumber":
-    case "documentType":
-      return "off";
-  }
 }
 
 function getProfessorStatusFormId(intent: ProfessorStatusIntent | null) {

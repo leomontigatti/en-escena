@@ -6,17 +6,18 @@ import {
   choreographyProfessors,
   professors,
 } from "@/db/schema";
-import { createAcademySession } from "@/features/portal/test-support/db";
+import {
+  createAcademySession,
+  expectThrownResponse,
+} from "@/features/portal/test-support/db";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
 import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import { createFormData } from "@/lib/test-support/form-data";
-import {
-  handlePortalProfessorsListAction,
-  loadPortalProfessorsList,
-} from "@/features/portal/professors/list/server";
+import { handlePortalProfessorCreateAction } from "@/features/portal/professors/create/server";
+import { loadPortalProfessorsList } from "@/features/portal/professors/list/server";
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
@@ -54,22 +55,20 @@ describe("loadPortalProfessorsList", () => {
       lastName: "Alvarez",
     });
 
-    const createResult = await handlePortalProfessorsListAction(
-      new Request("http://localhost/portal/profesores", {
-        method: "POST",
-        headers: { cookie: owner.cookie },
-        body: createFormData({
-          intent: "create-professor",
-          firstName: "  jOSÉ  luis ",
-          lastName: " de la CRUZ ",
+    const created = await expectThrownResponse(
+      handlePortalProfessorCreateAction(
+        new Request("http://localhost/portal/profesores/nuevo", {
+          method: "POST",
+          headers: { cookie: owner.cookie },
+          body: createFormData({
+            firstName: "  jOSÉ  luis ",
+            lastName: " de la CRUZ ",
+          }),
         }),
-      }),
+      ),
+      302,
     );
-
-    expect(createResult).toEqual({
-      status: "success",
-      message: "Profesor creado.",
-    });
+    expect(created.headers.get("Location")).toBe("/portal/profesores");
 
     const loaderData = await loadPortalProfessorsList(
       new Request("http://localhost/portal/profesores", {

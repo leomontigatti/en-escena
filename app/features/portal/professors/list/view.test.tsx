@@ -10,7 +10,6 @@ type ProfessorsListViewProps = Parameters<
 >[0];
 
 type ProfessorsListViewInput = {
-  actionData?: ProfessorsListViewProps["actionData"];
   loaderData?: Partial<ProfessorsListViewProps["loaderData"]>;
 };
 
@@ -51,7 +50,9 @@ describe("PortalProfessorsListRouteView", () => {
     expect(markup).toContain(
       "Buscar profesor por nombre o número de documento",
     );
-    expect(markup).toContain("Nuevo profesor");
+    expect(markup).toMatch(
+      /<a[^>]*href="\/portal\/profesores\/nuevo"[^>]*>.*?Nuevo profesor<\/a>/,
+    );
     expect(markup).toContain('aria-label="Agregar filtro"');
     expect(markup).toContain("1 de 2 registros");
     expect(markup).toContain("DNI 12345678");
@@ -85,7 +86,6 @@ function renderProfessorsList(input: ProfessorsListViewInput = {}) {
     [
       {
         path: "/portal/profesores",
-        action: async () => null,
         element: (
           <PortalProfessorsListRouteView
             loaderData={{
@@ -93,7 +93,6 @@ function renderProfessorsList(input: ProfessorsListViewInput = {}) {
               professors: [],
               ...input.loaderData,
             }}
-            actionData={input.actionData}
           />
         ),
       },
