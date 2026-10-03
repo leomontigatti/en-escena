@@ -2,15 +2,22 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { FoldedBadgesList } from "@/components/shared/badges-list";
 import {
   ClientDataTable,
+  DataTableTruncatedText,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
+import { noOfferedSheets } from "@/lib/judging/sheet-criteria";
 import { buildCreatePath, buildDetailPath } from "@/lib/shared/navigation";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
+import {
+  modalityCriteriaStatus,
+  type ModalityCriteriaStatus,
+} from "../criteria-status";
 import {
   basePath,
   type EventModalitiesLoaderData,
@@ -38,11 +45,7 @@ export function EventModalitiesListView({
       }}
     >
       {loaderData.modalities.length > 0 ? (
-        <ModalitiesTable
-          modalities={loaderData.modalities}
-          submodalities={loaderData.submodalities}
-          selectedEventId={loaderData.selectedEventId}
-        />
+        <ModalitiesTable loaderData={loaderData} />
       ) : (
         <AdminEmptyState
           title={emptyModalityList.nothingYet}
@@ -68,27 +71,33 @@ function groupSubmodalitiesByModalityId(submodalities: EventSubmodalityRow[]) {
 }
 
 function ModalitiesTable({
-  modalities,
-  selectedEventId,
-  submodalities,
+  loaderData,
 }: {
-  modalities: EventModalityRow[];
-  selectedEventId: string | null;
-  submodalities: EventSubmodalityRow[];
+  loaderData: EventModalitiesLoaderData;
 }) {
+  const { modalities, selectedEventId, submodalities } = loaderData;
   const submodalitiesByModalityId =
     groupSubmodalitiesByModalityId(submodalities);
+  const criteriaStatusOf = (modality: EventModalityRow) =>
+    modalityCriteriaStatus({
+      criteria: loaderData.submodalityCriteria,
+      sheets: loaderData.modalitySheets[modality.id] ?? noOfferedSheets,
+      submodalities: submodalitiesByModalityId.get(modality.id) ?? [],
+    });
   const columns: DataTableColumn<EventModalityRow>[] = [
     {
       id: "name",
       header: "Nombre",
-      className: "min-w-56 font-medium",
+      width: 3,
+      className: "font-medium",
       cell: (modality) => (
-        <DataTableLink
-          to={buildDetailPath(basePath, modality.id, selectedEventId)}
-        >
-          {modality.name}
-        </DataTableLink>
+        <DataTableTruncatedText value={modality.name}>
+          <DataTableLink
+            to={buildDetailPath(basePath, modality.id, selectedEventId)}
+          >
+            {modality.name}
+          </DataTableLink>
+        </DataTableTruncatedText>
       ),
       filterValue: (modality) => modality.name,
       sortValue: (modality) => modality.name,
@@ -96,15 +105,28 @@ function ModalitiesTable({
     {
       id: "submodalities",
       header: "Submodalidades",
+      width: 7,
       cell: (modality) => (
-        <SubmodalityBadgeList
-          submodalities={submodalitiesByModalityId.get(modality.id) ?? []}
+        <FoldedBadgesList
+          labels={(submodalitiesByModalityId.get(modality.id) ?? []).map(
+            (submodality) => submodality.name,
+          )}
         />
       ),
       filterValue: (modality) =>
         (submodalitiesByModalityId.get(modality.id) ?? [])
           .map((submodality) => submodality.name)
           .join(" "),
+    },
+    {
+      id: "criteria",
+      header: "Criterios",
+      width: 2,
+      cell: (modality) => (
+        <CriteriaStatusBadge status={criteriaStatusOf(modality)} />
+      ),
+      filterValue: (modality) =>
+        criteriaStatusBadges[criteriaStatusOf(modality)].label,
     },
   ];
 
@@ -113,6 +135,7 @@ function ModalitiesTable({
       rows={modalities}
       columns={columns}
       getRowKey={(modality) => modality.id}
+      layout="fit"
       searchPlaceholder="Buscar modalidad por nombre"
       textFilterColumnId="name"
       emptyMessage={emptyModalityList.nothingMatched}
@@ -121,18 +144,17 @@ function ModalitiesTable({
   );
 }
 
-function SubmodalityBadgeList({
-  submodalities,
-}: {
-  submodalities: EventSubmodalityRow[];
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {submodalities.map((submodality) => (
-        <Badge key={submodality.id} variant="secondary">
-          {submodality.name}
-        </Badge>
-      ))}
-    </div>
-  );
+const criteriaStatusBadges = {
+  complete: { label: "Completos", variant: "success" },
+  incomplete: { label: "Incompleto", variant: "warning" },
+  none: { label: "Sin criterios", variant: "secondary" },
+} as const satisfies Record<
+  ModalityCriteriaStatus,
+  { label: string; variant: "success" | "warning" | "secondary" }
+>;
+
+function CriteriaStatusBadge({ status }: { status: ModalityCriteriaStatus }) {
+  const { label, variant } = criteriaStatusBadges[status];
+
+  return <Badge variant={variant}>{label}</Badge>;
 }
