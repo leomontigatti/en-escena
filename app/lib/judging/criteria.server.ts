@@ -26,6 +26,7 @@ import {
   type CriterionKind,
 } from "@/lib/judging/criteria";
 import {
+  noOfferedSheets,
   sheetRuleFor,
   validateSheetCriteria,
   type OfferedSheets,
@@ -274,11 +275,5 @@ export async function replaceSheetCriteria(
     return { ok: true } as const;
   });
 }
-
-/** A modality no category offers yet: no sheet is scored on it so far. */
-const noOfferedSheets: OfferedSheets = {
-  generalStandsAlone: false,
-  levels: [],
-};
 
 const invalidCriteriaError = "Revisá los criterios de la submodalidad.";

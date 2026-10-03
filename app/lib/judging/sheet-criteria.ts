@@ -41,6 +41,12 @@ export type OfferedSheets = {
   levels: readonly ExperienceLevel[];
 };
 
+/** A modality no category offers yet: no sheet is scored on it so far. */
+export const noOfferedSheets: OfferedSheets = {
+  generalStandsAlone: false,
+  levels: [],
+};
+
 export type SheetRule = {
   /** How many criteria the rest of the sheet carries, which a sheet with none of its own still has. */
   fixedCount: number;
@@ -165,6 +171,23 @@ export function isSheetComplete(
   criteria: readonly CriterionMaximumInput[],
 ): boolean {
   return sumAddingCriteriaMaxima(criteria) === addingCriteriaTotal;
+}
+
+/**
+ * The levels a submodality has a sheet for: the ones the categories offer, and
+ * after them any level no category offers any more that still holds criteria,
+ * which stays a sheet until they are cleared.
+ */
+export function sheetLevels(
+  stored: readonly StoredSheetCriterion[],
+  offered: OfferedSheets,
+): ExperienceLevel[] {
+  return [
+    ...offered.levels,
+    ...stored.flatMap((criterion) =>
+      criterion.experienceLevel ? [criterion.experienceLevel] : [],
+    ),
+  ].filter((level, index, all) => all.indexOf(level) === index);
 }
 
 export type SheetGap = {
