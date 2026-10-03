@@ -223,6 +223,8 @@ const judgingScoringRequirements = [
   "| 90 or more      | `Medalla de oro`    |",
   "The list shows `Pendiente`, the judge's own score in place of a word when complete, `Sin devolución` as a warning",
   "The list shows only the judge's own score, and only once it is complete",
+  "The judge's list and the write window are two rules.",
+  "reaches every other day the judge has presentations on, read-only",
   "Removing a judge assignment is refused once that judge has a score row",
 ];
 
@@ -236,6 +238,7 @@ const retiredJudgingRules = [
   "explicit reason and traceability",
   "`Completa`",
   "The list itself still shows no number",
+  "Before that day it is not on any judge's list",
 ];
 
 const judgingGlossaryRequirements = [
@@ -248,6 +251,7 @@ const judgingGlossaryRequirements = [
   '**`medal`** — ui: "Medalla"',
   '**`disqualification`** — ui: "Descalificación"',
   '**`judgeScoreStatus`** — ui: "Estado"',
+  "It binds the judge's writes only",
   "`Pendiente`",
   "the judge's own score itself (`87.5`)",
   "`Sin devolución`",
@@ -535,6 +539,9 @@ describe("domain documentation", () => {
       expect(glossary, requirement).toContain(requirement);
     }
 
+    expect(glossary).not.toContain(
+      "binds the judge's list and the judge's editing window with one rule",
+    );
     expect(glossary).not.toContain("scoreCorrection");
     expect(glossary).not.toContain("Corrección de puntaje");
     expect(glossary).not.toContain("scoreAnnulment");

@@ -10,6 +10,7 @@ import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableFilters } from "@/components/shared/data-table-filters";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +26,10 @@ import { judgeScoreStatusBadge } from "@/lib/judging/judge-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { showToastMessage } from "@/lib/shared/toasts";
+import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
 
 import {
+  findResumeMarkerPresentationId,
   findResumePresentationId,
   readLastOpenedPresentationId,
   rememberOpenedPresentation,
@@ -42,18 +45,29 @@ export type JudgePanelViewProps = {
  * The judge's whole day on one page. It is read in a dark theatre between two
  * dances, so nothing here is paginated and nothing is hidden behind a filter
  * panel: the judge is looking for the piece that is about to go on. The only
- * number a row carries is the judge's own score, once it is complete.
+ * number a row carries is the judge's own score.
+ *
+ * A judge with presentations on other days can switch to one of them to look
+ * back at what they scored or ahead at what is coming. Only the judging day is
+ * open: on any other one the rows lead nowhere, and nothing opens the score
+ * form, a `?presentacion=` URL included.
  */
 export function JudgePanelView({
   actionData,
   loaderData,
 }: JudgePanelViewProps) {
   const [onlyPending, setOnlyPending] = useState(false);
+  const { isOpen } = loaderData;
   const { openPresentation, openPresentationId, setOpenPresentationId } =
-    useOpenPresentation(loaderData.presentations);
+    useOpenPresentation(loaderData.presentations, isOpen);
   const tableRef = useRef<HTMLDivElement>(null);
   const resumePresentationId = useResumePresentationId(
     loaderData.presentations,
+    isOpen,
+  );
+  const columns = useMemo(
+    () => buildJudgePresentationColumns(isOpen),
+    [isOpen],
   );
   const rows = onlyPending
     ? loaderData.presentations.filter((row) => row.status === "pending")
@@ -80,7 +94,7 @@ export function JudgePanelView({
       <JudgeScoreSheet
         account={loaderData.account}
         actionData={actionData}
-        judgingDate={loaderData.judgingDate}
+        judgingDate={loaderData.day}
         key={openPresentation.presentationId}
         onClose={() => setOpenPresentationId(null)}
         presentation={openPresentation}
@@ -92,8 +106,8 @@ export function JudgePanelView({
     <AccessPage width="2xl">
       <PrivateAccessHeader account={loaderData.account} />
       <AccessHeader
-        eyebrow={formatScheduleDayHeading(loaderData.judgingDate)}
-        title="Presentaciones de hoy"
+        eyebrow={formatScheduleDayHeading(loaderData.day)}
+        title={isOpen ? "Presentaciones de hoy" : "Presentaciones del día"}
         titleLevel={2}
         action={
           <div className="flex items-center gap-2">
@@ -106,12 +120,15 @@ export function JudgePanelView({
             <Label htmlFor="solo-pendientes">Solo pendientes</Label>
           </div>
         }
-        description="Las presentaciones que tenés asignadas hoy, en el orden del programa."
+        description={describeDay(loaderData)}
       />
 
-      <div className="mt-6" ref={tableRef}>
+      <div className="mt-6 flex flex-col gap-4" ref={tableRef}>
+        {loaderData.dayOptions.length > 0 ? (
+          <JudgeDayFilter loaderData={loaderData} />
+        ) : null}
         <ClientDataTable
-          columns={judgePresentationColumns}
+          columns={columns}
           emptyMessage="No tenés presentaciones asignadas para hoy."
           getRowKey={(row) => row.presentationId}
           getRowProps={(row) => ({
@@ -140,11 +157,74 @@ export function JudgePanelView({
   );
 }
 
+function describeDay({
+  day,
+  isOpen,
+  judgingDate,
+}: Pick<JudgePanelRouteData, "day" | "isOpen" | "judgingDate">) {
+  if (isOpen) {
+    return "Las presentaciones que tenés asignadas hoy, en el orden del programa.";
+  }
+
+  return day < judgingDate
+    ? "Las presentaciones que tenés asignadas ese día. La jornada ya cerró: podés ver tus puntajes, pero no cambiarlos."
+    : "Las presentaciones que tenés asignadas ese día, en el orden del programa. Vas a poder puntuarlas cuando empiece la jornada.";
+}
+
+const dayFilterGroupId = dayTabParam;
+
+/**
+ * The days the judge can switch to, as the tables' filter, kept in the URL the
+ * way a day tab is. The judging day is the list's default, so it is never shown
+ * as applied: picking it, or removing the filter, drops the day from the URL. A
+ * presentation left open belongs to the day being left, so it is dropped with
+ * it.
+ */
+function JudgeDayFilter({ loaderData }: { loaderData: JudgePanelRouteData }) {
+  const { dayOptions, judgingDate } = loaderData;
+  const { onValueChange, value } = useUrlTab({
+    defaultValue: judgingDate,
+    param: dayTabParam,
+    resets: ["presentacion"],
+    values: dayOptions,
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <DataTableFilters
+        groups={[
+          {
+            id: dayFilterGroupId,
+            label: "Día",
+            options: dayOptions.map((option) => ({
+              label:
+                option === judgingDate
+                  ? `${formatScheduleDayHeading(option)} (hoy)`
+                  : formatScheduleDayHeading(option),
+              value: option,
+            })),
+          },
+        ]}
+        selectedValues={
+          value === judgingDate ? {} : { [dayFilterGroupId]: value }
+        }
+        onChange={(values) =>
+          onValueChange(values[dayFilterGroupId] || judgingDate)
+        }
+      />
+    </div>
+  );
+}
+
 /**
  * Which presentation the judge has open, kept in the URL so that coming back to
- * the tab, or a revalidation mid-show, reopens what they were looking at.
+ * the tab, or a revalidation mid-show, reopens what they were looking at. On a
+ * day that is not open nothing opens, whatever the URL says.
  */
-function useOpenPresentation(presentations: JudgePresentationRow[]) {
+function useOpenPresentation(
+  presentations: JudgePresentationRow[],
+  isOpen: boolean,
+) {
   const [searchParams, setSearchParams] = useSearchParams();
   const openPresentationId = searchParams.get("presentacion");
   const setOpenPresentationId = useCallback(
@@ -166,9 +246,11 @@ function useOpenPresentation(presentations: JudgePresentationRow[]) {
   );
 
   return {
-    openPresentation:
-      presentations.find((row) => row.presentationId === openPresentationId) ??
-      null,
+    openPresentation: isOpen
+      ? (presentations.find(
+          (row) => row.presentationId === openPresentationId,
+        ) ?? null)
+      : null,
     openPresentationId,
     setOpenPresentationId,
   };
@@ -247,16 +329,25 @@ const judgeScoreToastId = "juzgamiento-puntaje";
 /**
  * The marker is read once, on mount: it says where the judge left off when they
  * came back, and it would be unsettling for it to jump to another row while
- * they are looking at the list.
+ * they are looking at the list. It belongs to the show running now, so another
+ * day has none.
  */
-function useResumePresentationId(presentations: JudgePresentationRow[]) {
+function useResumePresentationId(
+  presentations: JudgePresentationRow[],
+  isOpen: boolean,
+) {
   const [lastOpenedPresentationId] = useState(() =>
     typeof window === "undefined" ? null : readLastOpenedPresentationId(),
   );
 
   return useMemo(
-    () => findResumePresentationId(presentations, lastOpenedPresentationId),
-    [lastOpenedPresentationId, presentations],
+    () =>
+      findResumeMarkerPresentationId(
+        presentations,
+        lastOpenedPresentationId,
+        isOpen,
+      ),
+    [isOpen, lastOpenedPresentationId, presentations],
   );
 }
 
@@ -276,83 +367,91 @@ function formatExperienceLevel(row: JudgePresentationRow) {
 // with the number's share moved to the level so `Profesional` fits the
 // narrower card. Laid out `fit`: four free-text columns share the row, so each keeps its share
 // and a long academy or name is cut rather than pushing `Estado` off the card.
-const judgePresentationColumns: DataTableColumn<JudgePresentationRow>[] = [
-  {
-    id: "orden",
-    header: "N.º",
-    cell: (row) => row.orderNumber,
-    leading: true,
-    className: "font-medium tabular-nums",
-    width: 6,
-  },
-  {
-    id: "nombre",
-    header: "Nombre",
-    className: "font-medium",
-    cell: (row) => (
-      <DataTableTruncatedText value={row.name}>
-        <DataTableLink
-          to={`?presentacion=${row.presentationId}`}
-          onClick={() => rememberOpenedPresentation(row.presentationId)}
-        >
-          {row.name}
-        </DataTableLink>
-      </DataTableTruncatedText>
-    ),
-    width: 14,
-  },
-  {
-    id: "academia",
-    header: "Academia",
-    className: "text-muted-foreground",
-    cell: (row) => <DataTableTruncatedText value={row.academyName} />,
-    width: 13,
-  },
-  {
-    id: "modalidadSubmodalidad",
-    header: "Modalidad / Submodalidad",
-    className: "text-muted-foreground",
-    cell: (row) => (
-      <DataTableTruncatedText
-        value={formatPrimaryAndSecondaryValue(
-          row.modalityName,
-          row.submodalityName,
-        )}
-      />
-    ),
-    width: 21,
-  },
-  {
-    id: "categoriaTipoGrupo",
-    header: "Categoría / Tipo de grupo",
-    className: "text-muted-foreground",
-    cell: (row) => (
-      <DataTableTruncatedText
-        value={formatPrimaryAndSecondaryValue(
-          row.categoryName,
-          formatGroupTypeLabel(row.groupType),
-        )}
-      />
-    ),
-    width: 20,
-  },
-  {
-    id: "nivel",
-    header: "Nivel",
-    className: "text-muted-foreground",
-    cell: (row) => (
-      <DataTableTruncatedText value={formatExperienceLevel(row)} />
-    ),
-    width: 10,
-  },
-  {
-    id: "estado",
-    header: "Estado",
-    cell: (row) => {
-      const badge = judgeScoreStatusBadge(row);
-
-      return <Badge variant={badge.variant}>{badge.label}</Badge>;
+// On a day that is not open the name is plain text: there is no form to open.
+function buildJudgePresentationColumns(
+  isOpen: boolean,
+): DataTableColumn<JudgePresentationRow>[] {
+  return [
+    {
+      id: "orden",
+      header: "N.º",
+      cell: (row) => row.orderNumber,
+      leading: true,
+      className: "font-medium tabular-nums",
+      width: 6,
     },
-    width: 11,
-  },
-];
+    {
+      id: "nombre",
+      header: "Nombre",
+      className: "font-medium",
+      cell: (row) =>
+        isOpen ? (
+          <DataTableTruncatedText value={row.name}>
+            <DataTableLink
+              to={`?presentacion=${row.presentationId}`}
+              onClick={() => rememberOpenedPresentation(row.presentationId)}
+            >
+              {row.name}
+            </DataTableLink>
+          </DataTableTruncatedText>
+        ) : (
+          <DataTableTruncatedText value={row.name} />
+        ),
+      width: 14,
+    },
+    {
+      id: "academia",
+      header: "Academia",
+      className: "text-muted-foreground",
+      cell: (row) => <DataTableTruncatedText value={row.academyName} />,
+      width: 13,
+    },
+    {
+      id: "modalidadSubmodalidad",
+      header: "Modalidad / Submodalidad",
+      className: "text-muted-foreground",
+      cell: (row) => (
+        <DataTableTruncatedText
+          value={formatPrimaryAndSecondaryValue(
+            row.modalityName,
+            row.submodalityName,
+          )}
+        />
+      ),
+      width: 21,
+    },
+    {
+      id: "categoriaTipoGrupo",
+      header: "Categoría / Tipo de grupo",
+      className: "text-muted-foreground",
+      cell: (row) => (
+        <DataTableTruncatedText
+          value={formatPrimaryAndSecondaryValue(
+            row.categoryName,
+            formatGroupTypeLabel(row.groupType),
+          )}
+        />
+      ),
+      width: 20,
+    },
+    {
+      id: "nivel",
+      header: "Nivel",
+      className: "text-muted-foreground",
+      cell: (row) => (
+        <DataTableTruncatedText value={formatExperienceLevel(row)} />
+      ),
+      width: 10,
+    },
+    {
+      id: "estado",
+      header: "Estado",
+      cell: (row) => {
+        const badge = judgeScoreStatusBadge({ ...row, isOpen });
+
+        return <Badge variant={badge.variant}>{badge.label}</Badge>;
+      },
+      width: 11,
+    },
+  ];
+}

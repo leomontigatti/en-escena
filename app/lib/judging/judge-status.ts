@@ -39,13 +39,16 @@ export type JudgeScoreStatusBadge = {
 };
 
 /**
- * What the `Estado` cell of the judge's own list shows. A complete score shows
- * its number, written as every score in the app is, and only the judge's own:
- * the row carries no one else's. A score without a `Devolución` is a warning
- * rather than a fault, since the take is optional, so that the judge notices
- * it while the day is still open.
+ * What the `Estado` cell of the judge's own list shows. A score shows its
+ * number, written as every score in the app is, and only the judge's own: the
+ * row carries no one else's. On the open day a score without a `Devolución` is
+ * a warning rather than a fault, since the take is optional, so that the judge
+ * notices it while it can still be recorded; on any other day it can no longer
+ * be fixed, and the score reads as the score.
  */
 export function judgeScoreStatusBadge(row: {
+  /** Whether the row's day is the judging day, the only one open to writes. */
+  isOpen: boolean;
   status: JudgeScoreStatus;
   value: string | null;
 }): JudgeScoreStatusBadge {
@@ -55,7 +58,9 @@ export function judgeScoreStatusBadge(row: {
     case "disqualified":
       return { label: "Descalificada", variant: "destructive" };
     case "noFeedback":
-      return { label: "Sin devolución", variant: "warning" };
+      return row.isOpen
+        ? { label: "Sin devolución", variant: "warning" }
+        : { label: formatScoreFieldValue(row.value), variant: "success" };
     case "pending":
       return { label: "Pendiente", variant: "outline" };
   }

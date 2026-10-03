@@ -22,6 +22,20 @@ export function findResumePresentationId(
 }
 
 /**
+ * The row the list marks and scrolls to. The marker belongs to the show running
+ * now, so a day that is not open, past or coming, has none.
+ */
+export function findResumeMarkerPresentationId(
+  rows: readonly { presentationId: string; status: JudgeScoreStatus }[],
+  lastOpenedPresentationId: string | null,
+  isOpen: boolean,
+): string | null {
+  return isOpen
+    ? findResumePresentationId(rows, lastOpenedPresentationId)
+    : null;
+}
+
+/**
  * Where the last opened presentation is remembered. The session is the right
  * scope: it is the judge's place in today's show and means nothing tomorrow,
  * and it never leaves the device, so no other judge's work is implied by it.

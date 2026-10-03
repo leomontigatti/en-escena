@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { findResumePresentationId } from "./resume";
+import {
+  findResumeMarkerPresentationId,
+  findResumePresentationId,
+} from "./resume";
 
 const rows = [
   { presentationId: "a", status: "noFeedback" as const },
@@ -33,5 +36,16 @@ describe("where the judge picks the list back up", () => {
         "a",
       ),
     ).toBeNull();
+  });
+});
+
+describe("the resume marker on the list", () => {
+  test("is where the judge picks the list back up on the open day", () => {
+    expect(findResumeMarkerPresentationId(rows, "b", true)).toBe("d");
+  });
+
+  test("is on no presentation on a day that is not open", () => {
+    expect(findResumeMarkerPresentationId(rows, "b", false)).toBeNull();
+    expect(findResumeMarkerPresentationId(rows, null, false)).toBeNull();
   });
 });

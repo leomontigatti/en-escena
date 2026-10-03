@@ -4,7 +4,10 @@ import { db } from "@/db";
 import { presentations, scoreCriterionValues, scores } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-import { readJudgePresentations } from "@/lib/judging/judge-list.server";
+import {
+  readJudgeAssignedDays,
+  readJudgePresentations,
+} from "@/lib/judging/judge-list.server";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { createFeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
 
@@ -12,15 +15,11 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-/** Business time is UTC-3 all year, so a business instant is the UTC one plus three hours. */
-function businessInstant(text: string) {
-  return new Date(`${text}-03:00`);
-}
+/** The catalog schedule's own date, which every presentation takes by default. */
+const showDay = "2026-05-01";
 
-const showNight = businessInstant("2026-05-01T21:00:00");
-
-describe("the judge's list of today's presentations", () => {
-  test("reads only this judge's assignments for today, in order number", async () => {
+describe("the judge's list of one day's presentations", () => {
+  test("reads only this judge's assignments on the requested day, in order number", async () => {
     const fixture = await seedJudgingFixture();
     const second = await fixture.addPresentation({
       name: "Segunda",
@@ -45,10 +44,16 @@ describe("the judge's list of today's presentations", () => {
     await fixture.assignJudge(tomorrow.presentationId, judgeId);
     await fixture.assignJudge(somebodyElses.presentationId);
 
-    const rows = await readJudgePresentations({ now: showNight, judgeId });
+    const rows = await readJudgePresentations({
+      judgeId,
+      scheduledDate: showDay,
+    });
 
     expect(rows.map((row) => row.name)).toEqual(["Primera", "Segunda"]);
     expect(rows.map((row) => row.orderNumber)).toEqual([1, 2]);
+    await expect(
+      readJudgePresentations({ judgeId, scheduledDate: "2026-05-02" }),
+    ).resolves.toMatchObject([{ name: "Mañana" }]);
   });
 
   test("describes the row, academy included, without another judge's work", async () => {
@@ -65,7 +70,10 @@ describe("the judge's list of today's presentations", () => {
       value: "90.0",
     });
 
-    const [row] = await readJudgePresentations({ now: showNight, judgeId });
+    const [row] = await readJudgePresentations({
+      scheduledDate: showDay,
+      judgeId,
+    });
 
     expect(row).toMatchObject({
       academyName: fixture.academy.academy.name,
@@ -91,7 +99,10 @@ describe("the judge's list of today's presentations", () => {
     });
     const { judgeId } = await fixture.assignJudge(presentation.presentationId);
 
-    const [row] = await readJudgePresentations({ now: showNight, judgeId });
+    const [row] = await readJudgePresentations({
+      scheduledDate: showDay,
+      judgeId,
+    });
 
     expect(row).toMatchObject({
       categoryAdmitsExperienceLevels: false,
@@ -130,7 +141,7 @@ describe("the judge's list of today's presentations", () => {
       .where(eq(presentations.id, disqualified.presentationId));
 
     const rows = await readJudgePresentations({
-      now: showNight,
+      scheduledDate: showDay,
       judgeId: assignment.judgeId,
     });
 
@@ -181,7 +192,7 @@ describe("the judge's list of today's presentations", () => {
 
     const [row] = await readJudgePresentations({
       judgeId: judge.judgeId,
-      now: showNight,
+      scheduledDate: showDay,
     });
 
     expect(row.value).toBe("55.5");
@@ -200,13 +211,16 @@ describe("the judge's list of today's presentations", () => {
     });
     const { judgeId } = await fixture.assignJudge(presentation.presentationId);
 
-    const [row] = await readJudgePresentations({ judgeId, now: showNight });
+    const [row] = await readJudgePresentations({
+      judgeId,
+      scheduledDate: showDay,
+    });
 
     expect(row.value).toBeNull();
     expect(row.criteriaValues).toEqual({});
   });
 
-  test("is empty once the judging day has closed", async () => {
+  test("is empty on a day the judge has nothing assigned", async () => {
     const fixture = await seedJudgingFixture();
     const presentation = await fixture.addPresentation({
       name: "Primera",
@@ -215,11 +229,42 @@ describe("the judge's list of today's presentations", () => {
     const { judgeId } = await fixture.assignJudge(presentation.presentationId);
 
     await expect(
-      readJudgePresentations({
-        now: businessInstant("2026-05-02T03:00:00"),
-        judgeId,
-      }),
+      readJudgePresentations({ judgeId, scheduledDate: "2026-05-02" }),
     ).resolves.toEqual([]);
+  });
+});
+
+describe("the days a judge has presentations on", () => {
+  test("lists each of this judge's days once, in date order", async () => {
+    const fixture = await seedJudgingFixture();
+    const later = await fixture.addPresentation({
+      name: "Después",
+      orderNumber: 3,
+      scheduledDate: "2026-05-03",
+    });
+    const first = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const second = await fixture.addPresentation({
+      name: "Segunda",
+      orderNumber: 2,
+    });
+    const somebodyElses = await fixture.addPresentation({
+      name: "De otro jurado",
+      orderNumber: 4,
+      scheduledDate: "2026-05-02",
+    });
+
+    const { judgeId } = await fixture.assignJudge(later.presentationId);
+    await fixture.assignJudge(first.presentationId, judgeId);
+    await fixture.assignJudge(second.presentationId, judgeId);
+    await fixture.assignJudge(somebodyElses.presentationId);
+
+    await expect(readJudgeAssignedDays({ judgeId })).resolves.toEqual([
+      showDay,
+      "2026-05-03",
+    ]);
   });
 });
 
@@ -240,7 +285,7 @@ describe("the judge's own `Devolución`", () => {
 
     const [row] = await readJudgePresentations({
       judgeId: judge.judgeId,
-      now: showNight,
+      scheduledDate: showDay,
       storage: createFeedbackAudioStorage({
         createSignedUrl: async (input) => `https://example.test/${input.key}`,
         remove: async () => {},
@@ -268,7 +313,7 @@ describe("the judge's own `Devolución`", () => {
 
     const [row] = await readJudgePresentations({
       judgeId: judge.judgeId,
-      now: showNight,
+      scheduledDate: showDay,
       storage,
     });
 
