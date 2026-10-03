@@ -4,6 +4,7 @@ import {
   formatScheduleDateTimeLabel,
   formatScheduleRegistrationStateLabel,
   getScheduleCategoryOptions,
+  scheduleFormSchema,
 } from "./view-shared";
 
 const categories = [
@@ -90,5 +91,51 @@ describe("formatScheduleRegistrationStateLabel", () => {
   test("names the two states of a schedule's inscriptions", () => {
     expect(formatScheduleRegistrationStateLabel(true)).toBe("Abiertas");
     expect(formatScheduleRegistrationStateLabel(false)).toBe("Cerradas");
+  });
+});
+
+describe("scheduleFormSchema award ceremony", () => {
+  const baseValues = {
+    name: "Bloque tarde",
+    scheduledDate: "2026-12-01",
+    startTime: "16:00",
+    totalCapacity: "20",
+    modalityIds: ["modality_jazz"],
+    categoryIds: [],
+    scheduleCapacities: [],
+  };
+  const halfFilledMessage =
+    "Completá la fecha y la hora de la entrega de premios, o dejá las dos vacías.";
+
+  // A schedule may have no ceremony at all, and it may have one on any day:
+  // after midnight it falls on the next.
+  test.each([
+    { awardCeremonyDate: "", awardCeremonyTime: "" },
+    { awardCeremonyDate: "2026-12-01", awardCeremonyTime: "22:30" },
+    { awardCeremonyDate: "2026-12-02", awardCeremonyTime: "00:15" },
+  ])("accepts both empty or both filled: %o", (ceremony) => {
+    expect(
+      scheduleFormSchema.safeParse({ ...baseValues, ...ceremony }).success,
+    ).toBe(true);
+  });
+
+  // The message lands on the half that is missing, where the administrator
+  // has to act.
+  test.each([
+    {
+      ceremony: { awardCeremonyDate: "2026-12-01", awardCeremonyTime: "" },
+      path: "awardCeremonyTime",
+    },
+    {
+      ceremony: { awardCeremonyDate: "", awardCeremonyTime: "22:30" },
+      path: "awardCeremonyDate",
+    },
+  ])("refuses a half-filled pair on $path", ({ ceremony, path }) => {
+    const result = scheduleFormSchema.safeParse({ ...baseValues, ...ceremony });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({ message: halfFilledMessage, path: [path] }),
+    ]);
   });
 });

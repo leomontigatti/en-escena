@@ -254,6 +254,8 @@ describe("`/administracion/bases-del-evento` routes", () => {
         name: "",
         scheduledDate: "",
         startTime: "",
+        awardCeremonyDate: "",
+        awardCeremonyTime: "",
         totalCapacity: "",
         modalityIds: [],
         categoryIds: [],

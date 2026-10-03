@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   ClientDataTable,
   DataTableTruncatedText,
@@ -39,10 +41,16 @@ export type ProgramListProps = {
    * keeps the columns it has always had.
    */
   showLevel?: boolean;
+  /**
+   * What goes right under the tabs while one day is chosen, never on `Todos`:
+   * the public program's award ceremonies of that day. The portal has none.
+   */
+  renderDayNotice?: (day: string) => ReactNode;
 };
 
 export function ProgramList({
   choreographyPath = null,
+  renderDayNotice,
   rows,
   showAcademy,
   showLevel = false,
@@ -62,6 +70,7 @@ export function ProgramList({
     // between its tabs and its search.
     <div className="flex flex-col gap-3">
       <ScheduleDayTabs days={days} tab={tab} />
+      {tab.value === allDaysTabValue ? null : renderDayNotice?.(tab.value)}
 
       <ClientDataTable
         rows={visibleRows}

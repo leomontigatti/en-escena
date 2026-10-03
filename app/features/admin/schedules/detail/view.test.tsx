@@ -304,6 +304,8 @@ function buildLoaderData(): EventScheduleDetailLoaderData {
         name: "Mañana",
         scheduledDate: "2026-10-10",
         startTime: "10:00",
+        awardCeremonyDate: null,
+        awardCeremonyTime: null,
         totalCapacity: 10,
         registrationOpen: false,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),

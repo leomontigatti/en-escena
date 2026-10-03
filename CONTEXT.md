@@ -48,6 +48,10 @@ _Avoid_: `eventStatus`, active, results visibility flag
 A programming slot of an event, with name, local date, local time, accepted modalities, optionally accepted categories, and total choreography capacity. Listing no category means it accepts every category, which is how a schedule that names none behaves. When no specific schedule capacity exists for a choreography's group type, the choreography may consume the schedule's total capacity as a global allowance.
 _Avoid_: time block, loose time slot, full agenda
 
+**`awardCeremony`** — ui: "Entrega de premios"
+The occasion a `schedule` closes with, when its presentations' recognitions are handed out: a date and a time of its own, on any day, since one held after midnight falls on the next. A schedule has one or none, and the public program announces it.
+_Avoid_: `premiación`, `ceremonia`, `award` alone
+
 **`scheduleCapacity`** — ui: "Cupo de cronograma"
 Distribution of choreography capacity within a schedule, tied to a single group type.
 _Avoid_: `schedule`, time block
@@ -372,7 +376,7 @@ _Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
 **`medal`** — ui: "Medalla"
 The recognition a `presentation` earns, read off its average —the mean of its saved score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same medal. A disqualified presentation has no average and no medal. It is the single recognition term of the domain —what used to be called `Premio`— and there is no award rule, no award type and no ranking beside it.
-_Avoid_: `award`, `premio`, position, tie, ranking
+_Avoid_: `premio`, position, tie, ranking. `award` is the name this term is being renamed to (#1419).
 
 **`judgeScoreStatus`** — ui: "Estado"
 How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, `Completa` with a value and a `feedbackAudio`, `Sin devolución` with a value and none —neutral in tone, not a fault— and `Descalificada` whenever the presentation is —`pending`, `complete`, `noFeedback` and `disqualified` in the code, which keeps the Spanish in its labels map. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.

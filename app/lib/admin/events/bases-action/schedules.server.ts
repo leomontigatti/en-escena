@@ -66,6 +66,8 @@ type ScheduleActionInput = EventBasesActionBaseInput & {
   scheduleId: string;
   scheduledDate: string;
   startTime: string;
+  awardCeremonyDate: string;
+  awardCeremonyTime: string;
   totalCapacity: number;
 };
 
@@ -97,22 +99,25 @@ function readScheduleActionInput(
   baseInput: EventBasesActionBaseInput,
   formData: FormData,
 ): ScheduleActionInput {
+  // The schedule's own fields are read once, as the strings the form posted,
+  // and the typed input is built from them.
+  const formValues = readScheduleActionValues(formData);
+
   return {
     ...baseInput,
     capacity: Number.parseInt(String(formData.get("capacity") ?? ""), 10),
-    formValues: readScheduleActionValues(formData),
+    formValues,
     groupType: String(formData.get("groupType") ?? ""),
-    modalityIds: formData.getAll("modalityIds").map(String),
-    categoryIds: formData.getAll("categoryIds").map(String),
-    name: String(formData.get("name") ?? ""),
+    modalityIds: formValues.modalityIds,
+    categoryIds: formValues.categoryIds,
+    name: formValues.name,
     scheduleCapacities: readScheduleCapacityInputList(formData),
     scheduleId: String(formData.get("scheduleId") ?? ""),
-    scheduledDate: String(formData.get("scheduledDate") ?? ""),
-    startTime: String(formData.get("startTime") ?? ""),
-    totalCapacity: Number.parseInt(
-      String(formData.get("totalCapacity") ?? ""),
-      10,
-    ),
+    scheduledDate: formValues.scheduledDate,
+    startTime: formValues.startTime,
+    awardCeremonyDate: formValues.awardCeremonyDate,
+    awardCeremonyTime: formValues.awardCeremonyTime,
+    totalCapacity: Number.parseInt(formValues.totalCapacity, 10),
   };
 }
 
@@ -380,6 +385,8 @@ function readScheduleActionValues(formData: FormData): ScheduleActionValues {
     name: String(formData.get("name") ?? ""),
     scheduledDate: String(formData.get("scheduledDate") ?? ""),
     startTime: String(formData.get("startTime") ?? ""),
+    awardCeremonyDate: String(formData.get("awardCeremonyDate") ?? ""),
+    awardCeremonyTime: String(formData.get("awardCeremonyTime") ?? ""),
     totalCapacity: String(formData.get("totalCapacity") ?? ""),
     modalityIds: formData.getAll("modalityIds").map(String),
     categoryIds: formData.getAll("categoryIds").map(String),
@@ -492,6 +499,8 @@ function getScheduleInput(input: ScheduleActionInput): ScheduleInput {
     name: input.name,
     scheduledDate: input.scheduledDate,
     startTime: input.startTime,
+    awardCeremonyDate: input.awardCeremonyDate,
+    awardCeremonyTime: input.awardCeremonyTime,
     totalCapacity: input.totalCapacity,
     modalityIds: input.modalityIds,
     categoryIds: input.categoryIds,

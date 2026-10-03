@@ -388,6 +388,8 @@ function buildLoaderData(): EventBasesLoaderData {
         name: "Sábado mañana",
         scheduledDate: "2026-05-02",
         startTime: "09:00",
+        awardCeremonyDate: null,
+        awardCeremonyTime: null,
         totalCapacity: 20,
         registrationOpen: false,
         createdAt,

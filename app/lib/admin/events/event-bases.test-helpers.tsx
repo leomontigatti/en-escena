@@ -483,6 +483,9 @@ type ScheduleDraft = {
   name: string;
   scheduledDate: string;
   startTime: string;
+  /** Posted only when given, like a form that predates the ceremony. */
+  awardCeremonyDate?: string;
+  awardCeremonyTime?: string;
   totalCapacity: string;
   modalityIds: string[];
   scheduleCapacities?: ScheduleCapacityDraft[];
@@ -546,6 +549,12 @@ function formDataWithSchedule(
     name: schedule.name,
     scheduledDate: schedule.scheduledDate,
     startTime: schedule.startTime,
+    ...(schedule.awardCeremonyDate === undefined
+      ? {}
+      : { awardCeremonyDate: schedule.awardCeremonyDate }),
+    ...(schedule.awardCeremonyTime === undefined
+      ? {}
+      : { awardCeremonyTime: schedule.awardCeremonyTime }),
     totalCapacity: schedule.totalCapacity,
     modalityIds: schedule.modalityIds,
     ...serializeScheduleCapacities(schedule.scheduleCapacities ?? []),

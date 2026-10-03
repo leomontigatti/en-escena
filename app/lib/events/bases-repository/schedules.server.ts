@@ -2,6 +2,10 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { isScheduleCoveredByPrice } from "@/lib/events/bases-repository/price-schedules.server";
 import {
+  toScheduleColumnValues,
+  validateAwardCeremonyInput,
+} from "@/lib/events/bases-repository/schedule-values.server";
+import {
   choreographies,
   created,
   db,
@@ -181,10 +185,7 @@ export async function createSchedule(
       .insert(schedules)
       .values({
         eventId,
-        name: validation.input.name,
-        scheduledDate: input.scheduledDate,
-        startTime: normalizeTime(input.startTime),
-        totalCapacity: input.totalCapacity,
+        ...toScheduleColumnValues(validation.input),
       })
       .returning();
 
@@ -230,10 +231,7 @@ export async function createScheduleWithEntries(
       .insert(schedules)
       .values({
         eventId,
-        name: validation.input.name,
-        scheduledDate: input.scheduledDate,
-        startTime: normalizeTime(input.startTime),
-        totalCapacity: input.totalCapacity,
+        ...toScheduleColumnValues(validation.input),
       })
       .returning();
 
@@ -296,10 +294,7 @@ export async function updateSchedule(
     const [record] = await tx
       .update(schedules)
       .set({
-        name: validation.input.name,
-        scheduledDate: input.scheduledDate,
-        startTime: normalizeTime(input.startTime),
-        totalCapacity: input.totalCapacity,
+        ...toScheduleColumnValues(validation.input),
       })
       .where(eq(schedules.id, scheduleId))
       .returning();
@@ -376,10 +371,7 @@ export async function updateScheduleWithEntries(
     const [record] = await tx
       .update(schedules)
       .set({
-        name: validation.input.name,
-        scheduledDate: input.scheduledDate,
-        startTime: normalizeTime(input.startTime),
-        totalCapacity: input.totalCapacity,
+        ...toScheduleColumnValues(validation.input),
       })
       .where(eq(schedules.id, scheduleId))
       .returning();
@@ -548,6 +540,8 @@ async function validateScheduleInput(
   } else if (!isValidTime(input.startTime)) {
     fieldErrors.startTime = "Ingresá una hora válida.";
   }
+
+  Object.assign(fieldErrors, validateAwardCeremonyInput(input));
 
   if (!Number.isInteger(input.totalCapacity) || input.totalCapacity <= 0) {
     fieldErrors.totalCapacity = "Ingresá un cupo total mayor a cero.";

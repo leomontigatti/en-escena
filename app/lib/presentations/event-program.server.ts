@@ -40,6 +40,20 @@ export type EventProgramSchedule = {
   startTime: string;
 };
 
+/**
+ * When the schedule's award ceremony happens: both null when none is set,
+ * never only one. Only the public program announces it; a page run on its own
+ * does not need it, which is why it is not part of `EventProgramSchedule`.
+ */
+export type ScheduleAwardCeremony = {
+  awardCeremonyDate: string | null;
+  awardCeremonyTime: string | null;
+};
+
+/** A page run of the program, with the ceremony that closes it. */
+export type EventProgramCeremonySchedule = EventProgramSchedule &
+  ScheduleAwardCeremony;
+
 /** The program's row, the shared one plus the schedule the print groups by. */
 export type EventProgramRow = ProgramListRow & { scheduleId: string };
 
@@ -53,7 +67,7 @@ export type EventProgramEvent = {
 
 export type EventProgram = {
   rows: EventProgramRow[];
-  schedules: EventProgramSchedule[];
+  schedules: EventProgramCeremonySchedule[];
 };
 
 /**
@@ -151,6 +165,8 @@ export async function readEventProgram(
         name: schedules.name,
         scheduledDate: schedules.scheduledDate,
         startTime: schedules.startTime,
+        awardCeremonyDate: schedules.awardCeremonyDate,
+        awardCeremonyTime: schedules.awardCeremonyTime,
       })
       .from(schedules)
       .where(eq(schedules.eventId, eventId))

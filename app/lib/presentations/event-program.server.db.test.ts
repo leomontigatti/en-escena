@@ -218,6 +218,47 @@ describe("readEventProgram", () => {
     );
     expect(program.rows[1].scheduleId).toBe(afternoon.id);
   });
+
+  // The program announces when each block ends in its award ceremony, so the
+  // schedules it lists carry the pair, or nulls where none was set.
+  test("carries each schedule's award ceremony", async () => {
+    const { addAcademy, catalog, event } = await seedEvent();
+    const { addChoreography } = await addAcademy("Academia Norte");
+    const [evening] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Sábado noche",
+        scheduledDate: "2026-05-01",
+        startTime: "20:00",
+        awardCeremonyDate: "2026-05-02",
+        awardCeremonyTime: "00:15",
+        totalCapacity: 10,
+      })
+      .returning();
+
+    await addChoreography({ name: "Mañana", orderNumber: 1 });
+    await addChoreography({
+      name: "Noche",
+      orderNumber: 2,
+      scheduleId: evening.id,
+    });
+
+    const program = await readEventProgram(event.id);
+
+    expect(program.schedules).toEqual([
+      expect.objectContaining({
+        id: catalog.schedule.id,
+        awardCeremonyDate: null,
+        awardCeremonyTime: null,
+      }),
+      expect.objectContaining({
+        id: evening.id,
+        awardCeremonyDate: "2026-05-02",
+        awardCeremonyTime: "00:15",
+      }),
+    ]);
+  });
 });
 
 describe("findPublishedProgramEvent", () => {

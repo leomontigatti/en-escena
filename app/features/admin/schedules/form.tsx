@@ -63,6 +63,8 @@ type ScheduleFormController = UseFormReturn<ScheduleFormValues>;
  * actually changed.
  */
 export function useScheduleForm({
+  awardCeremonyDate,
+  awardCeremonyTime,
   categoryIds = emptySelection,
   modalityIds = emptySelection,
   name,
@@ -72,6 +74,8 @@ export function useScheduleForm({
   submittedValues,
   totalCapacity,
 }: {
+  awardCeremonyDate?: string | null;
+  awardCeremonyTime?: string | null;
   categoryIds?: string[];
   modalityIds?: string[];
   name?: string;
@@ -86,12 +90,16 @@ export function useScheduleForm({
       name: name ?? "",
       scheduledDate: scheduledDate ?? "",
       startTime: startTime ?? "",
+      awardCeremonyDate: awardCeremonyDate ?? "",
+      awardCeremonyTime: awardCeremonyTime ?? "",
       totalCapacity: totalCapacity?.toString() ?? "",
       modalityIds,
       categoryIds,
       scheduleCapacities: scheduleCapacities.map(toScheduleCapacityFormValues),
     }),
     [
+      awardCeremonyDate,
+      awardCeremonyTime,
       categoryIds,
       modalityIds,
       name,
@@ -172,6 +180,22 @@ export function ScheduleForm({
           buttonClassName="w-full"
         />
         <TimeOnlyField control={form.control} label="Hora" name="startTime" />
+        {/* Optional as a pair; any date, since a ceremony after midnight
+            falls on the next day. */}
+        <DateOnlyField
+          control={form.control}
+          name="awardCeremonyDate"
+          id={`schedule-award-ceremony-date-${id ?? intent}`}
+          label="Fecha de entrega de premios"
+          buttonClassName="w-full"
+          clearable
+        />
+        <TimeOnlyField
+          clearable
+          control={form.control}
+          label="Hora de entrega de premios"
+          name="awardCeremonyTime"
+        />
         <ScheduleMultipleSelectField
           className="md:col-span-2"
           form={form}
