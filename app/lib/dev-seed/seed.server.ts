@@ -110,7 +110,9 @@ export async function seedDevData(input: {
       userId: academyUserId,
       name: "Academia Demo",
       contactName: "Carla Gómez",
-      phone: "11 5555-0000",
+      phone: "1155550000",
+      city: "Rosario",
+      province: "Santa Fe",
     })
     .returning();
 

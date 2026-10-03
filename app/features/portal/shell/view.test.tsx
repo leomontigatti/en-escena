@@ -21,7 +21,7 @@ describe("portal route view", () => {
     expect(markup).toContain("Regional 2026");
     expect(markup).toContain("Portal de academias");
     expect(markup).toContain("Inicio");
-    expect(markup).not.toContain("Perfil");
+    expect(markup).toContain('href="/portal/perfil"');
     expect(markup).toContain("Finanzas");
     expect(markup).toContain("Resumen");
     expect(markup).toContain('href="/portal/finanzas"');
@@ -42,7 +42,6 @@ describe("portal route view", () => {
     expect(markup).toContain("Saltar al contenido principal");
     expect(markup).toContain("Inicio");
     expect(markup).toContain("Contacto");
-    expect(markup).toContain("Academia de Prueba");
     expect(markup).not.toContain("Teléfono");
   });
 
@@ -128,6 +127,8 @@ function renderPortal(input: {
       name: "Academia de Prueba",
       contactName: "Contacto",
       phone: "1112345678",
+      city: null,
+      province: null,
     },
     eventContext: input.eventContext,
   } satisfies PortalLoaderData;
@@ -137,7 +138,6 @@ function renderPortal(input: {
       <PortalShell
         userEmail={loaderData.email}
         contactName={loaderData.academy.contactName}
-        academyName={loaderData.academy.name}
         eventContext={loaderData.eventContext}
         breadcrumbItems={[{ label: "Inicio" }]}
       >

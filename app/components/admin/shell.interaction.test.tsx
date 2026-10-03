@@ -33,15 +33,15 @@ describe("AdminShell account menu", () => {
 
     await openAccountMenu();
 
-    expect(getMenuItemLabels()).toContain("Usuario: ada.admin");
     expect(getMenuItemLabels()).toContain("Salir");
+    expect(document.body.textContent).toContain("ada.admin");
     expect(document.body.textContent).not.toContain("@");
   });
 
   async function openAccountMenu() {
-    const trigger = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((button) => button.textContent?.includes("Ada Admin"));
+    const trigger = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Cuenta: Ada Admin"]',
+    );
 
     if (!trigger) {
       throw new Error("Expected the account menu trigger to be rendered.");

@@ -66,8 +66,10 @@ describe("academy onboarding route", () => {
         routeActionArgs(
           createOnboardingRequest({
             academyName: " academia confirmada ",
+            city: " rosario ",
             contactName: " contacto principal ",
             phone: "1112345678",
+            province: " santa fe ",
           }),
         ),
       ),
@@ -97,19 +99,50 @@ describe("academy onboarding route", () => {
     await expect(
       db.query.academies.findFirst({
         columns: {
+          city: true,
           contactName: true,
           name: true,
           phone: true,
+          province: true,
           userId: true,
         },
         where: eq(academies.userId, "supabase-confirmed-user"),
       }),
     ).resolves.toEqual({
+      city: "Rosario",
       contactName: "Contacto Principal",
       name: "Academia Confirmada",
       phone: "1112345678",
+      province: "Santa Fe",
       userId: "supabase-confirmed-user",
     });
+  });
+
+  test("refuses an academy without a city or a province and creates nothing", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue(
+      accessIdentity("sin.ciudad@example.com", "user-sin-ciudad"),
+    );
+
+    const result = await academyOnboardingAction(
+      routeActionArgs(
+        createOnboardingRequest({
+          academyName: "Academia Sin Ciudad",
+          city: "   ",
+          contactName: "Contacto",
+          phone: "1112345678",
+          province: "",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        city: "Este campo es obligatorio.",
+        province: "Este campo es obligatorio.",
+      },
+    });
+    await expect(db.query.academies.findMany()).resolves.toEqual([]);
   });
 
   test("reports conflicting onboarding and rolls back partial domain writes", async () => {
@@ -150,6 +183,8 @@ describe("academy onboarding route", () => {
         academyName: undefined,
         contactName: undefined,
         phone: undefined,
+        city: undefined,
+        province: undefined,
       },
       message:
         "No pudimos completar el alta de la academia porque este acceso ya está asociado a otro usuario. Volvé a ingresar o contactanos.",
@@ -158,6 +193,8 @@ describe("academy onboarding route", () => {
         academyName: "Academia Conflicto",
         contactName: "Contacto Conflicto",
         phone: "1112345678",
+        city: "Ciudad",
+        province: "Provincia",
       },
     });
     await expect(
@@ -195,6 +232,8 @@ describe("academy onboarding route", () => {
         academyName: "  academia   existente  ",
         contactName: "Contacto Duplicado",
         phone: "1112345678",
+        city: "Ciudad",
+        province: "Provincia",
       },
       warning: {
         kind: "academy-name",
@@ -337,6 +376,8 @@ describe("academy onboarding route", () => {
         academyName: undefined,
         contactName: undefined,
         phone: "Ingresá 10 dígitos, sin espacios, 0 ni 15.",
+        city: undefined,
+        province: undefined,
       },
       message: "Revisá los campos marcados.",
       status: "error",
@@ -344,6 +385,8 @@ describe("academy onboarding route", () => {
         academyName: "Academia Telefono",
         contactName: "Contacto Telefono",
         phone: "11 1234-5678",
+        city: "Ciudad",
+        province: "Provincia",
       },
     });
     await expect(db.query.user.findMany()).resolves.toEqual([]);
@@ -385,13 +428,17 @@ async function seedExistingAcademy() {
 function createOnboardingRequest(input: {
   academyName: string;
   acknowledgedDuplicateIds?: string[];
+  city?: string;
   contactName: string;
   phone: string;
+  province?: string;
 }) {
   const body = new URLSearchParams({
     academyName: input.academyName,
+    city: input.city ?? "Ciudad",
     contactName: input.contactName,
     phone: input.phone,
+    province: input.province ?? "Provincia",
   });
 
   for (const id of input.acknowledgedDuplicateIds ?? []) {

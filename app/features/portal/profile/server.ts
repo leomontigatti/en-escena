@@ -50,6 +50,8 @@ export async function handlePortalProfileAction(request: Request) {
     name: readFormString(formData, "name"),
     contactName: readFormString(formData, "contactName"),
     phone: readFormString(formData, "phone"),
+    city: readFormString(formData, "city"),
+    province: readFormString(formData, "province"),
   };
   const parsed = academyProfileSchema.safeParse(values);
 
@@ -63,6 +65,8 @@ export async function handlePortalProfileAction(request: Request) {
         name: flattened.name?.[0],
         contactName: flattened.contactName?.[0],
         phone: flattened.phone?.[0],
+        city: flattened.city?.[0],
+        province: flattened.province?.[0],
       },
       values,
     };

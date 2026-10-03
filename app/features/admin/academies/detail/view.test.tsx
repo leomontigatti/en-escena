@@ -28,11 +28,13 @@ const academyPath = "/administracion/academias/academy_1";
 function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
   return {
     academy: {
+      city: "Rosario",
       contactName: "Nora Norte",
       email: "academia@example.com",
       id: "academy_1",
       name: "Academia Fork",
       phone: "3415551234",
+      province: "Santa Fe",
     },
     canEdit,
     merge: null,
@@ -266,9 +268,11 @@ describe("AcademyDetailRouteView", () => {
         message: "No pudimos guardar los cambios.",
         status: "error",
         values: {
+          city: "Rosario",
           contactName: "Nora Norte",
           name: "Academia Rechazada",
           phone: "3415551234",
+          province: "Santa Fe",
         },
       },
     });

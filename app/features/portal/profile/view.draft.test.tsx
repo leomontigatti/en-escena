@@ -100,7 +100,13 @@ describe("the portal profile as one draft", () => {
               fieldErrors: { contactName: "No válido." },
               message: "Revisá los datos.",
               status: "error",
-              values: { contactName, name: "Academia", phone: "1155550000" },
+              values: {
+                city: "Rosario",
+                contactName,
+                name: "Academia",
+                phone: "1155550000",
+                province: "Santa Fe",
+              },
             },
     });
 
@@ -167,7 +173,13 @@ async function renderProfilePage(
         element: <Page />,
         loader: () =>
           ({
-            academy: { contactName, name: "Academia", phone: "1155550000" },
+            academy: {
+              city: "Rosario",
+              contactName,
+              name: "Academia",
+              phone: "1155550000",
+              province: "Santa Fe",
+            },
             email: "academia@example.com",
           }) as ProfileLoaderData,
         path: "/",

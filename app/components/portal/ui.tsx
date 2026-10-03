@@ -1,7 +1,6 @@
 import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import {
   AudioLines,
-  ChevronsUpDown,
   CircleCheck,
   ClipboardList,
   GraduationCap,
@@ -17,9 +16,9 @@ import {
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AccountMenu } from "@/components/shared/account-menu";
+import { TopBarTools } from "@/components/shared/top-bar-tools";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
-import { LogoutMenuItem } from "@/components/shared/logout-menu-item";
 import {
   SidebarNavigationGroups,
   type SidebarNavigationGroup,
@@ -34,12 +33,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Empty,
@@ -61,7 +56,6 @@ import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -78,7 +72,6 @@ import type {
 type PortalShellProps = {
   userEmail: string;
   contactName: string | null;
-  academyName: string;
   eventContext: PortalShellEventContext;
   children: ReactNode;
   breadcrumbItems?: PortalShellBreadcrumbItem[];
@@ -256,6 +249,14 @@ const financeNavigationItems = [
   },
 ] satisfies SidebarNavigationItem[];
 
+const accountNavigationItems = [
+  {
+    label: "Perfil",
+    to: "/portal/perfil",
+    icon: User,
+  },
+] satisfies SidebarNavigationItem[];
+
 const navigationGroups = [
   {
     label: "Administración",
@@ -264,6 +265,10 @@ const navigationGroups = [
   {
     label: "Finanzas",
     items: financeNavigationItems,
+  },
+  {
+    label: "Cuenta",
+    items: accountNavigationItems,
   },
 ] satisfies SidebarNavigationGroup[];
 
@@ -294,7 +299,6 @@ const creationAvailabilityPresentationByTone: Record<
 export function PortalShell({
   userEmail,
   contactName,
-  academyName,
   eventContext,
   children,
   breadcrumbItems,
@@ -324,49 +328,6 @@ export function PortalShell({
               rootPath="/portal"
             />
           </SidebarContent>
-
-          <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton size="lg">
-                      <Avatar shape="square">
-                        <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                          {getUserInitials(displayName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-medium">
-                          {displayName}
-                        </span>
-                        <span className="truncate text-xs">{academyName}</span>
-                      </div>
-                      <ChevronsUpDown aria-hidden="true" />
-                    </SidebarMenuButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    side="top"
-                    align="end"
-                    className="w-(--radix-dropdown-menu-trigger-width)"
-                  >
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem asChild>
-                        <Link to="/portal/perfil">
-                          <User aria-hidden="true" />
-                          Perfil
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <LogoutMenuItem />
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
         </Sidebar>
 
         <SidebarInset>
@@ -383,6 +344,23 @@ export function PortalShell({
                 isHome={isHome}
                 items={resolvedBreadcrumbItems}
               />
+              <div className="ml-auto flex items-center gap-2">
+                <TopBarTools />
+                <AccountMenu
+                  initials={getUserInitials(displayName)}
+                  name={displayName}
+                  detail={userEmail}
+                >
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link to="/portal/perfil">
+                        <User aria-hidden="true" />
+                        Perfil
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </AccountMenu>
+              </div>
             </div>
           </header>
 

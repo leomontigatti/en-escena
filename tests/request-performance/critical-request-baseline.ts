@@ -790,6 +790,8 @@ export async function measureCriticalRequestBaseline(): Promise<
               name: fixture.academy.academy.name,
               contactName: "Contacto Medición",
               phone: "1199988877",
+              city: "Rosario",
+              province: "Santa Fe",
             }),
           ),
         }),

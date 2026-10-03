@@ -75,16 +75,14 @@ describe("private route headers", () => {
       } else {
         expect(markup).not.toContain("Sesión activa para");
         expect(markup).toContain("Portal de academias");
-        expect(markup).toContain("Academia de Prueba");
       }
     },
   );
 
-  test("admin panel renders session context in the sidebar dropdown trigger", () => {
+  test("admin panel renders session context in the account menu trigger", () => {
     const markup = renderAdminRoute();
 
-    expect(markup).toContain("Ada Admin");
-    expect(markup).toContain("Administrador");
+    expect(markup).toContain("Cuenta: Ada Admin");
     expect(markup).not.toContain("admin@example.com");
     expect(markup).not.toContain("Sesión activa para");
   });
@@ -155,7 +153,6 @@ function renderPortal(email: string) {
     <PortalShell
       userEmail={loaderData.email}
       contactName={loaderData.academy.contactName}
-      academyName={loaderData.academy.name}
       eventContext={loaderData.eventContext}
       breadcrumbItems={[{ label: "Inicio" }]}
     >

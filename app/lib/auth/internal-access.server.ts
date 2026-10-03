@@ -118,6 +118,8 @@ export async function requireAcademyUser(request: Request) {
       name: true,
       contactName: true,
       phone: true,
+      city: true,
+      province: true,
     },
     where: eq(academies.userId, appUser.id),
   });

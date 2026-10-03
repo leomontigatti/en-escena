@@ -16,7 +16,6 @@ export function PortalShellRouteView({
     <PortalShell
       userEmail={loaderData.email}
       contactName={loaderData.academy.contactName}
-      academyName={loaderData.academy.name}
       eventContext={loaderData.eventContext}
       breadcrumbItems={getPortalBreadcrumbItems(matches)}
     >

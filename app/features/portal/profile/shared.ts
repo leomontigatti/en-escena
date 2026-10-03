@@ -13,6 +13,8 @@ export const academyProfileSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
   contactName: z.string().trim().min(1, requiredFieldMessage),
   phone: argentinePhoneField(),
+  city: z.string().trim().min(1, requiredFieldMessage),
+  province: z.string().trim().min(1, requiredFieldMessage),
 });
 
 export type AcademyProfileFormValues = z.infer<typeof academyProfileSchema>;

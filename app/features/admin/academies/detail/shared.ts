@@ -19,15 +19,20 @@ export const academyDetailSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
   contactName: z.string().trim().min(1, requiredFieldMessage),
   phone: argentinePhoneField(),
+  city: z.string().trim().min(1, requiredFieldMessage),
+  province: z.string().trim().min(1, requiredFieldMessage),
 });
 
 export type AcademyDetailLoaderData = {
   academy: {
+    /** Empty for an academy registered before the location fields existed. */
+    city: string;
     contactName: string;
     email: string;
     id: string;
     name: string;
     phone: string;
+    province: string;
   };
   canEdit: boolean;
   /** What the merge dialog offers; `null` for a read-only auditor. */

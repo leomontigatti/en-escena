@@ -34,23 +34,25 @@ const academyOnboardingSchema = z.object({
   academyName: requiredTextField(),
   contactName: requiredTextField(),
   phone: argentinePhoneField(),
+  city: requiredTextField(),
+  province: requiredTextField(),
 });
 const academyOnboardingFields = [
   "academyName",
   "contactName",
   "phone",
+  "city",
+  "province",
 ] as const;
 type AcademyOnboardingField = (typeof academyOnboardingFields)[number];
-type AcademyOnboardingValues = {
-  academyName: string;
-  contactName: string;
-  phone: string;
-};
+type AcademyOnboardingValues = z.input<typeof academyOnboardingSchema>;
 
 const emptyAcademyOnboardingValues: AcademyOnboardingValues = {
   academyName: "",
   contactName: "",
   phone: "",
+  city: "",
+  province: "",
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -69,11 +71,15 @@ export async function action({ request }: Route.ActionArgs) {
     academyName: readFormValue(formData.get("academyName")),
     contactName: readFormValue(formData.get("contactName")),
     phone: readFormValue(formData.get("phone")),
+    city: readFormValue(formData.get("city")),
+    province: readFormValue(formData.get("province")),
   } satisfies AcademyOnboardingValues;
   const parsed = academyOnboardingSchema.safeParse({
     academyName: formData.get("academyName"),
     contactName: formData.get("contactName"),
     phone: formData.get("phone"),
+    city: formData.get("city"),
+    province: formData.get("province"),
   });
 
   if (!parsed.success) {
@@ -88,8 +94,10 @@ export async function action({ request }: Route.ActionArgs) {
   const result = await completeAcademyOnboarding({
     academyName: parsed.data.academyName,
     acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
+    city: parsed.data.city,
     contactName: parsed.data.contactName,
     phone: parsed.data.phone,
+    province: parsed.data.province,
     request,
   });
 
@@ -178,6 +186,20 @@ export default function AcademyOnboardingRoute() {
             name="phone"
             placeholder={argentinePhonePlaceholder}
             type="tel"
+          />
+
+          <AccessTextField
+            autoComplete="address-level2"
+            controller={form}
+            label="Ciudad"
+            name="city"
+          />
+
+          <AccessTextField
+            autoComplete="address-level1"
+            controller={form}
+            label="Provincia"
+            name="province"
           />
 
           <Button className="w-full" type="submit">

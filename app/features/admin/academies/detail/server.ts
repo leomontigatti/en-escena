@@ -74,6 +74,8 @@ export async function handleAcademyDetailAction({
     name: readFormString(formData, "name"),
     contactName: readFormString(formData, "contactName"),
     phone: readFormString(formData, "phone"),
+    city: readFormString(formData, "city"),
+    province: readFormString(formData, "province"),
   };
   const parsed = academyDetailSchema.safeParse(values);
 
@@ -89,6 +91,8 @@ export async function handleAcademyDetailAction({
         name: flattened.name?.[0],
         contactName: flattened.contactName?.[0],
         phone: flattened.phone?.[0],
+        city: flattened.city?.[0],
+        province: flattened.province?.[0],
       },
       values,
     };
@@ -200,11 +204,13 @@ async function readAcademy(academyId?: string) {
 
   const [academy] = await db
     .select({
+      city: academies.city,
       contactName: academies.contactName,
       email: user.email,
       id: academies.id,
       name: academies.name,
       phone: academies.phone,
+      province: academies.province,
     })
     .from(academies)
     .innerJoin(user, eq(academies.userId, user.id))
@@ -215,5 +221,9 @@ async function readAcademy(academyId?: string) {
     throw new Response("No encontramos esa Academia.", { status: 404 });
   }
 
-  return academy;
+  return {
+    ...academy,
+    city: academy.city ?? "",
+    province: academy.province ?? "",
+  };
 }
