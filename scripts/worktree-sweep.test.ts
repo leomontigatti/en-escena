@@ -87,6 +87,15 @@ describe("classifyWorktree", () => {
     });
   });
 
+  it("keeps a worktree the user named with --keep, by folder or full path", () => {
+    expect(classifyWorktree(merged, ["t3code-1"])).toEqual({
+      remove: false,
+      reason: "kept on request",
+    });
+    expect(classifyWorktree(merged, ["/wt/t3code-1"]).remove).toBe(false);
+    expect(classifyWorktree(merged, ["t3code-2"]).remove).toBe(true);
+  });
+
   it("puts unsaved work ahead of a merged PR", () => {
     expect(classifyWorktree({ ...merged, dirty: true }).remove).toBe(false);
   });

@@ -11,8 +11,8 @@ import { git, prune, run } from "./worktree-db";
 // `--apply`. A worktree goes only when nothing in it can be lost: its PR merged
 // or closed, or it never committed; no uncommitted change, no commit that is on
 // neither a remote nor the PR, and no process running inside it. Every other
-// worktree is kept and reported with the reason. Run by the `housekeeping`
-// skill.
+// worktree is kept and reported with the reason, as is each one named with
+// `--keep <folder or path>` (repeatable). Run by the `housekeeping` skill.
 
 type PullRequest = { number: number; state: "OPEN" | "MERGED" | "CLOSED" };
 
@@ -32,9 +32,20 @@ type Verdict = { remove: boolean; reason: string };
 
 const FALLOW_CACHE = /^fallow-audit-base-cache-/;
 
-export function classifyWorktree(facts: WorktreeFacts): Verdict {
+export function classifyWorktree(
+  facts: WorktreeFacts,
+  keptOnRequest: readonly string[] = [],
+): Verdict {
   const keep = (reason: string) => ({ remove: false, reason });
   const remove = (reason: string) => ({ remove: true, reason });
+
+  if (
+    keptOnRequest.some(
+      (name) => name === facts.path || name === path.basename(facts.path),
+    )
+  ) {
+    return keep("kept on request");
+  }
 
   if (facts.unreadable) return keep(`could not inspect: ${facts.unreadable}`);
   if (facts.inUseBy) return keep(`in use by ${facts.inUseBy}`);
@@ -216,13 +227,13 @@ function removeWorktree({ facts, verdict }: Judged) {
   }
 }
 
-function sweep(apply: boolean) {
+function sweep(apply: boolean, keptOnRequest: string[]) {
   run("git", ["worktree", "prune"]);
   run("git", ["fetch", "--quiet", "origin"]);
 
   const judged = gatherFacts().map((facts) => ({
     facts,
-    verdict: classifyWorktree(facts),
+    verdict: classifyWorktree(facts, keptOnRequest),
   }));
   const removed = judged.filter(({ verdict }) => verdict.remove);
   const kept = judged.filter(({ verdict }) => !verdict.remove);
@@ -248,7 +259,11 @@ function sweep(apply: boolean) {
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {
   try {
-    sweep(process.argv.includes("--apply"));
+    const args = process.argv.slice(2);
+    sweep(
+      args.includes("--apply"),
+      args.flatMap((arg, index) => (args[index - 1] === "--keep" ? [arg] : [])),
+    );
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
