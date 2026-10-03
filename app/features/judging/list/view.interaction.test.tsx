@@ -3,10 +3,7 @@
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-import {
-  createReactDomTestRenderer,
-  updateReactDomForm,
-} from "@/lib/test-support/react-dom";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 import {
   addTableFilter,
   removeTableFilter,
@@ -129,8 +126,8 @@ describe("the judge's list of one day's presentations", () => {
     );
   }
 
-  test("hides what the judge already scored behind `Solo pendientes`", async () => {
-    await mount();
+  test("hides what the judge already scored behind the `Estado` filter, with no other day to pick", async () => {
+    await mount({ day: judgingDate, dayOptions: [], isOpen: true });
 
     expect(rowNames()).toEqual([
       "Primera",
@@ -140,15 +137,13 @@ describe("the judge's list of one day's presentations", () => {
       "Quinta",
     ]);
 
-    const onlyPending = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Solo pendientes"]',
-    );
-
-    await updateReactDomForm(() => {
-      onlyPending?.click();
-    });
+    await addTableFilter("Estado", "Pendientes");
 
     expect(rowNames()).toEqual(["Segunda", "Tercera"]);
+
+    await removeTableFilter("Estado");
+
+    expect(rowNames()).toHaveLength(5);
   });
 
   test("marks the first pending presentation when none was opened yet", async () => {

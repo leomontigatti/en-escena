@@ -11,11 +11,10 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableFilters } from "@/components/shared/data-table-filters";
+import type { DataTableFacetedFilter } from "@/components/shared/data-table.shared";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import type { JudgePanelActionData } from "@/features/judging/score/action.server";
 import { JudgeScoreDialog } from "@/features/judging/score/dialog";
 import { JudgeScoreSheet } from "@/features/judging/score/sheet";
@@ -43,9 +42,9 @@ export type JudgePanelViewProps = {
 
 /**
  * The judge's whole day on one page. It is read in a dark theatre between two
- * dances, so nothing here is paginated and nothing is hidden behind a filter
- * panel: the judge is looking for the piece that is about to go on. The only
- * number a row carries is the judge's own score.
+ * dances, so nothing here is paginated: the judge is looking for the piece that
+ * is about to go on. The only number a row carries is the judge's own score,
+ * and the only control above the list is its filter button.
  *
  * A judge with presentations on other days can switch to one of them to look
  * back at what they scored or ahead at what is coming. Only the judging day is
@@ -110,23 +109,16 @@ export function JudgePanelView({
         title={isOpen ? "Presentaciones de hoy" : "Presentaciones del día"}
         titleLevel={2}
         action={
-          <div className="flex items-center gap-2">
-            <Switch
-              id="solo-pendientes"
-              aria-label="Solo pendientes"
-              checked={onlyPending}
-              onCheckedChange={setOnlyPending}
-            />
-            <Label htmlFor="solo-pendientes">Solo pendientes</Label>
-          </div>
+          <JudgeListFilters
+            loaderData={loaderData}
+            onlyPending={onlyPending}
+            onOnlyPendingChange={setOnlyPending}
+          />
         }
         description={describeDay(loaderData)}
       />
 
       <div className="mt-6 flex flex-col gap-4" ref={tableRef}>
-        {loaderData.dayOptions.length > 0 ? (
-          <JudgeDayFilter loaderData={loaderData} />
-        ) : null}
         <ClientDataTable
           columns={columns}
           emptyMessage={
@@ -176,15 +168,29 @@ function describeDay({
 }
 
 const dayFilterGroupId = dayTabParam;
+const statusFilterGroupId = "estado";
+const pendingFilterValue = "pendientes";
 
 /**
- * The days the judge can switch to, as the tables' filter, kept in the URL the
- * way a day tab is. The judging day is the list's default, so it is never shown
- * as applied: picking it, or removing the filter, drops the day from the URL. A
- * presentation left open belongs to the day being left, so it is dropped with
- * it.
+ * The list's one filter button, in the header where the judge's thumb already
+ * is. It always offers `Estado`, which hides what the judge already scored and
+ * is held in the page's own state, and offers `Día` only to a judge with
+ * another day to switch to.
+ *
+ * The day is kept in the URL the way a day tab is. The judging day is the
+ * list's default, so it is never shown as applied: picking it, or removing the
+ * filter, drops the day from the URL. A presentation left open belongs to the
+ * day being left, so it is dropped with it.
  */
-function JudgeDayFilter({ loaderData }: { loaderData: JudgePanelRouteData }) {
+function JudgeListFilters({
+  loaderData,
+  onlyPending,
+  onOnlyPendingChange,
+}: {
+  loaderData: JudgePanelRouteData;
+  onlyPending: boolean;
+  onOnlyPendingChange: (onlyPending: boolean) => void;
+}) {
   const { dayOptions, judgingDate } = loaderData;
   const { onValueChange, value } = useUrlTab({
     defaultValue: judgingDate,
@@ -192,29 +198,44 @@ function JudgeDayFilter({ loaderData }: { loaderData: JudgePanelRouteData }) {
     resets: ["presentacion"],
     values: dayOptions,
   });
+  const dayGroup: DataTableFacetedFilter = {
+    id: dayFilterGroupId,
+    label: "Día",
+    options: dayOptions.map((option) => ({
+      label:
+        option === judgingDate
+          ? `${formatScheduleDayHeading(option)} (hoy)`
+          : formatScheduleDayHeading(option),
+      value: option,
+    })),
+  };
+  const statusGroup: DataTableFacetedFilter = {
+    id: statusFilterGroupId,
+    label: "Estado",
+    options: [{ label: "Pendientes", value: pendingFilterValue }],
+  };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <DataTableFilters
-        groups={[
-          {
-            id: dayFilterGroupId,
-            label: "Día",
-            options: dayOptions.map((option) => ({
-              label:
-                option === judgingDate
-                  ? `${formatScheduleDayHeading(option)} (hoy)`
-                  : formatScheduleDayHeading(option),
-              value: option,
-            })),
-          },
-        ]}
-        selectedValues={
-          value === judgingDate ? {} : { [dayFilterGroupId]: value }
-        }
-        onChange={(values) =>
-          onValueChange(values[dayFilterGroupId] || judgingDate)
-        }
+        groups={dayOptions.length > 0 ? [dayGroup, statusGroup] : [statusGroup]}
+        selectedValues={{
+          ...(value === judgingDate ? {} : { [dayFilterGroupId]: value }),
+          ...(onlyPending ? { [statusFilterGroupId]: pendingFilterValue } : {}),
+        }}
+        onChange={(values) => {
+          const nextOnlyPending =
+            values[statusFilterGroupId] === pendingFilterValue;
+          const nextDay = values[dayFilterGroupId] || judgingDate;
+
+          if (nextOnlyPending !== onlyPending) {
+            onOnlyPendingChange(nextOnlyPending);
+          }
+
+          if (nextDay !== value) {
+            onValueChange(nextDay);
+          }
+        }}
       />
     </div>
   );
