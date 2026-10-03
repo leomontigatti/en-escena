@@ -173,9 +173,9 @@ state a `unit-shared` worker carries from one file to the next
 ([workflows.md](./workflows.md#continuous-integration)), and a fixed pause
 standing in for an outcome, where `waitFor` from
 `app/lib/test-support/react-dom.tsx` waits for the outcome itself. A "Test timed
-out" under a busy machine is the exception: `vitest.config.ts` already allows
-for load (#1426), so a test that still times out there is slow or hung, and
-that is the defect to file.
+out" is the exception: it says only that the test exceeded its deadline, and
+`vitest.config.ts` already allows for load (#1426). File it and investigate the
+timeout.
 
 ## Targeting DB tests
 
