@@ -266,7 +266,7 @@ export function parseSweepArgs(args: readonly string[]) {
     } else if (arg === "--keep") {
       const name = args[index + 1];
 
-      if (!name || name.startsWith("--")) {
+      if (!name || name.startsWith("-")) {
         throw new Error("--keep needs a worktree folder or path after it.");
       }
       keep.push(name);
@@ -296,7 +296,28 @@ function readAcceptedList(): Set<string> {
     );
   }
 
-  return new Set(JSON.parse(readFileSync(file, "utf8")) as string[]);
+  return parseAcceptedList(readFileSync(file, "utf8"), file);
+}
+
+export function parseAcceptedList(text: string, file: string): Set<string> {
+  let paths: unknown;
+
+  try {
+    paths = JSON.parse(text);
+  } catch {
+    paths = undefined;
+  }
+
+  if (
+    !Array.isArray(paths) ||
+    !paths.every((entry) => typeof entry === "string")
+  ) {
+    throw new Error(
+      `${file} is not a list of worktree paths: run \`pnpm worktree:sweep\` again to rewrite it.`,
+    );
+  }
+
+  return new Set(paths);
 }
 
 function sweep({ apply, keep }: { apply: boolean; keep: string[] }) {

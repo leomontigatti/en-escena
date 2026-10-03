@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type WorktreeFacts,
   classifyWorktree,
+  parseAcceptedList,
   parseSweepArgs,
   sweepVerdict,
 } from "./worktree-sweep";
@@ -126,8 +127,24 @@ describe("parseSweepArgs", () => {
   it.each([
     [["--keep"]],
     [["--keep", "--apply"]],
+    [["--keep", "-x"]],
     [["--apply", "--kep", "t3code-1"]],
   ])("refuses %j rather than sweep without the intended exclusion", (args) => {
     expect(() => parseSweepArgs(args)).toThrow();
   });
+});
+
+describe("parseAcceptedList", () => {
+  it("reads the paths the dry run saved", () => {
+    expect(parseAcceptedList('["/wt/a","/wt/b"]', "list.json")).toEqual(
+      new Set(["/wt/a", "/wt/b"]),
+    );
+  });
+
+  it.each(["{not json", '{"path":"/wt/a"}', "[1]"])(
+    "refuses %j, naming the file, rather than sweep from it",
+    (text) => {
+      expect(() => parseAcceptedList(text, "list.json")).toThrow(/list\.json/);
+    },
+  );
 });
