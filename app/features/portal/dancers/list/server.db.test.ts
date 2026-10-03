@@ -15,14 +15,13 @@ import {
   invalidBirthDateMessage,
   underageBirthDateMessage,
 } from "@/lib/dancers/birth-date";
-import {
-  handlePortalDancersListAction,
-  loadPortalDancersList,
-} from "@/features/portal/dancers/list/server";
+import { handlePortalDancerCreateAction } from "@/features/portal/dancers/create/server";
+import { loadPortalDancersList } from "@/features/portal/dancers/list/server";
 import {
   createAcademyRecord,
   createAcademySession,
   createPortalPostRequest,
+  expectThrownResponse,
 } from "@/features/portal/test-support/db";
 import {
   allocateChoreographyNumberForTest,
@@ -51,31 +50,34 @@ describe("loadPortalDancersList", () => {
       active: false,
     });
 
-    const createResult = await handlePortalDancersListAction(
-      createPortalPostRequest(
-        "http://localhost/portal/bailarines",
-        ownerSession.cookie,
-        dancerFormData({
-          firstName: "  juan manuel ",
-          lastName: " cruz de la torre ",
-          birthDate: "2015-04-03",
-        }),
+    const created = await expectThrownResponse(
+      handlePortalDancerCreateAction(
+        createPortalPostRequest(
+          "http://localhost/portal/bailarines/nuevo",
+          ownerSession.cookie,
+          dancerFormData({
+            firstName: "  juan manuel ",
+            lastName: " cruz de la torre ",
+            birthDate: "2015-04-03",
+          }),
+        ),
       ),
+      302,
     );
-    expect(createResult).toEqual({
-      status: "success",
-      message: "Bailarín creado.",
-    });
-    await handlePortalDancersListAction(
-      createPortalPostRequest(
-        "http://localhost/portal/bailarines",
-        ownerSession.cookie,
-        dancerFormData({
-          firstName: "ana",
-          lastName: "ALVAREZ",
-          birthDate: "2014-02-01",
-        }),
+    expect(created.headers.get("Location")).toBe("/portal/bailarines");
+    await expectThrownResponse(
+      handlePortalDancerCreateAction(
+        createPortalPostRequest(
+          "http://localhost/portal/bailarines/nuevo",
+          ownerSession.cookie,
+          dancerFormData({
+            firstName: "ana",
+            lastName: "ALVAREZ",
+            birthDate: "2014-02-01",
+          }),
+        ),
       ),
+      302,
     );
     await db.insert(dancers).values({
       academyId: otherAcademy.id,
@@ -138,9 +140,9 @@ describe("loadPortalDancersList", () => {
       academyName: "Academia Futuro",
     });
 
-    const result = await handlePortalDancersListAction(
+    const result = await handlePortalDancerCreateAction(
       createPortalPostRequest(
-        "http://localhost/portal/bailarines",
+        "http://localhost/portal/bailarines/nuevo",
         session.cookie,
         dancerFormData({
           firstName: "Martina",
@@ -170,9 +172,9 @@ describe("loadPortalDancersList", () => {
       academyName: "Academia Fecha Rota",
     });
 
-    const result = await handlePortalDancersListAction(
+    const result = await handlePortalDancerCreateAction(
       createPortalPostRequest(
-        "http://localhost/portal/bailarines",
+        "http://localhost/portal/bailarines/nuevo",
         session.cookie,
         dancerFormData({
           firstName: "Martina",
@@ -201,9 +203,9 @@ describe("loadPortalDancersList", () => {
       academyName: "Academia Edad Mínima",
     });
 
-    const result = await handlePortalDancersListAction(
+    const result = await handlePortalDancerCreateAction(
       createPortalPostRequest(
-        "http://localhost/portal/bailarines",
+        "http://localhost/portal/bailarines/nuevo",
         session.cookie,
         dancerFormData({
           firstName: "Martina",
@@ -303,7 +305,6 @@ function dancerFormData(input: {
   birthDate: string;
 }) {
   const formData = new FormData();
-  formData.set("intent", "create-dancer");
   formData.set("firstName", input.firstName);
   formData.set("lastName", input.lastName);
   formData.set("birthDate", input.birthDate);

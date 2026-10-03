@@ -18,6 +18,13 @@ export type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
   label: string;
   maxFileSizeBytes?: number;
   maxFileSizeMessage?: string;
+  /**
+   * Dropzone only. On a touch screen the zone only shows the image, and
+   * `Tomar foto` (rear camera) and `Subir imagen` (gallery) under it are the
+   * ways in: Android's photo picker offers no camera unless asked for one.
+   * Nothing changes with a mouse.
+   */
+  offersCamera?: boolean;
   onSelectedFileChange?: (file: File | null) => void;
   onStorageKeyChange?: (storageKey: string) => void;
   onValidationErrorChange?: (hasError: boolean) => void;
@@ -64,6 +71,7 @@ export type FileUploadControlConfig = {
   label: string;
   maxFileSizeBytes?: number;
   maxFileSizeMessage: string;
+  offersCamera: boolean;
   onChange?: ComponentProps<"input">["onChange"];
   onSelectedFileChange?: (file: File | null) => void;
   onStorageKeyChange?: (storageKey: string) => void;

@@ -1,10 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 
-import { DateOnlyField } from "@/components/shared/date-only-field";
+import { BirthDateField } from "@/components/shared/birth-date-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import { useSavedFormValues } from "@/lib/shared/forms";
@@ -95,23 +94,17 @@ export function DancerTextField({
 
 export function DancerBirthDateField({
   className,
-  eventStartDate,
   form,
 }: {
   className?: string;
-  eventStartDate: string | null;
   form: DancerEditFormReturn;
 }) {
-  const id = useId();
-
   return (
-    <DateOnlyField
+    <BirthDateField
       control={form.control}
       name="birthDate"
       className={className}
-      id={id}
       label="Fecha de nacimiento"
-      calendarBounds={getBirthDatePickerBounds(eventStartDate)}
     />
   );
 }

@@ -297,10 +297,7 @@ function PortalDancerIdentificationFields({
           value={viewModel.identityFieldValues.birthDate}
         />
       ) : (
-        <PortalDancerBirthDateField
-          eventStartDate={form.eventStartDate}
-          form={form.form}
-        />
+        <PortalDancerBirthDateField form={form.form} />
       )}
       <div className="hidden md:block" aria-hidden="true" />
       {viewModel.isIdentityVerified ? (

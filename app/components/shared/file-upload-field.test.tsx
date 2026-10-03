@@ -19,6 +19,7 @@ function TestFileUploadField({
   downloadLabel,
   downloadUrl,
   existingPreviewUrl,
+  offersCamera,
   onStorageKeyChange,
   onValidationErrorChange,
   variant,
@@ -28,6 +29,7 @@ function TestFileUploadField({
   downloadLabel?: string;
   downloadUrl?: string;
   existingPreviewUrl?: string;
+  offersCamera?: boolean;
   onStorageKeyChange?: (storageKey: string) => void;
   onValidationErrorChange?: (hasError: boolean) => void;
   variant?: "dropzone" | "compact";
@@ -50,6 +52,7 @@ function TestFileUploadField({
       label="Arrastrá o hacé click"
       {...getAssetUploadFieldProps("dancerDocumentImage")}
       existingPreviewUrl={existingPreviewUrl}
+      offersCamera={offersCamera}
       onStorageKeyChange={onStorageKeyChange}
       onValidationErrorChange={onValidationErrorChange}
       variant={variant}
@@ -372,4 +375,71 @@ describe("FileUploadField with an audio preview", () => {
       "Borrar música",
     ]);
   });
+
+  // Android's photo picker offers no camera unless the input asks for one, so
+  // a phone gets the camera and the gallery as two actions on the same input.
+  describe("camera mode", () => {
+    test("opens the field's own input for the rear camera or for the gallery", async () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const root = createRoot(container);
+
+      await act(async () => {
+        root.render(<TestFileUploadField offersCamera />);
+      });
+
+      const input =
+        container.querySelector<HTMLInputElement>('input[type="file"]');
+      const openedWith: Array<string | null> = [];
+      input?.addEventListener("click", (event) => {
+        event.preventDefault();
+        openedWith.push(input.getAttribute("capture"));
+      });
+
+      await act(async () => {
+        findButtonByText(container, "Tomar foto").click();
+      });
+      await act(async () => {
+        findButtonByText(container, "Subir imagen").click();
+      });
+
+      expect(openedWith).toEqual(["environment", null]);
+      expect(container.querySelectorAll('input[type="file"]')).toHaveLength(1);
+
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    });
+
+    test("is off unless the form asks for it", async () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const root = createRoot(container);
+
+      await act(async () => {
+        root.render(<TestFileUploadField />);
+      });
+
+      expect(container.textContent).not.toContain("Tomar foto");
+      expect(container.textContent).not.toContain("Sin imagen");
+
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    });
+  });
 });
+
+function findButtonByText(container: HTMLElement, text: string) {
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent?.trim() === text,
+  );
+
+  if (!button) {
+    throw new Error(`Expected the "${text}" button to render.`);
+  }
+
+  return button;
+}

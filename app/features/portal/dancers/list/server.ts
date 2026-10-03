@@ -1,10 +1,7 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { getEventStartDateOnly } from "@/lib/events/active-event.server";
 import { loadPortalEventDocumentDownloadUrls } from "@/lib/events/event-documents.server";
 import { listDancersForAcademy } from "@/lib/portal/dancers.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
-import { handleCreateDancerAction } from "@/features/portal/dancers/create/server";
-import { createDancerIntent } from "@/features/portal/dancers/create/shared";
 
 export async function loadPortalDancersList(request: Request) {
   const { academy } = await requireAcademyUser(request);
@@ -20,20 +17,7 @@ export async function loadPortalDancersList(request: Request) {
   ]);
 
   return {
-    activeEventStartDate: getEventStartDateOnly(eventContext.activeEvent),
     dancers,
     documentDownloadUrls,
   };
-}
-
-export async function handlePortalDancersListAction(request: Request) {
-  const { academy } = await requireAcademyUser(request);
-  const formData = await request.formData();
-  const intent = formData.get("intent");
-
-  if (intent !== createDancerIntent) {
-    throw new Response("Acción no soportada.", { status: 400 });
-  }
-
-  return await handleCreateDancerAction({ academyId: academy.id, formData });
 }

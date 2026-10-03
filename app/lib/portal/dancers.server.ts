@@ -72,6 +72,19 @@ type NormalizedUpdateDancerInput = NormalizedCreateDancerInput & {
 type DancerImageField =
   "documentFrontImageStorageKey" | "documentBackImageStorageKey";
 
+/**
+ * Stores the document images a new dancer is created with, under the id the
+ * row will take. It runs after every check that can refuse the save, so a
+ * refusal never leaves a file behind; a write that still fails is the
+ * caller's to clean up, since the caller knows what it stored.
+ */
+export type StoreNewDancerDocumentImages = (
+  dancerId: string,
+) => Promise<
+  | { ok: true; keys: { back: string | null; front: string | null } }
+  | { ok: false; message: string }
+>;
+
 export type CreateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
   | { ok: false; warning: RosterNameWarning }
@@ -164,7 +177,10 @@ export async function countActiveDancersForAcademy(academyId: string) {
 export async function createDancerForAcademy(
   academyId: string,
   input: CreateDancerInput,
-  options: { acknowledgedDuplicateIds?: readonly string[] } = {},
+  options: {
+    acknowledgedDuplicateIds?: readonly string[];
+    storeDocumentImages?: StoreNewDancerDocumentImages;
+  } = {},
 ): Promise<CreateDancerResult> {
   const validation = await validateCreateDancerInput(academyId, input);
 
@@ -186,6 +202,21 @@ export async function createDancerForAcademy(
     return { ok: false, warning: nameWarning };
   }
 
+  // Chosen before the insert: the images are stored under it.
+  const dancerId = crypto.randomUUID();
+  const images = options.storeDocumentImages
+    ? await options.storeDocumentImages(dancerId)
+    : ({ ok: true, keys: { back: null, front: null } } as const);
+
+  if (!images.ok) {
+    return {
+      ok: false,
+      error: images.message,
+      fieldErrors: {},
+      values: toCreateDancerValues(input),
+    };
+  }
+
   const { documentType, documentNumber } = validation.input;
   // The index can still refuse the number between the pre-check and the
   // insert.
@@ -197,12 +228,15 @@ export async function createDancerForAcademy(
       const [dancer] = await db
         .insert(dancers)
         .values({
+          id: dancerId,
           academyId,
           firstName: validation.input.firstName,
           lastName: validation.input.lastName,
           birthDate: validation.input.birthDate,
           documentType,
           documentNumber,
+          documentFrontImageStorageKey: images.keys.front,
+          documentBackImageStorageKey: images.keys.back,
           active: true,
         })
         .returning();

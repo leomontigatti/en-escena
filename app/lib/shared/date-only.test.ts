@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { isDateOnly, isFutureDateOnly } from "./date-only";
+import {
+  formatDateOnlyAsDayMonthYear,
+  isDateOnly,
+  isFutureDateOnly,
+  parseDayMonthYear,
+} from "./date-only";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -31,5 +36,60 @@ describe("isFutureDateOnly", () => {
 
     expect(isFutureDateOnly("2026-05-31")).toBe(false);
     expect(isFutureDateOnly("2026-06-01")).toBe(true);
+  });
+});
+
+describe("parseDayMonthYear", () => {
+  test("reads day, month and year in the order Argentina writes them", () => {
+    expect(parseDayMonthYear("15/03/2012")).toEqual({
+      ok: true,
+      dateOnly: "2012-03-15",
+    });
+    expect(parseDayMonthYear("1-3-2012")).toEqual({
+      ok: true,
+      dateOnly: "2012-03-01",
+    });
+    expect(parseDayMonthYear(" 01.03.2012 ")).toEqual({
+      ok: true,
+      dateOnly: "2012-03-01",
+    });
+  });
+
+  // `03/04` is the 3rd of April here, never March 4th.
+  test("never reads the month first", () => {
+    expect(parseDayMonthYear("03/04/2012")).toEqual({
+      ok: true,
+      dateOnly: "2012-04-03",
+    });
+  });
+
+  test("refuses a two-digit year rather than guessing its century", () => {
+    expect(parseDayMonthYear("15/03/12")).toEqual({
+      ok: false,
+      reason: "short-year",
+    });
+  });
+
+  test("refuses a day the month does not have instead of rolling it over", () => {
+    expect(parseDayMonthYear("31/02/2012")).toEqual({
+      ok: false,
+      reason: "impossible",
+    });
+    expect(parseDayMonthYear("15/13/2012")).toEqual({
+      ok: false,
+      reason: "impossible",
+    });
+  });
+
+  test("refuses what is not a day, a month and a year", () => {
+    for (const text of ["", "15/03", "15032012", "2012-03-15", "15/03/2012x"]) {
+      expect(parseDayMonthYear(text)).toEqual({ ok: false, reason: "format" });
+    }
+  });
+});
+
+describe("formatDateOnlyAsDayMonthYear", () => {
+  test("writes a date-only value the way it is typed", () => {
+    expect(formatDateOnlyAsDayMonthYear("2012-03-01")).toBe("01/03/2012");
   });
 });

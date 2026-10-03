@@ -31,13 +31,13 @@ to show feedback.
 
 ## Behavior matrix
 
-| Case                                   | Redirects?                                                      | Toast transport                         |
-| -------------------------------------- | --------------------------------------------------------------- | --------------------------------------- |
-| Create/edit via dialog (over a list)   | No                                                              | Direct from `actionData`/`fetcher.data` |
-| Edit in a dedicated form (detail view) | No                                                              | Direct from `actionData`                |
-| Delete inline from a list              | No                                                              | Direct from `fetcher.data`              |
-| Delete from a detail view              | Yes → to the list                                               | Flash session                           |
-| Create in a dedicated route            | Yes → to the new resource's detail (or the list if none exists) | Flash session                           |
+| Case                                   | Redirects?                                               | Toast transport                         |
+| -------------------------------------- | -------------------------------------------------------- | --------------------------------------- |
+| Create/edit via dialog (over a list)   | No                                                       | Direct from `actionData`/`fetcher.data` |
+| Edit in a dedicated form (detail view) | No                                                       | Direct from `actionData`                |
+| Delete inline from a list              | No                                                       | Direct from `fetcher.data`              |
+| Delete from a detail view              | Yes → to the list                                        | Flash session                           |
+| Create in a dedicated route            | Yes → admin: the new resource's detail; portal: the list | Flash session                           |
 
 Notes on the matrix:
 
@@ -50,8 +50,13 @@ Notes on the matrix:
   creation route is not a place to stay (there are no bulk-entry flows, so creating an
   internal user does **not** return to an empty form: it goes to the new record's
   detail).
-- **There is no "stay-and-reset" exception.** Every dedicated create aligns to the same
-  destination (the new record's detail, or its list).
+- **A portal create goes back to its list.** An academy registers its roster one
+  person after another, often from a phone: the list shows the new record among the
+  others and holds the button for the next one, where the detail would be one more
+  step back. An admin create keeps going to the new record's detail, or to the list
+  when there is no detail.
+- **There is no "stay-and-reset" exception.** Every dedicated create aligns to one of
+  those two destinations.
 
 ## Two transports: flash session vs. direct `actionData`
 

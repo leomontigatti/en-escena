@@ -14,7 +14,6 @@ export type PortalDancerListItem = {
 };
 
 export type PortalDancersListLoaderData = {
-  activeEventStartDate: string | null;
   dancers: PortalDancerListItem[];
   documentDownloadUrls: EventDocumentDownloadUrls;
 };

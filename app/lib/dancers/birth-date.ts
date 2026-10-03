@@ -1,7 +1,10 @@
 import { z } from "zod";
 
-import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
-import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
+import {
+  isDateOnly,
+  isFutureDateOnly,
+  parseDayMonthYear,
+} from "@/lib/shared/date-only";
 
 /** A dancer younger than this at the event's start fits no category ladder. */
 const minimumDancerAgeAtEventStart = 1;
@@ -16,15 +19,17 @@ const minimumDancerAgeAtEventStart = 1;
 const maximumDancerAgeAtEventStart = 100;
 
 export const invalidBirthDateMessage = "Usá una fecha válida.";
+export const birthDateFormatMessage = "Escribí la fecha como dd/mm/aaaa.";
+export const shortBirthYearMessage = "Escribí el año con 4 dígitos (ej: 2012).";
 export const futureBirthDateMessage =
   "La fecha de nacimiento no puede ser futura.";
 export const underageBirthDateMessage = `El bailarín debe tener al menos ${minimumDancerAgeAtEventStart} año cumplido cuando empieza el evento.`;
 export const overageBirthDateMessage = `El bailarín no puede tener más de ${maximumDancerAgeAtEventStart} años cuando empieza el evento.`;
 
 /**
- * The newest birth date that still leaves a dancer old enough at `eventStartDate`.
- * Date-only strings compare lexicographically, so this doubles as the bound the
- * birth-date picker offers.
+ * The newest birth date that still leaves a dancer old enough at
+ * `eventStartDate`. Date-only strings compare lexicographically, so the
+ * refinement compares against it directly.
  */
 export function getLatestEligibleBirthDate(eventStartDate: string) {
   return shiftBirthYear(eventStartDate, minimumDancerAgeAtEventStart);
@@ -36,8 +41,7 @@ export function getLatestEligibleBirthDate(eventStartDate: string) {
  * is not itself eligible: a dancer born exactly on it turns 101 on the event's
  * first day. Naming the first refused date instead of the last accepted one
  * spares the month arithmetic of adding a day, and costs nothing — the day it
- * would name can be a 29 February that no year has. Unlike the floor's bound
- * the picker has no use for it, so it stays inside the module.
+ * would name can be a 29 February that no year has.
  */
 function getOverageBirthDateBound(eventStartDate: string) {
   return shiftBirthYear(eventStartDate, maximumDancerAgeAtEventStart + 1);
@@ -56,64 +60,6 @@ function shiftBirthYear(eventStartDate: string, years: number) {
 }
 
 /**
- * Where the birth-date calendar opens: the roster's birth years peak around a
- * twelve-year-old, so a mis-click without touching the year dropdown lands on a
- * plainly wrong year instead of on a value that quietly passes validation.
- */
-const typicalDancerAgeAtEventStart = 12;
-
-/** The oldest month the picker offers, well below any living dancer's. */
-const earliestOfferedMonth = new Date(1900, 0);
-
-/**
- * Every bound the birth-date picker needs. They answer different questions: the
- * bound is the newest birth date that still competes, while the default month is
- * an ergonomics choice deliberately far from it. Without an active event both
- * fall back to today — the same today the refinement measures the future
- * against, so the calendar cannot offer a date the server then refuses.
- *
- * `endMonth` and `latestSelectableDate` are the same bound at two granularities:
- * `react-day-picker` bounds the month dropdown by month only, so without the
- * day-granular matcher the last month it offers still shows clickable days that
- * the refinement rejects on submit.
- */
-export function getBirthDatePickerBounds(eventStartDate: string | null) {
-  if (!eventStartDate || !isDateOnly(eventStartDate)) {
-    const today = toLocalDate(getBusinessDateOnly());
-
-    return {
-      defaultMonth: today,
-      endMonth: today,
-      startMonth: earliestOfferedMonth,
-      latestSelectableDate: today,
-    };
-  }
-
-  const [year, month] = eventStartDate.split("-").map(Number);
-
-  return {
-    defaultMonth: new Date(year - typicalDancerAgeAtEventStart, month - 1),
-    endMonth: new Date(year - minimumDancerAgeAtEventStart, month - 1),
-    startMonth: earliestOfferedMonth,
-    latestSelectableDate: toLocalDate(
-      getLatestEligibleBirthDate(eventStartDate),
-    ),
-  };
-}
-
-/**
- * A date-only string as the local `Date` the calendar compares days with. The
- * day is clamped to the month because subtracting the minimum age from a 29th
- * of February lands on a day that does not exist in the resulting year.
- */
-function toLocalDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  const lastDayOfMonth = new Date(year, month, 0).getDate();
-
-  return new Date(year, month - 1, Math.min(day, lastDayOfMonth));
-}
-
-/**
  * The one birth-date rule, shared by every dancer schema: a real date-only
  * string, not in the future, and neither too young nor too old at the event's
  * start. Without an event start — no active event — only the first two checks
@@ -127,7 +73,10 @@ export function buildBirthDateRefinement(eventStartDate: string | null) {
     }
 
     if (!isDateOnly(value)) {
-      context.addIssue({ code: "custom", message: invalidBirthDateMessage });
+      context.addIssue({
+        code: "custom",
+        message: getTypedBirthDateMessage(value),
+      });
       return;
     }
 
@@ -149,6 +98,31 @@ export function buildBirthDateRefinement(eventStartDate: string | null) {
       context.addIssue({ code: "custom", message: overageBirthDateMessage });
     }
   };
+}
+
+/**
+ * What to fix in a typed birth date that never became a date-only value. Text
+ * that does read as a date is still refused: the field converts it before it
+ * is posted, so only a post that skipped the field sends it, and storing it
+ * as typed would break every reader of the column.
+ */
+function getTypedBirthDateMessage(text: string) {
+  const parsed = parseDayMonthYear(text);
+
+  // A date-only value the calendar does not have (`2026-02-30`) is no typing
+  // mistake to explain.
+  if (parsed.ok || /^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return invalidBirthDateMessage;
+  }
+
+  switch (parsed.reason) {
+    case "format":
+      return birthDateFormatMessage;
+    case "short-year":
+      return shortBirthYearMessage;
+    case "impossible":
+      return invalidBirthDateMessage;
+  }
 }
 
 /**
