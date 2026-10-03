@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  medalLabels,
+  awardLabels,
   presentationAverage,
-  medalForAverage,
-} from "@/lib/judging/medal";
+  awardForAverage,
+} from "@/lib/judging/award";
 
 describe("a presentation's average", () => {
   test("is the mean of the values every judge left", () => {
@@ -48,7 +48,7 @@ describe("a presentation's average", () => {
   });
 });
 
-describe("the medal read from that average", () => {
+describe("the award read from that average", () => {
   test.each([
     [0, "specialMention"],
     [59.99, "specialMention"],
@@ -58,14 +58,14 @@ describe("the medal read from that average", () => {
     [89.99, "silver"],
     [90, "gold"],
     [100, "gold"],
-  ])("reads %s as %s", (average, medal) => {
-    expect(medalForAverage(average)).toBe(medal);
+  ])("reads %s as %s", (average, award) => {
+    expect(awardForAverage(average)).toBe(award);
   });
 
-  test("names each medal as administration reads it", () => {
-    expect(medalLabels.specialMention).toBe("Mención especial");
-    expect(medalLabels.bronze).toBe("Medalla de bronce");
-    expect(medalLabels.silver).toBe("Medalla de plata");
-    expect(medalLabels.gold).toBe("Medalla de oro");
+  test("names each award as administration reads it", () => {
+    expect(awardLabels.specialMention).toBe("Mención especial");
+    expect(awardLabels.bronze).toBe("Medalla de bronce");
+    expect(awardLabels.silver).toBe("Medalla de plata");
+    expect(awardLabels.gold).toBe("Medalla de oro");
   });
 });

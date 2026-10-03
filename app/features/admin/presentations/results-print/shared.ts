@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Medal } from "@/lib/judging/medal";
+import type { Award } from "@/lib/judging/award";
 import type { EventProgramRow } from "@/lib/presentations/event-program.server";
 
 /**
@@ -26,7 +26,7 @@ export type ResultsPrintFormValues = z.infer<typeof resultsPrintSchema>;
  */
 export type ResultsPrintRow = EventProgramRow & {
   average: number;
-  medal: Medal;
+  award: Award;
 };
 
 export function buildResultsPrintHref(scheduleIds: readonly string[]) {

@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { choreographies, presentations } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { experienceLevelLabel } from "@/lib/events/experience-levels";
-import type { Medal } from "@/lib/judging/medal";
+import type { Award } from "@/lib/judging/award";
 import { readPresentationScores } from "@/lib/judging/presentation-scores.server";
 import { isPresentationResultPublished } from "@/lib/judging/results.server";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
@@ -17,7 +17,7 @@ import type { FeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
 
 /**
  * What an academy is told about one of its own presentations once the results
- * are out: the medal, the average and what each judge gave and said. See
+ * are out: the award, the average and what each judge gave and said. See
  * docs/domain/judging.md, "Program And Results".
  *
  * This loader is the whole access control of the academy's results. Three
@@ -51,7 +51,7 @@ export type PortalPresentationEvaluationLoaderData = {
   details: string;
   disqualified: boolean;
   judges: PortalEvaluationJudge[];
-  medal: Medal | null;
+  award: Award | null;
   /** The heading: the order number and the choreography's name. */
   title: string;
 };
@@ -125,7 +125,7 @@ export async function loadPortalPresentationEvaluation(input: {
         judgeName: judge.judgeName,
         value: view.disqualified ? null : judge.value,
       })),
-    medal: view.medal,
+    award: view.award,
     title: `${view.name} · N.º ${view.orderNumber}`,
   };
 }

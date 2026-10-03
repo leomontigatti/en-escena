@@ -7,7 +7,7 @@ import {
   programPrintWrapClassName,
   type ProgramPrintColumn,
 } from "@/features/program/public/print";
-import { medalLabels } from "@/lib/judging/medal";
+import { awardLabels } from "@/lib/judging/award";
 
 import type { ResultsPrintLoaderData } from "./server";
 import type { ResultsPrintRow } from "./shared";
@@ -38,11 +38,11 @@ const resultsPrintColumns: ProgramPrintColumn<ResultsPrintRow>[] = [
     cell: (row) => String(row.average),
   },
   {
-    id: "medalla",
-    header: "Medalla",
+    id: "premio",
+    header: "Premio",
     width: 12,
     className: programPrintWrapClassName,
-    cell: (row) => medalLabels[row.medal],
+    cell: (row) => awardLabels[row.award],
   },
 ];
 

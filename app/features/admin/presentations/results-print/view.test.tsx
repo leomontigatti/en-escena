@@ -23,7 +23,7 @@ describe("ResultsPrintView", () => {
       ["Categoría", "Tipo de grupo"],
       ["Bailarines"],
       ["Promedio"],
-      ["Medalla"],
+      ["Premio"],
     ]);
   });
 
@@ -32,7 +32,7 @@ describe("ResultsPrintView", () => {
       rows: [
         buildRow({
           average: 93.75,
-          medal: "gold",
+          award: "gold",
           modalityName: "Danza contemporánea",
           name: "Oro",
           submodalityName: "Lírico",
@@ -40,7 +40,7 @@ describe("ResultsPrintView", () => {
         buildRow({
           average: 61,
           choreographyId: "bronze",
-          medal: "bronze",
+          award: "bronze",
           modalityName: "Tap",
           name: "Bronce",
           orderNumber: 2,
@@ -140,7 +140,7 @@ function buildRow(overrides: Partial<ResultsPrintRow> = {}): ResultsPrintRow {
     groupType: "solo",
     isBelowDeposit: false,
     levelLabel: "Amateur",
-    medal: "silver",
+    award: "silver",
     modalityName: "Jazz",
     name: "Pieza",
     orderNumber: 1,

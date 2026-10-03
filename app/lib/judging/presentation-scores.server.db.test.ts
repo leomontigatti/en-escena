@@ -60,7 +60,7 @@ describe("a presentation's scores, as administration reads them", () => {
     ]);
   });
 
-  test("averages every saved score and reads the medal off it", async () => {
+  test("averages every saved score and reads the award off it", async () => {
     const fixture = await seedJudgingFixture();
     const presentation = await fixture.addPresentation({
       name: "Primera",
@@ -81,13 +81,13 @@ describe("a presentation's scores, as administration reads them", () => {
     });
 
     expect(view?.average).toBe(86.17);
-    expect(view?.medal).toBe("silver");
+    expect(view?.award).toBe("silver");
     expect(view?.disqualified).toBe(false);
     // Nothing takes a saved score out of the average, so no flag says so.
     expect(view?.judges[0]).not.toHaveProperty("annulled");
   });
 
-  test("has no average and no medal once the presentation is disqualified", async () => {
+  test("has no average and no award once the presentation is disqualified", async () => {
     const fixture = await seedJudgingFixture();
     const presentation = await fixture.addPresentation({
       name: "Primera",
@@ -111,7 +111,7 @@ describe("a presentation's scores, as administration reads them", () => {
     expect(view).toMatchObject({
       average: null,
       disqualified: true,
-      medal: null,
+      award: null,
     });
   });
 

@@ -37,13 +37,13 @@ Rules for presentations, judging, program, results, scores and feedback.
 - Program has its own print layout, one run of pages per schedule. The academy's list of its own presentations on the portal does not print.
 - The portal lists the academy's own choreographies: numbered ones in order, and the ones not placed yet as `Sin número`. It is read-only and links to the public program while it is visible.
 - Results are not a ranking. There are no positions, no ties, no competitive grouping and no public results page: `Cupo de cronograma` never defines a competitive group, and nothing about results is readable without login.
-- What a presentation earns is its `Medalla`, read off its own rounded average in the bands fixed by the domain ("Scores And Feedback" below). Two presentations that average the same take the same medal, and no presentation is compared to another.
+- What a presentation earns is its `Premio`, read off its own rounded average in the bands fixed by the domain ("Scores And Feedback" below). Two presentations that average the same take the same award, and no presentation is compared to another.
 - Publishing results is a snapshot taken by administration from the event's actions menu, with no precondition: not a resolved group, not the active event, not the event's temporal state. `Mostrar resultados` publishes every presentation evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes everything down at once. Publishing again after hiding starts from what is evaluated then.
 - The snapshot stores only membership: the event's publication timestamp and, per presentation, the moment it entered the snapshot. A presentation is published when its event is published and it is in the snapshot. Nothing about the result itself is frozen, so a correction to a published presentation —an administrative edit, a disqualification or a reinstatement— reaches the academy immediately, with no need to publish again.
 - Administration and audit read, while results are published, how many presentations the academies see, when they were published, and how many are evaluated and still waiting to be added. Only administration can publish, update or hide.
-- An academy reads its results in the portal, behind its login and only for its own published presentations: the medal, the average and, per judge, the judge's name, their score, the sheet breakdown when there is one, and their `Devolución`. Nothing about results appears before administration publishes, and a presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found".
-- Hidden from the academy are judges who never scored, who are left out entirely. A disqualified presentation shows as `Descalificada`, with no medal, no average and no scores, and keeps every judge's `Devolución`.
-- Administration prints results by schedule from the presentations list: it picks one or more of the event's schedules and gets the program's print layout for them, one run of pages per schedule, with each presentation's average and `Medalla` added. The print reads live results, whether or not they are published. It lists only presentations with a result: one not evaluated yet, with nothing left to average, or disqualified is left out, and a schedule with none gets no page. The print names the dancer of a solo only; the program and the portal name solos and duos.
+- An academy reads its results in the portal, behind its login and only for its own published presentations: the award, the average and, per judge, the judge's name, their score, the sheet breakdown when there is one, and their `Devolución`. Nothing about results appears before administration publishes, and a presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found".
+- Hidden from the academy are judges who never scored, who are left out entirely. A disqualified presentation shows as `Descalificada`, with no award, no average and no scores, and keeps every judge's `Devolución`.
+- Administration prints results by schedule from the presentations list: it picks one or more of the event's schedules and gets the program's print layout for them, one run of pages per schedule, with each presentation's average and `Premio` added. The print reads live results, whether or not they are published. It lists only presentations with a result: one not evaluated yet, with nothing left to average, or disqualified is left out, and a schedule with none gets no page. The print names the dancer of a solo only; the program and the portal name solos and duos.
 
 ## Scores And Feedback
 
@@ -64,16 +64,16 @@ Rules for presentations, judging, program, results, scores and feedback.
 - There is no score annulment: every saved score counts. A score that is wrong is corrected, not set aside.
 - A presentation is **evaluated** when it is disqualified or when any score row exists for it. That single fact is what locks a choreography for correction and deletion, freezes the numbers of its whole schedule against automatic ordering and manual moves, and guards judge-assignment removal.
 - The average is the mean of the saved values of a non-disqualified presentation, rounded to two decimals. A presentation with no saved value has no average, and a disqualified one has none either.
-- `Medalla` is read off that rounded average, in bands fixed by the domain:
+- `Premio` is read off that rounded average, in bands fixed by the domain:
 
-  | Rounded average | Medal               |
+  | Rounded average | Award               |
   | --------------- | ------------------- |
   | below 60        | `Mención especial`  |
   | 60 to below 80  | `Medalla de bronce` |
   | 80 to below 90  | `Medalla de plata`  |
   | 90 or more      | `Medalla de oro`    |
 
-  There are no positions, no ties and no competitive grouping in it: two presentations that average the same take the same medal.
+  There are no positions, no ties and no competitive grouping in it: two presentations that average the same take the same award.
 
 - `Devolución` is one optional private audio recorded by the judge for the academy, saved with the score that carries it and replaced or removed by the same save. It is allowed on a disqualified presentation, where it is stored with no value, so the academy still hears why.
 - A judge's own status on a presentation is pending while there is no value, complete with a value and a `Devolución`, without feedback with a value and none, and disqualified whenever the presentation is. The list shows `Pendiente`, the judge's own score in place of a word when complete, `Sin devolución` as a warning — the `Devolución` is optional, but the judge should notice it is missing while the day is open — and `Descalificada`. On any other day the warning gives way to the score, and an unscored presentation is `Pendiente`, past and coming days alike. It is shown to that judge only, and it is not the presentation's `Estado de participación`, which answers for the whole panel.

@@ -49,8 +49,8 @@ A programming slot of an event, with name, local date, local time, accepted moda
 _Avoid_: time block, loose time slot, full agenda
 
 **`awardCeremony`** — ui: "Entrega de premios"
-The occasion a `schedule` closes with, when its presentations' recognitions are handed out: a date and a time of its own, on any day, since one held after midnight falls on the next. A schedule has one or none.
-_Avoid_: `premiación`, `ceremonia`, `award` alone
+The occasion a `schedule` closes with, when its presentations' `award`s are handed out: a date and a time of its own, on any day, since one held after midnight falls on the next. A schedule has one or none.
+_Avoid_: `premiación`, `ceremonia`, `award` (the recognition handed out, not the occasion)
 
 **`scheduleCapacity`** — ui: "Cupo de cronograma"
 Distribution of choreography capacity within a schedule, tied to a single group type.
@@ -151,7 +151,7 @@ Internal user assigned to evaluate an event's presentations.
 _Avoid_: `admin`, auditor
 
 **`resultsPublication`** — ui: "Publicación de resultados"
-The snapshot of which presentations an `event`'s academies can read, taken by administration from the event's actions menu with no precondition: `Mostrar resultados` publishes every presentation evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes them all down, so publishing again starts from what is evaluated then. Only membership is stored (`resultsPublishedAt` and `resultPublishedAt`); the medal, the average and the scores are always read live, so a correction to a published presentation reaches the academy without publishing again.
+The snapshot of which presentations an `event`'s academies can read, taken by administration from the event's actions menu with no precondition: `Mostrar resultados` publishes every presentation evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes them all down, so publishing again starts from what is evaluated then. Only membership is stored (`resultsPublishedAt` and `resultPublishedAt`); the award, the average and the scores are always read live, so a correction to a published presentation reaches the academy without publishing again.
 _Avoid_: `eventStatus`, program visibility, public results, freezing results
 
 **`financialDocument`** — ui: "Documento financiero"
@@ -344,10 +344,10 @@ _Avoid_: `presentation`, `score`
 
 **`eventProgram`** — ui: "Programa del evento"
 Public view of the active event's presentations in order, at `/programa`, without login and only while the event's program is visible. It lists every `presentation`, with non-competitive data only.
-_Avoid_: `resultsPublication`, score, medal
+_Avoid_: `resultsPublication`, score, award
 
 **`academyResults`** — ui: "Resultados de academia"
-The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `medal` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no medal, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
+The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `award` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no award, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
 _Avoid_: `resultsPublication`, public results, ranking
 
 **`score`** — ui: "Puntaje"
@@ -356,7 +356,7 @@ _Avoid_: `presentation`, price, `payment`, confirmed score, draft score
 
 **`submodalityCriterion`** — ui: "Criterio"
 One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality`. It is either a `generalCriterion` or a `levelCriterion`. The adding maxima of a sheet total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them from the modality page one sheet at a time —the `mandatoryTechnique`, or one level's own— and a level's are only saved when they complete the `mandatoryTechnique` to 100; a sheet the `mandatoryTechnique` leaves short is shown as incomplete (`Planilla incompleta`) until it is, and cannot be scored meanwhile. They lock as soon as any presentation of the submodality has a `score`.
-_Avoid_: `medal`, weight, percentage
+_Avoid_: `award`, weight, percentage
 
 **`generalCriterion`** — ui: "Criterio general"
 A `submodalityCriterion` with no `experienceLevel`: it is on every `scoreSheet` of its submodality, whatever the level of the choreography.
@@ -374,9 +374,9 @@ _Avoid_: `generalCriterion`, general sheet
 How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `mandatoryTechnique` and then the `levelCriterion` lines of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
 _Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
-**`medal`** — ui: "Medalla"
-The recognition a `presentation` earns, read off its average —the mean of its saved score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same medal. A disqualified presentation has no average and no medal. It is the single recognition term of the domain —what used to be called `Premio`— and there is no award rule, no award type and no ranking beside it.
-_Avoid_: `premio`, position, tie, ranking. `award` is the name this term is being renamed to (#1419).
+**`award`** — ui: "Premio"
+The recognition a `presentation` earns, read off its average —the mean of its saved score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same award. A disqualified presentation has no average and no award. It is the single recognition term of the domain, and there is no award rule, no award type and no ranking beside it. It is what is handed out at an `awardCeremony`, never the ceremony itself.
+_Avoid_: `medal` (one of its values is not a medal), position, tie, ranking
 
 **`judgeScoreStatus`** — ui: "Estado"
 How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, the judge's own score itself (`87.5`) with a value and a `feedbackAudio`, `Sin devolución` with a value and none —a warning, since the `feedbackAudio` is optional but should not be forgotten while the day is open, so on any other day the score shows in its place— and `Descalificada` whenever the presentation is —`pending`, `complete`, `noFeedback` and `disqualified` in the code, which keeps the Spanish in `judgeScoreStatusBadge`. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.

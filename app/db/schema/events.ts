@@ -34,7 +34,7 @@ export const events = createTable(
     programVisible: boolean("program_visible").notNull().default(false),
     // When administration last published results, and null while they are
     // hidden. It carries no boolean beside it: the snapshot is this timestamp
-    // plus each presentation's own, and nothing about a medal or an average is
+    // plus each presentation's own, and nothing about an award or an average is
     // ever stored. See docs/domain/judging.md, "Program And Results".
     resultsPublishedAt: timestamp("results_published_at", {
       mode: "date",

@@ -143,7 +143,7 @@ describe("the results print", () => {
     }
   });
 
-  test("reads the live average and medal, and leaves out what has none", async () => {
+  test("reads the live average and award, and leaves out what has none", async () => {
     const fixture = await seedJudgingFixture();
     const gold = await fixture.addPresentation({ name: "Oro", orderNumber: 1 });
     const bronze = await fixture.addPresentation({
@@ -169,10 +169,10 @@ describe("the results print", () => {
 
     // Nothing is published: the print reads the results live all the same.
     expect(
-      print.rows.map(({ average, medal, name }) => ({ average, medal, name })),
+      print.rows.map(({ average, award, name }) => ({ average, award, name })),
     ).toEqual([
-      { average: 93.75, medal: "gold", name: "Oro" },
-      { average: 61.75, medal: "bronze", name: "Bronce" },
+      { average: 93.75, award: "gold", name: "Oro" },
+      { average: 61.75, award: "bronze", name: "Bronce" },
     ]);
   });
 

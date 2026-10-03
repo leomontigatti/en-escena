@@ -48,7 +48,7 @@ import {
 import { SheetParts } from "@/features/judging/score/sheet-parts";
 import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
-import { medalLabels } from "@/lib/judging/medal";
+import { awardLabels } from "@/lib/judging/award";
 import type { PresentationJudgeScore } from "@/lib/judging/presentation-scores.server";
 import {
   formatScoreFieldValue,
@@ -114,7 +114,7 @@ export function PresentationScoresView({
       </AlertStack>
       <div className="grid gap-4 md:grid-cols-2">
         <MetricCard title="Promedio" value={averageText(presentation)} />
-        <MetricCard title="Medalla" value={medalText(presentation)} />
+        <MetricCard title="Premio" value={awardText(presentation)} />
       </div>
       {presentation.criteria.length === 0 ? (
         <SingleScoresTable
@@ -208,7 +208,7 @@ function PresentationActions({
 }
 
 /**
- * A disqualified presentation has no result to give, so its average and medal
+ * A disqualified presentation has no result to give, so its average and award
  * do not apply; one no judge has scored yet simply has none so far.
  */
 function averageText(presentation: Presentation) {
@@ -221,14 +221,14 @@ function averageText(presentation: Presentation) {
     : String(presentation.average);
 }
 
-function medalText(presentation: Presentation) {
+function awardText(presentation: Presentation) {
   if (presentation.disqualified) {
     return notApplicableText;
   }
 
-  return presentation.medal === null
+  return presentation.award === null
     ? noScoresText
-    : medalLabels[presentation.medal];
+    : awardLabels[presentation.award];
 }
 
 function SingleScoresTable({

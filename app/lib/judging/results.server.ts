@@ -18,8 +18,8 @@ import { isPresentationEvaluated } from "@/lib/presentations/evaluation-lock.ser
  * had evaluated at the moment administration decided to release it. See
  * docs/domain/judging.md, "Program And Results".
  *
- * Nothing about a result is stored here. The average, the medal, the scores and
- * the disqualification are always read live (`medal.ts`,
+ * Nothing about a result is stored here. The average, the award, the scores and
+ * the disqualification are always read live (`award.ts`,
  * `presentation-scores.server.ts`), and the snapshot is only a pair of
  * timestamps — the event's and each presentation's. That is what makes a
  * correction after publishing reach the academy without publishing again.
