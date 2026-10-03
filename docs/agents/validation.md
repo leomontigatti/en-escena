@@ -172,7 +172,10 @@ add them to the open one, before moving on. Two causes found so far (#1338):
 state a `unit-shared` worker carries from one file to the next
 ([workflows.md](./workflows.md#continuous-integration)), and a fixed pause
 standing in for an outcome, where `waitFor` from
-`app/lib/test-support/react-dom.tsx` waits for the outcome itself.
+`app/lib/test-support/react-dom.tsx` waits for the outcome itself. A "Test timed
+out" is the exception: it says only that the test exceeded its deadline, and
+`vitest.config.ts` already allows for load (#1426). File it and investigate the
+timeout.
 
 ## Targeting DB tests
 
