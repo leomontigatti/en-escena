@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { Award } from "@/lib/judging/award";
 import type { EventProgramRow } from "@/lib/presentations/event-program.server";
+import type { ParticipationRow } from "@/lib/presentations/participation.server";
 
 /**
  * What the results print and the dialog that opens it agree on: where the
@@ -35,4 +36,22 @@ export function buildResultsPrintHref(scheduleIds: readonly string[]) {
   );
 
   return `${resultsPrintPath}?${params.toString()}`;
+}
+
+/**
+ * The schedules with at least one presentation, once each, in day and time
+ * order: a schedule nobody presents in has nothing for the results print.
+ */
+export function listPrintableSchedules(rows: ParticipationRow[]) {
+  const byId = new Map(
+    rows
+      .filter((row) => row.presentationId !== null)
+      .map((row) => [row.schedule.id, row.schedule]),
+  );
+
+  return [...byId.values()].sort(
+    (left, right) =>
+      left.scheduledDate.localeCompare(right.scheduledDate) ||
+      left.startTime.localeCompare(right.startTime),
+  );
 }

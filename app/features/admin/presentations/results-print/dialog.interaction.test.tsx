@@ -9,7 +9,7 @@ import {
 } from "@/lib/test-support/react-dom";
 import type { EventProgramSchedule } from "@/lib/presentations/event-program.server";
 
-import { ResultsPrintDialog } from "./results-print-dialog";
+import { ResultsPrintDialog } from "./dialog";
 
 const saturdayMorning: EventProgramSchedule = {
   id: "schedule-1",

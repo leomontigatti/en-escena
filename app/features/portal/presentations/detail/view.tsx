@@ -2,7 +2,7 @@ import { TriangleAlert } from "lucide-react";
 
 import { PortalListPage } from "@/components/portal/ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { AwardBadge } from "@/components/shared/award-badge";
 import {
   Card,
   CardAction,
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FeedbackPlayback } from "@/features/judging/score/feedback-playback";
-import { awardLabels, type Award } from "@/lib/judging/award";
 import { formatScoreFieldValue } from "@/lib/judging/score-value";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
 
@@ -30,16 +29,6 @@ import type {
  * disqualified presentation reaches the view with no numbers at all, so the
  * page only has to lay out what it was given.
  */
-
-const awardBadgeVariants: Record<
-  Award,
-  "info" | "outline" | "secondary" | "warning"
-> = {
-  bronze: "outline",
-  gold: "warning",
-  silver: "secondary",
-  specialMention: "info",
-};
 
 const noFeedbackMessage = "Este juez no dejó devolución.";
 
@@ -63,7 +52,7 @@ export function PortalPresentationEvaluationView({
       title={
         <span className="flex flex-wrap items-center gap-2">
           {loaderData.title}
-          <EvaluationBadge
+          <AwardBadge
             disqualified={loaderData.disqualified}
             award={loaderData.award}
           />
@@ -131,23 +120,6 @@ function JudgeCards({
         <JudgeCard key={judge.judgeId} criteria={criteria} judge={judge} />
       ))}
     </div>
-  );
-}
-
-/** A disqualification takes the award's place; without either there is none. */
-function EvaluationBadge({
-  disqualified,
-  award,
-}: {
-  disqualified: boolean;
-  award: Award | null;
-}) {
-  if (disqualified) {
-    return <Badge variant="destructive">Descalificada</Badge>;
-  }
-
-  return award === null ? null : (
-    <Badge variant={awardBadgeVariants[award]}>{awardLabels[award]}</Badge>
   );
 }
 

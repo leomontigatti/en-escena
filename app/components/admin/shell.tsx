@@ -15,6 +15,7 @@ import {
   HandCoins,
   ReceiptText,
   Presentation,
+  Trophy,
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
@@ -132,6 +133,11 @@ const operationNavigationItems = [
     label: "Presentaciones",
     to: "/administracion/presentaciones",
     icon: ListOrdered,
+  },
+  {
+    label: "Resultados",
+    to: "/administracion/resultados",
+    icon: Trophy,
   },
   {
     label: "Profesores",

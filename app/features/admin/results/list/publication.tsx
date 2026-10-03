@@ -25,19 +25,25 @@ import {
   useOptionalNavigation,
 } from "@/lib/shared/forms";
 
-import { eventActionPath, type EventDetailLoaderData } from "./shared";
+import type { ResultsPublication } from "@/lib/judging/results.server";
+
+import {
+  hideResultsIntent,
+  publishResultsIntent,
+  resultsEventIdFieldName,
+} from "./shared";
 
 /**
- * What the event says while results are out: how many the academies see and
- * since when, and — only when the panel has evaluated more — that `Actualizar
- * resultados` is what adds them. Nothing here is gated — only the actions beside
- * it are — so whoever can open the event reads it. Today that is the `admin`
- * alone: story 8's read-only `auditor` needs a route it can reach first.
+ * What the results list says while results are out: how many the academies see
+ * and since when, and — only when the panel has evaluated more — that
+ * `Actualizar resultados` is what adds them. Nothing here is gated — only the
+ * actions beside it are — so whoever can open the list reads it. The loader
+ * admits the `auditor`, but the administration shell does not yet.
  */
 export function ResultsPublicationAlert({
   publication,
 }: {
-  publication: EventDetailLoaderData["resultsPublication"];
+  publication: ResultsPublication;
 }) {
   const { pendingCount, publishedAt, publishedCount } = publication;
 
@@ -80,15 +86,16 @@ export function ResultsPublicationDialog({
   publication,
 }: {
   action: ResultsAction | null;
+  /** The event the list shows, which the action checks is still the active one. */
   eventId: string;
   onClose: () => void;
-  publication: EventDetailLoaderData["resultsPublication"];
+  publication: ResultsPublication;
 }) {
   const navigation = useOptionalNavigation();
   const { pendingCount, publishedCount } = publication;
   const evaluatedCount = publishedCount + pendingCount;
   const isHiding = action === "hide-results";
-  const intent = isHiding ? "hide-results" : "publish-results";
+  const intent = isHiding ? hideResultsIntent : publishResultsIntent;
   const isPending = isRouteFormPending(navigation, { intent });
 
   useCloseOnceSettled({ isPending, onClose });
@@ -118,8 +125,13 @@ export function ResultsPublicationDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <Form method="post" action={eventActionPath(eventId)}>
+          <Form method="post">
             <input type="hidden" name="intent" value={intent} />
+            <input
+              type="hidden"
+              name={resultsEventIdFieldName}
+              value={eventId}
+            />
             <Button
               type="submit"
               disabled={isPending}
