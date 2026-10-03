@@ -45,7 +45,7 @@ describe("correcting the panel's scores", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/administracion/presentacion/presentation-1/puntajes",
+          path: "/administracion/presentaciones/presentation-1/puntajes",
           action: async ({ request }) => {
             submitted.push(await request.formData());
 
@@ -56,7 +56,7 @@ describe("correcting the panel's scores", () => {
       ],
       {
         initialEntries: [
-          "/administracion/presentacion/presentation-1/puntajes",
+          "/administracion/presentaciones/presentation-1/puntajes",
         ],
       },
     );

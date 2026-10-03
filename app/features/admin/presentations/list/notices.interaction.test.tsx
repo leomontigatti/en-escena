@@ -40,7 +40,7 @@ describe("PresentationDayTabs", () => {
       [
         { path: "/administracion", element: null },
         {
-          path: "/administracion/presentacion",
+          path: "/administracion/presentaciones",
           element: (
             <PresentationDayTabs
               loaderData={
@@ -55,7 +55,7 @@ describe("PresentationDayTabs", () => {
       {
         initialEntries: [
           "/administracion",
-          "/administracion/presentacion?pagina=3&advertencias=con",
+          "/administracion/presentaciones?pagina=3&advertencias=con",
         ],
       },
     );
@@ -107,7 +107,7 @@ describe("OrderingConfirmationDialog", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/administracion/presentacion",
+          path: "/administracion/presentaciones",
           action: async () => null,
           element: (
             <OrderingConfirmationDialog
@@ -118,7 +118,7 @@ describe("OrderingConfirmationDialog", () => {
           ),
         },
       ],
-      { initialEntries: ["/administracion/presentacion"] },
+      { initialEntries: ["/administracion/presentaciones"] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
@@ -196,7 +196,7 @@ describe("OrderingConfirmationDialog", () => {
         router={createMemoryRouter(
           [
             {
-              path: "/administracion/presentacion",
+              path: "/administracion/presentaciones",
               action: async () => null,
               element: (
                 <OrderingConfirmationDialog
@@ -207,7 +207,7 @@ describe("OrderingConfirmationDialog", () => {
               ),
             },
           ],
-          { initialEntries: ["/administracion/presentacion"] },
+          { initialEntries: ["/administracion/presentaciones"] },
         )}
       />,
     );

@@ -130,7 +130,7 @@ const operationNavigationItems = [
   },
   {
     label: "Presentaciones",
-    to: "/administracion/presentacion",
+    to: "/administracion/presentaciones",
     icon: ListOrdered,
   },
   {

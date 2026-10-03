@@ -61,7 +61,7 @@ describe("the music download dialog", () => {
     await submit();
 
     expect(openWindow).toHaveBeenCalledWith(
-      "/administracion/presentacion/audios?dia=2026-10-10",
+      "/administracion/presentaciones/audios?dia=2026-10-10",
       "_self",
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -77,7 +77,7 @@ describe("the music download dialog", () => {
     await submit();
 
     expect(openWindow).toHaveBeenCalledWith(
-      "/administracion/presentacion/audios?dia=2026-10-10",
+      "/administracion/presentaciones/audios?dia=2026-10-10",
       "_self",
     );
   });

@@ -9,7 +9,7 @@ import type { EventProgramRow } from "@/lib/presentations/event-program.server";
  * dialog's one rule: at least one schedule.
  */
 
-const resultsPrintPath = "/administracion/presentacion/resultados/imprimir";
+const resultsPrintPath = "/administracion/presentaciones/resultados/imprimir";
 export const resultsPrintScheduleParam = "cronograma";
 
 export const resultsPrintSchema = z.object({

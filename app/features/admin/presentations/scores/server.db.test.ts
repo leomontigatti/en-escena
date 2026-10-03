@@ -20,7 +20,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 function scoresUrl(presentationId: string) {
-  return `http://localhost/administracion/presentacion/${presentationId}/puntajes`;
+  return `http://localhost/administracion/presentaciones/${presentationId}/puntajes`;
 }
 
 async function seedScoredPresentation() {

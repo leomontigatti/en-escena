@@ -1,7 +1,7 @@
 import { loadResultsPrint } from "@/features/admin/presentations/results-print/server";
 import { ResultsPrintView } from "@/features/admin/presentations/results-print/view";
 
-import type { Route } from "./+types/administracion_.presentacion.resultados.imprimir";
+import type { Route } from "./+types/administracion_.presentaciones.resultados.imprimir";
 
 export const meta = () => [
   { title: "Resultados | Panel de administración | En Escena" },

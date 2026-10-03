@@ -21,7 +21,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 const printUrl =
-  "http://localhost/administracion/presentacion/resultados/imprimir";
+  "http://localhost/administracion/presentaciones/resultados/imprimir";
 
 async function signedInRequest(
   scheduleIds: string[],

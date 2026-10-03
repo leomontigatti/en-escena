@@ -16,7 +16,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-const listUrl = "http://localhost/administracion/presentacion";
+const listUrl = "http://localhost/administracion/presentaciones";
 
 async function removeThroughTheAction(input: {
   choreographyIds: string[];
