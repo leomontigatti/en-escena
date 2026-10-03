@@ -211,7 +211,7 @@ Rules:
   alike: with `Trash2` on the two buttons, and as text alone in an
   [actions menu](#actions-menu). The record is already named by the page.
 - Obvious icons need no tooltip: `Trash2`, `X`, play and pause, `Download`,
-  `Copy` and a drag handle. Every other icon-only button gets one. Text cut by
+  `Copy`, a drag handle and the back chevron of `Volver`. Every other icon-only button gets one. Text cut by
   truncation keeps a native `title` instead.
 
 ### Actions menu
@@ -345,6 +345,12 @@ header. Alerts about the form sit above the card.
   `BackButton` (`Volver`) sits on the left and the shared `SubmitButton`
   (`Guardar`) on the right, with `Descartar cambios` beside it when
   [Editing and saving](#editing-and-saving) asks for it.
+- The row stays one row on a phone. Below `sm`, `BackButton` shrinks to its
+  chevron, a square like an `icon` button with `Volver` kept for screen
+  readers; `Descartar cambios` and `Guardar` keep their words, because they are
+  the actions that change or drop data. When a row still runs out of width,
+  shorten the action whose icon says it alone, never let the row wrap or
+  overflow.
 - The row is sticky. On a card that fits the viewport it rests right under the
   fields; on one that runs past the bottom edge it sticks there until the end of
   the card scrolls into view. A plain `Card` that holds it takes

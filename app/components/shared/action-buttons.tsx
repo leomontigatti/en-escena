@@ -4,6 +4,7 @@ import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/shared/utils";
 
 type BaseButtonProps = Omit<ComponentProps<typeof Button>, "children"> & {
   isPending: boolean;
@@ -63,16 +64,30 @@ export function DestroyButton({
   );
 }
 
+/**
+ * On a phone it is its chevron alone, a square like an icon button, so a form
+ * footer keeps `Volver`, `Descartar cambios` and `Guardar` on one row. The
+ * word stays for screen readers.
+ */
 export function BackButton({
+  className,
   to,
   viewTransition,
   ...buttonProps
 }: BackButtonProps) {
   return (
-    <Button {...buttonProps} asChild variant="outline">
+    <Button
+      {...buttonProps}
+      asChild
+      variant="outline"
+      className={cn(
+        "max-sm:w-8 max-sm:px-0 max-sm:has-data-[icon=inline-start]:pl-0",
+        className,
+      )}
+    >
       <Link to={to} viewTransition={viewTransition}>
         <ChevronLeft aria-hidden="true" data-icon="inline-start" />
-        Volver
+        <span className="max-sm:sr-only">Volver</span>
       </Link>
     </Button>
   );

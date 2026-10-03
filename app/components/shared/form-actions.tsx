@@ -57,9 +57,7 @@ export function FormActions({
       <PinnedActions>
         <BackButton to={backTo} viewTransition={viewTransition} />
         {canEdit ? (
-          // Wraps on a phone, where `Descartar cambios` and `Guardar` do not
-          // fit beside `Volver`: the portal is used there too.
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
+          <div className="flex items-center gap-3">
             {hasChanges ? (
               <Button
                 type="button"
