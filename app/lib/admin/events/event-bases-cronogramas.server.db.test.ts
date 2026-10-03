@@ -252,6 +252,123 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     ).resolves.toBeUndefined();
   });
 
+  // The edit form is the detail page, so the pair is saved, read back and
+  // refused half-filled through the same action, on create and on edit alike.
+  test("saves the award ceremony and refuses half of it through the admin action", async () => {
+    const { event, modalityIds } = await createEventScheduleAdminFixture();
+    const requestUrl = `http://localhost/administracion/cronogramas?evento=${event.id}`;
+    const createRequest = await createScheduleAdminRequest({
+      email: "admin.crea.entrega@example.com",
+      role: "admin",
+      requestUrl,
+      intent: "create-schedule",
+      schedule: buildScheduleDraft({
+        modalityIds,
+        awardCeremonyDate: "2026-05-02",
+        awardCeremonyTime: "13:30",
+      }),
+    });
+
+    await expectThrownResponse(action(routeArgs(createRequest.request)), 302);
+
+    const schedule = await findSavedScheduleByName("Sábado Mañana");
+    expect(schedule).toMatchObject({
+      awardCeremonyDate: "2026-05-02",
+      awardCeremonyTime: "13:30",
+    });
+
+    const detailMarkup = renderBloqueHorarioDetailRoute(
+      await loader(
+        routeArgs(
+          (
+            await createSignedInRequest({
+              email: "admin.lee.entrega@example.com",
+              role: "admin",
+              requestUrl,
+            })
+          ).request,
+        ),
+      ),
+      schedule?.id ?? "",
+    );
+    expect(detailMarkup).toContain("Fecha de entrega de premios");
+    expect(detailMarkup).toContain('name="awardCeremonyTime" value="13:30"');
+
+    const halfFilledRequest = await createScheduleAdminRequest({
+      email: "admin.edita.entrega@example.com",
+      role: "admin",
+      requestUrl,
+      intent: "update-schedule",
+      scheduleId: schedule?.id ?? "",
+      schedule: buildScheduleDraft({
+        modalityIds,
+        awardCeremonyDate: "2026-05-03",
+        awardCeremonyTime: "",
+      }),
+    });
+
+    await expect(
+      action(routeArgs(halfFilledRequest.request)),
+    ).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: {
+        awardCeremonyTime:
+          "Completá la fecha y la hora de la entrega de premios, o dejá las dos vacías.",
+      },
+    });
+    await expect(
+      findSavedScheduleById(schedule?.id ?? ""),
+    ).resolves.toMatchObject({
+      awardCeremonyDate: "2026-05-02",
+      awardCeremonyTime: "13:30",
+    });
+
+    // A form left open since before the fields existed posts neither half:
+    // that says nothing about the ceremony, so the saved pair survives it.
+    const staleFormRequest = await createScheduleAdminRequest({
+      email: "admin.form.viejo@example.com",
+      role: "admin",
+      requestUrl,
+      intent: "update-schedule",
+      scheduleId: schedule?.id ?? "",
+      schedule: buildScheduleDraft({ modalityIds, name: "Sábado temprano" }),
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(staleFormRequest.request)),
+      302,
+    );
+    await expect(
+      findSavedScheduleById(schedule?.id ?? ""),
+    ).resolves.toMatchObject({
+      name: "Sábado Temprano",
+      awardCeremonyDate: "2026-05-02",
+      awardCeremonyTime: "13:30",
+    });
+
+    // Both halves posted blank is the administrator clearing it.
+    const clearRequest = await createScheduleAdminRequest({
+      email: "admin.quita.entrega@example.com",
+      role: "admin",
+      requestUrl,
+      intent: "update-schedule",
+      scheduleId: schedule?.id ?? "",
+      schedule: buildScheduleDraft({
+        modalityIds,
+        awardCeremonyDate: "",
+        awardCeremonyTime: "",
+      }),
+    });
+
+    await expectThrownResponse(action(routeArgs(clearRequest.request)), 302);
+    await expect(
+      findSavedScheduleById(schedule?.id ?? ""),
+    ).resolves.toMatchObject({
+      awardCeremonyDate: null,
+      awardCeremonyTime: null,
+    });
+  });
+
   test("creates schedule capacities through the admin action", async () => {
     const { event, schedule } = await createScheduleForCapacityAdminFixture();
     const createScheduleCapacityRequest =
@@ -592,6 +709,8 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
         name: "Domingo tarde",
         scheduledDate: "2026-05-03",
         startTime: "15:00",
+        awardCeremonyDate: "",
+        awardCeremonyTime: "",
         totalCapacity: "12",
         modalityIds: [modality.id],
         categoryIds: [],

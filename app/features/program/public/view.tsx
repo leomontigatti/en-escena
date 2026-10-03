@@ -1,13 +1,18 @@
-import { LayoutDashboard, LogIn, Printer } from "lucide-react";
+import { Info, LayoutDashboard, LogIn, Printer, Trophy } from "lucide-react";
 import { Link } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ProgramList } from "@/features/program/list";
-import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
+import {
+  formatScheduleDayLabel,
+  formatScheduleDayTabLabel,
+} from "@/lib/choreographies/schedule-formatters";
+import type { EventProgramCeremonySchedule } from "@/lib/presentations/event-program.server";
 
-import { PrintableProgram } from "./print";
+import { PrintableProgram, programScheduleNotice } from "./print";
 import type { PublicProgramLoaderData } from "./server";
 
 /**
@@ -33,7 +38,21 @@ export function PublicProgramView({
               name={event.name}
               startsOn={event.startsOn}
             />
-            <ProgramList rows={loaderData.rows} showAcademy />
+            <Alert variant="info">
+              <Info aria-hidden="true" />
+              <AlertTitle>Programa sujeto a cambios</AlertTitle>
+              <AlertDescription>{programScheduleNotice}</AlertDescription>
+            </Alert>
+            <ProgramList
+              renderDayNotice={(day) => (
+                <DayAwardCeremonies
+                  day={day}
+                  schedules={loaderData.schedules}
+                />
+              )}
+              rows={loaderData.rows}
+              showAcademy
+            />
           </div>
 
           <PrintableProgram
@@ -133,8 +152,7 @@ function PublicProgramHeader({
         <h2 className="text-xl font-semibold">Programa</h2>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           {name}, del {formatScheduleDayLabel(startsOn)} al{" "}
-          {formatScheduleDayLabel(endsOn)}. El orden de las presentaciones puede
-          cambiar hasta el día del evento.
+          {formatScheduleDayLabel(endsOn)}.
         </p>
       </div>
 
@@ -149,4 +167,58 @@ function PublicProgramHeader({
       </Button>
     </header>
   );
+}
+
+/**
+ * The award ceremonies of the schedules held on the chosen day, one line
+ * each, so the audience knows when a block ends in its ceremony. A ceremony
+ * after midnight falls on the next day, and its line says which. Nothing at
+ * all when no schedule of the day has one.
+ */
+function DayAwardCeremonies({
+  day,
+  schedules,
+}: {
+  day: string;
+  schedules: EventProgramCeremonySchedule[];
+}) {
+  const ceremonies = schedules.filter(
+    (schedule) =>
+      schedule.scheduledDate === day &&
+      schedule.awardCeremonyDate !== null &&
+      schedule.awardCeremonyTime !== null,
+  );
+
+  if (ceremonies.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul className="flex flex-col gap-1.5 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+      {ceremonies.map((schedule) => (
+        <li key={schedule.id} className="flex items-center gap-2">
+          <Trophy
+            aria-hidden="true"
+            className="size-4 shrink-0 text-muted-foreground"
+          />
+          <span>
+            <span className="font-medium">{schedule.name}</span>
+            <span className="text-muted-foreground">
+              {` · Entrega de premios ${formatDayAwardCeremonyTime(schedule)}`}
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** "13:30 hs", or "Miércoles 2/12 00:15 hs" when it is not the schedule's day. */
+function formatDayAwardCeremonyTime(schedule: EventProgramCeremonySchedule) {
+  const time = `${schedule.awardCeremonyTime} hs`;
+
+  return schedule.awardCeremonyDate === schedule.scheduledDate ||
+    schedule.awardCeremonyDate === null
+    ? time
+    : `${formatScheduleDayTabLabel(schedule.awardCeremonyDate)} ${time}`;
 }

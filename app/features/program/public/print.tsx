@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import type {
+  EventProgramCeremonySchedule,
   EventProgramRow,
   EventProgramSchedule,
 } from "@/lib/presentations/event-program.server";
@@ -232,19 +233,51 @@ const printWeekdayAndDate = new Intl.DateTimeFormat("es-AR", {
   timeZone: "UTC",
 });
 
-/** "sábado 17 de octubre 10:00 hs · Sábado mañana" */
-export function formatProgramScheduleLabel(schedule: EventProgramSchedule) {
+/**
+ * The caveat the public program carries on screen, as an alert, and on paper,
+ * under every page run's heading. The order is the organisation's to change
+ * until the day, and the times follow the order.
+ */
+export const programScheduleNotice =
+  "Los horarios son estimativos y el orden de las presentaciones puede cambiar hasta el día del evento.";
+
+/** "sábado 17 de octubre", the day as a printed heading names it. */
+function formatPrintDay(date: string) {
   // Shape alone is not enough: `2026-13-40` splits into three parts and is
   // still no date at all, and formatting one throws rather than answering —
   // which on the public program would take the whole route down. The heading
   // falls back to the stored value, the way `formatScheduleDayLabel` does.
-  const day = isDateOnly(schedule.scheduledDate)
-    ? printWeekdayAndDate
-        .format(new Date(`${schedule.scheduledDate}T00:00:00Z`))
-        .replace(",", "")
-    : schedule.scheduledDate;
+  return isDateOnly(date)
+    ? printWeekdayAndDate.format(new Date(`${date}T00:00:00Z`)).replace(",", "")
+    : date;
+}
 
-  return `${day} ${schedule.startTime} hs · ${schedule.name}`;
+/** "sábado 17 de octubre 10:00 hs · Sábado mañana" */
+export function formatProgramScheduleLabel(schedule: EventProgramSchedule) {
+  return `${formatPrintDay(schedule.scheduledDate)} ${schedule.startTime} hs · ${schedule.name}`;
+}
+
+/**
+ * The line that closes a schedule's page run: "Entrega de premios · 22:30 hs",
+ * with the day in front of the hour when the ceremony is not on the schedule's
+ * own day (one after midnight falls on the next). `null` when the schedule has
+ * no ceremony, which prints nothing.
+ */
+export function formatProgramAwardCeremonyLabel(
+  schedule: EventProgramCeremonySchedule,
+) {
+  const { awardCeremonyDate, awardCeremonyTime } = schedule;
+
+  if (awardCeremonyDate === null || awardCeremonyTime === null) {
+    return null;
+  }
+
+  const when =
+    awardCeremonyDate === schedule.scheduledDate
+      ? `${awardCeremonyTime} hs`
+      : `${formatPrintDay(awardCeremonyDate)} ${awardCeremonyTime} hs`;
+
+  return `Entrega de premios · ${when}`;
 }
 
 export function PrintableProgram({
@@ -254,13 +287,15 @@ export function PrintableProgram({
 }: {
   eventName: string;
   rows: EventProgramRow[];
-  schedules: EventProgramSchedule[];
+  schedules: EventProgramCeremonySchedule[];
 }) {
   return (
     <div className="hidden print:block">
       <ProgramPrintPages
         columns={publicProgramColumns}
         eventName={eventName}
+        notice={programScheduleNotice}
+        renderAfterRows={formatProgramAwardCeremonyLabel}
         rows={rows}
         schedules={schedules}
       />
@@ -271,18 +306,27 @@ export function PrintableProgram({
 /**
  * The page runs themselves, one per schedule, for any row that is at least a
  * program row. Whoever renders them decides when they show: the public program
- * only on paper, the results print on screen too.
+ * only on paper, the results print on screen too. The notice under each
+ * heading and the line after each run's rows are the public program's: the
+ * results print passes neither.
  */
-export function ProgramPrintPages<Row extends EventProgramRow>({
+export function ProgramPrintPages<
+  Row extends EventProgramRow,
+  Schedule extends EventProgramSchedule,
+>({
   columns,
   eventName,
+  notice,
+  renderAfterRows,
   rows,
   schedules,
 }: {
   columns: ProgramPrintColumn<Row>[];
   eventName: string;
+  notice?: string;
+  renderAfterRows?: (schedule: Schedule) => string | null;
   rows: Row[];
-  schedules: EventProgramSchedule[];
+  schedules: Schedule[];
 }) {
   return (
     <>
@@ -310,9 +354,19 @@ export function ProgramPrintPages<Row extends EventProgramRow>({
                   paddingRight: printPageMargin,
                 }}
               >
-                <h2 className="mb-4 text-center text-lg font-semibold">
+                <h2
+                  className={cn(
+                    "text-center text-lg font-semibold",
+                    notice ? "mb-1" : "mb-4",
+                  )}
+                >
                   {`${eventName} · ${formatProgramScheduleLabel(schedule)}`}
                 </h2>
+                {notice ? (
+                  <p className="mb-4 text-center text-xs text-muted-foreground">
+                    {notice}
+                  </p>
+                ) : null}
                 <Table className="table-fixed">
                   <colgroup>
                     {columns.map((column) => (
@@ -350,6 +404,7 @@ export function ProgramPrintPages<Row extends EventProgramRow>({
                       ))}
                   </TableBody>
                 </Table>
+                <ProgramPrintAfterRows text={renderAfterRows?.(schedule)} />
               </td>
             </tr>
           </tbody>
@@ -357,4 +412,11 @@ export function ProgramPrintPages<Row extends EventProgramRow>({
       ))}
     </>
   );
+}
+
+/** The centred line after a page run's last row, when there is one. */
+function ProgramPrintAfterRows({ text }: { text: string | null | undefined }) {
+  return text ? (
+    <p className="mt-6 text-center text-base font-semibold">{text}</p>
+  ) : null;
 }

@@ -7,6 +7,10 @@ import type {
 import type { DataTableFacetedFiltersOf } from "@/components/shared/data-table";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
+import {
+  findMissingAwardCeremonyField,
+  halfSetAwardCeremonyMessage,
+} from "@/lib/schedules/award-ceremony";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 const scheduleDateFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -34,6 +38,9 @@ export const scheduleFormSchema = z
     name: z.string().trim().min(1, requiredFieldMessage),
     scheduledDate: z.string().trim().min(1, requiredFieldMessage),
     startTime: z.string().trim().min(1, requiredFieldMessage),
+    // Optional as a pair: both empty is a schedule without a ceremony.
+    awardCeremonyDate: z.string().trim(),
+    awardCeremonyTime: z.string().trim(),
     totalCapacity: z
       .string()
       .trim()
@@ -45,6 +52,16 @@ export const scheduleFormSchema = z
     scheduleCapacities: z.array(inlineScheduleCapacityFormSchema),
   })
   .superRefine((values, context) => {
+    const missingAwardCeremonyField = findMissingAwardCeremonyField(values);
+
+    if (missingAwardCeremonyField) {
+      context.addIssue({
+        code: "custom",
+        message: halfSetAwardCeremonyMessage,
+        path: [missingAwardCeremonyField],
+      });
+    }
+
     const firstIndexByGroupType = new Map<string, number>();
 
     values.scheduleCapacities.forEach((scheduleCapacity, index) => {

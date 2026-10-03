@@ -884,6 +884,84 @@ describe("`Bases del evento` repository", () => {
     ]);
   });
 
+  // The ceremony is optional and travels as a pair: saved and read back on
+  // create and on edit, cleared by leaving both empty, refused half-set, and
+  // free to move after choreographies were placed, because nothing was priced
+  // or assigned against it.
+  test("saves the award ceremony pair, clears it, and refuses half of it", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const halfFilledMessage =
+      "Completá la fecha y la hora de la entrega de premios, o dejá las dos vacías.";
+    const baseInput = {
+      name: "Bloque tarde",
+      scheduledDate: "2026-05-02",
+      startTime: "16:00",
+      totalCapacity: 20,
+      modalityIds: [jazz.id],
+      categoryIds: [],
+      scheduleCapacities: [],
+    };
+
+    const schedule = await expectCreated(
+      createScheduleWithEntries(event.id, {
+        ...baseInput,
+        awardCeremonyDate: "2026-05-02",
+        awardCeremonyTime: "22:30",
+      }),
+    );
+    expect(schedule).toMatchObject({
+      awardCeremonyDate: "2026-05-02",
+      awardCeremonyTime: "22:30",
+    });
+
+    await expect(
+      updateScheduleWithEntries(
+        schedule.id,
+        {
+          ...baseInput,
+          awardCeremonyDate: "2026-05-03",
+          awardCeremonyTime: "00:15",
+        },
+        { hasDependencies: async () => true },
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: { awardCeremonyDate: "2026-05-03", awardCeremonyTime: "00:15" },
+    });
+
+    await expect(
+      updateScheduleWithEntries(schedule.id, {
+        ...baseInput,
+        awardCeremonyDate: "2026-05-03",
+        awardCeremonyTime: "",
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      fieldErrors: { awardCeremonyTime: halfFilledMessage },
+    });
+    await expect(
+      createScheduleWithEntries(event.id, {
+        ...baseInput,
+        awardCeremonyDate: "",
+        awardCeremonyTime: "22:30",
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      fieldErrors: { awardCeremonyDate: halfFilledMessage },
+    });
+
+    await expect(
+      updateScheduleWithEntries(schedule.id, {
+        ...baseInput,
+        awardCeremonyDate: "",
+        awardCeremonyTime: "",
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: { awardCeremonyDate: null, awardCeremonyTime: null },
+    });
+  });
+
   /**
    * The edit locks the schedule row before it checks what the schedule still
    * accepts, the same row restores and assignments lock before placing a

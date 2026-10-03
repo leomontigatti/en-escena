@@ -7,7 +7,7 @@ import {
   findPublishedProgramEvent,
   readEventProgram,
   type EventProgramRow,
-  type EventProgramSchedule,
+  type EventProgramCeremonySchedule,
 } from "@/lib/presentations/event-program.server";
 
 /**
@@ -26,7 +26,7 @@ export type PublicProgramLoaderData = {
   /** Whether the reader is signed in as an academy, which the top bar follows. */
   hasAcademySession: boolean;
   rows: EventProgramRow[];
-  schedules: EventProgramSchedule[];
+  schedules: EventProgramCeremonySchedule[];
 };
 
 export async function loadPublicProgram(

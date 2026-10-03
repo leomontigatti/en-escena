@@ -1,4 +1,4 @@
-import { Clock } from "lucide-react";
+import { Clock, XIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import {
   Controller,
@@ -41,6 +41,8 @@ type TimeOnlyFieldProps<
 > = {
   buttonClassName?: string;
   className?: string;
+  /** Offers the clear action, for a field whose empty value means something. */
+  clearable?: boolean;
   contentClassName?: string;
   control: Control<TFieldValues>;
   description?: ReactNode;
@@ -61,6 +63,7 @@ function TimeOnlyField<
 >({
   buttonClassName,
   className,
+  clearable,
   contentClassName,
   control,
   description,
@@ -82,6 +85,7 @@ function TimeOnlyField<
         <TimeOnlyFieldControl
           buttonClassName={buttonClassName}
           className={className}
+          clearable={clearable}
           contentClassName={contentClassName}
           description={description}
           error={fieldState.error?.message}
@@ -106,6 +110,7 @@ function TimeOnlyField<
 function TimeOnlyFieldControl({
   buttonClassName,
   className,
+  clearable,
   contentClassName,
   description,
   error,
@@ -124,6 +129,7 @@ function TimeOnlyFieldControl({
 }: {
   buttonClassName?: string;
   className?: string;
+  clearable?: boolean;
   contentClassName?: string;
   description?: ReactNode;
   error?: string;
@@ -213,6 +219,22 @@ function TimeOnlyFieldControl({
                   }
                 />
               </div>
+              {clearable && value ? (
+                <div className="mt-3 border-t pt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full cursor-pointer justify-start font-normal"
+                    onClick={() => {
+                      onValueChange("");
+                      setOpen(false);
+                    }}
+                  >
+                    <XIcon aria-hidden="true" data-icon="inline-start" />
+                    Quitar hora
+                  </Button>
+                </div>
+              ) : null}
             </PopoverContent>
           </Popover>
         </>

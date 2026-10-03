@@ -229,6 +229,12 @@ export const schedules = createTable(
     name: text("name").notNull(),
     scheduledDate: text("scheduled_date").notNull(),
     startTime: text("start_time").notNull(),
+    // When the schedule's award ceremony happens: a date and a time, in the
+    // same text shapes as `scheduledDate` and `startTime`. Any date is allowed,
+    // because a ceremony after midnight falls on the next day. Both null when
+    // the schedule has no ceremony set. See CONTEXT.md `awardCeremony`.
+    awardCeremonyDate: text("award_ceremony_date"),
+    awardCeremonyTime: text("award_ceremony_time"),
     totalCapacity: integer("total_capacity").notNull(),
     // Whether the schedule takes registrations right now. A manual switch an
     // administrator flips from the schedule detail — never a window, never a
@@ -242,7 +248,15 @@ export const schedules = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index("schedule_event_id_idx").on(table.eventId)],
+  (table) => [
+    index("schedule_event_id_idx").on(table.eventId),
+    // The date and the time are one value: a ceremony with a day and no hour,
+    // or an hour and no day, is not a ceremony the program can announce.
+    check(
+      "schedule_award_ceremony_both_or_neither",
+      sql`num_nonnulls(${table.awardCeremonyDate}, ${table.awardCeremonyTime}) <> 1`,
+    ),
+  ],
 ).enableRLS();
 
 // The kind of a seminar and of a seminar price. An enum rather than a boolean

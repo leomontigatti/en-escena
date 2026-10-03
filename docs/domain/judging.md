@@ -33,7 +33,7 @@ Rules for presentations, judging, program, results, scores and feedback.
 
 - Program can be published before results and reflects current order; it does not freeze a copy.
 - Program is public, without login, at `/programa`. It shows the active event only and only while the event's program is visible; with the program hidden, or with no active event, the page says that no program is published and does not reveal which of the two it is.
-- Program lists every presentation in order, with no gaps, and shows non-competitive data only: it hides scores, averages, awards, disqualifications, inferred absences and every `Advertencia`. It names the dancers of a solo and of a duo, and of no other group type.
+- Program lists every presentation in order, with no gaps, and shows non-competitive data only: it hides scores, averages, awards, disqualifications, inferred absences and every `Advertencia`. It names the dancers of a solo and of a duo, and of no other group type. It announces each schedule's `awardCeremony` when one is set: on screen on that schedule's day, on paper after the schedule's last presentation.
 - Program has its own print layout, one run of pages per schedule. The academy's list of its own presentations on the portal does not print.
 - The portal lists the academy's own choreographies: numbered ones in order, and the ones not placed yet as `Sin número`. It is read-only and links to the public program while it is visible.
 - Results are not a ranking. There are no positions, no ties, no competitive grouping and no public results page: `Cupo de cronograma` never defines a competitive group, and nothing about results is readable without login.

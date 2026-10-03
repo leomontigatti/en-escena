@@ -78,6 +78,8 @@ export type ScheduleActionValues = {
   name: string;
   scheduledDate: string;
   startTime: string;
+  awardCeremonyDate: string;
+  awardCeremonyTime: string;
   totalCapacity: string;
   modalityIds: string[];
   categoryIds: string[];

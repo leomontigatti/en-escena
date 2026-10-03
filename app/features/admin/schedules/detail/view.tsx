@@ -68,6 +68,8 @@ export function EventScheduleDetailView({
   );
   const scheduleName = schedule?.name ?? "Cronograma";
   const form = useScheduleForm({
+    awardCeremonyDate: schedule?.awardCeremonyDate,
+    awardCeremonyTime: schedule?.awardCeremonyTime,
     categoryIds: schedule?.categoryIds,
     modalityIds: schedule?.modalityIds,
     name: schedule?.name,

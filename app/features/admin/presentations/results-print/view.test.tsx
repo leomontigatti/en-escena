@@ -78,6 +78,27 @@ describe("ResultsPrintView", () => {
     );
   });
 
+  // The page runs are the public program's, but its caveat and its award
+  // ceremony line are not: the sheet of results is unchanged (#1418), even
+  // though the loader reads the same schedules the public program does.
+  test("prints neither the program's caveat nor the award ceremony", () => {
+    const scheduleWithCeremony = {
+      id: "schedule-1",
+      name: "Sábado mañana",
+      scheduledDate: "2026-05-01",
+      startTime: "10:00",
+      awardCeremonyDate: "2026-05-01",
+      awardCeremonyTime: "13:30",
+    };
+
+    renderView({ schedules: [scheduleWithCeremony] });
+
+    expect(document.body.textContent).not.toContain("Entrega de premios");
+    expect(document.body.textContent).not.toContain(
+      "Los horarios son estimativos",
+    );
+  });
+
   function renderView(overrides: Partial<ResultsPrintLoaderData> = {}) {
     const loaderData: ResultsPrintLoaderData = {
       eventName: "En Escena 2026",

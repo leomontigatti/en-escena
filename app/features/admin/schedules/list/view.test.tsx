@@ -165,6 +165,8 @@ function createSchedule({
     name,
     scheduledDate,
     startTime,
+    awardCeremonyDate: null,
+    awardCeremonyTime: null,
     totalCapacity: 10,
     registrationOpen,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),

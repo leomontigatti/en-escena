@@ -139,6 +139,12 @@ export type ValidCategoryInput = {
 export type ScheduleInput = EventBaseNameInput & {
   scheduledDate: string;
   startTime: string;
+  /**
+   * The award ceremony, a pair: both blank (or absent) is a schedule without
+   * one. See `app/lib/schedules/award-ceremony.ts`.
+   */
+  awardCeremonyDate?: string;
+  awardCeremonyTime?: string;
   totalCapacity: number;
   modalityIds: string[];
   /**
