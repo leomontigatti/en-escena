@@ -81,9 +81,10 @@ export default mergeConfig(
       // Two or three sessions run this suite on the same laptop at once, and
       // each took Vitest's default of (cores - 1) workers, which starved tests
       // that take under a second alone past the default 5 s timeout (#1426).
-      // Half the cores runs the suite no slower, and 20 s still fails a test
-      // that truly hangs.
-      maxWorkers: "50%",
+      // Half the cores runs the suite no slower there, and 20 s still fails a
+      // test that truly hangs. CI keeps the default: its runner is not shared,
+      // and on 4 cores the cap made the unit job ~60% slower.
+      maxWorkers: process.env.CI ? undefined : "50%",
       testTimeout: 20_000,
       setupFiles: ["./tests/setup/react-test-env.ts"],
       server: {
