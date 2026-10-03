@@ -151,7 +151,7 @@ Internal user assigned to evaluate an event's presentations.
 _Avoid_: `admin`, auditor
 
 **`resultsPublication`** — ui: "Publicación de resultados"
-The snapshot of which presentations an `event`'s academies can read, taken by administration from the event's actions menu with no precondition: `Mostrar resultados` publishes every presentation evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes them all down, so publishing again starts from what is evaluated then. Only membership is stored (`resultsPublishedAt` and `resultPublishedAt`); the award, the average and the scores are always read live, so a correction to a published presentation reaches the academy without publishing again.
+The snapshot of which presentations an `event`'s academies can read, taken by administration for the active event from the `Resultados` list with no precondition: `Mostrar resultados` publishes every presentation evaluated at that moment, `Actualizar resultados` adds the ones evaluated since, and `Ocultar resultados` takes them all down, so publishing again starts from what is evaluated then. Only membership is stored (`resultsPublishedAt` and `resultPublishedAt`); the award, the average and the scores are always read live, so a correction to a published presentation reaches the academy without publishing again.
 _Avoid_: `eventStatus`, program visibility, public results, freezing results
 
 **`financialDocument`** — ui: "Documento financiero"

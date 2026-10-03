@@ -36,7 +36,7 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 import { PresentationListActions } from "./actions-menu";
 import { JudgeAssignmentDialog } from "./judge-dialogs";
 import { MusicDownloadDialog } from "./music-download-dialog";
-import { ResultsPrintDialog } from "./results-print-dialog";
+import { ResultsPrintDialog } from "../results-print/dialog";
 import {
   OrderingConfirmationDialog,
   PresentationDayTabs,

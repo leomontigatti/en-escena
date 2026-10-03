@@ -35,6 +35,7 @@ import {
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
 import { readMusicDownloadDays } from "../music-download/server";
+import { listPrintableSchedules } from "../results-print/shared";
 
 import {
   assignJudgesIntent,
@@ -357,24 +358,6 @@ function movePresentationRefusal(
     case "frozenPosition":
       return "Esa posición está fija: su cronograma ya fue evaluado.";
   }
-}
-
-/**
- * The schedules with at least one presentation, once each, in day and time
- * order: a schedule nobody presents in has nothing for the results print.
- */
-function listPrintableSchedules(rows: ParticipationRow[]) {
-  const byId = new Map(
-    rows
-      .filter((row) => row.presentationId !== null)
-      .map((row) => [row.schedule.id, row.schedule]),
-  );
-
-  return [...byId.values()].sort(
-    (left, right) =>
-      left.scheduledDate.localeCompare(right.scheduledDate) ||
-      left.startTime.localeCompare(right.startTime),
-  );
 }
 
 function readPresentationFilters(

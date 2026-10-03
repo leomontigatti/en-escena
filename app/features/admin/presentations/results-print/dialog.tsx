@@ -21,7 +21,7 @@ import {
   resultsPrintSchema,
   resultsPrintScheduleParam,
   type ResultsPrintFormValues,
-} from "../results-print/shared";
+} from "./shared";
 
 /**
  * Picks the schedules whose results are printed together, and opens the print
