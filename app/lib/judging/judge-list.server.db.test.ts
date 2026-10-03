@@ -239,6 +239,26 @@ describe("the judge's list of one day's presentations", () => {
   });
 });
 
+describe("the list of a day of an event that is not the active one", () => {
+  test("reads nothing, even for a day the judge was assigned", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const { judgeId } = await fixture.assignJudge(presentation.presentationId);
+
+    await db
+      .update(events)
+      .set({ active: false })
+      .where(eq(events.id, fixture.event.id));
+
+    await expect(
+      readJudgePresentations({ judgeId, scheduledDate: showDay }),
+    ).resolves.toEqual([]);
+  });
+});
+
 describe("the days a judge has presentations on", () => {
   test("lists each of this judge's days once, in date order", async () => {
     const fixture = await seedJudgingFixture();

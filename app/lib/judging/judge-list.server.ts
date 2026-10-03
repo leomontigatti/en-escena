@@ -125,12 +125,14 @@ export async function readJudgePresentations(
     .innerJoin(categories, eq(categories.id, choreographies.categoryId))
     .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
     .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
+    .innerJoin(events, eq(events.id, presentations.eventId))
     .leftJoin(submodalities, eq(submodalities.id, choreographies.submodalityId))
     .leftJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
     .where(
       and(
         eq(judgeAssignments.userId, input.judgeId),
         eq(schedules.scheduledDate, input.scheduledDate),
+        events.active,
       ),
     )
     .orderBy(asc(presentations.orderNumber));
