@@ -5,6 +5,7 @@ import {
   academies,
   categories,
   choreographies,
+  events,
   judgeAssignments,
   modalities,
   presentations,
@@ -17,7 +18,6 @@ import {
   deriveJudgeScoreStatus,
   type JudgeScoreStatus,
 } from "@/lib/judging/judge-status";
-import { judgingDate } from "@/lib/judging/judging-day";
 import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
 import {
@@ -32,9 +32,11 @@ import {
 } from "@/lib/storage/feedback-audio.server";
 
 /**
- * What a judge sees when they sign in: the presentations assigned to them whose
- * day is open, in the order the show runs them. See docs/domain/judging.md,
- * "Scores And Feedback".
+ * What a judge sees on their list: the presentations assigned to them on one
+ * day, in the order the show runs them. Which day, and whether it is open for
+ * writing, is the caller's: this module reads any of the judge's days alike,
+ * and the write window is enforced on every write, not here. See
+ * docs/domain/judging.md, "Scores And Feedback".
  *
  * The row carries what the judge needs to recognise the dance on stage — the
  * academy is as public as the program that prints it — and none of the other
@@ -45,8 +47,8 @@ import {
  * a judge does more than once: reopening a scored presentation has to show the
  * number they gave, or a correction is a blind retype and re-recording a
  * `Devolución` means entering a score again from memory. The list shows the
- * number only once the score is complete, in place of the status word, and it
- * is the judge's own score and no one else's.
+ * number in place of the status word (see `judgeScoreStatusBadge`), and it is
+ * the judge's own score and no one else's.
  */
 
 /** One line of the sheet, exactly as the total and the validation read it. */
@@ -83,7 +85,12 @@ export type JudgePresentationRow = {
 };
 
 export async function readJudgePresentations(
-  input: { judgeId: string; now?: Date; storage?: FeedbackAudioStorage },
+  input: {
+    judgeId: string;
+    /** The schedule date to read, as a `YYYY-MM-DD` business date. */
+    scheduledDate: string;
+    storage?: FeedbackAudioStorage;
+  },
   executor: Executor = db,
 ): Promise<JudgePresentationRow[]> {
   const rows = await executor
@@ -118,12 +125,14 @@ export async function readJudgePresentations(
     .innerJoin(categories, eq(categories.id, choreographies.categoryId))
     .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
     .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
+    .innerJoin(events, eq(events.id, presentations.eventId))
     .leftJoin(submodalities, eq(submodalities.id, choreographies.submodalityId))
     .leftJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
     .where(
       and(
         eq(judgeAssignments.userId, input.judgeId),
-        eq(schedules.scheduledDate, judgingDate(input.now)),
+        eq(schedules.scheduledDate, input.scheduledDate),
+        events.active,
       ),
     )
     .orderBy(asc(presentations.orderNumber));
@@ -180,4 +189,33 @@ export async function readJudgePresentations(
       value: row.scoreValue,
     })),
   );
+}
+
+/**
+ * The schedule dates of the active event on which the judge has at least one
+ * assigned presentation, each once and in date order: the days their list can
+ * show. A judge who also sat on an earlier event's panel is not offered its
+ * days.
+ */
+export async function readJudgeAssignedDays(
+  input: { judgeId: string },
+  executor: Executor = db,
+): Promise<string[]> {
+  const rows = await executor
+    .selectDistinct({ scheduledDate: schedules.scheduledDate })
+    .from(judgeAssignments)
+    .innerJoin(
+      presentations,
+      eq(presentations.id, judgeAssignments.presentationId),
+    )
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, presentations.choreographyId),
+    )
+    .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
+    .innerJoin(events, eq(events.id, presentations.eventId))
+    .where(and(eq(judgeAssignments.userId, input.judgeId), events.active))
+    .orderBy(asc(schedules.scheduledDate));
+
+  return rows.map((row) => row.scheduledDate);
 }

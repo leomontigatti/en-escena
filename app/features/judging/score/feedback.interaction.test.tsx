@@ -129,6 +129,9 @@ describe("recording a `Devolución` with the score", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                day: "2026-08-22",
+                dayOptions: [],
+                isOpen: true,
                 judgingDate: "2026-08-22",
                 presentations: [buildRow(feedbackAudioUrl)],
               }}

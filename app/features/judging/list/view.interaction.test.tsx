@@ -3,13 +3,15 @@
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 import {
-  createReactDomTestRenderer,
-  updateReactDomForm,
-} from "@/lib/test-support/react-dom";
+  addTableFilter,
+  removeTableFilter,
+} from "@/lib/test-support/data-table-filters";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 
 import { lastOpenedPresentationStorageKey } from "./resume";
+import type { JudgePanelRouteData } from "./server";
 import { JudgePanelView } from "./view";
 
 function buildRow(
@@ -62,7 +64,22 @@ const presentations = [
   }),
 ];
 
-describe("the judge's list of today's presentations", () => {
+const judgingDate = "2026-08-22";
+const pastDay = "2026-08-21";
+
+const openDay = {
+  day: judgingDate,
+  dayOptions: [pastDay, judgingDate],
+  isOpen: true,
+} satisfies Partial<JudgePanelRouteData>;
+
+const closedDay = {
+  day: pastDay,
+  dayOptions: [pastDay, judgingDate],
+  isOpen: false,
+} satisfies Partial<JudgePanelRouteData>;
+
+describe("the judge's list of one day's presentations", () => {
   const renderer = createReactDomTestRenderer();
 
   beforeEach(() => {
@@ -71,7 +88,10 @@ describe("the judge's list of today's presentations", () => {
 
   afterEach(renderer.cleanup);
 
-  async function mount() {
+  async function mount(
+    day: Pick<JudgePanelRouteData, "day" | "dayOptions" | "isOpen"> = openDay,
+    url = "/juzgamiento",
+  ) {
     const router = createMemoryRouter(
       [
         {
@@ -84,17 +104,20 @@ describe("the judge's list of today's presentations", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
-                judgingDate: "2026-08-22",
+                judgingDate,
                 presentations,
+                ...day,
               }}
             />
           ),
         },
       ],
-      { initialEntries: ["/juzgamiento"] },
+      { initialEntries: [url] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
+
+    return router;
   }
 
   function rowNames() {
@@ -103,8 +126,8 @@ describe("the judge's list of today's presentations", () => {
     );
   }
 
-  test("hides what the judge already scored behind `Solo pendientes`", async () => {
-    await mount();
+  test("hides what the judge already scored behind the `Estado` filter, with no other day to pick", async () => {
+    await mount({ day: judgingDate, dayOptions: [], isOpen: true });
 
     expect(rowNames()).toEqual([
       "Primera",
@@ -114,15 +137,13 @@ describe("the judge's list of today's presentations", () => {
       "Quinta",
     ]);
 
-    const onlyPending = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Solo pendientes"]',
-    );
-
-    await updateReactDomForm(() => {
-      onlyPending?.click();
-    });
+    await addTableFilter("Estado", "Pendientes");
 
     expect(rowNames()).toEqual(["Segunda", "Tercera"]);
+
+    await removeTableFilter("Estado");
+
+    expect(rowNames()).toHaveLength(5);
   });
 
   test("marks the first pending presentation when none was opened yet", async () => {
@@ -146,4 +167,35 @@ describe("the judge's list of today's presentations", () => {
         ?.getAttribute("data-presentation-name"),
     ).toBe("Tercera");
   });
+
+  test("switches to another of the judge's days through the URL", async () => {
+    const router = await mount();
+
+    await addTableFilter("Día", "Viernes 21 de agosto");
+
+    expect(router.state.location.search).toBe(`?dia=${pastDay}`);
+  });
+
+  test("goes back to the judging day when the day filter is removed", async () => {
+    const router = await mount(
+      closedDay,
+      `/juzgamiento?dia=${pastDay}&presentacion=b`,
+    );
+
+    await removeTableFilter("Día");
+
+    expect(router.state.location.search).toBe("");
+  });
+
+  test.each([
+    [openDay, true],
+    [closedDay, false],
+  ])(
+    "opens a `?presentacion=` URL only on the open day (%#)",
+    async (day, opens) => {
+      await mount(day, `/juzgamiento?dia=${day.day}&presentacion=b`);
+
+      expect(document.querySelector('[role="dialog"]') !== null).toBe(opens);
+    },
+  );
 });

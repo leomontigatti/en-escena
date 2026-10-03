@@ -60,12 +60,15 @@ type AccessHeaderProps = {
   /** `h2` on a private panel's page, as on the admin's; `h1` on the public forms. */
   titleLevel?: 1 | 2;
   description?: ReactNode;
+  /** A control kept on the description's line, at its end. */
+  descriptionAction?: ReactNode;
   tone?: "default" | "danger";
 };
 
 export function AccessHeader({
   action,
   className,
+  descriptionAction,
   eyebrow,
   media,
   title,
@@ -74,6 +77,10 @@ export function AccessHeader({
   tone = "default",
 }: AccessHeaderProps) {
   const Title = titleLevel === 1 ? "h1" : "h2";
+  // A panel's title sits on its description as the admin's does.
+  const descriptionSpacing = titleLevel === 1 ? "mt-4" : "mt-1";
+  const descriptionClassName =
+    "text-sm leading-6 text-pretty text-muted-foreground";
 
   return (
     <header className={className}>
@@ -99,14 +106,18 @@ export function AccessHeader({
         </Title>
         {action}
       </div>
-      {description ? (
-        <p
+      {description && descriptionAction ? (
+        <div
           className={cn(
-            "text-sm leading-6 text-pretty text-muted-foreground",
-            // A panel's title sits on its description as the admin's does.
-            titleLevel === 1 ? "mt-4" : "mt-1",
+            "flex items-center justify-between gap-4",
+            descriptionSpacing,
           )}
         >
+          <p className={descriptionClassName}>{description}</p>
+          {descriptionAction}
+        </div>
+      ) : description ? (
+        <p className={cn(descriptionClassName, descriptionSpacing)}>
           {description}
         </p>
       ) : null}

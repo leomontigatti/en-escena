@@ -144,26 +144,50 @@ describe("the `/juzgamiento` action", () => {
     );
   });
 
-  test("answers with an error once the judging day has closed", async () => {
-    const judge = await signIn("judge", "Juana Juez");
-    const { fixture, presentation } = await seedOpenPresentation();
+  // The list shows the judge's other days read-only; none of them takes a write.
+  test.each([
+    [
+      "has closed",
+      "2020-01-01",
+      "La jornada ya cerró, no se pueden guardar puntajes.",
+    ],
+    [
+      "has not started",
+      "2099-01-01",
+      "La jornada todavía no empezó, no se pueden guardar puntajes.",
+    ],
+  ])(
+    "refuses the score while the presentation's day %s",
+    async (_when, scheduledDate, message) => {
+      const judge = await signIn("judge", "Juana Juez");
+      const { fixture, presentation } = await seedOpenPresentation();
+      const assignment = await fixture.assignJudge(
+        presentation.presentationId,
+        judge.userId,
+      );
 
-    await fixture.assignJudge(presentation.presentationId, judge.userId);
-    await db
-      .update(schedules)
-      .set({ scheduledDate: "2020-01-01" })
-      .where(eq(schedules.id, fixture.catalog.schedule.id));
+      await db
+        .update(schedules)
+        .set({ scheduledDate })
+        .where(eq(schedules.id, fixture.catalog.schedule.id));
 
-    const result = await action(
-      scoreRequest(judge.cookie, {
-        intent: "save-score",
-        presentationId: presentation.presentationId,
-        value: "90.5",
-      }),
-    );
+      const result = await action(
+        scoreRequest(judge.cookie, {
+          intent: "save-score",
+          presentationId: presentation.presentationId,
+          value: "90.5",
+        }),
+      );
 
-    expect(result).toMatchObject({ status: "error" });
-  });
+      expect(result).toMatchObject({ message, status: "error" });
+      expect(
+        await db
+          .select({ value: scores.value })
+          .from(scores)
+          .where(eq(scores.judgeAssignmentId, assignment.judgeAssignmentId)),
+      ).toEqual([]);
+    },
+  );
 
   test("answers with the field error for a value that is not a half step", async () => {
     const judge = await signIn("judge", "Juana Juez");
