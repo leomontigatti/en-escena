@@ -12,7 +12,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-const listUrl = "http://localhost/administracion/presentacion";
+const listUrl = "http://localhost/administracion/presentaciones";
 
 async function loadTheList(email: string) {
   const { request } = await createSignedInAdminRequest({

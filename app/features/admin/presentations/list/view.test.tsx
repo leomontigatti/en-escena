@@ -174,12 +174,14 @@ describe("PresentationsListView", () => {
           }),
         ],
       }),
-    ).toContain('href="/administracion/presentacion/presentation-9/puntajes"');
+    ).toContain(
+      'href="/administracion/presentaciones/presentation-9/puntajes"',
+    );
     const pending = renderView();
 
     expect(pending).toContain(">Pieza<");
     expect(pending).not.toContain('href="/administracion/coreografias');
-    expect(pending).not.toContain('href="/administracion/presentacion/');
+    expect(pending).not.toContain('href="/administracion/presentaciones/');
   });
 
   test("locks the number and hides the grip of a frozen row", () => {
@@ -269,12 +271,12 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
   const router = createMemoryRouter(
     [
       {
-        path: "/administracion/presentacion",
+        path: "/administracion/presentaciones",
         action: async () => null,
         element: <PresentationsListView loaderData={loaderData} />,
       },
     ],
-    { initialEntries: ["/administracion/presentacion"] },
+    { initialEntries: ["/administracion/presentaciones"] },
   );
 
   return renderToStaticMarkup(<RouterProvider router={router} />);

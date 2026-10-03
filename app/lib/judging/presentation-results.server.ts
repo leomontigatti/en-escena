@@ -4,15 +4,15 @@ import { db } from "@/db";
 import { judgeAssignments, presentations, scores } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import {
-  medalForAverage,
+  awardForAverage,
   presentationAverage,
   type AveragedScore,
-  type Medal,
-} from "@/lib/judging/medal";
+  type Award,
+} from "@/lib/judging/award";
 
 /**
  * What the panel's work adds up to, for many presentations at once: the same
- * live average and medal `presentation-scores.server.ts` reads for one, without
+ * live average and award `presentation-scores.server.ts` reads for one, without
  * the panel behind it. See docs/domain/judging.md, "Scores And Feedback".
  */
 
@@ -20,12 +20,12 @@ export type PresentationResult = {
   /** Null for a disqualified presentation and when nothing counts. */
   average: number | null;
   disqualified: boolean;
-  medal: Medal | null;
+  award: Award | null;
 };
 
 /**
  * Keyed by choreography. A choreography with no presentation is absent; one
- * with a presentation nobody scored reads a null average and no medal.
+ * with a presentation nobody scored reads a null average and no award.
  */
 export async function readPresentationResults(
   choreographyIds: readonly string[],
@@ -78,7 +78,7 @@ export async function readPresentationResults(
         {
           average,
           disqualified: entry.disqualified,
-          medal: average === null ? null : medalForAverage(average),
+          award: average === null ? null : awardForAverage(average),
         },
       ];
     }),

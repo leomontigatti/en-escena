@@ -45,7 +45,7 @@ describe("correcting the panel's scores", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/administracion/presentacion/presentation-1/puntajes",
+          path: "/administracion/presentaciones/presentation-1/puntajes",
           action: async ({ request }) => {
             submitted.push(await request.formData());
 
@@ -56,7 +56,7 @@ describe("correcting the panel's scores", () => {
       ],
       {
         initialEntries: [
-          "/administracion/presentacion/presentation-1/puntajes",
+          "/administracion/presentaciones/presentation-1/puntajes",
         ],
       },
     );
@@ -192,7 +192,7 @@ describe("correcting the panel's scores", () => {
   });
 
   test("offers to reinstate a disqualified presentation and says why it has no result", async () => {
-    await mount({ average: null, disqualified: true, medal: null });
+    await mount({ average: null, disqualified: true, award: null });
     await openActionsMenu();
 
     expect(menuItems().map((item) => item.textContent?.trim())).toEqual([
@@ -202,7 +202,7 @@ describe("correcting the panel's scores", () => {
     expect(
       document.querySelector("[data-slot='alert-title']")?.textContent,
     ).toBe("Presentación descalificada");
-    expect(metrics()).toEqual({ Medalla: "No aplica", Promedio: "No aplica" });
+    expect(metrics()).toEqual({ Premio: "No aplica", Promedio: "No aplica" });
   });
 
   test("opens every stored score on the number the judge gave", async () => {
@@ -443,7 +443,7 @@ function buildPresentation(
     experienceLevel: "amateur",
     groupType: "solo",
     judges: [buildJudge()],
-    medal: "gold",
+    award: "gold",
     modalityName: "Danza clásica",
     name: "Primera",
     orderNumber: 1,

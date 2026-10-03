@@ -149,6 +149,6 @@ describe("the day's music archive", () => {
 
 test("the download address carries the day", () => {
   expect(buildMusicDownloadHref("2026-10-10")).toBe(
-    "/administracion/presentacion/audios?dia=2026-10-10",
+    "/administracion/presentaciones/audios?dia=2026-10-10",
   );
 });

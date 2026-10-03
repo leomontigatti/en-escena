@@ -18,10 +18,10 @@ import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
 import { readSubmodalityCriteria } from "@/lib/judging/submodality-criteria.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
-  medalForAverage,
+  awardForAverage,
   presentationAverage,
-  type Medal,
-} from "@/lib/judging/medal";
+  type Award,
+} from "@/lib/judging/award";
 import {
   type FeedbackAudioStorage,
   createDefaultFeedbackAudioStorage,
@@ -63,7 +63,7 @@ export type PresentationScoresView = {
   experienceLevel: string | null;
   groupType: ChoreographyGroupType;
   judges: PresentationJudgeScore[];
-  medal: Medal | null;
+  award: Award | null;
   modalityName: string;
   name: string;
   orderNumber: number;
@@ -128,7 +128,7 @@ export async function readPresentationScores(
     experienceLevel: presentation.experienceLevel,
     groupType: presentation.groupType as ChoreographyGroupType,
     judges,
-    medal: average === null ? null : medalForAverage(average),
+    award: average === null ? null : awardForAverage(average),
     modalityName: presentation.modalityName,
     name: presentation.name,
     orderNumber: presentation.orderNumber,

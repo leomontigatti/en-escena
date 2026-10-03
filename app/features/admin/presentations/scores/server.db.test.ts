@@ -20,7 +20,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 function scoresUrl(presentationId: string) {
-  return `http://localhost/administracion/presentacion/${presentationId}/puntajes`;
+  return `http://localhost/administracion/presentaciones/${presentationId}/puntajes`;
 }
 
 async function seedScoredPresentation() {
@@ -78,7 +78,7 @@ describe("the presentation's scores route", () => {
       }),
     ).resolves.toMatchObject({
       canEdit: true,
-      presentation: { average: 90, medal: "gold", name: "Primera" },
+      presentation: { average: 90, award: "gold", name: "Primera" },
     });
   });
 

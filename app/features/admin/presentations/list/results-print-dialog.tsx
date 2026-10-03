@@ -61,7 +61,7 @@ export function ResultsPrintDialog({
           <DialogTitle>Imprimir resultados</DialogTitle>
           <DialogDescription>
             Elegí los cronogramas. Cada uno se imprime en sus propias páginas,
-            con el promedio y la medalla de cada presentación.
+            con el promedio y el premio de cada presentación.
           </DialogDescription>
         </DialogHeader>
 

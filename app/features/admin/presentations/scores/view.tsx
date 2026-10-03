@@ -48,7 +48,7 @@ import {
 import { SheetParts } from "@/features/judging/score/sheet-parts";
 import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
-import { medalLabels } from "@/lib/judging/medal";
+import { awardLabels } from "@/lib/judging/award";
 import type { PresentationJudgeScore } from "@/lib/judging/presentation-scores.server";
 import {
   formatScoreFieldValue,
@@ -107,14 +107,14 @@ export function PresentationScoresView({
             <Info aria-hidden="true" />
             <AlertTitle>Presentación descalificada</AlertTitle>
             <AlertDescription>
-              Queda fuera de los resultados, sin promedio ni medalla.
+              Queda fuera de los resultados, sin promedio ni premio.
             </AlertDescription>
           </Alert>
         ) : null}
       </AlertStack>
       <div className="grid gap-4 md:grid-cols-2">
         <MetricCard title="Promedio" value={averageText(presentation)} />
-        <MetricCard title="Medalla" value={medalText(presentation)} />
+        <MetricCard title="Premio" value={awardText(presentation)} />
       </div>
       {presentation.criteria.length === 0 ? (
         <SingleScoresTable
@@ -196,7 +196,7 @@ function PresentationActions({
       </ResourceActionsMenu>
       <ConfirmationDialog
         confirmLabel="Descalificar"
-        description="Queda fuera de los resultados, sin promedio ni medalla. Los puntajes guardados se conservan y vuelven si la calificás de nuevo."
+        description="Queda fuera de los resultados, sin promedio ni premio. Los puntajes guardados se conservan y vuelven si la calificás de nuevo."
         destructive
         onConfirm={() => submitIntent("disqualify")}
         onOpenChange={setIsDisqualifyDialogOpen}
@@ -208,7 +208,7 @@ function PresentationActions({
 }
 
 /**
- * A disqualified presentation has no result to give, so its average and medal
+ * A disqualified presentation has no result to give, so its average and award
  * do not apply; one no judge has scored yet simply has none so far.
  */
 function averageText(presentation: Presentation) {
@@ -221,14 +221,14 @@ function averageText(presentation: Presentation) {
     : String(presentation.average);
 }
 
-function medalText(presentation: Presentation) {
+function awardText(presentation: Presentation) {
   if (presentation.disqualified) {
     return notApplicableText;
   }
 
-  return presentation.medal === null
+  return presentation.award === null
     ? noScoresText
-    : medalLabels[presentation.medal];
+    : awardLabels[presentation.award];
 }
 
 function SingleScoresTable({
@@ -516,7 +516,7 @@ function SheetForm({
           // `FormActions` without its leave guard: a guard sits on the router
           // and the router holds one, while every judge's tab holds a form.
           <PinnedActions>
-            <BackButton to="/administracion/presentacion" />
+            <BackButton to="/administracion/presentaciones" />
             <div className="flex items-center gap-3">
               {isDirty ? (
                 <Button

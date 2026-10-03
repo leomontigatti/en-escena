@@ -53,7 +53,7 @@ async function nameJudge(judgeId: string, name: string) {
 }
 
 describe("an academy's evaluation detail", () => {
-  test("shows the medal, the average and a card per judge that scored", async () => {
+  test("shows the award, the average and a card per judge that scored", async () => {
     const { fixture, presentation } = await seedPublishedEvaluation();
     const scored = await fixture.assignJudge(presentation.presentationId);
     const silent = await fixture.assignJudge(presentation.presentationId);
@@ -80,7 +80,7 @@ describe("an academy's evaluation detail", () => {
     expect(loaderData.title).toBe("Primera · N.º 1");
     expect(loaderData.details).toContain("Solo");
     expect(loaderData.average).toBe(90);
-    expect(loaderData.medal).toBe("gold");
+    expect(loaderData.award).toBe("gold");
     expect(loaderData.judges).toEqual([
       {
         criteriaValues: {},
@@ -165,7 +165,7 @@ describe("an academy's evaluation detail", () => {
       average: null,
       criteria: [],
       disqualified: true,
-      medal: null,
+      award: null,
     });
     expect(loaderData.judges).toEqual([
       {
@@ -194,7 +194,7 @@ describe("an academy's evaluation detail", () => {
 
     await expect(
       loadEvaluation(fixture, presentation.choreographyId),
-    ).resolves.toMatchObject({ average: 95, medal: "gold" });
+    ).resolves.toMatchObject({ average: 95, award: "gold" });
   });
 
   test("carries the sheet a criteria-judged presentation was scored on", async () => {

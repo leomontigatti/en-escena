@@ -17,7 +17,7 @@ export { resultsPrintScheduleParam } from "./shared";
 
 /**
  * The results print: the printed program of the schedules the administration
- * chose, with the average and the medal of each presentation. See
+ * chose, with the average and the award of each presentation. See
  * docs/domain/judging.md, "Program And Results".
  *
  * It reads results live and never asks whether they are published: the sheet
@@ -83,15 +83,15 @@ export async function loadResultsPrint(
     rows.map((row) => row.choreographyId),
   );
   // Only what has a result is printed: a presentation not evaluated yet, or
-  // disqualified, has no average and no medal to put on the sheet.
+  // disqualified, has no average and no award to put on the sheet.
   const printed = rows.flatMap((row): ResultsPrintRow[] => {
     const result = results.get(row.choreographyId);
 
-    if (!result || result.average === null || result.medal === null) {
+    if (!result || result.average === null || result.award === null) {
       return [];
     }
 
-    return [{ ...row, average: result.average, medal: result.medal }];
+    return [{ ...row, average: result.average, award: result.award }];
   });
   const printedScheduleIds = new Set(printed.map((row) => row.scheduleId));
 

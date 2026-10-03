@@ -95,7 +95,7 @@ describe("the results print dialog", () => {
 
     // In the order the schedules run, whatever order they were ticked in.
     expect(openWindow).toHaveBeenCalledWith(
-      "/administracion/presentacion/resultados/imprimir?cronograma=schedule-1&cronograma=schedule-2",
+      "/administracion/presentaciones/resultados/imprimir?cronograma=schedule-1&cronograma=schedule-2",
       "_blank",
       "noopener",
     );

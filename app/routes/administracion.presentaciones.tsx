@@ -7,7 +7,7 @@ import { PresentationsListView } from "@/features/admin/presentations/list/view"
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import type { Route } from "./+types/administracion.presentacion";
+import type { Route } from "./+types/administracion.presentaciones";
 
 export const meta = () => [
   { title: "Presentaciones | Panel de administración | En Escena" },

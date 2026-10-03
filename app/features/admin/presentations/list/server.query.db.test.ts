@@ -75,7 +75,7 @@ describe("the participation list's query", () => {
     );
 
     expect(response.headers.get("Location")).toBe(
-      "/administracion/presentacion?advertencias=con",
+      "/administracion/presentaciones?advertencias=con",
     );
   });
 });
@@ -83,7 +83,7 @@ describe("the participation list's query", () => {
 async function loadTheList(search: string) {
   const { request } = await createSignedInAdminRequest({
     email: `presentacion.consulta.${crypto.randomUUID()}@example.com`,
-    requestUrl: `http://localhost/administracion/presentacion${search}`,
+    requestUrl: `http://localhost/administracion/presentaciones${search}`,
     role: "admin",
   });
 
