@@ -19,7 +19,11 @@ import {
   addingCriteriaTotal,
   sumAddingCriteriaMaxima,
 } from "@/lib/judging/criteria";
-import { sheetGaps, type OfferedSheets } from "@/lib/judging/sheet-criteria";
+import {
+  sheetGaps,
+  sheetLevels,
+  type OfferedSheets,
+} from "@/lib/judging/sheet-criteria";
 
 import { mandatoryTechniqueLabel, SheetCriteriaView } from "./criteria-sheet";
 import type {
@@ -136,17 +140,9 @@ function SheetList({
   const general = criteria.filter(
     (criterion) => criterion.experienceLevel === null,
   );
-  const levels = [
-    ...sheets.levels,
-    ...criteria.flatMap((criterion) =>
-      criterion.experienceLevel &&
-      !sheets.levels.includes(criterion.experienceLevel)
-        ? [criterion.experienceLevel]
-        : [],
-    ),
-  ].filter((level, index, all) => all.indexOf(level) === index);
   // A level no category offers any more is still a sheet while it has
   // criteria, so its total is checked like the others.
+  const levels = sheetLevels(criteria, sheets);
   const gaps = sheetGaps(criteria, { ...sheets, levels });
   const isGap = (experienceLevel: ExperienceLevel | null) =>
     gaps.some((gap) => gap.experienceLevel === experienceLevel);

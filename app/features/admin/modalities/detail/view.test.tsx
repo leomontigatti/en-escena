@@ -24,8 +24,6 @@ vi.mock("react-router", async () => {
 });
 
 describe("EventModalityDetailView delete", () => {
-  const renderer = createReactDomTestRenderer();
-
   afterEach(() => {
     renderer.cleanup();
     useNavigationMock.mockReset();
@@ -34,7 +32,7 @@ describe("EventModalityDetailView delete", () => {
   test("confirms the delete through the shared alert dialog", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
-    await renderDetail();
+    await renderDetail({ initialDeleteDialogOpen: true });
 
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
     expect(document.body.textContent).toContain("¿Eliminar la modalidad?");
@@ -51,37 +49,76 @@ describe("EventModalityDetailView delete", () => {
       state: "submitting",
     });
 
-    await renderDetail();
+    await renderDetail({ initialDeleteDialogOpen: true });
 
     expect(getButton("Eliminar").disabled).toBe(true);
   });
-
-  async function renderDetail(
-    props: Partial<ComponentProps<typeof EventModalityDetailView>> = {},
-  ) {
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/administracion/modalidades/modality_1",
-          action: async () => null,
-          element: (
-            <EventModalityDetailView
-              loaderData={buildLoaderData()}
-              modalityId="modality_1"
-              initialDeleteDialogOpen
-              {...props}
-            />
-          ),
-        },
-      ],
-      { initialEntries: ["/administracion/modalidades/modality_1"] },
-    );
-
-    await renderer.renderAsync(<RouterProvider router={router} />);
-  }
 });
 
-function buildLoaderData(): EventModalitiesLoaderData {
+describe("EventModalityDetailView criteria status", () => {
+  afterEach(() => {
+    renderer.cleanup();
+    useNavigationMock.mockReset();
+  });
+
+  test("warns about the submodalities whose sheets are short of 100", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      loaderData: buildLoaderData({
+        submodalities: [
+          buildSubmodality("solo", "Solo"),
+          buildSubmodality("duo", "Dúo"),
+          buildSubmodality("grupal", "Grupal"),
+        ],
+        submodalityCriteria: [
+          buildCriterion("solo", 60),
+          buildCriterion("duo", 100),
+          buildCriterion("grupal", 30),
+        ],
+        modalitySheets: {
+          modality_1: { generalStandsAlone: true, levels: [] },
+        },
+      }),
+    });
+
+    const alert = document.querySelector('[role="alert"]');
+
+    expect(alert?.textContent).toContain("Planillas incompletas");
+    expect(alert?.textContent).toContain(
+      "Los criterios de Solo y Grupal no suman 100",
+    );
+  });
+});
+
+const renderer = createReactDomTestRenderer();
+
+async function renderDetail(
+  props: Partial<ComponentProps<typeof EventModalityDetailView>> = {},
+) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/administracion/modalidades/modality_1",
+        action: async () => null,
+        element: (
+          <EventModalityDetailView
+            loaderData={buildLoaderData()}
+            modalityId="modality_1"
+            {...props}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ["/administracion/modalidades/modality_1"] },
+  );
+
+  await renderer.renderAsync(<RouterProvider router={router} />);
+}
+
+function buildLoaderData(
+  overrides: Partial<EventModalitiesLoaderData> = {},
+): EventModalitiesLoaderData {
   return {
     selectedEventId: "event_1",
     modalities: [
@@ -96,5 +133,29 @@ function buildLoaderData(): EventModalitiesLoaderData {
     submodalityCriteria: [],
     lockedSubmodalityIds: [],
     modalitySheets: {},
+    ...overrides,
+  };
+}
+
+function buildSubmodality(id: string, name: string) {
+  return {
+    id,
+    eventId: "event_1",
+    modalityId: "modality_1",
+    name,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  };
+}
+
+function buildCriterion(submodalityId: string, maximum: number) {
+  return {
+    eventId: "event_1",
+    experienceLevel: null,
+    id: `criterion-${submodalityId}`,
+    kind: "adds" as const,
+    maximum,
+    name: "Técnica",
+    position: 0,
+    submodalityId,
   };
 }

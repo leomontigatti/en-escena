@@ -108,6 +108,9 @@ describe("scoring a submodality with criteria", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                day: "2026-08-22",
+                dayOptions: [],
+                isOpen: true,
                 judgingDate: "2026-08-22",
                 presentations: options.rows ?? presentations,
               }}
@@ -320,6 +323,9 @@ describe("scoring a submodality with criteria", () => {
             roleLabel: "Jurado",
             username: "ana.juez",
           },
+          day: "2026-08-22",
+          dayOptions: [],
+          isOpen: true,
           judgingDate: "2026-08-22",
           presentations: rows,
         }}
