@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type ComponentProps } from "react";
-import { useFetcher } from "react-router";
+import type { ComponentProps } from "react";
 
 import { PortalListPageActions } from "@/components/portal/list-page-actions";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
@@ -14,21 +13,16 @@ import {
   getParticipationBadgeVariant,
   getParticipationLabel,
 } from "@/lib/participation/participation.shared";
-import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   defaultRosterPersonStatusFilter,
   getRosterPersonStatusBadgeVariant,
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
-import { CreateProfessorDialog } from "@/features/portal/professors/create/dialog";
-import { type CreateProfessorActionData } from "@/features/portal/professors/create/shared";
 import { type PortalProfessorsListLoaderData } from "@/features/portal/professors/list/shared";
 
 type LoaderData = PortalProfessorsListLoaderData;
-type ActionData = CreateProfessorActionData;
 type ProfessorRow = LoaderData["professors"][number];
 type ProfessorBadge = {
   label: string;
@@ -82,103 +76,32 @@ const professorFacetedFilters: DataTableFacetedFiltersOf<
 
 export function PortalProfessorsListRouteView({
   loaderData,
-  actionData: providedActionData,
 }: {
   loaderData: LoaderData;
-  actionData?: ActionData;
 }) {
-  const createProfessorFetcher = useFetcher<ActionData>();
-  // A warning keeps the dialog open exactly as an error does: the values stay,
-  // and the academy answers the question the server asked.
-  const actionData =
-    keepsCreateProfessorDialogOpen(createProfessorFetcher.data) ??
-    keepsCreateProfessorDialogOpen(providedActionData);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
-    actionData?.modalOpen === true,
-  );
-  const [dismissServerState, setDismissServerState] = useState(false);
-  const [dialogResetKey, setDialogResetKey] = useState(0);
-  const previousCreateProfessorFetcherState = useRef(
-    createProfessorFetcher.state,
-  );
-
-  useEffect(() => {
-    if (actionData?.modalOpen === true) {
-      setIsCreateDialogOpen(true);
-      setDismissServerState(false);
-    }
-  }, [actionData]);
-
-  useEffect(() => {
-    const previousState = previousCreateProfessorFetcherState.current;
-    previousCreateProfessorFetcherState.current = createProfessorFetcher.state;
-
-    if (
-      previousState !== "idle" &&
-      createProfessorFetcher.state === "idle" &&
-      !keepsCreateProfessorDialogOpen(createProfessorFetcher.data)
-    ) {
-      setIsCreateDialogOpen(false);
-      setDismissServerState(true);
-      setDialogResetKey((currentValue) => currentValue + 1);
-    }
-  }, [createProfessorFetcher.data, createProfessorFetcher.state]);
-
-  const visibleActionData = dismissServerState ? undefined : actionData;
-
-  useServerActionToast(
-    createProfessorFetcher.data?.status === "success"
-      ? createProfessorFetcher.data
-      : undefined,
-    { toastId: notificationToasts["profesor-creado"].id },
-  );
-
   return (
-    <>
-      <PortalListPage
-        titleId="profesores-title"
-        title="Profesores"
-        description="Gestioná los profesores de tu academia y completá su identificación cuando tengas los datos."
-        action={
-          <PortalListPageActions
-            createLabel="Nuevo profesor"
-            documentDownloadUrls={loaderData.documentDownloadUrls}
-            kinds={professorDocumentKinds}
-            create={{
-              onClick: () => {
-                setDismissServerState(true);
-                setIsCreateDialogOpen(true);
-              },
-            }}
-          />
-        }
-      >
-        {loaderData.professors.length > 0 ? (
-          <ProfessorsTable professors={loaderData.professors} />
-        ) : (
-          <PortalEmptyState
-            title="Todavía no cargaste profesores"
-            description="Sumá el plantel docente de tu academia para empezar a vincularlo en las coreografías."
-          />
-        )}
-      </PortalListPage>
-
-      <CreateProfessorDialog
-        key={dialogResetKey}
-        actionData={visibleActionData}
-        isOpen={isCreateDialogOpen}
-        isSubmitting={createProfessorFetcher.state !== "idle"}
-        onOpenChange={(nextOpen) => {
-          setIsCreateDialogOpen(nextOpen);
-
-          if (!nextOpen) {
-            setDismissServerState(true);
-            setDialogResetKey((currentValue) => currentValue + 1);
-          }
-        }}
-        submit={createProfessorFetcher.submit}
-      />
-    </>
+    <PortalListPage
+      titleId="profesores-title"
+      title="Profesores"
+      description="Gestioná los profesores de tu academia y completá su identificación cuando tengas los datos."
+      action={
+        <PortalListPageActions
+          createLabel="Nuevo profesor"
+          createTo="/portal/profesores/nuevo"
+          documentDownloadUrls={loaderData.documentDownloadUrls}
+          kinds={professorDocumentKinds}
+        />
+      }
+    >
+      {loaderData.professors.length > 0 ? (
+        <ProfessorsTable professors={loaderData.professors} />
+      ) : (
+        <PortalEmptyState
+          title="Todavía no cargaste profesores"
+          description="Sumá el plantel docente de tu academia para empezar a vincularlo en las coreografías."
+        />
+      )}
+    </PortalListPage>
   );
 }
 
@@ -290,10 +213,4 @@ function getProfessorStateBadges(professor: ProfessorRow) {
   );
 
   return badges;
-}
-
-function keepsCreateProfessorDialogOpen(actionData?: ActionData) {
-  return actionData?.status === "error" || actionData?.status === "warning"
-    ? actionData
-    : undefined;
 }

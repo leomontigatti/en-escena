@@ -43,7 +43,7 @@ describe("handleCreateProfessorAction", () => {
   test("creates the professor with the normalized document pair", async () => {
     const owner = await createOwner("profesores.create.document@example.com");
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: " ana ",
@@ -53,7 +53,7 @@ describe("handleCreateProfessorAction", () => {
       }),
     });
 
-    expect(result).toMatchObject({ status: "success" });
+    expect(result).toMatchObject({ status: "created" });
     expect(await findAcademyProfessors(owner.academyId)).toEqual([
       expect.objectContaining({
         firstName: "Ana",
@@ -67,7 +67,7 @@ describe("handleCreateProfessorAction", () => {
   test("creates the professor without a document", async () => {
     const owner = await createOwner("profesores.create.nodocument@example.com");
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: "Ana",
@@ -77,7 +77,7 @@ describe("handleCreateProfessorAction", () => {
       }),
     });
 
-    expect(result).toMatchObject({ status: "success" });
+    expect(result).toMatchObject({ status: "created" });
     expect(await findAcademyProfessors(owner.academyId)).toEqual([
       expect.objectContaining({ documentType: null, documentNumber: null }),
     ]);
@@ -86,7 +86,7 @@ describe("handleCreateProfessorAction", () => {
   test("refuses a half document pair", async () => {
     const owner = await createOwner("profesores.create.halfpair@example.com");
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: "Ana",
@@ -98,8 +98,14 @@ describe("handleCreateProfessorAction", () => {
 
     expect(result).toMatchObject({
       status: "error",
+      message: "Revisá los campos marcados.",
       fieldErrors: { documentType: "Seleccioná el tipo de documento." },
-      modalOpen: true,
+      values: {
+        firstName: "Ana",
+        lastName: "Paz",
+        documentType: "",
+        documentNumber: "12345678",
+      },
     });
     expect(await findAcademyProfessors(owner.academyId)).toHaveLength(0);
   });
@@ -117,7 +123,7 @@ describe("handleCreateProfessorAction", () => {
       })
       .returning();
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: "Ana",
@@ -152,7 +158,7 @@ describe("handleCreateProfessorAction", () => {
       })
       .returning();
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: "Ana",
@@ -183,7 +189,7 @@ describe("handleCreateProfessorAction", () => {
       documentNumber: "12345678",
     });
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: "Ana",
@@ -193,7 +199,7 @@ describe("handleCreateProfessorAction", () => {
       }),
     });
 
-    expect(result).toMatchObject({ status: "success" });
+    expect(result).toMatchObject({ status: "created" });
   });
 
   test("maps the unique violation to the field error when the pre-check misses it", async () => {
@@ -213,7 +219,7 @@ describe("handleCreateProfessorAction", () => {
     // name, so the document twin is what refuses and not the name warning.
     findProfessorDocumentConflictMock.mockResolvedValueOnce(null);
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: "Luz",
@@ -245,7 +251,7 @@ describe("handleCreateProfessorAction", () => {
       })
       .returning();
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: " ana ",
@@ -262,7 +268,12 @@ describe("handleCreateProfessorAction", () => {
         matches: [{ id: existing.id, label: "Ana Paz" }],
         scope: "portal",
       },
-      modalOpen: true,
+      values: {
+        firstName: " ana ",
+        lastName: "paz",
+        documentType: "",
+        documentNumber: "",
+      },
     });
     expect(await findAcademyProfessors(owner.academyId)).toHaveLength(1);
   });
@@ -278,7 +289,7 @@ describe("handleCreateProfessorAction", () => {
       })
       .returning();
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: "rosa",
@@ -314,12 +325,12 @@ describe("handleCreateProfessorAction", () => {
     });
     formData.append(acknowledgedDuplicateIdsField, existing.id);
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData,
     });
 
-    expect(result).toMatchObject({ status: "success" });
+    expect(result).toMatchObject({ status: "created" });
     expect(await findAcademyProfessors(owner.academyId)).toHaveLength(2);
   });
 
@@ -335,7 +346,7 @@ describe("handleCreateProfessorAction", () => {
       documentNumber: "12345678",
     });
 
-    const result = await handleCreateProfessorAction({
+    const result = await submitCreateProfessor({
       academyId: owner.academyId,
       formData: createFormData({
         firstName: "Ana",
@@ -354,6 +365,50 @@ describe("handleCreateProfessorAction", () => {
     });
   });
 });
+
+describe("handleCreateProfessorAction redirect", () => {
+  test("goes back to the list with the created toast in the flash session", async () => {
+    const owner = await createOwner("profesores.create.redirect@example.com");
+
+    const result = await submitCreateProfessor({
+      academyId: owner.academyId,
+      formData: createFormData({
+        firstName: "Ana",
+        lastName: "Paz",
+        documentType: "",
+        documentNumber: "",
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: "created",
+      location: "/portal/profesores",
+    });
+    expect(result.status === "created" && result.setCookie).toBeTruthy();
+  });
+});
+
+/**
+ * The action's answer, with the redirect a successful save throws read as a
+ * value so every test can assert on one shape.
+ */
+async function submitCreateProfessor(
+  input: Parameters<typeof handleCreateProfessorAction>[0],
+) {
+  try {
+    return await handleCreateProfessorAction(input);
+  } catch (thrown) {
+    if (thrown instanceof Response && thrown.status === 302) {
+      return {
+        status: "created" as const,
+        location: thrown.headers.get("Location"),
+        setCookie: thrown.headers.get("Set-Cookie"),
+      };
+    }
+
+    throw thrown;
+  }
+}
 
 async function createOwner(email: string, academyName = "Academia Dueña") {
   return await createAcademySession({ academyName, email });

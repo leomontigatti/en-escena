@@ -12,6 +12,7 @@ import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning
 import { SelectField } from "@/components/shared/select-field";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
+import { useLastRefusedValues } from "@/lib/shared/forms";
 import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import {
@@ -40,17 +41,16 @@ export function CreateDancerPage({
   actionData?: CreateDancerActionData | UnexpectedActionError;
   eventStartDate: string | null;
 }) {
-  // A crash answers with a message alone: there is nothing to refill, and
-  // what was typed stays where it is.
   const refusal =
     actionData !== undefined && "values" in actionData ? actionData : undefined;
+  const refusedValues = useLastRefusedValues(refusal?.values);
   const submit = useSubmit();
   const navigation = useNavigation();
   const form = usePortalDancerForm({
     eventStartDate,
     savedValues: emptyDancerValues,
     submit,
-    values: refusal?.values ?? emptyDancerValues,
+    values: refusedValues ?? emptyDancerValues,
   });
   const documentConflictDescription = useRosterDocumentConflictField({
     actionData: refusal,
