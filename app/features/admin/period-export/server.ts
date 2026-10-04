@@ -7,13 +7,17 @@ import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 
-import { readExportPeriod, type ExportPeriod } from "./shared";
+import {
+  periodToBeforeFromMessage,
+  readExportPeriod,
+  type ExportPeriod,
+} from "./shared";
 
 /**
  * What every auditor export reads before its own rows: the auditor, the event
  * selected in the shell and the period asked for. The exports are the
  * auditor's alone for now (PRD #1448), so the administrator is refused too.
- * Not found only when there is no event, which the list itself already says;
+ * A reversed period is refused with 400. Not found only when there is no event, which the list itself already says;
  * a period with nothing in it is still a file.
  */
 export async function readPeriodExport(request: Request): Promise<{
@@ -22,6 +26,12 @@ export async function readPeriodExport(request: Request): Promise<{
   period: ExportPeriod;
 }> {
   await requireInternalUser(request, ["auditor"]);
+  const period = readExportPeriod(new URL(request.url).searchParams);
+
+  if (period.from !== null && period.to !== null && period.from > period.to) {
+    throw new Response(periodToBeforeFromMessage, { status: 400 });
+  }
+
   const { selectedEventId } = await loadEventContext(request);
   const [event] =
     selectedEventId === null
@@ -38,7 +48,7 @@ export async function readPeriodExport(request: Request): Promise<{
   return {
     eventId: event.id,
     eventName: event.name,
-    period: readExportPeriod(new URL(request.url).searchParams),
+    period,
   };
 }
 

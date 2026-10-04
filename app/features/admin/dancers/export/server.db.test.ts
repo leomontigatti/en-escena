@@ -128,6 +128,20 @@ describe("the dancers export", () => {
     expect(rows).toEqual([header]);
   });
 
+  test("rejects a period whose end is before its start", async () => {
+    await seedPeriodExportFixture();
+
+    await expectThrownResponse(
+      loadDancersExport(
+        await periodExportRequest(dancersExportPath, {
+          from: "2026-05-01",
+          to: "2026-04-01",
+        }),
+      ),
+      400,
+    );
+  });
+
   test.each(["admin", "academy", "judge"] as const)(
     "refuses the %s",
     async (role) => {
