@@ -23,7 +23,6 @@ import {
   activateEvent,
   deactivateEvent,
   deleteEvent,
-  setEventVisibility,
   updateEvent,
   type EventMutationResult,
 } from "@/lib/events/management.server";
@@ -45,11 +44,7 @@ import {
 
 type EventRouteNotification = Extract<
   NotificationKey,
-  | "evento-activado"
-  | "evento-desactivado"
-  | "evento-guardado"
-  | "programa-visible"
-  | "programa-oculto"
+  "evento-activado" | "evento-desactivado" | "evento-guardado"
 >;
 
 export async function loadEventDetail(
@@ -114,18 +109,6 @@ export async function updateAdministrativeEvent(
       }
 
       return redirectAfterDeletion(await deleteEvent(eventId));
-
-    case "set-program-visibility": {
-      const programVisible = formData.get("value") === "true";
-
-      return updateVisibility(
-        eventId,
-        {
-          programVisible,
-        },
-        programVisible ? "programa-visible" : "programa-oculto",
-      );
-    }
 
     default:
       return actionError("No pudimos procesar esa acción.");
@@ -234,14 +217,6 @@ async function applyEventDocumentChange({
   }
 
   return { ok: true };
-}
-
-function updateVisibility(
-  eventId: string,
-  visibility: Parameters<typeof setEventVisibility>[1],
-  notification: EventRouteNotification,
-) {
-  return successOrError(setEventVisibility(eventId, visibility), notification);
 }
 
 async function redirectAfterDeletion(

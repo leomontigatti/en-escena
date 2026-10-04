@@ -35,9 +35,11 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { PresentationListActions } from "./actions-menu";
 import { JudgeAssignmentDialog } from "./judge-dialogs";
-import { MusicDownloadDialog } from "./music-download-dialog";
-import { ProgramExportDialog } from "./program-export-dialog";
-import { ResultsPrintDialog } from "../results-print/dialog";
+import {
+  PresentationOutputDialog,
+  readProgramToggle,
+  type OutputDialog,
+} from "./output-dialogs";
 import {
   OrderingConfirmationDialog,
   PresentationDayTabs,
@@ -448,6 +450,7 @@ export function PresentationsListView({
           onJudges={setJudgeDialogMode}
           onOrder={() => setIsOrderingDialogOpen(true)}
           onPrintResults={() => setOutputDialog("resultsPrint")}
+          programToggle={readProgramToggle(loaderData)}
         />
       }
     >
@@ -528,58 +531,6 @@ export function PresentationsListView({
       ) : null}
     </AdminResourceLayout>
   );
-}
-
-/** The dialogs that hand something out of the list rather than change it. */
-type OutputDialog = "musicDownload" | "programExport" | "resultsPrint";
-
-function PresentationOutputDialog({
-  dialog,
-  loaderData,
-  onClose,
-}: {
-  dialog: OutputDialog | null;
-  loaderData: PresentationListResult;
-  onClose: () => void;
-}) {
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
-      onClose();
-    }
-  };
-
-  if (dialog === "resultsPrint") {
-    return (
-      <ResultsPrintDialog
-        open
-        onOpenChange={onOpenChange}
-        schedules={loaderData.printableSchedules}
-      />
-    );
-  }
-
-  if (dialog === "musicDownload") {
-    return (
-      <MusicDownloadDialog
-        days={loaderData.musicDownloadDays}
-        defaultDay={loaderData.filters.day}
-        open
-        onOpenChange={onOpenChange}
-      />
-    );
-  }
-
-  if (dialog === "programExport") {
-    return (
-      <ProgramExportDialog
-        days={loaderData.programExportDays}
-        open
-        onOpenChange={onOpenChange}
-      />
-    );
-  }
-
-  return null;
 }
 
 function PresentationStatusBadge({ row }: { row: PresentationListItem }) {
