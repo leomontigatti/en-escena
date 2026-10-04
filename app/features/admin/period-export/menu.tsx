@@ -24,12 +24,7 @@ export function PeriodExportMenu({
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            setIsDialogOpen(true);
-          }}
-        >
+        <DropdownMenuItem onSelect={() => setIsDialogOpen(true)}>
           Exportar
         </DropdownMenuItem>
       </ResourceActionsMenu>

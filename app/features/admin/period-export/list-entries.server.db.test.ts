@@ -41,7 +41,7 @@ function render(path: string, element: ReactElement) {
 
 /** Whether the list's header carries the actions menu that holds `Exportar`. */
 function offersExportMenu(markup: string) {
-  return markup.includes('aria-label="Acciones"');
+  return /Acciones<\/button>/.test(markup);
 }
 
 const lists = [
