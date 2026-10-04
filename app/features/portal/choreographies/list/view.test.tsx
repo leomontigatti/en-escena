@@ -50,6 +50,28 @@ describe("PortalChoreographiesListRouteView", () => {
     );
   });
 
+  test("answers `Nueva coreografía` with no selected event with the reason", async () => {
+    await renderer.renderAsync(
+      <RouterProvider
+        router={buildChoreographiesRouter({
+          loaderData: choreographiesLoaderData({
+            eventContext: portalEventContext({
+              selectedEvent: null,
+              activeEvent: null,
+              hasActiveEvent: false,
+            }),
+          }),
+        })}
+      />,
+    );
+
+    await clickReactDomButton("Nueva coreografía");
+
+    expect(
+      document.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain("No hay un evento seleccionado para registrar coreografías.");
+  });
+
   test("does not expose missing active event bases before creation", () => {
     const selectedEvent = eventSummary({
       id: "event_active",

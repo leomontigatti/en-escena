@@ -694,6 +694,31 @@ describe("SeminarDetailView delete dialog", () => {
     expect(dialog?.querySelector("form")).toBeNull();
   });
 
+  test("names no way out while a withdrawn inscription stands beside registered ones", async () => {
+    await renderAt(
+      "/administracion/seminarios/seminar_1",
+      <SeminarDetailView
+        initialDeleteDialogOpen
+        loaderData={{
+          hasComprobantes: false,
+          hasCoveredInscription: false,
+          inscriptions: [buildInscription()],
+          instructorPictureUrl: null,
+          selectedEventId: "event_1",
+          seminar: buildSeminar({ inscriptionCount: 2, registeredCount: 1 }),
+          values: toSeminarFormValues(buildSeminar()),
+        }}
+      />,
+    );
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain(
+      "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
+    );
+    expect(dialog?.textContent).not.toContain("seguir el orden");
+  });
+
   test("offers the destructive button once nobody is registered", async () => {
     await renderAt(
       "/administracion/seminarios/seminar_1",

@@ -62,13 +62,11 @@ export function PortalChoreographiesListRouteView({
       title="Coreografías"
       description="Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo."
       action={
-        selectedEvent ? (
-          <NewChoreographyButton
-            blockers={creationAvailability.blockers.map(
-              (blocker) => blocker.message,
-            )}
-          />
-        ) : null
+        <NewChoreographyButton
+          blockers={creationAvailability.blockers.map(
+            (blocker) => blocker.message,
+          )}
+        />
       }
     >
       {selectedEvent && loaderData.choreographies.length > 0 ? (

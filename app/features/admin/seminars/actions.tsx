@@ -103,10 +103,15 @@ function describeBlockedDeletion({
     };
   }
 
+  // A withdrawn row (an inscription that is not registered) blocks the delete
+  // for good, so any of them leaves no order of steps that ends in a delete.
+  const hasWithdrawnInscriptions =
+    seminar.inscriptionCount > seminar.registeredCount;
+
   return {
     reasons,
     wayOut:
-      seminar.registeredCount > 0
+      seminar.registeredCount > 0 && !hasWithdrawnInscriptions
         ? "Importante: seguir el orden para eliminarlo correctamente. Quitar el dinero de todas las inscripciones y después eliminarlas desde la lista de inscriptos."
         : "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
   };
