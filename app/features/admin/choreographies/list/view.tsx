@@ -23,10 +23,12 @@ import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { describeEmptyList } from "@/lib/list-query/list-query";
+import { participationCountsExportPath } from "@/features/admin/choreographies/export/shared";
+import { PeriodExportMenu } from "@/features/admin/period-export/menu";
 
-import type { loadChoreographies } from "./server";
+import type { loadChoreographyListRouteData } from "./server";
 
-type LoaderData = Awaited<ReturnType<typeof loadChoreographies>>;
+type LoaderData = Awaited<ReturnType<typeof loadChoreographyListRouteData>>;
 type ChoreographyRow = LoaderData["choreographies"][number];
 
 type ChoreographiesListRouteViewProps = {
@@ -172,6 +174,15 @@ export function ChoreographiesListRouteView({
         description:
           "Activá un evento para consultar las coreografías registradas por las academias.",
       }}
+      headerAction={
+        loaderData.canWrite ? undefined : (
+          <PeriodExportMenu
+            description="Cuántas academias, bailarines e inscripciones activas tuvo el evento activo en el período, por provincia y por modalidad. Dejá una fecha vacía para no acotar ese extremo."
+            path={participationCountsExportPath}
+            title="Exportar inscripciones"
+          />
+        )
+      }
     >
       {hasChoreographyTableContent(loaderData) ? (
         <ChoreographyTable loaderData={loaderData} />

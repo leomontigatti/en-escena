@@ -5,6 +5,8 @@ import { describe, expect, test } from "vitest";
 
 import { loadAcademiesList } from "@/features/admin/academies/list/server";
 import { AcademiesListRouteView } from "@/features/admin/academies/list/view";
+import { loadChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
+import { ChoreographiesListRouteView } from "@/features/admin/choreographies/list/view";
 import { loadDancersList } from "@/features/admin/dancers/list/server";
 import { DancersListRouteView } from "@/features/admin/dancers/list/view";
 import { loadProfessorsList } from "@/features/admin/professors/list/server";
@@ -71,6 +73,17 @@ const lists = [
         "/administracion/academias",
         createElement(AcademiesListRouteView, {
           loaderData: await loadAcademiesList(request),
+        }),
+      ),
+  },
+  {
+    label: "Coreografías",
+    path: "/administracion/coreografias",
+    renderList: async (request: Request) =>
+      render(
+        "/administracion/coreografias",
+        createElement(ChoreographiesListRouteView, {
+          loaderData: await loadChoreographyListRouteData(request),
         }),
       ),
   },

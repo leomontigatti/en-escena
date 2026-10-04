@@ -44,6 +44,9 @@ const provinceValues = provinceOptions.map(({ value }) => value) as [
   ...Province[],
 ];
 
+/** What academies without a province are grouped under in a report. */
+export const noProvinceLabel = "Sin provincia";
+
 export function formatProvinceLabel(province: Province | null) {
   return (
     provinceOptions.find((option) => option.value === province)?.label ?? null

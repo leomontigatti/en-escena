@@ -3,10 +3,11 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academies,
-  choreographies,
   choreographyDancers,
   choreographyProfessors,
   modalities,
+  seminarInscriptions,
+  seminars,
 } from "@/db/schema";
 import {
   createChoreographyRecord,
@@ -112,11 +113,31 @@ export async function seedPeriodExportFixture() {
     return inscription;
   };
 
-  const withdrawChoreography = async (choreographyId: string) => {
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: new Date() })
-      .where(eq(choreographies.id, choreographyId));
+  /** A seminar inscription of the dancer, in a seminar of the event. */
+  const addSeminarInscription = async (input: {
+    dancerId: string;
+    registeredAt: string;
+  }) => {
+    const [seminar] = await db
+      .insert(seminars)
+      .values({
+        eventId: event.id,
+        instructorName: `Instructor ${crypto.randomUUID()}`,
+        quota: 20,
+        scheduledDate: "2026-05-02",
+        startTime: "10:00",
+      })
+      .returning();
+    const [inscription] = await db
+      .insert(seminarInscriptions)
+      .values({
+        createdAt: new Date(input.registeredAt),
+        dancerId: input.dancerId,
+        seminarId: seminar.id,
+      })
+      .returning();
+
+    return inscription;
   };
 
   return {
@@ -125,10 +146,10 @@ export async function seedPeriodExportFixture() {
     addDancer: createDancer,
     addModality,
     addProfessor: createProfessor,
+    addSeminarInscription,
     catalog,
     event,
     inscribe,
-    withdrawChoreography,
   };
 }
 
