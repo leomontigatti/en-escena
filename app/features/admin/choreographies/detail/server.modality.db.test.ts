@@ -344,7 +344,7 @@ describe("administrative choreography modality correction", () => {
       {
         code: "price-change",
         label:
-          "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
+          "La modalidad solo se puede corregir si el cronograma resultante mantiene el precio.",
       },
     ]);
     expect(
