@@ -418,7 +418,8 @@ describe("`/administracion/usuarios/:userId` route", () => {
     ).resolves.toMatchObject({ role: "admin" });
   });
 
-  test("allows admin and auditor access, blocks academy and judge users, and renders readonly internal and academy detail views", async () => {
+  // The auditor is refused: users are not reviewed for them yet (PRD #1448).
+  test("allows admin access, blocks auditor, academy and judge users, and renders the internal and academy detail views", async () => {
     const internalUser = await createSignedInRequest({
       email: "admin.detalle.usuario@example.com",
       role: "admin",
@@ -486,14 +487,10 @@ describe("`/administracion/usuarios/:userId` route", () => {
         userType: "internal",
       },
     });
-    await expect(
+    await expectThrownResponse(
       detailLoader(detailRouteArgs(auditorRequest, internalUser.userId)),
-    ).resolves.toMatchObject({
-      user: {
-        id: internalUser.userId,
-        userType: "internal",
-      },
-    });
+      403,
+    );
     await expectThrownResponse(
       detailLoader(detailRouteArgs(academyViewer.request, internalUser.userId)),
       403,
@@ -505,10 +502,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
 
     const internalMarkup = renderDetailRoute(
       internalDetailData,
-      internalUser.userId,
-    );
-    const auditorInternalMarkup = renderDetailRoute(
-      await detailLoader(detailRouteArgs(auditorRequest, internalUser.userId)),
       internalUser.userId,
     );
 
@@ -530,16 +523,12 @@ describe("`/administracion/usuarios/:userId` route", () => {
     expect(internalMarkup).toContain("Acciones");
     expect(internalMarkup).not.toContain("Restablecer contraseña");
     expect(internalMarkup).not.toContain("Suspender usuario");
-    expect(auditorInternalMarkup).not.toContain("Editar datos");
-    expect(auditorInternalMarkup).not.toContain("Restablecer contraseña");
-    expect(auditorInternalMarkup).not.toContain("Suspender usuario");
-    expect(auditorInternalMarkup).not.toContain("Guardar");
 
     const academyDetailRequest = new Request(
       `http://localhost/administracion/usuarios/${academyUser.userId}`,
       {
         headers: {
-          cookie: auditorRequest.headers.get("cookie") ?? "",
+          cookie: adminRequest.headers.get("cookie") ?? "",
         },
       },
     );

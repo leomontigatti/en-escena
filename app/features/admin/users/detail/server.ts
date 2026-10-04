@@ -46,7 +46,7 @@ export async function loader({
   request,
   params,
 }: LoaderArgs): Promise<UserDetailLoaderData> {
-  const appUser = await requireInternalUser(request, ["admin", "auditor"]);
+  const appUser = await requireInternalUser(request, ["admin"]);
   const userId = requireUserId(params.userId);
   const savedUser = await findDetailUserRow(userId);
 

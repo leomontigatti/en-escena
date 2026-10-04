@@ -61,7 +61,7 @@ export async function loadChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
 }) {
-  await requireInternalUser(input.request, ["admin", "auditor"]);
+  await requireInternalUser(input.request, ["admin"]);
 
   const academyId = readFinanceAcademyId(input.params);
   const choreographyId = readChoreographyId(input.params);

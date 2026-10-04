@@ -49,7 +49,7 @@ const resultsListSpec: ListQuerySpec<ResultsOrder["columnId"]> = {
 };
 
 export async function loadResultsListRouteData(request: Request) {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireInternalUser(request, ["admin"]);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {

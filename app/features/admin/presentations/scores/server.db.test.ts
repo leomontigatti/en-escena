@@ -82,7 +82,8 @@ describe("the presentation's scores route", () => {
     });
   });
 
-  test("lets an auditor read it and withholds the edits", async () => {
+  // Not reviewed for the auditor yet (PRD #1448): the panel refuses them.
+  test("turns an auditor away from the panel", async () => {
     const presentation = await seedScoredPresentation();
     const { request } = await createSignedInRequest({
       email: "auditor.puntajes@example.com",
@@ -90,12 +91,13 @@ describe("the presentation's scores route", () => {
       role: "auditor",
     });
 
-    await expect(
+    await expectThrownResponse(
       loadPresentationScoresRouteData({
         params: { presentationId: presentation.presentationId },
         request,
       }),
-    ).resolves.toMatchObject({ canEdit: false });
+      403,
+    );
   });
 
   test("turns an academy away from the panel", async () => {

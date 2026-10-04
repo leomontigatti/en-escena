@@ -37,7 +37,7 @@ export async function loadAcademyFinances(input: {
   params: { academyId?: string };
   request: Request;
 }) {
-  await requireInternalUser(input.request, ["admin", "auditor"]);
+  await requireInternalUser(input.request, ["admin"]);
   const eventContext = await loadEventContext(input.request);
   const academy = await readFinanceAcademy(readFinanceAcademyId(input.params));
 

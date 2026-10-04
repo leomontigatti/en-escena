@@ -21,7 +21,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("`/administracion/usuarios` route", () => {
-  test("allows admin and auditor access, blocks academy and judge users, and renders the filtered users list", async () => {
+  test("allows admin access, blocks auditor, academy and judge users, and renders the filtered users list", async () => {
     const admin = await createSignedInRequest({
       email: "admin.usuarios.lista@example.com",
       role: "admin",
@@ -63,9 +63,8 @@ describe("`/administracion/usuarios` route", () => {
     await expect(loader(routeArgs(admin.request))).resolves.toMatchObject({
       canManage: true,
     });
-    await expect(loader(routeArgs(auditor.request))).resolves.toMatchObject({
-      canManage: false,
-    });
+    // Users are not reviewed for the auditor yet (PRD #1448).
+    await expectThrownResponse(loader(routeArgs(auditor.request)), 403);
     await expectThrownResponse(loader(routeArgs(academyUser.request)), 403);
 
     const { request: judgeRequest } = await createSignedInRequest({

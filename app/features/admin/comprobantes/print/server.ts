@@ -44,7 +44,7 @@ export async function loadComprobantePrint(
   request: Request,
   comprobanteId: string,
 ): Promise<Response> {
-  await requireInternalUser(request, ["admin", "auditor"]);
+  await requireInternalUser(request, ["admin"]);
 
   const record = await getComprobantePrintRecord(comprobanteId);
 

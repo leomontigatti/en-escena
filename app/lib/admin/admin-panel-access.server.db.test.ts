@@ -25,6 +25,46 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+/**
+ * Every administration route module, the layout's children and the resource
+ * routes beside it. A route added later lands in the refused set unless it is
+ * reviewed for the auditor and named below.
+ */
+const administrationRoutes = import.meta.glob<{ loader?: ChildLoader }>(
+  ["/app/routes/administracion.*.tsx", "/app/routes/administracion_.*.tsx"],
+  { eager: true },
+);
+
+/** The routes reviewed for the auditor (PRD #1448): the five sections and their exports. */
+const auditorReviewedRoutes = new Set([
+  "administracion._index",
+  "administracion.academias",
+  "administracion.academias_.$academyId",
+  "administracion.bailarines",
+  "administracion.bailarines_.$dancerId",
+  "administracion.profesores",
+  "administracion.profesores_.$professorId",
+  "administracion.coreografias",
+  "administracion.coreografias_.$choreographyId",
+  "administracion.pagos",
+  "administracion.pagos_.$paymentId",
+  "administracion_.academias.exportar",
+  "administracion_.bailarines.exportar",
+  "administracion_.profesores.exportar",
+  "administracion_.coreografias.exportar",
+  "administracion_.pagos.exportar",
+]);
+
+const unreviewedRoutes = Object.entries(administrationRoutes).flatMap(
+  ([file, module]) => {
+    const id = file.replace("/app/routes/", "").replace(/\.tsx$/, "");
+
+    return module.loader && !auditorReviewedRoutes.has(id)
+      ? [{ id, loader: module.loader }]
+      : [];
+  },
+);
+
 type ChildLoader = (args: {
   context: never;
   params: Record<string, string>;
@@ -176,6 +216,38 @@ describe("the administration panel for an auditor", () => {
     async (_label, path, child) => {
       await expectThrownResponse(
         openPanelScreen({ child: child as ChildLoader, path, role: "auditor" }),
+        403,
+      );
+    },
+  );
+
+  test("finds the reviewed routes among the route modules", () => {
+    const ids = Object.keys(administrationRoutes).map((file) =>
+      file.replace("/app/routes/", "").replace(/\.tsx$/, ""),
+    );
+
+    expect(ids).toEqual(expect.arrayContaining([...auditorReviewedRoutes]));
+    expect(unreviewedRoutes.length).toBeGreaterThan(20);
+  });
+
+  test.each(unreviewedRoutes)(
+    "refuses the auditor the unreviewed $id, by direct URL",
+    async ({ id, loader }) => {
+      // Any id will do: the guard answers before the record is looked up.
+      const params = Object.fromEntries(
+        [...id.matchAll(/\$(\w+)/g)].map(([, name]) => [
+          name,
+          crypto.randomUUID(),
+        ]),
+      );
+
+      await expectThrownResponse(
+        openPanelScreen({
+          child: loader,
+          params,
+          path: `/${id.replace(/[._]+/g, "/")}`,
+          role: "auditor",
+        }),
         403,
       );
     },
