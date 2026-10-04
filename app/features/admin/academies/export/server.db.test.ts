@@ -117,6 +117,37 @@ describe("the academies export", () => {
     expect(rows.slice(1).map((row) => row[0])).toEqual(["Estudio Ritmo"]);
   });
 
+  test("lists an academy whose only registration in the period is a seminar inscription of its roster", async () => {
+    const fixture = await seedPeriodExportFixture();
+    const byDancer = await fixture.addAcademy({ name: "Academia Bailarina" });
+    const byProfessor = await fixture.addAcademy({
+      name: "Academia Profesora",
+    });
+    const withdrawnOnly = await fixture.addAcademy({
+      name: "Academia Retirada",
+    });
+    await fixture.addSeminarInscription({
+      dancerId: (await fixture.addDancer(byDancer.id)).id,
+      registeredAt: "2026-04-10T15:00:00Z",
+    });
+    await fixture.addSeminarInscription({
+      professorId: (await fixture.addProfessor(byProfessor.id)).id,
+      registeredAt: "2026-04-10T15:00:00Z",
+    });
+    await fixture.addSeminarInscription({
+      dancerId: (await fixture.addDancer(withdrawnOnly.id)).id,
+      registeredAt: "2026-04-10T15:00:00Z",
+      withdrawn: true,
+    });
+
+    const { rows } = await exportRows({ from: "2026-04-01", to: "2026-04-30" });
+
+    expect(rows.slice(1).map((row) => row[0])).toEqual([
+      "Academia Bailarina",
+      "Academia Profesora",
+    ]);
+  });
+
   test("downloads the headers and no rows for a period with nothing in it", async () => {
     await seedPeriodExportFixture();
 

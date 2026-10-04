@@ -187,6 +187,32 @@ describe("the professors export", () => {
     expect(rows).toHaveLength(1);
   });
 
+  test("lists a professor whose only registration in the period is a seminar inscription", async () => {
+    const fixture = await seedPeriodExportFixture();
+    const academy = await fixture.addAcademy({ name: "Estudio Ritmo" });
+    const professor = await fixture.addProfessor(academy.id, {
+      firstName: "Solo",
+      lastName: "Seminario",
+    });
+    const withdrawn = await fixture.addProfessor(academy.id, {
+      firstName: "Retirado",
+      lastName: "Seminario",
+    });
+    await fixture.addSeminarInscription({
+      professorId: professor.id,
+      registeredAt: "2026-04-10T15:00:00Z",
+    });
+    await fixture.addSeminarInscription({
+      professorId: withdrawn.id,
+      registeredAt: "2026-04-10T15:00:00Z",
+      withdrawn: true,
+    });
+
+    const { rows } = await exportRows({ from: "2026-04-01", to: "2026-04-30" });
+
+    expect(rows.slice(1).map((row) => row[0])).toEqual(["Solo Seminario"]);
+  });
+
   test("downloads the headers and no rows for a period with nothing in it", async () => {
     await seedPeriodExportFixture();
 

@@ -98,6 +98,35 @@ describe("the dancers export", () => {
     expect(rows.slice(1).map((row) => row[0])).toEqual(["Dentro Paz"]);
   });
 
+  test("lists a dancer whose only registration in the period is a seminar inscription, not a withdrawn one", async () => {
+    const fixture = await seedPeriodExportFixture();
+    const academy = await fixture.addAcademy({ name: "Estudio Ritmo" });
+    const seminarOnly = await fixture.addDancer(academy.id, {
+      firstName: "Seminario",
+    });
+    const withdrawn = await fixture.addDancer(academy.id, {
+      firstName: "Retirada",
+    });
+    await fixture.addSeminarInscription({
+      dancerId: seminarOnly.id,
+      registeredAt: "2026-04-10T15:00:00Z",
+    });
+    await fixture.addSeminarInscription({
+      dancerId: withdrawn.id,
+      registeredAt: "2026-04-10T15:00:00Z",
+      withdrawn: true,
+    });
+    await fixture.addSeminarInscription({
+      dancerId: (await fixture.addDancer(academy.id, { firstName: "Marzo" }))
+        .id,
+      registeredAt: "2026-03-10T15:00:00Z",
+    });
+
+    const { rows } = await exportRows({ from: "2026-04-01", to: null });
+
+    expect(rows.slice(1).map((row) => row[0])).toEqual(["Seminario Paz"]);
+  });
+
   test("leaves the document cells blank for a dancer who has none", async () => {
     const fixture = await seedPeriodExportFixture();
     const academy = await fixture.addAcademy({ name: "Estudio Ritmo" });

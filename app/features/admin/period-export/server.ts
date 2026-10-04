@@ -1,10 +1,17 @@
 import { and, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographies, choreographyDancers, events } from "@/db/schema";
+import {
+  choreographies,
+  choreographyDancers,
+  events,
+  seminarInscriptions,
+  seminars,
+} from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 
 import {
@@ -84,6 +91,23 @@ export function inscriptionRegisteredInPeriod(
     eq(choreographies.eventId, eventId),
     activeInscription(),
     timestampInPeriod(choreographyDancers.createdAt, period),
+  );
+}
+
+/**
+ * The seminar twin, for the three lists (not the counts, which have no
+ * modality to give a seminar): an active seminar inscription in a seminar of
+ * the event, registered in the period by its `createdAt`, the date the person
+ * was first registered. The query joins `seminarInscriptions` to `seminars`.
+ */
+export function seminarInscriptionRegisteredInPeriod(
+  eventId: string,
+  period: ExportPeriod,
+): SQL | undefined {
+  return and(
+    eq(seminars.eventId, eventId),
+    activeSeminarInscription(),
+    timestampInPeriod(seminarInscriptions.createdAt, period),
   );
 }
 

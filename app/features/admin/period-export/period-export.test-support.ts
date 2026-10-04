@@ -115,11 +115,13 @@ export async function seedPeriodExportFixture() {
     return inscription;
   };
 
-  /** A seminar inscription of the dancer, in a seminar of the event. */
-  const addSeminarInscription = async (input: {
-    dancerId: string;
-    registeredAt: string;
-  }) => {
+  /** A seminar inscription of the roster person, in a seminar of the event. */
+  const addSeminarInscription = async (
+    input: ({ dancerId: string } | { professorId: string }) & {
+      registeredAt: string;
+      withdrawn?: boolean;
+    },
+  ) => {
     const [seminar] = await db
       .insert(seminars)
       .values({
@@ -134,8 +136,10 @@ export async function seedPeriodExportFixture() {
       .insert(seminarInscriptions)
       .values({
         createdAt: new Date(input.registeredAt),
-        dancerId: input.dancerId,
+        dancerId: "dancerId" in input ? input.dancerId : null,
+        professorId: "professorId" in input ? input.professorId : null,
         seminarId: seminar.id,
+        withdrawnAt: input.withdrawn ? new Date(input.registeredAt) : null,
       })
       .returning();
 

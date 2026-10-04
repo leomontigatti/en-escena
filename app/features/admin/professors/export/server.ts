@@ -1,4 +1,4 @@
-import { and, asc, eq, exists } from "drizzle-orm";
+import { and, asc, eq, exists, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -7,11 +7,14 @@ import {
   choreographyDancers,
   choreographyProfessors,
   professors,
+  seminarInscriptions,
+  seminars,
 } from "@/db/schema";
 import { spreadsheetResponse } from "@/features/admin/day-export/server";
 import {
   inscriptionRegisteredInPeriod,
   readPeriodExport,
+  seminarInscriptionRegisteredInPeriod,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
 
@@ -20,7 +23,8 @@ import { professorsExportColumns } from "./sheet";
 /**
  * The professors of the selected event as a spreadsheet, for the auditor. A
  * professor has no inscription of their own, so they are listed when a
- * choreography they teach has an active inscription registered in the period.
+ * choreography they teach has an active inscription registered in the period,
+ * or when they hold an active seminar inscription of their own registered in it.
  * One row per professor of an academy's roster, whatever the number of such
  * inscriptions.
  */
@@ -39,24 +43,38 @@ export async function loadProfessorsExport(
     .from(professors)
     .innerJoin(academies, eq(academies.id, professors.academyId))
     .where(
-      exists(
-        db
-          .select({ id: choreographyDancers.id })
-          .from(choreographyProfessors)
-          .innerJoin(
-            choreographies,
-            eq(choreographies.id, choreographyProfessors.choreographyId),
-          )
-          .innerJoin(
-            choreographyDancers,
-            eq(choreographyDancers.choreographyId, choreographies.id),
-          )
-          .where(
-            and(
-              eq(choreographyProfessors.professorId, professors.id),
-              inscriptionRegisteredInPeriod(eventId, period),
+      or(
+        exists(
+          db
+            .select({ id: choreographyDancers.id })
+            .from(choreographyProfessors)
+            .innerJoin(
+              choreographies,
+              eq(choreographies.id, choreographyProfessors.choreographyId),
+            )
+            .innerJoin(
+              choreographyDancers,
+              eq(choreographyDancers.choreographyId, choreographies.id),
+            )
+            .where(
+              and(
+                eq(choreographyProfessors.professorId, professors.id),
+                inscriptionRegisteredInPeriod(eventId, period),
+              ),
             ),
-          ),
+        ),
+        exists(
+          db
+            .select({ id: seminarInscriptions.id })
+            .from(seminarInscriptions)
+            .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+            .where(
+              and(
+                eq(seminarInscriptions.professorId, professors.id),
+                seminarInscriptionRegisteredInPeriod(eventId, period),
+              ),
+            ),
+        ),
       ),
     )
     .orderBy(
