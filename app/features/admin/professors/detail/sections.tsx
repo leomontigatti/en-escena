@@ -3,9 +3,15 @@ import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import { TriangleAlert } from "lucide-react";
 import type { SubmitEventHandler } from "react";
 
-import { AdminResourceFormCard } from "@/components/admin/resource-layout";
+import {
+  AdminEmptyState,
+  AdminResourceFormCard,
+} from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { FormActions } from "@/components/shared/form-actions";
+import { useResetListQuery } from "@/components/shared/data-table-url-state";
+import { ProfessorChoreographiesTable } from "@/components/shared/roster-inscriptions-table";
+import { RosterSeminarInscriptionsTable } from "@/components/shared/roster-seminar-inscriptions-table";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import {
@@ -19,6 +25,9 @@ import {
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { basePath as seminarsPath } from "@/features/admin/seminars/shared";
+import { choreographyDetailPath } from "@/lib/choreographies/admin-paths";
 
 import {
   ProfessorActionsMenu,
@@ -97,11 +106,99 @@ export function ProfessorDetailAlerts({
 }
 
 /**
- * The whole page form: the card of fields, closed by its pinned footer. Whoever
- * may edit gets the fields editable in place; anyone else sees them disabled with
- * only `Volver`.
+ * The professor's three tabs, the dancer's twin. `Identificación` is the whole
+ * page form: the card of fields, closed by its pinned footer. Whoever may edit
+ * gets the fields editable in place; anyone else sees them disabled with only
+ * `Volver`. `Inscripciones` and `Seminarios` are tables of their own, outside
+ * the card.
  */
 export function ProfessorDetailForm({
+  backToList,
+  canEdit,
+  choreographies,
+  editForm,
+  editFormId,
+  isSaving,
+  nameWarning,
+  onSubmit,
+  professor,
+  selectedEventId,
+  seminarInscriptions,
+}: {
+  backToList: string;
+  canEdit: boolean;
+  choreographies: ProfessorDetailLoaderData["choreographies"];
+  editForm: ProfessorEditFormController;
+  editFormId: string;
+  isSaving: boolean;
+  nameWarning?: RosterNameWarning;
+  onSubmit: SubmitEventHandler<HTMLFormElement>;
+  professor: ProfessorDetailLoaderData["professor"];
+  selectedEventId: string | null;
+  seminarInscriptions: ProfessorDetailLoaderData["seminarInscriptions"];
+}) {
+  const resetListQuery = useResetListQuery();
+
+  return (
+    <Tabs defaultValue="identificacion" onValueChange={resetListQuery}>
+      <TabsList variant="line">
+        <TabsTrigger value="identificacion">Identificación</TabsTrigger>
+        <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+        <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
+      </TabsList>
+      {/* Kept mounted behind the other tabs, so the leave guard in
+          `Guardar`'s footer still covers the draft from there. */}
+      <TabsContent
+        forceMount
+        value="identificacion"
+        className="pt-2 data-[state=inactive]:hidden"
+      >
+        <ProfessorIdentificationForm
+          backToList={backToList}
+          canEdit={canEdit}
+          editForm={editForm}
+          editFormId={editFormId}
+          isSaving={isSaving}
+          nameWarning={nameWarning}
+          onSubmit={onSubmit}
+          professor={professor}
+        />
+      </TabsContent>
+      <TabsContent value="inscripciones" className="pt-2">
+        {selectedEventId ? (
+          <ProfessorChoreographiesTable
+            buildChoreographyHref={choreographyDetailPath}
+            choreographies={choreographies}
+          />
+        ) : (
+          <NoSelectedEventState subject="inscripciones" />
+        )}
+      </TabsContent>
+      <TabsContent value="seminarios" className="pt-2">
+        {selectedEventId ? (
+          <RosterSeminarInscriptionsTable
+            buildSeminarHref={(seminarId) => `${seminarsPath}/${seminarId}`}
+            inscriptions={seminarInscriptions}
+            personKind="professor"
+          />
+        ) : (
+          <NoSelectedEventState subject="seminarios" />
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function NoSelectedEventState({ subject }: { subject: string }) {
+  return (
+    <AdminEmptyState
+      title="Sin evento activo"
+      description={`No hay un evento activo seleccionado para revisar ${subject}.`}
+    />
+  );
+}
+
+function ProfessorIdentificationForm({
   backToList,
   canEdit,
   editForm,

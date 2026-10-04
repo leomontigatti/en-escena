@@ -12,7 +12,9 @@ import { RecategorisedChoreographiesAlert } from "@/components/shared/recategori
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { FormActions } from "@/components/shared/form-actions";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
-import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
+import { DancerInscriptionsTable } from "@/components/shared/roster-inscriptions-table";
+import { RosterSeminarInscriptionsTable } from "@/components/shared/roster-seminar-inscriptions-table";
+import { useResetListQuery } from "@/components/shared/data-table-url-state";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
@@ -39,6 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { basePath as seminarsPath } from "@/features/admin/seminars/shared";
 
 import {
   DancerBirthDateField,
@@ -176,10 +179,10 @@ export function DancerDetailAlerts({
 }
 
 /**
- * The dancer's two tabs. `Identificación` is the whole page form: the card of
+ * The dancer's three tabs. `Identificación` is the whole page form: the card of
  * fields, closed by its pinned footer. Whoever may edit gets the fields
  * editable in place; anyone else sees them disabled with only `Volver`.
- * `Inscripciones` is a table of its own, outside the card.
+ * `Inscripciones` and `Seminarios` are tables of their own, outside the card.
  */
 export function DancerDetailForm({
   backToList,
@@ -204,11 +207,14 @@ export function DancerDetailForm({
   onSubmit: SubmitEventHandler<HTMLFormElement>;
   selectedEventId: string | null;
 }) {
+  const resetListQuery = useResetListQuery();
+
   return (
-    <Tabs defaultValue="identificacion">
+    <Tabs defaultValue="identificacion" onValueChange={resetListQuery}>
       <TabsList variant="line">
         <TabsTrigger value="identificacion">Identificación</TabsTrigger>
         <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+        <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
       </TabsList>
       {/* Kept mounted behind the other tab, so the leave guard in `Guardar`'s
           footer still covers the draft from there. */}
@@ -256,6 +262,12 @@ export function DancerDetailForm({
       <TabsContent value="inscripciones" className="pt-2">
         <InscriptionsSection
           inscriptions={dancer.inscriptions}
+          selectedEventId={selectedEventId}
+        />
+      </TabsContent>
+      <TabsContent value="seminarios" className="pt-2">
+        <SeminarInscriptionsSection
+          inscriptions={dancer.seminarInscriptions}
           selectedEventId={selectedEventId}
         />
       </TabsContent>
@@ -407,6 +419,31 @@ export function InscriptionsSection({
     <DancerInscriptionsTable
       buildChoreographyHref={choreographyDetailPath}
       inscriptions={inscriptions}
+    />
+  );
+}
+
+function SeminarInscriptionsSection({
+  inscriptions,
+  selectedEventId,
+}: {
+  inscriptions: DancerDetailLoaderData["dancer"]["seminarInscriptions"];
+  selectedEventId: string | null;
+}) {
+  if (!selectedEventId) {
+    return (
+      <AdminEmptyState
+        title="Sin evento activo"
+        description="No hay un evento activo seleccionado para revisar seminarios."
+      />
+    );
+  }
+
+  return (
+    <RosterSeminarInscriptionsTable
+      buildSeminarHref={(seminarId) => `${seminarsPath}/${seminarId}`}
+      inscriptions={inscriptions}
+      personKind="dancer"
     />
   );
 }

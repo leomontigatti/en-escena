@@ -9,6 +9,7 @@ import type {
 import type { ParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
+import type { RosterSeminarInscription } from "@/lib/roster/inscriptions";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 
 export type { DancerInscription };
@@ -56,6 +57,7 @@ export type DancerDetail = {
   participatedInAnyEvent: boolean;
   editConsequence: DancerEditConsequence;
   inscriptions: DancerInscription[];
+  seminarInscriptions: RosterSeminarInscription[];
   choreographyNames: string[];
 };
 

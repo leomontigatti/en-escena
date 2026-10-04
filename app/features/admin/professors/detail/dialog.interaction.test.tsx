@@ -208,6 +208,8 @@ function createLoaderData({
 } = {}): ProfessorDetailViewProps["loaderData"] {
   return {
     backToList: "/administracion/profesores",
+    choreographies: [],
+    seminarInscriptions: [],
     canEdit,
     isParticipatingInActiveEvent: false,
     merge: null,

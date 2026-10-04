@@ -11,6 +11,7 @@ import {
 } from "@/lib/storage/dancer-documents.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { findDancerInscriptions } from "@/lib/dancers/inscriptions.server";
+import { findRosterSeminarInscriptions } from "@/lib/roster/inscriptions.server";
 import {
   findActiveEventStartDateOnly,
   getEventStartDateOnly,
@@ -48,10 +49,13 @@ export async function loadPortalDancerDetail(input: {
   const dancer = await requirePortalDancer(academy.id, dancerId);
   const eventContext = await getPortalActiveEventContext(input.request);
   const selectedEventId = eventContext.selectedEvent?.id ?? null;
-  const { inscriptions } = await findDancerInscriptions({
-    dancerId,
-    selectedEventId,
-  });
+  const [{ inscriptions }, seminarInscriptions] = await Promise.all([
+    findDancerInscriptions({ dancerId, selectedEventId }),
+    findRosterSeminarInscriptions({
+      person: { id: dancerId, kind: "dancer" },
+      selectedEventId,
+    }),
+  ]);
 
   return {
     activeEventStartDate: getEventStartDateOnly(eventContext.activeEvent),
@@ -62,6 +66,7 @@ export async function loadPortalDancerDetail(input: {
       storage: createDefaultDancerDocumentStorage(),
     }),
     inscriptions,
+    seminarInscriptions,
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "dancer",
       personId: dancerId,

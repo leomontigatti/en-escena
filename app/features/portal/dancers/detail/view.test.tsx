@@ -156,6 +156,7 @@ function dancerDetailLoaderData(
     },
     dancer: dancerDetailRow(),
     inscriptions: [],
+    seminarInscriptions: [],
     isParticipatingInActiveEvent: false,
     selectedEventId: "event_1",
     ...overrides,

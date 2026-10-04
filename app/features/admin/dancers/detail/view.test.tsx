@@ -145,6 +145,7 @@ function createLoaderData(
       identificationStatus: "unverified",
       identityVerifiedAt: null,
       inscriptions: [],
+      seminarInscriptions: [],
       lastName: "Detalle",
       participatedInAnyEvent: false,
       participationStatus: "not-participating",

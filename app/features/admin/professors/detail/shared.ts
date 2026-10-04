@@ -1,5 +1,9 @@
 import { Check, type LucideIcon } from "lucide-react";
 import { z } from "zod";
+import type {
+  RosterChoreography,
+  RosterSeminarInscription,
+} from "@/lib/roster/inscriptions";
 import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-duplicates";
 import type {
   RosterMergeCandidate,
@@ -49,6 +53,8 @@ export type ProfessorDetailLoaderData = {
     inscriptionsByEvent: RosterMergeEventInscriptions[];
   } | null;
   professor: NonNullable<Awaited<ReturnType<typeof findProfessor>>>;
+  choreographies: RosterChoreography[];
+  seminarInscriptions: RosterSeminarInscription[];
   selectedEventId: string | null;
 };
 

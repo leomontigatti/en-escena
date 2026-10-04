@@ -122,6 +122,30 @@ export function readListPage(searchParams: URLSearchParams) {
 }
 
 /**
+ * The query string with the list's search, order and page dropped, or `null`
+ * when it carries none of them. Two lists on one page read the same
+ * parameters, so switching from one to the other starts the second clean.
+ */
+export function withoutListQuery(search: string) {
+  const searchParams = new URLSearchParams(search);
+  const names = Object.values(listQueryParamNames).filter((name) =>
+    searchParams.has(name),
+  );
+
+  if (names.length === 0) {
+    return null;
+  }
+
+  for (const name of names) {
+    searchParams.delete(name);
+  }
+
+  const rest = searchParams.toString();
+
+  return rest ? `?${rest}` : "";
+}
+
+/**
  * Which slice of a list a page is. A page past the last one is the last one,
  * so the reader lands on rows rather than on nothing; the page size is the
  * surface's policy and comes from the caller.

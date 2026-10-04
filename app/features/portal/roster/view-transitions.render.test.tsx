@@ -169,6 +169,7 @@ function buildDancerDetailLoaderData() {
       front: null,
     },
     inscriptions: [],
+    seminarInscriptions: [],
     isParticipatingInActiveEvent: false,
     selectedEventId: "event_1",
     dancer: {
@@ -191,7 +192,10 @@ function buildDancerDetailLoaderData() {
 
 function buildProfessorDetailLoaderData() {
   return {
+    choreographies: [],
     isParticipatingInActiveEvent: false,
+    selectedEventId: null,
+    seminarInscriptions: [],
     professor: {
       id: "professor_1",
       firstName: "Luz",
@@ -200,6 +204,7 @@ function buildProfessorDetailLoaderData() {
       documentType: null,
       documentNumber: null,
       isIncomplete: true,
+      participationStatus: "not-participating",
     },
   } as Parameters<typeof PortalProfessorDetailRouteView>[0]["loaderData"];
 }
