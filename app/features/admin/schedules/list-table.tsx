@@ -95,7 +95,7 @@ export function ScheduleList({
       rows={schedules}
       columns={columns}
       getRowKey={(schedule) => schedule.id}
-      searchPlaceholder="Buscar cronograma por nombre"
+      searchPlaceholder="Buscar por nombre"
       textFilterColumnId="name"
       facetedFilters={buildScheduleFacetedFilters(schedules)}
       emptyMessage={emptyScheduleList.nothingMatched}

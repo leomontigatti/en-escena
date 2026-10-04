@@ -5,7 +5,10 @@ import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { listCategories } from "@/lib/categories/repository.server";
 import { listModalities } from "@/lib/modalities/repository.server";
 import { getEventRegistrationOpenBlockers } from "@/lib/schedules/registration-open.server";
-import { listSchedules } from "@/lib/schedules/repository.server";
+import {
+  getScheduleDependencySummary,
+  listSchedules,
+} from "@/lib/schedules/repository.server";
 
 async function loadEventScheduleContext(request: Request) {
   await requireAdminPanelUser(request);
@@ -45,7 +48,10 @@ export async function loadEventScheduleFormOptions(request: Request) {
   return { selectedEventId, modalities, categories };
 }
 
-export async function loadEventScheduleDetailData(request: Request) {
+export async function loadEventScheduleDetailData(
+  request: Request,
+  scheduleId: string,
+) {
   const eventContext = await loadEventScheduleContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
@@ -56,6 +62,7 @@ export async function loadEventScheduleDetailData(request: Request) {
       categories: [],
       schedules: [],
       registrationOpenBlockers: [],
+      scheduleDependencies: null,
     };
   }
 
@@ -66,6 +73,13 @@ export async function loadEventScheduleDetailData(request: Request) {
       listSchedules(selectedEventId),
       getEventRegistrationOpenBlockers(selectedEventId),
     ]);
+  // Only a schedule of the selected event: another event's id renders the
+  // empty state, and its dependencies are none of this page's business.
+  const scheduleDependencies = schedules.some(
+    (schedule) => schedule.id === scheduleId,
+  )
+    ? await getScheduleDependencySummary(scheduleId)
+    : null;
 
   return {
     selectedEventId,
@@ -73,5 +87,6 @@ export async function loadEventScheduleDetailData(request: Request) {
     categories,
     schedules,
     registrationOpenBlockers,
+    scheduleDependencies,
   };
 }

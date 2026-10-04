@@ -12,6 +12,10 @@ import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import {
+  ReadOnlyDateField,
+  ReadOnlyField,
+} from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { TimeOnlyField } from "@/components/shared/time-only-field";
@@ -125,6 +129,7 @@ export function ScheduleForm({
   formId,
   id,
   intent,
+  isDateTimeLocked = false,
   modalities,
   occupiedCount,
   scheduleCapacities = emptyScheduleCapacities,
@@ -134,6 +139,12 @@ export function ScheduleForm({
   formId?: string;
   id?: string;
   intent: string;
+  /**
+   * Date and time are fixed while choreographies or prices hold the schedule;
+   * the detail's alert says why. They read as the shared read-only fields,
+   * which still submit the saved values.
+   */
+  isDateTimeLocked?: boolean;
   modalities: EventScheduleModalityRow[];
   /** Absent on the create form, where nothing can occupy the schedule yet. */
   occupiedCount?: number;
@@ -172,14 +183,24 @@ export function ScheduleForm({
       <FieldGroup className="grid gap-5 md:grid-cols-2">
         <ScheduleTextField form={form} label="Nombre" name="name" />
         <ScheduleTotalCapacityField form={form} occupiedCount={occupiedCount} />
-        <DateOnlyField
-          control={form.control}
-          name="scheduledDate"
-          id={`schedule-date-${id ?? intent}`}
-          label="Fecha"
-          buttonClassName="w-full"
-        />
-        <TimeOnlyField control={form.control} label="Hora" name="startTime" />
+        {isDateTimeLocked ? (
+          <ScheduleLockedDateTimeFields form={form} id={id ?? intent} />
+        ) : (
+          <>
+            <DateOnlyField
+              control={form.control}
+              name="scheduledDate"
+              id={`schedule-date-${id ?? intent}`}
+              label="Fecha"
+              buttonClassName="w-full"
+            />
+            <TimeOnlyField
+              control={form.control}
+              label="Hora"
+              name="startTime"
+            />
+          </>
+        )}
         {/* Optional as a pair; any date, since a ceremony after midnight
             falls on the next day. */}
         <DateOnlyField
@@ -398,7 +419,7 @@ function InlineFieldArray<TField extends { fieldId: string }>({
       </div>
       {fields.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <div className="hidden gap-4 text-sm font-medium sm:grid sm:grid-cols-[minmax(0,1fr)_14rem_2rem]">
+          <div className="hidden gap-2 text-sm font-medium sm:grid sm:grid-cols-[minmax(0,1fr)_14rem_2rem]">
             <div>Tipo de grupo</div>
             <div>Cupo</div>
             <div />
@@ -442,7 +463,7 @@ function ScheduleCapacityInlineFields({
   });
 
   return (
-    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem_2rem] sm:items-start">
+    <FieldGroup className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_14rem_2rem] sm:items-start">
       {field.id ? (
         <input type="hidden" name={idFieldName} value={field.id} />
       ) : null}
@@ -477,7 +498,7 @@ function ScheduleCapacityInlineFields({
       <Button
         type="button"
         variant="destructive"
-        size="icon-sm"
+        size="icon"
         aria-label="Quitar cupo de cronograma"
         onClick={onRemove}
       >
@@ -549,5 +570,40 @@ function ScheduleMultipleSelectField({
       options={options}
       placeholder="Seleccioná modalidades"
     />
+  );
+}
+
+/**
+ * Date and time as the shared read-only look, like any field the record's
+ * state locks. The values still travel in the body: the server compares them
+ * with the saved ones, and a save of the open fields must not blank them.
+ */
+function ScheduleLockedDateTimeFields({
+  form,
+  id,
+}: {
+  form: ScheduleFormController;
+  id: string;
+}) {
+  const [scheduledDate, startTime] = useWatch({
+    control: form.control,
+    name: ["scheduledDate", "startTime"],
+  });
+
+  return (
+    <>
+      <ReadOnlyDateField
+        id={`schedule-date-${id}`}
+        label="Fecha"
+        name="scheduledDate"
+        value={scheduledDate}
+      />
+      <ReadOnlyField
+        id={`schedule-time-${id}`}
+        label="Hora"
+        name="startTime"
+        value={startTime}
+      />
+    </>
   );
 }

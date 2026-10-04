@@ -61,7 +61,7 @@ export function ChoreographyDetailAlerts({
         <Alert variant="info">
           <Info aria-hidden="true" />
           <AlertTitle>
-            Tiene la presentación n.º {choreography.presentationOrderNumber}
+            Tiene la presentación N.º {choreography.presentationOrderNumber}
           </AlertTitle>
           <AlertDescription>
             Esta coreografía tiene número de presentación y modificarla puede

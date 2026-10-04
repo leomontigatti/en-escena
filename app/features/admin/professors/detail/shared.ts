@@ -20,7 +20,7 @@ import type {
 } from "@/lib/admin/professors/professors.server";
 import {
   getArchiveKeepsRosterMessage,
-  getRosterPersonArchiveAvailability,
+  isRosterPersonArchiveBlocked,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import {
@@ -88,28 +88,23 @@ export type ProfessorDialogIntent =
   "archive-professor" | "reactivate-professor" | "update-professor";
 
 export type ProfessorStatusAction = {
-  /**
-   * A courtesy in front of the guard, never the rule: the server refuses the
-   * archive whether or not this is honoured. Reactivating is never refused, so
-   * only the archive intent is ever disabled.
-   */
-  disabled: boolean;
   intent: Exclude<ProfessorDialogIntent, "update-professor">;
+  /**
+   * Whether the action opens `RosterPersonArchiveBlockedDialog` instead of its
+   * confirmation. Reactivating is never refused, so only the archive intent is
+   * ever blocked.
+   */
+  isBlocked: boolean;
   label: string;
 };
 
 export type ProfessorDetailViewState = {
-  /**
-   * Why the archive action is unavailable, or `null` when it is available.
-   * Informational: nothing is wrong when it shows.
-   */
-  participatingAlert: string | null;
   statusAction: ProfessorStatusAction;
 };
 
 /**
  * The status half of the screen's view model: which action the header offers,
- * whether it is available, and the sentence that explains an unavailable one.
+ * and whether it is blocked.
  * The dancer twin is `buildDancerDetailViewState`.
  */
 export function buildProfessorDetailViewState({
@@ -119,25 +114,22 @@ export function buildProfessorDetailViewState({
   active: boolean;
   isParticipatingInActiveEvent: boolean;
 }): ProfessorDetailViewState {
-  const archiveAvailability = getRosterPersonArchiveAvailability({
-    isParticipatingInActiveEvent,
-    kind: "professor",
-    status: toRosterPersonStatus(active),
-  });
   const statusAction: ProfessorStatusAction = active
     ? {
-        disabled: archiveAvailability.disabled,
+        isBlocked: isRosterPersonArchiveBlocked({
+          isParticipatingInActiveEvent,
+          status: toRosterPersonStatus(active),
+        }),
         intent: "archive-professor",
         label: "Archivar",
       }
     : {
-        disabled: false,
+        isBlocked: false,
         intent: "reactivate-professor",
         label: "Reactivar",
       };
 
   return {
-    participatingAlert: archiveAvailability.participatingAlert,
     statusAction,
   };
 }

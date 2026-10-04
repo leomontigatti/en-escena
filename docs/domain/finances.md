@@ -1060,7 +1060,8 @@ and no request actions. The restriction is **permanent and role-based**.
   exists and not after. It is a decision, not an omission: the total the portal
   renders is already the correct current obligation, nothing about a pending
   document is actionable by an academy, and the withdrawal signal already exists
-  on the roster axis as the `Retirada` badge with the retained amount beside it.
+  on the roster axis as the `Retirada` badge, with the retained amount in its
+  `Total`.
 
 Seminar money is read on the same surfaces, split by kind where a unit is named:
 
@@ -1094,8 +1095,8 @@ disponible` never moves, each tab keeps its own selection and the owed pair
   the administrator's minus every write: titled by the instructor alone, the
   five metrics with the academy's `Saldo disponible`, the inscriptions table
   with `Precio` as the effective row's name, and the full-quota notice repeated.
-  **It is the one portal surface that lists `Retirada` rows**, badged with the
-  amount they retain. There is no money dialog and no comprobante on it. Both
+  **It is the one portal surface that lists `Retirada` rows**, badged
+  `Retirada`, with the amount they retain in `Total`. There is no money dialog and no comprobante on it. Both
   sides read the same derivation, so they cannot disagree about an academy's
   seminar money.
 

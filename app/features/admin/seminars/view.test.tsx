@@ -18,7 +18,10 @@ import {
   seminarHasInscriptionsMessage,
 } from "@/lib/seminars/registration-refusals";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  findButton,
+} from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
 
@@ -52,9 +55,7 @@ function buildSeminar(
  * on `pointerdown` rather than on `click`.
  */
 async function readMenuItemDisabled(label: string) {
-  const trigger = document.querySelector<HTMLButtonElement>(
-    'button[aria-label="Acciones"]',
-  );
+  const trigger = findButton("Acciones", { exact: true });
 
   if (!trigger) {
     throw new Error("Expected the actions menu trigger to be rendered.");
@@ -92,10 +93,14 @@ async function selectMenuItem(label: string) {
   });
 }
 
-async function renderAt(path: string, element: React.ReactElement) {
+async function renderAt(
+  path: string,
+  element: React.ReactElement,
+  search = "",
+) {
   const router = createMemoryRouter(
     [{ path, action: async () => null, element }],
-    { initialEntries: [path] },
+    { initialEntries: [`${path}${search}`] },
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);
@@ -121,6 +126,59 @@ describe("SeminarsListView", () => {
         ?.textContent,
     ).toBe("Abril Sosa");
   });
+
+  test.each([
+    ["?tipo=special", "Bruno Díaz", "Abril Sosa"],
+    ["?dia=2026-10-10", "Abril Sosa", "Bruno Díaz"],
+  ])(
+    "narrows the list to the kind or the day named by %s",
+    async (search, shown, hidden) => {
+      await renderSeminarList(search);
+
+      expect(readInstructors()).toEqual([shown]);
+      expect(document.body.textContent).not.toContain(hidden);
+    },
+  );
+
+  test("reads each seminar's kind in a column of its own", async () => {
+    await renderSeminarList();
+
+    expect(readInstructors()).toEqual(["Abril Sosa", "Bruno Díaz"]);
+    expect(
+      Array.from(
+        document.querySelectorAll("tbody tr"),
+        (row) => row.lastElementChild?.textContent,
+      ),
+    ).toEqual(["Común", "Exclusivo"]);
+  });
+
+  function renderSeminarList(search = "") {
+    return renderAt(
+      "/administracion/seminarios",
+      <SeminarsListView
+        loaderData={{
+          selectedEventId: "event_1",
+          seminars: [
+            buildSeminar(),
+            buildSeminar({
+              id: "seminar_2",
+              instructorName: "Bruno Díaz",
+              kind: "special",
+              scheduledDate: "2026-10-11",
+            }),
+          ],
+        }}
+      />,
+      search,
+    );
+  }
+
+  function readInstructors() {
+    return Array.from(
+      document.querySelectorAll('tbody a[href^="/administracion/seminarios/"]'),
+      (link) => link.textContent,
+    );
+  }
 });
 
 function renderDetail(

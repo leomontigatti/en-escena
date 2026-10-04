@@ -76,7 +76,7 @@ export function rosterPersonStatusCondition(
  * still being worked with, and archiving means the academy no longer works with
  * them. The predicate is not written here — it is
  * `hasActiveEventParticipation`, the same reader the detail screens call to
- * grey the button out, so the server and the screen cannot answer the question
+ * block the button, so the server and the screen cannot answer the question
  * differently.
  *
  * The refusal writes nothing: the `active` column is left exactly as it was,

@@ -6,6 +6,7 @@ export {
   updateSchedule,
   updateScheduleWithEntries,
 } from "@/lib/events/bases-repository/schedules.server";
+export { getScheduleDependencySummary } from "@/lib/events/bases-repository/schedule-dependencies.server";
 export {
   createScheduleCapacity,
   deleteScheduleCapacity,

@@ -246,7 +246,7 @@ function getFirstNameInput() {
 
 function getInscriptionsSearch() {
   const input = document.querySelector<HTMLInputElement>(
-    'input[placeholder="Buscar inscripción por coreografía o evento"]',
+    'input[placeholder="Buscar por coreografía o evento"]',
   );
 
   if (!input) {

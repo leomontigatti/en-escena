@@ -91,23 +91,13 @@ export function ProfessorActionsMenu({
   return (
     <ResourceActionsMenu contentClassName="w-40">
       <DropdownMenuItem
-        disabled={statusAction.disabled}
         variant={isArchive ? "destructive" : "default"}
-        onSelect={(event) => {
-          event.preventDefault();
-          onSelect(statusAction.intent);
-        }}
+        onSelect={() => onSelect(statusAction.intent)}
       >
         {statusAction.label}
       </DropdownMenuItem>
       {isArchive ? null : <DropdownMenuSeparator />}
-      <DropdownMenuItem
-        variant="destructive"
-        onSelect={(event) => {
-          event.preventDefault();
-          onSelectMerge();
-        }}
-      >
+      <DropdownMenuItem variant="destructive" onSelect={() => onSelectMerge()}>
         Fusionar
       </DropdownMenuItem>
     </ResourceActionsMenu>

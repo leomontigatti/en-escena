@@ -3,7 +3,10 @@
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  findButton,
+} from "@/lib/test-support/react-dom";
 
 import { PaymentDetailRouteView } from "./view";
 import type { loadPaymentDetail } from "./server";
@@ -28,9 +31,7 @@ describe("PaymentDetailRouteView", () => {
     expect(document.body.textContent).toContain("Medio de pago");
     expect(document.body.textContent).toContain("Nota interna");
     expect(document.body.textContent).toContain("Guardar");
-    expect(
-      document.querySelector('button[aria-label="Acciones"]'),
-    ).not.toBeNull();
+    expect(findButton("Acciones", { exact: true })).toBeDefined();
     expect(
       document.querySelector(
         `input[name="intent"][value="${updatePaymentIntent}"]`,

@@ -146,10 +146,7 @@ export function PaymentDetailRouteView({
             <ResourceActionsMenu>
               <DropdownMenuItem
                 variant="destructive"
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setIsDeleteDialogOpen(true);
-                }}
+                onSelect={() => setIsDeleteDialogOpen(true)}
               >
                 Eliminar
               </DropdownMenuItem>

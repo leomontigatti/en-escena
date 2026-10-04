@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographyProfessors, schedules } from "@/db/schema";
+import { categories, choreographyProfessors, schedules } from "@/db/schema";
 import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
@@ -125,6 +125,32 @@ describe("loadChoreographies", () => {
       { label: "1 de mayo de 2026", value: "2026-05-01" },
       { label: "2 de mayo de 2026", value: "2026-05-02" },
     ]);
+  });
+
+  // An event may hold several categories of one name that differ only in their
+  // ages or group types. The administrator filters by the name, so they are one
+  // option and picking it gathers all of them.
+  test("gathers the categories of one name behind a single category filter", async () => {
+    const { event, otherName, sameName } = await seedSameNamedCategories();
+
+    const unfiltered = await loadChoreographies({
+      filters: buildFilters(),
+      selectedEventId: event.id,
+    });
+    const filtered = await loadChoreographies({
+      filters: buildFilters({ category: sameName.categoryName }),
+      selectedEventId: event.id,
+    });
+
+    expect(unfiltered.facets.categories).toEqual(
+      [sameName.categoryName, otherName.categoryName]
+        .sort((first, second) => first.localeCompare(second))
+        .map((name) => ({ label: name, value: name })),
+    );
+    expect(filtered.filters.category).toBe(sameName.categoryName);
+    expect(filtered.choreographies.map((row) => row.name).sort()).toEqual(
+      sameName.choreographyNames.sort(),
+    );
   });
 
   // A mis-filed choreography competes against the wrong people, so it belongs on
@@ -286,6 +312,55 @@ async function seedChoreographiesByDay() {
   return {
     event,
     scheduledChoreographies: { evening, morning },
+  };
+}
+
+/**
+ * Two categories named alike —the catalog's adult one and a duo twin with the
+ * same ages— each holding a choreography, beside the catalog's other category
+ * holding a third.
+ */
+async function seedSameNamedCategories() {
+  const event = await createSavedEvent();
+  const catalog = await createEventCatalog(event.id);
+  const academy = await createAcademyRecord({
+    academyName: "Academia Homónima",
+    email: `coreografias.homonimas.${crypto.randomUUID()}@example.com`,
+  });
+  const [twin] = await db
+    .insert(categories)
+    .values({
+      eventId: event.id,
+      name: catalog.categoryWithoutLevel.name,
+      minAge: 18,
+      maxAge: 100,
+      groupTypes: ["duo"],
+      groupTypeKey: "duo",
+      experienceLevels: [],
+      experienceLevelKey: "",
+    })
+    .returning();
+  const choreographyIn = (categoryId: string, name: string) =>
+    createChoreographyRecord({
+      academyId: academy.id,
+      categoryId,
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      name,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+  await choreographyIn(catalog.categoryWithoutLevel.id, "Solo de adultos");
+  await choreographyIn(twin.id, "Dúo de adultos");
+  await choreographyIn(catalog.categoryWithLevel.id, "Solo juvenil");
+
+  return {
+    event,
+    otherName: { categoryName: catalog.categoryWithLevel.name },
+    sameName: {
+      categoryName: catalog.categoryWithoutLevel.name,
+      choreographyNames: ["Solo de adultos", "Dúo de adultos"],
+    },
   };
 }
 

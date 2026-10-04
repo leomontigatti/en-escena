@@ -38,52 +38,31 @@ export function PresentationListActions({
   return (
     <ResourceActionsMenu>
       {canPrintResults ? (
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            onPrintResults();
-          }}
-        >
+        <DropdownMenuItem onSelect={() => onPrintResults()}>
           Imprimir resultados
         </DropdownMenuItem>
       ) : null}
       {canDownloadMusic ? (
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            onDownloadMusic();
-          }}
-        >
+        <DropdownMenuItem onSelect={() => onDownloadMusic()}>
           Descargar audios
         </DropdownMenuItem>
       ) : null}
       {hasOutputs && canOrderRows ? <DropdownMenuSeparator /> : null}
       {canOrderRows ? (
         <>
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              onOrder();
-            }}
-          >
+          <DropdownMenuItem onSelect={() => onOrder()}>
             Ordenar automáticamente
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={!hasSelection}
-            onSelect={(event) => {
-              event.preventDefault();
-              onJudges("assign");
-            }}
+            onSelect={() => onJudges("assign")}
           >
             Asignar jueces
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!hasSelection}
-            onSelect={(event) => {
-              event.preventDefault();
-              onJudges("remove");
-            }}
+            onSelect={() => onJudges("remove")}
           >
             Quitar jueces
           </DropdownMenuItem>

@@ -28,7 +28,6 @@ import {
   type EventMutationResult,
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
-import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import {
   notificationToasts,
@@ -69,22 +68,16 @@ export async function loadEventDetail(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const [
-    event,
-    registrationReadiness,
-    documents,
-    isRegistrationOpen,
-    resultsPublication,
-  ] = await Promise.all([
-    loadEvent(eventId),
-    getEventRegistrationReadiness(eventId),
-    loadEventDocumentSummaries({
-      eventId,
-      storage: createDefaultEventDocumentStorage(),
-    }),
-    isEventRegistrationOpen(eventId),
-    readResultsPublication(eventId),
-  ]);
+  const [event, registrationReadiness, documents, resultsPublication] =
+    await Promise.all([
+      loadEvent(eventId),
+      getEventRegistrationReadiness(eventId),
+      loadEventDocumentSummaries({
+        eventId,
+        storage: createDefaultEventDocumentStorage(),
+      }),
+      readResultsPublication(eventId),
+    ]);
 
   return {
     // Who may publish travels with the data rather than being read again in the
@@ -94,7 +87,6 @@ export async function loadEventDetail(
     canPublishResults: user.role === "admin",
     documents,
     event,
-    isRegistrationOpen,
     registrationReadiness,
     resultsPublication,
   } satisfies EventDetailLoaderData;

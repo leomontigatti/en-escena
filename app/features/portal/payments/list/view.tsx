@@ -135,7 +135,7 @@ export function PortalAcademyPaymentsRouteView({
         columns={paymentColumns}
         facetedFilters={paymentFacetedFilters}
         getRowKey={(row) => row.id}
-        searchPlaceholder="Buscar pago por referencia o número"
+        searchPlaceholder="Buscar por referencia o número"
         initialSort={{
           columnId: "paymentDate",
           direction: "desc",

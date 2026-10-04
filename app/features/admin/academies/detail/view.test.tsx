@@ -122,9 +122,7 @@ async function settle() {
  * `pointerdown` rather than on `click`.
  */
 async function openActionsMenu() {
-  const trigger = document.querySelector<HTMLButtonElement>(
-    'button[aria-label="Acciones"]',
-  );
+  const trigger = findButton("Acciones", { exact: true });
 
   if (!trigger) {
     throw new Error("Expected the actions menu trigger to be rendered.");
@@ -187,7 +185,7 @@ describe("AcademyDetailRouteView", () => {
   test("offers no delete action to a read-only auditor", async () => {
     await renderDetail({ canEdit: false, initialDeleteDialogOpen: true });
 
-    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+    expect(findButton("Acciones", { exact: true })).toBeUndefined();
     expect(document.body.textContent).not.toContain("¿Eliminar la academia?");
   });
 

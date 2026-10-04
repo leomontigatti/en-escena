@@ -72,11 +72,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     header: "#",
     width: 7,
     className: "font-medium tabular-nums",
-    cell: (choreography) => (
-      <DataTableLink to={choreographyDetailPath(choreography.id)}>
-        {formatEventSequenceNumber(choreography.choreographyNumber)}
-      </DataTableLink>
-    ),
+    cell: (choreography) =>
+      formatEventSequenceNumber(choreography.choreographyNumber),
     filterValue: (choreography) =>
       formatEventSequenceNumber(choreography.choreographyNumber),
     sortValue: (choreography) => choreography.choreographyNumber,
@@ -86,10 +83,14 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     header: "Nombre",
     width: 21,
     className: "font-medium",
-    // The number is the row's only way into the detail. Linking the name too
+    // The name is the row's only way into the detail. Linking the number too
     // gave one destination two targets, which reads as a choice and is not.
     cell: (choreography) => (
-      <DataTableTruncatedText value={choreography.name} />
+      <DataTableTruncatedText value={choreography.name}>
+        <DataTableLink to={choreographyDetailPath(choreography.id)}>
+          {choreography.name}
+        </DataTableLink>
+      </DataTableTruncatedText>
     ),
     filterValue: (choreography) => choreography.name,
     sortValue: (choreography) => choreography.name,

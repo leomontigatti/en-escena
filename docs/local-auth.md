@@ -172,7 +172,7 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   | `Luna de Papel` | Ana, morning    | Deposit paid and numbered; open to correction.                                                         |
   | `Viento Sur`    | Bea, afternoon  | Deposit paid, numbered, disqualified by administration.                                                |
   | `Río Arriba`    | Caro, afternoon | Deposit paid, numbered, scored 87 by the demo judge under `Contemporáneo`, and invoiced (`Factura C`). |
-  | `Sal y Arena`   | Dani, morning   | Nothing paid, so it has no number.                                                                     |
+  | `Sal y Arena`   | Dani, morning   | Nothing paid, and registered after the ordering, so it has no number.                                  |
 
 - One payment from `Academia Demo`, allocated past the deposit of the three
   paid inscriptions, so the payment's academy and each of those inscriptions'

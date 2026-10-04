@@ -1,5 +1,5 @@
 import { Ellipsis } from "lucide-react";
-import { useId, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -7,85 +7,27 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 type ResourceActionsMenuProps = {
   children: ReactNode;
   contentClassName?: string;
-  label?: string;
 };
 
 export function ResourceActionsMenu({
   children,
   contentClassName = "w-56",
-  label = "Acciones",
 }: ResourceActionsMenuProps) {
-  const tooltipId = useId();
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const handleTooltipOpenChange = (open: boolean) => {
-    if (open && isDropdownOpen) {
-      return;
-    }
-
-    setIsTooltipOpen(open);
-  };
-
-  const handleDropdownOpenChange = (open: boolean) => {
-    setIsDropdownOpen(open);
-
-    if (open) {
-      setIsTooltipOpen(false);
-    }
-  };
-
-  const preventTriggerFocusAfterDropdownClose = (event: Event) => {
-    event.preventDefault();
-    triggerRef.current?.blur();
-    setIsTooltipOpen(false);
-  };
-
   return (
-    <TooltipProvider>
-      <Tooltip open={isTooltipOpen} onOpenChange={handleTooltipOpenChange}>
-        <DropdownMenu
-          open={isDropdownOpen}
-          onOpenChange={handleDropdownOpenChange}
-        >
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button
-                ref={triggerRef}
-                type="button"
-                variant="outline"
-                size="icon-lg"
-                aria-describedby={tooltipId}
-                aria-label={label}
-              >
-                <Ellipsis aria-hidden="true" />
-                <span className="sr-only">{label}</span>
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <DropdownMenuContent
-            align="end"
-            className={contentClassName}
-            onCloseAutoFocus={preventTriggerFocusAfterDropdownClose}
-          >
-            {children}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <TooltipContent id={tooltipId} side="left" sideOffset={6}>
-          {label}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline">
+          <Ellipsis aria-hidden="true" data-icon="inline-start" />
+          Acciones
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className={contentClassName}>
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -262,7 +262,7 @@ export function PortalAcademyFinancesRouteView({
             columns={choreographyFinanceColumns}
             facetedFilters={choreographyFinanceFacetedFilters}
             getRowKey={(row) => row.id}
-            searchPlaceholder="Buscar coreografía por número o nombre"
+            searchPlaceholder="Buscar por número o nombre"
             textFilterColumnId="name"
             selectableRows
             selectedRowIds={selectedChoreographyIds}
@@ -282,7 +282,7 @@ export function PortalAcademyFinancesRouteView({
             columns={seminarFinanceColumns}
             facetedFilters={seminarFinanceFacetedFilters}
             getRowKey={(row) => row.id}
-            searchPlaceholder="Buscar seminario por instructor"
+            searchPlaceholder="Buscar por instructor"
             textFilterColumnId="instructorName"
             selectableRows
             selectedRowIds={selectedSeminarIds}

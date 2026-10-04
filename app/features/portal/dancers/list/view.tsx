@@ -154,7 +154,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       rows={dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
-      searchPlaceholder="Buscar bailarín por nombre o número de documento"
+      searchPlaceholder="Buscar por nombre o documento"
       textFilterColumnId="name"
       facetedFilters={dancerFacetedFilters}
       baseFacetedFilterValues={baseDancerFilters}

@@ -49,7 +49,7 @@ describe("the submodality criteria editor", () => {
     ]);
 
     expect(sheetRows()).toEqual([
-      "Técnico obligatorio · 1 criterio · 60/100",
+      "Evaluación general · 1 criterio · 60/100",
       "Amateur · 1 criterio · 100/100",
       "Profesional · 0 criterios · 60/100",
     ]);
@@ -147,7 +147,7 @@ describe("the submodality criteria editor", () => {
   test("shows a scored submodality's sheets read-only", async () => {
     await mount([criterion("Técnica", 100)], { locked: true });
 
-    await clickReactDomButton("Técnico obligatorio");
+    await clickReactDomButton("Evaluación general");
 
     expect(findButton("Guardar")).toBeUndefined();
     expect(findButton("Agregar criterio que suma")).toBeUndefined();

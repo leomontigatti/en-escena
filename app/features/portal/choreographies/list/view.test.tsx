@@ -89,7 +89,7 @@ describe("PortalChoreographiesListRouteView", () => {
     );
 
     const search = document.querySelector<HTMLInputElement>(
-      'input[placeholder="Buscar coreografía por número, nombre, modalidad o categoría"]',
+      'input[placeholder="Buscar por número, nombre o modalidad"]',
     );
 
     if (!search) {
@@ -164,6 +164,18 @@ describe("PortalChoreographiesListRouteView", () => {
 
     expect(markup).toContain("Retirada");
     expect(markup).not.toContain("Completa");
+  });
+
+  test("links each row to its detail from the name, not the number", () => {
+    const markup = renderChoreographiesList({
+      loaderData: choreographiesLoaderData({
+        choreographies: [choreographyListItem({ name: "Mi Pieza" })],
+      }),
+    });
+
+    expect(markup).toContain('href="/portal/coreografias/choreo_1"');
+    expect(markup).toContain(">Mi Pieza</a>");
+    expect(markup).not.toContain(">00001</a>");
   });
 
   test("links `Nueva coreografía` to the registration page for the active editable event", () => {

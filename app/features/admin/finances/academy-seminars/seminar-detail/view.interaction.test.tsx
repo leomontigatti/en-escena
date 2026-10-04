@@ -4,7 +4,10 @@ import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  findButton,
+} from "@/lib/test-support/react-dom";
 
 import type { loadSeminarFinanceDetail } from "./server";
 import { SeminarFinanceDetailView } from "./view";
@@ -59,7 +62,7 @@ function findEmissionItem() {
 }
 
 async function openActionsMenu() {
-  const button = document.querySelector('button[aria-label="Acciones"]');
+  const button = findButton("Acciones", { exact: true });
 
   if (!button) {
     throw new Error("Expected the actions menu button to be rendered.");

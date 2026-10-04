@@ -1,12 +1,70 @@
+/** @vitest-environment jsdom */
+
+import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, test } from "vitest";
+import { createMemoryRouter, RouterProvider } from "react-router";
+import { afterEach, describe, expect, test } from "vitest";
 
 import { renderInDataRouter } from "@/lib/test-support/data-router";
+import {
+  createReactDomTestRenderer,
+  findButton,
+} from "@/lib/test-support/react-dom";
 import { DancerDetailRouteView } from "@/routes/administracion.bailarines_.$dancerId";
 
 type DetailRouteViewProps = Parameters<typeof DancerDetailRouteView>[0];
 
 describe("DancerDetailRouteView", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  // Taking part in the active event is the normal state of most of the roster,
+  // so `Archivar` stays enabled and says why on the click instead of an alert
+  // that would sit on nearly every dancer (style guide, Detail pages).
+  test("opens the blocked acknowledgment when archiving a participant", async () => {
+    await renderDetailIntoDocument(
+      createLoaderData({ isParticipatingInActiveEvent: true }),
+    );
+
+    expect(document.body.textContent).not.toContain("No se puede archivar");
+
+    await openActionsMenu();
+    await clickMenuItem("Archivar");
+
+    expect(document.body.textContent).toContain(
+      "No se puede archivar al bailarín",
+    );
+    expect(document.body.textContent).not.toContain("¿Archivar al bailarín?");
+  });
+
+  test("asks to confirm archiving a dancer outside the active event", async () => {
+    await renderDetailIntoDocument(createLoaderData());
+
+    await openActionsMenu();
+    await clickMenuItem("Archivar");
+
+    expect(document.body.textContent).toContain("¿Archivar al bailarín?");
+    expect(document.body.textContent).not.toContain("No se puede archivar");
+  });
+
+  async function renderDetailIntoDocument(
+    loaderData: DetailRouteViewProps["loaderData"],
+  ) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/bailarines/dancer-1",
+          action: async () => null,
+          element: <DancerDetailRouteView loaderData={loaderData} />,
+        },
+      ],
+      { initialEntries: ["/administracion/bailarines/dancer-1"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+
   test("renders the ficha for auditors with disabled fields and only Volver", () => {
     const markup = renderDetailView({
       loaderData: createLoaderData({ canEdit: false }),
@@ -159,4 +217,49 @@ function createLoaderData(
     selectedEventId: null,
     ...overrides,
   };
+}
+
+async function openActionsMenu() {
+  const button = findButton("Acciones", { exact: true });
+
+  if (!button) {
+    throw new Error("Expected the dancer actions button to be rendered.");
+  }
+
+  const pointerDown = new MouseEvent("pointerdown", {
+    bubbles: true,
+    button: 0,
+    cancelable: true,
+    ctrlKey: false,
+  });
+  Object.defineProperty(pointerDown, "pointerType", { value: "mouse" });
+
+  await act(async () => {
+    button.dispatchEvent(pointerDown);
+    button.dispatchEvent(
+      new MouseEvent("pointerup", {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+      }),
+    );
+    await Promise.resolve();
+  });
+}
+
+async function clickMenuItem(label: string) {
+  const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
+    (candidate) => candidate.textContent?.trim() === label,
+  );
+
+  if (!item) {
+    throw new Error(`Expected menu item "${label}" to be rendered.`);
+  }
+
+  await act(async () => {
+    item.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
 }

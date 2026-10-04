@@ -187,7 +187,6 @@ function buildDetailLoaderData(): Parameters<
   return {
     canPublishResults: true,
     documents: eventDocumentSummaries(),
-    isRegistrationOpen: false,
     resultsPublication: {
       pendingCount: 0,
       publishedAt: null,

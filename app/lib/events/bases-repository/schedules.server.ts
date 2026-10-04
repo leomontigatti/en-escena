@@ -452,15 +452,8 @@ export async function deleteSchedule(
     };
   }
 
-  if (await scheduleHasScheduleCapacities(scheduleId)) {
-    return {
-      ok: false,
-      code: "schedule-has-dependencies",
-      error:
-        "No se puede borrar el cronograma porque tiene cupos de cronograma relacionados.",
-    };
-  }
-
+  // Its capacities go with it (`schedule_capacity_schedule_fk` cascades):
+  // with no choreography on the schedule, none can occupy them.
   await db.delete(schedules).where(eq(schedules.id, scheduleId));
 
   return { ok: true };
@@ -593,15 +586,6 @@ async function getSchedule(scheduleId: string) {
   return db.query.schedules.findFirst({
     where: eq(schedules.id, scheduleId),
   });
-}
-
-async function scheduleHasScheduleCapacities(scheduleId: string) {
-  const scheduleCapacity = await db.query.scheduleCapacities.findFirst({
-    columns: { id: true },
-    where: eq(scheduleCapacities.scheduleId, scheduleId),
-  });
-
-  return Boolean(scheduleCapacity);
 }
 
 /**

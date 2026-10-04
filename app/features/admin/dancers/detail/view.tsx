@@ -4,6 +4,7 @@ import { Form, useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
 import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
@@ -72,6 +73,8 @@ export function DancerDetailRouteView({
     setDialogIntent,
     viewState,
   } = useDancerSave({ errorData, loaderData, nameWarning });
+  const isArchiveBlockedOpen =
+    dialogIntent === "archive-dancer" && viewState.statusAction.isBlocked;
   const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
     detailHref: `/administracion/bailarines/${dancer.id}`,
     listHref: "/administracion/bailarines",
@@ -102,7 +105,6 @@ export function DancerDetailRouteView({
         identificationAlertTitle={viewState.identificationAlertTitle}
         identificationAlertVariant={viewState.identificationAlertVariant}
         onSelectIntent={setDialogIntent}
-        participatingAlert={viewState.participatingAlert}
         recategorisedChoreographies={
           successData?.recategorisedChoreographies ?? []
         }
@@ -121,9 +123,19 @@ export function DancerDetailRouteView({
         selectedEventId={loaderData.selectedEventId}
       />
 
+      <RosterPersonArchiveBlockedDialog
+        kind="dancer"
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialogIntent(null);
+          }
+        }}
+        open={isArchiveBlockedOpen}
+      />
+
       {/* Unmounted while closed, so the copy never changes under a dialog
           that is animating out. */}
-      {dialogIntent ? (
+      {dialogIntent && !isArchiveBlockedOpen ? (
         <DancerConfirmationDialog
           birthDateMayNeedRecalculation={
             viewState.birthDateMayNeedRecalculation

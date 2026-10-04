@@ -21,7 +21,7 @@ import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared"
  * itself not withdrawn, a professor link on such a choreography, or a
  * non-withdrawn seminar inscription of the event. It is the one place that
  * predicate is written, so the guard that refuses an archive and the screen
- * that greys the button out cannot drift apart.
+ * that blocks the button cannot drift apart.
  *
  * It resolves the active event itself and takes **no** selected event: the
  * panel's picker can be pointed at a past event, while the rule is about a

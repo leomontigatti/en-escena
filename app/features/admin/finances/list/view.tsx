@@ -65,7 +65,7 @@ export function FinancesListRouteView({
           rows={loaderData.rows}
           columns={accountColumns}
           getRowKey={(row) => row.academyId}
-          searchPlaceholder="Buscar academia por nombre"
+          searchPlaceholder="Buscar por nombre"
           textFilterColumnId="academyName"
           initialSort={{
             columnId: "academyName",

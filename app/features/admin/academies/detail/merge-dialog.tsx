@@ -57,7 +57,7 @@ export function AcademyMergeDialog({
           />
         ) : null;
       }}
-      title="Fusionar academia"
+      title="¿Fusionar la academia?"
     />
   );
 }

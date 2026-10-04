@@ -10,7 +10,7 @@ import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import type { PortalProfessorListItem } from "@/lib/portal/professors.server";
 import {
   getArchiveKeepsRosterMessage,
-  getRosterPersonArchiveAvailability,
+  isRosterPersonArchiveBlocked,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
@@ -54,11 +54,11 @@ type PortalProfessorStatusActionCopy = {
 
 export type PortalProfessorStatusAction = PortalProfessorStatusActionCopy & {
   /**
-   * A courtesy in front of the guard, never the rule: the server refuses the
-   * archive whether or not this is honoured. Reactivating is never refused, so
-   * only the archive intent is ever disabled.
+   * Whether the action opens `RosterPersonArchiveBlockedDialog` instead of its
+   * confirmation. Reactivating is never refused, so only the archive intent is
+   * ever blocked.
    */
-  disabled: boolean;
+  isBlocked: boolean;
 };
 
 export const portalProfessorStatusActions = {
@@ -85,17 +85,12 @@ export const portalProfessorStatusActions = {
 >;
 
 export type PortalProfessorDetailViewModel = {
-  /**
-   * Why the archive action is unavailable, or `null` when it is available.
-   * Informational: nothing is wrong when it shows.
-   */
-  participatingAlert: string | null;
   statusAction: PortalProfessorStatusAction;
 };
 
 /**
  * The status half of the screen's view model: which action the header offers,
- * whether it is available, and the sentence that explains an unavailable one.
+ * and whether it is blocked.
  * The dancer twin is `buildPortalDancerDetailViewModel`, and the panel twin is
  * `buildProfessorDetailViewState`.
  */
@@ -106,25 +101,20 @@ export function buildPortalProfessorDetailViewModel({
   active: boolean;
   isParticipatingInActiveEvent: boolean;
 }): PortalProfessorDetailViewModel {
-  const archiveAvailability = getRosterPersonArchiveAvailability({
-    isParticipatingInActiveEvent,
-    kind: "professor",
-    status: toRosterPersonStatus(active),
-  });
   const statusAction: PortalProfessorStatusAction = active
     ? {
         ...portalProfessorStatusActions[archiveProfessorIntent],
-        disabled: archiveAvailability.disabled,
+        isBlocked: isRosterPersonArchiveBlocked({
+          isParticipatingInActiveEvent,
+          status: toRosterPersonStatus(active),
+        }),
       }
     : {
         ...portalProfessorStatusActions[reactivateProfessorIntent],
-        disabled: false,
+        isBlocked: false,
       };
 
-  return {
-    participatingAlert: archiveAvailability.participatingAlert,
-    statusAction,
-  };
+  return { statusAction };
 }
 
 export type PortalProfessorDetailActionData =

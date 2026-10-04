@@ -90,11 +90,8 @@ function ChoreographyTable({
       header: "#",
       width: 7,
       className: "font-medium tabular-nums",
-      cell: (choreography) => (
-        <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
-          {formatEventSequenceNumber(choreography.choreographyNumber)}
-        </DataTableLink>
-      ),
+      cell: (choreography) =>
+        formatEventSequenceNumber(choreography.choreographyNumber),
       filterValue: (choreography) =>
         formatEventSequenceNumber(choreography.choreographyNumber),
       sortValue: (choreography) => choreography.choreographyNumber,
@@ -104,10 +101,14 @@ function ChoreographyTable({
       header: "Nombre",
       width: 37,
       className: "font-medium",
-      // The number is the row's only way into the detail. Linking the name too
+      // The name is the row's only way into the detail. Linking the number too
       // gave one destination two targets, which reads as a choice and is not.
       cell: (choreography) => (
-        <DataTableTruncatedText value={choreography.name} />
+        <DataTableTruncatedText value={choreography.name}>
+          <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
+            {choreography.name}
+          </DataTableLink>
+        </DataTableTruncatedText>
       ),
       // The search box filters this one column, so everything meant to be
       // searchable travels in here. The number is included zero-padded, which
@@ -193,7 +194,7 @@ function ChoreographyTable({
       getRowKey={(choreography) => choreography.id}
       // Same shares as the admin list this mirrors, minus its academy column.
       layout="fit"
-      searchPlaceholder="Buscar coreografía por número, nombre, modalidad o categoría"
+      searchPlaceholder="Buscar por número, nombre o modalidad"
       textFilterColumnId="name"
       facetedFilters={buildChoreographyFacetedFilters(choreographies)}
       baseFacetedFilterValues={baseChoreographyFilters}
