@@ -54,6 +54,7 @@ export const DEV_SEED_ADMIN_EMAIL = "admin@enescena.local";
 export const DEV_SEED_ACADEMY_EMAIL = "academia@enescena.local";
 export const DEV_SEED_AUDITOR_EMAIL = "auditoria@enescena.local";
 export const DEV_SEED_JUDGE_EMAIL = "jurado@enescena.local";
+export const DEV_SEED_LEGACY_ACADEMY_EMAIL = "academia.antigua@enescena.local";
 export const DEV_SEED_PASSWORD = "demo-en-escena";
 
 const seededEmails = [
@@ -61,6 +62,7 @@ const seededEmails = [
   DEV_SEED_ACADEMY_EMAIL,
   DEV_SEED_AUDITOR_EMAIL,
   DEV_SEED_JUDGE_EMAIL,
+  DEV_SEED_LEGACY_ACADEMY_EMAIL,
 ];
 const seededEventNames = {
   active: "Evento Activo",
@@ -115,6 +117,20 @@ export async function seedDevData(input: {
       province: "santa_fe",
     })
     .returning();
+
+  // Registered before the location fields existed: no province and no city,
+  // so its data reads `Incompleta`, as production's older academies do.
+  const legacyAcademyUserId = await createVerifiedUser({
+    email: DEV_SEED_LEGACY_ACADEMY_EMAIL,
+    name: "Academia Antigua",
+    role: "academy",
+  });
+  await db.insert(academies).values({
+    userId: legacyAcademyUserId,
+    name: "Academia Antigua",
+    contactName: "Mario Ruiz",
+    phone: "3515550000",
+  });
 
   const activeEvent = await createSeedEvent(
     seededEventNames.active,

@@ -64,7 +64,6 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
     id: "data",
     header: "Datos",
     cell: (academy) => <AcademyDataStatusBadge status={academy.dataStatus} />,
-    // The label is also what the `Datos` facet matches.
     filterValue: (academy) => academyDataStatusLabels[academy.dataStatus],
   },
   {
@@ -72,7 +71,11 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
     header: "Filtros",
     hidden: true,
     cell: () => null,
-    filterValue: (academy) => (academy.isParticipating ? "si" : "no"),
+    // What the faceted filters match: one value per group.
+    filterValues: (academy) => [
+      academy.isParticipating ? "si" : "no",
+      academy.dataStatus === "complete" ? "completa" : "incompleta",
+    ],
   },
 ];
 
