@@ -31,10 +31,6 @@ import { formatProgramOrderNumber } from "../shared";
  * page, since a table repeats its `thead` and `tfoot` wherever it breaks.
  */
 
-/** The program's own columns, keyed the way the screen lists key them. */
-type ProgramPrintColumnId =
-  "orden" | "nombre" | "academia" | "modalidad" | "categoria" | "bailarines";
-
 /** A column of the printed program; the widths are percentages that add to 100. */
 type ProgramPrintColumn<Row> = {
   cell: (row: Row) => ReactNode;
@@ -45,125 +41,74 @@ type ProgramPrintColumn<Row> = {
 };
 
 /**
- * How the columns deal with a value longer than their width. `compact` keeps
- * every row one line, the pairs on it as the screen lists write them, and cuts
- * what does not fit: the public program's names are short enough to read. The
- * `wrapped` layout cuts nothing — the pairs stack, one value above the other,
- * and a long name takes a second line — because a sheet of results is read out
- * and handed over, and a cut name on paper is a name lost.
- */
-type ProgramPrintLayout = "compact" | "wrapped";
-
-/**
  * The program's own columns, in the participation list's order — the number,
- * who dances, then what the order groups by — at the widths the caller gives
- * them.
+ * who dances, then what the order groups by. Every row stays one line, the
+ * pairs on it as the screen lists write them, and what does not fit is cut:
+ * the public program's names are short enough to read.
  */
-function programPrintColumns({
-  layout,
-  widths,
-}: {
-  layout: ProgramPrintLayout;
-  widths: Record<ProgramPrintColumnId, number>;
-}): ProgramPrintColumn<EventProgramRow>[] {
-  const wraps = layout === "wrapped" ? programPrintWrapClassName : "";
-
-  return [
-    {
-      id: "orden",
-      header: "N.º",
-      width: widths.orden,
-      className: "font-medium tabular-nums",
-      cell: (row) => formatProgramOrderNumber(row),
-    },
-    {
-      id: "nombre",
-      header: "Nombre",
-      width: widths.nombre,
-      className: cn("font-medium", wraps),
-      cell: (row) => <PrintText layout={layout} value={row.name} />,
-    },
-    {
-      id: "academia",
-      header: "Academia",
-      width: widths.academia,
-      className: cn("text-muted-foreground", wraps),
-      cell: (row) => <PrintText layout={layout} value={row.academyName} />,
-    },
-    {
-      id: "modalidad",
-      header: printPairHeader(layout, "Modalidad", "Submodalidad"),
-      width: widths.modalidad,
-      className: cn("text-muted-foreground", wraps),
-      cell: (row) => (
-        <PrintPair
-          layout={layout}
-          primary={row.modalityName}
-          secondary={row.submodalityName}
-        />
-      ),
-    },
-    {
-      id: "categoria",
-      header: printPairHeader(layout, "Categoría", "Tipo de grupo"),
-      width: widths.categoria,
-      className: cn("text-muted-foreground", wraps),
-      cell: (row) => (
-        <PrintPair
-          layout={layout}
-          primary={row.categoryName}
-          secondary={formatGroupTypeLabel(row.groupType)}
-        />
-      ),
-    },
-    {
-      id: "bailarines",
-      header: "Bailarines",
-      width: widths.bailarines,
-      className: cn("text-muted-foreground", wraps),
-      cell: (row) => <PrintLines layout={layout} lines={row.dancerNames} />,
-    },
-  ];
-}
-
-/** What a column of the `wrapped` layout adds to let its text break. */
-const programPrintWrapClassName = "whitespace-normal break-words";
-
-/** "Modalidad / Submodalidad" on one line, or one word above the other. */
-function printPairHeader(
-  layout: ProgramPrintLayout,
-  primary: string,
-  secondary: string,
-): ReactNode {
-  return layout === "wrapped" ? (
-    <PrintLines layout={layout} lines={[primary, secondary]} />
-  ) : (
-    `${primary} / ${secondary}`
-  );
-}
+const publicProgramColumns: ProgramPrintColumn<EventProgramRow>[] = [
+  {
+    id: "orden",
+    header: "N.º",
+    width: 7,
+    className: "font-medium tabular-nums",
+    cell: (row) => formatProgramOrderNumber(row),
+  },
+  {
+    id: "nombre",
+    header: "Nombre",
+    width: 18,
+    className: "font-medium",
+    cell: (row) => <DataTableTruncatedText value={row.name} />,
+  },
+  {
+    id: "academia",
+    header: "Academia",
+    width: 18,
+    className: "text-muted-foreground",
+    cell: (row) => <DataTableTruncatedText value={row.academyName} />,
+  },
+  {
+    id: "modalidad",
+    header: "Modalidad / Submodalidad",
+    width: 20,
+    className: "text-muted-foreground",
+    cell: (row) => (
+      <PrintPair primary={row.modalityName} secondary={row.submodalityName} />
+    ),
+  },
+  {
+    id: "categoria",
+    header: "Categoría / Tipo de grupo",
+    width: 20,
+    className: "text-muted-foreground",
+    cell: (row) => (
+      <PrintPair
+        primary={row.categoryName}
+        secondary={formatGroupTypeLabel(row.groupType)}
+      />
+    ),
+  },
+  {
+    id: "bailarines",
+    header: "Bailarines",
+    width: 17,
+    className: "text-muted-foreground",
+    cell: (row) => <PrintLines lines={row.dancerNames} />,
+  },
+];
 
 /**
- * A pair on one line, "Jazz · Lírico" as the screen lists write it, or on two,
- * one above the other. A missing secondary value leaves the primary alone.
+ * A pair on one line, "Jazz · Lírico" as the screen lists write it. A missing
+ * secondary value leaves the primary alone.
  */
 function PrintPair({
-  layout,
   primary,
   secondary,
 }: {
-  layout: ProgramPrintLayout;
   primary: string;
   secondary: string | null;
 }) {
-  if (layout === "wrapped") {
-    return (
-      <PrintLines
-        layout={layout}
-        lines={secondary ? [primary, secondary] : [primary]}
-      />
-    );
-  }
-
   return (
     <DataTableTruncatedText
       value={formatPrimaryAndSecondaryValue(primary, secondary)}
@@ -171,56 +116,16 @@ function PrintPair({
   );
 }
 
-/**
- * Two lines tall in `compact`, whatever it holds, so every row of a page is one
- * height; at least that in `wrapped`, where a long line breaks and grows it.
- */
-function PrintLines({
-  layout,
-  lines,
-}: {
-  layout: ProgramPrintLayout;
-  lines: string[];
-}) {
+/** Two lines tall, whatever it holds, so every row of a page is one height. */
+function PrintLines({ lines }: { lines: string[] }) {
   return (
-    <div
-      className={cn(
-        "flex flex-col justify-center",
-        layout === "wrapped" ? "min-h-10" : "h-10",
-      )}
-    >
+    <div className="flex h-10 flex-col justify-center">
       {lines.map((line) => (
-        <PrintText key={line} layout={layout} value={line} />
+        <DataTableTruncatedText key={line} value={line} />
       ))}
     </div>
   );
 }
-
-function PrintText({
-  layout,
-  value,
-}: {
-  layout: ProgramPrintLayout;
-  value: string;
-}) {
-  return layout === "wrapped" ? (
-    <span>{value}</span>
-  ) : (
-    <DataTableTruncatedText value={value} />
-  );
-}
-
-const publicProgramColumns = programPrintColumns({
-  layout: "compact",
-  widths: {
-    orden: 7,
-    nombre: 18,
-    academia: 18,
-    modalidad: 20,
-    categoria: 20,
-    bailarines: 17,
-  },
-});
 
 /** The margin the zero `@page` gives up and the spacer rows give back. */
 const printPageMargin = "12mm";
