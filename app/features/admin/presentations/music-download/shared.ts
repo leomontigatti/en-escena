@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import { requiredFieldMessage } from "@/lib/shared/forms";
+import { slugify } from "@/lib/shared/slugify";
+
 /**
  * What the day's music download and the dialog that starts it agree on: where
  * the download lives, the parameter the day travels in, and how the archive is
@@ -11,7 +14,7 @@ const musicDownloadPath = "/administracion/presentaciones/audios";
 export const musicDownloadDayParam = "dia";
 
 export const musicDownloadSchema = z.object({
-  [musicDownloadDayParam]: z.string().min(1, "Elegí un día."),
+  [musicDownloadDayParam]: z.string().min(1, requiredFieldMessage),
 });
 
 export type MusicDownloadFormValues = z.infer<typeof musicDownloadSchema>;
@@ -152,14 +155,4 @@ function cleanNamePart(value: string) {
       .slice(0, maxNamePartLength)
       .replace(/[\s.]+$/, "")
   );
-}
-
-/** The archive's own name travels in a header, so it stays plain ASCII. */
-function slugify(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
