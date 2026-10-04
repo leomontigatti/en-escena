@@ -13,9 +13,9 @@ import {
   createReactDomTestRenderer,
 } from "@/lib/test-support/react-dom";
 
-import { ProgramExportDialog } from "./program-export-dialog";
+import { DayExportDialog } from "./dialog";
 
-describe("the program export dialog", () => {
+describe("the day export dialog", () => {
   const renderer = createReactDomTestRenderer();
   const openWindow = vi.spyOn(window, "open").mockReturnValue(null);
   const onOpenChange = vi.fn();
@@ -28,10 +28,13 @@ describe("the program export dialog", () => {
 
   async function mount() {
     await renderer.renderAsync(
-      <ProgramExportDialog
+      <DayExportDialog
         days={["2026-10-10", "2026-10-11"]}
+        description="Elegí el día, o todos."
         onOpenChange={onOpenChange}
         open
+        path="/administracion/presentaciones/exportar"
+        title="Descargar programa"
       />,
     );
   }

@@ -1,19 +1,19 @@
 import { eq } from "drizzle-orm";
-import writeXlsxFile from "write-excel-file/node";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
+import { spreadsheetResponse } from "@/features/admin/day-export/server";
+import {
+  buildExportFileName,
+  exportDayParam,
+  isOnExportDay,
+} from "@/features/admin/day-export/shared";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { readEventProgram } from "@/lib/presentations/event-program.server";
 
-import { buildProgramSheet, programExportColumns } from "./sheet";
-import {
-  buildProgramExportFileName,
-  programExportAllDays,
-  programExportDayParam,
-} from "./shared";
+import { programExportColumns, type ProgramExportRow } from "./sheet";
 
 /**
  * The program as a spreadsheet, for the organisation to work on outside the
@@ -26,10 +26,23 @@ function namesDancersOnExport(groupType: ChoreographyGroupType) {
   return groupType !== "grupal";
 }
 
-export async function loadProgramExport(request: Request): Promise<Response> {
+/**
+ * What every export of the program reads: the administrator, the active event
+ * and the day asked for, and the program's rows on that day. Not found when
+ * any of them is missing, since a download has no page to say so on.
+ */
+export async function readProgramExport(
+  request: Request,
+  options: { namesDancersOf: (groupType: ChoreographyGroupType) => boolean },
+): Promise<{
+  day: string;
+  eventName: string;
+  /** With the choreography, which a richer export reads more about. */
+  rows: (ProgramExportRow & { choreographyId: string })[];
+}> {
   await requireInternalUser(request, ["admin"]);
   const { selectedEventId } = await loadEventContext(request);
-  const day = new URL(request.url).searchParams.get(programExportDayParam);
+  const day = new URL(request.url).searchParams.get(exportDayParam);
 
   if (selectedEventId === null || !day) {
     throw new Response("Día no encontrado", { status: 404 });
@@ -40,9 +53,7 @@ export async function loadProgramExport(request: Request): Promise<Response> {
       .select({ name: events.name })
       .from(events)
       .where(eq(events.id, selectedEventId)),
-    readEventProgram(selectedEventId, db, {
-      namesDancersOf: namesDancersOnExport,
-    }),
+    readEventProgram(selectedEventId, db, options),
   ]);
   const schedulesById = new Map(
     program.schedules.map((schedule) => [schedule.id, schedule]),
@@ -53,7 +64,7 @@ export async function loadProgramExport(request: Request): Promise<Response> {
     if (
       !schedule ||
       row.orderNumber === null ||
-      (day !== programExportAllDays && row.scheduledDate !== day)
+      !isOnExportDay(day, row.scheduledDate)
     ) {
       return [];
     }
@@ -72,18 +83,18 @@ export async function loadProgramExport(request: Request): Promise<Response> {
     throw new Response("Día no encontrado", { status: 404 });
   }
 
-  const workbook = await writeXlsxFile(buildProgramSheet(rows), {
-    columns: programExportColumns.map(({ width }) => ({ width })),
-    sheet: "Programa",
-    stickyRowsCount: 1,
-  }).toBuffer();
+  return { day, eventName: event.name, rows };
+}
 
-  return new Response(new Uint8Array(workbook), {
-    headers: {
-      "Cache-Control": "private, no-store",
-      "Content-Disposition": `attachment; filename="${buildProgramExportFileName(event.name, day)}"`,
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    },
+export async function loadProgramExport(request: Request): Promise<Response> {
+  const { day, eventName, rows } = await readProgramExport(request, {
+    namesDancersOf: namesDancersOnExport,
+  });
+
+  return await spreadsheetResponse({
+    columns: programExportColumns,
+    fileName: buildExportFileName("programa", eventName, day),
+    rows,
+    sheet: "Programa",
   });
 }

@@ -36,7 +36,7 @@ type ProgramPrintColumnId =
   "orden" | "nombre" | "academia" | "modalidad" | "categoria" | "bailarines";
 
 /** A column of the printed program; the widths are percentages that add to 100. */
-export type ProgramPrintColumn<Row> = {
+type ProgramPrintColumn<Row> = {
   cell: (row: Row) => ReactNode;
   className?: string;
   header: ReactNode;
@@ -57,10 +57,9 @@ type ProgramPrintLayout = "compact" | "wrapped";
 /**
  * The program's own columns, in the participation list's order — the number,
  * who dances, then what the order groups by — at the widths the caller gives
- * them: the public program spends the whole page on them, and a print that
- * adds columns of its own rebalances them to make room.
+ * them.
  */
-export function programPrintColumns({
+function programPrintColumns({
   layout,
   widths,
 }: {
@@ -128,7 +127,7 @@ export function programPrintColumns({
 }
 
 /** What a column of the `wrapped` layout adds to let its text break. */
-export const programPrintWrapClassName = "whitespace-normal break-words";
+const programPrintWrapClassName = "whitespace-normal break-words";
 
 /** "Modalidad / Submodalidad" on one line, or one word above the other. */
 function printPairHeader(
@@ -253,7 +252,7 @@ function formatPrintDay(date: string) {
 }
 
 /** "sábado 17 de octubre 10:00 hs · Sábado mañana" */
-export function formatProgramScheduleLabel(schedule: EventProgramSchedule) {
+function formatProgramScheduleLabel(schedule: EventProgramSchedule) {
   return `${formatPrintDay(schedule.scheduledDate)} ${schedule.startTime} hs · ${schedule.name}`;
 }
 
@@ -306,11 +305,10 @@ export function PrintableProgram({
 /**
  * The page runs themselves, one per schedule, for any row that is at least a
  * program row. Whoever renders them decides when they show: the public program
- * only on paper, the results print on screen too. The notice under each
- * heading and the line after each run's rows are the public program's: the
- * results print passes neither.
+ * shows them only on paper. The notice under each heading and the line after
+ * each run's rows are optional.
  */
-export function ProgramPrintPages<
+function ProgramPrintPages<
   Row extends EventProgramRow,
   Schedule extends EventProgramSchedule,
 >({

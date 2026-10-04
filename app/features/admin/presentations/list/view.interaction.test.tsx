@@ -379,7 +379,6 @@ function buildLoaderData(
     totalCount: 2,
     totalPages: 1,
     unorderedCount: 0,
-    printableSchedules: [],
     warnedCount: 0,
     ...overrides,
   };

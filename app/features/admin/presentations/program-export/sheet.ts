@@ -1,22 +1,24 @@
-import type { Cell, SheetData } from "write-excel-file/node";
-
 import {
   formatGroupTypeLabel,
   type ChoreographyGroupType,
 } from "@/lib/portal/choreographies";
 
+import {
+  buildSheet,
+  type SheetColumn,
+} from "@/features/admin/day-export/sheet";
+
 /**
- * The program as a spreadsheet: one row per presentation, in running order,
- * under one header row. A spreadsheet is filtered and sorted rather than read
- * top to bottom, so every value keeps a column of its own (category apart from
- * group type, modality apart from submodality) and the day is a real date.
+ * The program as a spreadsheet: one row per presentation, in running order.
+ * Category stays apart from group type and modality apart from submodality,
+ * and the day is a real date, so each can be filtered on its own.
  */
 
 export type ProgramExportRow = {
   academyName: string;
   academyProvince: string | null;
   categoryName: string;
-  /** Filled up to a trio; a larger group's list would bury the row. */
+  /** Whoever the reading asked to name: the program export, up to a trio. */
   dancerNames: string[];
   groupType: ChoreographyGroupType;
   modalityName: string;
@@ -28,14 +30,8 @@ export type ProgramExportRow = {
   submodalityName: string | null;
 };
 
-type ProgramExportColumn = {
-  cell: (row: ProgramExportRow) => Cell;
-  header: string;
-  /** In characters, as a spreadsheet measures a column. */
-  width: number;
-};
-
-export const programExportColumns: ProgramExportColumn[] = [
+/** Every column but the dancers, which each export fills its own way. */
+export const programColumns: SheetColumn<ProgramExportRow>[] = [
   { header: "N.º", width: 6, cell: (row) => row.orderNumber },
   {
     header: "Día",
@@ -62,6 +58,10 @@ export const programExportColumns: ProgramExportColumn[] = [
   { header: "Academia", width: 28, cell: (row) => row.academyName },
   { header: "Provincia", width: 16, cell: (row) => row.academyProvince },
   { header: "Coreografía", width: 30, cell: (row) => row.name },
+];
+
+export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
+  ...programColumns,
   {
     header: "Bailarines",
     width: 28,
@@ -72,14 +72,6 @@ export const programExportColumns: ProgramExportColumn[] = [
   },
 ];
 
-export function buildProgramSheet(rows: ProgramExportRow[]): SheetData {
-  return [
-    programExportColumns.map((column) => ({
-      fontWeight: "bold" as const,
-      value: column.header,
-    })),
-    ...rows.map((row) =>
-      programExportColumns.map((column) => column.cell(row) ?? null),
-    ),
-  ];
+export function buildProgramSheet(rows: ProgramExportRow[]) {
+  return buildSheet(programExportColumns, rows);
 }

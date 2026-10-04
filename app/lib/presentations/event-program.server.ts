@@ -124,7 +124,7 @@ export async function readEventProgram(
   options: {
     /**
      * Which rows carry their dancers' names. The program's own rule unless a
-     * caller prints to a page with room for more, as the results print does.
+     * caller has room for more, as the spreadsheet exports do.
      */
     namesDancersOf?: (groupType: ChoreographyGroupType) => boolean;
   } = {},

@@ -34,13 +34,11 @@ describe("the participation list's actions menu", () => {
               canDownloadMusic={false}
               canExportProgram={canExportProgram}
               canOrderRows={false}
-              canPrintResults={false}
               hasSelection={false}
               onDownloadMusic={vi.fn()}
               onExportProgram={onExportProgram}
               onJudges={vi.fn()}
               onOrder={vi.fn()}
-              onPrintResults={vi.fn()}
               onToggleProgram={onToggleProgram}
               programToggle={programToggle}
             />

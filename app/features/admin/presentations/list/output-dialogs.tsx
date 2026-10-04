@@ -1,10 +1,11 @@
 import { useState } from "react";
 
+import { DayExportDialog } from "@/features/admin/day-export/dialog";
+
 import { MusicDownloadDialog } from "./music-download-dialog";
-import { ProgramExportDialog } from "./program-export-dialog";
 import { ProgramVisibilityDialog } from "./program-visibility-dialog";
 import type { PresentationListResult } from "./shared";
-import { ResultsPrintDialog } from "../results-print/dialog";
+import { programExportPath } from "../program-export/shared";
 
 /**
  * The program can be shown once something in it is numbered, and hidden
@@ -30,7 +31,7 @@ export function readProgramToggle(loaderData: PresentationListResult) {
  * app, rather than change the list.
  */
 export type OutputDialog =
-  "musicDownload" | "programExport" | "programVisibility" | "resultsPrint";
+  "musicDownload" | "programExport" | "programVisibility";
 
 export function PresentationOutputDialog({
   dialog,
@@ -46,16 +47,6 @@ export function PresentationOutputDialog({
       onClose();
     }
   };
-
-  if (dialog === "resultsPrint") {
-    return (
-      <ResultsPrintDialog
-        open
-        onOpenChange={onOpenChange}
-        schedules={loaderData.printableSchedules}
-      />
-    );
-  }
 
   if (dialog === "musicDownload") {
     return (
@@ -76,10 +67,13 @@ export function PresentationOutputDialog({
 
   if (dialog === "programExport") {
     return (
-      <ProgramExportDialog
+      <DayExportDialog
         days={loaderData.programExportDays}
+        description="Elegí el día, o todos. Se descarga una planilla de Excel con las presentaciones en su orden."
         open
         onOpenChange={onOpenChange}
+        path={programExportPath}
+        title="Descargar programa"
       />
     );
   }
