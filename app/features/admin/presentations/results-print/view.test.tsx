@@ -132,6 +132,7 @@ function readLines(selector: string) {
 function buildRow(overrides: Partial<ResultsPrintRow> = {}): ResultsPrintRow {
   return {
     academyName: "Academia Sur",
+    academyProvince: null,
     average: 88.5,
     categoryName: "Infantil",
     choreographyId: "choreography-1",

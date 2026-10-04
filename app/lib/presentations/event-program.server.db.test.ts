@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { events, presentations, schedules } from "@/db/schema";
+import { academies, events, presentations, schedules } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -116,6 +116,29 @@ describe("readEventProgram", () => {
     expect(program.rows.map((row) => row.orderNumber)).toEqual([1, 2, 3]);
     expect(program.rows[0].academyName).toBe("Academia Sur");
     expect(program.rows.every((row) => row.isBelowDeposit)).toBe(false);
+  });
+
+  test("carries the academy's province, empty when it never gave one", async () => {
+    const { addAcademy, event } = await seedEvent();
+    const cordoba = await addAcademy("Academia Norte");
+    const unknown = await addAcademy("Academia Sur");
+    await db
+      .update(academies)
+      .set({ province: "Córdoba" })
+      .where(eq(academies.id, cordoba.academy.id));
+    await db
+      .update(academies)
+      .set({ province: null })
+      .where(eq(academies.id, unknown.academy.id));
+    await cordoba.addChoreography({ name: "Primera", orderNumber: 1 });
+    await unknown.addChoreography({ name: "Segunda", orderNumber: 2 });
+
+    const program = await readEventProgram(event.id);
+
+    expect(program.rows.map((row) => row.academyProvince)).toEqual([
+      "Córdoba",
+      null,
+    ]);
   });
 
   test("leaves out a withdrawn choreography, and lists it again once restored", async () => {

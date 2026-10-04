@@ -5,35 +5,40 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 /**
- * The participation list's actions menu: printing results and downloading the
- * day's music first, then the ordering and the two judge dialogs. Every item opens a dialog the list owns,
- * so the menu only says which one; with nothing to offer there is no menu.
+ * The participation list's actions menu: printing results, downloading the
+ * day's music and exporting the program first, then the ordering and the two
+ * judge dialogs. Every item opens a dialog the list owns, so the menu only says
+ * which one; with nothing to offer there is no menu.
  */
 export function PresentationListActions({
   canDownloadMusic,
+  canExportProgram,
   canOrderRows,
   canPrintResults,
   hasSelection,
   onDownloadMusic,
+  onExportProgram,
   onJudges,
   onOrder,
   onPrintResults,
 }: {
   canDownloadMusic: boolean;
+  canExportProgram: boolean;
   canOrderRows: boolean;
   canPrintResults: boolean;
   /** The judge dialogs act on the selected rows, so they need some. */
   hasSelection: boolean;
   onDownloadMusic: () => void;
+  onExportProgram: () => void;
   onJudges: (mode: "assign" | "remove") => void;
   onOrder: () => void;
   onPrintResults: () => void;
 }) {
-  if (!canOrderRows && !canPrintResults && !canDownloadMusic) {
+  const hasOutputs = canPrintResults || canDownloadMusic || canExportProgram;
+
+  if (!canOrderRows && !hasOutputs) {
     return null;
   }
-
-  const hasOutputs = canPrintResults || canDownloadMusic;
 
   return (
     <ResourceActionsMenu>
@@ -55,6 +60,16 @@ export function PresentationListActions({
           }}
         >
           Descargar audios
+        </DropdownMenuItem>
+      ) : null}
+      {canExportProgram ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            onExportProgram();
+          }}
+        >
+          Descargar programa
         </DropdownMenuItem>
       ) : null}
       {hasOutputs && canOrderRows ? <DropdownMenuSeparator /> : null}

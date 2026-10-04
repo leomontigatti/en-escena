@@ -305,6 +305,7 @@ function buildLoaderData(): PresentationListResult {
     ],
     highestOrderNumber: 1,
     musicDownloadDays: [],
+    programExportDays: [],
     selectedEventId: "event-1",
     totalCount: 2,
     totalPages: 1,

@@ -54,8 +54,15 @@ export type ScheduleAwardCeremony = {
 export type EventProgramCeremonySchedule = EventProgramSchedule &
   ScheduleAwardCeremony;
 
-/** The program's row, the shared one plus the schedule the print groups by. */
-export type EventProgramRow = ProgramListRow & { scheduleId: string };
+/**
+ * The program's row: the shared one, plus the schedule the print groups by and
+ * the academy's province, which only the admin's spreadsheet export shows.
+ */
+export type EventProgramRow = ProgramListRow & {
+  /** `null` for an academy registered before the province was asked. */
+  academyProvince: string | null;
+  scheduleId: string;
+};
 
 export type EventProgramEvent = {
   /** Date-only, in business time: the program names days, not instants. */
@@ -127,6 +134,7 @@ export async function readEventProgram(
     executor
       .select({
         academyName: academies.name,
+        academyProvince: academies.province,
         categoryName: categories.name,
         choreographyId: choreographies.id,
         choreographyNumber: choreographies.choreographyNumber,
@@ -184,6 +192,7 @@ export async function readEventProgram(
   return {
     rows: rows.map((row) => ({
       academyName: row.academyName,
+      academyProvince: row.academyProvince,
       categoryName: row.categoryName,
       choreographyId: row.choreographyId,
       choreographyNumber: row.choreographyNumber,

@@ -116,6 +116,7 @@ async function loadPresentationList(input: {
       highestOrderNumber: 0,
       musicDownloadDays: [],
       presentations: [],
+      programExportDays: [],
       printableSchedules: [],
       selectedEventId: null,
       totalCount: 0,
@@ -178,6 +179,13 @@ async function loadPresentationList(input: {
     ),
     musicDownloadDays,
     presentations: filteredItems.slice(offset, offset + limit),
+    programExportDays: [
+      ...new Set(
+        items
+          .filter((item) => item.orderNumber !== null)
+          .map((item) => item.scheduledDate),
+      ),
+    ].sort(),
     printableSchedules: listPrintableSchedules(rows),
     selectedEventId: input.selectedEventId,
     totalCount: filteredItems.length,

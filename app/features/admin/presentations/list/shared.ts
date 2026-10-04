@@ -114,6 +114,8 @@ export type PresentationListResult = {
   /** The highest number in the order; `0` before the first ordering. */
   highestOrderNumber: number;
   presentations: PresentationListItem[];
+  /** The days the program export offers: the ones with a numbered row. */
+  programExportDays: string[];
   /**
    * The schedules the results print offers: the ones with a presentation, in
    * day and time order, which is how the print runs them.

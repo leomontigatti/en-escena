@@ -36,6 +36,7 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 import { PresentationListActions } from "./actions-menu";
 import { JudgeAssignmentDialog } from "./judge-dialogs";
 import { MusicDownloadDialog } from "./music-download-dialog";
+import { ProgramExportDialog } from "./program-export-dialog";
 import { ResultsPrintDialog } from "../results-print/dialog";
 import {
   OrderingConfirmationDialog,
@@ -436,12 +437,14 @@ export function PresentationsListView({
           canDownloadMusic={
             loaderData.canOrder && loaderData.musicDownloadDays.length > 0
           }
+          canExportProgram={loaderData.programExportDays.length > 0}
           canOrderRows={loaderData.canOrder && loaderData.hasAnyRow}
           canPrintResults={
             loaderData.canOrder && loaderData.printableSchedules.length > 0
           }
           hasSelection={selectedRows.length > 0}
           onDownloadMusic={() => setOutputDialog("musicDownload")}
+          onExportProgram={() => setOutputDialog("programExport")}
           onJudges={setJudgeDialogMode}
           onOrder={() => setIsOrderingDialogOpen(true)}
           onPrintResults={() => setOutputDialog("resultsPrint")}
@@ -527,8 +530,8 @@ export function PresentationsListView({
   );
 }
 
-/** The two dialogs that hand something out of the list rather than change it. */
-type OutputDialog = "musicDownload" | "resultsPrint";
+/** The dialogs that hand something out of the list rather than change it. */
+type OutputDialog = "musicDownload" | "programExport" | "resultsPrint";
 
 function PresentationOutputDialog({
   dialog,
@@ -560,6 +563,16 @@ function PresentationOutputDialog({
       <MusicDownloadDialog
         days={loaderData.musicDownloadDays}
         defaultDay={loaderData.filters.day}
+        open
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+
+  if (dialog === "programExport") {
+    return (
+      <ProgramExportDialog
+        days={loaderData.programExportDays}
         open
         onOpenChange={onOpenChange}
       />
