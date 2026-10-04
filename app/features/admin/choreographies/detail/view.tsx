@@ -10,6 +10,7 @@ import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +39,7 @@ import {
 import type { ChoreographyDetailLoaderData } from "./server";
 import {
   deleteChoreographyIntent,
-  formatChoreographyRemovalDescription,
+  describeChoreographyRemoval,
   restoreChoreographyDescription,
   restoreChoreographyIntent,
   type ChoreographyViewActionData,
@@ -140,22 +141,14 @@ function ChoreographyDetailActionsMenu({
     <ResourceActionsMenu contentClassName="w-52">
       <DropdownMenuGroup>
         {canRestore ? (
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              onRestore();
-            }}
-          >
+          <DropdownMenuItem onSelect={() => onRestore()}>
             Restaurar coreografía
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
             variant="destructive"
             disabled={!canDelete}
-            onSelect={(event) => {
-              event.preventDefault();
-              onDelete();
-            }}
+            onSelect={() => onDelete()}
           >
             Eliminar
           </DropdownMenuItem>
@@ -166,8 +159,10 @@ function ChoreographyDetailActionsMenu({
 }
 
 /**
- * `Eliminar` is one action with two outcomes, and the dialog names
- * the one that will happen before the admin confirms. The evaluated presentation
+ * `Eliminar` is one action with two outcomes, and each has its own dialog, so
+ * the admin confirms the one that will happen: a withdrawal when the
+ * choreography holds money or comprobantes, a deletion otherwise. Both post the
+ * same intent, and the server decides again. The evaluated presentation
  * is the only thing that blocks it; the menu item is then disabled and the
  * evaluation alert says why, so there is no blocked dialog to render.
  */
@@ -180,18 +175,30 @@ function ChoreographyRemovalDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
-  return (
-    <DeleteDialog
-      description={formatChoreographyRemovalDescription({
-        outcome: loaderData.deletion.outcome,
-        presentationOrderNumber:
-          loaderData.choreography.presentationOrderNumber,
-      })}
+  const removal = describeChoreographyRemoval({
+    outcome: loaderData.deletion.outcome,
+    presentationOrderNumber: loaderData.choreography.presentationOrderNumber,
+  });
+
+  return removal.outcome === "withdrawn" ? (
+    <WithdrawDialog
+      confirmLabel="Retirar"
+      consequence={removal.consequence}
+      description={removal.description}
       intentValue={deleteChoreographyIntent}
       onOpenChange={onOpenChange}
       open={open}
       recordId={loaderData.choreography.id}
-      title="¿Eliminar la coreografía?"
+      title={removal.title}
+    />
+  ) : (
+    <DeleteDialog
+      description={removal.description}
+      intentValue={deleteChoreographyIntent}
+      onOpenChange={onOpenChange}
+      open={open}
+      recordId={loaderData.choreography.id}
+      title={removal.title}
     />
   );
 }

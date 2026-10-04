@@ -91,7 +91,7 @@ describe("DataTable", () => {
           ]}
           columns={columns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar evento por nombre"
+          searchPlaceholder="Buscar por nombre"
           textFilterColumnId="name"
           facetedFilters={[
             {
@@ -134,7 +134,7 @@ describe("DataTable", () => {
           ]}
           columns={columns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar profesor por nombre, número de documento o academia"
+          searchPlaceholder="Buscar por nombre o documento"
           initialSearchValue="Ana"
           facetedFilters={[
             {
@@ -202,7 +202,7 @@ describe("DataTable", () => {
           ]}
           columns={columns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar profesor por nombre, número de documento o academia"
+          searchPlaceholder="Buscar por nombre o documento"
           textFilterColumnId="name"
         />
       </MemoryRouter>,
@@ -279,7 +279,7 @@ describe("DataTable", () => {
           ]}
           columns={columns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar por nombre"
           selectableRows
           textFilterColumnId="name"
         />
@@ -333,7 +333,7 @@ describe("DataTable", () => {
             ...columns,
           ]}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar por nombre"
           selectableRows
           currentPage={1}
           totalPages={1}
@@ -371,7 +371,7 @@ describe("DataTable", () => {
           canSelectRow={(row) => row.status === "active"}
           columns={columns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar por nombre"
           selectableRows
           textFilterColumnId="name"
         />
@@ -407,7 +407,7 @@ describe("DataTable", () => {
           canSelectRow={(row) => row.status === "active"}
           columns={columns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar por nombre"
           selectableRows
           selectedRowIds={[]}
           onSelectedRowIdsChange={(ids) => selections.push(ids)}
@@ -458,7 +458,7 @@ describe("DataTable", () => {
             { id: "draft", header: "Borrador", cell: () => <DraftCell /> },
           ]}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar por nombre"
           selectableRows
           selectedRowIds={selectedRowIds}
           onSelectedRowIdsChange={setSelectedRowIds}
@@ -522,7 +522,7 @@ describe("DataTable fit layout", () => {
           getRowKey={(current) => current.id}
           layout={layout}
           selectableRows={selectableRows}
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar por nombre"
           currentPage={1}
           totalPages={1}
           totalRows={1}
@@ -596,7 +596,7 @@ describe("DataTable fit layout", () => {
           ]}
           getRowKey={(current) => current.id}
           layout="fit"
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar por nombre"
           currentPage={1}
           totalPages={1}
           totalRows={1}
@@ -629,7 +629,7 @@ describe("DataTable fit layout", () => {
           ]}
           getRowKey={(current) => current.id}
           layout="fit"
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar por nombre"
           currentPage={1}
           totalPages={1}
           totalRows={1}
@@ -1345,7 +1345,7 @@ function createListRouter(
             rows={rows}
             columns={columns}
             getRowKey={(row) => row.id}
-            searchPlaceholder="Buscar coreografía por nombre"
+            searchPlaceholder="Buscar por nombre"
             textFilterColumnId="name"
             facetedFilters={facetedFilters}
             initialFacetedFilterValues={initialFacetedFilterValues}
@@ -1392,7 +1392,7 @@ function SlowServerList() {
       ]}
       columns={columns}
       getRowKey={(row) => row.id}
-      searchPlaceholder="Buscar profesor por nombre"
+      searchPlaceholder="Buscar por nombre"
       initialSearchValue={loadedSearch}
       currentPage={1}
       totalPages={1}
@@ -1420,7 +1420,7 @@ function LoaderBackedServerList() {
       ]}
       columns={columns}
       getRowKey={(row) => row.id}
-      searchPlaceholder="Buscar profesor por nombre"
+      searchPlaceholder="Buscar por nombre"
       initialSearchValue={query}
       currentPage={1}
       totalPages={1}
@@ -1472,7 +1472,7 @@ function createLoaderBackedClientListRouter(entry: string) {
             ]}
             columns={columns}
             getRowKey={(row) => row.id}
-            searchPlaceholder="Buscar profesor por nombre"
+            searchPlaceholder="Buscar por nombre"
           />
         ),
         loader: async () => {

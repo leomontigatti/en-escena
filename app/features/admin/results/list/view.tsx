@@ -296,12 +296,7 @@ function ResultsListActions({
   return (
     <ResourceActionsMenu contentClassName="w-48">
       {canExport ? (
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            onExport();
-          }}
-        >
+        <DropdownMenuItem onSelect={() => onExport()}>
           Descargar resultados
         </DropdownMenuItem>
       ) : null}

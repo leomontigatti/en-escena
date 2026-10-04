@@ -13,6 +13,7 @@ import type {
 import { scoreValueMessage } from "@/lib/judging/score-value";
 import {
   createReactDomTestRenderer,
+  findButton,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -104,7 +105,7 @@ describe("correcting the panel's scores", () => {
   }
 
   async function openActionsMenu() {
-    const button = document.querySelector('button[aria-label="Acciones"]');
+    const button = findButton("Acciones", { exact: true });
 
     if (!button) {
       throw new Error("Expected the actions menu button to be rendered.");
@@ -347,8 +348,8 @@ describe("correcting the panel's scores", () => {
 
     expect(sheetSums()).toEqual([
       "Devolución",
-      "Técnico obligatorio55.5 / 60",
-      "Específicos del nivel30 / 40",
+      "Evaluación general55.5 / 60",
+      "Técnico obligatorio30 / 40",
       "Descuentan−5 / 10",
       "Total del jurado80.5 / 100",
     ]);

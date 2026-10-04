@@ -171,16 +171,6 @@ export async function seedDevData(input: {
     now: input.now,
     priceId: catalog.priceId,
   });
-  // Registered after the payment, so nothing is allocated to it: the unpaid
-  // inscription the money screens need. With no deposit it gets no number, so
-  // it freezes nothing in the morning block.
-  await registerSolo({
-    ...registration,
-    name: "Sal y Arena",
-    dancerId: roster.dani,
-    professorId: roster.luz,
-    scheduleCapacityId: catalog.morningCapacity.id,
-  });
   await invoiceChoreography({
     choreographyId: scoredChoreographyId,
     eventId: activeEvent.id,
@@ -191,6 +181,16 @@ export async function seedDevData(input: {
     eventId: activeEvent.id,
     judgeUserId,
     scheduledDate: catalog.scheduledDate,
+  });
+  // Registered after the payment, so nothing is allocated to it: the unpaid
+  // inscription the money screens need. And after the ordering, which numbers
+  // every choreography it finds, so it is the late registration with no number.
+  await registerSolo({
+    ...registration,
+    name: "Sal y Arena",
+    dancerId: roster.dani,
+    professorId: roster.luz,
+    scheduleCapacityId: catalog.morningCapacity.id,
   });
 
   return { deactivatedEventNames: deactivated.map(({ name }) => name) };

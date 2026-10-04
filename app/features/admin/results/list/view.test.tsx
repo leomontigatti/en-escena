@@ -4,7 +4,10 @@ import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  findButton,
+} from "@/lib/test-support/react-dom";
 
 import type { ResultsListItem, ResultsListResult } from "./shared";
 import { ResultsListView } from "./view";
@@ -201,7 +204,7 @@ describe("ResultsListView publication", () => {
       { canPublish: false },
     );
 
-    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+    expect(findButton("Acciones", { exact: true })).toBeUndefined();
     expect(document.body.textContent).toContain("Resultados publicados");
   });
 
@@ -336,7 +339,7 @@ describe("ResultsListView publication", () => {
 });
 
 async function openActionsMenu() {
-  const button = document.querySelector('button[aria-label="Acciones"]');
+  const button = findButton("Acciones", { exact: true });
 
   if (!button) {
     throw new Error("Expected the list's actions button to be rendered.");

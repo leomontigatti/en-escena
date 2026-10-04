@@ -164,6 +164,28 @@ describe("dev seed", () => {
     await expect(allocatedTo("Luna de Papel")).resolves.toEqual([10000]);
   });
 
+  // The ordering numbers every choreography it finds, paid or not, so the one
+  // registered after it is the late registration the removal dialogs and the
+  // presentation list read without a number.
+  test("leaves one choreography registered after the ordering, so one has no number", async () => {
+    await seedDevData({ now });
+
+    const numbered = await db
+      .select({ name: choreographies.name })
+      .from(presentations)
+      .innerJoin(
+        choreographies,
+        eq(choreographies.id, presentations.choreographyId),
+      )
+      .orderBy(asc(choreographies.name));
+
+    expect(numbered.map(({ name }) => name)).toEqual([
+      "Luna de Papel",
+      "Río Arriba",
+      "Viento Sur",
+    ]);
+  });
+
   test("has the demo judge score one presentation, so the score screens show a number", async () => {
     await seedDevData({ now });
 

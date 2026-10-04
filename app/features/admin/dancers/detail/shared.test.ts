@@ -69,8 +69,8 @@ describe("getInitialDialogIntent", () => {
   });
 
   // A refused status change carries no `values`, and re-opens no dialog: the
-  // reloaded page already has `Archivar` disabled and the participation alert
-  // showing, so the dialog would offer a confirm the server refuses again.
+  // reloaded page already has `Archivar` opening the blocked acknowledgment, so
+  // the confirmation would offer a confirm the server refuses again.
   test("opens no dialog for an archive the server refused", () => {
     expect(
       getInitialDialogIntent({
@@ -126,47 +126,42 @@ function buildViewState(
 }
 
 describe("buildDancerDetailViewState", () => {
-  test("disables archiving and explains it for a participant of the active event", () => {
+  test("blocks archiving for a participant of the active event", () => {
     const viewState = buildViewState({ isParticipatingInActiveEvent: true });
 
     expect(viewState.statusAction.intent).toBe("archive-dancer");
-    expect(viewState.statusAction.disabled).toBe(true);
-    expect(viewState.participatingAlert).toBe(
-      "Este bailarín no puede archivarse porque está participando del evento activo.",
-    );
+    expect(viewState.statusAction.isBlocked).toBe(true);
   });
 
   test("leaves archiving alone when the dancer participates in nothing live", () => {
     const viewState = buildViewState();
 
-    expect(viewState.statusAction.disabled).toBe(false);
-    expect(viewState.participatingAlert).toBeNull();
+    expect(viewState.statusAction.isBlocked).toBe(false);
   });
 
   // Reactivating is never refused, so the archived participant —the one row the
-  // rule grandfathers— keeps her action and gets no alert about it.
-  test("never disables reactivating an archived participant", () => {
+  // rule grandfathers— keeps her action.
+  test("never blocks reactivating an archived participant", () => {
     const viewState = buildViewState({
       dancer: { active: false },
       isParticipatingInActiveEvent: true,
     });
 
     expect(viewState.statusAction.intent).toBe("reactivate-dancer");
-    expect(viewState.statusAction.disabled).toBe(false);
-    expect(viewState.participatingAlert).toBeNull();
+    expect(viewState.statusAction.isBlocked).toBe(false);
   });
 });
 
 describe("getDancerConfirmation", () => {
   const archive = {
     description: "Archivá este Bailarín.",
-    disabled: false,
+    isBlocked: false,
     intent: "archive-dancer",
     label: "Archivar",
   } as const;
   const reactivate = {
     description: "Reactivá este Bailarín.",
-    disabled: false,
+    isBlocked: false,
     intent: "reactivate-dancer",
     label: "Reactivar Bailarín",
   } as const;

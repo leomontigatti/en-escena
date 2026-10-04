@@ -21,7 +21,7 @@ import type {
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import {
   getArchiveKeepsRosterMessage,
-  getRosterPersonArchiveAvailability,
+  isRosterPersonArchiveBlocked,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
@@ -135,11 +135,6 @@ export type PortalDancerDetailViewModel = {
   showsIdentificationAlert: boolean;
   showsPendingVerificationAlert: boolean;
   showsVerifiedIdentityAlert: boolean;
-  /**
-   * Why the archive action is unavailable, or `null` when it is available.
-   * Informational: nothing is wrong when it shows.
-   */
-  participatingAlert: string | null;
   statusAction: PortalDancerStatusAction;
   title: string;
   verificationStatus: DancerVerificationStatus;
@@ -155,11 +150,11 @@ type PortalDancerStatusActionCopy = {
 
 type PortalDancerStatusAction = PortalDancerStatusActionCopy & {
   /**
-   * A courtesy in front of the guard, never the rule: the server refuses the
-   * archive whether or not this is honoured. Reactivating is never refused, so
-   * only the archive intent is ever disabled.
+   * Whether the action opens `RosterPersonArchiveBlockedDialog` instead of its
+   * confirmation. Reactivating is never refused, so only the archive intent is
+   * ever blocked.
    */
-  disabled: boolean;
+  isBlocked: boolean;
 };
 
 export const portalDancerStatusActions = {
@@ -297,21 +292,21 @@ export function getGeneralActionError(
 
 function getPortalDancerStatusAction({
   isActive,
-  isArchiveDisabled,
+  isArchiveBlocked,
 }: {
   isActive: boolean;
-  isArchiveDisabled: boolean;
+  isArchiveBlocked: boolean;
 }): PortalDancerStatusAction {
   if (isActive) {
     return {
       ...portalDancerStatusActions["archive-dancer"],
-      disabled: isArchiveDisabled,
+      isBlocked: isArchiveBlocked,
     };
   }
 
   return {
     ...portalDancerStatusActions["reactivate-dancer"],
-    disabled: false,
+    isBlocked: false,
   };
 }
 
@@ -330,14 +325,12 @@ export function buildPortalDancerDetailViewModel(input: {
     verificationStatus,
   } = input;
   const isIdentityVerified = verificationStatus === "verified";
-  const archiveAvailability = getRosterPersonArchiveAvailability({
-    isParticipatingInActiveEvent,
-    kind: "dancer",
-    status: toRosterPersonStatus(dancer.active),
-  });
   const statusAction = getPortalDancerStatusAction({
     isActive: dancer.active,
-    isArchiveDisabled: archiveAvailability.disabled,
+    isArchiveBlocked: isRosterPersonArchiveBlocked({
+      isParticipatingInActiveEvent,
+      status: toRosterPersonStatus(dancer.active),
+    }),
   });
 
   return {
@@ -367,7 +360,6 @@ export function buildPortalDancerDetailViewModel(input: {
     showsIdentificationAlert: verificationStatus === "incomplete",
     showsPendingVerificationAlert: verificationStatus === "unverified",
     showsVerifiedIdentityAlert: verificationStatus === "verified",
-    participatingAlert: archiveAvailability.participatingAlert,
     statusAction,
     title: `${dancer.firstName} ${dancer.lastName}`,
     verificationStatus,

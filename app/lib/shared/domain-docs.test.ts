@@ -245,6 +245,7 @@ const judgingGlossaryRequirements = [
   '**`submodalityCriterion`** — ui: "Criterio"',
   '**`generalCriterion`** — ui: "Criterio general"',
   '**`levelCriterion`** — ui: "Criterio de nivel"',
+  '**`generalEvaluation`** — ui: "Evaluación general"',
   '**`mandatoryTechnique`** — ui: "Técnico obligatorio"',
   '**`scoreSheet`** — ui: "Planilla"',
   '**`judgingDay`** — ui: "Jornada"',

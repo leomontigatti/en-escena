@@ -1,4 +1,4 @@
-import { TriangleAlert } from "lucide-react";
+import { Info, TriangleAlert } from "lucide-react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -7,6 +7,7 @@ import {
   scheduleRegistrationOpenRefusalMessage,
   type ScheduleRegistrationOpenBlockers,
 } from "@/lib/schedules/registration-open";
+import { getScheduleDateTimeLockReasons } from "@/lib/schedules/schedule-dependencies";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { EmptyResourceState, ScheduleActions } from "../dialogs";
@@ -55,6 +56,30 @@ function ScheduleRegistrationOpenBlockersAlert({
   );
 }
 
+/**
+ * Why date and time are locked, and what frees them. It speaks of the fields
+ * only: `Eliminar` stays enabled and answers for itself.
+ */
+function ScheduleDateTimeLockAlert({ reasons }: { reasons: string[] }) {
+  return (
+    <Alert variant="info">
+      <Info aria-hidden="true" />
+      <AlertTitle>La fecha y la hora no se pueden cambiar</AlertTitle>
+      <AlertDescription>
+        <p>
+          Se pueden cambiar cuando el cronograma no tenga coreografías asignadas
+          ni precios que lo cubran.
+        </p>
+        <ul className="list-disc pl-5">
+          {reasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export function EventScheduleDetailView({
   loaderData,
   actionData,
@@ -83,6 +108,9 @@ export function EventScheduleDetailView({
     ),
     totalCapacity: schedule?.totalCapacity,
   });
+  const dateTimeLockReasons = loaderData.scheduleDependencies
+    ? getScheduleDateTimeLockReasons(loaderData.scheduleDependencies)
+    : [];
 
   return (
     <AdminResourceLayout
@@ -96,6 +124,7 @@ export function EventScheduleDetailView({
       headerAction={
         schedule ? (
           <ScheduleActions
+            dependencies={loaderData.scheduleDependencies}
             schedule={schedule}
             registrationOpenBlockers={loaderData.registrationOpenBlockers}
             initialDeleteDialogOpen={initialDeleteDialogOpen}
@@ -111,6 +140,9 @@ export function EventScheduleDetailView({
               <ScheduleRegistrationOpenBlockersAlert
                 blockers={loaderData.registrationOpenBlockers}
               />
+            ) : null}
+            {dateTimeLockReasons.length > 0 ? (
+              <ScheduleDateTimeLockAlert reasons={dateTimeLockReasons} />
             ) : null}
           </AlertStack>
           <ScheduleFormPanel
@@ -131,6 +163,7 @@ export function EventScheduleDetailView({
               formId="update-schedule-form"
               id={schedule.id}
               intent="update-schedule"
+              isDateTimeLocked={dateTimeLockReasons.length > 0}
               modalities={loaderData.modalities}
               occupiedCount={schedule.occupiedCount}
               scheduleCapacities={schedule.scheduleCapacities}

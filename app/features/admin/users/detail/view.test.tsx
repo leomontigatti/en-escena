@@ -17,6 +17,7 @@ import {
 } from "@/lib/admin/users/user-detail.shared";
 import {
   createReactDomTestRenderer,
+  findButton,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -343,9 +344,7 @@ function getConfirmButton() {
  * on `pointerdown` rather than on `click`.
  */
 async function chooseMenuItem(label: string) {
-  const trigger = document.querySelector<HTMLButtonElement>(
-    'button[aria-label="Acciones"]',
-  );
+  const trigger = findButton("Acciones", { exact: true });
 
   if (!trigger) {
     throw new Error("Expected the actions menu trigger to be rendered.");

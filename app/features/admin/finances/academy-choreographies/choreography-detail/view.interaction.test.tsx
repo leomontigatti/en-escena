@@ -832,7 +832,7 @@ describe("inscriptions table filters", () => {
 
 function searchInput(): HTMLInputElement {
   const input = document.querySelector(
-    'input[placeholder="Buscar inscripción por bailarín"]',
+    'input[placeholder="Buscar por bailarín"]',
   );
 
   if (!(input instanceof HTMLInputElement)) {

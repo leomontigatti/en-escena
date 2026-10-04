@@ -2,6 +2,7 @@ import type { ScheduleRegistrationOpenBlockers } from "@/lib/schedules/registrat
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import type { categories, modalities } from "@/db/schema";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleDependencySummary } from "@/lib/schedules/schedule-dependencies";
 
 export type EventScheduleActionData = ActionData;
 
@@ -38,6 +39,11 @@ export type EventScheduleDetailLoaderData = EventSchedulesListLoaderData &
      * action and is what the detail's alert lists.
      */
     registrationOpenBlockers: ScheduleRegistrationOpenBlockers;
+    /**
+     * What holds the schedule on screen: it locks date and time and blocks
+     * `Eliminar`. `null` when the page shows no schedule.
+     */
+    scheduleDependencies: ScheduleDependencySummary | null;
   };
 
 export type EventSchedulesLoaderData = EventScheduleDetailLoaderData;

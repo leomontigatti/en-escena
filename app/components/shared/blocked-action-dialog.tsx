@@ -29,9 +29,9 @@ type BlockedActionDialogProps = {
 };
 
 /**
- * The acknowledgment an action opens instead of itself when the record's state
- * blocks it and that block is the record's normal state (style guide, Detail
- * pages): the action stays enabled, and the click says why it cannot run. It
+ * The acknowledgment an action opens instead of itself whenever the record's
+ * state blocks it (style guide, Detail pages): the action is never disabled,
+ * and the click says why it cannot run. It
  * asks nothing, so it has no verb: `Cerrar` is its only button. The server
  * still refuses the action, for the race.
  */

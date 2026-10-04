@@ -109,13 +109,8 @@ export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[]
 /**
  * The badge of the `Estado` column. `Retirada` **replaces** the status, just as
  * an anomaly does: the roster-withdrawal axis and the money axis do not share a
- * cell.
- *
- * It carries the retained amount inside because that is half of the fact: the
- * row is still there *because* money was left on it, and a bare `Retirada`
- * would not say how much. It is the same number as the `Total` column —for a
- * withdrawn row the total **is** what is allocated— and repeating it here is
- * what makes the cell readable on its own.
+ * cell. The retained amount is not repeated in it: for a withdrawn row the
+ * `Total` column **is** what is allocated, so the row already says how much.
  */
 function resolveStatusBadge(inscription: InscriptionFinanceRow) {
   return formatInscriptionStatusBadge(
@@ -134,13 +129,7 @@ function InscriptionStatusCell({
 }) {
   const badge = resolveStatusBadge(inscription);
 
-  return (
-    <Badge variant={badge.variant}>
-      {badge.kind === "withdrawn"
-        ? `${badge.label} · ${formatAmount(inscription.allocatedAmount)}`
-        : badge.label}
-    </Badge>
-  );
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }
 
 /** `null` is the absence of a price and not a zero, so it is named and not `$ 0`. */

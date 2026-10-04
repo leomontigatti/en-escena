@@ -32,8 +32,9 @@ const criterionColumns = {
 };
 
 /**
- * The order of a sheet: the general criteria (`Técnico obligatorio`) first and
- * the level's own after them, each part in its configured position.
+ * The order of a sheet: the general criteria (`Evaluación general`) first and
+ * the level's own (`Técnico obligatorio`) after them, each part in its
+ * configured position.
  */
 const sheetOrder = [
   asc(sql`${submodalityCriteria.experienceLevel} is not null`),

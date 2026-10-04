@@ -18,13 +18,19 @@ import {
 } from "@/components/ui/empty";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 import type { ScheduleRegistrationOpenBlockers } from "@/lib/schedules/registration-open";
+import {
+  getScheduleDeleteBlockReasons,
+  type ScheduleDependencySummary,
+} from "@/lib/schedules/schedule-dependencies";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 export function ScheduleActions({
+  dependencies,
   schedule,
   registrationOpenBlockers,
   initialDeleteDialogOpen = false,
 }: {
+  dependencies: ScheduleDependencySummary | null;
   schedule: ScheduleListItem;
   registrationOpenBlockers: ScheduleRegistrationOpenBlockers;
   initialDeleteDialogOpen?: boolean;
@@ -32,6 +38,11 @@ export function ScheduleActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  // `Eliminar` stays enabled whatever holds the schedule: the click answers
+  // with the reasons instead of the confirmation (style guide, Detail pages).
+  const deleteBlockReasons = dependencies
+    ? getScheduleDeleteBlockReasons(dependencies)
+    : [];
 
   return (
     <>
@@ -64,7 +75,20 @@ export function ScheduleActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar el cronograma?"
-        description={`Esta acción borra ${schedule.name} si no tiene cupos de cronograma ni otras dependencias asociadas. No se puede deshacer.`}
+        blockedTitle="No se puede eliminar el cronograma"
+        description={
+          deleteBlockReasons.length > 0
+            ? "Para eliminarlo, no tiene que tener coreografías asignadas, tampoco retiradas, ni precios que lo cubran."
+            : `Esta acción borra ${schedule.name}. No se puede deshacer.`
+        }
+        isBlocked={deleteBlockReasons.length > 0}
+        blockedDescription={
+          <ul className="list-disc pl-5">
+            {deleteBlockReasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        }
         intentValue="delete-schedule"
         recordId={schedule.id}
         confirmFieldName="confirmDelete"

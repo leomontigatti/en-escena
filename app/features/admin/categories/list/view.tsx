@@ -102,7 +102,7 @@ function CategoriesListView({ loaderData }: CategoriesListViewProps) {
           rows={categories}
           columns={categoryColumns}
           getRowKey={(category) => category.id}
-          searchPlaceholder="Buscar categoría por nombre"
+          searchPlaceholder="Buscar por nombre"
           textFilterColumnId="name"
           facetedFilters={categoryFacetedFilters}
           emptyMessage={emptyCategoryList.nothingMatched}

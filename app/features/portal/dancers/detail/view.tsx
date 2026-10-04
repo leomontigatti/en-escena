@@ -24,7 +24,7 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
+import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -156,12 +156,10 @@ export function PortalDancerDetailRouteView({
           action={
             <ResourceActionsMenu contentClassName="w-40">
               <DropdownMenuItem
-                disabled={viewModel.statusAction.disabled}
                 variant={viewModel.statusAction.confirmButtonVariant}
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setStatusDialogIntent(viewModel.statusAction.intent);
-                }}
+                onSelect={() =>
+                  setStatusDialogIntent(viewModel.statusAction.intent)
+                }
               >
                 {viewModel.statusAction.label}
               </DropdownMenuItem>
@@ -175,7 +173,6 @@ export function PortalDancerDetailRouteView({
           onReactivate={() => {
             setStatusDialogIntent("reactivate-dancer");
           }}
-          participatingAlert={viewModel.participatingAlert}
           showsIdentificationAlert={viewModel.showsIdentificationAlert}
           showsPendingVerificationAlert={
             viewModel.showsPendingVerificationAlert
@@ -254,13 +251,10 @@ export function PortalDancerDetailRouteView({
         ) : null}
       </section>
 
-      <PortalDancerStatusDialog
+      <PortalDancerStatusDialogs
         intent={statusDialogIntent}
-        onOpenChange={(open) => {
-          if (!open) {
-            setStatusDialogIntent(null);
-          }
-        }}
+        isArchiveBlocked={viewModel.statusAction.isBlocked}
+        onClose={() => setStatusDialogIntent(null)}
       />
     </>
   );
@@ -385,7 +379,6 @@ function PortalDancerAlertsSection({
   dancerActive,
   identificationPendingItems,
   onReactivate,
-  participatingAlert,
   recategorisedChoreographies,
   showsIdentificationAlert,
   showsPendingVerificationAlert,
@@ -394,7 +387,6 @@ function PortalDancerAlertsSection({
   dancerActive: boolean;
   identificationPendingItems: DancerIdentificationPendingItem[];
   onReactivate: () => void;
-  participatingAlert: string | null;
   recategorisedChoreographies: RecategorisedChoreography[];
   showsIdentificationAlert: boolean;
   showsPendingVerificationAlert: boolean;
@@ -423,9 +415,6 @@ function PortalDancerAlertsSection({
             personLabel="bailarín"
             onReactivate={onReactivate}
           />
-        ) : null}
-        {participatingAlert ? (
-          <RosterPersonParticipatingAlert message={participatingAlert} />
         ) : null}
         {showsIdentificationAlert ? (
           <Alert variant="warning">
@@ -631,4 +620,40 @@ function PortalDancerStatusActionIcon({
   }
 
   return <RotateCcw aria-hidden="true" data-icon="inline-start" />;
+}
+
+/**
+ * `Archivar` opens the blocked acknowledgment instead of its confirmation
+ * while the dancer takes part in the active event; every other intent opens
+ * the confirmation.
+ */
+function PortalDancerStatusDialogs({
+  intent,
+  isArchiveBlocked,
+  onClose,
+}: {
+  intent: PortalDancerStatusIntent | null;
+  isArchiveBlocked: boolean;
+  onClose: () => void;
+}) {
+  const isBlockedOpen = intent === "archive-dancer" && isArchiveBlocked;
+  const closeOnDismiss = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
+  return (
+    <>
+      <RosterPersonArchiveBlockedDialog
+        kind="dancer"
+        onOpenChange={closeOnDismiss}
+        open={isBlockedOpen}
+      />
+      <PortalDancerStatusDialog
+        intent={isBlockedOpen ? null : intent}
+        onOpenChange={closeOnDismiss}
+      />
+    </>
+  );
 }

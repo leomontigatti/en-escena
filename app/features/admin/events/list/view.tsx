@@ -112,7 +112,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
       rows={events}
       columns={columns}
       getRowKey={(event) => event.id}
-      searchPlaceholder="Buscar evento por nombre"
+      searchPlaceholder="Buscar por nombre"
       textFilterColumnId="name"
       emptyMessage={emptyEventList.nothingMatched}
       initialSort={{ columnId: "startsAt", direction: "desc" }}

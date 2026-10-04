@@ -47,9 +47,7 @@ describe("PortalProfessorsListRouteView", () => {
     });
 
     expect(markup).toContain("Profesores");
-    expect(markup).toContain(
-      "Buscar profesor por nombre o número de documento",
-    );
+    expect(markup).toContain("Buscar por nombre o documento");
     expect(markup).toMatch(
       /<a[^>]*href="\/portal\/profesores\/nuevo"[^>]*>.*?Nuevo profesor<\/a>/,
     );

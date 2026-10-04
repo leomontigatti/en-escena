@@ -19,7 +19,7 @@ export function SeminarsListView({ loaderData }: SeminarsListViewProps) {
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Seminarios"
-      description="Consultá los seminarios del evento activo, con su instructor, fecha, hora y cupo."
+      description="Consultá los seminarios del evento activo, con su instructor, fecha, hora, cupo y tipo."
       action={{
         label: "Nuevo seminario",
         to: buildCreatePath(basePath, loaderData.selectedEventId),

@@ -212,7 +212,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
 
     const listMarkup = renderCategoriasRoute(data);
     expect(listMarkup).toContain("/administracion/categorias/nueva");
-    expect(listMarkup).toContain("Buscar categoría por nombre");
+    expect(listMarkup).toContain("Buscar por nombre");
     expect(listMarkup).toContain("Juvenil");
     expect(listMarkup).toContain("Solo");
     expect(listMarkup).toContain("Grupal");

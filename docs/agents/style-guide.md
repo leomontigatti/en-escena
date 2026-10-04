@@ -216,11 +216,12 @@ Rules:
 
 ### Actions menu
 
-A record's actions live in `ResourceActionsMenu`, the `⋯` button, whether on a
-detail page's header or on a table row.
+A page's actions live in `ResourceActionsMenu`, the `Acciones` button in its
+header.
 
-- The trigger keeps its default size (`icon-lg`): `ResourceActionsMenu` takes
-  no `size`.
+- The trigger reads `Acciones` after the `Ellipsis` icon, at the default size
+  and with no tooltip, since the word already says it. `ResourceActionsMenu`
+  takes no `size` and no label.
 - Menu items are text only: no icon, the destructive ones included.
   `pnpm lint` enforces this (`ui/actions-menu-text-only`) for the items
   written inside the menu's own JSX.
@@ -271,7 +272,9 @@ Rules:
 
 Forms use visible labels above the field. The placeholder can show an example or
 a short rule — `Opcional`, `Mínimo 8 caracteres` — but it never replaces the
-label.
+label. The one exception is a list of repeated rows, like a sheet's criteria:
+each field keeps its label for screen readers (`sr-only`), and the placeholder
+names the field instead of a column header over the rows.
 
 Rules:
 
@@ -594,7 +597,8 @@ is an `AlertDialog` that carries a list, a preview or an alert, such as the
 withdrawn dancers a save names: it widens with `className="sm:max-w-lg"`, the
 `Dialog` width, so each line fits on one. `BlockedActionDialog` always does,
 blocked deletes included; a confirmable `DeleteDialog` keeps the default even
-with its alert and `details`. `pnpm lint` enforces the width on classes written
+with its alert and `details`, and so does its twin `WithdrawDialog`, which the
+same item opens when the record holds money. `pnpm lint` enforces the width on classes written
 in place (`ui/dialog-width`).
 
 ## Navigation
@@ -663,7 +667,7 @@ it on a list).
   choreography's registration number in the event, `N.º` its place in the
   program.
 - The actions slot holds the list's create button (`action`, which always draws
-  `Plus`), the detail page's `⋯` menu ([Actions menu](#actions-menu)), or
+  `Plus`), the `Acciones` menu ([Actions menu](#actions-menu)), or
   nothing. Any other link or button goes through `headerAction` or the menu.
 
 ## Detail pages
@@ -673,31 +677,28 @@ lock icon), in the same grid as its edit form, so viewing and editing look
 alike. Pages about money, scores or documents use `MetricCard`s and tables
 instead.
 
-- When the record's state locks fields, an `Alert` above the form says why and
-  what unlocks them.
-- An action the record's state forbids is never refused after the submit. How
-  it says so depends on how common the block is:
-  - **A rare block** (an evaluated presentation, a price in use) is disabled
-    before it is clicked: the `⋯` menu item or button is `disabled`, and an
-    `info` `Alert` above the form lists every reason, for auditors too. The
-    disabled control gets no tooltip: a tooltip cannot hold a list and does
-    not reach touch screens.
-  - **A block that is the record's normal state** (it holds money, takes part
-    in the active event, has inscriptions) stays enabled, and the click opens
-    an acknowledgment instead of the action, `BlockedActionDialog`: its title
-    says what cannot be done (`No se puede bonificar la coreografía`), its
-    description says what it takes, its `info` `Alert` lists every reason, and
-    `Cerrar` is its only button. An alert on the page would sit
-    on nearly every record and stop being read.
-  - **A block an alert already explains**, because the same state also locks
-    fields (a price in use, a seminar with a covered inscription), is disabled
-    like a rare one, and that alert's sentence names the action too
-    (`Solo podés cambiar el nombre y no se puede eliminar`). A dialog would only
-    repeat it.
+- When the record's state locks fields, an `info` `Alert` above the form lists
+  every reason and what unlocks them, and speaks of the fields only. The fields
+  render as the shared read-only ones (`ReadOnlyField`, `ReadOnlyDateField`,
+  `ReadOnlySelectField`, `ReadOnlyTextareaField`), not as a disabled picker or
+  select: every locked field looks the same, and the value still travels in
+  the body.
+- An action the record's state forbids is never refused after the submit, and
+  never disabled either: the `Acciones` menu item or button stays enabled, and
+  the click opens an acknowledgment instead of the action, `BlockedActionDialog`.
+  Its title says what cannot be done (`No se puede bonificar la coreografía`),
+  its description says what it takes, its `info` `Alert` lists every reason, and
+  `Cerrar` is its only button. A disabled control cannot say why — a tooltip
+  cannot hold a list and does not reach touch screens — and an alert on the page
+  would sit on nearly every record and stop being read. When the same state also
+  locks fields, the field alert and the acknowledgment each give the reasons
+  that concern them.
 
   The blocked mode of `DeleteDialog` is built on it for a deletion; its
   description says what it takes to delete, not what deleting does. The
-  server still refuses, for the race.
+  server still refuses, for the race. A submit button disabled until the form
+  is complete or changed is not a block by the record's state, and stays as it
+  is.
 
 - Every shared field draws the lock icon when disabled, `TextareaField`
   included. A `Switch` does not: its disabled look already reads as locked.

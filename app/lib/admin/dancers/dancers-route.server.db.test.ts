@@ -1639,8 +1639,8 @@ describe("`/administracion/bailarines` route", () => {
         "Este bailarín no puede archivarse porque está participando del evento activo.",
     });
     // A refused status change carries no submitted values, and re-opens no
-    // dialog: the toast reports it, and the reloaded page already shows
-    // `Archivar` disabled with the participation alert.
+    // dialog: the toast reports it, and the reloaded page already has
+    // `Archivar` opening the blocked acknowledgment.
     expect(
       getInitialDialogIntent({
         actionData: archiveResult as DancerActionError,

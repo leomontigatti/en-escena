@@ -8,6 +8,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
 } from "@/lib/test-support/react-dom";
 
 import { ChoreographyFinanceDetailView } from "./view";
@@ -97,7 +98,7 @@ describe("ChoreographyFinanceDetailView", () => {
     );
   });
 
-  test("replaces the status badge with withdrawn and the retained amount", () => {
+  test("replaces the status badge with withdrawn, leaving the retained amount to `Total`", () => {
     const markup = renderDetail({
       inscriptions: [
         inscriptionFixture({
@@ -111,9 +112,10 @@ describe("ChoreographyFinanceDetailView", () => {
       ],
     });
 
-    // It replaces the status rather than accompanying it, and it carries the
-    // retained money with it.
-    expect(markup).toContain("Retirada · $ 3.000");
+    // It replaces the status rather than accompanying it. The retained money
+    // reads in `Total`, so the badge does not repeat it.
+    expect(markup).toContain(">Retirada</span>");
+    expect(markup).not.toContain("Retirada ·");
     expect(markup).not.toContain("Pagada");
   });
 
@@ -455,9 +457,7 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
   test('keeps the actions menu visible and disables "Emitir factura" with nothing to bill', async () => {
     await mount();
 
-    expect(
-      document.querySelector('button[aria-label="Acciones"]'),
-    ).not.toBeNull();
+    expect(findButton("Acciones", { exact: true })).toBeDefined();
 
     await openActionsMenu();
 
@@ -646,7 +646,7 @@ async function clickMenuItem(label: string) {
 }
 
 async function openActionsMenu() {
-  const button = document.querySelector('button[aria-label="Acciones"]');
+  const button = findButton("Acciones", { exact: true });
 
   if (!button) {
     throw new Error("Expected the actions menu button to be rendered.");

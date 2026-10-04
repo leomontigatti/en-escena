@@ -13,6 +13,7 @@ import {
   createSchedule,
   createScheduleWithEntries,
   deleteSchedule,
+  getScheduleDependencySummary,
   listSchedules,
   updateSchedule,
   updateScheduleWithEntries,
@@ -22,6 +23,7 @@ import {
   createEventModalitiesFixture,
   createSavedAcademy,
   createSavedEvent,
+  createSavedPrice,
   createSavedSchedule,
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
@@ -789,6 +791,73 @@ describe("`Bases del evento` repository", () => {
         "No se puede borrar el cronograma porque tiene coreografías retiradas asignadas.",
     });
     await expect(deleteSchedule(freeBlock.id)).resolves.toEqual({ ok: true });
+  });
+
+  // What the detail page locks and blocks over, counted with the same
+  // predicates the guards refuse over: occupying and withdrawn choreographies
+  // apart, and the special prices by name.
+  test("summarizes what holds a schedule", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const academy = await createSavedAcademy();
+    const held = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+    });
+    const free = await createSavedSchedule(event.id, {
+      name: "Sábado tarde",
+      startTime: "14:00",
+      modalityIds: [jazz.id],
+    });
+    await createSavedPrice(event.id, {
+      name: "Precio función",
+      scheduleIds: [held.id],
+    });
+    const first = await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      scheduleId: held.id,
+    });
+    for (const withdrawn of [false, true]) {
+      await createChoreographyOnBases({
+        eventId: event.id,
+        academyId: academy.id,
+        modalityId: jazz.id,
+        categoryId: first.categoryId,
+        scheduleId: held.id,
+        withdrawn,
+      });
+    }
+
+    await expect(getScheduleDependencySummary(held.id)).resolves.toEqual({
+      coveringPriceNames: ["Precio función"],
+      occupyingChoreographyCount: 2,
+      withdrawnChoreographyCount: 1,
+    });
+    await expect(getScheduleDependencySummary(free.id)).resolves.toEqual({
+      coveringPriceNames: [],
+      occupyingChoreographyCount: 0,
+      withdrawnChoreographyCount: 0,
+    });
+  });
+
+  // Its own capacities are part of the schedule, not something that depends
+  // on it: nothing occupies them once no choreography points at the schedule,
+  // so they go with it.
+  test("deletes a schedule together with its capacities", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const schedule = await expectCreated(
+      createScheduleWithEntries(event.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        scheduleCapacities: [{ groupType: "solo", capacity: 6 }],
+      }),
+    );
+
+    await expect(deleteSchedule(schedule.id)).resolves.toEqual({ ok: true });
+    await expect(listSchedules(event.id)).resolves.toEqual([]);
   });
   test("refuses restructuring a schedule whose choreography carries no inscription", async () => {
     const { event, jazz, urbanas } = await createEventModalitiesFixture();

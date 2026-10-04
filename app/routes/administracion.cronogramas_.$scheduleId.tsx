@@ -29,8 +29,8 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return loadEventScheduleDetail(request);
+export async function loader({ params, request }: Route.LoaderArgs) {
+  return loadEventScheduleDetail(request, params.scheduleId);
 }
 
 export async function action({ request }: Route.ActionArgs) {

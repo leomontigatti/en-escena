@@ -241,7 +241,7 @@ function SubmodalityInlineFields({
   const nameFieldName = `submodalities.${index}.name` as const;
 
   return (
-    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_2rem_2rem] sm:items-start">
+    <FieldGroup className="flex-row items-start gap-2">
       {field.id ? (
         <input type="hidden" name={idFieldName} value={field.id} />
       ) : null}
@@ -251,17 +251,20 @@ function SubmodalityInlineFields({
         id={`submodality-name-${index}`}
         label="Submodalidad"
         labelClassName="sr-only"
+        className="min-w-0 flex-1"
       />
-      {field.id && criteriaSetup ? (
+      {criteriaSetup ? (
         <SubmodalityCriteriaAction
           criteriaSetup={criteriaSetup}
           submodalityId={field.id}
         />
-      ) : null}
+      ) : (
+        <UnsavedSubmodalityCriteriaAction />
+      )}
       <Button
         type="button"
         variant="destructive"
-        size="icon-sm"
+        size="icon"
         aria-label="Quitar submodalidad"
         onClick={onRemove}
       >
@@ -276,7 +279,7 @@ function SubmodalityCriteriaAction({
   submodalityId,
 }: {
   criteriaSetup: SubmodalityCriteriaSetup;
-  submodalityId: string;
+  submodalityId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const submodality = criteriaSetup.submodalities.find(
@@ -284,7 +287,7 @@ function SubmodalityCriteriaAction({
   );
 
   if (!submodality) {
-    return null;
+    return <UnsavedSubmodalityCriteriaAction />;
   }
 
   return (
@@ -295,7 +298,7 @@ function SubmodalityCriteriaAction({
             <Button
               type="button"
               variant="outline"
-              size="icon-sm"
+              size="icon"
               aria-label={`Criterios de ${submodality.name}`}
               onClick={() => setOpen(true)}
             >
@@ -307,9 +310,9 @@ function SubmodalityCriteriaAction({
       </TooltipProvider>
       <SubmodalityCriteriaDialog
         criteria={criteriaSetup.criteria.filter(
-          (criterion) => criterion.submodalityId === submodalityId,
+          (criterion) => criterion.submodalityId === submodality.id,
         )}
-        locked={criteriaSetup.lockedSubmodalityIds.includes(submodalityId)}
+        locked={criteriaSetup.lockedSubmodalityIds.includes(submodality.id)}
         modalityId={criteriaSetup.modalityId}
         onOpenChange={setOpen}
         open={open}
@@ -317,6 +320,44 @@ function SubmodalityCriteriaAction({
         submodality={submodality}
       />
     </>
+  );
+}
+
+/**
+ * A submodality added since the last save has no row to hang criteria on, so
+ * its button stays in place, disabled, until the modality is saved.
+ */
+function UnsavedSubmodalityCriteriaAction() {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/* A disabled button fires no pointer events, so the tooltip
+              hangs off a wrapper that still does. */}
+          <span
+            aria-disabled="true"
+            aria-label="Criterios"
+            className="inline-flex"
+            role="button"
+            tabIndex={0}
+          >
+            <Button
+              aria-hidden="true"
+              disabled
+              size="icon"
+              tabIndex={-1}
+              type="button"
+              variant="outline"
+            >
+              <ListChecks aria-hidden="true" />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          Guardá la modalidad para cargar los criterios
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

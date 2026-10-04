@@ -73,7 +73,7 @@ export function SeminarInscriptionsTable({
         rows={inscriptions}
         columns={columns}
         getRowKey={(inscription) => inscription.id}
-        searchPlaceholder="Buscar inscripto por nombre o academia"
+        searchPlaceholder="Buscar por nombre o academia"
         emptyMessage="Todavía no hay inscriptos en este seminario."
         initialSort={{ columnId: "academyName", direction: "asc" }}
       />

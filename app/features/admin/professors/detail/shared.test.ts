@@ -3,17 +3,14 @@ import { describe, expect, test } from "vitest";
 import { buildProfessorDetailViewState } from "./shared";
 
 describe("buildProfessorDetailViewState", () => {
-  test("disables archiving and explains it for a participant of the active event", () => {
+  test("blocks archiving for a participant of the active event", () => {
     const viewState = buildProfessorDetailViewState({
       active: true,
       isParticipatingInActiveEvent: true,
     });
 
     expect(viewState.statusAction.intent).toBe("archive-professor");
-    expect(viewState.statusAction.disabled).toBe(true);
-    expect(viewState.participatingAlert).toBe(
-      "Este profesor no puede archivarse porque está participando del evento activo.",
-    );
+    expect(viewState.statusAction.isBlocked).toBe(true);
   });
 
   test("leaves archiving alone when the professor participates in nothing live", () => {
@@ -23,20 +20,18 @@ describe("buildProfessorDetailViewState", () => {
     });
 
     expect(viewState.statusAction.intent).toBe("archive-professor");
-    expect(viewState.statusAction.disabled).toBe(false);
-    expect(viewState.participatingAlert).toBeNull();
+    expect(viewState.statusAction.isBlocked).toBe(false);
   });
 
   // Reactivating is never refused, so the archived participant keeps his
-  // action and gets no alert about an unavailability that is not happening.
-  test("never disables reactivating an archived participant", () => {
+  // action.
+  test("never blocks reactivating an archived participant", () => {
     const viewState = buildProfessorDetailViewState({
       active: false,
       isParticipatingInActiveEvent: true,
     });
 
     expect(viewState.statusAction.intent).toBe("reactivate-professor");
-    expect(viewState.statusAction.disabled).toBe(false);
-    expect(viewState.participatingAlert).toBeNull();
+    expect(viewState.statusAction.isBlocked).toBe(false);
   });
 });

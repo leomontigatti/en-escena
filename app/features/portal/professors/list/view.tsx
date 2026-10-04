@@ -152,7 +152,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       rows={professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
-      searchPlaceholder="Buscar profesor por nombre o número de documento"
+      searchPlaceholder="Buscar por nombre o documento"
       textFilterColumnId="name"
       facetedFilters={professorFacetedFilters}
       baseFacetedFilterValues={baseProfessorFilters}

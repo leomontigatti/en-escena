@@ -252,7 +252,7 @@ describe("`/administracion/finanzas`", () => {
       loaderData: academiesLoaderData,
     });
 
-    expect(academiesMarkup).not.toContain('aria-label="Acciones"');
+    expect(academiesMarkup).not.toContain("Acciones</button>");
 
     const { request: financesRequest } = await createSignedInRequest({
       email: "admin.reporte@example.com",

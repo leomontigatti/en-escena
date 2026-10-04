@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { openRadixSelect } from "@/lib/test-support/radix-select";
 import {
   createReactDomTestRenderer,
+  findButton,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -316,7 +317,7 @@ describe("the participation list's program visibility", () => {
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
-    await openRadixSelect(document.querySelector('[aria-label="Acciones"]'));
+    await openRadixSelect(findButton("Acciones", { exact: true }));
 
     const showItem = [...document.querySelectorAll('[role="menuitem"]')].find(
       (item) => item.textContent === "Mostrar programa",

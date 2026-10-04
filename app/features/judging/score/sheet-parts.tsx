@@ -11,6 +11,10 @@ import {
 import { experienceLevelLabel } from "@/lib/events/experience-levels";
 import { singleScoreMaximum } from "@/lib/judging/score-value";
 import {
+  generalEvaluationLabel,
+  mandatoryTechniqueLabel,
+} from "@/lib/judging/sheet-criteria";
+import {
   sheetPartSum,
   sheetTotal,
   type SheetCriterion,
@@ -97,8 +101,9 @@ export function SheetParts({
 
 /**
  * A sheet split the way its criteria are configured: what every level of the
- * submodality earns (`Técnico obligatorio`), what the choreography's level
- * earns on top, and what it lost. A part with no lines is left out.
+ * submodality earns (`Evaluación general`), what the choreography's level
+ * earns on top (`Técnico obligatorio`), and what it lost. A part with no lines
+ * is left out.
  */
 function sheetParts(criteria: readonly SheetCriterion[]) {
   const adding = criteria.filter((criterion) => criterion.kind === "adds");
@@ -115,13 +120,13 @@ function sheetParts(criteria: readonly SheetCriterion[]) {
       ),
       deducts: false,
       description: "Para todos los niveles.",
-      label: "Técnico obligatorio",
+      label: generalEvaluationLabel,
     },
     {
       criteria: levelAdding,
       deducts: false,
       description: `Solo para el nivel ${level ?? ""}.`,
-      label: "Específicos del nivel",
+      label: mandatoryTechniqueLabel,
     },
     {
       criteria: criteria.filter((criterion) => criterion.kind === "deducts"),

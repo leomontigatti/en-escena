@@ -10,6 +10,7 @@ import {
 } from "@/lib/test-support/radix-select";
 import {
   createReactDomTestRenderer,
+  findButton,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -141,9 +142,9 @@ describe("AcademyFinancesRouteView", () => {
   });
 
   // The number is how the administrator and the academy name a choreography to
-  // each other, so it opens the row —right after the selection checkbox— it is
-  // the row's only link to the detail, and it is what the list is ordered by.
-  test("shows the choreography number first, links from it and sorts by it", async () => {
+  // each other, so it opens the row —right after the selection checkbox— and it
+  // is what the list is ordered by. The name beside it is the link to the detail.
+  test("shows the choreography number first, links from the name and sorts by the number", async () => {
     await renderListIntoDocument({
       loaderData: academyFinancesLoaderDataFixture({
         choreographyFinanceRows: [
@@ -178,15 +179,15 @@ describe("AcademyFinancesRouteView", () => {
       link.getAttribute("href"),
     ]);
 
-    // One link per row and it is the number: the name renders as plain text
+    // One link per row and it is the name: the number renders as plain text
     // beside it. The positive assertion keeps the count honest.
     expect(links).toEqual([
       [
-        "00002",
+        "Aire",
         "/administracion/finanzas/academy_1/coreografias/choreography_1",
       ],
       [
-        "00007",
+        "Tango",
         "/administracion/finanzas/academy_1/coreografias/choreography_2",
       ],
     ]);
@@ -218,7 +219,7 @@ describe("AcademyFinancesRouteView", () => {
     });
 
     const search = document.querySelector<HTMLInputElement>(
-      'input[placeholder="Buscar coreografía por número o nombre"]',
+      'input[placeholder="Buscar por número o nombre"]',
     );
 
     if (!search) {
@@ -284,9 +285,7 @@ describe("AcademyFinancesRouteView", () => {
   test("keeps the actions menu visible and disables both presets without a selection", async () => {
     await renderListIntoDocument();
 
-    expect(
-      document.querySelector('button[aria-label="Acciones"]'),
-    ).not.toBeNull();
+    expect(findButton("Acciones", { exact: true })).toBeDefined();
 
     await openActionsMenu();
 
@@ -835,7 +834,7 @@ function menuItemDisabledState() {
 }
 
 async function openActionsMenu() {
-  const button = document.querySelector('button[aria-label="Acciones"]');
+  const button = findButton("Acciones", { exact: true });
 
   if (!button) {
     throw new Error("Expected the actions menu button to be rendered.");

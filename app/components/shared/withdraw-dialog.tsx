@@ -67,8 +67,10 @@ function WithdrawDialog({
       <AlertDialogContent
         // The same viewport bound the delete dialog carries (#708): the
         // consequence is the longest copy either dialog shows, so on a phone in
-        // landscape it is what would otherwise push the footer off screen.
-        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_1fr_auto] sm:max-w-lg"
+        // landscape it is what would otherwise push the footer off screen. The
+        // default width too, since it is the delete's twin: the same item may
+        // open either one.
+        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_1fr_auto]"
       >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

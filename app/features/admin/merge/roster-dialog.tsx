@@ -76,7 +76,7 @@ export function RosterMergeDialog({
           />
         ) : null;
       }}
-      title={`Fusionar ${copy.singular}`}
+      title={`¿Fusionar al ${copy.singular}?`}
     />
   );
 }

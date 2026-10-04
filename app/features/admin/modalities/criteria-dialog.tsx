@@ -20,12 +20,14 @@ import {
   sumAddingCriteriaMaxima,
 } from "@/lib/judging/criteria";
 import {
+  generalEvaluationLabel,
+  mandatoryTechniqueLabel,
   sheetGaps,
   sheetLevels,
   type OfferedSheets,
 } from "@/lib/judging/sheet-criteria";
 
-import { mandatoryTechniqueLabel, SheetCriteriaView } from "./criteria-sheet";
+import { SheetCriteriaView } from "./criteria-sheet";
 import type {
   EventSubmodalityCriterionRow,
   EventSubmodalityRow,
@@ -49,9 +51,9 @@ type OpenSheet = { experienceLevel: ExperienceLevel | null };
 
 /**
  * Where a submodality's scoring sheets are defined. Every sheet is the general
- * criteria (`Técnico obligatorio`) plus one level's own, so the dialog opens on
- * the list of them with each one's total, and edits one at a time: the general
- * criteria, or a level's. The list is what tells the administrator which sheets
+ * criteria (`Evaluación general`) plus one level's own (`Técnico obligatorio`),
+ * so the dialog opens on the list of them with each one's total, and edits one
+ * at a time: the general criteria, or a level's. The list is what tells the administrator which sheets
  * still miss 100 after a change to the general ones, which reach every level.
  */
 export function SubmodalityCriteriaDialog({
@@ -86,8 +88,8 @@ export function SubmodalityCriteriaDialog({
         <DialogHeader>
           <DialogTitle>{`Criterios de ${submodality.name}`}</DialogTitle>
           <DialogDescription>
-            Cada planilla suma el técnico obligatorio y los criterios de su
-            nivel, y tiene que llegar a 100.
+            Cada planilla suma la evaluación general y el técnico obligatorio de
+            su nivel, y tiene que llegar a 100.
           </DialogDescription>
         </DialogHeader>
         {locked ? (
@@ -163,12 +165,12 @@ function SheetList({
           count={general.length}
           incomplete={isGap(null)}
           onOpen={() => onOpen(null)}
-          title={mandatoryTechniqueLabel}
+          title={generalEvaluationLabel}
           total={general.length > 0 ? sumAddingCriteriaMaxima(general) : null}
         />
       </SheetGroup>
       {levels.length > 0 ? (
-        <SheetGroup title="Criterios por nivel">
+        <SheetGroup title={mandatoryTechniqueLabel}>
           {levels.map((level) => {
             const own = criteria.filter(
               (criterion) => criterion.experienceLevel === level,

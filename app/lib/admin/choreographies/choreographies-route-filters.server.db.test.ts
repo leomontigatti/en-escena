@@ -123,13 +123,13 @@ describe("`/administracion/coreografias` route filters", () => {
       requestUrl:
         `http://localhost/administracion/coreografias?estado=incompleta` +
         `&modalidad=${contemporaryCatalog.modality.id}` +
-        `&categoria=${contemporaryCatalog.category.id}&tipo-grupo=duo`,
+        `&categoria=Adulto&tipo-grupo=duo`,
     });
     const filteredMarkup = renderRoute({
       childLoaderData: filteredData,
       initialEntry:
         `/administracion/coreografias?estado=incompleta&modalidad=${contemporaryCatalog.modality.id}` +
-        `&categoria=${contemporaryCatalog.category.id}&tipo-grupo=duo`,
+        `&categoria=Adulto&tipo-grupo=duo`,
       parentLoaderData: {
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
@@ -145,9 +145,9 @@ describe("`/administracion/coreografias` route filters", () => {
       { label: "Urbano", value: urbanCatalog.modality.id },
     ]);
     expect(filteredData.facets.categories).toEqual([
-      { label: "Adulto", value: contemporaryCatalog.category.id },
-      { label: "Juvenil", value: jazzCatalog.category.id },
-      { label: "Senior", value: urbanCatalog.category.id },
+      { label: "Adulto", value: "Adulto" },
+      { label: "Juvenil", value: "Juvenil" },
+      { label: "Senior", value: "Senior" },
     ]);
     for (const filter of [
       "Estado: Incompleta",
@@ -158,7 +158,7 @@ describe("`/administracion/coreografias` route filters", () => {
       expect(filteredMarkup).toContain(`aria-label="${filter}"`);
     }
     expect(filteredMarkup).toContain(
-      `href="/administracion/coreografias?estado=incompleta&amp;modalidad=${contemporaryCatalog.modality.id}&amp;categoria=${contemporaryCatalog.category.id}&amp;tipo-grupo=duo"`,
+      `href="/administracion/coreografias?estado=incompleta&amp;modalidad=${contemporaryCatalog.modality.id}&amp;categoria=Adulto&amp;tipo-grupo=duo"`,
     );
 
     await expectChoreographyNamesForSearch({
@@ -174,7 +174,7 @@ describe("`/administracion/coreografias` route filters", () => {
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.filtro-categoria@example.com",
       expectedNames: ["Completa Jazz"],
-      search: `&categoria=${jazzCatalog.category.id}`,
+      search: "&categoria=Juvenil",
     });
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.filtro-tipo-grupo@example.com",

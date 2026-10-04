@@ -72,7 +72,7 @@ describe("PortalAcademyPaymentsRouteView", () => {
     );
 
     const search = document.querySelector<HTMLInputElement>(
-      'input[placeholder="Buscar pago por referencia o número"]',
+      'input[placeholder="Buscar por referencia o número"]',
     );
 
     if (!search) {

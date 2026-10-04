@@ -19,7 +19,7 @@ describe("InternalUsersListRouteView", () => {
       },
     });
 
-    expect(markup).toContain("Buscar usuario por nombre o email");
+    expect(markup).toContain("Buscar por nombre o email");
     expect(markup).toContain('value="Sin resultados"');
     expect(markup).toContain(
       "No hay usuarios que coincidan con la búsqueda o los filtros.",

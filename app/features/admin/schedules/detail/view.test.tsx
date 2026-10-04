@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import type { ComponentProps } from "react";
+import { act, type ComponentProps } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -10,6 +10,7 @@ import { scheduleCategoriesPlaceholder } from "@/features/admin/schedules/view-s
 import { openRadixSelect } from "@/lib/test-support/radix-select";
 import {
   createReactDomTestRenderer,
+  findButton,
   getButton,
   setInputValue,
   updateReactDomForm,
@@ -236,10 +237,124 @@ describe("EventScheduleDetailView", () => {
     );
   });
 
-  async function openScheduleActionsMenu() {
-    await openRadixSelect(
-      document.querySelector('button[aria-label="Acciones"]'),
+  // Placed and priced choreographies fix the schedule in time: the fields say
+  // so before anything is typed, instead of a toast after the submit.
+  test("locks date and time and says why while choreographies or prices hold the schedule", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildHeldLoaderData(),
+    });
+
+    expect(
+      document.querySelector<HTMLInputElement>("#schedule-date-schedule_1")
+        ?.readOnly,
+    ).toBe(true);
+    expect(
+      document.querySelector<HTMLInputElement>("#schedule-time-schedule_1")
+        ?.value,
+    ).toBe("10:00");
+    // The locked values still travel in the body.
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="startTime"]')
+        ?.value,
+    ).toBe("10:00");
+    expect(document.body.textContent).toContain(
+      "La fecha y la hora no se pueden cambiar",
     );
+    expect(document.body.textContent).toContain(
+      "Tiene 2 coreografías asignadas.",
+    );
+    expect(document.body.textContent).toContain("Lo cubre el precio Función.");
+  });
+
+  test("leaves date and time editable on a schedule nothing holds", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({ initialDeleteDialogOpen: false });
+
+    expect(
+      document.querySelector<HTMLButtonElement>("#schedule-date-schedule_1")
+        ?.disabled,
+    ).toBe(false);
+    expect(
+      document.querySelector<HTMLButtonElement>("#startTime")?.disabled,
+    ).toBe(false);
+    expect(document.body.textContent).not.toContain(
+      "La fecha y la hora no se pueden cambiar",
+    );
+  });
+
+  // The action stays enabled and the click says why it cannot run: an
+  // acknowledgment with the reasons, and no destructive button.
+  test("answers Eliminar with the reasons while the schedule is held", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildHeldLoaderData(),
+    });
+    await openScheduleActionsMenu();
+    await clickMenuItem("Eliminar");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se puede eliminar el cronograma",
+    );
+    expect(dialog?.textContent).toContain("Tiene 2 coreografías asignadas.");
+    expect(dialog?.textContent).toContain(
+      "Tiene 1 coreografía retirada asignada.",
+    );
+    expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
+  });
+
+  // A withdrawn choreography holds no place, so the date can move, but its
+  // reference to the schedule still blocks the delete.
+  test("blocks only the delete while withdrawn choreographies point at the schedule", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildHeldLoaderData({
+        coveringPriceNames: [],
+        occupyingChoreographyCount: 0,
+        withdrawnChoreographyCount: 1,
+      }),
+    });
+
+    expect(
+      document.querySelector<HTMLButtonElement>("#startTime")?.disabled,
+    ).toBe(false);
+
+    await openScheduleActionsMenu();
+    await clickMenuItem("Eliminar");
+
+    expect(
+      document.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain("Tiene 1 coreografía retirada asignada.");
+  });
+
+  test("asks to confirm Eliminar on a schedule nothing holds", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({ initialDeleteDialogOpen: false });
+    await openScheduleActionsMenu();
+    await clickMenuItem("Eliminar");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "¿Eliminar el cronograma?",
+    );
+    expect(dialog?.textContent).toContain(
+      "Esta acción borra Mañana. No se puede deshacer.",
+    );
+  });
+
+  async function openScheduleActionsMenu() {
+    await openRadixSelect(findButton("Acciones", { exact: true }));
   }
 
   async function renderDetail(
@@ -271,6 +386,11 @@ function buildLoaderData(): EventScheduleDetailLoaderData {
   return {
     selectedEventId: "event_1",
     registrationOpenBlockers: [],
+    scheduleDependencies: {
+      coveringPriceNames: [],
+      occupyingChoreographyCount: 0,
+      withdrawnChoreographyCount: 0,
+    },
     modalities: [
       {
         id: "modality_1",
@@ -384,4 +504,31 @@ function buildBlockedLoaderData(): EventScheduleDetailLoaderData {
       "El evento ya finalizó.",
     ],
   };
+}
+
+function buildHeldLoaderData(
+  scheduleDependencies: EventScheduleDetailLoaderData["scheduleDependencies"] = {
+    coveringPriceNames: ["Función"],
+    occupyingChoreographyCount: 2,
+    withdrawnChoreographyCount: 1,
+  },
+): EventScheduleDetailLoaderData {
+  return { ...buildLoaderData(), scheduleDependencies };
+}
+
+async function clickMenuItem(label: string) {
+  const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
+    (candidate) => candidate.textContent?.trim() === label,
+  );
+
+  if (!item) {
+    throw new Error(`Expected menu item "${label}" to be rendered.`);
+  }
+
+  await act(async () => {
+    item.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
 }

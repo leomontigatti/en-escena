@@ -55,7 +55,7 @@ export function DancerInscriptionsTable({
       rows={inscriptions}
       columns={columns}
       getRowKey={(inscription) => inscription.id}
-      searchPlaceholder="Buscar inscripción por coreografía o evento"
+      searchPlaceholder="Buscar por coreografía o evento"
       emptyMessage="Este bailarín no tiene inscripciones en el evento activo."
       initialSort={{ columnId: "choreographyName", direction: "asc" }}
     />
@@ -81,7 +81,7 @@ export function ProfessorChoreographiesTable({
         buildChoreographyHref,
       )}
       getRowKey={(choreography) => choreography.id}
-      searchPlaceholder="Buscar inscripción por coreografía o evento"
+      searchPlaceholder="Buscar por coreografía o evento"
       emptyMessage="Este profesor no tiene inscripciones en el evento activo."
       initialSort={{ columnId: "choreographyName", direction: "asc" }}
     />
