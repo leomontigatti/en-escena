@@ -10,7 +10,10 @@ import {
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { setEventVisibility } from "@/lib/events/management.server";
+import { isEventProgramVisible } from "@/lib/presentations/academy-program.server";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   assignJudges,
   readAssignableJudges,
@@ -35,7 +38,6 @@ import {
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
 import { readMusicDownloadDays } from "../music-download/server";
-import { listPrintableSchedules } from "../results-print/shared";
 
 import {
   assignJudgesIntent,
@@ -46,7 +48,10 @@ import {
   movePresentationIntent,
   orderAutomaticallyIntent,
   presentationChoreographyIdFieldName,
+  programEventIdFieldName,
+  programVisibleFieldName,
   removeJudgesIntent,
+  setProgramVisibilityIntent,
   type PresentationListActionData,
   type PresentationListFilters,
   type PresentationListItem,
@@ -116,7 +121,8 @@ async function loadPresentationList(input: {
       highestOrderNumber: 0,
       musicDownloadDays: [],
       presentations: [],
-      printableSchedules: [],
+      programExportDays: [],
+      programVisible: false,
       selectedEventId: null,
       totalCount: 0,
       totalPages: 1,
@@ -133,13 +139,19 @@ async function loadPresentationList(input: {
   // on one page at a time, so the page's rows are all it can ever need — but
   // the read is one query either way, and scoping it to the page would have to
   // wait for the page to be resolved.
-  const [assignableJudges, assigned, evaluationStatuses, musicDownloadDays] =
-    await Promise.all([
-      readAssignableJudges(),
-      readAssignedJudges(rows.map((row) => row.choreographyId)),
-      readPresentationEvaluationStatuses(rows.map((row) => row.choreographyId)),
-      readMusicDownloadDays(input.selectedEventId),
-    ]);
+  const [
+    assignableJudges,
+    assigned,
+    evaluationStatuses,
+    musicDownloadDays,
+    programVisible,
+  ] = await Promise.all([
+    readAssignableJudges(),
+    readAssignedJudges(rows.map((row) => row.choreographyId)),
+    readPresentationEvaluationStatuses(rows.map((row) => row.choreographyId)),
+    readMusicDownloadDays(input.selectedEventId),
+    isEventProgramVisible(input.selectedEventId),
+  ]);
   const items = rows.map((row) =>
     buildPresentationListItem(row, {
       assignedJudgeIds: assigned.byChoreography,
@@ -178,7 +190,14 @@ async function loadPresentationList(input: {
     ),
     musicDownloadDays,
     presentations: filteredItems.slice(offset, offset + limit),
-    printableSchedules: listPrintableSchedules(rows),
+    programExportDays: [
+      ...new Set(
+        items
+          .filter((item) => item.orderNumber !== null)
+          .map((item) => item.scheduledDate),
+      ),
+    ].sort(),
+    programVisible,
     selectedEventId: input.selectedEventId,
     totalCount: filteredItems.length,
     totalPages,
@@ -218,6 +237,10 @@ export async function handlePresentationListAction(
     return await runJudgeAssignment(intent, formData);
   }
 
+  if (intent === setProgramVisibilityIntent) {
+    return await runProgramVisibility(eventContext.selectedEventId, formData);
+  }
+
   if (intent !== orderAutomaticallyIntent) {
     return data(
       {
@@ -242,6 +265,42 @@ export async function handlePresentationListAction(
 
   return {
     message: formatAutomaticOrderingMessage(result),
+    status: "success" as const,
+  };
+}
+
+/**
+ * Shows or hides the program on the public page and the academies' portal. The
+ * form carries the event it was shown for: one switched in between is refused
+ * rather than having its program published unseen.
+ */
+async function runProgramVisibility(eventId: string, formData: FormData) {
+  if (formData.get(programEventIdFieldName) !== eventId) {
+    return data(
+      {
+        message:
+          "El evento activo cambió mientras tanto: revisá su presentación antes de mostrar u ocultar el programa.",
+        status: "error" as const,
+      },
+      { status: 409 },
+    );
+  }
+
+  const programVisible = formData.get(programVisibleFieldName) === "true";
+  const result = await setEventVisibility(eventId, { programVisible });
+
+  if (!result.ok) {
+    return data(
+      { message: "No encontramos ese evento.", status: "error" as const },
+      { status: 404 },
+    );
+  }
+
+  return {
+    message:
+      notificationToasts[
+        programVisible ? "programa-visible" : "programa-oculto"
+      ].message,
     status: "success" as const,
   };
 }

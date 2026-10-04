@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
-import type { EventProgramSchedule } from "@/lib/presentations/event-program.server";
 import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { PresentationWarning } from "@/lib/presentations/warnings";
@@ -13,7 +12,7 @@ import type { MusicDownloadDay } from "../music-download/shared";
 
 /**
  * What the participation list's page and its server agree on: the shape of a
- * row, the filters the URL carries and the two intents the page submits. It is
+ * row, the filters the URL carries and the intents the page submits. It is
  * a module of its own because the view imports the intents, and the server
  * module it would otherwise take them from cannot reach the browser.
  */
@@ -22,6 +21,11 @@ export const orderAutomaticallyIntent = "order-automatically";
 export const movePresentationIntent = "move-presentation";
 export const assignJudgesIntent = "assign-judges";
 export const removeJudgesIntent = "remove-judges";
+export const setProgramVisibilityIntent = "set-program-visibility";
+/** `"true"` shows the program, anything else hides it. */
+export const programVisibleFieldName = "visible";
+/** The event the toggle was shown for, so a switch in between is refused. */
+export const programEventIdFieldName = "evento";
 export const judgeIdFieldName = "juez";
 export const presentationChoreographyIdFieldName = "coreografia";
 
@@ -114,11 +118,10 @@ export type PresentationListResult = {
   /** The highest number in the order; `0` before the first ordering. */
   highestOrderNumber: number;
   presentations: PresentationListItem[];
-  /**
-   * The schedules the results print offers: the ones with a presentation, in
-   * day and time order, which is how the print runs them.
-   */
-  printableSchedules: EventProgramSchedule[];
+  /** Whether the public page and the academies' portal show the program. */
+  programVisible: boolean;
+  /** The days the program export offers: the ones with a numbered row. */
+  programExportDays: string[];
   selectedEventId: string | null;
   totalCount: number;
   totalPages: number;

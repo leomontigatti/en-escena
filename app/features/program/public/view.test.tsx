@@ -283,6 +283,7 @@ function countOccurrences(markup: string, needle: string) {
 function buildRow(overrides: Partial<EventProgramRow> = {}): EventProgramRow {
   return {
     academyName: "Academia Sur",
+    academyProvince: null,
     categoryName: "Infantil",
     choreographyId: "choreography-1",
     choreographyNumber: 12,

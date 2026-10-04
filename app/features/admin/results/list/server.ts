@@ -1,6 +1,5 @@
 import { data, redirect } from "react-router";
 
-import { listPrintableSchedules } from "@/features/admin/presentations/results-print/shared";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
@@ -87,7 +86,7 @@ async function loadResultsList(input: {
       days: [],
       filters: input.filters,
       hasAnyRow: false,
-      printableSchedules: [],
+      exportDays: [],
       publication: { pendingCount: 0, publishedAt: null, publishedCount: 0 },
       results: [],
       selectedEventId: null,
@@ -163,7 +162,14 @@ async function loadResultsList(input: {
     days,
     filters: { ...filters, page },
     hasAnyRow: items.length > 0,
-    printableSchedules: listPrintableSchedules(allRows),
+    // Only what has a result is exported, so a day with none is not offered.
+    exportDays: [
+      ...new Set(
+        items
+          .filter((item) => item.average !== null && item.award !== null)
+          .map((item) => item.scheduledDate),
+      ),
+    ].sort(),
     publication,
     results: filteredItems.slice(offset, offset + limit),
     selectedEventId: input.selectedEventId,

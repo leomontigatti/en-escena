@@ -171,27 +171,6 @@ describe("`/administracion/eventos/:eventId` route", () => {
     ).resolves.toMatchObject({ active: false });
   });
 
-  test("toggles program visibility", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
-    const programRequest = await createSignedInRequest({
-      email: "admin.programa@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/eventos/${event.id}`,
-      body: formData({ intent: "set-program-visibility", value: "true" }),
-    });
-    await expect(
-      action(routeArgs(programRequest.request, event.id)),
-    ).resolves.toMatchObject({
-      status: "success",
-      message: "Programa visible.",
-    });
-    await expect(
-      db.query.events.findFirst({ where: eq(events.id, event.id) }),
-    ).resolves.toMatchObject({
-      programVisible: true,
-    });
-  });
-
   test("deletes only after explicit confirmation and returns to the events list", async () => {
     const event = await createSavedEvent({ name: "Borrable" });
     const blockedRequest = await createSignedInRequest({
