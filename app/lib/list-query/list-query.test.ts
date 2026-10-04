@@ -5,6 +5,7 @@ import {
   describeEmptyList,
   paginateList,
   readListQuery,
+  withoutListQuery,
 } from "@/lib/list-query/list-query";
 
 const spec = {
@@ -165,5 +166,18 @@ describe("describeEmptyList", () => {
     expect(describeEmptyList("eventos", "search").nothingMatched).toBe(
       "No hay eventos que coincidan con la búsqueda.",
     );
+  });
+});
+
+describe("withoutListQuery", () => {
+  test("drops the search, order and page and keeps every other parameter", () => {
+    expect(
+      withoutListQuery("?busqueda=Tango&orden=nombre.desc&pagina=2&evento=e1"),
+    ).toBe("?evento=e1");
+  });
+
+  test("answers null when there is no list state to drop", () => {
+    expect(withoutListQuery("?evento=e1")).toBeNull();
+    expect(withoutListQuery("")).toBeNull();
   });
 });

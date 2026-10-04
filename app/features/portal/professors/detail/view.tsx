@@ -1,8 +1,9 @@
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Form, useNavigation, useSubmit } from "react-router";
 
-import { PortalPageHeader } from "@/components/portal/ui";
+import { PortalEmptyState, PortalPageHeader } from "@/components/portal/ui";
+import { useResetListQuery } from "@/components/shared/data-table-url-state";
 import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -10,6 +11,8 @@ import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
+import { ProfessorChoreographiesTable } from "@/components/shared/roster-inscriptions-table";
+import { RosterSeminarInscriptionsTable } from "@/components/shared/roster-seminar-inscriptions-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -24,7 +27,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { isRouteFormPending, useCloseOnceSettled } from "@/lib/shared/forms";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { portalSeminarDetailPath } from "@/features/portal/seminars/shared";
+import {
+  isRouteFormPending,
+  useCloseOnceSettled,
+  useLatestActionData,
+} from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 import {
@@ -72,7 +81,14 @@ export function PortalProfessorDetailRouteView({
     documentType: loaderData.professor.documentType ?? "",
     documentNumber: loaderData.professor.documentNumber ?? "",
   };
-  const formValues = actionData?.values ?? nameWarning?.values ?? savedValues;
+  // The refused values outlive a search in the other tabs' lists.
+  const latestActionData = useLatestActionData(
+    actionDataOverride,
+    loaderData.professor.id,
+  );
+  const refused = splitPortalProfessorActionData(latestActionData);
+  const formValues =
+    refused.error?.values ?? refused.nameWarning?.values ?? savedValues;
   const submit = useSubmit();
   const navigation = useNavigation();
   const form = usePortalProfessorForm({
@@ -92,8 +108,6 @@ export function PortalProfessorDetailRouteView({
     active: loaderData.professor.active,
     isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
   });
-  const isArchiveBlockedOpen =
-    statusDialogIntent === archiveProfessorIntent && statusAction.isBlocked;
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateProfessorIntent;
@@ -142,34 +156,36 @@ export function PortalProfessorDetailRouteView({
           professorActive={loaderData.professor.active}
         />
 
-        <Card className="overflow-clip">
-          <CardContent>
-            <form
-              id={professorDetailFormId}
-              method="post"
-              noValidate
-              onSubmit={form.handleSubmit}
-            >
-              <input
-                type="hidden"
-                name="intent"
-                value={updateProfessorIntent}
-              />
-              <PortalProfessorIdentityFields
-                documentConflictDescription={documentConflictDescription}
-                form={form.form}
-              />
-            </form>
-          </CardContent>
-          <FormActions
-            backTo="/portal/profesores"
-            form={professorDetailFormId}
-            hasChanges={form.form.formState.isDirty}
-            isPending={isSubmitting}
-            onDiscard={form.discard}
-            viewTransition
-          />
-        </Card>
+        <PortalProfessorDetailTabs loaderData={loaderData}>
+          <Card className="overflow-clip">
+            <CardContent>
+              <form
+                id={professorDetailFormId}
+                method="post"
+                noValidate
+                onSubmit={form.handleSubmit}
+              >
+                <input
+                  type="hidden"
+                  name="intent"
+                  value={updateProfessorIntent}
+                />
+                <PortalProfessorIdentityFields
+                  documentConflictDescription={documentConflictDescription}
+                  form={form.form}
+                />
+              </form>
+            </CardContent>
+            <FormActions
+              backTo="/portal/profesores"
+              form={professorDetailFormId}
+              hasChanges={form.form.formState.isDirty}
+              isPending={isSubmitting}
+              onDiscard={form.discard}
+              viewTransition
+            />
+          </Card>
+        </PortalProfessorDetailTabs>
         {nameWarning ? (
           <RosterNameWarningDialog
             formId={professorDetailFormId}
@@ -179,24 +195,77 @@ export function PortalProfessorDetailRouteView({
         ) : null}
       </section>
 
-      <RosterPersonArchiveBlockedDialog
-        kind="professor"
-        onOpenChange={(open) => {
-          if (!open) {
-            setStatusDialogIntent(null);
-          }
-        }}
-        open={isArchiveBlockedOpen}
-      />
-      <ProfessorStatusDialog
-        intent={isArchiveBlockedOpen ? null : statusDialogIntent}
-        onOpenChange={(open) => {
-          if (!open) {
-            setStatusDialogIntent(null);
-          }
-        }}
+      <ProfessorStatusDialogs
+        intent={statusDialogIntent}
+        isArchiveBlocked={statusAction.isBlocked}
+        onClose={() => setStatusDialogIntent(null)}
       />
     </>
+  );
+}
+
+/**
+ * The professor's three tabs, the dancer's twin. `Identificación` is the form
+ * it is given, kept mounted behind the other tabs so the leave guard in
+ * `Guardar`'s footer still covers the draft from there; `Inscripciones` and
+ * `Seminarios` are tables of their own.
+ */
+function PortalProfessorDetailTabs({
+  children,
+  loaderData,
+}: {
+  children: ReactNode;
+  loaderData: LoaderData;
+}) {
+  const resetListQuery = useResetListQuery();
+
+  return (
+    <Tabs defaultValue="identificacion" onValueChange={resetListQuery}>
+      <TabsList variant="line">
+        <TabsTrigger value="identificacion">Identificación</TabsTrigger>
+        <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+        <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
+      </TabsList>
+      <TabsContent
+        forceMount
+        value="identificacion"
+        className="pt-2 data-[state=inactive]:hidden"
+      >
+        {children}
+      </TabsContent>
+      <TabsContent value="inscripciones" className="pt-2">
+        {loaderData.selectedEventId ? (
+          <ProfessorChoreographiesTable
+            buildChoreographyHref={(choreographyId) =>
+              `/portal/coreografias/${choreographyId}`
+            }
+            choreographies={loaderData.choreographies}
+          />
+        ) : (
+          <NoActiveEventState subject="inscripciones" />
+        )}
+      </TabsContent>
+      <TabsContent value="seminarios" className="pt-2">
+        {loaderData.selectedEventId ? (
+          <RosterSeminarInscriptionsTable
+            buildSeminarHref={portalSeminarDetailPath}
+            inscriptions={loaderData.seminarInscriptions}
+            personKind="professor"
+          />
+        ) : (
+          <NoActiveEventState subject="seminarios" />
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function NoActiveEventState({ subject }: { subject: string }) {
+  return (
+    <PortalEmptyState
+      title="Sin evento activo"
+      description={`No hay un evento activo para revisar ${subject}.`}
+    />
   );
 }
 
@@ -325,4 +394,40 @@ function getGeneralActionError(
     status: "error" as const,
     message: actionData.message,
   };
+}
+
+/**
+ * `Archivar` opens the blocked acknowledgment instead of its confirmation
+ * while the professor takes part in the active event; every other intent opens
+ * the confirmation.
+ */
+function ProfessorStatusDialogs({
+  intent,
+  isArchiveBlocked,
+  onClose,
+}: {
+  intent: ProfessorStatusIntent | null;
+  isArchiveBlocked: boolean;
+  onClose: () => void;
+}) {
+  const isBlockedOpen = intent === archiveProfessorIntent && isArchiveBlocked;
+  const closeOnDismiss = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
+  return (
+    <>
+      <RosterPersonArchiveBlockedDialog
+        kind="professor"
+        onOpenChange={closeOnDismiss}
+        open={isBlockedOpen}
+      />
+      <ProfessorStatusDialog
+        intent={isBlockedOpen ? null : intent}
+        onOpenChange={closeOnDismiss}
+      />
+    </>
+  );
 }

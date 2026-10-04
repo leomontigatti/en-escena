@@ -305,11 +305,12 @@ function buildLoaderData(): PresentationListResult {
     ],
     highestOrderNumber: 1,
     musicDownloadDays: [],
+    programExportDays: [],
+    programVisible: false,
     selectedEventId: "event-1",
     totalCount: 2,
     totalPages: 1,
     unorderedCount: 1,
-    printableSchedules: [],
     warnedCount: 0,
   };
 }

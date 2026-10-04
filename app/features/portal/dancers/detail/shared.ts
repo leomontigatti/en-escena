@@ -13,6 +13,7 @@ import type {
   UpdateDancerField,
 } from "@/lib/portal/dancers.server";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
+import type { RosterSeminarInscription } from "@/lib/roster/inscriptions";
 import type {
   DancerIdentificationPendingItem,
   DancerVerificationStatus,
@@ -52,6 +53,7 @@ export type PortalDancerDetailLoaderData = {
   dancer: NonNullable<Awaited<ReturnType<typeof findDancerForAcademy>>>;
   documentImageUrls: PortalDancerDocumentImageUrls;
   inscriptions: DancerInscription[];
+  seminarInscriptions: RosterSeminarInscription[];
   /**
    * Answered by `hasActiveEventParticipation`, the same reader the guard in
    * `setRosterPersonStatus` asks — see the panel twin. It resolves the active

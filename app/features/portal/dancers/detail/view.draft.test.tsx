@@ -221,6 +221,7 @@ function buildLoaderData(): DancerDetailProps["loaderData"] {
     },
     documentImageUrls: { back: null, front: null },
     inscriptions: [],
+    seminarInscriptions: [],
     isParticipatingInActiveEvent: false,
     selectedEventId: "event_1",
   };

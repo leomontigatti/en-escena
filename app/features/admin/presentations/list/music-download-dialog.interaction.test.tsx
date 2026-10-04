@@ -4,6 +4,7 @@ import { act } from "react";
 import { toast } from "sonner";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   openRadixSelect,
   selectRadixOption,
@@ -88,7 +89,7 @@ describe("the music download dialog", () => {
     await submit();
 
     expect(openWindow).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("Elegí un día.");
+    expect(document.body.textContent).toContain(requiredFieldMessage);
   });
 
   test("turns down a day without any music", async () => {

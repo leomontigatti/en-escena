@@ -35,8 +35,11 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { PresentationListActions } from "./actions-menu";
 import { JudgeAssignmentDialog } from "./judge-dialogs";
-import { MusicDownloadDialog } from "./music-download-dialog";
-import { ResultsPrintDialog } from "./results-print-dialog";
+import {
+  PresentationOutputDialog,
+  readProgramToggle,
+  type OutputDialog,
+} from "./output-dialogs";
 import {
   OrderingConfirmationDialog,
   PresentationDayTabs,
@@ -436,15 +439,15 @@ export function PresentationsListView({
           canDownloadMusic={
             loaderData.canOrder && loaderData.musicDownloadDays.length > 0
           }
+          canExportProgram={loaderData.programExportDays.length > 0}
           canOrderRows={loaderData.canOrder && loaderData.hasAnyRow}
-          canPrintResults={
-            loaderData.canOrder && loaderData.printableSchedules.length > 0
-          }
           hasSelection={selectedRows.length > 0}
           onDownloadMusic={() => setOutputDialog("musicDownload")}
+          onExportProgram={() => setOutputDialog("programExport")}
           onJudges={setJudgeDialogMode}
           onOrder={() => setIsOrderingDialogOpen(true)}
-          onPrintResults={() => setOutputDialog("resultsPrint")}
+          onToggleProgram={() => setOutputDialog("programVisibility")}
+          programToggle={readProgramToggle(loaderData)}
         />
       }
     >
@@ -525,48 +528,6 @@ export function PresentationsListView({
       ) : null}
     </AdminResourceLayout>
   );
-}
-
-/** The two dialogs that hand something out of the list rather than change it. */
-type OutputDialog = "musicDownload" | "resultsPrint";
-
-function PresentationOutputDialog({
-  dialog,
-  loaderData,
-  onClose,
-}: {
-  dialog: OutputDialog | null;
-  loaderData: PresentationListResult;
-  onClose: () => void;
-}) {
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
-      onClose();
-    }
-  };
-
-  if (dialog === "resultsPrint") {
-    return (
-      <ResultsPrintDialog
-        open
-        onOpenChange={onOpenChange}
-        schedules={loaderData.printableSchedules}
-      />
-    );
-  }
-
-  if (dialog === "musicDownload") {
-    return (
-      <MusicDownloadDialog
-        days={loaderData.musicDownloadDays}
-        defaultDay={loaderData.filters.day}
-        open
-        onOpenChange={onOpenChange}
-      />
-    );
-  }
-
-  return null;
 }
 
 function PresentationStatusBadge({ row }: { row: PresentationListItem }) {

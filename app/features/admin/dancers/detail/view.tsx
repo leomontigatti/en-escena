@@ -11,6 +11,7 @@ import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
+  useLatestActionData,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
@@ -55,6 +56,10 @@ export function DancerDetailRouteView({
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
   const mergeDialog = useMergeDialogState(loaderData.dancer.id, actionData);
+  const latestActionData = useLatestActionData(
+    actionData,
+    loaderData.dancer.id,
+  );
 
   useServerActionToast(errorData, {
     toastId: "admin-dancer-detail:error",
@@ -72,7 +77,12 @@ export function DancerDetailRouteView({
     isSaving,
     setDialogIntent,
     viewState,
-  } = useDancerSave({ errorData, loaderData, nameWarning });
+  } = useDancerSave({
+    errorData,
+    loaderData,
+    nameWarning,
+    refused: latestActionData,
+  });
   const isArchiveBlockedOpen =
     dialogIntent === "archive-dancer" && viewState.statusAction.isBlocked;
   const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
@@ -224,22 +234,28 @@ function useDancerSave({
   errorData,
   loaderData,
   nameWarning,
+  refused,
 }: {
   errorData?: Extract<DancerDetailActionData, { status: "error" }>;
   loaderData: DancerDetailLoaderData;
   nameWarning?: Extract<DancerDetailActionData, { status: "warning" }>;
+  /** The latest answer, kept so the refused values outlive a search in the
+   * other tabs' lists. */
+  refused?: DancerDetailActionData;
 }) {
   const dancer = loaderData.dancer;
   const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
+  const refusedError = refused?.status === "error" ? refused : undefined;
   const editForm = useDancerEditForm({
     actionData: errorData,
     eventStartDate: loaderData.activeEventStartDate,
     savedValues: getDancerEditValues({ actionData: undefined, dancer }),
     submittedValues:
-      nameWarning?.values ??
-      (submittedEditValues
-        ? getDancerEditValues({ actionData: errorData, dancer })
-        : null),
+      refused?.status === "warning"
+        ? refused.values
+        : getSubmittedDancerUpdateValues(refusedError)
+          ? getDancerEditValues({ actionData: refusedError, dancer })
+          : null,
   });
   const submit = useSubmit();
   const navigation = useNavigation();

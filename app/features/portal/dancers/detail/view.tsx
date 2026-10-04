@@ -14,7 +14,9 @@ import {
   documentTypeEmptyLabel,
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
-import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
+import { DancerInscriptionsTable } from "@/components/shared/roster-inscriptions-table";
+import { RosterSeminarInscriptionsTable } from "@/components/shared/roster-seminar-inscriptions-table";
+import { useResetListQuery } from "@/components/shared/data-table-url-state";
 import { ReadOnlyDocumentImageField } from "@/components/shared/read-only-document-image-field";
 import {
   ReadOnlyDateField,
@@ -40,13 +42,18 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { portalSeminarDetailPath } from "@/features/portal/seminars/shared";
 import {
   formatDancerIdentificationPendingItemLabel,
   getDancerIdentificationPendingItems,
   getDancerVerificationStatus,
   type DancerIdentificationPendingItem,
 } from "@/lib/dancers/verification";
-import { isRouteFormPending, useCloseOnceSettled } from "@/lib/shared/forms";
+import {
+  isRouteFormPending,
+  useCloseOnceSettled,
+  useLatestActionData,
+} from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -82,8 +89,14 @@ export function PortalDancerDetailRouteView({
 }: PortalDancerDetailRouteViewProps) {
   const submit = useSubmit();
   const navigation = useNavigation();
-  const formValues = getPortalDancerFormValues({
+  const resetListQuery = useResetListQuery();
+  // The refused values outlive a search in the other tabs' lists.
+  const latestActionData = useLatestActionData(
     actionData,
+    loaderData.dancer.id,
+  );
+  const formValues = getPortalDancerFormValues({
+    actionData: latestActionData,
     dancer: loaderData.dancer,
   });
   const form = usePortalDancerForm({
@@ -112,8 +125,6 @@ export function PortalDancerDetailRouteView({
     isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
     verificationStatus,
   });
-  const isArchiveBlockedOpen =
-    statusDialogIntent === "archive-dancer" && viewModel.statusAction.isBlocked;
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
@@ -172,10 +183,11 @@ export function PortalDancerDetailRouteView({
           showsVerifiedIdentityAlert={viewModel.showsVerifiedIdentityAlert}
         />
 
-        <Tabs defaultValue="identificacion">
+        <Tabs defaultValue="identificacion" onValueChange={resetListQuery}>
           <TabsList variant="line">
             <TabsTrigger value="identificacion">Identificación</TabsTrigger>
             <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+            <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
           </TabsList>
           {/* Kept mounted behind the other tab, so a file picked here is
               still in its input after a look at the inscriptions and the
@@ -223,6 +235,12 @@ export function PortalDancerDetailRouteView({
               selectedEventId={loaderData.selectedEventId}
             />
           </TabsContent>
+          <TabsContent value="seminarios" className="pt-2">
+            <PortalDancerSeminarInscriptionsSection
+              inscriptions={loaderData.seminarInscriptions}
+              selectedEventId={loaderData.selectedEventId}
+            />
+          </TabsContent>
         </Tabs>
         {nameWarning ? (
           <RosterNameWarningDialog
@@ -233,22 +251,10 @@ export function PortalDancerDetailRouteView({
         ) : null}
       </section>
 
-      <RosterPersonArchiveBlockedDialog
-        kind="dancer"
-        onOpenChange={(open) => {
-          if (!open) {
-            setStatusDialogIntent(null);
-          }
-        }}
-        open={isArchiveBlockedOpen}
-      />
-      <PortalDancerStatusDialog
-        intent={isArchiveBlockedOpen ? null : statusDialogIntent}
-        onOpenChange={(open) => {
-          if (!open) {
-            setStatusDialogIntent(null);
-          }
-        }}
+      <PortalDancerStatusDialogs
+        intent={statusDialogIntent}
+        isArchiveBlocked={viewModel.statusAction.isBlocked}
+        onClose={() => setStatusDialogIntent(null)}
       />
     </>
   );
@@ -469,6 +475,31 @@ function PortalDancerInscriptionsSection({
   );
 }
 
+function PortalDancerSeminarInscriptionsSection({
+  inscriptions,
+  selectedEventId,
+}: {
+  inscriptions: PortalDancerDetailLoaderData["seminarInscriptions"];
+  selectedEventId: PortalDancerDetailLoaderData["selectedEventId"];
+}) {
+  if (!selectedEventId) {
+    return (
+      <PortalEmptyState
+        title="Sin evento activo"
+        description="No hay un evento activo para revisar seminarios."
+      />
+    );
+  }
+
+  return (
+    <RosterSeminarInscriptionsTable
+      buildSeminarHref={portalSeminarDetailPath}
+      inscriptions={inscriptions}
+      personKind="dancer"
+    />
+  );
+}
+
 function PortalDancerFormSection({
   children,
   footer,
@@ -589,4 +620,40 @@ function PortalDancerStatusActionIcon({
   }
 
   return <RotateCcw aria-hidden="true" data-icon="inline-start" />;
+}
+
+/**
+ * `Archivar` opens the blocked acknowledgment instead of its confirmation
+ * while the dancer takes part in the active event; every other intent opens
+ * the confirmation.
+ */
+function PortalDancerStatusDialogs({
+  intent,
+  isArchiveBlocked,
+  onClose,
+}: {
+  intent: PortalDancerStatusIntent | null;
+  isArchiveBlocked: boolean;
+  onClose: () => void;
+}) {
+  const isBlockedOpen = intent === "archive-dancer" && isArchiveBlocked;
+  const closeOnDismiss = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
+  return (
+    <>
+      <RosterPersonArchiveBlockedDialog
+        kind="dancer"
+        onOpenChange={closeOnDismiss}
+        open={isBlockedOpen}
+      />
+      <PortalDancerStatusDialog
+        intent={isBlockedOpen ? null : intent}
+        onOpenChange={closeOnDismiss}
+      />
+    </>
+  );
 }

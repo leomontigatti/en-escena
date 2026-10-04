@@ -10,7 +10,6 @@ import {
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
 import type { EventDocumentSummaries } from "@/lib/events/event-documents.server";
-import type { ResultsPublication } from "@/lib/judging/results.server";
 import type {
   EventRegistrationMissingCode,
   EventRegistrationMissingItem,
@@ -70,11 +69,9 @@ export const eventDocumentsFormSchema = z.object(
 export type EventDocumentsFormValues = z.infer<typeof eventDocumentsFormSchema>;
 
 export type EventDetailLoaderData = {
-  canPublishResults: boolean;
   documents: EventDocumentSummaries;
   event: EventRow;
   registrationReadiness: EventRegistrationReadiness;
-  resultsPublication: ResultsPublication;
 };
 
 export type EventDetailActionData =

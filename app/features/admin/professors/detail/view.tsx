@@ -9,6 +9,7 @@ import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
+  useLatestActionData,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -58,6 +59,7 @@ export function ProfessorDetailRouteView({
   });
 
   const professor = loaderData.professor;
+  const latestActionData = useLatestActionData(actionData, professor.id);
   const {
     dialogIntent,
     editForm,
@@ -65,7 +67,11 @@ export function ProfessorDetailRouteView({
     isSaving,
     pendingUpdateValues,
     setDialogIntent,
-  } = useProfessorSave({ errorData, nameWarning, professor });
+  } = useProfessorSave({
+    errorData,
+    professor,
+    refused: latestActionData,
+  });
 
   const viewState = buildProfessorDetailViewState({
     active: professor.active,
@@ -108,6 +114,9 @@ export function ProfessorDetailRouteView({
       <ProfessorDetailForm
         backToList={loaderData.backToList}
         canEdit={loaderData.canEdit}
+        choreographies={loaderData.choreographies}
+        selectedEventId={loaderData.selectedEventId}
+        seminarInscriptions={loaderData.seminarInscriptions}
         editForm={editForm}
         editFormId={editFormId}
         isSaving={isSaving}
@@ -214,15 +223,18 @@ function ProfessorConfirmationForm({
  */
 function useProfessorSave({
   errorData,
-  nameWarning,
   professor,
+  refused,
 }: {
   errorData?: Extract<ProfessorDetailActionData, { status: "error" }>;
-  nameWarning?: Extract<ProfessorDetailActionData, { status: "warning" }>;
   professor: ProfessorDetailLoaderData["professor"];
+  /** The latest answer, kept so the refused values outlive a search in the
+   * other tabs' lists. */
+  refused?: ProfessorDetailActionData;
 }) {
   const isConsequential = professor.editConsequence !== null;
   const submittedUpdateValues = getSubmittedProfessorUpdateValues(errorData);
+  const refusedError = refused?.status === "error" ? refused : undefined;
   const savedValues = getProfessorEditValues({
     actionData: undefined,
     professor,
@@ -230,11 +242,12 @@ function useProfessorSave({
   const editForm = useProfessorEditForm({
     actionData: errorData,
     savedValues,
-    submittedValues: nameWarning
-      ? nameWarning.values
-      : submittedUpdateValues
-        ? getProfessorEditValues({ actionData: errorData, professor })
-        : null,
+    submittedValues:
+      refused?.status === "warning"
+        ? refused.values
+        : getSubmittedProfessorUpdateValues(refusedError)
+          ? getProfessorEditValues({ actionData: refusedError, professor })
+          : null,
   });
   const submit = useSubmit();
   const navigation = useNavigation();

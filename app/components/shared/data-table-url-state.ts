@@ -17,9 +17,39 @@ import {
   listQueryParamNames,
   parseListOrder,
   readListPage,
+  withoutListQuery,
 } from "@/lib/list-query/list-query";
 import { inPageNavigationState } from "@/lib/shared/discard-guard";
 import { useOptionalNavigation } from "@/lib/shared/forms";
+
+/**
+ * Clears the list state from the address bar, for a page whose tabs each hold
+ * a list: every `ClientDataTable` reads the same parameters, so a search typed
+ * in one tab would otherwise filter the next. Pass it to `Tabs`'
+ * `onValueChange`. The navigation is marked in-page, so a leave guard over a
+ * form in another tab does not mistake it for leaving.
+ */
+export function useResetListQuery() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  // The pending destination, not the committed URL: a search still
+  // navigating when the tab changes would otherwise land on the next list.
+  const headingSearch = useDataTableHeadingSearch();
+
+  return () => {
+    const search = withoutListQuery(headingSearch);
+
+    if (search === null) {
+      return;
+    }
+
+    void navigate(`${location.pathname}${search}`, {
+      preventScrollReset: true,
+      replace: true,
+      state: inPageNavigationState,
+    });
+  };
+}
 
 /**
  * The mapping between a browser-paginated list's state and the query string.

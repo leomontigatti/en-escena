@@ -23,7 +23,6 @@ import {
   activateEvent,
   deactivateEvent,
   deleteEvent,
-  setEventVisibility,
   updateEvent,
   type EventMutationResult,
 } from "@/lib/events/management.server";
@@ -33,12 +32,6 @@ import {
   notificationToasts,
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
-import { publishedResultsMessage } from "@/lib/judging/results-copy";
-import {
-  hideResults,
-  publishResults,
-  readResultsPublication,
-} from "@/lib/judging/results.server";
 import {
   eventDocumentFileField,
   eventDocumentKeptField,
@@ -50,45 +43,32 @@ import {
 
 type EventRouteNotification = Extract<
   NotificationKey,
-  | "evento-activado"
-  | "evento-desactivado"
-  | "evento-guardado"
-  | "programa-visible"
-  | "programa-oculto"
-  | "resultados-ocultos"
+  "evento-activado" | "evento-desactivado" | "evento-guardado"
 >;
 
 export async function loadEventDetail(
   request: Request,
   eventId: string | undefined,
 ) {
-  const user = await requireAdminPanelUser(request);
+  await requireAdminPanelUser(request);
 
   if (!eventId) {
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const [event, registrationReadiness, documents, resultsPublication] =
-    await Promise.all([
-      loadEvent(eventId),
-      getEventRegistrationReadiness(eventId),
-      loadEventDocumentSummaries({
-        eventId,
-        storage: createDefaultEventDocumentStorage(),
-      }),
-      readResultsPublication(eventId),
-    ]);
+  const [event, registrationReadiness, documents] = await Promise.all([
+    loadEvent(eventId),
+    getEventRegistrationReadiness(eventId),
+    loadEventDocumentSummaries({
+      eventId,
+      storage: createDefaultEventDocumentStorage(),
+    }),
+  ]);
 
   return {
-    // Who may publish travels with the data rather than being read again in the
-    // view. `requireAdminPanelUser` already admits nobody else, so this reads
-    // `true` for every caller that gets this far; it is the seam story 8's
-    // read-only `auditor` view would flip once that role can open an event.
-    canPublishResults: user.role === "admin",
     documents,
     event,
     registrationReadiness,
-    resultsPublication,
   } satisfies EventDetailLoaderData;
 }
 
@@ -125,33 +105,6 @@ export async function updateAdministrativeEvent(
       }
 
       return redirectAfterDeletion(await deleteEvent(eventId));
-
-    case "set-program-visibility": {
-      const programVisible = formData.get("value") === "true";
-
-      return updateVisibility(
-        eventId,
-        {
-          programVisible,
-        },
-        programVisible ? "programa-visible" : "programa-oculto",
-      );
-    }
-
-    // One intent for `Mostrar resultados` and `Actualizar resultados` alike:
-    // both publish whatever is evaluated at that moment, and the menu label is
-    // the only difference between them.
-    case "publish-results":
-      return {
-        status: "success" as const,
-        message: publishedResultsMessage(await publishResults(eventId)),
-      };
-
-    case "hide-results": {
-      await hideResults(eventId);
-
-      return actionSuccess("resultados-ocultos");
-    }
 
     default:
       return actionError("No pudimos procesar esa acción.");
@@ -260,14 +213,6 @@ async function applyEventDocumentChange({
   }
 
   return { ok: true };
-}
-
-function updateVisibility(
-  eventId: string,
-  visibility: Parameters<typeof setEventVisibility>[1],
-  notification: EventRouteNotification,
-) {
-  return successOrError(setEventVisibility(eventId, visibility), notification);
 }
 
 async function redirectAfterDeletion(
