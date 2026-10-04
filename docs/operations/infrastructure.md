@@ -14,8 +14,9 @@ ADR-0013 records.
   `443` rules. `ufw` is **inactive** on the host, so that filtering is
   Hostinger's network firewall (group `default`), configured in hPanel —
   reading the host's own rules will tell you nothing. SSH is accepted only from
-  the control plane and the operator's current IP, `80` from anywhere, `443`
-  only from Cloudflare's IPv4 ranges, and there is no UDP rule at all.
+  the control plane, `80` from anywhere, `443` only from Cloudflare's IPv4
+  ranges, and there is no UDP rule at all. The operator's SSH comes in over
+  Tailscale: see [Operator access](#operator-access).
 - **Platform**: Coolify, but `rylai` runs only the agent side of it:
   `coolify-sentinel` and the `coolify-proxy` Traefik container. The dashboard is
   on a different machine — see [Coolify control plane](#coolify-control-plane).
@@ -67,19 +68,18 @@ API tokens issued while the dashboard was plain HTTP were rotated on
 The group is `coolify-server`, attached on 2026-09-16; until then the VPS had no
 network firewall at all. It accepts:
 
-| Port        | From                      |
-| ----------- | ------------------------- |
-| `22`        | the operator's current IP |
-| `80`, `443` | anywhere                  |
+| Port        | From     |
+| ----------- | -------- |
+| `80`, `443` | anywhere |
 
-Nothing else is open. Coolify documents `8000`, `6001` and `6002` for a
+Nothing else is open, `22` included: SSH to the control plane exists only over
+Tailscale ([Operator access](#operator-access)). Coolify documents `8000`, `6001` and `6002` for a
 dashboard reached by IP; with the domain in place they have been closed since
 2026-09-17. Nothing in the platform needs UDP.
 
-**A change of the operator's IP locks out SSH and the REST API, not the
-dashboard**: `443` is open to anywhere, and the Coolify MCP endpoint is not
-gated by the API allowlist. Recovery is in hPanel, which does not go through
-this firewall — update the `coolify-server` SSH rule — plus the instance's
+**A change of the operator's IP locks out the REST API, and nothing else**: SSH
+does not depend on it, `443` is open to anywhere, and the Coolify MCP endpoint
+is not gated by the API allowlist. Recovery is the instance's
 `Allowed IPs for API Access` under `Settings > Configuration > Advanced`.
 
 #### Sentinel follows its own URL, not the instance URL
@@ -112,6 +112,38 @@ which stays on the Docker network and never meets the firewall.
   closed. This is not verified — the setting lives on GitHub. Deploys are
   manual, so nothing depends on it; update it before turning on automatic
   deployments or pull request previews.
+
+### Operator access
+
+Both VPSs are nodes of the operator's Tailscale tailnet (since 2026-10-04), and
+that is the only way a person gets a shell on either: no hPanel rule admits an
+operator IP on `22`. Tailscale reaches the hosts through connections they open
+outwards, so it needs no inbound rule, and the path is direct rather than
+relayed even with no UDP rule.
+
+| Node      | Tailnet address  |
+| --------- | ---------------- |
+| `rylai`   | `100.76.147.20`  |
+| `coolify` | `100.107.78.122` |
+
+The `rylai` and `coolify` SSH aliases this repo's scripts and runbooks use point
+at those addresses, in the operator's `~/.ssh/config`. Authentication is still
+the SSH key: Tailscale SSH is off, so a tailnet login alone opens no shell.
+
+- **Coolify does not use the tailnet.** The control plane deploys to `rylai`
+  over the public address, through the one remaining `22` rule on `rylai`'s
+  firewall. Removing that rule breaks deploys, not operator access.
+- **Both hosts run with `--accept-dns=false`.** Tailscale leaves their resolver
+  alone, so containers resolve as before; the hosts do not resolve tailnet
+  names, and have no need to.
+- **Key expiry is disabled on the two servers**, in the Tailscale admin console.
+  A server added later needs the same, or it leaves the tailnet when its key
+  expires.
+- **When Tailscale is unavailable**, the way in is hPanel, which goes through
+  neither the tailnet nor the firewall: add the current IP as an SSH rule on the
+  host's group (`default` for `rylai`, `coolify-server` for the control plane),
+  sync, connect to the public address, and remove the rule afterwards. hPanel's
+  browser terminal works with no rule at all.
 
 ### Proxy
 

@@ -299,15 +299,16 @@ and bypass the WAF.
   closed, `80` gives no access to the app — everything redirects to HTTPS, which
   only enters through Cloudflare — so leaving it open adds no surface and saves
   15 rules.
-- **Keep** the two SSH rules and the final `Drop`.
+- **Keep** the SSH rule and the final `Drop`.
 
 Watch out for:
 
 - Do this **last**, after proxying `sistema` and verifying. Closing `443` to
   Cloudflare while `sistema` is still DNS only locks out your own access.
 - Hit "Sincronizar" or the changes aren't applied.
-- If the SSH source IP is dynamic and changes, the rule locks you out. That was
-  already the case before this migration.
+- The SSH rule admits only the Coolify control plane. Operator SSH does not
+  depend on a source IP: see
+  [Operator access](./infrastructure.md#operator-access).
 
 ## 4. Coolify
 
