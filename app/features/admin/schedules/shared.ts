@@ -35,8 +35,8 @@ export type EventScheduleDetailLoaderData = EventSchedulesListLoaderData &
   EventScheduleFormLoaderData & {
     /**
      * Why `Abrir inscripciones` would be refused for any schedule of this
-     * event. Empty is the permission to open; anything in it both disables the
-     * action and is what the detail's alert lists.
+     * event. Empty is the permission to open; anything in it is what the
+     * action's acknowledgment lists instead of submitting.
      */
     registrationOpenBlockers: ScheduleRegistrationOpenBlockers;
     /**

@@ -14,6 +14,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
 import { formatDate } from "@/features/admin/schedules/view-shared";
@@ -103,8 +104,8 @@ export function SeminarFinanceDetailView({
 /**
  * The header's single actions menu (`...`, ADR-0011), the choreography detail's
  * twin: `Emitir factura` as a menu item opening its own dialog, mounted as a
- * sibling of the menu so the dropdown closing does not take it away. The item
- * is disabled rather than removed when there is nothing left to bill, for the
+ * sibling of the menu so the dropdown closing does not take it away. With
+ * nothing left to bill the item stays and opens `NothingToBillDialog`, for the
  * same reason it is there.
  */
 function SeminarActions({ loaderData }: SeminarFinanceDetailViewProps) {
@@ -114,17 +115,25 @@ function SeminarActions({ loaderData }: SeminarFinanceDetailViewProps) {
   // the comprobante and revalidates the detail, and unmounting there would take
   // the `recovered` state with it (#577).
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
+  const [isNothingToBillOpen, setIsNothingToBillOpen] = useState(false);
 
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
         <DropdownMenuItem
-          disabled={!invoicing.canEmit}
-          onSelect={() => setEmission(invoicing)}
+          onSelect={() =>
+            invoicing.canEmit
+              ? setEmission(invoicing)
+              : setIsNothingToBillOpen(true)
+          }
         >
           Emitir factura
         </DropdownMenuItem>
       </ResourceActionsMenu>
+      <NothingToBillDialog
+        onOpenChange={setIsNothingToBillOpen}
+        open={isNothingToBillOpen}
+      />
       {emission ? (
         <EmissionDialog
           billableAmount={emission.billableAmount}

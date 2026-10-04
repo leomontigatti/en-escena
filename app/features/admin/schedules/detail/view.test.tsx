@@ -171,9 +171,8 @@ describe("EventScheduleDetailView", () => {
     );
   });
 
-  // The switch is the administrator's, and what it offers is exactly what the
-  // server would accept: one item at a time, and the opening one disabled with
-  // the reasons beside it.
+  // The switch is the administrator's: one item at a time, and the opening one
+  // answers with the reasons whenever the server would refuse it.
   test('offers "Abrir inscripciones" while the `Cronograma` is closed', async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
@@ -200,41 +199,33 @@ describe("EventScheduleDetailView", () => {
     expect(document.body.textContent).not.toContain("Abrir inscripciones");
   });
 
-  test('disables "Abrir inscripciones" and lists why it is refused', async () => {
+  // The item stays enabled whatever the event lacks: the click answers with
+  // the reasons, and the page carries no alert about the action.
+  test('answers "Abrir inscripciones" with the reasons it is refused', async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
     await renderDetail({
       initialDeleteDialogOpen: false,
       loaderData: buildBlockedLoaderData(),
     });
-    await openScheduleActionsMenu();
-
-    expect(getButton("Abrir inscripciones").disabled).toBe(true);
-    expect(document.body.textContent).toContain(
-      "No se pueden abrir las inscripciones de este cronograma.",
-    );
-    expect(document.body.textContent).toContain(
-      "Falta al menos un precio en este evento.",
-    );
-    expect(document.body.textContent).toContain("El evento ya finalizó.");
-  });
-
-  // An open `Cronograma` has nothing to be refused: the alert belongs to the
-  // disabled action, so it goes away with it.
-  test("hides the reasons once the `Cronograma` is open", async () => {
-    useNavigationMock.mockReturnValue({ state: "idle" });
-
-    await renderDetail({
-      initialDeleteDialogOpen: false,
-      loaderData: {
-        ...buildOpenLoaderData(),
-        registrationOpenBlockers: ["El evento ya finalizó."],
-      },
-    });
 
     expect(document.body.textContent).not.toContain(
-      "No se pueden abrir las inscripciones de este cronograma.",
+      "Falta al menos un precio en este evento.",
     );
+
+    await openScheduleActionsMenu();
+    await clickMenuItem("Abrir inscripciones");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se pueden abrir las inscripciones",
+    );
+    expect(dialog?.textContent).toContain(
+      "Falta al menos un precio en este evento.",
+    );
+    expect(dialog?.textContent).toContain("El evento ya finalizó.");
+    expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
   });
 
   // Placed and priced choreographies fix the schedule in time: the fields say
@@ -267,6 +258,45 @@ describe("EventScheduleDetailView", () => {
       "Tiene 2 coreografías asignadas.",
     );
     expect(document.body.textContent).toContain("Lo cubre el precio Función.");
+  });
+
+  // A date change refused because a choreography landed meanwhile comes back
+  // as the draft; the locked fields must still show and post the saved
+  // values, or every later save would be refused too.
+  test("locks the saved date and time, not a refused draft of them", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      actionData: {
+        status: "error",
+        message:
+          "No se pueden editar fecha ni hora porque el cronograma tiene dependencias.",
+        fieldErrors: {},
+        scope: { intent: "update-schedule", recordId: "schedule_1" },
+        values: {
+          name: "Mañana",
+          scheduledDate: "2026-10-11",
+          startTime: "12:00",
+          awardCeremonyDate: "",
+          awardCeremonyTime: "",
+          totalCapacity: "10",
+          modalityIds: ["modality_1"],
+          categoryIds: ["category_baby"],
+          scheduleCapacities: [],
+        },
+      },
+      initialDeleteDialogOpen: false,
+      loaderData: buildHeldLoaderData(),
+    });
+
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="scheduledDate"]')
+        ?.value,
+    ).toBe("2026-10-10");
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="startTime"]')
+        ?.value,
+    ).toBe("10:00");
   });
 
   test("leaves date and time editable on a schedule nothing holds", async () => {

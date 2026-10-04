@@ -612,15 +612,24 @@ describe("waiving an inscription from its money dialog", () => {
     return document.querySelector('[role="alertdialog"]')?.textContent ?? "";
   }
 
-  test("disables Bonificar while the inscription holds money, saying how much and how to clear it", async () => {
+  // `Bonificar` stays enabled while the row holds money: the click answers
+  // with how much and how to clear it, instead of an alert in the dialog.
+  test("answers Bonificar while the inscription holds money with how much and how to clear it", async () => {
     await mount([inscriptionFixture()]);
 
     await clickReactDomButton("Bruno Benítez");
 
-    expect(dialogText()).toContain("Para bonificarla, quitá su dinero");
-    expect(dialogText()).toContain("Tiene $ 3.000 asignados.");
-    expect(button("Bonificar")?.disabled).toBe(true);
+    expect(dialogText()).not.toContain("Para bonificarla");
+    expect(button("Bonificar")?.disabled).toBe(false);
     expect(button("Quitar dinero")?.disabled).toBe(false);
+
+    await clickReactDomButton("Bonificar", { exact: true });
+
+    expect(confirmationText()).toContain(
+      "No se puede bonificar la inscripción",
+    );
+    expect(confirmationText()).toContain("Tiene $ 3.000 asignados.");
+    expect(confirmationText()).not.toContain("¿Bonificar la inscripción?");
   });
 
   // Review regression: a fully paid row opens straight on removal, and the
@@ -637,8 +646,11 @@ describe("waiving an inscription from its money dialog", () => {
     await clickReactDomButton("Bruno Benítez");
 
     expect(dialogText()).toContain(removeDescription);
-    expect(dialogText()).toContain("Tiene $ 10.000 asignados.");
-    expect(button("Bonificar")?.disabled).toBe(true);
+    expect(button("Bonificar")?.disabled).toBe(false);
+
+    await clickReactDomButton("Bonificar", { exact: true });
+
+    expect(confirmationText()).toContain("Tiene $ 10.000 asignados.");
   });
 
   // Review regression: a withdrawn row was offered a waiver the server refuses.

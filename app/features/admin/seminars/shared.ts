@@ -98,6 +98,11 @@ export type SeminarCreateLoaderData = {
 
 export type SeminarDetailLoaderData = {
   /**
+   * Whether any comprobante was issued in this seminar, which blocks its
+   * delete for good (`deleteSeminar` refuses on it first).
+   */
+  hasComprobantes: boolean;
+  /**
    * Whether an inscription of this seminar has already covered its deposit, in
    * which case the kind and the deposit rate are read-only: the refusal shows
    * on sight rather than after the save. Always `false` until seminar money

@@ -44,14 +44,24 @@ describe("SeminarFinanceDetailView actions menu", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // With nothing left to bill the menu is still there: what gets disabled is the
-  // option, for the same reason it does on the choreography detail.
-  test("disables the emission with nothing left to bill", async () => {
+  // With nothing left to bill the option stays enabled and the click says
+  // why, as it does on the choreography detail.
+  test("answers the emission with nothing left to bill with the blocked acknowledgment", async () => {
     await mount({ invoicing: { billableAmount: 0, canEmit: false } });
 
     await openActionsMenu();
 
-    expect(findEmissionItem()?.getAttribute("aria-disabled")).toBe("true");
+    const item = findEmissionItem() as HTMLElement | undefined;
+    expect(item?.getAttribute("aria-disabled")).not.toBe("true");
+
+    await act(async () => {
+      item?.click();
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('[role="alertdialog"] h2')?.textContent).toBe(
+      "No se puede emitir la factura",
+    );
   });
 });
 

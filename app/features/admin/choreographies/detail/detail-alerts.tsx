@@ -2,7 +2,7 @@ import { Info, TriangleAlert } from "lucide-react";
 
 import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import { evaluatedChoreographyNotice } from "@/lib/choreographies/choreography-messages";
 
 import type { ChoreographyDetailLoaderData } from "./server";
 
@@ -48,14 +48,7 @@ export function ChoreographyDetailAlerts({
         <Alert variant="info">
           <Info aria-hidden="true" />
           <AlertTitle>Esta coreografía ya fue evaluada</AlertTitle>
-          <AlertDescription>
-            {evaluatedChoreographyMessage}
-            {/* The evaluation is the one deletion blocker there is, so it is
-                said here rather than in a second alert (#454). */}
-            {loaderData.deletion.canDelete
-              ? ""
-              : " Tampoco puede eliminarse ni retirarse."}
-          </AlertDescription>
+          <AlertDescription>{evaluatedChoreographyNotice}</AlertDescription>
         </Alert>
       ) : choreography.presentationOrderNumber === null ? null : (
         <Alert variant="info">

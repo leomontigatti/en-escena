@@ -7,10 +7,10 @@ import { SeminarPriceDetailView } from "@/features/admin/seminar-prices/detail/v
 import { seminarPriceFacetedFilterIds } from "@/features/admin/seminar-prices/list-table";
 import {
   frozenPriceDeleteError,
+  uncoveredPriceNotice,
   frozenPriceNotice,
   readPriceDeletionBlock,
   uncoveredPriceDeleteError,
-  uncoveredPriceNotice,
 } from "@/lib/prices/guards";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 
@@ -159,11 +159,11 @@ describe("seminar price detail", () => {
     // Every guarded field reads through the shared read-only look, so none of
     // them is an editable control any more.
     expect(markup).not.toContain('name="kind"><');
-    // `Eliminar` is disabled on sight, and its dialog opens blocked,
+    // `Eliminar` stays enabled, and its dialog opens blocked with this reason
     // rather than refusing after the submission.
-    expect(readPriceDeletionBlock(seminarPrice({ isReferenced: true }))).toBe(
-      frozenPriceDeleteError,
-    );
+    expect(
+      readPriceDeletionBlock(seminarPrice({ isReferenced: true }))?.reason,
+    ).toBe(frozenPriceDeleteError);
   });
 
   test("keeps the amount of the row that holds the event's seminars open", () => {
@@ -172,7 +172,8 @@ describe("seminar price detail", () => {
     expect(markup).toContain(uncoveredPriceNotice);
     expect(markup).toContain('name="amount"');
     expect(
-      readPriceDeletionBlock(seminarPrice({ keepsRegistrationOpen: true })),
+      readPriceDeletionBlock(seminarPrice({ keepsRegistrationOpen: true }))
+        ?.reason,
     ).toBe(uncoveredPriceDeleteError);
   });
 });

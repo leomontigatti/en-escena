@@ -1,14 +1,17 @@
+import { Info } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Form, useNavigation } from "react-router";
 import { toast } from "sonner";
 
 import { FileUploadField } from "@/components/shared/file-upload-field";
+import { ReasonList } from "@/components/shared/reason-list";
 import { FormActions } from "@/components/shared/form-actions";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
@@ -32,10 +35,12 @@ export function ChoreographyMusicEditorForm({
   const choreography = loaderData.choreography;
   // A withdrawn choreography is read-only for the academy, music included: it
   // is not taking part, and only an administrator can bring it back.
-  const canEditMusic =
-    !loaderData.eventContext.isReadOnly &&
-    !choreography.isEvaluated &&
-    !choreography.isWithdrawn;
+  const musicLock = readMusicLock({
+    isEvaluated: choreography.isEvaluated,
+    isEventReadOnly: loaderData.eventContext.isReadOnly,
+    isWithdrawn: choreography.isWithdrawn,
+  });
+  const canEditMusic = musicLock === null;
   const [musicHasValidationError, setMusicHasValidationError] = useState(false);
   const [selectedMusicFileName, setSelectedMusicFileName] = useState<
     string | null
@@ -142,6 +147,7 @@ export function ChoreographyMusicEditorForm({
       encType="multipart/form-data"
       className="flex flex-1 flex-col gap-6"
     >
+      {musicLock ? <MusicLockAlert lock={musicLock} /> : null}
       <Card className="overflow-clip">
         <CardContent className="flex flex-col gap-5">
           <input type="hidden" name="intent" value={updateChoreographyIntent} />
@@ -220,5 +226,62 @@ export function ChoreographyMusicEditorForm({
         />
       </Card>
     </Form>
+  );
+}
+
+/**
+ * Why the music cannot change, and whether it can again (style guide, Detail
+ * pages), or `null` while it can. An evaluation is for good; a withdrawal and
+ * an inactive event are the administration's to undo.
+ */
+function readMusicLock(state: {
+  isEvaluated: boolean;
+  isEventReadOnly: boolean;
+  isWithdrawn: boolean;
+}) {
+  const reasons = [
+    ...(state.isEventReadOnly ? ["El evento ya no está activo."] : []),
+    ...(state.isEvaluated ? ["La coreografía ya fue evaluada."] : []),
+    ...(state.isWithdrawn ? ["La coreografía está retirada."] : []),
+  ];
+
+  if (reasons.length === 0) {
+    return null;
+  }
+
+  return { reasons, unlock: describeMusicUnlock(state) };
+}
+
+function describeMusicUnlock(state: {
+  isEvaluated: boolean;
+  isEventReadOnly: boolean;
+  isWithdrawn: boolean;
+}) {
+  if (state.isEvaluated) {
+    return "Ya no se puede cambiar.";
+  }
+
+  const undo = [
+    ...(state.isWithdrawn ? ["restaura la coreografía"] : []),
+    ...(state.isEventReadOnly ? ["vuelve a activar el evento"] : []),
+  ];
+
+  return `Se puede cambiar si administración ${undo.join(" y ")}.`;
+}
+
+function MusicLockAlert({
+  lock,
+}: {
+  lock: { reasons: string[]; unlock: string };
+}) {
+  return (
+    <Alert variant="info">
+      <Info aria-hidden="true" />
+      <AlertTitle>La música no se puede cambiar</AlertTitle>
+      <AlertDescription>
+        <p>{lock.unlock}</p>
+        <ReasonList reasons={lock.reasons} />
+      </AlertDescription>
+    </Alert>
   );
 }

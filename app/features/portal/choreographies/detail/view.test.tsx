@@ -27,6 +27,31 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(withdrawn).toContain("Archivo de música");
   });
 
+  // The locked music says why above the form (style guide, Detail pages), and
+  // whether anything can unlock it.
+  test("says why the music is locked, and whether it can change again", () => {
+    const withdrawn = renderChoreographyDetail({
+      loaderData: choreographyDetailLoaderData({
+        choreography: choreographyDetailRow({ isWithdrawn: true }),
+      }),
+    });
+    const evaluated = renderChoreographyDetail({
+      loaderData: choreographyDetailLoaderData({
+        choreography: choreographyDetailRow({ isEvaluated: true }),
+      }),
+    });
+    const takingPart = renderChoreographyDetail();
+
+    expect(withdrawn).toContain("La música no se puede cambiar");
+    expect(withdrawn).toContain("La coreografía está retirada.");
+    expect(withdrawn).toContain(
+      "Se puede cambiar si administración restaura la coreografía.",
+    );
+    expect(evaluated).toContain("La coreografía ya fue evaluada.");
+    expect(evaluated).toContain("Ya no se puede cambiar.");
+    expect(takingPart).not.toContain("La música no se puede cambiar");
+  });
+
   // The alert asks the academy to load what is missing, and a withdrawn
   // choreography accepts nothing: only an administrator brings it back.
   test("hides the pending-items alert while the choreography is withdrawn", () => {

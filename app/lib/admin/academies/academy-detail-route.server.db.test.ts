@@ -415,6 +415,32 @@ describe("`/administracion/academias` detail", () => {
     ).resolves.toHaveLength(1);
   });
 
+  // The detail answers `Eliminar` with what the academy holds, read with the
+  // same counts the delete refuses over.
+  test("tells the detail what keeps the academy from being deleted", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.con.datos@example.com",
+      academyName: "Academia Con Datos",
+    });
+
+    await db.insert(dancers).values({
+      academyId: academy.academy.id,
+      firstName: "Ana",
+      lastName: "Gómez",
+      birthDate: "2010-01-01",
+    });
+
+    const { request } = await createSignedInRequest({
+      email: "admin.academia.con.datos@example.com",
+      role: "admin",
+      requestUrl: detailUrl(academy.academy.id),
+    });
+
+    await expect(
+      detailLoader(routeArgs(request, academy.academy.id)),
+    ).resolves.toMatchObject({ deletionHoldings: ["1 bailarín"] });
+  });
+
   test("refuses a delete whose confirmation does not match the academy", async () => {
     const academy = await createAcademyUser({
       email: "academia.sin.confirmar@example.com",

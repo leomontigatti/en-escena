@@ -6,8 +6,9 @@ import type { EventRegistrationReadiness } from "@/lib/events/registration-readi
  * measures the `Bases del evento`, and a finished event has nothing left to
  * inscribe into. An empty list is the permission to open.
  *
- * The same list drives the menu item's disabled state and the alert that names
- * the reasons, so what the UI offers and what the server allows cannot drift.
+ * The same list decides whether the menu item submits or opens the
+ * acknowledgment that names the reasons, so what the UI offers and what the
+ * server allows cannot drift.
  */
 export type ScheduleRegistrationOpenBlockers = string[];
 

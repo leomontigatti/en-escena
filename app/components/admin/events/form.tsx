@@ -4,6 +4,10 @@ import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
+import {
+  ReadOnlyDateField,
+  ReadOnlyField,
+} from "@/components/shared/read-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { FieldGroup } from "@/components/ui/field";
 import {
@@ -29,8 +33,19 @@ export type EventFormController = {
   handleSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
 };
 
+type LockedEventValues = Pick<
+  EventFormValues,
+  "endsAt" | "requiredDepositPercentage" | "startsAt"
+>;
+
 type EventFormFieldsProps = {
   controller: EventFormController;
+  /**
+   * The saved dates and deposit, when choreographies are inscribed and they
+   * are fixed; the detail's alert says why. They read as the shared read-only
+   * fields and post these saved values, never a refused draft of them.
+   */
+  lockedValues?: LockedEventValues;
 };
 
 export function useEventForm({
@@ -79,8 +94,15 @@ export function useEventForm({
  * grid: the name and the deposit share the first row, then the event's own two
  * dates. Inscriptions are not here — they open and close per `Cronograma`.
  */
-export function EventFormFields({ controller }: EventFormFieldsProps) {
+export function EventFormFields({
+  controller,
+  lockedValues,
+}: EventFormFieldsProps) {
   const { form } = controller;
+
+  if (lockedValues) {
+    return <LockedEventFormFields form={form} values={lockedValues} />;
+  }
 
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
@@ -102,6 +124,39 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
         control={form.control}
         label="Cierre del evento"
         name="endsAt"
+      />
+    </FieldGroup>
+  );
+}
+
+/**
+ * The same grid with the deposit and the dates as the shared read-only look,
+ * like any field the record's state locks. The name stays editable.
+ */
+function LockedEventFormFields({
+  form,
+  values,
+}: {
+  form: EventFormReturn;
+  values: LockedEventValues;
+}) {
+  return (
+    <FieldGroup className="grid gap-5 md:grid-cols-2">
+      <TextInputField control={form.control} label="Nombre" name="name" />
+      <ReadOnlyField
+        label="Seña (%)"
+        name="requiredDepositPercentage"
+        value={values.requiredDepositPercentage}
+      />
+      <ReadOnlyDateField
+        label="Inicio del evento"
+        name="startsAt"
+        value={values.startsAt}
+      />
+      <ReadOnlyDateField
+        label="Cierre del evento"
+        name="endsAt"
+        value={values.endsAt}
       />
     </FieldGroup>
   );

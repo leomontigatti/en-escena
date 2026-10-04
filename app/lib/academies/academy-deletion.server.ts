@@ -45,69 +45,7 @@ export async function deleteEmptyAcademy(
       throw new Response("No encontramos esa Academia.", { status: 404 });
     }
 
-    const dancerIds = tx
-      .select({ id: dancers.id })
-      .from(dancers)
-      .where(eq(dancers.academyId, academyId));
-    const professorIds = tx
-      .select({ id: professors.id })
-      .from(professors)
-      .where(eq(professors.academyId, academyId));
-
-    const [
-      dancerCount,
-      professorCount,
-      choreographyCount,
-      seminarInscriptionCount,
-      paymentCount,
-    ] = await Promise.all([
-      readTotal(
-        tx
-          .select({ total: count() })
-          .from(dancers)
-          .where(eq(dancers.academyId, academyId)),
-      ),
-      readTotal(
-        tx
-          .select({ total: count() })
-          .from(professors)
-          .where(eq(professors.academyId, academyId)),
-      ),
-      readTotal(
-        tx
-          .select({ total: count() })
-          .from(choreographies)
-          .where(eq(choreographies.academyId, academyId)),
-      ),
-      readTotal(
-        tx
-          .select({ total: count() })
-          .from(seminarInscriptions)
-          .where(
-            or(
-              inArray(seminarInscriptions.dancerId, dancerIds),
-              inArray(seminarInscriptions.professorId, professorIds),
-            ),
-          ),
-      ),
-      readTotal(
-        tx
-          .select({ total: count() })
-          .from(payments)
-          .where(eq(payments.academyId, academyId)),
-      ),
-    ]);
-    const held = [
-      pluralize(dancerCount, "bailarín", "bailarines"),
-      pluralize(professorCount, "profesor", "profesores"),
-      pluralize(choreographyCount, "coreografía", "coreografías"),
-      pluralize(
-        seminarInscriptionCount,
-        "inscripción a seminario",
-        "inscripciones a seminarios",
-      ),
-      pluralize(paymentCount, "pago", "pagos"),
-    ].filter((label): label is string => label !== null);
+    const held = await readAcademyHoldings(academyId, tx);
 
     if (held.length > 0) {
       return {
@@ -121,6 +59,84 @@ export async function deleteEmptyAcademy(
     return { ok: true, academy: { id: academy.id, name: academy.name } };
   });
 }
+
+/**
+ * What an academy still holds, as the labels the delete refusal lists
+ * (`2 bailarines`). Empty means the academy can be deleted. The detail reads
+ * it to answer `Eliminar` before the submit; the delete reads it again inside
+ * its transaction, for the race.
+ */
+export async function readAcademyHoldings(
+  academyId: string,
+  executor: AcademyDeletionExecutor = db,
+) {
+  const dancerIds = executor
+    .select({ id: dancers.id })
+    .from(dancers)
+    .where(eq(dancers.academyId, academyId));
+  const professorIds = executor
+    .select({ id: professors.id })
+    .from(professors)
+    .where(eq(professors.academyId, academyId));
+
+  const [
+    dancerCount,
+    professorCount,
+    choreographyCount,
+    seminarInscriptionCount,
+    paymentCount,
+  ] = await Promise.all([
+    readTotal(
+      executor
+        .select({ total: count() })
+        .from(dancers)
+        .where(eq(dancers.academyId, academyId)),
+    ),
+    readTotal(
+      executor
+        .select({ total: count() })
+        .from(professors)
+        .where(eq(professors.academyId, academyId)),
+    ),
+    readTotal(
+      executor
+        .select({ total: count() })
+        .from(choreographies)
+        .where(eq(choreographies.academyId, academyId)),
+    ),
+    readTotal(
+      executor
+        .select({ total: count() })
+        .from(seminarInscriptions)
+        .where(
+          or(
+            inArray(seminarInscriptions.dancerId, dancerIds),
+            inArray(seminarInscriptions.professorId, professorIds),
+          ),
+        ),
+    ),
+    readTotal(
+      executor
+        .select({ total: count() })
+        .from(payments)
+        .where(eq(payments.academyId, academyId)),
+    ),
+  ]);
+
+  return [
+    pluralize(dancerCount, "bailarín", "bailarines"),
+    pluralize(professorCount, "profesor", "profesores"),
+    pluralize(choreographyCount, "coreografía", "coreografías"),
+    pluralize(
+      seminarInscriptionCount,
+      "inscripción a seminario",
+      "inscripciones a seminarios",
+    ),
+    pluralize(paymentCount, "pago", "pagos"),
+  ].filter((label): label is string => label !== null);
+}
+
+type AcademyDeletionExecutor = Pick<typeof db, "select">;
 
 async function readTotal(query: Promise<{ total: number }[]>) {
   const [row] = await query;

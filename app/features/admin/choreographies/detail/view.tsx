@@ -6,11 +6,13 @@ import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
+import { ReasonList } from "@/components/shared/reason-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,7 +91,6 @@ export function ChoreographyDetailRouteView({
         // is where `Restaurar coreografía` lives, the one action left.
         loaderData.canEdit || loaderData.restoration.canRestore ? (
           <ChoreographyDetailActionsMenu
-            canDelete={loaderData.deletion.canDelete}
             canRestore={loaderData.restoration.canRestore}
             onDelete={() => setIsDeleteDialogOpen(true)}
             onRestore={() => setIsRestoreDialogOpen(true)}
@@ -116,6 +117,23 @@ export function ChoreographyDetailRouteView({
           open={isDeleteDialogOpen}
         />
       ) : null}
+
+      {!loaderData.restoration.canRestore && !loaderData.deletion.canDelete ? (
+        <BlockedActionDialog
+          description="Una coreografía con la presentación evaluada no se puede eliminar ni retirar."
+          onOpenChange={setIsDeleteDialogOpen}
+          open={isDeleteDialogOpen}
+          reasons={
+            <ReasonList
+              reasons={loaderData.deletion.blockers.map(
+                (blocker) => blocker.label,
+              )}
+            />
+          }
+          reasonsTitle="Ya fue evaluada"
+          title="No se puede eliminar la coreografía"
+        />
+      ) : null}
     </AdminResourceLayout>
   );
 }
@@ -123,16 +141,15 @@ export function ChoreographyDetailRouteView({
 /**
  * The header offers one of the two removal-axis actions, never both: a withdrawn
  * choreography is not removed again —there is no second outcome left for it— and
- * one that is taking part has nothing to restore. A blocked removal is disabled
- * on sight, and the page alert says why.
+ * one that is taking part has nothing to restore. A blocked removal stays
+ * enabled and opens the acknowledgment that says why (style guide, Detail
+ * pages).
  */
 function ChoreographyDetailActionsMenu({
-  canDelete,
   canRestore,
   onDelete,
   onRestore,
 }: {
-  canDelete: boolean;
   canRestore: boolean;
   onDelete: () => void;
   onRestore: () => void;
@@ -145,11 +162,7 @@ function ChoreographyDetailActionsMenu({
             Restaurar coreografía
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem
-            variant="destructive"
-            disabled={!canDelete}
-            onSelect={() => onDelete()}
-          >
+          <DropdownMenuItem variant="destructive" onSelect={() => onDelete()}>
             Eliminar
           </DropdownMenuItem>
         )}
@@ -163,8 +176,8 @@ function ChoreographyDetailActionsMenu({
  * the admin confirms the one that will happen: a withdrawal when the
  * choreography holds money or comprobantes, a deletion otherwise. Both post the
  * same intent, and the server decides again. The evaluated presentation
- * is the only thing that blocks it; the menu item is then disabled and the
- * evaluation alert says why, so there is no blocked dialog to render.
+ * is the only thing that blocks it, and then `Eliminar` opens the blocked
+ * acknowledgment instead.
  */
 function ChoreographyRemovalDialog({
   loaderData,

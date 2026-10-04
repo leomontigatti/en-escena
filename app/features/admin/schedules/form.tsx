@@ -129,7 +129,7 @@ export function ScheduleForm({
   formId,
   id,
   intent,
-  isDateTimeLocked = false,
+  lockedDateTime,
   modalities,
   occupiedCount,
   scheduleCapacities = emptyScheduleCapacities,
@@ -140,11 +140,11 @@ export function ScheduleForm({
   id?: string;
   intent: string;
   /**
-   * Date and time are fixed while choreographies or prices hold the schedule;
-   * the detail's alert says why. They read as the shared read-only fields,
-   * which still submit the saved values.
+   * The saved date and time, when choreographies or prices hold the schedule
+   * and they are fixed; the detail's alert says why. They read as the shared
+   * read-only fields and post these saved values, never a refused draft.
    */
-  isDateTimeLocked?: boolean;
+  lockedDateTime?: { scheduledDate: string; startTime: string };
   modalities: EventScheduleModalityRow[];
   /** Absent on the create form, where nothing can occupy the schedule yet. */
   occupiedCount?: number;
@@ -183,8 +183,11 @@ export function ScheduleForm({
       <FieldGroup className="grid gap-5 md:grid-cols-2">
         <ScheduleTextField form={form} label="Nombre" name="name" />
         <ScheduleTotalCapacityField form={form} occupiedCount={occupiedCount} />
-        {isDateTimeLocked ? (
-          <ScheduleLockedDateTimeFields form={form} id={id ?? intent} />
+        {lockedDateTime ? (
+          <ScheduleLockedDateTimeFields
+            id={id ?? intent}
+            values={lockedDateTime}
+          />
         ) : (
           <>
             <DateOnlyField
@@ -575,34 +578,29 @@ function ScheduleMultipleSelectField({
 
 /**
  * Date and time as the shared read-only look, like any field the record's
- * state locks. The values still travel in the body: the server compares them
- * with the saved ones, and a save of the open fields must not blank them.
+ * state locks. They post the saved values: the server compares them with the
+ * saved ones, and a save of the open fields must not carry a refused draft.
  */
 function ScheduleLockedDateTimeFields({
-  form,
   id,
+  values,
 }: {
-  form: ScheduleFormController;
   id: string;
+  values: { scheduledDate: string; startTime: string };
 }) {
-  const [scheduledDate, startTime] = useWatch({
-    control: form.control,
-    name: ["scheduledDate", "startTime"],
-  });
-
   return (
     <>
       <ReadOnlyDateField
         id={`schedule-date-${id}`}
         label="Fecha"
         name="scheduledDate"
-        value={scheduledDate}
+        value={values.scheduledDate}
       />
       <ReadOnlyField
         id={`schedule-time-${id}`}
         label="Hora"
         name="startTime"
-        value={startTime}
+        value={values.startTime}
       />
     </>
   );

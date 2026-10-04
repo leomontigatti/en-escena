@@ -3,7 +3,10 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
-import { updateAdministrativeEvent } from "@/features/admin/events/detail/server";
+import {
+  loadEventDetail,
+  updateAdministrativeEvent,
+} from "@/features/admin/events/detail/server";
 import {
   createAdminRequest,
   eventFormBody,
@@ -45,6 +48,20 @@ describe("event dependencies on the event detail action", () => {
       });
     },
   );
+
+  // The detail locks the dates and the deposit, and answers `Eliminar`, off
+  // the same predicate the action refuses over.
+  test("tells the detail whether choreographies hold the event", async () => {
+    const dependent = await createDependentEvent();
+    const free = await createFormSavedEvent();
+
+    await expect(
+      loadEventDetail(await createAdminRequest(dependent.id), dependent.id),
+    ).resolves.toMatchObject({ hasChoreographies: true });
+    await expect(
+      loadEventDetail(await createAdminRequest(free.id), free.id),
+    ).resolves.toMatchObject({ hasChoreographies: false });
+  });
 
   test("saves a non-structural edit to the same event", async () => {
     const event = await createDependentEvent();

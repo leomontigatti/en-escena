@@ -14,7 +14,7 @@ import {
 import type { SeminarDetailLoaderData } from "@/features/admin/seminars/shared";
 import type { SeminarInscriptionRow } from "@/lib/seminars/inscription-rosters.server";
 import {
-  coveredSeminarMessage,
+  coveredSeminarNotice,
   seminarHasInscriptionsMessage,
 } from "@/lib/seminars/registration-refusals";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
@@ -186,11 +186,13 @@ function renderDetail(
   instructorPictureUrl = null,
   inscriptions: SeminarInscriptionRow[] = [],
   hasCoveredInscription = false,
+  hasComprobantes = false,
 ) {
   return renderAt(
     "/administracion/seminarios/seminar_1",
     <SeminarDetailView
       loaderData={{
+        hasComprobantes,
         hasCoveredInscription,
         inscriptions,
         instructorPictureUrl,
@@ -252,16 +254,16 @@ describe("SeminarDetailView", () => {
       document.querySelector<HTMLInputElement>("#instructorName")?.readOnly,
     ).toBe(false);
     // The reason is said above the card, not inside the form it explains.
-    expect(document.body.textContent).toContain(coveredSeminarMessage);
+    expect(document.body.textContent).toContain(coveredSeminarNotice);
     expect(document.querySelector("form")?.textContent).not.toContain(
-      coveredSeminarMessage,
+      coveredSeminarNotice,
     );
   });
 
   test("says nothing about locked fields while no inscription is covered", async () => {
     await renderDetail(buildSeminar());
 
-    expect(document.body.textContent).not.toContain(coveredSeminarMessage);
+    expect(document.body.textContent).not.toContain(coveredSeminarNotice);
     expect(document.body.textContent).not.toContain(
       seminarHasInscriptionsMessage,
     );
@@ -302,17 +304,45 @@ describe("SeminarDetailView", () => {
     ).toEqual(["Cerrar"]);
   });
 
-  // The covered reason above the tabs already names the delete, so the item
-  // can be disabled on sight.
-  test("disables `Eliminar` once an inscription is covered", async () => {
+  // The covered reason above the tabs speaks of the locked fields only:
+  // `Eliminar` stays enabled and answers with the blocked acknowledgment.
+  test("answers `Eliminar` on a seminar with a covered inscription with the blocked acknowledgment", async () => {
     await renderDetail(
       buildSeminar({ inscriptionCount: 1, registeredCount: 1 }),
       null,
       [],
       true,
     );
+    await selectMenuItem("Eliminar");
 
-    expect(await readMenuItemDisabled("Eliminar")).toBe(true);
+    expect(
+      document.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain("No se puede eliminar el seminario");
+    expect(coveredSeminarNotice).not.toContain("eliminar");
+    expect(document.body.textContent).toContain(
+      "Se libera cuando ninguna inscripción tenga la seña cubierta",
+    );
+  });
+
+  // A comprobante blocks the delete for good, so the dialog names it and
+  // offers no steps: taking the money off would not free the seminar.
+  test("answers `Eliminar` on a seminar with comprobantes without a way out", async () => {
+    await renderDetail(
+      buildSeminar({ inscriptionCount: 1, registeredCount: 1 }),
+      null,
+      [],
+      true,
+      true,
+    );
+    await selectMenuItem("Eliminar");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("Tiene comprobantes emitidos.");
+    expect(dialog?.textContent).toContain(
+      "Un seminario con comprobantes emitidos no se puede eliminar.",
+    );
+    expect(dialog?.textContent).not.toContain("Quitar el dinero");
   });
 
   test("offers `Eliminar` once nobody is registered", async () => {
@@ -329,7 +359,7 @@ describe("SeminarDetailView", () => {
       true,
     );
 
-    expect(document.body.textContent).toContain(coveredSeminarMessage);
+    expect(document.body.textContent).toContain(coveredSeminarNotice);
     expect(document.body.textContent).not.toContain(
       seminarHasInscriptionsMessage,
     );
@@ -389,6 +419,7 @@ describe("SeminarDetailView", () => {
       "/administracion/seminarios/seminar_1",
       <SeminarDetailHarness
         initialLoaderData={{
+          hasComprobantes: false,
           hasCoveredInscription: false,
           inscriptions: [],
           instructorPictureUrl: null,
@@ -418,6 +449,7 @@ describe("SeminarDetailView", () => {
     // signal the page gets that the picture is now stored.
     await act(async () => {
       updateSeminarDetailLoaderData?.({
+        hasComprobantes: false,
         hasCoveredInscription: false,
         inscriptions: [],
         instructorPictureUrl: "https://example.test/signed/instructor",
@@ -491,6 +523,7 @@ async function renderInscriptions(inscriptions: SeminarInscriptionRow[]) {
     "/administracion/seminarios/seminar_1",
     <SeminarDetailView
       loaderData={{
+        hasComprobantes: false,
         hasCoveredInscription: false,
         inscriptions,
         instructorPictureUrl: null,
@@ -603,6 +636,7 @@ describe("SeminarDetailView delete dialog", () => {
       <SeminarDetailView
         initialDeleteDialogOpen
         loaderData={{
+          hasComprobantes: false,
           hasCoveredInscription: false,
           inscriptions: [buildInscription()],
           instructorPictureUrl: null,
@@ -633,6 +667,7 @@ describe("SeminarDetailView delete dialog", () => {
       <SeminarDetailView
         initialDeleteDialogOpen
         loaderData={{
+          hasComprobantes: false,
           hasCoveredInscription: false,
           inscriptions: [],
           instructorPictureUrl: null,
@@ -659,12 +694,38 @@ describe("SeminarDetailView delete dialog", () => {
     expect(dialog?.querySelector("form")).toBeNull();
   });
 
+  test("names no way out while a withdrawn inscription stands beside registered ones", async () => {
+    await renderAt(
+      "/administracion/seminarios/seminar_1",
+      <SeminarDetailView
+        initialDeleteDialogOpen
+        loaderData={{
+          hasComprobantes: false,
+          hasCoveredInscription: false,
+          inscriptions: [buildInscription()],
+          instructorPictureUrl: null,
+          selectedEventId: "event_1",
+          seminar: buildSeminar({ inscriptionCount: 2, registeredCount: 1 }),
+          values: toSeminarFormValues(buildSeminar()),
+        }}
+      />,
+    );
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain(
+      "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
+    );
+    expect(dialog?.textContent).not.toContain("seguir el orden");
+  });
+
   test("offers the destructive button once nobody is registered", async () => {
     await renderAt(
       "/administracion/seminarios/seminar_1",
       <SeminarDetailView
         initialDeleteDialogOpen
         loaderData={{
+          hasComprobantes: false,
           hasCoveredInscription: false,
           inscriptions: [],
           instructorPictureUrl: null,
