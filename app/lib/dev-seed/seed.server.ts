@@ -87,8 +87,8 @@ export async function seedDevData(input: {
     name: "Administración Demo",
     role: "admin",
   });
-  // The auditor and judge panels (`/auditoria`, `/juzgamiento`) are only
-  // reachable with these roles, so a browser check of their headers needs them.
+  // The auditor reads the administration panel and the judge has their own
+  // (`/juzgamiento`); a browser check of either needs these roles.
   await createVerifiedUser({
     email: DEV_SEED_AUDITOR_EMAIL,
     name: "Auditoría Demo",

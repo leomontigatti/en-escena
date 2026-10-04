@@ -331,6 +331,7 @@ function adminLoaderData() {
       roleLabel: "Administrador",
       username: "ada.admin",
     },
+    canWrite: true,
     events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
     selectedEventId: "evento_2026",
   };

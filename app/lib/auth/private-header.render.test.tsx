@@ -10,20 +10,12 @@ vi.mock("@/lib/auth/internal-access.server", () => ({
 }));
 
 vi.mock("@/lib/auth/internal-navigation.server", () => ({
-  requireAdminPanelUser: vi.fn(),
-  requireAuditorPanelUser: vi.fn(),
+  requireAdminPanelReader: vi.fn(),
   requireJudgePanelUser: vi.fn(),
 }));
 
 import { AdminShellRouteView } from "@/routes/administracion";
-import { AuditoriaRouteView } from "@/routes/auditoria";
 import { JuzgamientoRouteView } from "@/routes/juzgamiento";
-
-const auditorAccount = {
-  name: "Ariel Auditor",
-  roleLabel: "Auditor",
-  username: "ariel.auditor",
-};
 
 const judgeAccount = {
   name: "Juana Juez",
@@ -38,14 +30,6 @@ describe("private route headers", () => {
       renderPortal("portal@example.com"),
       "Contacto",
       false,
-    ],
-    [
-      "auditoría",
-      renderPrivateRoute(
-        <AuditoriaRouteView loaderData={{ account: auditorAccount }} />,
-      ),
-      "Ariel Auditor",
-      true,
     ],
     [
       "juzgamiento",
@@ -89,24 +73,6 @@ describe("private route headers", () => {
     expect(markup).not.toContain("admin@example.com");
     expect(markup).not.toContain("Sesión activa para");
   });
-
-  test("`auditoria` renders shared readonly consultation links", () => {
-    const markup = renderPrivateRoute(
-      <AuditoriaRouteView loaderData={{ account: auditorAccount }} />,
-    );
-
-    expect(markup).toContain("Consulta interna");
-    expect(markup).toContain("Panel de administración");
-    expect(markup).toContain("Evento activo");
-
-    for (const [href, label] of [
-      ["/administracion/profesores", "Profesores"],
-      ["/administracion/bailarines", "Bailarines"],
-    ] as const) {
-      expect(markup).toContain(`href="${href}"`);
-      expect(markup).toContain(label);
-    }
-  });
 });
 
 function renderAdminRoute() {
@@ -128,6 +94,7 @@ function renderAdminRoute() {
               roleLabel: "Administrador",
               username: "ada.admin",
             },
+            canWrite: true,
             events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
             selectedEventId: "evento_2026",
           },

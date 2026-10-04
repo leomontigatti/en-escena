@@ -140,6 +140,7 @@ function adminLoaderData(loaderData: EventBasesLoaderData) {
       roleLabel: "Administrador",
       username: "ada.admin",
     },
+    canWrite: true,
     events: [{ active: true, id: "event_1", name: "Evento 2026" }],
     selectedEventId: loaderData.selectedEventId,
   };

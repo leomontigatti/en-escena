@@ -302,12 +302,14 @@ const reservedTerms = new Set(["comprobante"]);
 // Glossary words that are not evidence of Spanish. Each is here for one of
 // three reasons, and a word without one of them does not belong:
 //
-//   - an English word spelled the same: `base`, `bases`, `total`, `portal`,
-//     `panel`, `fiscal`, `ranking`, `temporal`, `instructor`, `general`;
+//   - an English word spelled the same: `auditor`, `base`, `bases`, `total`,
+//     `portal`, `panel`, `fiscal`, `ranking`, `temporal`, `instructor`,
+//     `general`;
 //   - a proper noun: `arca` is the tax agency, not a common noun;
 //   - a function word the grammar rule already owns: `para`.
 const glossaryNounExceptions = new Set([
   "arca",
+  "auditor",
   "base",
   "bases",
   "fiscal",

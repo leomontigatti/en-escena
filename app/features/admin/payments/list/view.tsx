@@ -152,10 +152,14 @@ export function PaymentsListRouteView({
         title: "No hay un evento activo para revisar pagos",
         description: "Activá un evento para ver y registrar pagos.",
       }}
-      action={{
-        label: "Nuevo pago",
-        to: getCreatePaymentUrl(loaderData.selectedEventId),
-      }}
+      action={
+        loaderData.canWrite
+          ? {
+              label: "Nuevo pago",
+              to: getCreatePaymentUrl(loaderData.selectedEventId),
+            }
+          : undefined
+      }
     >
       <div className="flex flex-col gap-6">
         {/* The event's whole position, never the page's and never the filtered

@@ -11,15 +11,16 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+import { adminPanelReaderRoles } from "@/lib/auth/admin-panel-access";
 
 type AppRole = "academy" | InternalUserRole;
-type LandingPath =
-  "/portal" | "/administracion" | "/auditoria" | "/juzgamiento";
+type LandingPath = "/portal" | "/administracion" | "/juzgamiento";
 
 const landingPaths = {
   academy: "/portal",
   admin: "/administracion",
-  auditor: "/auditoria",
+  // The auditor reads the same panel the administrator works in.
+  auditor: "/administracion",
   judge: "/juzgamiento",
 } satisfies Record<AppRole, LandingPath>;
 
@@ -126,8 +127,13 @@ export async function requireAdminPanelUser(request: Request) {
   return await requirePanelUser(request, "admin");
 }
 
-export async function requireAuditorPanelUser(request: Request) {
-  return await requirePanelUser(request, "auditor");
+/**
+ * Whoever may read the `Panel de administración`: the administrator, and the
+ * auditor who reads it without writing. Only the layout and the views reviewed
+ * for the auditor use it; every other loader keeps admitting `admin` alone.
+ */
+export async function requireAdminPanelReader(request: Request) {
+  return await requireInternalUser(request, adminPanelReaderRoles);
 }
 
 export async function requireJudgePanelUser(request: Request) {

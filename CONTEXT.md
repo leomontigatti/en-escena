@@ -66,6 +66,10 @@ _Avoid_: `registrationPeriod` (retired), registration window, `active`
 Participating entity that can register for events and load professors, dancers and choreographies. Its name is not unique, but it is guarded at both ends. At signup the onboarding **warns** when an academy of that name already exists, naming it and the date it registered and nothing else about the other account, and points the reader at logging in or recovering that password before offering to continue — a forgotten login is what forks a roster. At the other end administration can **delete an academy that holds nothing** — no dancer, no professor, no choreography (withdrawn ones included), no seminar inscription and no payment — together with its `user`, from the academy detail behind the shared delete confirmation; when it holds something the delete is refused naming what, so an abandoned or forked signup is one panel action instead of SQL.
 _Avoid_: `user`, `professor`, `escuela`, `delegación`
 
+**`province`** — ui: "Provincia"
+Where an `academy` is, chosen from a closed list: the 24 Argentine jurisdictions, or `Otro país` for an academy from abroad. It is what reports group academies by; the city beside it stays free text. **Specified, not built**: it is free text today.
+_Avoid_: state, region, free-text province
+
 **`academyRegistration`** — ui: "Registro público de academia"
 Public flow through which an academy creates its initial access to the system.
 _Avoid_: `choreographyRegistration`, public user, free account
@@ -141,6 +145,10 @@ _Avoid_: deleted user, inactive user, deactivation
 **`admin`** — ui: "Administrador"
 User with operating permissions over the event and its exceptions.
 _Avoid_: auditor, academy user
+
+**`auditor`** — ui: "Auditor"
+Internal user who reads administration and never writes: every administration surface is either read-only or hidden to them. A control that would change data is absent for an auditor rather than locked, while a lock that reports a state of the data reads the same as for anyone else.
+_Avoid_: `admin`, read-only administrator, `Auditoría` as the name of the permission
 
 **`internalUserInvitation`** — ui: "Invitación de usuario interno"
 Administrative flow to enable an administration, audit or judging user.
@@ -397,6 +405,10 @@ _Avoid_: `payment`, bank settings, global account, `eventBases`
 **`refund`** — ui: "Reembolso"
 Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it `Devolución`: that term is taken by **`feedbackAudio`**, the judge's recorded feedback.
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
+
+**`collection`** — ui: "Recaudación"
+The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. **Specified, not built.**
+_Avoid_: income, sales, billing, `comprobante` totals, `availableBalanceAmount`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
 Electronic tax receipt —a `Factura C`, issued against ARCA/WSFEv1— derived from inscriptions, payments and allocations, and never governing financial state. It belongs to one **anchor**, of two kinds with a `CHECK` requiring exactly one: a `choreography`, or a `(seminar, academy)` unit (`seminarId` plus the root's own not-null `academyId`, derived from the choreography on a choreography row and taken from the emission input on a seminar one). It is immutable once it carries a CAE, and amended only by another comprobante **of the same anchor**; an anchor that was ever invoiced is permanently undeletable. `comprobante` is **the only reserved Spanish term inside code**; adding another requires an ADR, and `factura` is not one of them — in prose it is an invoice. What the emission and amendment rules are today, and where they are still the ADR-0014 target rather than the code, is in [docs/domain/finances.md](docs/domain/finances.md).

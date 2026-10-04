@@ -13,7 +13,8 @@ import {
   buildInternalAccount,
   type InternalAccount,
 } from "@/lib/auth/internal-account";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
+import { requireAdminPanelReader } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/administracion";
 
@@ -24,15 +25,17 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireAdminPanelUser(request);
+  const user = await requireAdminPanelReader(request);
   const eventContext = await loadShellEventContext();
 
   return {
     account: buildInternalAccount(user),
+    canWrite: canWriteInAdminPanel(user.role),
     events: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
   } satisfies {
     account: InternalAccount;
+    canWrite: boolean;
     events: AdminShellEventContext["events"];
     selectedEventId: AdminShellEventContext["selectedEventId"];
   };
@@ -45,6 +48,7 @@ export function AdminShellRouteView({ loaderData }: AdminShellRouteProps) {
   return (
     <AdminShell
       account={loaderData.account}
+      canWrite={loaderData.canWrite}
       events={loaderData.events}
       selectedEventId={loaderData.selectedEventId}
       breadcrumbItems={getAdminBreadcrumbItems(matches)}
