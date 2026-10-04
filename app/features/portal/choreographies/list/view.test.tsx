@@ -6,7 +6,9 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { PortalChoreographiesListRouteView } from "@/features/portal/choreographies/list/view";
 import {
+  clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -21,15 +23,53 @@ describe("PortalChoreographiesListRouteView", () => {
 
   afterEach(renderer.cleanup);
 
-  test("disables `Nueva coreografía` when there are no dancers active", () => {
-    const markup = renderChoreographiesList({
-      loaderData: choreographiesLoaderData({
-        activeDancerCount: 0,
-      }),
-    });
+  // The button stays enabled whatever blocks it: the click says why, naming
+  // each reason (style guide, Detail pages).
+  test("answers `Nueva coreografía` with no active dancers with the reason", async () => {
+    await renderer.renderAsync(
+      <RouterProvider
+        router={buildChoreographiesRouter({
+          loaderData: choreographiesLoaderData({ activeDancerCount: 0 }),
+        })}
+      />,
+    );
 
-    expect(markup).toContain("Nueva coreografía");
-    expect(markup).toContain('disabled=""');
+    const button = findButton("Nueva coreografía");
+
+    expect(button?.disabled).toBe(false);
+
+    await clickReactDomButton("Nueva coreografía");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No podés registrar coreografías",
+    );
+    expect(dialog?.textContent).toContain(
+      "Cargá al menos un bailarín activo antes de registrar coreografías.",
+    );
+  });
+
+  test("answers `Nueva coreografía` with no selected event with the reason", async () => {
+    await renderer.renderAsync(
+      <RouterProvider
+        router={buildChoreographiesRouter({
+          loaderData: choreographiesLoaderData({
+            eventContext: portalEventContext({
+              selectedEvent: null,
+              activeEvent: null,
+              hasActiveEvent: false,
+            }),
+          }),
+        })}
+      />,
+    );
+
+    await clickReactDomButton("Nueva coreografía");
+
+    expect(
+      document.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain("No hay un evento seleccionado para registrar coreografías.");
   });
 
   test("does not expose missing active event bases before creation", () => {
@@ -61,7 +101,7 @@ describe("PortalChoreographiesListRouteView", () => {
     });
 
     expect(markup).toContain("Nueva coreografía");
-    expect(markup).toContain('disabled=""');
+    expect(markup).not.toContain('disabled=""');
     expect(markup).toContain(
       "No hay coreografías registradas para este evento",
     );
@@ -70,6 +110,50 @@ describe("PortalChoreographiesListRouteView", () => {
       "Faltan bases del evento antes de registrar coreografías.",
     );
     expect(markup).not.toContain("Precios aplicables");
+  });
+
+  // Missing bases are the administration's to fix: the academy reads only
+  // that the event is not ready, never which bases are missing.
+  test("names missing event bases as a reason without listing them", async () => {
+    const selectedEvent = eventSummary({
+      id: "event_active",
+      name: "Regional 2026",
+      active: true,
+    });
+
+    await renderer.renderAsync(
+      <RouterProvider
+        router={buildChoreographiesRouter({
+          loaderData: choreographiesLoaderData({
+            eventContext: {
+              selectedEvent,
+              activeEvent: selectedEvent,
+              hasActiveEvent: true,
+              activeEventRegistrationReadiness: readiness(false, [
+                {
+                  code: "price-coverage",
+                  label: "Precios aplicables",
+                  detail: "Falta un precio aplicable.",
+                },
+              ]),
+              hasEvents: true,
+              isReadOnly: false,
+              isRegistrationOpen: true,
+            },
+          }),
+        })}
+      />,
+    );
+
+    await clickReactDomButton("Nueva coreografía");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain(
+      "Faltan bases del evento antes de registrar coreografías.",
+    );
+    expect(dialog?.textContent).not.toContain("Precios aplicables");
+    expect(dialog?.textContent).not.toContain("Falta un precio aplicable.");
   });
 
   test("finds a choreography by its number", async () => {

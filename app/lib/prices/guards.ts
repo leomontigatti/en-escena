@@ -23,15 +23,18 @@ export const uncoveredPriceUpdateError =
 export const uncoveredPriceDeleteError =
   "Este precio es necesario mientras haya inscripciones activas. No se puede eliminar.";
 
-// The alert above the form names both limits, because `Eliminar` is
-// disabled on sight and a disabled menu item cannot say why itself. Each
-// refusal above keeps naming only the action that was refused.
-export const frozenPriceNotice =
-  "Este precio está en uso. Solo podés cambiar el nombre y no se puede eliminar.";
-export const frozenSpecialPriceNotice =
-  "Este precio está en uso. Solo podés cambiar el nombre y los cronogramas, y no se puede eliminar.";
-export const uncoveredPriceNotice =
-  "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto, y no se puede eliminar.";
+// The alert above the form adds what unlocks the fields, as the Detail pages
+// rule asks. An inscription below its deposit can switch to another price, and
+// one without money is deleted, so the lock lifts once none has this one
+// selected; a withdrawn inscription keeps its price for good. The refusals
+// above stay short, since they answer a save that was already made.
+const frozenPriceUnlock =
+  "Se libera cuando ninguna inscripción lo tenga elegido; las retiradas lo conservan.";
+const uncoveredPriceUnlock =
+  "Se libera cuando no queden inscripciones activas.";
+export const frozenPriceNotice = `${frozenPriceUpdateError} ${frozenPriceUnlock}`;
+export const frozenSpecialPriceNotice = `${frozenSpecialPriceUpdateError} ${frozenPriceUnlock}`;
+export const uncoveredPriceNotice = `${uncoveredPriceUpdateError} ${uncoveredPriceUnlock}`;
 
 /** What a list item carries so a screen can read the guards on sight. */
 export type PriceGuardFlags = {
@@ -82,14 +85,25 @@ export function readPriceGuard(flags: PriceGuardFlags): PriceGuard {
   return openPriceGuard;
 }
 
-/** Why the delete dialog opens blocked, or `null` when it does not. */
+/**
+ * Why the delete dialog opens blocked and what it would take, or `null` when it
+ * does not. The alert above the form speaks of the fields only (`reason`
+ * above): `Eliminar` stays enabled and answers with this.
+ */
 export function readPriceDeletionBlock(flags: PriceGuardFlags) {
   if (flags.isReferenced) {
-    return frozenPriceDeleteError;
+    return {
+      reason: frozenPriceDeleteError,
+      wayOut:
+        "Se puede eliminar cuando ninguna inscripción lo tenga elegido, retiradas incluidas.",
+    };
   }
 
   if (flags.keepsRegistrationOpen) {
-    return uncoveredPriceDeleteError;
+    return {
+      reason: uncoveredPriceDeleteError,
+      wayOut: "Se puede eliminar cuando no queden inscripciones activas.",
+    };
   }
 
   return null;

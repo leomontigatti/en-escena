@@ -1,5 +1,5 @@
 import { AudioLines, Plus, Settings, Users } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
@@ -9,7 +9,9 @@ import {
   type DataTableColumn,
   type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
+import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { ReasonList } from "@/components/shared/reason-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
@@ -60,9 +62,11 @@ export function PortalChoreographiesListRouteView({
       title="Coreografías"
       description="Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo."
       action={
-        selectedEvent ? (
-          <NewChoreographyButton canCreate={creationAvailability.canCreate} />
-        ) : null
+        <NewChoreographyButton
+          blockers={creationAvailability.blockers.map(
+            (blocker) => blocker.message,
+          )}
+        />
       }
     >
       {selectedEvent && loaderData.choreographies.length > 0 ? (
@@ -348,13 +352,32 @@ function getChoreographiesEmptyDescription(
   return "Cuando administración cree un evento, vas a poder consultar las coreografías de tu academia desde esta sección.";
 }
 
-function NewChoreographyButton({ canCreate }: { canCreate: boolean }) {
-  if (!canCreate) {
+/**
+ * Always enabled: with something blocking the registration, the click opens
+ * the reasons instead of the page (style guide, Detail pages). Each reason is
+ * named, never detailed: which event bases are missing is the
+ * administration's to fix, as an inactive event or closed registration is.
+ * The create route still redirects back, for a URL typed by hand.
+ */
+function NewChoreographyButton({ blockers }: { blockers: string[] }) {
+  const [isBlockedOpen, setIsBlockedOpen] = useState(false);
+
+  if (blockers.length > 0) {
     return (
-      <Button type="button" disabled>
-        <Plus aria-hidden="true" data-icon="inline-start" />
-        Nueva coreografía
-      </Button>
+      <>
+        <Button type="button" onClick={() => setIsBlockedOpen(true)}>
+          <Plus aria-hidden="true" data-icon="inline-start" />
+          Nueva coreografía
+        </Button>
+        <BlockedActionDialog
+          description="Vas a poder registrarlas cuando se resuelva lo que figura abajo."
+          onOpenChange={setIsBlockedOpen}
+          open={isBlockedOpen}
+          reasons={<ReasonList reasons={blockers} />}
+          reasonsTitle="Registro no disponible"
+          title="No podés registrar coreografías"
+        />
+      </>
     );
   }
 

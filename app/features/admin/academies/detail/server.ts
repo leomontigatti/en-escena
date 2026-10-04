@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { deleteEmptyAcademy } from "@/lib/academies/academy-deletion.server";
+import {
+  deleteEmptyAcademy,
+  readAcademyHoldings,
+} from "@/lib/academies/academy-deletion.server";
 import {
   loadAcademyMergeOptions,
   mergeAcademies,
@@ -38,6 +41,8 @@ export async function loadAcademyDetail({
   return {
     academy,
     canEdit: currentUser.role === "admin",
+    deletionHoldings:
+      currentUser.role === "admin" ? await readAcademyHoldings(academy.id) : [],
     merge:
       currentUser.role === "admin"
         ? await loadAcademyMergeOptions(academy.id)

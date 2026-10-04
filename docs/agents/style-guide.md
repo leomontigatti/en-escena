@@ -678,13 +678,15 @@ alike. Pages about money, scores or documents use `MetricCard`s and tables
 instead.
 
 - When the record's state locks fields, an `info` `Alert` above the form lists
-  every reason and what unlocks them, and speaks of the fields only. The fields
-  render as the shared read-only ones (`ReadOnlyField`, `ReadOnlyDateField`,
-  `ReadOnlySelectField`, `ReadOnlyTextareaField`), not as a disabled picker or
-  select: every locked field looks the same, and the value still travels in
-  the body.
+  every reason and what unlocks them, or says the lock is for good when nothing
+  does (`La evaluación no se puede anular.`), and speaks of the fields only.
+  The fields render as the shared read-only ones (`ReadOnlyField`,
+  `ReadOnlyDateField`, `ReadOnlySelectField`, `ReadOnlyTextareaField`), not as
+  a disabled picker or select: every locked field looks the same, and the
+  value still travels in the body.
 - An action the record's state forbids is never refused after the submit, and
-  never disabled either: the `Acciones` menu item or button stays enabled, and
+  never disabled either, on a detail page or a list page alike (the portal's
+  `Nueva coreografía` too): the `Acciones` menu item or button stays enabled, and
   the click opens an acknowledgment instead of the action, `BlockedActionDialog`.
   Its title says what cannot be done (`No se puede bonificar la coreografía`),
   its description says what it takes, its `info` `Alert` lists every reason, and

@@ -7,6 +7,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   ClientDataTable,
@@ -26,6 +27,7 @@ import {
   inscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
+import { NothingToBillDialog } from "@/features/admin/finances/comprobante-emission/blocked-dialog";
 import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -181,15 +183,12 @@ function OverAllocatedAlert() {
  * dropdown closes. The `Pagar seña` / `Pagar saldo` presets do not live here:
  * they are list actions over the selected choreographies.
  *
- * The menu is always there, and with nothing left to bill what gets disabled is
- * the option: a button that comes and goes does not teach what can be done in the
- * view, and "it is there but it cannot be used" says more than "it is not there".
- *
- * `Bonificar coreografía` (ADR-0017) is the exception to that disabling: money
- * on an inscription is the normal state of a paid choreography, so the item
- * stays enabled and the click explains what blocks it, with no standing alert
- * on the page (style guide, Detail pages). Once every inscription is waived it
- * becomes `Quitar bonificación`.
+ * The menu is always there and its items are never disabled: a button that
+ * comes and goes does not teach what can be done in the view, and a blocked
+ * item says why when it is clicked (style guide, Detail pages). With nothing
+ * left to bill, `Emitir factura` opens `NothingToBillDialog`; money on an
+ * inscription blocks `Bonificar coreografía` (ADR-0017), whose click lists it.
+ * Once every inscription is waived it becomes `Quitar bonificación`.
  */
 function ChoreographyActions({
   loaderData,
@@ -203,6 +202,8 @@ function ChoreographyActions({
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
   const waiver = readChoreographyWaiver(loaderData.inscriptions);
   const [isWaiverBlocked, setIsWaiverBlocked] = useState(false);
+  const [isNothingToBillOpen, setIsNothingToBillOpen] = useState(false);
+  const [isNothingToWaiveOpen, setIsNothingToWaiveOpen] = useState(false);
   const waiverConfirmation = useWaiverConfirmation();
   const waiverFetcher = useWaiverFetcher();
 
@@ -210,10 +211,11 @@ function ChoreographyActions({
     <>
       <ResourceActionsMenu contentClassName="w-56">
         <DropdownMenuItem
-          disabled={!canEmit || !invoicing}
           onSelect={() => {
-            if (invoicing) {
+            if (canEmit && invoicing) {
               setEmission(invoicing);
+            } else {
+              setIsNothingToBillOpen(true);
             }
           }}
         >
@@ -237,9 +239,10 @@ function ChoreographyActions({
           </>
         ) : (
           <DropdownMenuItem
-            disabled={waiver.toWaive.length === 0}
             onSelect={() => {
-              if (waiver.withMoney.length > 0) {
+              if (waiver.toWaive.length === 0) {
+                setIsNothingToWaiveOpen(true);
+              } else if (waiver.withMoney.length > 0) {
                 setIsWaiverBlocked(true);
               } else {
                 waiverConfirmation.show({
@@ -266,6 +269,18 @@ function ChoreographyActions({
           onClose={waiverConfirmation.close}
         />
       ) : null}
+      <NothingToBillDialog
+        onOpenChange={setIsNothingToBillOpen}
+        open={isNothingToBillOpen}
+      />
+      <BlockedActionDialog
+        description="Se puede bonificar cuando tenga inscripciones en su elenco."
+        onOpenChange={setIsNothingToWaiveOpen}
+        open={isNothingToWaiveOpen}
+        reasons="No tiene inscripciones activas."
+        reasonsTitle="Nada para bonificar"
+        title="No se puede bonificar la coreografía"
+      />
       {emission ? (
         <EmissionDialog
           billableAmount={emission.billableAmount}

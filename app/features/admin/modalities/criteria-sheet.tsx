@@ -21,6 +21,7 @@ import {
   useDiscardGuard,
 } from "@/components/shared/discard-guard";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
+import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -531,26 +532,30 @@ function CriterionRow({
     <FieldGroup className="grid grid-cols-[minmax(0,1fr)_6rem_2rem] items-start gap-2">
       {/* The kind is where the row sits, not a field, so the post carries it here. */}
       <input type="hidden" name={`criteria.${index}.kind`} value={kind} />
-      <TextInputField
-        control={form.control}
-        disabled={locked}
-        id={`criterion-name-${index}`}
-        label="Criterio"
-        placeholder="Criterio"
-        readOnly={saving}
-        labelClassName="sr-only"
-        name={`criteria.${index}.name`}
-      />
-      <IntegerInputField
-        control={form.control}
-        disabled={locked}
-        id={`criterion-maximum-${index}`}
-        label="Máximo"
-        placeholder="Máximo"
-        readOnly={saving}
-        labelClassName="sr-only"
-        name={`criteria.${index}.maximum`}
-      />
+      {locked ? (
+        <LockedCriterionFields form={form} index={index} />
+      ) : (
+        <>
+          <TextInputField
+            control={form.control}
+            id={`criterion-name-${index}`}
+            label="Criterio"
+            placeholder="Criterio"
+            readOnly={saving}
+            labelClassName="sr-only"
+            name={`criteria.${index}.name`}
+          />
+          <IntegerInputField
+            control={form.control}
+            id={`criterion-maximum-${index}`}
+            label="Máximo"
+            placeholder="Máximo"
+            readOnly={saving}
+            labelClassName="sr-only"
+            name={`criteria.${index}.maximum`}
+          />
+        </>
+      )}
       {locked ? null : (
         <Button
           type="button"
@@ -564,5 +569,40 @@ function CriterionRow({
         </Button>
       )}
     </FieldGroup>
+  );
+}
+
+/**
+ * A scored submodality's criterion, in the shared read-only look like any
+ * field the record's state locks; the dialog's alert says why. Nothing is
+ * saved from a locked sheet, so the values travel nowhere.
+ */
+function LockedCriterionFields({
+  form,
+  index,
+}: {
+  form: SheetForm;
+  index: number;
+}) {
+  const [name, maximum] = useWatch({
+    control: form.control,
+    name: [`criteria.${index}.name`, `criteria.${index}.maximum`],
+  });
+
+  return (
+    <>
+      <ReadOnlyField
+        id={`criterion-name-${index}`}
+        label="Criterio"
+        labelClassName="sr-only"
+        value={String(name ?? "")}
+      />
+      <ReadOnlyField
+        id={`criterion-maximum-${index}`}
+        label="Máximo"
+        labelClassName="sr-only"
+        value={String(maximum ?? "")}
+      />
+    </>
   );
 }

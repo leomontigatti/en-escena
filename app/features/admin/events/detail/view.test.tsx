@@ -10,6 +10,7 @@ import {
   eventDocumentFileField,
   eventDocumentKeptField,
 } from "@/features/admin/events/detail/shared";
+import { eventFormValues } from "@/lib/admin/events/form-values";
 import { eventDocumentSummaries } from "@/lib/events/event-documents.test-support";
 import {
   clickReactDomButton,
@@ -48,9 +49,120 @@ describe("EventDetailView delete", () => {
       state: "submitting",
     });
 
-    await renderDetail();
+    await renderDetail({ loaderData: buildFreeLoaderData() });
 
     expect(getButton("Eliminar").disabled).toBe(true);
+  });
+
+  // The active event and one with choreographies cannot be deleted: the item
+  // stays enabled and the click lists why, instead of a refusal after submit.
+  test("answers Eliminar with why the event cannot be deleted", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: true,
+      loaderData: { ...buildLoaderData(), hasChoreographies: true },
+    });
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se puede eliminar el evento",
+    );
+    expect(dialog?.textContent).toContain("Es el evento activo.");
+    expect(dialog?.textContent).toContain("Tiene coreografías inscriptas.");
+    expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
+  });
+
+  test("asks to confirm Eliminar on an inactive event without choreographies", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: true,
+      loaderData: buildFreeLoaderData(),
+    });
+
+    expect(document.querySelector('[role="alertdialog"] h2')?.textContent).toBe(
+      "¿Eliminar el evento?",
+    );
+  });
+
+  // Choreographies were inscribed against the dates and the deposit: the
+  // fields read as locked before anything is typed, and the alert says why.
+  test("locks the dates and the deposit while choreographies are inscribed", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: { ...buildLoaderData(), hasChoreographies: true },
+    });
+
+    expect(document.body.textContent).toContain(
+      "Las fechas y la seña no se pueden cambiar",
+    );
+    expect(document.body.textContent).toContain(
+      "Tiene coreografías inscriptas.",
+    );
+    expect(
+      document.querySelector<HTMLInputElement>(
+        'input[name="requiredDepositPercentage"]',
+      )?.value,
+    ).toBe("30");
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="startsAt"]')?.value,
+      // The fixture's midnight UTC is still the previous day in the business
+      // time zone.
+    ).toBe("2026-02-28");
+    expect(
+      Array.from(document.querySelectorAll<HTMLInputElement>("input[readonly]"))
+        .length,
+    ).toBe(3);
+  });
+
+  // A structural edit refused because a choreography was inscribed meanwhile
+  // comes back as the draft; the locked fields must still show and post the
+  // saved values, or every later save would be refused too.
+  test("locks the saved dates and deposit, not a refused draft of them", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      actionData: {
+        status: "error",
+        message:
+          "No se pueden editar fechas ni seña con dependencias operativas.",
+        fieldErrors: {},
+        values: {
+          ...eventFormValues(buildLoaderData().event),
+          requiredDepositPercentage: "45",
+          startsAt: "2026-02-20",
+        },
+      },
+      initialDeleteDialogOpen: false,
+      loaderData: { ...buildLoaderData(), hasChoreographies: true },
+    });
+
+    expect(
+      document.querySelector<HTMLInputElement>(
+        'input[name="requiredDepositPercentage"]',
+      )?.value,
+    ).toBe("30");
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="startsAt"]')?.value,
+    ).toBe("2026-02-28");
+  });
+
+  test("leaves the dates and the deposit editable on an event without choreographies", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildFreeLoaderData(),
+    });
+
+    expect(document.body.textContent).not.toContain(
+      "Las fechas y la seña no se pueden cambiar",
+    );
+    expect(document.querySelectorAll("input[readonly]")).toHaveLength(0);
   });
 
   async function renderDetail(
@@ -370,9 +482,17 @@ describe("EventDetailView form", () => {
 /** A CBU whose two check digits agree — PRD #895's fixture. */
 const validCbu = "0070099330004512345678";
 
+/** An inactive event nothing is inscribed on: nothing locked, deletable. */
+function buildFreeLoaderData(): EventDetailLoaderData {
+  const loaderData = buildLoaderData();
+
+  return { ...loaderData, event: { ...loaderData.event, active: false } };
+}
+
 function buildLoaderData(): EventDetailLoaderData {
   return {
     documents: eventDocumentSummaries(),
+    hasChoreographies: false,
     event: {
       id: "event_1",
       name: "Festival 2026",

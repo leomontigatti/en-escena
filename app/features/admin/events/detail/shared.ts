@@ -71,8 +71,39 @@ export type EventDocumentsFormValues = z.infer<typeof eventDocumentsFormSchema>;
 export type EventDetailLoaderData = {
   documents: EventDocumentSummaries;
   event: EventRow;
+  /**
+   * A choreography is inscribed on the event, which is what the server's
+   * `eventHasOperationalDependencies` refuses a date, deposit or delete over.
+   */
+  hasChoreographies: boolean;
   registrationReadiness: EventRegistrationReadiness;
 };
+
+const choreographiesInscribedReason = "Tiene coreografías inscriptas.";
+
+/**
+ * Why the dates and the deposit cannot change: choreographies were inscribed
+ * and priced against them. Empty means they are editable.
+ */
+export function getEventStructureLockReasons({
+  hasChoreographies,
+}: Pick<EventDetailLoaderData, "hasChoreographies">) {
+  return hasChoreographies ? [choreographiesInscribedReason] : [];
+}
+
+/**
+ * Why `Eliminar` cannot run, the two refusals `deleteEvent` makes. Empty means
+ * the confirmation opens.
+ */
+export function getEventDeleteBlockReasons({
+  event,
+  hasChoreographies,
+}: Pick<EventDetailLoaderData, "event" | "hasChoreographies">) {
+  return [
+    ...(event.active ? ["Es el evento activo."] : []),
+    ...getEventStructureLockReasons({ hasChoreographies }),
+  ];
+}
 
 export type EventDetailActionData =
   | {

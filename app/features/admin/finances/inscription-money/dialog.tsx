@@ -83,7 +83,8 @@ import {
 import {
   type InscriptionMoneyWaiver,
   WaivedInscriptionDialog,
-  WaiverBlockedAlert,
+  useWaiverGesture,
+  WaiverBlockedDialog,
 } from "./dialog-waiver";
 import {
   allocateInscriptionIntent,
@@ -205,9 +206,10 @@ function AllocateMoneyDialog({
     amount === "" ||
     isAmountOutOfRange(amount, owedBalanceAmount) ||
     (!isPriceLocked && priceOptions.length === 0);
-  // Waiving needs no money on the row: the alert says how to clear it, and the
-  // server refuses all the same.
-  const waive = onWaive ? { disabled: holdsMoney, run: onWaive } : null;
+  const { blockedDialog, waive } = useWaiverGesture({
+    allocatedAmount: inscription.allocatedAmount,
+    onWaive,
+  });
 
   return (
     <MoneyDialog
@@ -224,9 +226,10 @@ function AllocateMoneyDialog({
             name="intent"
             value={allocateInscriptionIntent}
           />
-          {waive?.disabled ? (
-            <WaiverBlockedAlert allocatedAmount={inscription.allocatedAmount} />
-          ) : null}
+          <WaiverBlockedDialog
+            allocatedAmount={inscription.allocatedAmount}
+            {...blockedDialog}
+          />
           {isPriceLocked ? <LockedPriceAlert /> : null}
 
           <MoneyTargetFields
@@ -401,7 +404,7 @@ function AllocationFooter({
   isSubmitDisabled: boolean;
   onCancel: () => void;
   onRemoveMoney: (() => void) | null;
-  onWaive: { disabled: boolean; run: () => void } | null;
+  onWaive: (() => void) | null;
 }) {
   const hasSideGestures = onRemoveMoney !== null || onWaive !== null;
 
@@ -423,8 +426,8 @@ function AllocationFooter({
             <Button
               type="button"
               variant="outline"
-              disabled={isSaving || onWaive.disabled}
-              onClick={onWaive.run}
+              disabled={isSaving}
+              onClick={onWaive}
             >
               Bonificar
             </Button>
@@ -483,6 +486,7 @@ function RemoveMoneyDialog({
   const [amount, setAmount] = useState("");
   const isSaving = fetcher.state !== "idle";
   const isOutOfRange = isAmountOutOfRange(amount, inscription.allocatedAmount);
+  const [isWaiverBlockedOpen, setIsWaiverBlockedOpen] = useState(false);
 
   return (
     <MoneyDialog
@@ -500,7 +504,11 @@ function RemoveMoneyDialog({
             value={removeInscriptionMoneyIntent}
           />
           {isWaivable ? (
-            <WaiverBlockedAlert allocatedAmount={inscription.allocatedAmount} />
+            <WaiverBlockedDialog
+              allocatedAmount={inscription.allocatedAmount}
+              onOpenChange={setIsWaiverBlockedOpen}
+              open={isWaiverBlockedOpen}
+            />
           ) : null}
           <MoneyTargetFields
             inscription={inscription}
@@ -521,10 +529,16 @@ function RemoveMoneyDialog({
           <FetcherError data={fetcher.data} />
 
           <DialogFooter className={isWaivable ? "sm:justify-between" : ""}>
-            {/* Disabled for as long as there is money on the row: this shape
-                is the way to take it off, and the alert above says so. */}
+            {/* This shape only opens on a row with money, so `Bonificar` always
+                answers with the acknowledgment: taking the money off is what
+                this shape is for. */}
             {isWaivable ? (
-              <Button type="button" variant="outline" disabled>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                onClick={() => setIsWaiverBlockedOpen(true)}
+              >
                 Bonificar
               </Button>
             ) : null}
