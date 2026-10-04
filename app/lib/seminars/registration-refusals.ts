@@ -55,8 +55,9 @@ export const seminarNoPlacesForRevivalMessage = "Sin lugares disponibles.";
 
 /**
  * Said twice as well: the admin seminar detail explains with it above the tabs
- * while the delete, the kind and the deposit rate are locked, and the
- * repository refuses with it when a deposit was covered in between.
+ * while the kind and the deposit rate are locked, and the repository refuses
+ * with it when a deposit was covered in between. It speaks of those fields
+ * only: `Eliminar` answers for itself with the blocked acknowledgment.
  */
 export const coveredSeminarMessage =
-  "Este seminario tiene inscripciones con la seña cubierta. No podés eliminarlo ni cambiar el tipo de seminario o la seña.";
+  "Este seminario tiene inscripciones con la seña cubierta. No podés cambiar el tipo de seminario ni la seña.";

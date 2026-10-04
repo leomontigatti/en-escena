@@ -6,7 +6,10 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { readPriceDeletionBlock } from "@/lib/prices/guards";
+import {
+  priceDeletionWayOut,
+  readPriceDeletionBlock,
+} from "@/lib/prices/guards";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 
 export function SeminarPriceActions({
@@ -19,11 +22,10 @@ export function SeminarPriceActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  // The guard is read before the menu opens, so a protected row shows a
-  // disabled item instead of a refusal after the submission. The alert above
-  // the form already says the price cannot be deleted, so the dialog only ever
-  // confirms (style guide, Detail pages). The server refuses all the same, for
-  // the race.
+  // The guard is read before the menu opens, so a protected row answers
+  // `Eliminar` with the blocked acknowledgment instead of a refusal after the
+  // submission (style guide, Detail pages). The server refuses all the same,
+  // for the race.
   const deletionBlock = readPriceDeletionBlock(seminarPrice);
 
   return (
@@ -32,7 +34,6 @@ export function SeminarPriceActions({
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"
-            disabled={Boolean(deletionBlock)}
             onSelect={() => setDeleteDialogOpen(true)}
           >
             Eliminar
@@ -41,7 +42,14 @@ export function SeminarPriceActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar el precio de seminario?"
-        description={`Esta acción elimina ${seminarPrice.name} si no tiene dependencias asociadas.`}
+        description={
+          deletionBlock
+            ? priceDeletionWayOut
+            : `Esta acción elimina ${seminarPrice.name}. No se puede deshacer.`
+        }
+        blockedTitle="No se puede eliminar el precio de seminario"
+        isBlocked={deletionBlock !== null}
+        blockedDescription={deletionBlock}
         intentValue="delete-seminar-price"
         recordId={seminarPrice.id}
         open={deleteDialogOpen}

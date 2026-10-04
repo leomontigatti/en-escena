@@ -13,7 +13,10 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { PriceListItem } from "@/lib/events/bases.server";
-import { readPriceDeletionBlock } from "@/lib/prices/guards";
+import {
+  priceDeletionWayOut,
+  readPriceDeletionBlock,
+} from "@/lib/prices/guards";
 
 import { getPriceDisplayName } from "./view-shared";
 
@@ -27,11 +30,10 @@ export function PriceActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  // The guard is read before the menu opens, so a protected row shows a
-  // disabled item instead of a refusal after the submission. The alert above
-  // the form already says the price cannot be deleted, so the dialog only ever
-  // confirms (style guide, Detail pages). The server refuses all the same, for
-  // the race.
+  // The guard is read before the menu opens, so a protected row answers
+  // `Eliminar` with the blocked acknowledgment instead of a refusal after the
+  // submission (style guide, Detail pages). The server refuses all the same,
+  // for the race.
   const deletionBlock = readPriceDeletionBlock(price);
 
   return (
@@ -40,7 +42,6 @@ export function PriceActions({
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"
-            disabled={Boolean(deletionBlock)}
             onSelect={() => setDeleteDialogOpen(true)}
           >
             Eliminar
@@ -49,7 +50,14 @@ export function PriceActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar el precio?"
-        description={`Esta acción elimina ${getPriceDisplayName(price)} si no tiene dependencias asociadas. No se puede deshacer.`}
+        description={
+          deletionBlock
+            ? priceDeletionWayOut
+            : `Esta acción elimina ${getPriceDisplayName(price)}. No se puede deshacer.`
+        }
+        blockedTitle="No se puede eliminar el precio"
+        isBlocked={deletionBlock !== null}
+        blockedDescription={deletionBlock}
         intentValue="delete-price"
         recordId={price.id}
         open={deleteDialogOpen}

@@ -1,4 +1,4 @@
-import { TriangleAlert } from "lucide-react";
+import { Info, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Form, Link } from "react-router";
 
@@ -15,6 +15,7 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { ReasonList } from "@/components/shared/reason-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -58,6 +59,8 @@ import type { EventRegistrationMissingCode } from "@/lib/events/registration-rea
 
 import {
   eventActionPath,
+  getEventDeleteBlockReasons,
+  getEventStructureLockReasons,
   getMissingItemAdminPath,
   getMissingItemLinkLabel,
   getMissingItemSummary,
@@ -93,6 +96,7 @@ export function EventDetailView({
       requireSelectedEvent={false}
       headerAction={
         <EventActions
+          deleteBlockReasons={getEventDeleteBlockReasons(loaderData)}
           event={loaderData.event}
           initialDeleteDialogOpen={initialDeleteDialogOpen}
         />
@@ -103,6 +107,7 @@ export function EventDetailView({
         actionData={errorData}
         documents={loaderData.documents}
         registrationReadiness={loaderData.registrationReadiness}
+        structureLockReasons={getEventStructureLockReasons(loaderData)}
       />
     </AdminResourceLayout>
   );
@@ -181,11 +186,13 @@ function EditEventPanel({
   actionData,
   documents,
   registrationReadiness,
+  structureLockReasons,
 }: {
   event: EventDetailLoaderData["event"];
   actionData?: Extract<EventDetailActionData, { status: "error" }>;
   documents: EventDetailLoaderData["documents"];
   registrationReadiness: EventDetailLoaderData["registrationReadiness"];
+  structureLockReasons: string[];
 }) {
   const savedValues = eventFormValues(event);
   const eventForm = useEventForm({
@@ -213,6 +220,19 @@ function EditEventPanel({
         {!registrationReadiness.isReady ? (
           <EventRegistrationReadinessAlert readiness={registrationReadiness} />
         ) : null}
+        {structureLockReasons.length > 0 ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertTitle>Las fechas y la seña no se pueden cambiar</AlertTitle>
+            <AlertDescription>
+              <p>
+                Se pueden cambiar cuando el evento no tenga coreografías
+                inscriptas.
+              </p>
+              <ReasonList reasons={structureLockReasons} />
+            </AlertDescription>
+          </Alert>
+        ) : null}
       </AlertStack>
       <form
         ref={removal.formRef}
@@ -237,7 +257,12 @@ function EditEventPanel({
             />
           }
         >
-          <EventFormFields controller={eventForm} />
+          <EventFormFields
+            controller={eventForm}
+            lockedValues={
+              structureLockReasons.length > 0 ? savedValues : undefined
+            }
+          />
           <EventFormTabs
             controller={eventForm}
             documentsPanel={
@@ -449,9 +474,12 @@ function RemoveDocumentsDialog({
 }
 
 function EventActions({
+  deleteBlockReasons,
   event,
   initialDeleteDialogOpen = false,
 }: {
+  /** Why `Eliminar` answers with the acknowledgment instead of confirming. */
+  deleteBlockReasons: string[];
   event: EventDetailLoaderData["event"];
   initialDeleteDialogOpen?: boolean;
 }) {
@@ -483,7 +511,14 @@ function EventActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar el evento?"
-        description={`Esta acción no se puede deshacer. Se va a eliminar ${event.name}.`}
+        blockedTitle="No se puede eliminar el evento"
+        description={
+          deleteBlockReasons.length > 0
+            ? "Se puede eliminar cuando no sea el evento activo y no tenga coreografías inscriptas."
+            : `Esta acción no se puede deshacer. Se va a eliminar ${event.name}.`
+        }
+        isBlocked={deleteBlockReasons.length > 0}
+        blockedDescription={<ReasonList reasons={deleteBlockReasons} />}
         intentValue="delete"
         recordId={event.id}
         open={deleteDialogOpen}

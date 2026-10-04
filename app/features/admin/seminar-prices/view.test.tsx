@@ -7,10 +7,10 @@ import { SeminarPriceDetailView } from "@/features/admin/seminar-prices/detail/v
 import { seminarPriceFacetedFilterIds } from "@/features/admin/seminar-prices/list-table";
 import {
   frozenPriceDeleteError,
-  frozenPriceNotice,
+  frozenPriceUpdateError,
   readPriceDeletionBlock,
   uncoveredPriceDeleteError,
-  uncoveredPriceNotice,
+  uncoveredPriceUpdateError,
 } from "@/lib/prices/guards";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 
@@ -146,7 +146,7 @@ describe("seminar price detail", () => {
 
     expect(markup).toContain('name="amount"');
     expect(markup).toContain('name="kind"');
-    expect(markup).not.toContain(frozenPriceNotice);
+    expect(markup).not.toContain(frozenPriceUpdateError);
     expect(readPriceDeletionBlock(seminarPrice())).toBeNull();
   });
 
@@ -155,11 +155,11 @@ describe("seminar price detail", () => {
       seminarPrice({ paymentDeadline: "2026-06-30", isReferenced: true }),
     );
 
-    expect(markup).toContain(frozenPriceNotice);
+    expect(markup).toContain(frozenPriceUpdateError);
     // Every guarded field reads through the shared read-only look, so none of
     // them is an editable control any more.
     expect(markup).not.toContain('name="kind"><');
-    // `Eliminar` is disabled on sight, and its dialog opens blocked,
+    // `Eliminar` stays enabled, and its dialog opens blocked with this reason
     // rather than refusing after the submission.
     expect(readPriceDeletionBlock(seminarPrice({ isReferenced: true }))).toBe(
       frozenPriceDeleteError,
@@ -169,7 +169,7 @@ describe("seminar price detail", () => {
   test("keeps the amount of the row that holds the event's seminars open", () => {
     const markup = renderDetail(seminarPrice({ keepsRegistrationOpen: true }));
 
-    expect(markup).toContain(uncoveredPriceNotice);
+    expect(markup).toContain(uncoveredPriceUpdateError);
     expect(markup).toContain('name="amount"');
     expect(
       readPriceDeletionBlock(seminarPrice({ keepsRegistrationOpen: true })),

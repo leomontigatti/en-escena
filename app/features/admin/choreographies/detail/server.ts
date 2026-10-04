@@ -355,7 +355,7 @@ function getChoreographyDeleteBlockers(
   return [
     {
       code: "evaluated-presentation",
-      label: "la presentación ya fue evaluada",
+      label: "La presentación ya fue evaluada.",
     },
   ];
 }

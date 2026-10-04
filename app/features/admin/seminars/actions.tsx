@@ -11,11 +11,9 @@ import type { SeminarListItem } from "@/lib/seminars/repository.server";
 import { deleteSeminarIntent } from "./shared";
 
 export function SeminarActions({
-  hasCoveredInscription,
   seminar,
   initialDeleteDialogOpen = false,
 }: {
-  hasCoveredInscription: boolean;
   seminar: SeminarListItem;
   initialDeleteDialogOpen?: boolean;
 }) {
@@ -31,14 +29,11 @@ export function SeminarActions({
     <>
       <ResourceActionsMenu contentClassName="w-48">
         <DropdownMenuGroup>
-          {/* A covered inscription locks fields, and the alert explaining
-              them above the tabs names the delete too, so the item is
-              disabled on sight. Uncovered ones are what nearly every seminar
-              in use holds: the item stays enabled and the dialog says why it
-              cannot delete (style guide, Detail pages). */}
+          {/* Any inscription blocks the delete, covered or not: the item
+              stays enabled and the dialog says why it cannot delete (style
+              guide, Detail pages). */}
           <DropdownMenuItem
             variant="destructive"
-            disabled={hasCoveredInscription}
             onSelect={() => setDeleteDialogOpen(true)}
           >
             Eliminar

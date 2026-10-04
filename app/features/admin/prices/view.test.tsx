@@ -20,9 +20,11 @@ import type {
 } from "@/features/admin/prices/shared";
 import type { PriceListItem } from "@/lib/events/bases.server";
 import {
-  frozenPriceNotice,
-  frozenSpecialPriceNotice,
-  uncoveredPriceNotice,
+  frozenPriceDeleteError,
+  frozenPriceUpdateError,
+  frozenSpecialPriceUpdateError,
+  uncoveredPriceDeleteError,
+  uncoveredPriceUpdateError,
 } from "@/lib/prices/guards";
 import { findButton } from "@/lib/test-support/react-dom";
 
@@ -133,10 +135,10 @@ describe("EventPriceDetailRouteView", () => {
       EventPriceDetailRouteView,
     });
 
-    expect(container.textContent).toContain(frozenPriceNotice);
+    expect(container.textContent).toContain(frozenPriceUpdateError);
     // The alert sits above the card, not inside the form it explains.
     expect(container.querySelector("form")?.textContent).not.toContain(
-      frozenPriceNotice,
+      frozenPriceUpdateError,
     );
     expect(readInputTypes(container, "amount")).toEqual(["hidden"]);
     expect(
@@ -188,7 +190,7 @@ describe("EventPriceDetailRouteView", () => {
     });
 
     // In use, the price is frozen except for its name and its schedules.
-    expect(container.textContent).toContain(frozenSpecialPriceNotice);
+    expect(container.textContent).toContain(frozenSpecialPriceUpdateError);
     expect(readInputTypes(container, "amount")).toEqual(["hidden"]);
     expect(readInputValues(container, "scheduleIds")).toEqual([
       "block_1",
@@ -222,19 +224,23 @@ describe("EventPriceDetailRouteView", () => {
       EventPriceDetailRouteView,
     });
 
-    expect(container.textContent).toContain(uncoveredPriceNotice);
+    expect(container.textContent).toContain(uncoveredPriceUpdateError);
     expect(readInputTypes(container, "amount")).not.toContain("hidden");
     expect(readInputTypes(container, "paymentDeadline")).toEqual(["hidden"]);
   });
 
-  // The alert above the form is what says why, so the item can be disabled.
+  // `Eliminar` is never disabled: a guarded row answers with the blocked
+  // acknowledgment and its reason, and the alert above the form speaks of the
+  // fields only.
   test.each([
-    { flags: { isReferenced: true }, disabled: true },
-    { flags: { keepsRegistrationOpen: true }, disabled: true },
-    { flags: {}, disabled: false },
+    { flags: { isReferenced: true }, reason: frozenPriceDeleteError },
+    {
+      flags: { keepsRegistrationOpen: true },
+      reason: uncoveredPriceDeleteError,
+    },
   ])(
-    "reads `Eliminar` as disabled: $disabled for $flags",
-    async ({ flags, disabled }) => {
+    "answers `Eliminar` on a guarded row with $reason",
+    async ({ flags, reason }) => {
       const price = {
         ...createPrice({
           amount: 12000,
@@ -258,7 +264,24 @@ describe("EventPriceDetailRouteView", () => {
         EventPriceDetailRouteView,
       });
 
-      expect(await readMenuItemDisabled("Eliminar")).toBe(disabled);
+      expect(container.textContent).not.toContain("no se puede eliminar");
+
+      const item = await openMenuItem("Eliminar");
+
+      expect(item.getAttribute("aria-disabled")).not.toBe("true");
+
+      await act(async () => {
+        item.click();
+        await Promise.resolve();
+      });
+
+      const dialog = document.querySelector('[role="alertdialog"]');
+
+      expect(dialog?.querySelector("h2")?.textContent).toBe(
+        "No se puede eliminar el precio",
+      );
+      expect(dialog?.textContent).toContain(reason);
+      expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
     },
   );
 
@@ -471,7 +494,7 @@ async function renderPricesRoute({
  * The actions menu only mounts its items once it opens, and the trigger opens
  * on `pointerdown` rather than on `click`. Both live in a portal on the body.
  */
-async function readMenuItemDisabled(label: string) {
+async function openMenuItem(label: string) {
   const trigger = findButton("Acciones", { exact: true });
 
   if (!trigger) {
@@ -493,7 +516,7 @@ async function readMenuItemDisabled(label: string) {
     throw new Error(`Expected the ${label} menu item to be rendered.`);
   }
 
-  return item.getAttribute("aria-disabled") === "true";
+  return item;
 }
 
 function readInputTypes(container: HTMLElement, name: string) {

@@ -452,19 +452,30 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // With nothing left to bill the menu is still there: what gets disabled is the
-  // option. A button that comes and goes does not teach what can be done.
-  test('keeps the actions menu visible and disables "Emitir factura" with nothing to bill', async () => {
+  // With nothing left to bill the option is still there and still enabled:
+  // the click says why there is nothing to emit (style guide, Detail pages).
+  test('answers "Emitir factura" with nothing to bill with the blocked acknowledgment', async () => {
     await mount();
-
-    expect(findButton("Acciones", { exact: true })).toBeDefined();
 
     await openActionsMenu();
 
-    const item = [...document.querySelectorAll('[role="menuitem"]')].find(
-      (candidate) => candidate.textContent?.includes("Emitir factura"),
+    const item = [
+      ...document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((candidate) => candidate.textContent?.includes("Emitir factura"));
+    expect(item?.getAttribute("aria-disabled")).not.toBe("true");
+
+    await act(async () => {
+      item?.click();
+      await Promise.resolve();
+    });
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se puede emitir la factura",
     );
-    expect(item?.getAttribute("aria-disabled")).toBe("true");
+    expect(dialog?.textContent).toContain(
+      "No hay dinero asignado sin facturar.",
+    );
   });
 
   /**
@@ -581,6 +592,22 @@ describe("ChoreographyFinanceDetailView whole-choreography waiver", () => {
       "Bea Lagos tiene $ 10.000 asignados.",
     );
     expect(dialog?.textContent).not.toContain("Eva Molina");
+    expect(alertDialogButtons()).toEqual(["Cerrar"]);
+  });
+
+  // With no inscription on the roster there is nothing to waive, and the item
+  // says so when clicked instead of being disabled.
+  test("explains that a choreography without active inscriptions has nothing to waive", async () => {
+    await mount([]);
+
+    await openActionsMenu();
+    await clickMenuItem("Bonificar coreografía");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+    expect(dialog?.textContent).toContain(
+      "No se puede bonificar la coreografía",
+    );
+    expect(dialog?.textContent).toContain("No tiene inscripciones activas.");
     expect(alertDialogButtons()).toEqual(["Cerrar"]);
   });
 

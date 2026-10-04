@@ -38,9 +38,9 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Tampoco puede eliminarse ni retirarse.");
   });
 
-  // The evaluation is also why the choreography cannot be deleted, and the
-  // page says so before the menu is opened (#454), to auditors as well.
-  test("says in the evaluation alert that the choreography cannot be deleted", () => {
+  // The alert speaks of the locked fields only: `Eliminar` answers for itself
+  // when it is clicked.
+  test("keeps the delete out of the evaluation alert", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: false,
@@ -49,7 +49,8 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(markup).toContain("Tampoco puede eliminarse ni retirarse.");
+    expect(markup).toContain("Esta coreografía ya fue evaluada");
+    expect(markup).not.toContain("Tampoco puede eliminarse ni retirarse.");
   });
 
   // Holding a number is not a lock: the administrator keeps correcting the
@@ -366,7 +367,7 @@ describe("ChoreographyDetailRouteView", () => {
     ).toBe(true);
   });
 
-  test("disables the delete menu item when the choreography cannot be deleted", async () => {
+  test("answers Eliminar with why the choreography cannot be removed", async () => {
     await renderDetailIntoDocument({
       loaderData: buildLoaderData({
         choreography: buildChoreography({ isEvaluated: true }),
@@ -375,12 +376,15 @@ describe("ChoreographyDetailRouteView", () => {
     });
 
     await openActionsMenu();
+    await clickMenuItem("Eliminar");
 
-    const item = Array.from(
-      document.querySelectorAll('[role="menuitem"]'),
-    ).find((element) => element.textContent?.includes("Eliminar"));
+    const dialog = document.querySelector('[role="alertdialog"]');
 
-    expect(item?.getAttribute("aria-disabled")).toBe("true");
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se puede eliminar la coreografía",
+    );
+    expect(dialog?.textContent).toContain("La presentación ya fue evaluada.");
+    expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
   });
 
   // The dialog names the outcome before the admin confirms: the two are not
@@ -540,7 +544,7 @@ const evaluatedDeletion: ChoreographyDetailLoaderData["deletion"] = {
   blockers: [
     {
       code: "evaluated-presentation",
-      label: "la presentación ya fue evaluada",
+      label: "La presentación ya fue evaluada.",
     },
   ],
   canDelete: false,

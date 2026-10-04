@@ -23,16 +23,6 @@ export const uncoveredPriceUpdateError =
 export const uncoveredPriceDeleteError =
   "Este precio es necesario mientras haya inscripciones activas. No se puede eliminar.";
 
-// The alert above the form names both limits, because `Eliminar` is
-// disabled on sight and a disabled menu item cannot say why itself. Each
-// refusal above keeps naming only the action that was refused.
-export const frozenPriceNotice =
-  "Este precio está en uso. Solo podés cambiar el nombre y no se puede eliminar.";
-export const frozenSpecialPriceNotice =
-  "Este precio está en uso. Solo podés cambiar el nombre y los cronogramas, y no se puede eliminar.";
-export const uncoveredPriceNotice =
-  "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto, y no se puede eliminar.";
-
 /** What a list item carries so a screen can read the guards on sight. */
 export type PriceGuardFlags = {
   /** Some inscription stores this row, so it is frozen except for its name. */
@@ -66,8 +56,8 @@ export function readPriceGuard(flags: PriceGuardFlags): PriceGuard {
       canEditAmount: false,
       canEditStructure: false,
       reason: flags.isSpecialPrice
-        ? frozenSpecialPriceNotice
-        : frozenPriceNotice,
+        ? frozenSpecialPriceUpdateError
+        : frozenPriceUpdateError,
     };
   }
 
@@ -75,14 +65,22 @@ export function readPriceGuard(flags: PriceGuardFlags): PriceGuard {
     return {
       canEditAmount: true,
       canEditStructure: false,
-      reason: uncoveredPriceNotice,
+      reason: uncoveredPriceUpdateError,
     };
   }
 
   return openPriceGuard;
 }
 
-/** Why the delete dialog opens blocked, or `null` when it does not. */
+/** What it takes to delete a guarded price, for its blocked dialog. */
+export const priceDeletionWayOut =
+  "Un precio se puede eliminar cuando ninguna inscripción lo usa ni depende de él.";
+
+/**
+ * Why the delete dialog opens blocked, or `null` when it does not. The alert
+ * above the form speaks of the fields only (`reason` above): `Eliminar` stays
+ * enabled and answers with this.
+ */
 export function readPriceDeletionBlock(flags: PriceGuardFlags) {
   if (flags.isReferenced) {
     return frozenPriceDeleteError;

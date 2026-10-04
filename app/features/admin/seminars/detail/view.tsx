@@ -52,16 +52,13 @@ export function SeminarDetailView({
       description="Editá el instructor, su foto, el tipo, la fecha, la hora, el cupo y la seña del seminario."
       headerAction={
         <SeminarActions
-          hasCoveredInscription={loaderData.hasCoveredInscription}
           seminar={seminar}
           initialDeleteDialogOpen={initialDeleteDialogOpen}
         />
       }
     >
       {/* Above the tabs, never inside one: what is locked is the seminar
-          itself, so the reason reads the same from either tab. Its sentence
-          names the delete as well, which is why `Eliminar` is then disabled
-          without a dialog of its own. */}
+          itself, so the reason reads the same from either tab. */}
       <GuardAlert reason={lockReason} />
       <Tabs defaultValue="informacion">
         <TabsList variant="line">

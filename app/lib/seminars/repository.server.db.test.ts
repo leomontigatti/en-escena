@@ -266,7 +266,7 @@ describe("seminar repository", () => {
         ok: false,
         code: "covered-inscriptions",
         error:
-          "Este seminario tiene inscripciones con la seña cubierta. No podés eliminarlo ni cambiar el tipo de seminario o la seña.",
+          "Este seminario tiene inscripciones con la seña cubierta. No podés cambiar el tipo de seminario ni la seña.",
       });
     }
 

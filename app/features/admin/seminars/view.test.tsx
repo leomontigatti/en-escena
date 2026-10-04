@@ -302,17 +302,21 @@ describe("SeminarDetailView", () => {
     ).toEqual(["Cerrar"]);
   });
 
-  // The covered reason above the tabs already names the delete, so the item
-  // can be disabled on sight.
-  test("disables `Eliminar` once an inscription is covered", async () => {
+  // The covered reason above the tabs speaks of the locked fields only:
+  // `Eliminar` stays enabled and answers with the blocked acknowledgment.
+  test("answers `Eliminar` on a seminar with a covered inscription with the blocked acknowledgment", async () => {
     await renderDetail(
       buildSeminar({ inscriptionCount: 1, registeredCount: 1 }),
       null,
       [],
       true,
     );
+    await selectMenuItem("Eliminar");
 
-    expect(await readMenuItemDisabled("Eliminar")).toBe(true);
+    expect(
+      document.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain("No se puede eliminar el seminario");
+    expect(coveredSeminarMessage).not.toContain("eliminar");
   });
 
   test("offers `Eliminar` once nobody is registered", async () => {

@@ -23,6 +23,7 @@ import {
   activateEvent,
   deactivateEvent,
   deleteEvent,
+  eventHasOperationalDependencies,
   updateEvent,
   type EventMutationResult,
 } from "@/lib/events/management.server";
@@ -56,18 +57,21 @@ export async function loadEventDetail(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const [event, registrationReadiness, documents] = await Promise.all([
-    loadEvent(eventId),
-    getEventRegistrationReadiness(eventId),
-    loadEventDocumentSummaries({
-      eventId,
-      storage: createDefaultEventDocumentStorage(),
-    }),
-  ]);
+  const [event, registrationReadiness, documents, hasChoreographies] =
+    await Promise.all([
+      loadEvent(eventId),
+      getEventRegistrationReadiness(eventId),
+      loadEventDocumentSummaries({
+        eventId,
+        storage: createDefaultEventDocumentStorage(),
+      }),
+      eventHasOperationalDependencies(eventId),
+    ]);
 
   return {
     documents,
     event,
+    hasChoreographies,
     registrationReadiness,
   } satisfies EventDetailLoaderData;
 }

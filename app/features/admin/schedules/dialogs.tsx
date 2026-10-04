@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { Form } from "react-router";
 
+import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { ReasonList } from "@/components/shared/reason-list";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenuGroup,
@@ -38,6 +40,7 @@ export function ScheduleActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  const [openBlockedOpen, setOpenBlockedOpen] = useState(false);
   // `Eliminar` stays enabled whatever holds the schedule: the click answers
   // with the reasons instead of the confirmation (style guide, Detail pages).
   const deleteBlockReasons = dependencies
@@ -54,9 +57,12 @@ export function ScheduleActions({
               label="Cerrar inscripciones"
               scheduleId={schedule.id}
             />
+          ) : registrationOpenBlockers.length > 0 ? (
+            <DropdownMenuItem onSelect={() => setOpenBlockedOpen(true)}>
+              Abrir inscripciones
+            </DropdownMenuItem>
           ) : (
             <ScheduleRegistrationActionItem
-              disabled={registrationOpenBlockers.length > 0}
               intent="open-schedule-registration"
               label="Abrir inscripciones"
               scheduleId={schedule.id}
@@ -82,13 +88,7 @@ export function ScheduleActions({
             : `Esta acción borra ${schedule.name}. No se puede deshacer.`
         }
         isBlocked={deleteBlockReasons.length > 0}
-        blockedDescription={
-          <ul className="list-disc pl-5">
-            {deleteBlockReasons.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        }
+        blockedDescription={<ReasonList reasons={deleteBlockReasons} />}
         intentValue="delete-schedule"
         recordId={schedule.id}
         confirmFieldName="confirmDelete"
@@ -96,23 +96,29 @@ export function ScheduleActions({
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
       />
+      <BlockedActionDialog
+        description="Se pueden abrir cuando el evento no tenga nada de esta lista pendiente."
+        onOpenChange={setOpenBlockedOpen}
+        open={openBlockedOpen}
+        reasons={<ReasonList reasons={registrationOpenBlockers} />}
+        reasonsTitle="Falta en el evento"
+        title="No se pueden abrir las inscripciones"
+      />
     </>
   );
 }
 
 /**
  * One menu item, one submission: the switch is a `POST` of its own so the
- * schedule form beside it neither carries it nor is dirtied by it. The item is
- * disabled with exactly the reasons the server would refuse it for, and the
- * detail's alert is what names them — the toast this returns says one line.
+ * schedule form beside it neither carries it nor is dirtied by it. It is only
+ * offered while the server would accept it: with reasons to refuse, `Abrir
+ * inscripciones` opens the acknowledgment that names them instead.
  */
 function ScheduleRegistrationActionItem({
-  disabled = false,
   intent,
   label,
   scheduleId,
 }: {
-  disabled?: boolean;
   intent: "open-schedule-registration" | "close-schedule-registration";
   label: string;
   scheduleId: string;
@@ -127,10 +133,10 @@ function ScheduleRegistrationActionItem({
     <Form method="post">
       <input type="hidden" name="intent" value={intent} />
       <input type="hidden" name="id" value={scheduleId} />
-      <DropdownMenuItem asChild disabled={disabled}>
+      <DropdownMenuItem asChild>
         <button
           type="submit"
-          disabled={disabled || isPending}
+          disabled={isPending}
           className="w-full justify-start whitespace-nowrap"
         >
           <span className="inline-flex items-center gap-2">
