@@ -6,7 +6,12 @@ import {
   updateAcademyProfessor,
   type UpdateProfessorInput,
 } from "@/lib/portal/professors.server";
+import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
+import {
+  findProfessorChoreographies,
+  findRosterSeminarInscriptions,
+} from "@/lib/roster/inscriptions.server";
 import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
@@ -16,6 +21,7 @@ import {
   portalProfessorNotFoundMessage,
   reactivateProfessorIntent,
   updateProfessorIntent,
+  type PortalProfessorDetailLoaderData,
 } from "@/features/portal/professors/detail/shared";
 
 export async function loadPortalProfessorDetail({
@@ -28,14 +34,26 @@ export async function loadPortalProfessorDetail({
   const { academy } = await requireAcademyUser(request);
   const professorId = readProfessorId(params);
   const professor = await requireProfessor(academy.id, professorId);
+  const eventContext = await getPortalActiveEventContext(request);
+  const selectedEventId = eventContext.selectedEvent?.id ?? null;
+  const [choreographies, seminarInscriptions] = await Promise.all([
+    findProfessorChoreographies({ professorId, selectedEventId }),
+    findRosterSeminarInscriptions({
+      person: { id: professorId, kind: "professor" },
+      selectedEventId,
+    }),
+  ]);
 
   return {
+    choreographies,
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "professor",
       personId: professorId,
     }),
     professor,
-  };
+    selectedEventId,
+    seminarInscriptions,
+  } satisfies PortalProfessorDetailLoaderData;
 }
 
 export async function handlePortalProfessorDetailAction({

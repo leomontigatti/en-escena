@@ -9,6 +9,7 @@ import {
 import { toParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerDetail } from "@/lib/admin/dancers/dancers.server.types";
 import { findDancerInscriptions } from "@/lib/dancers/inscriptions.server";
+import { findRosterSeminarInscriptions } from "@/lib/roster/inscriptions.server";
 import {
   buildDancerAnyEventParticipationSql,
   buildDancerEventParticipationSql,
@@ -55,10 +56,17 @@ export async function findDancer(input: {
     return null;
   }
 
-  const { choreographyRows, inscriptions } = await findDancerInscriptions({
-    dancerId: input.dancerId,
-    selectedEventId: input.selectedEventId,
-  });
+  const [{ choreographyRows, inscriptions }, seminarInscriptions] =
+    await Promise.all([
+      findDancerInscriptions({
+        dancerId: input.dancerId,
+        selectedEventId: input.selectedEventId,
+      }),
+      findRosterSeminarInscriptions({
+        person: { id: input.dancerId, kind: "dancer" },
+        selectedEventId: input.selectedEventId,
+      }),
+    ]);
 
   return {
     id: row.id,
@@ -99,8 +107,9 @@ export async function findDancer(input: {
       isVerified: row.identityVerifiedAt !== null,
     }),
     inscriptions,
-    choreographyNames: choreographyRows.map(
-      (choreography) => choreography.name,
-    ),
+    seminarInscriptions,
+    choreographyNames: choreographyRows
+      .filter((choreography) => choreography.withdrawnAt === null)
+      .map((choreography) => choreography.name),
   };
 }

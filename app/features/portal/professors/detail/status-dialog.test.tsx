@@ -40,7 +40,10 @@ describe("ProfessorStatusDialog", () => {
           element: (
             <PortalProfessorDetailRouteView
               loaderData={{
+                choreographies: [],
                 isParticipatingInActiveEvent: false,
+                selectedEventId: null,
+                seminarInscriptions: [],
                 professor: archivedProfessor(),
               }}
               initialStatusDialogIntent="reactivate-professor"

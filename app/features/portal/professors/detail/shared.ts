@@ -8,6 +8,10 @@ import type { RosterDocumentConflict } from "@/components/shared/roster-document
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 
 import type { PortalProfessorListItem } from "@/lib/portal/professors.server";
+import type {
+  RosterChoreography,
+  RosterSeminarInscription,
+} from "@/lib/roster/inscriptions";
 import {
   getArchiveKeepsRosterMessage,
   getRosterPersonArchiveAvailability,
@@ -33,14 +37,17 @@ export type ProfessorStatusIntent =
   typeof archiveProfessorIntent | typeof reactivateProfessorIntent;
 
 export type PortalProfessorDetailLoaderData = {
+  choreographies: RosterChoreography[];
   /**
    * Answered by `hasActiveEventParticipation`, the same reader the guard in
-   * `setRosterPersonStatus` asks — see the dancer twin. It is the whole event
-   * context this screen needs: the reader resolves the active event itself, so
-   * the loader stays free of a selected event it shows nothing of.
+   * `setRosterPersonStatus` asks — see the dancer twin. It resolves the active
+   * event itself rather than reading `selectedEventId`, because the rule is
+   * about a commitment that is live now.
    */
   isParticipatingInActiveEvent: boolean;
   professor: PortalProfessorListItem;
+  selectedEventId: string | null;
+  seminarInscriptions: RosterSeminarInscription[];
 };
 
 type PortalProfessorStatusActionCopy = {

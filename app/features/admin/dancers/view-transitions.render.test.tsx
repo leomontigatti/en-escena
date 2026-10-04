@@ -162,6 +162,7 @@ function buildDetailLoaderData() {
       identificationStatus: "unverified",
       identityVerifiedAt: null,
       inscriptions: [],
+      seminarInscriptions: [],
       lastName: "Paz",
       participatedInAnyEvent: false,
       participationStatus: "not-participating",

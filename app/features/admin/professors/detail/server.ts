@@ -10,6 +10,10 @@ import {
 } from "@/lib/admin/professors/professors.server";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
+  findProfessorChoreographies,
+  findRosterSeminarInscriptions,
+} from "@/lib/roster/inscriptions.server";
+import {
   loadRosterMergeOptions,
   submitRosterMerge,
 } from "@/lib/roster/roster-merge.server";
@@ -53,10 +57,23 @@ export async function loadProfessorDetail(input: {
     throw new Response(professorNotFoundMessage, { status: 404 });
   }
 
+  const [choreographies, seminarInscriptions] = await Promise.all([
+    findProfessorChoreographies({
+      professorId,
+      selectedEventId: eventContext.selectedEventId,
+    }),
+    findRosterSeminarInscriptions({
+      person: { id: professorId, kind: "professor" },
+      selectedEventId: eventContext.selectedEventId,
+    }),
+  ]);
+
   return {
     canEdit: user.role === "admin",
     selectedEventId: eventContext.selectedEventId,
     professor,
+    choreographies,
+    seminarInscriptions,
     backToList: buildBackToListHref(input.request.url),
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "professor",

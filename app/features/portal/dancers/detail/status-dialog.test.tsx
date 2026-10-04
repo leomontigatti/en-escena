@@ -97,6 +97,7 @@ function archivedDancerLoaderData() {
       updatedAt: new Date("2026-01-02T12:00:00Z"),
     },
     inscriptions: [],
+    seminarInscriptions: [],
     isParticipatingInActiveEvent: false,
     selectedEventId: "event_1",
   } satisfies DancerDetailViewProps["loaderData"];

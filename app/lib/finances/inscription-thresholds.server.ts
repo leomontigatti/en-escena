@@ -29,6 +29,8 @@ import type { Executor } from "./choreography-cobro-support.server";
  * does not derive the same thing twice.
  */
 export type InscriptionThresholdResolution = InscriptionThresholds & {
+  /** What is allocated to the inscription, which its price was resolved from. */
+  allocatedAmount: number;
   dancerDiscountAmount: number;
   dancerDiscountPercentage: number;
   priceAmount: number | null;
@@ -176,6 +178,7 @@ export async function readInscriptionThresholds(
     thresholds.set(
       inscriptionId,
       resolveInscriptionThreshold({
+        allocatedAmount: allocatedByInscription.get(inscriptionId) ?? 0,
         discount: discountByInscription.get(inscriptionId),
         priceAmount: priceAmountByInscription.get(inscriptionId) ?? null,
         requiredDepositPercentage: event.requiredDepositPercentage,
@@ -193,15 +196,17 @@ export async function readInscriptionThresholds(
  * threshold to cross.
  */
 function resolveInscriptionThreshold(input: {
+  allocatedAmount: number;
   discount: DancerDiscount | undefined;
   priceAmount: number | null;
   requiredDepositPercentage: number;
   waived: boolean;
 }): InscriptionThresholdResolution {
-  const { priceAmount } = input;
+  const { allocatedAmount, priceAmount } = input;
 
   if (input.waived) {
     return {
+      allocatedAmount,
       dancerDiscountAmount: 0,
       dancerDiscountPercentage: 0,
       depositAmount: 0,
@@ -213,6 +218,7 @@ function resolveInscriptionThreshold(input: {
 
   if (priceAmount === null) {
     return {
+      allocatedAmount,
       dancerDiscountAmount: 0,
       dancerDiscountPercentage: 0,
       depositAmount: null,
@@ -225,6 +231,7 @@ function resolveInscriptionThreshold(input: {
   const discount = input.discount ?? { amount: 0, percentage: 0 };
 
   return {
+    allocatedAmount,
     dancerDiscountAmount: discount.amount,
     dancerDiscountPercentage: discount.percentage,
     depositAmount: calculateDepositAmount({

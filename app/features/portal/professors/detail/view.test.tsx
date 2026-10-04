@@ -12,7 +12,10 @@ describe("PortalProfessorDetailRouteView", () => {
   test("renders the editable ficha", () => {
     const markup = renderProfessorDetail({
       loaderData: {
+        choreographies: [],
         isParticipatingInActiveEvent: false,
+        selectedEventId: null,
+        seminarInscriptions: [],
         professor: professorListItem({
           id: "profesor_1",
           firstName: "Ana",
@@ -123,7 +126,10 @@ describe("PortalProfessorDetailRouteView", () => {
   test("shows saved target state without incomplete alerts", () => {
     const markup = renderProfessorDetail({
       loaderData: {
+        choreographies: [],
         isParticipatingInActiveEvent: false,
+        selectedEventId: null,
+        seminarInscriptions: [],
         professor: professorListItem({
           documentType: "dni",
           documentNumber: "12345678",
@@ -139,7 +145,10 @@ describe("PortalProfessorDetailRouteView", () => {
   test("shows archived alerts and reactivate action", () => {
     const markup = renderProfessorDetail({
       loaderData: {
+        choreographies: [],
         isParticipatingInActiveEvent: false,
+        selectedEventId: null,
+        seminarInscriptions: [],
         professor: professorListItem({
           active: false,
           isIncomplete: false,
@@ -159,7 +168,10 @@ describe("PortalProfessorDetailRouteView", () => {
   test("shows the reactivation confirmation", () => {
     const markup = renderProfessorDetail({
       loaderData: {
+        choreographies: [],
         isParticipatingInActiveEvent: false,
+        selectedEventId: null,
+        seminarInscriptions: [],
         professor: professorListItem({
           active: false,
         }),
@@ -185,7 +197,10 @@ function renderProfessorDetail(input: Partial<ProfessorDetailViewProps> = {}) {
           <PortalProfessorDetailRouteView
             loaderData={
               input.loaderData ?? {
+                choreographies: [],
                 isParticipatingInActiveEvent: false,
+                selectedEventId: null,
+                seminarInscriptions: [],
                 professor: professorListItem(),
               }
             }

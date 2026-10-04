@@ -215,4 +215,28 @@ describe("the dancer detail prices through the finance read model", () => {
     });
     expect(read.finance).toEqual(read.dancer);
   });
+
+  test("lists a withdrawn inscription, its total what remains allocated", async () => {
+    const fixture = await seedDancerWithTwoPriceRows({
+      allocatedAmount: 3000,
+    });
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: new Date() })
+      .where(eq(choreographyDancers.id, fixture.inscriptionId));
+
+    const read = await readBothSurfaces(fixture);
+    const { inscriptions } = await findDancerInscriptions({
+      dancerId: fixture.dancerId,
+      selectedEventId: fixture.eventId,
+    });
+
+    expect(inscriptions.map((row) => row.id)).toEqual([fixture.choreographyId]);
+    expect(read.dancer).toEqual({
+      basePriceAmount: 10000,
+      dancerDiscountAmount: 0,
+      totalAmount: 3000,
+    });
+    expect(read.finance).toEqual(read.dancer);
+  });
 });

@@ -53,6 +53,31 @@ export function useSavedFormValues<
 }
 
 /**
+ * The route action's latest answer, kept across the navigations that carry
+ * none. Any navigation clears `useActionData`, and on a detail page whose tabs
+ * hold lists a search is one: without this, searching a list after a refused
+ * save hands the form its saved values back and drops the draft. `scope` names
+ * the record, so moving to another one does not carry an answer over.
+ */
+export function useLatestActionData<TActionData>(
+  actionData: TActionData | undefined,
+  scope: string,
+) {
+  const [latest, setLatest] = useState({ actionData, scope });
+
+  if (scope !== latest.scope) {
+    setLatest({ actionData, scope });
+    return actionData;
+  }
+
+  if (actionData !== undefined && actionData !== latest.actionData) {
+    setLatest({ actionData, scope });
+  }
+
+  return actionData ?? latest.actionData;
+}
+
+/**
  * The values of the last refused save, kept while later answers carry none. A
  * crash answers with a message alone: handing the form its empty values then
  * would refill it and drop what was typed since the refusal.

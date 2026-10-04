@@ -9,12 +9,17 @@ import {
   schedules,
 } from "@/db/schema";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
-import { activeInscription } from "@/lib/choreographies/active-inscription";
+import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import {
   type InscriptionThresholdResolution,
   readInscriptionThresholds,
 } from "@/lib/finances/inscription-thresholds.server";
 
+/**
+ * The choreography inscriptions a dancer holds in the selected event, withdrawn
+ * ones included: the tab is one of the reads that show a withdrawn row as
+ * evidence rather than hiding it.
+ */
 export async function findDancerInscriptions(input: {
   dancerId: string;
   selectedEventId: string | null;
@@ -38,6 +43,7 @@ export async function findDancerInscriptions(input: {
       scheduleId: schedules.id,
       academyId: choreographies.academyId,
       inscriptionId: choreographyDancers.id,
+      withdrawnAt: choreographyDancers.withdrawnAt,
     })
     .from(choreographyDancers)
     .innerJoin(
@@ -51,7 +57,6 @@ export async function findDancerInscriptions(input: {
       and(
         eq(choreographyDancers.dancerId, input.dancerId),
         eq(choreographies.eventId, selectedEventId),
-        activeInscription(),
       ),
     )
     .orderBy(asc(sql`lower(${choreographies.name})`));
@@ -72,6 +77,16 @@ export async function findDancerInscriptions(input: {
 
   const inscriptions = choreographyRows.map((choreography) => {
     const resolution = thresholds.get(choreography.inscriptionId);
+    const withdrawn = choreography.withdrawnAt !== null;
+    // A withdrawn row's total is what remains allocated to it, which the
+    // shared derivation owns; the thresholds alone would quote the price.
+    const figures = resolution
+      ? deriveInscriptionFinancialFigures({
+          allocatedAmount: resolution.allocatedAmount,
+          thresholds: resolution,
+          withdrawn,
+        })
+      : null;
 
     return {
       id: choreography.id,
@@ -82,7 +97,7 @@ export async function findDancerInscriptions(input: {
       groupType: choreography.groupType,
       basePriceAmount: resolution?.priceAmount ?? null,
       dancerDiscountAmount: resolution?.dancerDiscountAmount ?? 0,
-      totalAmount: resolution?.totalAmount ?? null,
+      totalAmount: figures?.totalAmount ?? null,
     } satisfies DancerInscription;
   });
 

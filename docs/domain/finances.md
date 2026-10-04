@@ -788,8 +788,11 @@ The first is the finance reads that must **show the evidence**: the money rollup
 consumed by the **four finance surfaces** (`operational-summary.server.ts`), the
 choreography roster the two financial details render with the `Retirada` badge
 (`choreography-inscriptions.server.ts`), the threshold read that keeps a
-withdrawn row's deposit figure alive (`inscription-thresholds.server.ts`), and
-the comprobante emitter (`emit-factura-c.server.ts`).
+withdrawn row's deposit figure alive (`inscription-thresholds.server.ts`), the
+comprobante emitter (`emit-factura-c.server.ts`), and the inscriptions and
+seminars tabs of a roster person's detail, which list the row unbadged with
+what remains allocated as its `Total` (`dancers/inscriptions.server.ts`,
+`roster/inscriptions.server.ts`).
 
 The second is queries that are not about display at all and simply do not need
 the predicate, because a withdrawn row answers their question as well as an
@@ -801,7 +804,7 @@ whether a move would reprice any money-holding inscription of a choreography
 delete a price row some inscription references (`prices.server.ts`), and the
 roster editor's deliberate read of the withdrawn rows themselves, which are the
 revival candidates (`choreography-roster-admin.server.ts`). **Only the first
-kind is four.** Do not read "four exceptions" as "four queries without the
+kind is five.** Do not read "five exceptions" as "five queries without the
 predicate" — the second kind is at least as large, and a query touching
 `choreography_dancer` without `activeInscription()` is not by itself evidence of
 a bug.
