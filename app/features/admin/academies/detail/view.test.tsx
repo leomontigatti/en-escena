@@ -30,6 +30,7 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
     academy: {
       city: "Rosario",
       contactName: "Nora Norte",
+      dataStatus: "complete",
       email: "academia@example.com",
       id: "academy_1",
       name: "Academia Fork",

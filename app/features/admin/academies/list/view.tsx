@@ -13,7 +13,9 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { academiesExportPath } from "@/features/admin/academies/export/shared";
 import { PeriodExportMenu } from "@/features/admin/period-export/menu";
+import { academyDataStatusLabels } from "@/lib/academies/academy-data-status";
 import { describeEmptyList } from "@/lib/list-query/list-query";
+import { AcademyDataStatusBadge } from "../data-status-badge";
 
 import type { loadAcademiesList } from "./server";
 
@@ -59,6 +61,13 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
       academy.isParticipating ? "Participando" : "No participando",
   },
   {
+    id: "data",
+    header: "Datos",
+    cell: (academy) => <AcademyDataStatusBadge status={academy.dataStatus} />,
+    // The label is also what the `Datos` facet matches.
+    filterValue: (academy) => academyDataStatusLabels[academy.dataStatus],
+  },
+  {
     id: "filters",
     header: "Filtros",
     hidden: true,
@@ -67,7 +76,7 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
   },
 ];
 
-export const academyFacetedFilterIds = ["participando"] as const;
+export const academyFacetedFilterIds = ["participando", "datos"] as const;
 
 const academyFacetedFilters: DataTableFacetedFiltersOf<
   typeof academyFacetedFilterIds
@@ -79,6 +88,19 @@ const academyFacetedFilters: DataTableFacetedFiltersOf<
       { label: "Participando", value: "si" },
       { label: "No participando", value: "no" },
     ],
+  },
+  {
+    id: "datos",
+    label: "Datos",
+    options: [
+      { label: academyDataStatusLabels.complete, value: "completa" },
+      { label: academyDataStatusLabels.incomplete, value: "incompleta" },
+    ],
+    renderValue: (option) => (
+      <AcademyDataStatusBadge
+        status={option.value === "completa" ? "complete" : "incomplete"}
+      />
+    ),
   },
 ];
 

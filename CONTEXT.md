@@ -70,6 +70,10 @@ _Avoid_: `user`, `professor`, `escuela`, `delegación`
 Where an `academy` is, chosen from a closed list: the 24 Argentine jurisdictions, or `Otro país` for an academy from abroad. It is what reports group academies by; the city beside it stays free text. Nullable only for academies registered before the field existed; every form that saves an academy requires it.
 _Avoid_: state, region, free-text province
 
+**`academyDataStatus`** — ui: "Datos"
+Whether an `academy`'s own data — its `Datos de academia` (#743) — is complete: `Incompleta` while it lacks a `province` or a city, as academies registered before those fields existed do, `Completa` otherwise. Derived on read and never stored, with one owner for the rule; the administration's academies list and academy detail show it as a badge. It says nothing about money or participation, and it is not the choreography's `Completa`/`Incompleta`.
+_Avoid_: `choreographyOperationalStatus`, verified academy, active academy, profile status
+
 **`academyRegistration`** — ui: "Registro público de academia"
 Public flow through which an academy creates its initial access to the system.
 _Avoid_: `choreographyRegistration`, public user, free account

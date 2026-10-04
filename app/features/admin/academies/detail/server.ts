@@ -13,6 +13,7 @@ import {
 import { mergeAcademyIntent } from "@/lib/academies/academy-merge.shared";
 import { updateAcademyProfile } from "@/lib/academies/academy-profile.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import { getAcademyDataStatus } from "@/lib/academies/academy-data-status";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { readFormString } from "@/lib/shared/forms";
@@ -229,6 +230,7 @@ async function readAcademy(academyId?: string) {
   return {
     ...academy,
     city: academy.city ?? "",
+    dataStatus: getAcademyDataStatus(academy),
     province: academy.province ?? "",
   };
 }

@@ -33,6 +33,7 @@ async function renderDialog() {
             academy={{
               city: "Rosario",
               contactName: "Nora Norte",
+              dataStatus: "complete",
               email: "fork@example.com",
               id: "academy-fork",
               name: "Academia Fork",

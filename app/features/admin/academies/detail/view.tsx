@@ -39,6 +39,7 @@ import {
   type AcademyDetailLoaderData,
 } from "./shared";
 import { AcademyMergeDialog } from "./merge-dialog";
+import { AcademyDataStatusBadge } from "../data-status-badge";
 
 export function AcademyDetailRouteView({
   actionData,
@@ -84,6 +85,7 @@ export function AcademyDetailRouteView({
       requireSelectedEvent={false}
       selectedEventId={loaderData.selectedEventId}
       title={academy.name}
+      titleBadge={<AcademyDataStatusBadge status={academy.dataStatus} />}
       description="Consultá y actualizá los datos de contacto y la ubicación de la academia."
       headerAction={
         canEdit ? (
