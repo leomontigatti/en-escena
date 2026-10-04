@@ -12,14 +12,13 @@ import { PresentationListActions } from "./actions-menu";
 describe("the participation list's actions menu", () => {
   const renderer = createReactDomTestRenderer();
   const onExportProgram = vi.fn();
+  const onToggleProgram = vi.fn();
 
   afterEach(() => {
     renderer.cleanup();
     onExportProgram.mockClear();
-    submitted.mockClear();
+    onToggleProgram.mockClear();
   });
-
-  const submitted = vi.fn((_form: FormData) => null);
 
   async function mount(
     canExportProgram: boolean,
@@ -30,7 +29,6 @@ describe("the participation list's actions menu", () => {
       [
         {
           path: "/administracion/presentaciones",
-          action: async ({ request }) => submitted(await request.formData()),
           element: (
             <PresentationListActions
               canDownloadMusic={false}
@@ -43,6 +41,7 @@ describe("the participation list's actions menu", () => {
               onJudges={vi.fn()}
               onOrder={vi.fn()}
               onPrintResults={vi.fn()}
+              onToggleProgram={onToggleProgram}
               programToggle={programToggle}
             />
           ),
@@ -68,7 +67,7 @@ describe("the participation list's actions menu", () => {
     expect(menuItems()).toEqual(["Descargar programa"]);
   });
 
-  test("shows the program of the event it was opened for", async () => {
+  test("opens the confirmation to show the program", async () => {
     await mount(false, { eventId: "event-1", show: true });
 
     await openRadixSelect(document.querySelector('[aria-label="Acciones"]'));
@@ -80,12 +79,7 @@ describe("the participation list's actions menu", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(submitted).toHaveBeenCalledTimes(1);
-    expect(Object.fromEntries(submitted.mock.calls[0][0])).toEqual({
-      evento: "event-1",
-      intent: "set-program-visibility",
-      visible: "true",
-    });
+    expect(onToggleProgram).toHaveBeenCalledTimes(1);
   });
 
   test("offers to hide a visible program", async () => {

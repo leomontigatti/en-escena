@@ -1,25 +1,14 @@
-import { Form } from "react-router";
-
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
-import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
-
-import {
-  programEventIdFieldName,
-  programVisibleFieldName,
-  setProgramVisibilityIntent,
-} from "./shared";
 
 /**
  * The participation list's actions menu: printing results, downloading the
  * day's music, exporting the program and showing or hiding it first, then the
- * ordering and the two judge dialogs. Every item but the program's visibility
- * opens a dialog the list owns, so the menu only says which one; the visibility
- * submits straight away. With nothing to offer there is no menu.
+ * ordering and the two judge dialogs. Every item opens a dialog the list owns,
+ * so the menu only says which one. With nothing to offer there is no menu.
  */
 type OutputActionsProps = {
   canDownloadMusic: boolean;
@@ -28,6 +17,7 @@ type OutputActionsProps = {
   onDownloadMusic: () => void;
   onExportProgram: () => void;
   onPrintResults: () => void;
+  onToggleProgram: () => void;
   /**
    * Which way the program's visibility can go, for the event the list shows;
    * `null` when there is nothing to toggle.
@@ -75,6 +65,7 @@ function OutputItems({
   onDownloadMusic,
   onExportProgram,
   onPrintResults,
+  onToggleProgram,
   programToggle,
 }: OutputActionsProps) {
   return (
@@ -88,7 +79,12 @@ function OutputItems({
       {canExportProgram ? (
         <DialogItem label="Descargar programa" onOpen={onExportProgram} />
       ) : null}
-      {programToggle ? <ProgramVisibilityItem {...programToggle} /> : null}
+      {programToggle ? (
+        <DialogItem
+          label={programToggle.show ? "Mostrar programa" : "Ocultar programa"}
+          onOpen={onToggleProgram}
+        />
+      ) : null}
     </>
   );
 }
@@ -136,47 +132,5 @@ function DialogItem({
     >
       {label}
     </DropdownMenuItem>
-  );
-}
-
-function ProgramVisibilityItem({
-  eventId,
-  show,
-}: {
-  eventId: string;
-  show: boolean;
-}) {
-  const isPending = isRouteFormPending(useOptionalNavigation(), {
-    intent: setProgramVisibilityIntent,
-  });
-
-  return (
-    <Form method="post">
-      <input type="hidden" name="intent" value={setProgramVisibilityIntent} />
-      <input type="hidden" name={programEventIdFieldName} value={eventId} />
-      <input
-        type="hidden"
-        name={programVisibleFieldName}
-        value={String(show)}
-      />
-      <DropdownMenuItem asChild>
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full justify-start"
-        >
-          {isPending ? (
-            <Spinner aria-hidden="true" data-icon="inline-start" />
-          ) : null}
-          {isPending
-            ? show
-              ? "Mostrando programa…"
-              : "Ocultando programa…"
-            : show
-              ? "Mostrar programa"
-              : "Ocultar programa"}
-        </button>
-      </DropdownMenuItem>
-    </Form>
   );
 }

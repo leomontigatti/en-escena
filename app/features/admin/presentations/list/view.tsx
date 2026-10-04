@@ -450,6 +450,7 @@ export function PresentationsListView({
           onJudges={setJudgeDialogMode}
           onOrder={() => setIsOrderingDialogOpen(true)}
           onPrintResults={() => setOutputDialog("resultsPrint")}
+          onToggleProgram={() => setOutputDialog("programVisibility")}
           programToggle={readProgramToggle(loaderData)}
         />
       }

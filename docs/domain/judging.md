@@ -32,7 +32,7 @@ Rules for presentations, judging, program, results, scores and feedback.
 ## Program And Results
 
 - Program can be published before results and reflects current order; it does not freeze a copy.
-- Administration shows and hides the program from the presentations list's actions menu, for the active event, with no confirmation: `Mostrar programa` is offered once a presentation is numbered, `Ocultar programa` whenever the program is visible.
+- Administration shows and hides the program from the presentations list's actions menu, for the active event, after a confirmation: `Mostrar programa` is offered once a presentation is numbered, `Ocultar programa` whenever the program is visible.
 - Program is public, without login, at `/programa`. It shows the active event only and only while the event's program is visible; with the program hidden, or with no active event, the page says that no program is published and does not reveal which of the two it is.
 - Program lists every presentation in order, with no gaps, and shows non-competitive data only: it hides scores, averages, awards, disqualifications, inferred absences and every `Advertencia`. It names the dancers of a solo and of a duo, and of no other group type. It announces each schedule's `awardCeremony` when one is set: on screen on that schedule's day, on paper after the schedule's last presentation.
 - Program has its own print layout, one run of pages per schedule. The academy's list of its own presentations on the portal does not print.
