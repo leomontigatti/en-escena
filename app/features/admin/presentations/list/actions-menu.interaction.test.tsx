@@ -43,7 +43,7 @@ describe("the participation list's actions menu", () => {
       [...document.querySelectorAll('[role="menuitem"]')].map(
         (item) => item.textContent,
       ),
-    ).toEqual(["Descargar programa (Excel)"]);
+    ).toEqual(["Descargar programa"]);
   });
 
   test("leaves the menu out when nothing is numbered yet", async () => {

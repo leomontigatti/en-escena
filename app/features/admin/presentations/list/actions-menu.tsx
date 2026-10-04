@@ -69,7 +69,7 @@ export function PresentationListActions({
             onExportProgram();
           }}
         >
-          Descargar programa (Excel)
+          Descargar programa
         </DropdownMenuItem>
       ) : null}
       {hasOutputs && canOrderRows ? <DropdownMenuSeparator /> : null}
