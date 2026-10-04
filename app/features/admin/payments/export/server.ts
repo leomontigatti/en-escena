@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -52,44 +52,48 @@ export async function loadCollectionExport(
     eq(payments.eventId, eventId),
     dateInPeriod(payments.paymentDate, period),
   );
-  const [paymentRows, allocationRows] = await Promise.all([
-    db
-      .select({
-        academyName: academies.name,
-        amount: payments.amount,
-        date: payments.paymentDate,
-        method: payments.paymentMethod,
-        number: payments.paymentNumber,
-        province: academies.province,
-      })
-      .from(payments)
-      .innerJoin(academies, eq(academies.id, payments.academyId))
-      .where(inPeriod)
-      .orderBy(asc(payments.paymentDate), asc(payments.paymentNumber)),
-    db
-      .select({
-        amount: sql<number>`sum(${paymentAllocations.amount})`.mapWith(Number),
-        // Null for a seminar allocation, which has no modality.
-        modalityName: modalities.name,
-      })
-      .from(paymentAllocations)
-      .innerJoin(payments, eq(payments.id, paymentAllocations.paymentId))
-      .leftJoin(
-        choreographyDancers,
-        eq(
-          choreographyDancers.id,
-          paymentAllocations.choreographyInscriptionId,
-        ),
-      )
-      .leftJoin(
-        choreographies,
-        eq(choreographies.id, choreographyDancers.choreographyId),
-      )
-      .leftJoin(modalities, eq(modalities.id, choreographies.modalityId))
-      .where(inPeriod)
-      .groupBy(modalities.id, modalities.name)
-      .orderBy(asc(modalities.name)),
-  ]);
+  // One statement, so the payments and the money allocated from them are read
+  // from the same snapshot and the sheets always add up to each other.
+  const rows = await db
+    .select({
+      academyName: academies.name,
+      allocatedAmount: paymentAllocations.amount,
+      amount: payments.amount,
+      date: payments.paymentDate,
+      id: payments.id,
+      method: payments.paymentMethod,
+      // Null for a seminar allocation, which has no modality, and for none.
+      modalityName: modalities.name,
+      number: payments.paymentNumber,
+      province: academies.province,
+    })
+    .from(payments)
+    .innerJoin(academies, eq(academies.id, payments.academyId))
+    .leftJoin(paymentAllocations, eq(paymentAllocations.paymentId, payments.id))
+    .leftJoin(
+      choreographyDancers,
+      eq(choreographyDancers.id, paymentAllocations.choreographyInscriptionId),
+    )
+    .leftJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .leftJoin(modalities, eq(modalities.id, choreographies.modalityId))
+    .where(inPeriod)
+    .orderBy(asc(payments.paymentDate), asc(payments.paymentNumber));
+  const paymentRows = [
+    ...new Map(rows.map((row) => [row.id, row])).values(),
+  ].map(({ academyName, amount, date, method, number, province }) => ({
+    academyName,
+    amount,
+    date,
+    method,
+    number,
+    province,
+  }));
+  const allocationRows = rows.flatMap(({ allocatedAmount, modalityName }) =>
+    allocatedAmount === null ? [] : [{ amount: allocatedAmount, modalityName }],
+  );
   const paymentsTotal = sum(paymentRows);
   const refundsTotal = 0;
 
@@ -172,19 +176,30 @@ function groupByAllocation(
   rows: readonly { amount: number; modalityName: string | null }[],
   paymentsTotal: number,
 ): CollectionGroupRow[] {
-  const allocated = sum(rows);
+  const byModality = new Map<string, number>();
+
+  for (const row of rows) {
+    if (row.modalityName !== null) {
+      byModality.set(
+        row.modalityName,
+        (byModality.get(row.modalityName) ?? 0) + row.amount,
+      );
+    }
+  }
 
   return [
-    ...rows.flatMap((row) =>
-      row.modalityName === null
-        ? []
-        : [{ amount: row.amount, isTotal: false, label: row.modalityName }],
-    ),
+    ...[...byModality]
+      .sort(([left], [right]) => left.localeCompare(right, "es"))
+      .map(([label, amount]) => ({ amount, isTotal: false, label })),
     {
       amount: sum(rows.filter((row) => row.modalityName === null)),
       isTotal: false,
       label: "Seminarios",
     },
-    { amount: paymentsTotal - allocated, isTotal: false, label: "Sin asignar" },
+    {
+      amount: paymentsTotal - sum(rows),
+      isTotal: false,
+      label: "Sin asignar",
+    },
   ];
 }

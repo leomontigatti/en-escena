@@ -210,7 +210,7 @@ const auditorHomeCards = [
   {
     title: "Bailarines",
     description:
-      "Consultá datos, participación e identificación de Bailarines.",
+      "Consultá datos, participación e identificación de bailarines.",
     icon: Users,
     to: "/administracion/bailarines",
   },

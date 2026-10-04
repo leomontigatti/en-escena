@@ -10,11 +10,10 @@ import {
 } from "@/db/schema";
 import { spreadsheetResponse } from "@/features/admin/day-export/server";
 import {
+  inscriptionRegisteredInPeriod,
   readPeriodExport,
-  timestampInPeriod,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
-import { activeInscription } from "@/lib/choreographies/active-inscription";
 
 import { professorsExportColumns } from "./sheet";
 
@@ -55,9 +54,7 @@ export async function loadProfessorsExport(
           .where(
             and(
               eq(choreographyProfessors.professorId, professors.id),
-              eq(choreographies.eventId, eventId),
-              activeInscription(),
-              timestampInPeriod(choreographyDancers.createdAt, period),
+              inscriptionRegisteredInPeriod(eventId, period),
             ),
           ),
       ),

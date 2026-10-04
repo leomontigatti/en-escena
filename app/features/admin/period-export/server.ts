@@ -1,9 +1,10 @@
 import { and, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events } from "@/db/schema";
+import { choreographies, choreographyDancers, events } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 
 import { readExportPeriod, type ExportPeriod } from "./shared";
@@ -46,7 +47,7 @@ export async function readPeriodExport(request: Request): Promise<{
  * start of the day after `Hasta`, both midnights in Argentina time, so a
  * movement at 23:30 on the last day is in.
  */
-export function timestampInPeriod(
+function timestampInPeriod(
   column: AnyColumn,
   period: ExportPeriod,
 ): SQL | undefined {
@@ -57,6 +58,22 @@ export function timestampInPeriod(
     period.to === null
       ? undefined
       : sql`${column} < (${period.to}::date + 1)::timestamp at time zone ${BUSINESS_TIME_ZONE}`,
+  );
+}
+
+/**
+ * What makes an inscription count for the auditor's period exports: an active
+ * choreography inscription of the event, registered in the period. The query
+ * joins `choreographyDancers` to `choreographies`.
+ */
+export function inscriptionRegisteredInPeriod(
+  eventId: string,
+  period: ExportPeriod,
+): SQL | undefined {
+  return and(
+    eq(choreographies.eventId, eventId),
+    activeInscription(),
+    timestampInPeriod(choreographyDancers.createdAt, period),
   );
 }
 

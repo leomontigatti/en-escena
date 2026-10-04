@@ -1,4 +1,4 @@
-import { and, asc, countDistinct, count, eq, type SQL } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -12,23 +12,24 @@ import {
   workbookSheet,
 } from "@/features/admin/day-export/server";
 import {
+  inscriptionRegisteredInPeriod,
   readPeriodExport,
-  timestampInPeriod,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
 import {
   formatProvinceLabel,
   noProvinceLabel,
   provinceOptions,
+  type Province,
 } from "@/lib/academies/provinces";
-import { activeInscription } from "@/lib/choreographies/active-inscription";
 
 import { participationCountColumns, type ParticipationCountRow } from "./sheet";
 
-const countSelection = {
-  academies: countDistinct(choreographies.academyId),
-  dancers: countDistinct(choreographyDancers.dancerId),
-  inscriptions: count(choreographyDancers.id),
+type CountedInscription = {
+  academyId: string;
+  dancerId: string;
+  modalityName: string;
+  province: Province | null;
 };
 
 /**
@@ -42,44 +43,30 @@ export async function loadParticipationCountsExport(
   request: Request,
 ): Promise<Response> {
   const { eventId, eventName, period } = await readPeriodExport(request);
-  const counted = and(
-    eq(choreographies.eventId, eventId),
-    activeInscription(),
-    timestampInPeriod(choreographyDancers.createdAt, period),
-  );
-  const [byProvince, byModality, [total]] = await Promise.all([
-    db
-      .select({ ...countSelection, province: academies.province })
-      .from(choreographyDancers)
-      .innerJoin(
-        choreographies,
-        eq(choreographies.id, choreographyDancers.choreographyId),
-      )
-      .innerJoin(academies, eq(academies.id, choreographies.academyId))
-      .where(counted)
-      .groupBy(academies.province),
-    db
-      .select({ ...countSelection, modalityName: modalities.name })
-      .from(choreographyDancers)
-      .innerJoin(
-        choreographies,
-        eq(choreographies.id, choreographyDancers.choreographyId),
-      )
-      .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
-      .where(counted)
-      .groupBy(modalities.id, modalities.name)
-      .orderBy(asc(modalities.name)),
-    countTotal(counted),
-  ]);
-  const provinceOrder = (province: string | null) =>
-    province === null
-      ? provinceOptions.length
-      : provinceOptions.findIndex((option) => option.value === province);
+  // One read of the inscriptions, so both sheets and their totals count the
+  // same set even while inscriptions change.
+  const inscriptions: CountedInscription[] = await db
+    .select({
+      academyId: choreographies.academyId,
+      dancerId: choreographyDancers.dancerId,
+      modalityName: modalities.name,
+      province: academies.province,
+    })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .innerJoin(academies, eq(academies.id, choreographies.academyId))
+    .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
+    .where(inscriptionRegisteredInPeriod(eventId, period))
+    .orderBy(asc(modalities.name));
   const totalRow: ParticipationCountRow = {
-    ...total,
+    ...countOf(inscriptions),
     isTotal: true,
     label: "Total",
   };
+  const provinceOrder = [...provinceOptions.map(({ value }) => value), null];
 
   return await workbookResponse({
     fileName: buildPeriodExportFileName("participacion", eventName, period),
@@ -87,13 +74,13 @@ export async function loadParticipationCountsExport(
       workbookSheet({
         columns: participationCountColumns("Provincia"),
         rows: [
-          ...[...byProvince]
+          ...groupRows(inscriptions, (inscription) => inscription.province)
             .sort(
-              (left, right) =>
-                provinceOrder(left.province) - provinceOrder(right.province),
+              ([left], [right]) =>
+                provinceOrder.indexOf(left) - provinceOrder.indexOf(right),
             )
-            .map(({ province, ...counts }) => ({
-              ...counts,
+            .map(([province, rows]) => ({
+              ...countOf(rows),
               isTotal: false,
               label: formatProvinceLabel(province) ?? noProvinceLabel,
             })),
@@ -104,8 +91,11 @@ export async function loadParticipationCountsExport(
       workbookSheet({
         columns: participationCountColumns("Modalidad"),
         rows: [
-          ...byModality.map(({ modalityName, ...counts }) => ({
-            ...counts,
+          ...groupRows(
+            inscriptions,
+            (inscription) => inscription.modalityName,
+          ).map(([modalityName, rows]) => ({
+            ...countOf(rows),
             isTotal: false,
             label: modalityName,
           })),
@@ -117,13 +107,27 @@ export async function loadParticipationCountsExport(
   });
 }
 
-async function countTotal(counted: SQL | undefined) {
-  return await db
-    .select(countSelection)
-    .from(choreographyDancers)
-    .innerJoin(
-      choreographies,
-      eq(choreographies.id, choreographyDancers.choreographyId),
-    )
-    .where(counted);
+/** The inscriptions by a key, in the order each key first appears. */
+function groupRows<Key>(
+  inscriptions: readonly CountedInscription[],
+  keyOf: (inscription: CountedInscription) => Key,
+): [Key, CountedInscription[]][] {
+  const groups = new Map<Key, CountedInscription[]>();
+
+  for (const inscription of inscriptions) {
+    const key = keyOf(inscription);
+
+    groups.set(key, [...(groups.get(key) ?? []), inscription]);
+  }
+
+  return [...groups];
+}
+
+/** Academies and dancers are distinct counts; every inscription counts. */
+function countOf(inscriptions: readonly CountedInscription[]) {
+  return {
+    academies: new Set(inscriptions.map(({ academyId }) => academyId)).size,
+    dancers: new Set(inscriptions.map(({ dancerId }) => dancerId)).size,
+    inscriptions: inscriptions.length,
+  };
 }

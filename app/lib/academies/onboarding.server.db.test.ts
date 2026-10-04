@@ -163,7 +163,7 @@ describe("academy onboarding route", () => {
 
     expect(result).toMatchObject({
       status: "error",
-      fieldErrors: { province: "Este campo es obligatorio." },
+      fieldErrors: { province: "Elegí una provincia de la lista." },
     });
     await expect(db.query.academies.findMany()).resolves.toEqual([]);
   });

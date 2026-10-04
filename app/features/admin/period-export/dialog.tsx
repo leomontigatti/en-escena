@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FieldGroup } from "@/components/ui/field";
 
 import {
   buildPeriodExportHref,
@@ -66,7 +67,7 @@ export function PeriodExportDialog({
         </DialogHeader>
 
         <form onSubmit={download} className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <FieldGroup className="grid gap-4 sm:grid-cols-2">
             <DateOnlyField
               clearable
               control={form.control}
@@ -81,7 +82,7 @@ export function PeriodExportDialog({
               name={periodToParam}
               placeholder="Hasta hoy"
             />
-          </div>
+          </FieldGroup>
 
           <DialogFooter>
             <DialogClose asChild>

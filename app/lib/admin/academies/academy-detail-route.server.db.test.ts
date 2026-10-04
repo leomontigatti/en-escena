@@ -263,7 +263,7 @@ describe("`/administracion/academias` detail", () => {
 
     await expect(save("Santa Fe")).resolves.toMatchObject({
       status: "error",
-      fieldErrors: { province: "Este campo es obligatorio." },
+      fieldErrors: { province: "Elegí una provincia de la lista." },
     });
     await expect(storedProvince()).resolves.toBeNull();
 

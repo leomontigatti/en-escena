@@ -7,8 +7,13 @@ import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { createEvent } from "@/lib/events/management.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
-export async function createAdministrativeEvent(request: Request) {
+/** Only the administrator opens the new event form. */
+export async function requireEventCreator(request: Request) {
   await requireAdminPanelUser(request);
+}
+
+export async function createAdministrativeEvent(request: Request) {
+  await requireEventCreator(request);
 
   const formData = await request.formData();
   const values = readEventFormValues(formData);

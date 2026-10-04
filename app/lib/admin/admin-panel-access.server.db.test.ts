@@ -9,6 +9,11 @@ import {
 import { loader as layoutLoader } from "@/routes/administracion";
 import { loader as academyDetailLoader } from "@/routes/administracion.academias_.$academyId";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
+import { loader as dancerDetailLoader } from "@/routes/administracion.bailarines_.$dancerId";
+import { loader as choreographyDetailLoader } from "@/routes/administracion.coreografias_.$choreographyId";
+import { loader as paymentDetailLoader } from "@/routes/administracion.pagos_.$paymentId";
+import { loader as professorDetailLoader } from "@/routes/administracion.profesores_.$professorId";
+import { seedPeriodExportFixture } from "@/features/admin/period-export/period-export.test-support";
 import { loader as dancersLoader } from "@/routes/administracion.bailarines";
 import { loader as choreographiesLoader } from "@/routes/administracion.coreografias";
 import { loader as eventsLoader } from "@/routes/administracion.eventos";
@@ -115,6 +120,52 @@ describe("the administration panel for an auditor", () => {
     });
 
     expect(detail).toMatchObject({ canEdit: false });
+  });
+
+  test("opens the dancer, professor, choreography and payment details, read-only", async () => {
+    const fixture = await seedPeriodExportFixture();
+    const academy = await fixture.addAcademy({ name: "Academia Lectura" });
+    const dancer = await fixture.addDancer(academy.id);
+    const professor = await fixture.addProfessor(academy.id);
+    const choreography = await fixture.addChoreography({
+      academyId: academy.id,
+      professorIds: [professor.id],
+    });
+    await fixture.inscribe({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      registeredAt: "2026-04-10T15:00:00Z",
+    });
+    const paymentId = await fixture.addPayment({
+      academyId: academy.id,
+      amount: 1000,
+      paymentDate: "2026-04-10",
+    });
+    const details = [
+      [dancerDetailLoader, { dancerId: dancer.id }, `bailarines/${dancer.id}`],
+      [
+        professorDetailLoader,
+        { professorId: professor.id },
+        `profesores/${professor.id}`,
+      ],
+      [
+        choreographyDetailLoader,
+        { choreographyId: choreography.id },
+        `coreografias/${choreography.id}`,
+      ],
+      [paymentDetailLoader, { paymentId }, `pagos/${paymentId}`],
+    ] as const;
+
+    for (const [child, params, path] of details) {
+      const [, detail] = await openPanelScreen({
+        child: child as unknown as ChildLoader,
+        params,
+        path: `/administracion/${path}`,
+        role: "auditor",
+      });
+
+      expect(detail).toMatchObject({ canEdit: false });
+    }
   });
 
   test.each([

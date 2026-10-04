@@ -53,6 +53,9 @@ export function formatProvinceLabel(province: Province | null) {
   );
 }
 
+/** A province given but not one of the options: only a crafted request sends one. */
+const provinceNotListedMessage = "Elegí una provincia de la lista.";
+
 /**
  * The form field: typed as text, since the select starts empty, and refused
  * unless it is one of the options.
@@ -61,5 +64,6 @@ export function provinceField() {
   return z
     .string()
     .trim()
-    .pipe(z.enum(provinceValues, { message: requiredFieldMessage }));
+    .min(1, requiredFieldMessage)
+    .pipe(z.enum(provinceValues, { message: provinceNotListedMessage }));
 }
