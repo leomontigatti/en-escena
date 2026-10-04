@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
+import { loadAcademiesList } from "@/features/admin/academies/list/server";
+import { AcademiesListRouteView } from "@/features/admin/academies/list/view";
 import { loadDancersList } from "@/features/admin/dancers/list/server";
 import { DancersListRouteView } from "@/features/admin/dancers/list/view";
 import { loadProfessorsList } from "@/features/admin/professors/list/server";
@@ -58,6 +60,17 @@ const lists = [
         "/administracion/bailarines",
         createElement(DancersListRouteView, {
           loaderData: await loadDancersList(request),
+        }),
+      ),
+  },
+  {
+    label: "Academias",
+    path: "/administracion/academias",
+    renderList: async (request: Request) =>
+      render(
+        "/administracion/academias",
+        createElement(AcademiesListRouteView, {
+          loaderData: await loadAcademiesList(request),
         }),
       ),
   },

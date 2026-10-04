@@ -11,6 +11,8 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
+import { academiesExportPath } from "@/features/admin/academies/export/shared";
+import { PeriodExportMenu } from "@/features/admin/period-export/menu";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { loadAcademiesList } from "./server";
@@ -89,6 +91,15 @@ export function AcademiesListRouteView({
       selectedEventId={loaderData.selectedEventId}
       title="Academias"
       description="Consultá las academias registradas y, si hay evento activo, su participación."
+      headerAction={
+        !loaderData.canWrite && loaderData.selectedEventId !== null ? (
+          <PeriodExportMenu
+            description="Las academias con inscripciones registradas en el período, en el evento activo. Dejá una fecha vacía para no acotar ese extremo."
+            path={academiesExportPath}
+            title="Exportar academias"
+          />
+        ) : undefined
+      }
     >
       {loaderData.academies.length > 0 ? (
         <ClientDataTable
