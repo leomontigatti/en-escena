@@ -168,7 +168,13 @@ function ProgramVisibilityItem({
           {isPending ? (
             <Spinner aria-hidden="true" data-icon="inline-start" />
           ) : null}
-          {show ? "Mostrar programa" : "Ocultar programa"}
+          {isPending
+            ? show
+              ? "Mostrando programa…"
+              : "Ocultando programa…"
+            : show
+              ? "Mostrar programa"
+              : "Ocultar programa"}
         </button>
       </DropdownMenuItem>
     </Form>
