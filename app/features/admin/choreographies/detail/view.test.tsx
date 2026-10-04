@@ -50,6 +50,7 @@ describe("ChoreographyDetailRouteView", () => {
     });
 
     expect(markup).toContain("Esta coreografía ya fue evaluada");
+    expect(markup).toContain("La evaluación no se puede anular.");
     expect(markup).not.toContain("Tampoco puede eliminarse ni retirarse.");
   });
 

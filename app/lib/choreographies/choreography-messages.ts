@@ -16,6 +16,12 @@ export const evaluatedChoreographyMessage =
   "Esta coreografía ya fue evaluada y no puede modificarse.";
 
 /**
+ * The detail's alert says the lock is for good (style guide, Detail pages):
+ * there is no score annulment, so nothing unlocks an evaluated choreography.
+ */
+export const evaluatedChoreographyNotice = `${evaluatedChoreographyMessage} La evaluación no se puede anular.`;
+
+/**
  * A single text for the experience-level rejection. It lives here and not in the
  * roster module because portal sign-up, roster saving and the detail's standalone
  * reassignment all share it, and the validator the three of them use cannot

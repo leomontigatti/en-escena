@@ -6,10 +6,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import {
-  priceDeletionWayOut,
-  readPriceDeletionBlock,
-} from "@/lib/prices/guards";
+import { readPriceDeletionBlock } from "@/lib/prices/guards";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 
 export function SeminarPriceActions({
@@ -44,12 +41,12 @@ export function SeminarPriceActions({
         title="¿Eliminar el precio de seminario?"
         description={
           deletionBlock
-            ? priceDeletionWayOut
+            ? deletionBlock.wayOut
             : `Esta acción elimina ${seminarPrice.name}. No se puede deshacer.`
         }
         blockedTitle="No se puede eliminar el precio de seminario"
         isBlocked={deletionBlock !== null}
-        blockedDescription={deletionBlock}
+        blockedDescription={deletionBlock?.reason}
         intentValue="delete-seminar-price"
         recordId={seminarPrice.id}
         open={deleteDialogOpen}

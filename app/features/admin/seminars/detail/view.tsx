@@ -1,7 +1,7 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { GuardAlert } from "@/components/shared/guard-alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { coveredSeminarMessage } from "@/lib/seminars/registration-refusals";
+import { coveredSeminarNotice } from "@/lib/seminars/registration-refusals";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { SeminarActions } from "../actions";
@@ -42,7 +42,7 @@ export function SeminarDetailView({
   // Only a covered inscription has a standing reason: it locks fields. One that
   // only blocks the delete is said by `Eliminar` when it is clicked.
   const lockReason = loaderData.hasCoveredInscription
-    ? coveredSeminarMessage
+    ? coveredSeminarNotice
     : null;
 
   return (
@@ -52,6 +52,7 @@ export function SeminarDetailView({
       description="Editá el instructor, su foto, el tipo, la fecha, la hora, el cupo y la seña del seminario."
       headerAction={
         <SeminarActions
+          hasComprobantes={loaderData.hasComprobantes}
           seminar={seminar}
           initialDeleteDialogOpen={initialDeleteDialogOpen}
         />

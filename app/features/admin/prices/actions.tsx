@@ -13,10 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { PriceListItem } from "@/lib/events/bases.server";
-import {
-  priceDeletionWayOut,
-  readPriceDeletionBlock,
-} from "@/lib/prices/guards";
+import { readPriceDeletionBlock } from "@/lib/prices/guards";
 
 import { getPriceDisplayName } from "./view-shared";
 
@@ -52,12 +49,12 @@ export function PriceActions({
         title="¿Eliminar el precio?"
         description={
           deletionBlock
-            ? priceDeletionWayOut
+            ? deletionBlock.wayOut
             : `Esta acción elimina ${getPriceDisplayName(price)}. No se puede deshacer.`
         }
         blockedTitle="No se puede eliminar el precio"
         isBlocked={deletionBlock !== null}
-        blockedDescription={deletionBlock}
+        blockedDescription={deletionBlock?.reason}
         intentValue="delete-price"
         recordId={price.id}
         open={deleteDialogOpen}

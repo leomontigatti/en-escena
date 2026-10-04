@@ -61,3 +61,10 @@ export const seminarNoPlacesForRevivalMessage = "Sin lugares disponibles.";
  */
 export const coveredSeminarMessage =
   "Este seminario tiene inscripciones con la seña cubierta. No podés cambiar el tipo de seminario ni la seña.";
+
+/**
+ * The detail's alert adds what unlocks the fields (style guide, Detail pages):
+ * coverage is derived from today's money, so the lock lifts once no
+ * inscription covers its deposit any more.
+ */
+export const coveredSeminarNotice = `${coveredSeminarMessage} Se libera cuando ninguna inscripción tenga la seña cubierta: quitá el dinero o retirá esas inscripciones.`;

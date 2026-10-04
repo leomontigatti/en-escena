@@ -21,10 +21,11 @@ import type {
 import type { PriceListItem } from "@/lib/events/bases.server";
 import {
   frozenPriceDeleteError,
+  uncoveredPriceNotice,
+  frozenSpecialPriceNotice,
+  frozenPriceNotice,
   frozenPriceUpdateError,
-  frozenSpecialPriceUpdateError,
   uncoveredPriceDeleteError,
-  uncoveredPriceUpdateError,
 } from "@/lib/prices/guards";
 import { findButton } from "@/lib/test-support/react-dom";
 
@@ -135,7 +136,7 @@ describe("EventPriceDetailRouteView", () => {
       EventPriceDetailRouteView,
     });
 
-    expect(container.textContent).toContain(frozenPriceUpdateError);
+    expect(container.textContent).toContain(frozenPriceNotice);
     // The alert sits above the card, not inside the form it explains.
     expect(container.querySelector("form")?.textContent).not.toContain(
       frozenPriceUpdateError,
@@ -190,7 +191,7 @@ describe("EventPriceDetailRouteView", () => {
     });
 
     // In use, the price is frozen except for its name and its schedules.
-    expect(container.textContent).toContain(frozenSpecialPriceUpdateError);
+    expect(container.textContent).toContain(frozenSpecialPriceNotice);
     expect(readInputTypes(container, "amount")).toEqual(["hidden"]);
     expect(readInputValues(container, "scheduleIds")).toEqual([
       "block_1",
@@ -224,7 +225,7 @@ describe("EventPriceDetailRouteView", () => {
       EventPriceDetailRouteView,
     });
 
-    expect(container.textContent).toContain(uncoveredPriceUpdateError);
+    expect(container.textContent).toContain(uncoveredPriceNotice);
     expect(readInputTypes(container, "amount")).not.toContain("hidden");
     expect(readInputTypes(container, "paymentDeadline")).toEqual(["hidden"]);
   });

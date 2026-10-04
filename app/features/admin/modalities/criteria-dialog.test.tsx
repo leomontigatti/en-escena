@@ -151,9 +151,16 @@ describe("the submodality criteria editor", () => {
 
     expect(findButton("Guardar")).toBeUndefined();
     expect(findButton("Agregar criterio que suma")).toBeUndefined();
-    expect(
-      document.querySelector<HTMLInputElement>("#criterion-name-0")?.disabled,
-    ).toBe(true);
+    // The shared read-only look, like any field the record's state locks.
+    const name = document.querySelector<HTMLInputElement>("#criterion-name-0");
+    const maximum = document.querySelector<HTMLInputElement>(
+      "#criterion-maximum-0",
+    );
+
+    expect(name?.readOnly).toBe(true);
+    expect(name?.value).toBe("Técnica");
+    expect(maximum?.readOnly).toBe(true);
+    expect(maximum?.value).toBe("100");
   });
 
   async function mount(

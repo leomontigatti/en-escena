@@ -35,6 +35,11 @@ export type AcademyDetailLoaderData = {
     province: string;
   };
   canEdit: boolean;
+  /**
+   * What keeps the academy from being deleted, as the delete refusal lists it
+   * (`2 bailarines`). Empty when it can be deleted, and for an auditor.
+   */
+  deletionHoldings: string[];
   /** What the merge dialog offers; `null` for a read-only auditor. */
   merge: {
     candidates: AcademyMergeCandidate[];

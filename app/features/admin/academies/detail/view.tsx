@@ -9,6 +9,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { ReasonList } from "@/components/shared/reason-list";
 import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
@@ -172,12 +173,25 @@ export function AcademyDetailRouteView({
         </form>
       </AdminResourceFormCard>
       {canEdit ? (
-        // Whether the academy is empty is only known for certain at the moment
-        // of the delete, so the dialog always offers the action and the server
-        // is what refuses, naming what the academy still holds.
+        // An academy that still holds something answers `Eliminar` with what
+        // it holds (style guide, Detail pages); the delete reads it again
+        // inside its transaction, for the race.
         <DeleteDialog
           title="¿Eliminar la academia?"
-          description={`Esta acción borra la academia ${academy.name} y su usuario de acceso. Solo procede si no tiene bailarines, profesores, coreografías, inscripciones a seminarios ni pagos.`}
+          blockedTitle="No se puede eliminar la academia"
+          description={
+            loaderData.deletionHoldings.length > 0
+              ? "Solo se puede eliminar una academia vacía. Si es un duplicado, fusionala con la otra."
+              : `Esta acción borra la academia ${academy.name} y su usuario de acceso.`
+          }
+          isBlocked={loaderData.deletionHoldings.length > 0}
+          blockedDescription={
+            <ReasonList
+              reasons={loaderData.deletionHoldings.map(
+                (holding) => `Tiene ${holding}.`,
+              )}
+            />
+          }
           intentValue={deleteAcademyIntent}
           recordId={academy.id}
           open={isDeleteDialogOpen}

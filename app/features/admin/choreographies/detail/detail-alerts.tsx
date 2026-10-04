@@ -2,7 +2,7 @@ import { Info, TriangleAlert } from "lucide-react";
 
 import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import { evaluatedChoreographyNotice } from "@/lib/choreographies/choreography-messages";
 
 import type { ChoreographyDetailLoaderData } from "./server";
 
@@ -48,7 +48,7 @@ export function ChoreographyDetailAlerts({
         <Alert variant="info">
           <Info aria-hidden="true" />
           <AlertTitle>Esta coreografía ya fue evaluada</AlertTitle>
-          <AlertDescription>{evaluatedChoreographyMessage}</AlertDescription>
+          <AlertDescription>{evaluatedChoreographyNotice}</AlertDescription>
         </Alert>
       ) : choreography.presentationOrderNumber === null ? null : (
         <Alert variant="info">

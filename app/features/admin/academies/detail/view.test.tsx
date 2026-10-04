@@ -37,6 +37,7 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
       province: "Santa Fe",
     },
     canEdit,
+    deletionHoldings: [],
     merge: null,
     selectedEventId: null,
   };
@@ -45,10 +46,12 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
 async function renderDetail({
   actionData,
   canEdit = true,
+  deletionHoldings = [],
   initialDeleteDialogOpen = false,
 }: {
   actionData?: AcademyDetailActionData;
   canEdit?: boolean;
+  deletionHoldings?: string[];
   initialDeleteDialogOpen?: boolean;
 } = {}) {
   let saves = 0;
@@ -71,7 +74,7 @@ async function renderDetail({
           <AcademyDetailRouteView
             actionData={actionData}
             initialDeleteDialogOpen={initialDeleteDialogOpen}
-            loaderData={buildLoaderData(canEdit)}
+            loaderData={{ ...buildLoaderData(canEdit), deletionHoldings }}
           />
         ),
       },
@@ -180,6 +183,27 @@ describe("AcademyDetailRouteView", () => {
     expect(readDialogHiddenValue("intent")).toBe("delete-academy");
     expect(readDialogHiddenValue("id")).toBe("academy_1");
     expect(readDialogHiddenValue("confirmDeletion")).toBe("academy_1");
+  });
+
+  // An academy that still holds something answers `Eliminar` with what it
+  // holds and the way out, instead of a refusal after the submit.
+  test("answers Eliminar on an academy that holds records with what it holds", async () => {
+    await renderDetail({
+      deletionHoldings: ["2 bailarines", "1 pago"],
+      initialDeleteDialogOpen: true,
+    });
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se puede eliminar la academia",
+    );
+    expect(dialog?.textContent).toContain("Tiene 2 bailarines.");
+    expect(dialog?.textContent).toContain("Tiene 1 pago.");
+    expect(dialog?.textContent).toContain(
+      "Si es un duplicado, fusionala con la otra.",
+    );
+    expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
   });
 
   test("offers no delete action to a read-only auditor", async () => {
