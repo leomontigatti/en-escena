@@ -153,18 +153,18 @@ export function PortalProfileRouteView({
                 placeholder={argentinePhonePlaceholder}
                 type="tel"
               />
-              <AcademyProfileTextField
-                autoComplete="address-level2"
-                form={form.form}
-                label="Ciudad"
-                name="city"
-              />
               <SelectField
                 control={form.form.control}
                 label="Provincia"
                 name="province"
                 options={provinceOptions}
                 placeholder="Elegí una provincia"
+              />
+              <AcademyProfileTextField
+                autoComplete="address-level2"
+                form={form.form}
+                label="Ciudad"
+                name="city"
               />
             </FieldGroup>
           </form>

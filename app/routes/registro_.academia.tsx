@@ -36,15 +36,15 @@ const academyOnboardingSchema = z.object({
   academyName: requiredTextField(),
   contactName: requiredTextField(),
   phone: argentinePhoneField(),
-  city: requiredTextField(),
   province: provinceField(),
+  city: requiredTextField(),
 });
 const academyOnboardingFields = [
   "academyName",
   "contactName",
   "phone",
-  "city",
   "province",
+  "city",
 ] as const;
 type AcademyOnboardingField = (typeof academyOnboardingFields)[number];
 type AcademyOnboardingValues = z.input<typeof academyOnboardingSchema>;
@@ -53,8 +53,8 @@ const emptyAcademyOnboardingValues: AcademyOnboardingValues = {
   academyName: "",
   contactName: "",
   phone: "",
-  city: "",
   province: "",
+  city: "",
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -73,15 +73,15 @@ export async function action({ request }: Route.ActionArgs) {
     academyName: readFormValue(formData.get("academyName")),
     contactName: readFormValue(formData.get("contactName")),
     phone: readFormValue(formData.get("phone")),
-    city: readFormValue(formData.get("city")),
     province: readFormValue(formData.get("province")),
+    city: readFormValue(formData.get("city")),
   } satisfies AcademyOnboardingValues;
   const parsed = academyOnboardingSchema.safeParse({
     academyName: formData.get("academyName"),
     contactName: formData.get("contactName"),
     phone: formData.get("phone"),
-    city: formData.get("city"),
     province: formData.get("province"),
+    city: formData.get("city"),
   });
 
   if (!parsed.success) {
@@ -190,19 +190,19 @@ export default function AcademyOnboardingRoute() {
             type="tel"
           />
 
-          <AccessTextField
-            autoComplete="address-level2"
-            controller={form}
-            label="Ciudad"
-            name="city"
-          />
-
           <SelectField
             control={form.form.control}
             label="Provincia"
             name="province"
             options={provinceOptions}
             placeholder="Elegí una provincia"
+          />
+
+          <AccessTextField
+            autoComplete="address-level2"
+            controller={form}
+            label="Ciudad"
+            name="city"
           />
 
           <Button className="w-full" type="submit">

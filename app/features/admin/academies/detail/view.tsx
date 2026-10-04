@@ -157,13 +157,6 @@ export function AcademyDetailRouteView({
               placeholder={argentinePhonePlaceholder}
               type="tel"
             />
-            <TextInputField
-              autoComplete="address-level2"
-              control={form.form.control}
-              disabled={!canEdit}
-              label="Ciudad"
-              name="city"
-            />
             <SelectField
               control={form.form.control}
               disabled={!canEdit}
@@ -171,6 +164,13 @@ export function AcademyDetailRouteView({
               name="province"
               options={provinceOptions}
               placeholder="Elegí una provincia"
+            />
+            <TextInputField
+              autoComplete="address-level2"
+              control={form.form.control}
+              disabled={!canEdit}
+              label="Ciudad"
+              name="city"
             />
           </FieldGroup>
         </form>

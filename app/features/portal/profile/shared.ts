@@ -14,8 +14,8 @@ export const academyProfileSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
   contactName: z.string().trim().min(1, requiredFieldMessage),
   phone: argentinePhoneField(),
-  city: z.string().trim().min(1, requiredFieldMessage),
   province: provinceField(),
+  city: z.string().trim().min(1, requiredFieldMessage),
 });
 
 /** As the form holds them: the province is text until one is picked. */
