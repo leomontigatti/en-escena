@@ -15,8 +15,13 @@ import {
 } from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 
+import {
+  buildExportHref,
+  exportAllDays,
+} from "@/features/admin/day-export/shared";
+
 import { loadProgramExport } from "./server";
-import { buildProgramExportHref, programExportAllDays } from "./shared";
+import { programExportPath } from "./shared";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -28,7 +33,7 @@ async function signedInRequest(
 ) {
   const { request } = await createSignedInAdminRequest({
     email: `${crypto.randomUUID()}@example.com`,
-    requestUrl: `http://localhost${buildProgramExportHref(day)}`,
+    requestUrl: `http://localhost${buildExportHref(programExportPath, day)}`,
     role,
   });
 
@@ -125,7 +130,7 @@ describe("the program export", () => {
     });
 
     const response = await loadProgramExport(
-      await signedInRequest(programExportAllDays),
+      await signedInRequest(exportAllDays),
     );
 
     expect(response.headers.get("Content-Type")).toBe(
@@ -197,7 +202,7 @@ describe("the program export", () => {
       .where(eq(academies.id, academyId));
 
     const strings = await readWorkbookStrings(
-      await loadProgramExport(await signedInRequest(programExportAllDays)),
+      await loadProgramExport(await signedInRequest(exportAllDays)),
     );
 
     expect(strings).toContain("Carla Díaz");
@@ -230,7 +235,7 @@ describe("the program export", () => {
     });
 
     await expectThrownResponse(
-      loadProgramExport(await signedInRequest(programExportAllDays, "auditor")),
+      loadProgramExport(await signedInRequest(exportAllDays, "auditor")),
       403,
     );
   });

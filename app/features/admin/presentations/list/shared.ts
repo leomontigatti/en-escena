@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
-import type { EventProgramSchedule } from "@/lib/presentations/event-program.server";
 import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { PresentationWarning } from "@/lib/presentations/warnings";
@@ -123,11 +122,6 @@ export type PresentationListResult = {
   programVisible: boolean;
   /** The days the program export offers: the ones with a numbered row. */
   programExportDays: string[];
-  /**
-   * The schedules the results print offers: the ones with a presentation, in
-   * day and time order, which is how the print runs them.
-   */
-  printableSchedules: EventProgramSchedule[];
   selectedEventId: string | null;
   totalCount: number;
   totalPages: number;

@@ -38,7 +38,6 @@ import {
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
 import { readMusicDownloadDays } from "../music-download/server";
-import { listPrintableSchedules } from "../results-print/shared";
 
 import {
   assignJudgesIntent,
@@ -124,7 +123,6 @@ async function loadPresentationList(input: {
       presentations: [],
       programExportDays: [],
       programVisible: false,
-      printableSchedules: [],
       selectedEventId: null,
       totalCount: 0,
       totalPages: 1,
@@ -200,7 +198,6 @@ async function loadPresentationList(input: {
       ),
     ].sort(),
     programVisible,
-    printableSchedules: listPrintableSchedules(rows),
     selectedEventId: input.selectedEventId,
     totalCount: filteredItems.length,
     totalPages,

@@ -25,7 +25,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ResultsPrintDialog } from "@/features/admin/presentations/results-print/dialog";
+import { DayExportDialog } from "@/features/admin/day-export/dialog";
+import { resultsExportPath } from "@/features/admin/results/export/shared";
 import {
   ScheduleDayTabs,
   useScheduleDayTab,
@@ -194,7 +195,7 @@ export function ResultsListView({
   const [resultsAction, setResultsAction] = useState<ResultsAction | null>(
     null,
   );
-  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const tab = useScheduleDayTab(loaderData.days);
 
   return (
@@ -209,12 +210,10 @@ export function ResultsListView({
       }}
       headerAction={
         <ResultsListActions
-          canPrint={
-            loaderData.canPublish && loaderData.printableSchedules.length > 0
-          }
+          canExport={loaderData.canPublish && loaderData.exportDays.length > 0}
           canPublish={loaderData.canPublish}
           isPublished={loaderData.publication.publishedAt !== null}
-          onPrint={() => setIsPrintDialogOpen(true)}
+          onExport={() => setIsExportDialogOpen(true)}
           onPublication={setResultsAction}
         />
       }
@@ -262,48 +261,51 @@ export function ResultsListView({
           publication={loaderData.publication}
         />
       ) : null}
-      {isPrintDialogOpen ? (
-        <ResultsPrintDialog
+      {isExportDialogOpen ? (
+        <DayExportDialog
+          days={loaderData.exportDays}
+          description="Elegí el día, o todos. Se descarga una planilla de Excel con el promedio y el premio de cada presentación evaluada."
           open
-          onOpenChange={setIsPrintDialogOpen}
-          schedules={loaderData.printableSchedules}
+          onOpenChange={setIsExportDialogOpen}
+          path={resultsExportPath}
+          title="Descargar resultados"
         />
       ) : null}
     </AdminResourceLayout>
   );
 }
 
-/** The print first, then the publication; with neither there is no menu. */
+/** The export first, then the publication; with neither there is no menu. */
 function ResultsListActions({
-  canPrint,
+  canExport,
   canPublish,
   isPublished,
-  onPrint,
+  onExport,
   onPublication,
 }: {
-  canPrint: boolean;
+  canExport: boolean;
   canPublish: boolean;
   isPublished: boolean;
-  onPrint: () => void;
+  onExport: () => void;
   onPublication: (action: ResultsAction) => void;
 }) {
-  if (!canPrint && !canPublish) {
+  if (!canExport && !canPublish) {
     return null;
   }
 
   return (
     <ResourceActionsMenu contentClassName="w-48">
-      {canPrint ? (
+      {canExport ? (
         <DropdownMenuItem
           onSelect={(event) => {
             event.preventDefault();
-            onPrint();
+            onExport();
           }}
         >
-          Imprimir resultados
+          Descargar resultados
         </DropdownMenuItem>
       ) : null}
-      {canPrint && canPublish ? <DropdownMenuSeparator /> : null}
+      {canExport && canPublish ? <DropdownMenuSeparator /> : null}
       {canPublish ? (
         <ResultsPublicationItems
           isPublished={isPublished}

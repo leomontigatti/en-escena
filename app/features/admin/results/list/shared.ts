@@ -2,7 +2,6 @@ import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { Award } from "@/lib/judging/award";
 import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
 import type { ResultsPublication } from "@/lib/judging/results.server";
-import type { EventProgramSchedule } from "@/lib/presentations/event-program.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
 /**
@@ -66,8 +65,8 @@ export type ResultsListResult = {
   days: string[];
   filters: ResultsListFilters;
   hasAnyRow: boolean;
-  /** The schedules the results print offers, in day and time order. */
-  printableSchedules: EventProgramSchedule[];
+  /** The days the results export offers: the ones with a result, in order. */
+  exportDays: string[];
   publication: ResultsPublication;
   results: ResultsListItem[];
   selectedEventId: string | null;

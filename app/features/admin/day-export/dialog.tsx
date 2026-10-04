@@ -16,35 +16,42 @@ import {
 import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
 
 import {
-  buildProgramExportHref,
-  programExportAllDays,
-  programExportDayParam,
-  programExportSchema,
-  type ProgramExportFormValues,
-} from "../program-export/shared";
+  buildExportHref,
+  exportAllDays,
+  exportDayParam,
+  exportDaySchema,
+  type ExportDayFormValues,
+} from "./shared";
 
 /**
- * Picks what the program spreadsheet holds, the whole event or one day, and
+ * Picks what a spreadsheet export holds, the whole event or one day, and
  * starts the download in place: the answer is an attachment, so the list stays
  * where it is. Nothing is chosen up front, so the file is always the one asked for.
  */
-export function ProgramExportDialog({
+export function DayExportDialog({
   days,
+  description,
   onOpenChange,
   open,
+  path,
+  title,
 }: {
-  /** In date order, only the days with numbered presentations. */
+  /** In date order, only the days the export has rows for. */
   days: string[];
+  description: string;
   onOpenChange: (open: boolean) => void;
   open: boolean;
+  /** Where the download lives; the chosen day travels in its query. */
+  path: string;
+  title: string;
 }) {
-  const form = useForm<ProgramExportFormValues>({
-    defaultValues: { [programExportDayParam]: "" },
-    resolver: zodResolver(programExportSchema),
+  const form = useForm<ExportDayFormValues>({
+    defaultValues: { [exportDayParam]: "" },
+    resolver: zodResolver(exportDaySchema),
   });
 
   const download = form.handleSubmit((values) => {
-    window.open(buildProgramExportHref(values[programExportDayParam]), "_self");
+    window.open(buildExportHref(path, values[exportDayParam]), "_self");
     onOpenChange(false);
   });
 
@@ -52,20 +59,17 @@ export function ProgramExportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Descargar programa</DialogTitle>
-          <DialogDescription>
-            Elegí el día, o todos. Se descarga una planilla de Excel con las
-            presentaciones en su orden.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={download} className="flex flex-col gap-4">
           <SelectField
             control={form.control}
             label="Día"
-            name={programExportDayParam}
+            name={exportDayParam}
             options={[
-              { label: "Todos", value: programExportAllDays },
+              { label: "Todos", value: exportAllDays },
               ...days.map((day) => ({
                 label: formatScheduleDayTabLabel(day),
                 value: day,

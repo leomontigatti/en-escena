@@ -5,18 +5,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 /**
- * The participation list's actions menu: printing results, downloading the
- * day's music, exporting the program and showing or hiding it first, then the
- * ordering and the two judge dialogs. Every item opens a dialog the list owns,
- * so the menu only says which one. With nothing to offer there is no menu.
+ * The participation list's actions menu: downloading the day's music,
+ * exporting the program and showing or hiding it first, then the ordering and
+ * the two judge dialogs. Every item opens a dialog the list owns, so the menu
+ * only says which one. With nothing to offer there is no menu.
  */
 type OutputActionsProps = {
   canDownloadMusic: boolean;
   canExportProgram: boolean;
-  canPrintResults: boolean;
   onDownloadMusic: () => void;
   onExportProgram: () => void;
-  onPrintResults: () => void;
   onToggleProgram: () => void;
   /**
    * Which way the program's visibility can go, for the event the list shows;
@@ -40,7 +38,6 @@ export function PresentationListActions({
     canOrderRows: boolean;
   }) {
   const hasOutputs =
-    props.canPrintResults ||
     props.canDownloadMusic ||
     props.canExportProgram ||
     props.programToggle !== null;
@@ -61,18 +58,13 @@ export function PresentationListActions({
 function OutputItems({
   canDownloadMusic,
   canExportProgram,
-  canPrintResults,
   onDownloadMusic,
   onExportProgram,
-  onPrintResults,
   onToggleProgram,
   programToggle,
 }: OutputActionsProps) {
   return (
     <>
-      {canPrintResults ? (
-        <DialogItem label="Imprimir resultados" onOpen={onPrintResults} />
-      ) : null}
       {canDownloadMusic ? (
         <DialogItem label="Descargar audios" onOpen={onDownloadMusic} />
       ) : null}

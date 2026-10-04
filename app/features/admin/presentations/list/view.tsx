@@ -441,15 +441,11 @@ export function PresentationsListView({
           }
           canExportProgram={loaderData.programExportDays.length > 0}
           canOrderRows={loaderData.canOrder && loaderData.hasAnyRow}
-          canPrintResults={
-            loaderData.canOrder && loaderData.printableSchedules.length > 0
-          }
           hasSelection={selectedRows.length > 0}
           onDownloadMusic={() => setOutputDialog("musicDownload")}
           onExportProgram={() => setOutputDialog("programExport")}
           onJudges={setJudgeDialogMode}
           onOrder={() => setIsOrderingDialogOpen(true)}
-          onPrintResults={() => setOutputDialog("resultsPrint")}
           onToggleProgram={() => setOutputDialog("programVisibility")}
           programToggle={readProgramToggle(loaderData)}
         />

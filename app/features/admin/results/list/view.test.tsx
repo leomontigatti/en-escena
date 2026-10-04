@@ -63,7 +63,7 @@ function buildLoaderData(
       query: "",
     },
     hasAnyRow: true,
-    printableSchedules: [],
+    exportDays: [],
     publication: { pendingCount: 0, publishedAt: null, publishedCount: 0 },
     results: [buildRow()],
     selectedEventId: "evento_1",
