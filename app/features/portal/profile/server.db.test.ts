@@ -55,7 +55,7 @@ describe("portal profile server", () => {
           city: " villa maría ",
           contactName: " responsable nueva ",
           phone: "1199990000",
-          province: " córdoba ",
+          province: "cordoba",
         }),
       ),
     );
@@ -74,7 +74,7 @@ describe("portal profile server", () => {
       city: "Villa María",
       contactName: "Responsable Nueva",
       phone: "1199990000",
-      province: "Córdoba",
+      province: "cordoba",
     });
   });
 
@@ -115,6 +115,63 @@ describe("portal profile server", () => {
       contactName: "Contacto",
       province: null,
     });
+  });
+
+  test("refuses a province outside the list", async () => {
+    const session = await createAcademySession({
+      email: "perfil.province.free@example.com",
+      academyName: "Academia Libre",
+    });
+
+    const result = await handlePortalProfileAction(
+      createPortalPostRequest(
+        "http://localhost/portal/perfil",
+        session.cookie,
+        academyProfileFormData({
+          name: "Academia Libre",
+          contactName: "Responsable",
+          phone: "1112345678",
+          province: "Córdoba",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: { province: "Este campo es obligatorio." },
+    });
+    await expect(
+      db.query.academies.findFirst({
+        where: eq(academies.id, session.academyId),
+      }),
+    ).resolves.toMatchObject({ province: null });
+  });
+
+  test("saves an academy from abroad with `Otro país`", async () => {
+    const session = await createAcademySession({
+      email: "perfil.province.abroad@example.com",
+      academyName: "Academia Extranjera",
+    });
+
+    const result = await handlePortalProfileAction(
+      createPortalPostRequest(
+        "http://localhost/portal/perfil",
+        session.cookie,
+        academyProfileFormData({
+          name: "Academia Extranjera",
+          contactName: "Responsable",
+          phone: "1112345678",
+          province: "otro_pais",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    await expect(
+      db.query.academies.findFirst({
+        where: eq(academies.id, session.academyId),
+      }),
+    ).resolves.toMatchObject({ province: "otro_pais" });
   });
 
   test("returns a field error without persisting profile phone numbers with spaces", async () => {
@@ -212,7 +269,7 @@ function academyProfileFormData(input: {
   formData.set("contactName", input.contactName);
   formData.set("phone", input.phone);
   formData.set("city", input.city ?? "Ciudad");
-  formData.set("province", input.province ?? "Provincia");
+  formData.set("province", input.province ?? "santa_fe");
 
   return formData;
 }

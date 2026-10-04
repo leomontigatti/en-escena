@@ -5,7 +5,7 @@ import { buildProgramSheet, type ProgramExportRow } from "./sheet";
 function row(overrides: Partial<ProgramExportRow> = {}): ProgramExportRow {
   return {
     academyName: "Estudio Ritmo",
-    academyProvince: "Córdoba",
+    academyProvince: "cordoba",
     categoryName: "Juvenil",
     dancerNames: ["Ana Pérez"],
     groupType: "solo",

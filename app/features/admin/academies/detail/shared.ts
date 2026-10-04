@@ -6,6 +6,7 @@ import type {
   mergeAcademyIntent,
 } from "@/lib/academies/academy-merge.shared";
 import type { AcademyProfileField } from "@/lib/academies/academy-profile.server";
+import { provinceField } from "@/lib/academies/provinces";
 import type { MergeRefusedActionData } from "@/lib/shared/merge";
 import { argentinePhoneField } from "@/lib/shared/argentine-phone";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -20,7 +21,7 @@ export const academyDetailSchema = z.object({
   contactName: z.string().trim().min(1, requiredFieldMessage),
   phone: argentinePhoneField(),
   city: z.string().trim().min(1, requiredFieldMessage),
-  province: z.string().trim().min(1, requiredFieldMessage),
+  province: provinceField(),
 });
 
 export type AcademyDetailLoaderData = {
@@ -43,7 +44,8 @@ export type AcademyDetailLoaderData = {
   selectedEventId: string | null;
 };
 
-export type AcademyDetailFormValues = z.infer<typeof academyDetailSchema>;
+/** As the form holds them: the province is text until one is picked. */
+export type AcademyDetailFormValues = z.input<typeof academyDetailSchema>;
 export type AcademyDetailFieldErrors = Partial<
   Record<AcademyProfileField, string>
 >;

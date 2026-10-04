@@ -9,6 +9,7 @@ import { FormActions } from "@/components/shared/form-actions";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -35,6 +36,7 @@ import {
   type AcademyProfileFormValues,
   type PortalProfileActionData,
 } from "@/features/portal/profile/shared";
+import { provinceOptions } from "@/lib/academies/provinces";
 import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
@@ -157,11 +159,12 @@ export function PortalProfileRouteView({
                 label="Ciudad"
                 name="city"
               />
-              <AcademyProfileTextField
-                autoComplete="address-level1"
-                form={form.form}
+              <SelectField
+                control={form.form.control}
                 label="Provincia"
                 name="province"
+                options={provinceOptions}
+                placeholder="Elegí una provincia"
               />
             </FieldGroup>
           </form>

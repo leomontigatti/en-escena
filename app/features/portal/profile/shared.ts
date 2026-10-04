@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { AcademyProfileField } from "@/lib/academies/academy-profile.server";
+import { provinceField } from "@/lib/academies/provinces";
 import { argentinePhoneField } from "@/lib/shared/argentine-phone";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
@@ -14,10 +15,11 @@ export const academyProfileSchema = z.object({
   contactName: z.string().trim().min(1, requiredFieldMessage),
   phone: argentinePhoneField(),
   city: z.string().trim().min(1, requiredFieldMessage),
-  province: z.string().trim().min(1, requiredFieldMessage),
+  province: provinceField(),
 });
 
-export type AcademyProfileFormValues = z.infer<typeof academyProfileSchema>;
+/** As the form holds them: the province is text until one is picked. */
+export type AcademyProfileFormValues = z.input<typeof academyProfileSchema>;
 export type AcademyProfileFieldErrors = Partial<
   Record<AcademyProfileField, string>
 >;

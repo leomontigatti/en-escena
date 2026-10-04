@@ -4,12 +4,14 @@ import { z } from "zod";
 import { AcademyNameWarningDialog } from "@/components/auth/academy-name-warning";
 import { AccessHeader, AccessPage } from "@/components/auth/access-ui";
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
+import { SelectField } from "@/components/shared/select-field";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import {
   completeAcademyOnboarding,
   requireAcademyOnboardingUser,
 } from "@/lib/academies/onboarding.server";
+import { provinceField, provinceOptions } from "@/lib/academies/provinces";
 import {
   authToastIds,
   readFormValue,
@@ -35,7 +37,7 @@ const academyOnboardingSchema = z.object({
   contactName: requiredTextField(),
   phone: argentinePhoneField(),
   city: requiredTextField(),
-  province: requiredTextField(),
+  province: provinceField(),
 });
 const academyOnboardingFields = [
   "academyName",
@@ -195,11 +197,12 @@ export default function AcademyOnboardingRoute() {
             name="city"
           />
 
-          <AccessTextField
-            autoComplete="address-level1"
-            controller={form}
+          <SelectField
+            control={form.form.control}
             label="Provincia"
             name="province"
+            options={provinceOptions}
+            placeholder="Elegí una provincia"
           />
 
           <Button className="w-full" type="submit">

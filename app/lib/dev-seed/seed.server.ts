@@ -112,7 +112,7 @@ export async function seedDevData(input: {
       contactName: "Carla Gómez",
       phone: "1155550000",
       city: "Rosario",
-      province: "Santa Fe",
+      province: "santa_fe",
     })
     .returning();
 

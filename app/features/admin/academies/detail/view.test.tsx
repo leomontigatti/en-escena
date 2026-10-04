@@ -34,7 +34,7 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
       id: "academy_1",
       name: "Academia Fork",
       phone: "3415551234",
-      province: "Santa Fe",
+      province: "santa_fe",
     },
     canEdit,
     merge: null,
@@ -272,7 +272,7 @@ describe("AcademyDetailRouteView", () => {
           contactName: "Nora Norte",
           name: "Academia Rechazada",
           phone: "3415551234",
-          province: "Santa Fe",
+          province: "santa_fe",
         },
       },
     });

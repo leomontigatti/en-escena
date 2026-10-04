@@ -37,7 +37,7 @@ async function renderDialog() {
               id: "academy-fork",
               name: "Academia Fork",
               phone: "3415551234",
-              province: "Santa Fe",
+              province: "santa_fe",
             }}
             merge={{
               candidates: [

@@ -16,8 +16,10 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { FieldGroup } from "@/components/ui/field";
+import { provinceOptions } from "@/lib/academies/provinces";
 import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
@@ -161,12 +163,13 @@ export function AcademyDetailRouteView({
               label="Ciudad"
               name="city"
             />
-            <TextInputField
-              autoComplete="address-level1"
+            <SelectField
               control={form.form.control}
               disabled={!canEdit}
               label="Provincia"
               name="province"
+              options={provinceOptions}
+              placeholder="Elegí una provincia"
             />
           </FieldGroup>
         </form>
