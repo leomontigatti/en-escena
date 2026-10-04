@@ -480,14 +480,6 @@ function EventActions({
             confirmValue={event.active ? event.id : undefined}
             label={event.active ? "Desactivar" : "Activar"}
           />
-          <EventActionItem
-            action={eventActionPath(event.id)}
-            intent="set-program-visibility"
-            value={event.programVisible ? "false" : "true"}
-            label={
-              event.programVisible ? "Ocultar programa" : "Mostrar programa"
-            }
-          />
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
@@ -517,7 +509,6 @@ function EventActionItem({
   confirmValue,
   intent,
   label,
-  value,
   variant,
 }: {
   action: string;
@@ -525,19 +516,14 @@ function EventActionItem({
   confirmValue?: string;
   intent: string;
   label: string;
-  value?: string;
   variant?: "destructive";
 }) {
   const navigation = useOptionalNavigation();
-  const isPending = isRouteFormPending(navigation, {
-    intent,
-    fields: value ? { value } : undefined,
-  });
+  const isPending = isRouteFormPending(navigation, { intent });
 
   return (
     <Form method="post" action={action}>
       <input type="hidden" name="intent" value={intent} />
-      {value ? <input type="hidden" name="value" value={value} /> : null}
       {confirmName && confirmValue ? (
         <input type="hidden" name={confirmName} value={confirmValue} />
       ) : null}

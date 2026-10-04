@@ -6,35 +6,44 @@ import {
 
 /**
  * The participation list's actions menu: printing results, downloading the
- * day's music and exporting the program first, then the ordering and the two
- * judge dialogs. Every item opens a dialog the list owns, so the menu only says
- * which one; with nothing to offer there is no menu.
+ * day's music, exporting the program and showing or hiding it first, then the
+ * ordering and the two judge dialogs. Every item opens a dialog the list owns,
+ * so the menu only says which one. With nothing to offer there is no menu.
  */
-export function PresentationListActions({
-  canDownloadMusic,
-  canExportProgram,
-  canOrderRows,
-  canPrintResults,
-  hasSelection,
-  onDownloadMusic,
-  onExportProgram,
-  onJudges,
-  onOrder,
-  onPrintResults,
-}: {
+type OutputActionsProps = {
   canDownloadMusic: boolean;
   canExportProgram: boolean;
-  canOrderRows: boolean;
   canPrintResults: boolean;
-  /** The judge dialogs act on the selected rows, so they need some. */
-  hasSelection: boolean;
   onDownloadMusic: () => void;
   onExportProgram: () => void;
+  onPrintResults: () => void;
+  onToggleProgram: () => void;
+  /**
+   * Which way the program's visibility can go, for the event the list shows;
+   * `null` when there is nothing to toggle.
+   */
+  programToggle: { eventId: string; show: boolean } | null;
+};
+
+type OrderingActionsProps = {
+  /** The judge dialogs act on the selected rows, so they need some. */
+  hasSelection: boolean;
   onJudges: (mode: "assign" | "remove") => void;
   onOrder: () => void;
-  onPrintResults: () => void;
-}) {
-  const hasOutputs = canPrintResults || canDownloadMusic || canExportProgram;
+};
+
+export function PresentationListActions({
+  canOrderRows,
+  ...props
+}: OutputActionsProps &
+  OrderingActionsProps & {
+    canOrderRows: boolean;
+  }) {
+  const hasOutputs =
+    props.canPrintResults ||
+    props.canDownloadMusic ||
+    props.canExportProgram ||
+    props.programToggle !== null;
 
   if (!canOrderRows && !hasOutputs) {
     return null;
@@ -42,68 +51,86 @@ export function PresentationListActions({
 
   return (
     <ResourceActionsMenu>
+      <OutputItems {...props} />
+      {hasOutputs && canOrderRows ? <DropdownMenuSeparator /> : null}
+      {canOrderRows ? <OrderingItems {...props} /> : null}
+    </ResourceActionsMenu>
+  );
+}
+
+function OutputItems({
+  canDownloadMusic,
+  canExportProgram,
+  canPrintResults,
+  onDownloadMusic,
+  onExportProgram,
+  onPrintResults,
+  onToggleProgram,
+  programToggle,
+}: OutputActionsProps) {
+  return (
+    <>
       {canPrintResults ? (
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            onPrintResults();
-          }}
-        >
-          Imprimir resultados
-        </DropdownMenuItem>
+        <DialogItem label="Imprimir resultados" onOpen={onPrintResults} />
       ) : null}
       {canDownloadMusic ? (
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            onDownloadMusic();
-          }}
-        >
-          Descargar audios
-        </DropdownMenuItem>
+        <DialogItem label="Descargar audios" onOpen={onDownloadMusic} />
       ) : null}
       {canExportProgram ? (
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            onExportProgram();
-          }}
-        >
-          Descargar programa
-        </DropdownMenuItem>
+        <DialogItem label="Descargar programa" onOpen={onExportProgram} />
       ) : null}
-      {hasOutputs && canOrderRows ? <DropdownMenuSeparator /> : null}
-      {canOrderRows ? (
-        <>
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              onOrder();
-            }}
-          >
-            Ordenar automáticamente
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            disabled={!hasSelection}
-            onSelect={(event) => {
-              event.preventDefault();
-              onJudges("assign");
-            }}
-          >
-            Asignar jueces
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={!hasSelection}
-            onSelect={(event) => {
-              event.preventDefault();
-              onJudges("remove");
-            }}
-          >
-            Quitar jueces
-          </DropdownMenuItem>
-        </>
+      {programToggle ? (
+        <DialogItem
+          label={programToggle.show ? "Mostrar programa" : "Ocultar programa"}
+          onOpen={onToggleProgram}
+        />
       ) : null}
-    </ResourceActionsMenu>
+    </>
+  );
+}
+
+function OrderingItems({
+  hasSelection,
+  onJudges,
+  onOrder,
+}: OrderingActionsProps) {
+  return (
+    <>
+      <DialogItem label="Ordenar automáticamente" onOpen={onOrder} />
+      <DropdownMenuSeparator />
+      <DialogItem
+        disabled={!hasSelection}
+        label="Asignar jueces"
+        onOpen={() => onJudges("assign")}
+      />
+      <DialogItem
+        disabled={!hasSelection}
+        label="Quitar jueces"
+        onOpen={() => onJudges("remove")}
+      />
+    </>
+  );
+}
+
+/** An item that opens one of the list's dialogs rather than closing the menu on its own. */
+function DialogItem({
+  disabled,
+  label,
+  onOpen,
+}: {
+  disabled?: boolean;
+  label: string;
+  onOpen: () => void;
+}) {
+  return (
+    <DropdownMenuItem
+      disabled={disabled}
+      onSelect={(event) => {
+        event.preventDefault();
+        onOpen();
+      }}
+    >
+      {label}
+    </DropdownMenuItem>
   );
 }
