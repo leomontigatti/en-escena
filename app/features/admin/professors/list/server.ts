@@ -5,12 +5,13 @@ import {
   listProfessors,
   readProfessorFilters,
 } from "@/lib/admin/professors/professors.server";
+import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { toProfessorAppliedListQuery } from "@/lib/admin/professors/professors.shared";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
 export async function loadProfessorsList(request: Request) {
-  await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
@@ -32,6 +33,8 @@ export async function loadProfessorsList(request: Request) {
   );
 
   return {
+    /** False for the auditor, who gets the `Exportar` entry instead. */
+    canWrite: canWriteInAdminPanel(user.role),
     selectedEventId: eventContext.selectedEventId,
     filters: listResult.filters,
     hasAnyProfessor: listResult.hasAnyProfessor,
