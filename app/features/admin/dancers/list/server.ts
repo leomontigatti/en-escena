@@ -5,12 +5,13 @@ import {
   listDancers,
   readDancerFilters,
 } from "@/lib/admin/dancers/dancers.server";
+import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { toDancerAppliedListQuery } from "@/lib/admin/dancers/dancers.shared";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
 export async function loadDancersList(request: Request) {
-  await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
@@ -29,6 +30,8 @@ export async function loadDancersList(request: Request) {
   );
 
   return {
+    /** False for the auditor, who gets the `Exportar` entry instead. */
+    canWrite: canWriteInAdminPanel(user.role),
     selectedEventId: eventContext.selectedEventId,
     filters: listResult.filters,
     hasAnyDancer: listResult.hasAnyDancer,

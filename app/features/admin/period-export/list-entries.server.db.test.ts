@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
+import { loadDancersList } from "@/features/admin/dancers/list/server";
+import { DancersListRouteView } from "@/features/admin/dancers/list/view";
 import { loadProfessorsList } from "@/features/admin/professors/list/server";
 import { ProfessorsListRouteView } from "@/features/admin/professors/list/view";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
@@ -45,6 +47,17 @@ const lists = [
         "/administracion/profesores",
         createElement(ProfessorsListRouteView, {
           loaderData: await loadProfessorsList(request),
+        }),
+      ),
+  },
+  {
+    label: "Bailarines",
+    path: "/administracion/bailarines",
+    renderList: async (request: Request) =>
+      render(
+        "/administracion/bailarines",
+        createElement(DancersListRouteView, {
+          loaderData: await loadDancersList(request),
         }),
       ),
   },
