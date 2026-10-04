@@ -136,7 +136,7 @@ function ModalitiesTable({
       columns={columns}
       getRowKey={(modality) => modality.id}
       layout="fit"
-      searchPlaceholder="Buscar modalidad por nombre"
+      searchPlaceholder="Buscar por nombre"
       textFilterColumnId="name"
       emptyMessage={emptyModalityList.nothingMatched}
       initialSort={{ columnId: "name", direction: "asc" }}

@@ -107,7 +107,7 @@ export function AcademiesListRouteView({
           columns={academyColumns}
           facetedFilters={academyFacetedFilters}
           getRowKey={(academy) => academy.id}
-          searchPlaceholder="Buscar academia por nombre o contacto"
+          searchPlaceholder="Buscar por nombre o contacto"
           emptyMessage={emptyAcademyList.nothingMatched}
         />
       ) : (

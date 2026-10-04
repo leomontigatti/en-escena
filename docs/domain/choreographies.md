@@ -130,13 +130,13 @@ What the dialog announced is advisory.
   nothing: they are a reason to withdraw, not a reason to refuse (ADR-0014
   correction).
 - An **unevaluated** presentation blocks neither outcome. It is deleted with
-  either one, the dialog says so with its number
-  (`Tiene la presentación n.º {orden}; se quitará del orden`), and the number
-  stays a gap until the order is next changed (`docs/domain/judging.md`).
-- The dialog **names the outcome before the admin confirms**: that the
-  choreography has money allocated or comprobantes and so will be withdrawn
-  rather than deleted, and that no money moves; or that it has neither and will
-  be deleted outright.
+  either one, the dialog says so (`… y pierde el número de orden`), and the
+  number stays a gap until the order is next changed
+  (`docs/domain/judging.md`).
+- Each outcome has **its own dialog**, so the admin confirms the one that will
+  happen: `¿Retirar la coreografía?` when the choreography has money allocated
+  or comprobantes, pointing to the finance list where that money is reviewed;
+  `¿Eliminar la coreografía?` when it has neither and will be deleted outright.
 
 ### A withdrawn choreography
 

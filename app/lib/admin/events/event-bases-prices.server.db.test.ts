@@ -143,7 +143,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
 
     expect(detailMarkup).toContain("Precio bloque");
     expect(detailMarkup).toContain("31 de mayo de 2026");
-    expect(detailMarkup).toContain('aria-label="Acciones"');
+    expect(detailMarkup).toContain("Acciones</button>");
 
     const editPriceRequest = await createPriceAdminRequest({
       email: "admin.edita.precio@example.com",

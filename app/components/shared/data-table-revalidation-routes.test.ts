@@ -14,6 +14,7 @@ import * as adminPayments from "@/routes/administracion.pagos";
 import * as adminPrices from "@/routes/administracion.precios";
 import * as adminProfessors from "@/routes/administracion.profesores";
 import * as adminSchedules from "@/routes/administracion.cronogramas";
+import * as adminSeminars from "@/routes/administracion.seminarios";
 import * as adminUsers from "@/routes/administracion.usuarios";
 import * as portalChoreographies from "@/routes/portal.coreografias";
 import * as portalDancers from "@/routes/portal.bailarines";
@@ -43,6 +44,7 @@ const browserPaginatedRoutes: { name: string; routeModule: object }[] = [
   },
   { name: "administración · modalidades", routeModule: adminModalities },
   { name: "administración · precios", routeModule: adminPrices },
+  { name: "administración · seminarios", routeModule: adminSeminars },
   { name: "portal · bailarines", routeModule: portalDancers },
   { name: "portal · coreografías", routeModule: portalChoreographies },
   { name: "portal · finanzas", routeModule: portalFinances },

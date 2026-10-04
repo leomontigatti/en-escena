@@ -13,7 +13,6 @@ import { useResetListQuery } from "@/components/shared/data-table-url-state";
 import { ProfessorChoreographiesTable } from "@/components/shared/roster-inscriptions-table";
 import { RosterSeminarInscriptionsTable } from "@/components/shared/roster-seminar-inscriptions-table";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
-import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
@@ -71,13 +70,11 @@ export function ProfessorDetailAlerts({
   canEdit,
   isIncomplete,
   onSelectIntent,
-  participatingAlert,
 }: {
   active: boolean;
   canEdit: boolean;
   isIncomplete: boolean;
   onSelectIntent: (intent: ProfessorStatusIntent) => void;
-  participatingAlert: string | null;
 }) {
   return (
     <AlertStack>
@@ -88,9 +85,6 @@ export function ProfessorDetailAlerts({
             canEdit ? () => onSelectIntent("reactivate-professor") : undefined
           }
         />
-      ) : null}
-      {participatingAlert ? (
-        <RosterPersonParticipatingAlert message={participatingAlert} />
       ) : null}
       {isIncomplete ? (
         <Alert variant="warning">

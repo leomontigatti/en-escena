@@ -126,7 +126,7 @@ export function SeminarPriceListTable({
       rows={seminarPrices}
       columns={columns}
       getRowKey={(seminarPrice) => seminarPrice.id}
-      searchPlaceholder="Buscar precio por nombre"
+      searchPlaceholder="Buscar por nombre"
       textFilterColumnId="name"
       facetedFilters={seminarPriceFacetedFilters}
       emptyMessage={emptySeminarPriceList.nothingMatched}

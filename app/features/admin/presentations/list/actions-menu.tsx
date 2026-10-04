@@ -104,7 +104,10 @@ function OrderingItems({
   );
 }
 
-/** An item that opens one of the list's dialogs rather than closing the menu on its own. */
+/**
+ * An item that opens one of the list's dialogs. The menu closes as it does:
+ * the dialog takes the focus, and a menu left open behind it would hold it.
+ */
 function DialogItem({
   disabled,
   label,
@@ -115,13 +118,7 @@ function DialogItem({
   onOpen: () => void;
 }) {
   return (
-    <DropdownMenuItem
-      disabled={disabled}
-      onSelect={(event) => {
-        event.preventDefault();
-        onOpen();
-      }}
-    >
+    <DropdownMenuItem disabled={disabled} onSelect={() => onOpen()}>
       {label}
     </DropdownMenuItem>
   );

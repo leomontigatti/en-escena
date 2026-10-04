@@ -31,8 +31,10 @@ import { cn } from "@/lib/shared/utils";
 const defaultHourOptions = Array.from({ length: 24 }, (_, hour) =>
   String(hour).padStart(2, "0"),
 );
-const defaultMinuteOptions = Array.from({ length: 60 }, (_, minute) =>
-  String(minute).padStart(2, "0"),
+const minuteStep = 5;
+const defaultMinuteOptions = Array.from(
+  { length: 60 / minuteStep },
+  (_, step) => String(step * minuteStep).padStart(2, "0"),
 );
 
 type TimeOnlyFieldProps<
@@ -147,9 +149,10 @@ function TimeOnlyFieldControl({
   value: string;
 }) {
   const [open, setOpen] = useState(false);
+  const offeredMinuteOptions = withSavedMinute(minuteOptions, value);
   const { hour, minute } = parseTimeOnlyValue(value, {
     hourOptions,
-    minuteOptions,
+    minuteOptions: offeredMinuteOptions,
   });
 
   function updateTime(nextPart: { hour?: string; minute?: string }) {
@@ -211,7 +214,7 @@ function TimeOnlyFieldControl({
                 />
                 <TimePartSelect
                   label="Minutos"
-                  options={minuteOptions}
+                  options={offeredMinuteOptions}
                   placeholder="Min."
                   value={minute ?? ""}
                   onValueChange={(nextMinute) =>
@@ -275,6 +278,20 @@ function TimePartSelect({
       </Select>
     </Field>
   );
+}
+
+/**
+ * A time saved off the steps (`18:07`, from before they existed) keeps its
+ * minute on offer, so picking only a new hour does not round it to `00`.
+ */
+function withSavedMinute(minuteOptions: readonly string[], value: string) {
+  const minute = value.split(":")[1];
+
+  if (!minute || !/^[0-5]\d$/.test(minute) || minuteOptions.includes(minute)) {
+    return minuteOptions;
+  }
+
+  return [...minuteOptions, minute].sort();
 }
 
 function parseTimeOnlyValue(

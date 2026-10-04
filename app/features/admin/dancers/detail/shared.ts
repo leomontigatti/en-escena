@@ -28,7 +28,7 @@ import {
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import {
   getArchiveKeepsRosterMessage,
-  getRosterPersonArchiveAvailability,
+  isRosterPersonArchiveBlocked,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import {
@@ -61,7 +61,7 @@ export type DancerDetailLoaderData = {
   /**
    * Answered by `hasActiveEventParticipation`, the same reader the guard in
    * `setRosterPersonStatus` asks. One reader for both, so the screen cannot
-   * grey out a button the server would honour — or offer one it would refuse.
+   * block an archive the server would honour — or offer one it would refuse.
    */
   isParticipatingInActiveEvent: boolean;
   /** What the merge dialog offers; `null` for a read-only auditor. */
@@ -112,14 +112,14 @@ export type DancerRouteNotification = Extract<
 >;
 
 export type DancerStatusAction = {
-  /**
-   * A courtesy in front of the guard, never the rule: the server refuses the
-   * archive whether or not this is honoured. Reactivating is never refused, so
-   * only the archive intent is ever disabled.
-   */
-  disabled: boolean;
   description: string;
   intent: "archive-dancer" | "reactivate-dancer";
+  /**
+   * Whether the action opens `RosterPersonArchiveBlockedDialog` instead of its
+   * confirmation. Reactivating is never refused, so only the archive intent is
+   * ever blocked.
+   */
+  isBlocked: boolean;
   label: string;
 };
 
@@ -130,11 +130,6 @@ export type DancerDetailViewState = {
   identificationAlert: string | null;
   identificationAlertTitle: string;
   identificationAlertVariant: "info" | "warning";
-  /**
-   * Why the archive action is unavailable, or `null` when it is available.
-   * Informational: nothing is wrong when it shows.
-   */
-  participatingAlert: string | null;
   shouldConfirmSave: boolean;
   statusAction: DancerStatusAction;
 };
@@ -284,20 +279,20 @@ export function getDancerEditValues({
 
 function getDancerStatusAction({
   active,
-  isArchiveDisabled,
+  isArchiveBlocked,
 }: {
   active: boolean;
-  isArchiveDisabled: boolean;
+  isArchiveBlocked: boolean;
 }): DancerStatusAction {
   return active
     ? {
-        disabled: isArchiveDisabled,
+        isBlocked: isArchiveBlocked,
         description: `Archivá este Bailarín para que deje de aparecer en futuras selecciones del portal. ${getArchiveKeepsRosterMessage("dancer")}`,
         intent: "archive-dancer",
         label: "Archivar",
       }
     : {
-        disabled: false,
+        isBlocked: false,
         description:
           "Reactivá este Bailarín para que vuelva a aparecer en futuras selecciones del portal.",
         intent: "reactivate-dancer",
@@ -322,8 +317,8 @@ export function getInitialDialogIntent({
   // Only a rejected `Guardar` carries `values`, and only an edit whose save
   // needs confirming has a dialog to go back to. Everything else re-opens
   // nothing: a refused status change is reported by its toast, and by the
-  // time it lands the page has reloaded with `Archivar` already disabled and
-  // the participation alert showing, so a re-opened dialog would offer only a
+  // time it lands the page has reloaded with `Archivar` already opening the
+  // blocked acknowledgment, so a re-opened confirmation would offer only a
   // confirm the server refuses again. The generic error from
   // `recoverableClientAction` carries no `values` either and is left alone for
   // the same reason.
@@ -355,14 +350,12 @@ export function buildDancerDetailViewState({
   isParticipatingInActiveEvent: boolean;
   watchedBirthDate: string;
 }): DancerDetailViewState {
-  const archiveAvailability = getRosterPersonArchiveAvailability({
-    isParticipatingInActiveEvent,
-    kind: "dancer",
-    status: toRosterPersonStatus(dancer.active),
-  });
   const statusAction = getDancerStatusAction({
     active: dancer.active,
-    isArchiveDisabled: archiveAvailability.disabled,
+    isArchiveBlocked: isRosterPersonArchiveBlocked({
+      isParticipatingInActiveEvent,
+      status: toRosterPersonStatus(dancer.active),
+    }),
   });
   const canVerifyIdentity =
     canEdit &&
@@ -388,7 +381,6 @@ export function buildDancerDetailViewState({
     identificationAlert,
     identificationAlertTitle,
     identificationAlertVariant,
-    participatingAlert: archiveAvailability.participatingAlert,
     shouldConfirmSave:
       dancer.editConsequence !== null || birthDateMayNeedRecalculation,
     statusAction,

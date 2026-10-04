@@ -198,7 +198,7 @@ export function ComprobantesListRouteView({
           // Seven columns is the widest list here; sharing the row out among
           // them is what keeps it inside the page.
           layout="fit"
-          searchPlaceholder="Buscar por academia, coreografía, instructor o número"
+          searchPlaceholder="Buscar por academia o número"
           initialSort={loaderData.filters.order}
           emptyMessage={emptyComprobantesList.nothingMatched}
           currentPage={loaderData.filters.page}

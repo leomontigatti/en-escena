@@ -5,7 +5,10 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { openRadixSelect } from "@/lib/test-support/radix-select";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  findButton,
+} from "@/lib/test-support/react-dom";
 
 import { PresentationListActions } from "./actions-menu";
 
@@ -60,7 +63,7 @@ describe("the participation list's actions menu", () => {
   test("offers the program export on its own", async () => {
     await mount(true);
 
-    await openRadixSelect(document.querySelector('[aria-label="Acciones"]'));
+    await openRadixSelect(findButton("Acciones", { exact: true }));
 
     expect(menuItems()).toEqual(["Descargar programa"]);
   });
@@ -68,7 +71,7 @@ describe("the participation list's actions menu", () => {
   test("offers to show the program", async () => {
     await mount(false, { eventId: "event-1", show: true });
 
-    await openRadixSelect(document.querySelector('[aria-label="Acciones"]'));
+    await openRadixSelect(findButton("Acciones", { exact: true }));
 
     expect(menuItems()).toEqual(["Mostrar programa"]);
 
@@ -83,7 +86,7 @@ describe("the participation list's actions menu", () => {
   test("offers to hide a visible program", async () => {
     await mount(false, { eventId: "event-1", show: false });
 
-    await openRadixSelect(document.querySelector('[aria-label="Acciones"]'));
+    await openRadixSelect(findButton("Acciones", { exact: true }));
 
     expect(menuItems()).toEqual(["Ocultar programa"]);
   });
@@ -91,6 +94,6 @@ describe("the participation list's actions menu", () => {
   test("leaves the menu out when nothing is numbered yet", async () => {
     await mount(false);
 
-    expect(document.querySelector('[aria-label="Acciones"]')).toBeNull();
+    expect(findButton("Acciones", { exact: true })).toBeUndefined();
   });
 });

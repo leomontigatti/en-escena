@@ -30,7 +30,7 @@ describe("ChoreographiesListRouteView", () => {
     );
   });
 
-  test("renders the number as the only detail link with the approved columns and shared status badges", () => {
+  test("renders the name as the only detail link with the approved columns and shared status badges", () => {
     const markup = renderRoute({
       choreographies: [
         {
@@ -77,17 +77,17 @@ describe("ChoreographiesListRouteView", () => {
       expect(markup).toContain(column);
     }
 
-    // The number is shown zero-padded and is the row's only link to the
-    // detail; the name renders as plain text beside it.
+    // The name is the row's only link to the detail; the number is shown
+    // zero-padded as plain text beside it.
     expect(markup).toContain("00001");
     expect(markup).toContain("00002");
     expect(markup).toContain("Pieza Visible");
     expect(markup).toContain("Borrador");
     expect(markup).toContain('href="/administracion/coreografias/choreo_1"');
     expect(markup).toContain('href="/administracion/coreografias/choreo_2"');
-    expect(markup).toContain(">00001</a>");
-    expect(markup).not.toContain(">Pieza Visible</a>");
-    expect(markup).not.toContain(">Borrador</a>");
+    expect(markup).not.toContain(">00001</a>");
+    expect(markup).toContain(">Pieza Visible</a>");
+    expect(markup).toContain(">Borrador</a>");
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Contemporáneo");
     expect(markup).toContain("Juvenil · Dúo");

@@ -93,6 +93,16 @@ async function pickSurvivor(label: string) {
 }
 
 describe("RosterMergeDialog", () => {
+  // A confirmation's title asks the action it confirms (style guide,
+  // `AlertDialog` vs. `Dialog`), even when the dialog holds the survivor's pick.
+  test("asks the merge as its title", async () => {
+    await renderDialog();
+
+    expect(document.querySelector('[role="dialog"] h2')?.textContent).toBe(
+      "¿Fusionar al bailarín?",
+    );
+  });
+
   test("offers the academy's other dancers, archived ones marked", async () => {
     await renderDialog();
     await clickReactDomButton("Elegir");
@@ -154,7 +164,7 @@ describe("RosterMergeDialog", () => {
     });
 
     expect(submissions).toHaveLength(0);
-    expect(document.body.textContent).toContain("Elegí con quién fusionar.");
+    expect(document.body.textContent).toContain("Este campo es obligatorio.");
   });
 
   test("shows the server's refusal in place of the warning", async () => {

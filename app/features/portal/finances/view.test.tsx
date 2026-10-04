@@ -57,7 +57,7 @@ describe("PortalAcademyFinancesRouteView", () => {
     await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
 
     const search = document.querySelector<HTMLInputElement>(
-      'input[placeholder="Buscar coreografía por número o nombre"]',
+      'input[placeholder="Buscar por número o nombre"]',
     );
 
     if (!search) {

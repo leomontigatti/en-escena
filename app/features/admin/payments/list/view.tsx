@@ -208,7 +208,7 @@ export function PaymentsListRouteView({
             selectableRows
             selectedRowIds={selectedRowIds}
             onSelectedRowIdsChange={setSelectedRowIds}
-            searchPlaceholder="Buscar pago por academia o número"
+            searchPlaceholder="Buscar por academia o número"
             initialSort={loaderData.filters.order}
             emptyMessage={emptyPaymentsList.nothingMatched}
             currentPage={loaderData.filters.page}

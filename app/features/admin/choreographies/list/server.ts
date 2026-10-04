@@ -347,10 +347,12 @@ function readChoreographyGroupTypeFilter(
 
 function buildChoreographyFacets(rows: ChoreographyRow[]) {
   return {
+    // An event may hold several categories of one name, apart only in their
+    // ages or group types; the filter offers the name once and gathers them all.
     categories: getUniqueSortedFilterOptions(
       rows.map((row) => ({
         label: row.categoryName,
-        value: row.categoryId,
+        value: row.categoryName,
       })),
     ),
     modalities: getUniqueSortedFilterOptions(
@@ -427,7 +429,7 @@ function matchesChoreographyFacets(
   }
 
   return (
-    matchesChoreographyCategory(row.categoryId, filters.category) &&
+    matchesChoreographyCategory(row.categoryName, filters.category) &&
     matchesChoreographyScheduleDate(row.scheduleDate, filters.scheduleDate)
   );
 }
@@ -528,14 +530,14 @@ function keepKnownFacetValue(
 }
 
 function matchesChoreographyCategory(
-  categoryId: string,
+  categoryName: string,
   categoryFilter: string | null,
 ) {
   if (categoryFilter === null) {
     return true;
   }
 
-  return categoryId === categoryFilter;
+  return categoryName === categoryFilter;
 }
 
 function matchesChoreographyScheduleDate(

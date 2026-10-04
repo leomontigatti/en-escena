@@ -26,13 +26,14 @@ import { mergeSurvivorFieldName } from "@/lib/shared/merge";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
+  requiredFieldMessage,
   useOptionalFormAction,
   useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
 
 const mergeFormSchema = z.object({
-  [mergeSurvivorFieldName]: z.string().min(1, "Elegí con quién fusionar."),
+  [mergeSurvivorFieldName]: z.string().min(1, requiredFieldMessage),
 });
 
 type MergeFormValues = z.infer<typeof mergeFormSchema>;

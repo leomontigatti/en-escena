@@ -263,12 +263,7 @@ function ProfileActionsMenu() {
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            setIsPasswordDialogOpen(true);
-          }}
-        >
+        <DropdownMenuItem onSelect={() => setIsPasswordDialogOpen(true)}>
           Cambiar contraseña
         </DropdownMenuItem>
       </ResourceActionsMenu>

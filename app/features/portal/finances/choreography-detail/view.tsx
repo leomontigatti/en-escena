@@ -126,7 +126,7 @@ function InscriptionsTable({
         columns={inscriptionColumns}
         facetedFilters={inscriptionFinanceFacetedFilters}
         getRowKey={(inscription) => inscription.dancerId}
-        searchPlaceholder="Buscar inscripción por bailarín"
+        searchPlaceholder="Buscar por bailarín"
         textFilterColumnId="dancer"
         emptyMessage="No hay inscripciones para mostrar."
       />

@@ -104,7 +104,7 @@ export function PriceListTable({
       rows={prices}
       columns={columns}
       getRowKey={(price) => price.id}
-      searchPlaceholder="Buscar precio por nombre"
+      searchPlaceholder="Buscar por nombre"
       textFilterColumnId="name"
       facetedFilters={priceFacetedFilters}
       emptyMessage={emptyPriceList.nothingMatched}

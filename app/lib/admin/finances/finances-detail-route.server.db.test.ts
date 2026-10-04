@@ -389,7 +389,7 @@ describe("`/administracion/finanzas` academy", () => {
       },
     ]);
     expect(markup).toContain("Lista financiera de las coreografías");
-    expect(markup).toContain("Buscar coreografía por número o nombre");
+    expect(markup).toContain("Buscar por número o nombre");
     // The list is selectable: the `Pagar seña` / `Pagar saldo` presets live here
     // and act on the chosen choreographies.
     expect(markup).toContain('aria-label="Seleccionar todas las filas"');

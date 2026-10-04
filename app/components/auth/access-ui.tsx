@@ -51,8 +51,6 @@ export function AccessPage({ children, width = "md" }: AccessPageProps) {
 }
 
 type AccessHeaderProps = {
-  /** A control kept on the title's line, at its end. */
-  action?: ReactNode;
   className?: string;
   eyebrow?: string;
   media?: ReactNode;
@@ -66,7 +64,6 @@ type AccessHeaderProps = {
 };
 
 export function AccessHeader({
-  action,
   className,
   descriptionAction,
   eyebrow,
@@ -95,17 +92,14 @@ export function AccessHeader({
           {eyebrow}
         </p>
       ) : null}
-      <div className="mt-3 flex items-center justify-between gap-4">
-        <Title
-          className={cn(
-            "font-semibold text-pretty text-foreground",
-            titleLevel === 1 ? "text-3xl" : "text-xl",
-          )}
-        >
-          {title}
-        </Title>
-        {action}
-      </div>
+      <Title
+        className={cn(
+          "mt-3 font-semibold text-pretty text-foreground",
+          titleLevel === 1 ? "text-3xl" : "text-xl",
+        )}
+      >
+        {title}
+      </Title>
       {description && descriptionAction ? (
         <div
           className={cn(

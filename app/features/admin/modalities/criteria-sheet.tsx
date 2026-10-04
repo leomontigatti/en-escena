@@ -41,6 +41,7 @@ import {
   type CriterionKind,
 } from "@/lib/judging/criteria";
 import {
+  generalEvaluationLabel,
   sheetRuleFor,
   sheetTotalError,
   type OfferedSheets,
@@ -62,11 +63,6 @@ import {
 } from "./view-shared";
 
 type SheetForm = UseFormReturn<SheetCriteriaFormValues>;
-
-export const mandatoryTechniqueLabel = "Técnico obligatorio";
-
-/** A criterion's row and the column labels over it share one grid. */
-const criterionRowColumns = "grid grid-cols-[minmax(0,1fr)_6rem_2rem] gap-2";
 
 /**
  * One sheet of a submodality, saved on its own: what adds above the separator,
@@ -112,7 +108,7 @@ export function SheetCriteriaView({
       <div className="flex flex-col gap-5">
         <h3 className="text-base font-semibold">
           {experienceLevel === null
-            ? mandatoryTechniqueLabel
+            ? generalEvaluationLabel
             : (experienceLevelLabel(experienceLevel) ?? experienceLevel)}
         </h3>
         <form
@@ -488,16 +484,6 @@ function KindSection({
     <FieldSet className="gap-2" data-invalid={error ? true : undefined}>
       {children}
       {error ? <FieldError>{error}</FieldError> : null}
-      {rows.length > 0 ? (
-        <div
-          aria-hidden="true"
-          className={cn(criterionRowColumns, "text-sm font-medium")}
-        >
-          <div>Criterio</div>
-          <div>Máximo</div>
-          <div />
-        </div>
-      ) : null}
       {rows.map(({ fieldId, index }) => (
         <CriterionRow
           form={form}
@@ -542,7 +528,7 @@ function CriterionRow({
   saving: boolean;
 }) {
   return (
-    <FieldGroup className={cn(criterionRowColumns, "items-start")}>
+    <FieldGroup className="grid grid-cols-[minmax(0,1fr)_6rem_2rem] items-start gap-2">
       {/* The kind is where the row sits, not a field, so the post carries it here. */}
       <input type="hidden" name={`criteria.${index}.kind`} value={kind} />
       <TextInputField
@@ -550,6 +536,7 @@ function CriterionRow({
         disabled={locked}
         id={`criterion-name-${index}`}
         label="Criterio"
+        placeholder="Criterio"
         readOnly={saving}
         labelClassName="sr-only"
         name={`criteria.${index}.name`}
@@ -559,6 +546,7 @@ function CriterionRow({
         disabled={locked}
         id={`criterion-maximum-${index}`}
         label="Máximo"
+        placeholder="Máximo"
         readOnly={saving}
         labelClassName="sr-only"
         name={`criteria.${index}.maximum`}
@@ -567,7 +555,7 @@ function CriterionRow({
         <Button
           type="button"
           variant="destructive"
-          size="icon-sm"
+          size="icon"
           aria-label="Quitar criterio"
           disabled={saving}
           onClick={onRemove}

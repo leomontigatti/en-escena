@@ -49,6 +49,7 @@ import {
   requestSubmitWithButton,
   spyOnNativeFormSubmit,
 } from "@/lib/test-support/form-submit";
+import type { ScheduleDependencySummary } from "@/lib/schedules/schedule-dependencies";
 import type { EventBasesLoaderData } from "./event-bases.test-helpers";
 
 let container: HTMLDivElement | null = null;
@@ -109,7 +110,10 @@ describe("Event bases migrated forms", () => {
       formId: "update-schedule-form",
       renderView: () => (
         <EventScheduleDetailView
-          loaderData={buildLoaderData()}
+          loaderData={{
+            ...buildLoaderData(),
+            scheduleDependencies: freeSchedule,
+          }}
           scheduleId="schedule_1"
         />
       ),
@@ -200,7 +204,10 @@ describe("Event bases migrated forms", () => {
 
     render(
       <EventScheduleDetailView
-        loaderData={buildLoaderData()}
+        loaderData={{
+          ...buildLoaderData(),
+          scheduleDependencies: freeSchedule,
+        }}
         scheduleId="schedule_1"
       />,
     );
@@ -338,6 +345,13 @@ function buildFormData(values: Record<string, string>) {
 
   return formData;
 }
+
+/** The forms under test are about their fields, not what holds the schedule. */
+const freeSchedule: ScheduleDependencySummary = {
+  coveringPriceNames: [],
+  occupyingChoreographyCount: 0,
+  withdrawnChoreographyCount: 0,
+};
 
 function buildLoaderData(): EventBasesLoaderData {
   const createdAt = new Date("2026-01-01T12:00:00Z");

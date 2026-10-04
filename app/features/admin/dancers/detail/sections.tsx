@@ -26,7 +26,6 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
 import {
   Alert,
@@ -85,34 +84,19 @@ export function DancerDetailHeaderActions({
   return (
     <ResourceActionsMenu>
       {canVerifyIdentity ? (
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            onSelectIntent("verify");
-          }}
-        >
+        <DropdownMenuItem onSelect={() => onSelectIntent("verify")}>
           Verificar
         </DropdownMenuItem>
       ) : null}
       {canVerifyIdentity && isArchive ? <DropdownMenuSeparator /> : null}
       <DropdownMenuItem
-        disabled={statusAction.disabled}
         variant={isArchive ? "destructive" : "default"}
-        onSelect={(event) => {
-          event.preventDefault();
-          onSelectIntent(statusAction.intent);
-        }}
+        onSelect={() => onSelectIntent(statusAction.intent)}
       >
         {statusAction.label}
       </DropdownMenuItem>
       {isArchive ? null : <DropdownMenuSeparator />}
-      <DropdownMenuItem
-        variant="destructive"
-        onSelect={(event) => {
-          event.preventDefault();
-          onSelectMerge();
-        }}
-      >
+      <DropdownMenuItem variant="destructive" onSelect={() => onSelectMerge()}>
         Fusionar
       </DropdownMenuItem>
     </ResourceActionsMenu>
@@ -127,7 +111,6 @@ export function DancerDetailAlerts({
   identificationAlertTitle,
   identificationAlertVariant,
   onSelectIntent,
-  participatingAlert,
   recategorisedChoreographies,
 }: {
   active: boolean;
@@ -137,7 +120,6 @@ export function DancerDetailAlerts({
   identificationAlertTitle: string;
   identificationAlertVariant: "info" | "warning";
   onSelectIntent: (intent: DancerDialogIntent) => void;
-  participatingAlert: string | null;
   recategorisedChoreographies: RecategorisedChoreography[];
 }) {
   const onReactivate = canEdit
@@ -161,9 +143,6 @@ export function DancerDetailAlerts({
           personLabel="bailarín"
           onReactivate={onReactivate}
         />
-      ) : null}
-      {participatingAlert ? (
-        <RosterPersonParticipatingAlert message={participatingAlert} />
       ) : null}
       {identificationAlert ? (
         <DancerAlert

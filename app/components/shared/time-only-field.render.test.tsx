@@ -5,6 +5,10 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { TimeOnlyField } from "@/components/shared/time-only-field";
 import {
+  openRadixSelect,
+  selectRadixOption,
+} from "@/lib/test-support/radix-select";
+import {
   clickReactDomButton,
   createReactDomTestRenderer,
 } from "@/lib/test-support/react-dom";
@@ -80,3 +84,59 @@ describe("TimeOnlyField clear action", () => {
     expect(findClearButton()).toBeUndefined();
   });
 });
+
+describe("TimeOnlyField minutes", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("offers the minutes in five-minute steps", async () => {
+    await renderer.renderAsync(<TestClearableTimeOnlyField />);
+
+    await clickReactDomButton("22:30");
+    await openTimePartSelect(1);
+
+    expect(readSelectOptions()).toEqual([
+      "00",
+      "05",
+      "10",
+      "15",
+      "20",
+      "25",
+      "30",
+      "35",
+      "40",
+      "45",
+      "50",
+      "55",
+    ]);
+  });
+
+  // A time saved before the steps existed keeps its minutes: changing only the
+  // hour must not round them away.
+  test("keeps a saved minute between steps when the hour changes", async () => {
+    await renderer.renderAsync(
+      <TestClearableTimeOnlyField defaultValue="22:07" />,
+    );
+
+    await clickReactDomButton("22:07");
+    await openTimePartSelect(0);
+    await selectRadixOption("10");
+
+    expect(readTimeOnlyFieldValue()).toBe("10:07");
+  });
+});
+
+/** The popover's selects, in order: the hour, then the minutes. */
+function openTimePartSelect(index: 0 | 1) {
+  return openRadixSelect(
+    document.querySelectorAll('[data-slot="select-trigger"]')[index],
+  );
+}
+
+function readSelectOptions() {
+  return Array.from(
+    document.querySelectorAll('[data-slot="select-item"]'),
+    (option) => option.textContent?.trim(),
+  );
+}

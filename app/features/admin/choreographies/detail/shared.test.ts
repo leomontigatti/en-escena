@@ -5,7 +5,7 @@ import {
   saveChoreographyDraftIntent,
 } from "./draft.shared";
 import {
-  formatChoreographyRemovalDescription,
+  describeChoreographyRemoval,
   shouldRevalidateChoreographyDetail,
   toChoreographyDetailViewActionData,
 } from "./shared";
@@ -81,36 +81,52 @@ describe("toChoreographyDetailViewActionData", () => {
   });
 });
 
-describe("formatChoreographyRemovalDescription", () => {
-  test("announces a withdrawal that moves no money", () => {
-    const description = formatChoreographyRemovalDescription({
+describe("describeChoreographyRemoval", () => {
+  test("asks to withdraw a choreography that holds money or comprobantes", () => {
+    expect(
+      describeChoreographyRemoval({
+        outcome: "withdrawn",
+        presentationOrderNumber: null,
+      }),
+    ).toEqual({
+      consequence: "Al retirarla también libera su cupo del cronograma.",
+      description:
+        "Al tener dinero asignado o comprobantes emitidos, no puede eliminarse. Podés revisarla desde la lista de finanzas.",
       outcome: "withdrawn",
-      presentationOrderNumber: null,
+      title: "¿Retirar la coreografía?",
     });
-
-    expect(description).toContain("queda retirada");
-    expect(description).toContain("No se mueve dinero");
   });
 
-  test("announces an outright removal that leaves nothing behind", () => {
-    const description = formatChoreographyRemovalDescription({
+  test("asks to delete outright a choreography that holds neither", () => {
+    expect(
+      describeChoreographyRemoval({
+        outcome: "deleted",
+        presentationOrderNumber: null,
+      }),
+    ).toEqual({
+      description:
+        "Al no tener dinero asignado ni comprobantes emitidos, se elimina por completo. Al eliminarla también libera su cupo del cronograma.",
       outcome: "deleted",
-      presentationOrderNumber: null,
+      title: "¿Eliminar la coreografía?",
     });
-
-    expect(description).toContain("se elimina por completo");
-    expect(description).not.toContain("retirada");
   });
 
-  test("names the presentation it will pull out of the order in both outcomes", () => {
-    for (const outcome of ["deleted", "withdrawn"] as const) {
-      expect(
-        formatChoreographyRemovalDescription({
-          outcome,
-          presentationOrderNumber: 7,
-        }),
-      ).toContain("presentación n.º 7");
-    }
+  test("says the order number is lost in both outcomes", () => {
+    const withdrawal = describeChoreographyRemoval({
+      outcome: "withdrawn",
+      presentationOrderNumber: 7,
+    });
+    const deletion = describeChoreographyRemoval({
+      outcome: "deleted",
+      presentationOrderNumber: 7,
+    });
+
+    expect(withdrawal.outcome === "withdrawn" && withdrawal.consequence).toBe(
+      "Al retirarla también libera su cupo del cronograma y pierde el número de orden.",
+    );
+    expect(deletion.description).toMatch(
+      /cupo del cronograma y pierde el número de orden\.$/,
+    );
   });
 });
 

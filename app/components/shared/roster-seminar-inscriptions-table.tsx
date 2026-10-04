@@ -86,7 +86,7 @@ export function RosterSeminarInscriptionsTable({
       rows={inscriptions}
       columns={columns}
       getRowKey={(inscription) => inscription.id}
-      searchPlaceholder="Buscar seminario por instructor o evento"
+      searchPlaceholder="Buscar por instructor o evento"
       emptyMessage={emptyMessages[personKind]}
       initialSort={{ columnId: "scheduledDate", direction: "asc" }}
     />

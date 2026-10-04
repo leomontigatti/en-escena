@@ -134,7 +134,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
-      searchPlaceholder="Buscar bailarín por nombre, número de documento o academia"
+      searchPlaceholder="Buscar por nombre o documento"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildDancerFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}

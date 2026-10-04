@@ -113,19 +113,13 @@ export function AcademyFinancesRouteView({
         <ResourceActionsMenu contentClassName="w-48">
           <DropdownMenuItem
             disabled={!choreographyTotals.hasSelection}
-            onSelect={(event) => {
-              event.preventDefault();
-              setPresetStage("deposit");
-            }}
+            onSelect={() => setPresetStage("deposit")}
           >
             {financePresetLabels.deposit}
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!choreographyTotals.hasSelection}
-            onSelect={(event) => {
-              event.preventDefault();
-              setPresetStage("balance");
-            }}
+            onSelect={() => setPresetStage("balance")}
           >
             {financePresetLabels.balance}
           </DropdownMenuItem>
@@ -156,7 +150,7 @@ export function AcademyFinancesRouteView({
               columns={choreographyColumns}
               facetedFilters={choreographyFinanceFacetedFilters}
               getRowKey={(row) => row.id}
-              searchPlaceholder="Buscar coreografía por número o nombre"
+              searchPlaceholder="Buscar por número o nombre"
               textFilterColumnId="name"
               // Higher than the default ten because the two collections act on
               // the selection: an academy whose choreographies span pages is
@@ -183,7 +177,7 @@ export function AcademyFinancesRouteView({
               columns={seminarColumns}
               facetedFilters={choreographyFinanceFacetedFilters}
               getRowKey={(row) => row.id}
-              searchPlaceholder="Buscar seminario por instructor"
+              searchPlaceholder="Buscar por instructor"
               textFilterColumnId="instructorName"
               pageSize={25}
               selectableRows
@@ -288,23 +282,23 @@ function buildChoreographyFinanceColumns(
       header: "#",
       className: "w-16 font-medium tabular-nums",
       headerClassName: "w-16",
-      cell: (row) => (
-        <DataTableLink
-          to={`/administracion/finanzas/${academyId}/coreografias/${row.id}`}
-        >
-          {formatEventSequenceNumber(row.choreographyNumber)}
-        </DataTableLink>
-      ),
+      cell: (row) => formatEventSequenceNumber(row.choreographyNumber),
       sortValue: (row) => row.choreographyNumber,
     },
     {
       id: "name",
       header: "Nombre",
       className: "min-w-56 font-medium",
-      // The number is the row's only way into the detail, as in the
-      // choreography lists. Linking the name too gave one destination two
+      // The name is the row's only way into the detail, as in the
+      // choreography lists. Linking the number too gave one destination two
       // targets, which reads as a choice and is not.
-      cell: (row) => row.name,
+      cell: (row) => (
+        <DataTableLink
+          to={`/administracion/finanzas/${academyId}/coreografias/${row.id}`}
+        >
+          {row.name}
+        </DataTableLink>
+      ),
       // The search box filters this one column, so the number travels in here
       // to be searchable at all. Zero-padded, which is what makes `00042`,
       // `042` and `42` all reach the same choreography.

@@ -21,6 +21,7 @@ import { EventPricesListView } from "@/features/admin/prices/list/view";
 import { handleEventScheduleAction } from "@/features/admin/schedules/action.server";
 import { EventScheduleCreateView } from "@/features/admin/schedules/create/view";
 import { EventScheduleDetailView } from "@/features/admin/schedules/detail/view";
+import type { ScheduleDependencySummary } from "@/lib/schedules/schedule-dependencies";
 import { EventSchedulesListView } from "@/features/admin/schedules/list/view";
 import { db } from "@/db";
 import type { categories, modalities, submodalities } from "@/db/schema";
@@ -286,7 +287,7 @@ export function renderBloqueHorarioDetailRoute(
     url: `/administracion/cronogramas/${scheduleId}`,
     handle: bloqueHorarioDetalleHandle,
     element: createElement(EventScheduleDetailView, {
-      loaderData,
+      loaderData: { ...loaderData, scheduleDependencies: freeSchedule },
       scheduleId,
       actionData,
     }),
@@ -464,12 +465,23 @@ export function renderScheduleDetailErrorRoute(
     url: `/administracion/cronogramas/${scheduleId}`,
     handle: bloqueHorarioDetalleHandle,
     element: createElement(EventScheduleDetailView, {
-      loaderData,
+      loaderData: { ...loaderData, scheduleDependencies: freeSchedule },
       scheduleId,
       actionData,
     }),
   });
 }
+
+/**
+ * The detail markup these helpers render is about the form, not about what
+ * holds the schedule: they render it as a schedule nothing holds. The locks
+ * themselves are covered by the detail view test and the repository test.
+ */
+const freeSchedule: ScheduleDependencySummary = {
+  coveringPriceNames: [],
+  occupyingChoreographyCount: 0,
+  withdrawnChoreographyCount: 0,
+};
 
 export { expectCreated };
 export { fixedExperienceLevel };

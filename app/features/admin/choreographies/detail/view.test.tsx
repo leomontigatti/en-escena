@@ -12,7 +12,10 @@ import {
   type ChoreographyDraftPreview,
 } from "@/features/admin/choreographies/detail/draft.shared";
 import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  findButton,
+} from "@/lib/test-support/react-dom";
 
 type DetailViewProps = Parameters<typeof ChoreographyDetailRouteView>[0];
 
@@ -58,7 +61,7 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(markup).toContain("Tiene la presentación n.º 7");
+    expect(markup).toContain("Tiene la presentación N.º 7");
     expect(markup).toContain(
       "tiene número de presentación y modificarla puede necesitar atención",
     );
@@ -69,7 +72,7 @@ describe("ChoreographyDetailRouteView", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).not.toContain("Esta coreografía ya fue evaluada");
-    expect(markup).not.toContain("Tiene la presentación n.º");
+    expect(markup).not.toContain("Tiene la presentación N.º");
   });
 
   test("renders name and actions as read-only for auditors", () => {
@@ -390,9 +393,10 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
-    expect(document.body.textContent).toContain("queda retirada");
-    expect(document.body.textContent).toContain("No se mueve dinero");
+    expect(document.body.textContent).toContain("¿Retirar la coreografía?");
+    expect(document.body.textContent).toContain("no puede eliminarse");
+    expect(document.body.textContent).not.toContain("irreversible");
+    expect(findButton("Retirar", { exact: true })).toBeDefined();
   });
 
   test("announces an outright removal when there is nothing to preserve", async () => {
@@ -405,7 +409,8 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(document.body.textContent).toContain("¿Eliminar la coreografía?");
     expect(document.body.textContent).toContain("se elimina por completo");
-    expect(document.body.textContent).not.toContain("queda retirada");
+    expect(document.body.textContent).toContain("Esta acción es irreversible.");
+    expect(findButton("Retirar", { exact: true })).toBeUndefined();
   });
 
   /**
@@ -691,7 +696,7 @@ function buildChoreography(
 }
 
 async function openActionsMenu() {
-  const button = document.querySelector('button[aria-label="Acciones"]');
+  const button = findButton("Acciones", { exact: true });
 
   if (!button) {
     throw new Error("Expected choreography actions button to be rendered.");

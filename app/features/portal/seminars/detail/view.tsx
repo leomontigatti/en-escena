@@ -201,7 +201,7 @@ function InscriptionsTable({
       rows={inscriptions}
       columns={columns}
       getRowKey={(inscription) => inscription.id}
-      searchPlaceholder="Buscar inscripto por nombre"
+      searchPlaceholder="Buscar por nombre"
       emptyMessage="Todavía no inscribiste a nadie en este seminario."
       initialSort={{ columnId: "fullName", direction: "asc" }}
     />

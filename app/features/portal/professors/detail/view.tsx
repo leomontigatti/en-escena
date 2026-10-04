@@ -10,9 +10,9 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { ProfessorChoreographiesTable } from "@/components/shared/roster-inscriptions-table";
 import { RosterSeminarInscriptionsTable } from "@/components/shared/roster-seminar-inscriptions-table";
-import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -104,11 +104,10 @@ export function PortalProfessorDetailRouteView({
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
-  const { participatingAlert, statusAction } =
-    buildPortalProfessorDetailViewModel({
-      active: loaderData.professor.active,
-      isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
-    });
+  const { statusAction } = buildPortalProfessorDetailViewModel({
+    active: loaderData.professor.active,
+    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
+  });
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateProfessorIntent;
@@ -140,12 +139,8 @@ export function PortalProfessorDetailRouteView({
           action={
             <ResourceActionsMenu contentClassName="w-40">
               <DropdownMenuItem
-                disabled={statusAction.disabled}
                 variant={statusAction.confirmButtonVariant}
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setStatusDialogIntent(statusAction.intent);
-                }}
+                onSelect={() => setStatusDialogIntent(statusAction.intent)}
               >
                 {statusAction.label}
               </DropdownMenuItem>
@@ -158,7 +153,6 @@ export function PortalProfessorDetailRouteView({
           onReactivate={() => {
             setStatusDialogIntent(reactivateProfessorIntent);
           }}
-          participatingAlert={participatingAlert}
           professorActive={loaderData.professor.active}
         />
 
@@ -201,13 +195,10 @@ export function PortalProfessorDetailRouteView({
         ) : null}
       </section>
 
-      <ProfessorStatusDialog
+      <ProfessorStatusDialogs
         intent={statusDialogIntent}
-        onOpenChange={(open) => {
-          if (!open) {
-            setStatusDialogIntent(null);
-          }
-        }}
+        isArchiveBlocked={statusAction.isBlocked}
+        onClose={() => setStatusDialogIntent(null)}
       />
     </>
   );
@@ -281,12 +272,10 @@ function NoActiveEventState({ subject }: { subject: string }) {
 function PortalProfessorAlertsSection({
   isIncomplete,
   onReactivate,
-  participatingAlert,
   professorActive,
 }: {
   isIncomplete: boolean;
   onReactivate: () => void;
-  participatingAlert: string | null;
   professorActive: boolean;
 }) {
   return (
@@ -296,9 +285,6 @@ function PortalProfessorAlertsSection({
           personLabel="profesor"
           onReactivate={onReactivate}
         />
-      ) : null}
-      {participatingAlert ? (
-        <RosterPersonParticipatingAlert message={participatingAlert} />
       ) : null}
       {isIncomplete ? (
         <Alert variant="warning">
@@ -408,4 +394,40 @@ function getGeneralActionError(
     status: "error" as const,
     message: actionData.message,
   };
+}
+
+/**
+ * `Archivar` opens the blocked acknowledgment instead of its confirmation
+ * while the professor takes part in the active event; every other intent opens
+ * the confirmation.
+ */
+function ProfessorStatusDialogs({
+  intent,
+  isArchiveBlocked,
+  onClose,
+}: {
+  intent: ProfessorStatusIntent | null;
+  isArchiveBlocked: boolean;
+  onClose: () => void;
+}) {
+  const isBlockedOpen = intent === archiveProfessorIntent && isArchiveBlocked;
+  const closeOnDismiss = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
+  return (
+    <>
+      <RosterPersonArchiveBlockedDialog
+        kind="professor"
+        onOpenChange={closeOnDismiss}
+        open={isBlockedOpen}
+      />
+      <ProfessorStatusDialog
+        intent={isBlockedOpen ? null : intent}
+        onOpenChange={closeOnDismiss}
+      />
+    </>
+  );
 }

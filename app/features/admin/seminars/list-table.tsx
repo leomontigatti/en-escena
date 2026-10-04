@@ -1,20 +1,39 @@
+import { Clock } from "lucide-react";
+
 import {
   ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { Badge } from "@/components/ui/badge";
 import {
   formatAvailablePlacesSuffix,
   formatDate,
 } from "@/features/admin/schedules/view-shared";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
+import {
+  isSeminarKind,
+  seminarKindLabels,
+  seminarKindOptions,
+  type SeminarKind,
+} from "@/lib/seminars/seminar-kinds";
 import { buildDetailPath } from "@/lib/shared/navigation";
 import { cn } from "@/lib/shared/utils";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { basePath } from "./shared";
 
-const emptySeminarList = describeEmptyList("seminarios", "search");
+const emptySeminarList = describeEmptyList("seminarios", "search-and-filters");
+
+/** The URL parameter of each filter, which the route revalidates on. */
+export const seminarFacetedFilterIds = ["tipo", "dia"] as const;
+
+/** Kinds are not states, so both read neutral, told apart by fill. */
+const seminarKindBadgeVariants = {
+  regular: "outline",
+  special: "secondary",
+} as const satisfies Record<SeminarKind, "outline" | "secondary">;
 
 export function SeminarList({
   seminars,
@@ -43,6 +62,7 @@ export function SeminarList({
       cell: (seminar) => formatDate(seminar.scheduledDate),
       className: "text-muted-foreground",
       sortValue: (seminar) => `${seminar.scheduledDate} ${seminar.startTime}`,
+      filterValues: (seminar) => [seminar.scheduledDate],
     },
     {
       id: "startTime",
@@ -62,6 +82,12 @@ export function SeminarList({
       ),
       className: "font-medium whitespace-nowrap",
     },
+    {
+      id: "kind",
+      header: "Tipo",
+      cell: (seminar) => <SeminarKindBadge kind={seminar.kind} />,
+      filterValues: (seminar) => [seminar.kind],
+    },
   ];
 
   return (
@@ -69,11 +95,48 @@ export function SeminarList({
       rows={seminars}
       columns={columns}
       getRowKey={(seminar) => seminar.id}
-      searchPlaceholder="Buscar seminario por instructor"
+      searchPlaceholder="Buscar por instructor"
       textFilterColumnId="instructorName"
+      facetedFilters={buildSeminarFacetedFilters(seminars)}
       emptyMessage={emptySeminarList.nothingMatched}
       initialSort={{ columnId: "scheduledDate", direction: "asc" }}
     />
+  );
+}
+
+function buildSeminarFacetedFilters(
+  seminars: SeminarListItem[],
+): DataTableFacetedFiltersOf<typeof seminarFacetedFilterIds> {
+  const days = [...new Set(seminars.map((seminar) => seminar.scheduledDate))]
+    .sort()
+    .map((day) => ({ label: formatDate(day), value: day }));
+
+  return [
+    {
+      id: "tipo",
+      label: "Tipo",
+      options: seminarKindOptions,
+      renderValue: (option) =>
+        isSeminarKind(option.value) ? (
+          <SeminarKindBadge kind={option.value} />
+        ) : (
+          option.label
+        ),
+    },
+    {
+      id: "dia",
+      icon: Clock,
+      label: "Día",
+      options: days,
+    },
+  ];
+}
+
+function SeminarKindBadge({ kind }: { kind: SeminarKind }) {
+  return (
+    <Badge variant={seminarKindBadgeVariants[kind]}>
+      {seminarKindLabels[kind]}
+    </Badge>
   );
 }
 

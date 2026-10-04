@@ -363,23 +363,27 @@ What one judge gave one `presentation`, one row per `judgeAssignment`, **created
 _Avoid_: `presentation`, price, `payment`, confirmed score, draft score
 
 **`submodalityCriterion`** — ui: "Criterio"
-One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality`. It is either a `generalCriterion` or a `levelCriterion`. The adding maxima of a sheet total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them from the modality page one sheet at a time —the `mandatoryTechnique`, or one level's own— and a level's are only saved when they complete the `mandatoryTechnique` to 100; a sheet the `mandatoryTechnique` leaves short is shown as incomplete (`Planilla incompleta`) until it is, and cannot be scored meanwhile. They lock as soon as any presentation of the submodality has a `score`.
+One line of a `scoreSheet`: a name, a maximum that is a whole number from 1, and a kind that either adds to the score or deducts from it, belonging to one `submodality`. It is either a `generalCriterion` or a `levelCriterion`. The adding maxima of a sheet total exactly 100, so a sheet can always reach 100, and the deduction maxima sit outside that total because a deduction is a penalty and not a share of the score. Administration defines them from the modality page one sheet at a time —the `generalEvaluation`, or one level's `mandatoryTechnique`— and a level's are only saved when they complete the `generalEvaluation` to 100; a sheet the `generalEvaluation` leaves short is shown as incomplete (`Planilla incompleta`) until it is, and cannot be scored meanwhile. They lock as soon as any presentation of the submodality has a `score`.
 _Avoid_: `award`, weight, percentage
 
 **`generalCriterion`** — ui: "Criterio general"
 A `submodalityCriterion` with no `experienceLevel`: it is on every `scoreSheet` of its submodality, whatever the level of the choreography.
-_Avoid_: `mandatoryTechnique`, default criterion
+_Avoid_: `generalEvaluation`, default criterion
 
 **`levelCriterion`** — ui: "Criterio de nivel"
 A `submodalityCriterion` tied to one `experienceLevel`: it is only on the sheets of the submodality's choreographies at that level.
-_Avoid_: `generalCriterion`, level sheet
+_Avoid_: `mandatoryTechnique`, level sheet
+
+**`generalEvaluation`** — ui: "Evaluación general"
+The group of a submodality's `generalCriterion` lines, as administration configures it and as a sheet shows it, above the choreography's `mandatoryTechnique`. It means nothing outside scoring, and the judge's sheet shows it under the same name.
+_Avoid_: `generalCriterion`, `mandatoryTechnique`, general sheet
 
 **`mandatoryTechnique`** — ui: "Técnico obligatorio"
-The group of a submodality's `generalCriterion` lines, as administration configures it and as a sheet shows it, above the lines of the choreography's level. It means nothing outside scoring, and the judge's sheet shows it under the same name.
-_Avoid_: `generalCriterion`, general sheet
+The group of a submodality's `levelCriterion` lines for one `experienceLevel`, as administration configures it and as a sheet shows it, below the `generalEvaluation`. It means nothing outside scoring, and the judge's sheet shows it under the same name.
+_Avoid_: `levelCriterion`, `generalEvaluation`, level-specific criteria
 
 **`scoreSheet`** — ui: "Planilla"
-How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `mandatoryTechnique` and then the `levelCriterion` lines of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
+How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `generalEvaluation` and then the `mandatoryTechnique` of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
 _Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
 **`award`** — ui: "Premio"

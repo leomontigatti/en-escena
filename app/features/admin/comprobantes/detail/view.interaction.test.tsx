@@ -11,6 +11,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
   getButton,
 } from "@/lib/test-support/react-dom";
 
@@ -73,9 +74,7 @@ function lockedFieldValue(label: string) {
  * `pointerdown` rather than on `click`.
  */
 async function openActionsMenu() {
-  const trigger = document.querySelector<HTMLButtonElement>(
-    'button[aria-label="Acciones"]',
-  );
+  const trigger = findButton("Acciones", { exact: true });
 
   if (!trigger) {
     throw new Error("Expected the actions menu trigger to be rendered.");
@@ -267,9 +266,7 @@ describe("ComprobanteDetailRouteView", () => {
     expect(document.body.textContent).not.toContain("Porción");
 
     // Actions menu (print/annul) hosted in the header.
-    expect(
-      document.querySelector('button[aria-label="Acciones"]'),
-    ).not.toBeNull();
+    expect(findButton("Acciones", { exact: true })).toBeDefined();
 
     // The annulment dialog is not mounted until it is opened.
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();

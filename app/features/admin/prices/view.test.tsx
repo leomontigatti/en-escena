@@ -24,6 +24,7 @@ import {
   frozenSpecialPriceNotice,
   uncoveredPriceNotice,
 } from "@/lib/prices/guards";
+import { findButton } from "@/lib/test-support/react-dom";
 
 describe("EventPriceDetailRouteView", () => {
   let container: HTMLDivElement | null = null;
@@ -471,9 +472,7 @@ async function renderPricesRoute({
  * on `pointerdown` rather than on `click`. Both live in a portal on the body.
  */
 async function readMenuItemDisabled(label: string) {
-  const trigger = document.querySelector<HTMLButtonElement>(
-    'button[aria-label="Acciones"]',
-  );
+  const trigger = findButton("Acciones", { exact: true });
 
   if (!trigger) {
     throw new Error("Expected the actions menu trigger to be rendered.");

@@ -16,10 +16,10 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
  * editor as the administrator types and by the save on the server. See
  * docs/domain/judging.md, "Scores And Feedback".
  *
- * A submodality's criteria are edited one sheet at a time: `Técnico
- * obligatorio` (the general criteria, on every sheet) or one level's own. A
- * level's sheet is the general criteria plus its own, so its own are what is
- * left to reach 100. The general criteria cannot know which level the
+ * A submodality's criteria are edited one sheet at a time: `Evaluación
+ * general` (the general criteria, on every sheet) or one level's own (`Técnico
+ * obligatorio`). A level's sheet is the general criteria plus its own, so its
+ * own are what is left to reach 100. The general criteria cannot know which level the
  * administrator will complete next, so they may leave a level short — the
  * editor lists the sheets that are — but never above 100, which no level could
  * then reach; and where a category of the modality has no levels they are a
@@ -61,6 +61,12 @@ export type SheetCriterionInput = CriterionMaximumInput & { name: string };
 
 export type SheetCriteriaValidation =
   { ok: true } | { fieldErrors: Record<string, string>; ok: false };
+
+/** What a sheet's general criteria are called, wherever the sheet is shown. */
+export const generalEvaluationLabel = "Evaluación general";
+
+/** What a level's own criteria are called, wherever the sheet is shown. */
+export const mandatoryTechniqueLabel = "Técnico obligatorio";
 
 export const generalOvershootMessage =
   "El total de los criterios que suman no puede superar 100.";

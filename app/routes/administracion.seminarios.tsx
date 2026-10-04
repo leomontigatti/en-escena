@@ -1,4 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
+import { seminarFacetedFilterIds } from "@/features/admin/seminars/list-table";
 import { loadSeminarsList } from "@/features/admin/seminars/list/server";
 import {
   SeminarsListView,
@@ -14,6 +16,10 @@ export const handle = {
 export async function loader({ request }: Route.LoaderArgs) {
   return loadSeminarsList(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: [...seminarFacetedFilterIds],
+});
 
 export function SeminarsListRouteView({ loaderData }: SeminarsListViewProps) {
   return <SeminarsListView loaderData={loaderData} />;

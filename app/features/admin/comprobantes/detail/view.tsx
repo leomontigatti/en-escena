@@ -113,10 +113,7 @@ export function ComprobanteDetailRouteView({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setIsAnnulDialogOpen(true);
-                  }}
+                  onSelect={() => setIsAnnulDialogOpen(true)}
                 >
                   Anular
                 </DropdownMenuItem>

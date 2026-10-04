@@ -3,6 +3,7 @@ import { Form, useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
 import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
 import {
@@ -80,6 +81,8 @@ export function ProfessorDetailRouteView({
     active: professor.active,
     intent: dialogIntent,
   });
+  const isArchiveBlockedOpen =
+    dialogIntent === "archive-professor" && viewState.statusAction.isBlocked;
   function openStatusDialog(
     intent: "archive-professor" | "reactivate-professor",
   ) {
@@ -106,7 +109,6 @@ export function ProfessorDetailRouteView({
         canEdit={loaderData.canEdit}
         isIncomplete={professor.isIncomplete}
         onSelectIntent={openStatusDialog}
-        participatingAlert={viewState.participatingAlert}
       />
 
       <ProfessorDetailForm
@@ -123,9 +125,19 @@ export function ProfessorDetailRouteView({
         professor={professor}
       />
 
+      <RosterPersonArchiveBlockedDialog
+        kind="professor"
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialogIntent(null);
+          }
+        }}
+        open={isArchiveBlockedOpen}
+      />
+
       {/* Unmounted while closed, so the copy never falls back to the status
           action's while the dialog animates out of a save. */}
-      {dialogIntent ? (
+      {dialogIntent && !isArchiveBlockedOpen ? (
         <ConfirmationDialog
           confirmIcon={confirmationAction.confirmIcon}
           confirmLabel={confirmationAction.confirmLabel}
