@@ -4,6 +4,7 @@ import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { openRadixSelect } from "@/lib/test-support/radix-select";
 import {
   createReactDomTestRenderer,
   setInputValue,
@@ -298,6 +299,39 @@ describe("the participation list moved by hand", () => {
  * Drag-and-drop measures the rows it moves between, and jsdom lays nothing out:
  * each row is given a box of its own so the keyboard sensor has somewhere to go.
  */
+describe("the participation list's program visibility", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("asks before showing the program", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/presentaciones",
+          element: <PresentationsListView loaderData={buildLoaderData()} />,
+        },
+      ],
+      { initialEntries: ["/administracion/presentaciones"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await openRadixSelect(document.querySelector('[aria-label="Acciones"]'));
+
+    const showItem = [...document.querySelectorAll('[role="menuitem"]')].find(
+      (item) => item.textContent === "Mostrar programa",
+    );
+
+    await act(async () => {
+      (showItem as HTMLElement).click();
+    });
+
+    expect(document.querySelector('[role="alertdialog"] h2')?.textContent).toBe(
+      "¿Mostrar programa?",
+    );
+  });
+});
+
 function stubRowRects() {
   const rows = [...document.querySelectorAll("tbody tr")];
 

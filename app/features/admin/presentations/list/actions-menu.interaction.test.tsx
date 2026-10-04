@@ -65,7 +65,7 @@ describe("the participation list's actions menu", () => {
     expect(menuItems()).toEqual(["Descargar programa"]);
   });
 
-  test("opens the confirmation to show the program", async () => {
+  test("offers to show the program", async () => {
     await mount(false, { eventId: "event-1", show: true });
 
     await openRadixSelect(document.querySelector('[aria-label="Acciones"]'));
