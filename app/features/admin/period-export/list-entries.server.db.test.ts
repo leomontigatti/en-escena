@@ -7,6 +7,8 @@ import { loadAcademiesList } from "@/features/admin/academies/list/server";
 import { AcademiesListRouteView } from "@/features/admin/academies/list/view";
 import { loadChoreographyListRouteData } from "@/features/admin/choreographies/list/server";
 import { ChoreographiesListRouteView } from "@/features/admin/choreographies/list/view";
+import { loadPaymentsList } from "@/features/admin/payments/list/server";
+import { PaymentsListRouteView } from "@/features/admin/payments/list/view";
 import { loadDancersList } from "@/features/admin/dancers/list/server";
 import { DancersListRouteView } from "@/features/admin/dancers/list/view";
 import { loadProfessorsList } from "@/features/admin/professors/list/server";
@@ -84,6 +86,17 @@ const lists = [
         "/administracion/coreografias",
         createElement(ChoreographiesListRouteView, {
           loaderData: await loadChoreographyListRouteData(request),
+        }),
+      ),
+  },
+  {
+    label: "Pagos",
+    path: "/administracion/pagos",
+    renderList: async (request: Request) =>
+      render(
+        "/administracion/pagos",
+        createElement(PaymentsListRouteView, {
+          loaderData: await loadPaymentsList(request),
         }),
       ),
   },

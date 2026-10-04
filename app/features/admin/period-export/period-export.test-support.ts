@@ -6,9 +6,11 @@ import {
   choreographyDancers,
   choreographyProfessors,
   modalities,
+  paymentAllocations,
   seminarInscriptions,
   seminars,
 } from "@/db/schema";
+import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import {
   createChoreographyRecord,
   createDancer,
@@ -140,11 +142,49 @@ export async function seedPeriodExportFixture() {
     return inscription;
   };
 
+  /**
+   * A payment of the academy, with money allocated to the inscriptions named;
+   * whatever is not allocated stays free on the payment.
+   */
+  const addPayment = async (input: {
+    academyId: string;
+    allocations?: (
+      | { amount: number; choreographyInscriptionId: string }
+      | { amount: number; seminarInscriptionId: string }
+    )[];
+    amount: number;
+    paymentDate: string;
+  }) => {
+    const { paymentId } = await registerAcademyEventPayment({
+      academyId: input.academyId,
+      amount: input.amount,
+      eventId: event.id,
+      internalNote: null,
+      paymentDate: input.paymentDate,
+      paymentMethod: "transferencia",
+      reference: null,
+    });
+
+    if (input.allocations?.length) {
+      await db.insert(paymentAllocations).values(
+        input.allocations.map((allocation) => ({
+          ...allocation,
+          academyId: input.academyId,
+          eventId: event.id,
+          paymentId,
+        })),
+      );
+    }
+
+    return paymentId;
+  };
+
   return {
     addAcademy,
     addChoreography,
     addDancer: createDancer,
     addModality,
+    addPayment,
     addProfessor: createProfessor,
     addSeminarInscription,
     catalog,

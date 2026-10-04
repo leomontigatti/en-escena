@@ -407,7 +407,7 @@ Money handed back to an academy in an event: an explicit mirror of **`payment`**
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
 
 **`collection`** — ui: "Recaudación"
-The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. **Specified, not built.**
+The money an event received over a period: its `payment`s by payment date, read next to the `refund`s of the same period and the net of the two. It counts money that arrived, whether or not it was allocated, so it is neither what was invoiced nor what is owed. The auditor downloads it as the `Recaudación` workbook; broken down by modality it reads the payments' current allocations, with `Seminarios` and `Sin asignar` rows so it still sums to the payments. Until `refund` is built its refunds are zero.
 _Avoid_: income, sales, billing, `comprobante` totals, `availableBalanceAmount`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"

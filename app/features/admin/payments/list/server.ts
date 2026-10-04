@@ -67,7 +67,7 @@ export type PaymentsListSummary = {
 };
 
 export type PaymentsListLoaderData = {
-  /** False for the auditor: no `Nuevo pago`. */
+  /** False for the auditor: no `Nuevo pago`, and the `Exportar` entry instead. */
   canWrite: boolean;
   filters: PaymentsListFilters;
   hasAnyPayment: boolean;

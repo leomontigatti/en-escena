@@ -59,3 +59,14 @@ export function timestampInPeriod(
       : sql`${column} < (${period.to}::date + 1)::timestamp at time zone ${BUSINESS_TIME_ZONE}`,
   );
 }
+
+/** A date-only column inside the period, both ends included. */
+export function dateInPeriod(
+  column: AnyColumn,
+  period: ExportPeriod,
+): SQL | undefined {
+  return and(
+    period.from === null ? undefined : sql`${column} >= ${period.from}`,
+    period.to === null ? undefined : sql`${column} <= ${period.to}`,
+  );
+}

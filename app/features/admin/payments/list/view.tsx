@@ -23,6 +23,8 @@ import {
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { resolveSelectedPaymentTotals } from "@/lib/finances/selected-payment-totals";
 import { describeEmptyList } from "@/lib/list-query/list-query";
+import { collectionExportPath } from "@/features/admin/payments/export/shared";
+import { PeriodExportMenu } from "@/features/admin/period-export/menu";
 
 import type { PaymentsListRow, PaymentsListLoaderData } from "./server";
 
@@ -159,6 +161,15 @@ export function PaymentsListRouteView({
               to: getCreatePaymentUrl(loaderData.selectedEventId),
             }
           : undefined
+      }
+      headerAction={
+        loaderData.canWrite ? undefined : (
+          <PeriodExportMenu
+            description="La recaudación del evento activo en el período, por fecha de pago: cada pago, y el mismo dinero por provincia y por modalidad. Dejá una fecha vacía para no acotar ese extremo."
+            path={collectionExportPath}
+            title="Exportar recaudación"
+          />
+        )
       }
     >
       <div className="flex flex-col gap-6">
