@@ -45,7 +45,7 @@ type ComprobantesListRouteViewProps = {
 // the header). The number links to the comprobante detail and the anchor to its
 // financial detail — the choreography's or the `(seminar, academy)` unit's;
 // there is no CAE column and no inline actions (print/annul live in the detail).
-export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
+const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",
     header: "Comprobante",
@@ -132,7 +132,7 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   },
 ];
 
-export const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
+const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
@@ -140,6 +140,11 @@ export const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
       { label: "Vigente", value: "vigente" },
       { label: "Anulada", value: "anulada" },
     ],
+    renderValue: (option) => (
+      <Badge variant={option.value === "vigente" ? "success" : "destructive"}>
+        {option.label}
+      </Badge>
+    ),
   },
   {
     id: "tipo",
@@ -154,6 +159,19 @@ export const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
         value: "nota_credito_c",
       },
     ],
+    // The full name and not the initials the column shows: the column has the
+    // width of two letters, and here the value has room to say what it is.
+    renderValue: (option) => (
+      <Badge
+        variant={comprobanteTipoBadgeVariant(
+          option.value === "nota_credito_c"
+            ? NOTA_CREDITO_C_CBTE_TIPO
+            : FACTURA_C_CBTE_TIPO,
+        )}
+      >
+        {option.label}
+      </Badge>
+    ),
   },
 ];
 

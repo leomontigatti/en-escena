@@ -30,6 +30,7 @@ const priceFacetedFilters: DataTableFacetedFiltersOf<
     id: "tipo-de-grupo",
     label: "Tipo de grupo",
     options: groupTypeOptions,
+    renderValue: (option) => <Badge variant="secondary">{option.label}</Badge>,
   },
   {
     id: "cronograma",

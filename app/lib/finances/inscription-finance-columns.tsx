@@ -2,9 +2,11 @@ import {
   type DataTableColumn,
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
+import type { DataTableFacetedFilterOption } from "@/components/shared/data-table.shared";
 import { Badge } from "@/components/ui/badge";
 import {
   formatInscriptionStatusBadge,
+  getInscriptionStatusFilterBadgeVariant,
   inscriptionStatusFilterOptions,
 } from "@/lib/finances/choreography-financial-status";
 import {
@@ -36,12 +38,27 @@ export type InscriptionFinanceRow = {
   withdrawn: boolean;
 };
 
+/**
+ * How an applied `Estado` filter reads on every financial list: as the badge
+ * its rows wear.
+ */
+export function renderInscriptionStatusFilterValue(
+  option: DataTableFacetedFilterOption,
+) {
+  return (
+    <Badge variant={getInscriptionStatusFilterBadgeVariant(option.value)}>
+      {option.label}
+    </Badge>
+  );
+}
+
 /** The `Estado` facet, whose options are the badges the column renders. */
 export const inscriptionFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
     options: [...inscriptionStatusFilterOptions],
+    renderValue: renderInscriptionStatusFilterValue,
   },
 ];
 

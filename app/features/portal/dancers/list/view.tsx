@@ -49,6 +49,17 @@ const dancerFacetedFilters: DataTableFacetedFiltersOf<
       { label: "Participando", value: "participating" },
       { label: "No participando", value: "not-participating" },
     ],
+    renderValue: (option) => (
+      <Badge
+        variant={getParticipationBadgeVariant(
+          option.value === "participating"
+            ? "participating"
+            : "not-participating",
+        )}
+      >
+        {option.label}
+      </Badge>
+    ),
   },
   {
     id: "verificacion",
@@ -58,6 +69,17 @@ const dancerFacetedFilters: DataTableFacetedFiltersOf<
       { label: "Sin verificar", value: "unverified" },
       { label: "Verificado", value: "verified" },
     ],
+    renderValue: (option) => (
+      <Badge
+        variant={getDancerVerificationBadgeVariant(
+          option.value === "verified" || option.value === "unverified"
+            ? option.value
+            : "incomplete",
+        )}
+      >
+        {option.label}
+      </Badge>
+    ),
   },
   {
     id: "archivo",
@@ -68,6 +90,11 @@ const dancerFacetedFilters: DataTableFacetedFiltersOf<
         value: "archived",
       },
     ],
+    renderValue: (option) => (
+      <Badge variant={getRosterPersonStatusBadgeVariant("archived")}>
+        {option.label}
+      </Badge>
+    ),
   },
 ];
 

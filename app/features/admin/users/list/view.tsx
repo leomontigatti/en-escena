@@ -161,11 +161,23 @@ function UsersTable({
           id: "rol",
           label: "Rol",
           options: roleFilterOptions,
+          renderValue: (option) => (
+            <Badge variant="secondary">{option.label}</Badge>
+          ),
         },
         {
           id: "estado",
           label: "Estado",
           options: stateFilterOptions,
+          renderValue: (option) => (
+            <Badge
+              variant={getStateBadgeVariant(
+                option.value === "suspended" ? "suspended" : "active",
+              )}
+            >
+              {option.label}
+            </Badge>
+          ),
         },
         {
           id: "archivado",

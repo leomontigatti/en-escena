@@ -171,6 +171,20 @@ function IdentificationBadge({
   );
 }
 
+/** The status a value of the `Verificación` filter narrows to. */
+function toIdentificationStatus(
+  filterValue: string,
+): DancerIdentificationStatus {
+  switch (filterValue) {
+    case "verificados":
+      return "verified";
+    case "sin-verificar":
+      return "unverified";
+    default:
+      return "incomplete";
+  }
+}
+
 function getGroupedDancerIdentificationLabel(
   identificationStatus: DancerIdentificationStatus,
 ) {
@@ -197,6 +211,15 @@ function buildDancerFacetedFilters(
         { label: "Participando", value: "si" },
         { label: "No participando", value: "no" },
       ],
+      renderValue: (option) => (
+        <Badge
+          variant={getParticipationBadgeVariant(
+            option.value === "si" ? "participating" : "not-participating",
+          )}
+        >
+          {option.label}
+        </Badge>
+      ),
     });
   }
 
@@ -209,6 +232,11 @@ function buildDancerFacetedFilters(
         { label: "Sin verificar", value: "sin-verificar" },
         { label: "Verificado", value: "verificados" },
       ],
+      renderValue: (option) => (
+        <IdentificationBadge
+          identificationStatus={toIdentificationStatus(option.value)}
+        />
+      ),
     },
     {
       id: "estado",
@@ -217,6 +245,13 @@ function buildDancerFacetedFilters(
         { label: "Archivado", value: "archivados" },
         { label: "Todos", value: "todos" },
       ],
+      // `Todos` is no status of a row, so only `Archivado` reads as a badge.
+      renderValue: (option) =>
+        option.value === "archivados" ? (
+          <RosterPersonStatusBadge status="archived" />
+        ) : (
+          option.label
+        ),
     },
   );
 

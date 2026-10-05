@@ -169,6 +169,15 @@ function buildProfessorFacetedFilters(
         { label: "Participando", value: "si" },
         { label: "No participando", value: "no" },
       ],
+      renderValue: (option) => (
+        <Badge
+          variant={getParticipationBadgeVariant(
+            option.value === "si" ? "participating" : "not-participating",
+          )}
+        >
+          {option.label}
+        </Badge>
+      ),
     });
   }
 
@@ -179,6 +188,13 @@ function buildProfessorFacetedFilters(
       { label: "Archivado", value: "archivados" },
       { label: "Todos", value: "todos" },
     ],
+    // `Todos` is no status of a row, so only `Archivado` reads as a badge.
+    renderValue: (option) =>
+      option.value === "archivados" ? (
+        <RosterPersonStatusBadge status="archived" />
+      ) : (
+        option.label
+      ),
   });
 
   return [...groups];

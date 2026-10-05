@@ -19,6 +19,7 @@ import {
   formatPaymentMethodLabel,
   getPaymentMethodBadgeVariant,
   paymentMethodOptions,
+  paymentMethodValues,
 } from "@/lib/finances/payment-methods";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { resolveSelectedPaymentTotals } from "@/lib/finances/selected-payment-totals";
@@ -95,6 +96,19 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
     id: "medio",
     label: "Medio de pago",
     options: [...paymentMethodOptions],
+    renderValue: (option) => {
+      const method = paymentMethodValues.find(
+        (value) => value === option.value,
+      );
+
+      return method ? (
+        <Badge variant={getPaymentMethodBadgeVariant(method)}>
+          {option.label}
+        </Badge>
+      ) : (
+        option.label
+      );
+    },
   },
   {
     // The way down from the `Disponible` card: it reads the event's uncommitted

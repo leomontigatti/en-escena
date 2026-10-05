@@ -212,6 +212,7 @@ function JudgeListFilters({
     id: statusFilterGroupId,
     label: "Estado",
     options: [{ label: "Pendientes", value: pendingFilterValue }],
+    renderValue: (option) => <Badge variant="outline">{option.label}</Badge>,
   };
 
   return (
