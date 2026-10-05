@@ -202,7 +202,7 @@ export function PortalDancerDetailRouteView({
                 <FormActions
                   backTo="/portal/bailarines"
                   form={portalDancerFormId}
-                  hasChanges={form.form.formState.isDirty}
+                  hasChanges={form.hasChanges}
                   isPending={isSubmitting}
                   onDiscard={form.discard}
                   viewTransition
@@ -223,6 +223,7 @@ export function PortalDancerDetailRouteView({
                     documentConflictDescription={documentConflictDescription}
                     documentImageUrls={loaderData.documentImageUrls}
                     form={form}
+                    isSubmitting={isSubmitting}
                     viewModel={viewModel}
                   />
                 </form>
@@ -268,11 +269,13 @@ function PortalDancerIdentificationFields({
   documentConflictDescription,
   documentImageUrls,
   form,
+  isSubmitting,
   viewModel,
 }: {
   documentConflictDescription: ReactNode;
   documentImageUrls: PortalDancerDetailLoaderData["documentImageUrls"];
   form: ReturnType<typeof usePortalDancerForm>;
+  isSubmitting: boolean;
   viewModel: ReturnType<typeof buildPortalDancerDetailViewModel>;
 }) {
   return (
@@ -367,6 +370,8 @@ function PortalDancerIdentificationFields({
         </>
       ) : (
         <PortalDancerDocumentImageFields
+          disabled={isSubmitting}
+          documentImages={form.documentImages}
           form={form.form}
           imageUrls={documentImageUrls}
         />
