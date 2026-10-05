@@ -10,8 +10,8 @@ import {
 } from "@/lib/auth/access-auth.test-support";
 import {
   getLandingPathForSignedInUser,
+  requireAdminPanelReader,
   requireAdminPanelUser,
-  requireAuditorPanelUser,
   requireJudgePanelUser,
 } from "@/lib/auth/internal-navigation.server";
 import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
@@ -32,7 +32,7 @@ describe("internal navigation", () => {
   test.each([
     ["academy", "/portal"],
     ["admin", "/administracion"],
-    ["auditor", "/auditoria"],
+    ["auditor", "/administracion"],
     ["judge", "/juzgamiento"],
   ] as const)(
     "lands %s users on the role-specific surface",
@@ -242,7 +242,7 @@ describe("internal navigation", () => {
       302,
     );
 
-    expect(response.headers.get("location")).toBe("/auditoria");
+    expect(response.headers.get("location")).toBe("/administracion");
   });
 
   test.each([
@@ -301,7 +301,7 @@ describe("internal navigation", () => {
   test.each([
     ["academy", "/portal"],
     ["admin", "/administracion"],
-    ["auditor", "/auditoria"],
+    ["auditor", "/administracion"],
     ["judge", "/juzgamiento"],
   ] as const)(
     "redirects signed-in %s users from / to their landing route",
@@ -349,7 +349,7 @@ describe("internal navigation", () => {
     expect(response.headers.get("location")).toBe("/registro/academia");
   });
 
-  test("keeps auditor and judge placeholders separate from mutation surfaces", async () => {
+  test("admits administration readers to the panel and nobody else", async () => {
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditoria@example.com",
       role: "auditor",
@@ -360,7 +360,7 @@ describe("internal navigation", () => {
     });
 
     await expect(
-      requireAuditorPanelUser(auditorRequest),
+      requireAdminPanelReader(auditorRequest),
     ).resolves.toMatchObject({
       role: "auditor",
     });
@@ -369,7 +369,7 @@ describe("internal navigation", () => {
     });
 
     await expectThrownResponse(requireJudgePanelUser(auditorRequest), 403);
-    await expectThrownResponse(requireAuditorPanelUser(judgeRequest), 403);
+    await expectThrownResponse(requireAdminPanelReader(judgeRequest), 403);
   });
 });
 

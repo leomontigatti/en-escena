@@ -246,6 +246,8 @@ export function DancerDetailForm({
       </TabsContent>
       <TabsContent value="seminarios" className="pt-2">
         <SeminarInscriptionsSection
+          // The seminar detail is not reviewed for the auditor and refuses them.
+          canOpenSeminar={canEdit}
           inscriptions={dancer.seminarInscriptions}
           selectedEventId={selectedEventId}
         />
@@ -403,9 +405,11 @@ export function InscriptionsSection({
 }
 
 function SeminarInscriptionsSection({
+  canOpenSeminar,
   inscriptions,
   selectedEventId,
 }: {
+  canOpenSeminar: boolean;
   inscriptions: DancerDetailLoaderData["dancer"]["seminarInscriptions"];
   selectedEventId: string | null;
 }) {
@@ -420,7 +424,11 @@ function SeminarInscriptionsSection({
 
   return (
     <RosterSeminarInscriptionsTable
-      buildSeminarHref={(seminarId) => `${seminarsPath}/${seminarId}`}
+      buildSeminarHref={
+        canOpenSeminar
+          ? (seminarId) => `${seminarsPath}/${seminarId}`
+          : undefined
+      }
       inscriptions={inscriptions}
       personKind="dancer"
     />

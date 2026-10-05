@@ -259,6 +259,7 @@ function renderRoute(
       { initialEntries: [initialEntry] },
       createElement(ChoreographiesListRouteView, {
         loaderData: {
+          canWrite: true,
           choreographies: [],
           facets: {
             categories: [],

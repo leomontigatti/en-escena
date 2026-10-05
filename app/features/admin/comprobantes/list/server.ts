@@ -84,7 +84,7 @@ const comprobantesListSpec: ListQuerySpec<ComprobantesListOrder["columnId"]> = {
 export async function loadComprobantesList(
   request: Request,
 ): Promise<ComprobantesListLoaderData> {
-  await requireInternalUser(request, ["admin", "auditor"]);
+  await requireInternalUser(request, ["admin"]);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
   const url = new URL(request.url);

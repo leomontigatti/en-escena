@@ -20,7 +20,7 @@ export type FinanceAccountRow = {
 };
 
 export async function loadFinancesList(request: Request) {
-  await requireInternalUser(request, ["admin", "auditor"]);
+  await requireInternalUser(request, ["admin"]);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
 

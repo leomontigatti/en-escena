@@ -53,7 +53,11 @@ export function renderAdminChildRoute(input: RenderAdminChildRouteInput) {
       initialEntries: [input.initialEntry],
       hydrationData: {
         loaderData: {
-          admin: { account: adminAccount, ...input.parentLoaderData },
+          admin: {
+            account: adminAccount,
+            canWrite: true,
+            ...input.parentLoaderData,
+          },
           [input.childId]: input.childLoaderData,
         },
       },

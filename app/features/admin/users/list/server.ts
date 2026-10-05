@@ -7,7 +7,7 @@ import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 
 export async function loader({ request }: { request: Request }) {
-  const appUser = await requireInternalUser(request, ["admin", "auditor"]);
+  const appUser = await requireInternalUser(request, ["admin"]);
   const filters = readUserFilters(new URL(request.url).searchParams);
   const listResult = await listUsers({ filters });
 

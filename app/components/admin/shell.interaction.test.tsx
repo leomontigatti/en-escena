@@ -23,6 +23,7 @@ describe("AdminShell account menu", () => {
             roleLabel: "Administrador",
             username: "ada.admin",
           }}
+          canWrite
           events={[]}
           selectedEventId={null}
         >

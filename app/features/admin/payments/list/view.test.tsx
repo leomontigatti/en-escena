@@ -18,6 +18,13 @@ describe("PaymentsListRouteView", () => {
     expect(markup).toContain('aria-label="Seleccionar fila"');
   });
 
+  test("offers `Nuevo pago` to the administrator and not to the auditor", () => {
+    expect(render()).toContain("Nuevo pago");
+    expect(render(loaderDataFixture({ canWrite: false }))).not.toContain(
+      "Nuevo pago",
+    );
+  });
+
   test("shows what is still free on each payment", () => {
     const markup = render(
       loaderDataFixture({
@@ -135,6 +142,7 @@ function loaderDataFixture(
   overrides: Partial<PaymentsListLoaderData> = {},
 ): PaymentsListLoaderData {
   return {
+    canWrite: true,
     filters: filtersFixture(),
     hasAnyPayment: true,
     rows: [rowFixture()],

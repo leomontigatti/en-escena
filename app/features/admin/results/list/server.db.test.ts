@@ -196,10 +196,12 @@ describe("the results list", () => {
 });
 
 describe("the results list route", () => {
-  test("lets an auditor read it and withholds the publication", async () => {
-    await expect(
+  // Not reviewed for the auditor yet (PRD #1448): the list refuses them.
+  test("turns an auditor away and lets the administrator publish", async () => {
+    await expectThrownResponse(
       loadTheList("auditor.resultados@example.com", "auditor"),
-    ).resolves.toMatchObject({ canPublish: false });
+      403,
+    );
     await expect(
       loadTheList("admin.resultados.puede@example.com"),
     ).resolves.toMatchObject({ canPublish: true });

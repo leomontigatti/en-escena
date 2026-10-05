@@ -10,6 +10,7 @@ import {
   createAcademyUser,
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
+import { loadAcademiesList } from "@/features/admin/academies/list/server";
 import {
   AcademyDetailRouteView,
   action as detailAction,
@@ -91,7 +92,7 @@ async function buildFormRequest(input: {
   formData.set("contactName", input.contactName);
   formData.set("phone", input.phone);
   formData.set("city", input.city ?? "rosario");
-  formData.set("province", input.province ?? "santa fe");
+  formData.set("province", input.province ?? "santa_fe");
 
   return new Request(detailUrl(input.academyId), {
     method: "POST",
@@ -229,8 +230,83 @@ describe("`/administracion/academias` detail", () => {
       contactName: "Nora Norte",
       name: "Academia Sur Renombrada",
       phone: "3415551234",
-      province: "Santa Fe",
+      province: "santa_fe",
     });
+  });
+
+  test("reads an academy incomplete until it has a province and a city, on the list and the detail", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.completitud@example.com",
+      academyName: "Academia Completitud",
+    });
+    const read = async () => {
+      const { request } = await createSignedInRequest({
+        email: `${crypto.randomUUID()}@example.com`,
+        role: "admin",
+        requestUrl: detailUrl(academy.academy.id),
+      });
+      const detail = await detailLoader(routeArgs(request, academy.academy.id));
+      const list = await loadAcademiesList(request);
+
+      return [
+        detail.academy.dataStatus,
+        list.academies.find((row) => row.id === academy.academy.id)?.dataStatus,
+      ];
+    };
+
+    await expect(read()).resolves.toEqual(["incomplete", "incomplete"]);
+
+    await db
+      .update(academies)
+      .set({ province: "salta" })
+      .where(eq(academies.id, academy.academy.id));
+    await expect(read()).resolves.toEqual(["incomplete", "incomplete"]);
+
+    await db
+      .update(academies)
+      .set({ city: "Cafayate" })
+      .where(eq(academies.id, academy.academy.id));
+    await expect(read()).resolves.toEqual(["complete", "complete"]);
+  });
+
+  test("refuses a province outside the list, and saves `Otro país`", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.provincia@example.com",
+      academyName: "Academia Provincia",
+    });
+    const save = async (province: string) =>
+      await detailAction(
+        routeArgs(
+          await buildFormRequest({
+            academyId: academy.academy.id,
+            contactName: "Nora Norte",
+            email: `${crypto.randomUUID()}@example.com`,
+            name: "Academia Provincia",
+            phone: "3415551234",
+            province,
+            role: "admin",
+          }),
+          academy.academy.id,
+        ),
+      );
+    const storedProvince = async () =>
+      (
+        await db
+          .select({ province: academies.province })
+          .from(academies)
+          .where(eq(academies.id, academy.academy.id))
+      )[0]?.province;
+
+    await expect(save("Santa Fe")).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: { province: "Elegí una provincia de la lista." },
+    });
+    await expect(storedProvince()).resolves.toBeNull();
+
+    await expect(save("otro_pais")).resolves.toMatchObject({
+      status: "success",
+    });
+    await expect(storedProvince()).resolves.toBe("otro_pais");
   });
 
   test("keeps the submitted values and reports field errors on invalid input", async () => {

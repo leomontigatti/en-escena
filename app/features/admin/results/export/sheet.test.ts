@@ -7,7 +7,7 @@ import { resultsExportColumns, type ResultsExportRow } from "./sheet";
 function row(overrides: Partial<ResultsExportRow> = {}): ResultsExportRow {
   return {
     academyName: "Estudio Ritmo",
-    academyProvince: "Córdoba",
+    academyProvince: "cordoba",
     average: 88.5,
     award: "silver",
     categoryName: "Juvenil",

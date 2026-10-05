@@ -35,6 +35,8 @@ type AdminResourceLayoutProps = {
   requireSelectedEvent?: boolean;
   selectedEventId?: string | null;
   title: string;
+  /** A badge for the record's state, drawn beside the title on a detail page. */
+  titleBadge?: ReactNode;
   titleStyle?: CSSProperties;
 };
 
@@ -60,6 +62,7 @@ export function AdminResourceLayout({
   requireSelectedEvent = true,
   selectedEventId = null,
   title,
+  titleBadge,
   titleStyle,
   description,
   children,
@@ -74,6 +77,7 @@ export function AdminResourceLayout({
     <div className="flex w-full flex-1 flex-col gap-6">
       <AdminResourceHeader
         title={title}
+        titleBadge={titleBadge}
         titleStyle={titleStyle}
         description={description}
         action={action}
@@ -154,6 +158,7 @@ function AdminResourceHeader({
   action,
   headerAction,
   title,
+  titleBadge,
   titleStyle,
   description,
 }: {
@@ -163,15 +168,19 @@ function AdminResourceHeader({
   };
   headerAction?: ReactNode;
   title: string;
+  titleBadge?: ReactNode;
   titleStyle?: CSSProperties;
   description: string;
 }) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold" style={titleStyle}>
-          {title}
-        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-xl font-semibold" style={titleStyle}>
+            {title}
+          </h2>
+          {titleBadge}
+        </div>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           {description}
         </p>

@@ -1,7 +1,10 @@
 import { eq } from "drizzle-orm";
 import { Link } from "react-router";
 import {
+  Building2,
   ClipboardList,
+  GraduationCap,
+  HandCoins,
   Music2,
   ShieldUser,
   TriangleAlert,
@@ -16,7 +19,8 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
+import { requireAdminPanelReader } from "@/lib/auth/internal-navigation.server";
 import type { EventRegistrationReadiness } from "@/lib/events/registration-readiness";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";
@@ -31,6 +35,8 @@ type ActiveEventSummary = {
 type DashboardLoaderData = {
   activeEvent: ActiveEventSummary | null;
   activeEventRegistrationReadiness: EventRegistrationReadiness | null;
+  /** False for the auditor, who gets their own cards and no readiness alerts. */
+  canWrite: boolean;
   /** Derived by the event-context owner: any `Cronograma` of the event is open. */
   isRegistrationOpen: boolean;
 };
@@ -44,7 +50,19 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireAdminPanelUser(request);
+  const user = await requireAdminPanelReader(request);
+  const canWrite = canWriteInAdminPanel(user.role);
+
+  // The readiness alerts are a to-do list for whoever configures the event;
+  // the auditor cannot act on them, so they are not read at all.
+  if (!canWrite) {
+    return {
+      activeEvent: null,
+      activeEventRegistrationReadiness: null,
+      canWrite,
+      isRegistrationOpen: false,
+    } satisfies DashboardLoaderData;
+  }
 
   const activeEvent = await db.query.events.findFirst({
     columns: {
@@ -63,6 +81,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return {
     activeEvent: activeEvent ?? null,
     activeEventRegistrationReadiness,
+    canWrite,
     isRegistrationOpen,
   } satisfies DashboardLoaderData;
 }
@@ -116,9 +135,11 @@ export function DashboardRouteView({ loaderData }: DashboardRouteProps) {
         className="grid gap-4 sm:grid-cols-2"
         aria-label="Accesos de administración"
       >
-        {adminHomeCards.map((card) => (
-          <HomeAccessCard key={card.title} item={card} />
-        ))}
+        {(loaderData.canWrite ? adminHomeCards : auditorHomeCards).map(
+          (card) => (
+            <HomeAccessCard key={card.title} item={card} />
+          ),
+        )}
       </nav>
     </div>
   );
@@ -175,5 +196,40 @@ const adminHomeCards = [
     description: "Creá accesos internos y administrá su ingreso inicial.",
     icon: ShieldUser,
     to: "/administracion/usuarios",
+  },
+] satisfies HomeAccessCardItem[];
+
+/** The auditor's sections, the same closed list as their navigation. */
+const auditorHomeCards = [
+  {
+    title: "Academias",
+    description: "Consultá los datos y el contacto de cada academia.",
+    icon: Building2,
+    to: "/administracion/academias",
+  },
+  {
+    title: "Bailarines",
+    description:
+      "Consultá datos, participación e identificación de bailarines.",
+    icon: Users,
+    to: "/administracion/bailarines",
+  },
+  {
+    title: "Profesores",
+    description: "Consultá los profesores de cada academia.",
+    icon: GraduationCap,
+    to: "/administracion/profesores",
+  },
+  {
+    title: "Coreografías",
+    description: "Revisá las coreografías registradas para el evento activo.",
+    icon: Music2,
+    to: "/administracion/coreografias",
+  },
+  {
+    title: "Pagos",
+    description: "Revisá los pagos registrados para el evento activo.",
+    icon: HandCoins,
+    to: "/administracion/pagos",
   },
 ] satisfies HomeAccessCardItem[];

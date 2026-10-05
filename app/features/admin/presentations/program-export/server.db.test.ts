@@ -198,7 +198,7 @@ describe("the program export", () => {
       .where(eq(choreographies.id, trio.choreographyId));
     await db
       .update(academies)
-      .set({ province: "Mendoza" })
+      .set({ province: "entre_rios" })
       .where(eq(academies.id, academyId));
 
     const strings = await readWorkbookStrings(
@@ -207,7 +207,9 @@ describe("the program export", () => {
 
     expect(strings).toContain("Carla Díaz");
     expect(strings).not.toContain("Dario Ruiz");
-    expect(strings).toContain("Mendoza");
+    // The province by its label, never by its stored value.
+    expect(strings).toContain("Entre Ríos");
+    expect(strings).not.toContain("entre_rios");
   });
 
   test("answers not found for a day with no presentation", async () => {

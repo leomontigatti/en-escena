@@ -65,7 +65,7 @@ export async function loadComprobanteDetail(
   request: Request,
   comprobanteId: string,
 ): Promise<ComprobanteDetailLoaderData> {
-  await requireInternalUser(request, ["admin", "auditor"]);
+  await requireInternalUser(request, ["admin"]);
 
   const context = await readComprobanteAnchorContext(comprobanteId);
 
