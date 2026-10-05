@@ -6,7 +6,10 @@ import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-stat
 import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { PresentationWarning } from "@/lib/presentations/warnings";
+import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
+import { isDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import { formatSpanishList } from "@/lib/shared/text-normalization";
 
 import type { MusicDownloadDay } from "../music-download/shared";
 
@@ -22,9 +25,12 @@ export const movePresentationIntent = "move-presentation";
 export const assignJudgesIntent = "assign-judges";
 export const removeJudgesIntent = "remove-judges";
 export const setProgramVisibilityIntent = "set-program-visibility";
-/** `"true"` shows the program, anything else hides it. */
-export const programVisibleFieldName = "visible";
-/** The event the toggle was shown for, so a switch in between is refused. */
+/**
+ * One value per day whose program should be visible, repeated: the days the
+ * submission leaves out are hidden, so an empty one hides the whole program.
+ */
+export const programVisibleDayFieldName = "dia";
+/** The event the dialog was opened for, so a switch in between is refused. */
 export const programEventIdFieldName = "evento";
 export const judgeIdFieldName = "juez";
 export const presentationChoreographyIdFieldName = "coreografia";
@@ -47,6 +53,21 @@ export const judgeAssignmentSchema = z.object({
     .array(z.string().trim().min(1))
     .min(1, requiredFieldMessage),
 });
+
+/**
+ * What the program visibility dialog submits besides its intent and event:
+ * the whole set of days to leave visible, possibly none. It is the state asked
+ * for and not a change to it, so the same submission twice is one write.
+ */
+export const programVisibilitySchema = z.object({
+  [programVisibleDayFieldName]: z.array(
+    z.string().refine(isDateOnly, "Elegí un día válido."),
+  ),
+});
+
+export type ProgramVisibilityFormValues = z.infer<
+  typeof programVisibilitySchema
+>;
 
 export type JudgeAssignmentFormValues = z.input<typeof judgeAssignmentSchema>;
 export type JudgeAssignmentSubmissionValues = z.output<
@@ -118,8 +139,11 @@ export type PresentationListResult = {
   /** The highest number in the order; `0` before the first ordering. */
   highestOrderNumber: number;
   presentations: PresentationListItem[];
-  /** Whether the public page and the academies' portal show the program. */
-  programVisible: boolean;
+  /**
+   * The days whose program the public page and the academies' portal show, in
+   * date order; every other day is hidden.
+   */
+  programVisibleDays: string[];
   /** The days the program export offers: the ones with a numbered row. */
   programExportDays: string[];
   selectedEventId: string | null;
@@ -225,6 +249,26 @@ export function formatAutomaticOrderingMessage(input: {
       : `Quedaron fijas ${input.frozenCount} porque su cronograma ya fue evaluado.`;
 
   return `${ordered} ${frozen}`;
+}
+
+/**
+ * What the visibility dialog says once saved: the days left visible, by name,
+ * or that the whole program is hidden.
+ */
+export function formatProgramVisibilityMessage(visibleDays: readonly string[]) {
+  const days = [...new Set(visibleDays)].sort();
+
+  if (days.length === 0) {
+    return "Programa oculto.";
+  }
+
+  const named = formatSpanishList(
+    days.map((day) => formatScheduleDayTabLabel(day).toLowerCase()),
+  );
+
+  return days.length === 1
+    ? `Programa visible del ${named}.`
+    : `Programa visible de los días ${named}.`;
 }
 
 /**

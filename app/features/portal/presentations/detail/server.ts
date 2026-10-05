@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographies, presentations } from "@/db/schema";
+import { choreographies, presentations, schedules } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { experienceLevelLabel } from "@/lib/events/experience-levels";
 import type { Award } from "@/lib/judging/award";
@@ -13,6 +13,7 @@ import {
   type ChoreographyGroupType,
 } from "@/lib/portal/choreographies";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
+import { readVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 import type { FeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
 
 /**
@@ -28,8 +29,9 @@ import type { FeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
  * that it exists.
  *
  * What must not reach the browser is dropped here rather than hidden in the
- * view: a judge who never scored, and — on a disqualified presentation — every
- * number, leaving the audio.
+ * view: a judge who never scored, on a disqualified presentation every
+ * number, leaving the audio, and the order number while the program of the
+ * presentation's day is not published, as on the academy's list.
  */
 
 export type PortalEvaluationJudge = {
@@ -52,7 +54,10 @@ export type PortalPresentationEvaluationLoaderData = {
   disqualified: boolean;
   judges: PortalEvaluationJudge[];
   award: Award | null;
-  /** The heading: the order number and the choreography's name. */
+  /**
+   * The heading: the choreography's name and its order number, or the name
+   * alone while its day's program is not published.
+   */
   title: string;
 };
 
@@ -77,12 +82,14 @@ export async function loadPortalPresentationEvaluation(input: {
     .select({
       groupType: choreographies.groupType,
       presentationId: presentations.id,
+      scheduledDate: schedules.scheduledDate,
     })
     .from(presentations)
     .innerJoin(
       choreographies,
       eq(choreographies.id, presentations.choreographyId),
     )
+    .innerJoin(schedules, eq(schedules.id, choreographies.scheduleId))
     .where(
       and(
         eq(presentations.choreographyId, choreographyId),
@@ -95,6 +102,8 @@ export async function loadPortalPresentationEvaluation(input: {
     throw new Response(evaluationNotFoundMessage, { status: 404 });
   }
 
+  const visibleDays = await readVisibleProgramDays(activeEvent.id);
+  const isDayPublished = visibleDays.includes(presentation.scheduledDate);
   const view = await readPresentationScores({
     presentationId: presentation.presentationId,
     storage: input.storage,
@@ -126,7 +135,11 @@ export async function loadPortalPresentationEvaluation(input: {
         value: view.disqualified ? null : judge.value,
       })),
     award: view.award,
-    title: `${view.name} · N.º ${view.orderNumber}`,
+    // A published result does not publish its day's order: the number stays
+    // with the program, which the day may still be reordered under.
+    title: isDayPublished
+      ? `${view.name} · N.º ${view.orderNumber}`
+      : view.name,
   };
 }
 

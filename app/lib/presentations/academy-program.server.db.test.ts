@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { events, presentations } from "@/db/schema";
+import { presentations, schedules } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -17,15 +17,13 @@ import {
   withdrawChoreographyForTest,
 } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import {
-  hasEventPresentations,
-  isEventProgramVisible,
+  hasPublishedPresentations,
   readAcademyPresentations,
 } from "@/lib/presentations/academy-program.server";
 
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
-import { eq } from "drizzle-orm";
 
 installDatabaseTestHooks();
 
@@ -58,6 +56,7 @@ async function seedEvent() {
       groupType?: "solo" | "duo" | "trio" | "grupal";
       name: string;
       orderNumber?: number;
+      scheduleId?: string;
     }) => {
       const choreography = await createChoreographyRecord({
         academyId: academy.academy.id,
@@ -68,6 +67,7 @@ async function seedEvent() {
         modalityId: catalog.modality.id,
         name: input.name,
         scheduleCapacityId: catalog.scheduleCapacity.id,
+        scheduleId: input.scheduleId,
       });
 
       for (let index = 0; index < (input.dancerCount ?? 1); index += 1) {
@@ -99,12 +99,15 @@ async function seedEvent() {
     return { academy: academy.academy, addChoreography };
   };
 
-  return { addAcademy, catalog, event };
+  // The catalog's one day, published: what most tests read the numbers on.
+  const everyDay = [catalog.schedule.scheduledDate];
+
+  return { addAcademy, catalog, event, everyDay };
 }
 
 describe("readAcademyPresentations", () => {
   test("lists the numbered rows, then the late ones, in reading order", async () => {
-    const { addAcademy, event } = await seedEvent();
+    const { addAcademy, event, everyDay } = await seedEvent();
     const { academy, addChoreography } = await addAcademy();
     const late = await addChoreography({ name: "Tardía" });
     const numbered = await addChoreography({
@@ -124,6 +127,7 @@ describe("readAcademyPresentations", () => {
     const rows = await readAcademyPresentations({
       academyId: academy.id,
       eventId: event.id,
+      visibleDays: everyDay,
     });
 
     expect(rows.map((row) => row.choreographyId)).toEqual([
@@ -143,7 +147,7 @@ describe("readAcademyPresentations", () => {
   });
 
   test("leaves out another academy's rows", async () => {
-    const { addAcademy, event } = await seedEvent();
+    const { addAcademy, event, everyDay } = await seedEvent();
     const mine = await addAcademy();
     const theirs = await addAcademy();
     const own = await mine.addChoreography({ name: "Propia", orderNumber: 1 });
@@ -152,13 +156,14 @@ describe("readAcademyPresentations", () => {
     const rows = await readAcademyPresentations({
       academyId: mine.academy.id,
       eventId: event.id,
+      visibleDays: everyDay,
     });
 
     expect(rows.map((row) => row.choreographyId)).toEqual([own.id]);
   });
 
   test("leaves out the academy's withdrawn choreographies", async () => {
-    const { addAcademy, event } = await seedEvent();
+    const { addAcademy, event, everyDay } = await seedEvent();
     const { academy, addChoreography } = await addAcademy();
     const performing = await addChoreography({
       name: "En escena",
@@ -176,6 +181,7 @@ describe("readAcademyPresentations", () => {
     const rows = await readAcademyPresentations({
       academyId: academy.id,
       eventId: event.id,
+      visibleDays: everyDay,
     });
 
     expect(rows.map((row) => row.choreographyId)).toEqual([performing.id]);
@@ -185,6 +191,7 @@ describe("readAcademyPresentations", () => {
     const restored = await readAcademyPresentations({
       academyId: academy.id,
       eventId: event.id,
+      visibleDays: everyDay,
     });
 
     expect(restored.map((row) => row.choreographyId)).toEqual([
@@ -194,7 +201,7 @@ describe("readAcademyPresentations", () => {
   });
 
   test("names the dancers of a solo and a duo and of nothing else", async () => {
-    const { addAcademy, event } = await seedEvent();
+    const { addAcademy, event, everyDay } = await seedEvent();
     const { academy, addChoreography } = await addAcademy();
     const solo = await addChoreography({
       groupType: "solo",
@@ -217,6 +224,7 @@ describe("readAcademyPresentations", () => {
     const rows = await readAcademyPresentations({
       academyId: academy.id,
       eventId: event.id,
+      visibleDays: everyDay,
     });
     const namesById = new Map(
       rows.map((row) => [row.choreographyId, row.dancerNames]),
@@ -228,28 +236,70 @@ describe("readAcademyPresentations", () => {
   });
 });
 
+describe("the days whose program is not published", () => {
+  test("withholds their numbers and sorts their rows as not placed yet", async () => {
+    const { addAcademy, event, everyDay } = await seedEvent();
+    const { academy, addChoreography } = await addAcademy();
+    const [hiddenDay] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Día sin publicar",
+        scheduledDate: "2099-12-31",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    // Numbered first in the order, but on the hidden day: it must not lead the
+    // list, or its place alone would tell the academy where it dances.
+    const hidden = await addChoreography({
+      name: "Oculta",
+      orderNumber: 1,
+      scheduleId: hiddenDay.id,
+    });
+    const shown = await addChoreography({ name: "Visible", orderNumber: 4 });
+
+    const rows = await readAcademyPresentations({
+      academyId: academy.id,
+      eventId: event.id,
+      visibleDays: everyDay,
+    });
+
+    expect(rows.map((row) => [row.choreographyId, row.orderNumber])).toEqual([
+      [shown.id, 4],
+      [hidden.id, null],
+    ]);
+  });
+});
+
 describe("the event's own answers", () => {
-  test("reports whether the event has been ordered at all", async () => {
-    const { addAcademy, event } = await seedEvent();
+  test("reports whether a published day has a presentation", async () => {
+    const { addAcademy, event, everyDay } = await seedEvent();
     const { addChoreography } = await addAcademy();
 
-    expect(await hasEventPresentations(event.id)).toBe(false);
+    expect(
+      await hasPublishedPresentations({
+        eventId: event.id,
+        visibleDays: everyDay,
+      }),
+    ).toBe(false);
 
     await addChoreography({ name: "Numerada", orderNumber: 1 });
 
-    expect(await hasEventPresentations(event.id)).toBe(true);
-  });
-
-  test("reports whether the program was published", async () => {
-    const { event } = await seedEvent();
-
-    expect(await isEventProgramVisible(event.id)).toBe(false);
-
-    await db
-      .update(events)
-      .set({ programVisible: true })
-      .where(eq(events.id, event.id));
-
-    expect(await isEventProgramVisible(event.id)).toBe(true);
+    expect(
+      await hasPublishedPresentations({
+        eventId: event.id,
+        visibleDays: everyDay,
+      }),
+    ).toBe(true);
+    expect(
+      await hasPublishedPresentations({ eventId: event.id, visibleDays: [] }),
+    ).toBe(false);
+    expect(
+      await hasPublishedPresentations({
+        eventId: event.id,
+        visibleDays: ["2099-12-31"],
+      }),
+    ).toBe(false);
   });
 });

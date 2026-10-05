@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -15,17 +14,17 @@ import { PresentationListActions } from "./actions-menu";
 describe("the participation list's actions menu", () => {
   const renderer = createReactDomTestRenderer();
   const onExportProgram = vi.fn();
-  const onToggleProgram = vi.fn();
+  const onProgramVisibility = vi.fn();
 
   afterEach(() => {
     renderer.cleanup();
     onExportProgram.mockClear();
-    onToggleProgram.mockClear();
+    onProgramVisibility.mockClear();
   });
 
   async function mount(
     canExportProgram: boolean,
-    programToggle: { eventId: string; show: boolean } | null = null,
+    canSetProgramVisibility = false,
   ) {
     // Nothing to order, print or download: only what each test offers.
     const router = createMemoryRouter(
@@ -36,14 +35,14 @@ describe("the participation list's actions menu", () => {
             <PresentationListActions
               canDownloadMusic={false}
               canExportProgram={canExportProgram}
+              canSetProgramVisibility={canSetProgramVisibility}
               canOrderRows={false}
               hasSelection={false}
               onDownloadMusic={vi.fn()}
               onExportProgram={onExportProgram}
               onJudges={vi.fn()}
               onOrder={vi.fn()}
-              onToggleProgram={onToggleProgram}
-              programToggle={programToggle}
+              onProgramVisibility={onProgramVisibility}
             />
           ),
         },
@@ -68,27 +67,12 @@ describe("the participation list's actions menu", () => {
     expect(menuItems()).toEqual(["Descargar programa"]);
   });
 
-  test("offers to show the program", async () => {
-    await mount(false, { eventId: "event-1", show: true });
+  test("offers to show or hide the program's days", async () => {
+    await mount(false, true);
 
     await openRadixSelect(findButton("Acciones", { exact: true }));
 
-    expect(menuItems()).toEqual(["Mostrar programa"]);
-
-    await act(async () => {
-      document.querySelector<HTMLElement>('[role="menuitem"]')?.click();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-
-    expect(onToggleProgram).toHaveBeenCalledTimes(1);
-  });
-
-  test("offers to hide a visible program", async () => {
-    await mount(false, { eventId: "event-1", show: false });
-
-    await openRadixSelect(findButton("Acciones", { exact: true }));
-
-    expect(menuItems()).toEqual(["Ocultar programa"]);
+    expect(menuItems()).toEqual(["Mostrar/ocultar programa"]);
   });
 
   test("leaves the menu out when nothing is numbered yet", async () => {

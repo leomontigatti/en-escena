@@ -71,7 +71,6 @@ function eventListRow(): EventListRow {
     id: "event_1",
     name: "En Escena 2026",
     active: true,
-    programVisible: false,
     resultsPublishedAt: null,
     requiredDepositPercentage: 30,
     startsAt: new Date("2026-04-12T15:00:00.000Z"),

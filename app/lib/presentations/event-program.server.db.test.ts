@@ -21,6 +21,7 @@ import {
   findPublishedProgramEvent,
   readEventProgram,
 } from "@/lib/presentations/event-program.server";
+import { setVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -242,6 +243,41 @@ describe("readEventProgram", () => {
     expect(program.rows[1].scheduleId).toBe(afternoon.id);
   });
 
+  test("narrows rows and schedules to the days asked for", async () => {
+    const { addAcademy, catalog, event } = await seedEvent();
+    const { addChoreography } = await addAcademy("Academia Norte");
+    const [nextDay] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Día siguiente",
+        scheduledDate: "2099-12-31",
+        startTime: "10:00",
+        awardCeremonyDate: "2099-12-31",
+        awardCeremonyTime: "13:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    const shown = await addChoreography({ name: "Visible", orderNumber: 1 });
+    await addChoreography({
+      name: "Oculta",
+      orderNumber: 2,
+      scheduleId: nextDay.id,
+    });
+
+    const program = await readEventProgram(event.id, db, {
+      days: [catalog.schedule.scheduledDate],
+    });
+
+    expect(program.rows.map((row) => row.choreographyId)).toEqual([shown.id]);
+    expect(program.schedules.map((schedule) => schedule.id)).toEqual([
+      catalog.schedule.id,
+    ]);
+    expect(
+      (await readEventProgram(event.id)).rows.map((row) => row.orderNumber),
+    ).toEqual([1, 2]);
+  });
+
   // The program announces when each block ends in its award ceremony, so the
   // schedules it lists carry the pair, or nulls where none was set.
   test("carries each schedule's award ceremony", async () => {
@@ -285,12 +321,12 @@ describe("readEventProgram", () => {
 });
 
 describe("findPublishedProgramEvent", () => {
-  test("answers nothing while the program is not published", async () => {
+  test("answers nothing while no day of the program is published", async () => {
     const { event } = await seedEvent();
 
     await db
       .update(events)
-      .set({ active: true, programVisible: false })
+      .set({ active: true })
       .where(eq(events.id, event.id));
 
     expect(await findPublishedProgramEvent()).toBeNull();
@@ -301,19 +337,21 @@ describe("findPublishedProgramEvent", () => {
 
     await db
       .update(events)
-      .set({ active: false, programVisible: true })
+      .set({ active: false })
       .where(eq(events.id, event.id));
+    await setVisibleProgramDays(event.id, ["2026-05-01"]);
 
     expect(await findPublishedProgramEvent()).toBeNull();
   });
 
-  test("answers the active event and its days once published", async () => {
+  test("answers the active event and its published days", async () => {
     const { event } = await seedEvent();
 
     await db
       .update(events)
-      .set({ active: true, programVisible: true })
+      .set({ active: true })
       .where(eq(events.id, event.id));
+    await setVisibleProgramDays(event.id, ["2026-05-02", "2026-05-01"]);
 
     const published = await findPublishedProgramEvent();
 
@@ -321,5 +359,6 @@ describe("findPublishedProgramEvent", () => {
     expect(published?.name).toBe(event.name);
     expect(published?.startsOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(published?.endsOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(published?.visibleDays).toEqual(["2026-05-01", "2026-05-02"]);
   });
 });

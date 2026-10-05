@@ -467,7 +467,6 @@ async function createEventRecord(
     .values({
       name: "Evento",
       active: false,
-      programVisible: false,
       requiredDepositPercentage: 30,
       startsAt: date("2026-05-01T12:00:00Z"),
       endsAt: date("2026-05-03T12:00:00Z"),

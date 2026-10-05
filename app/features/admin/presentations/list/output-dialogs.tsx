@@ -8,22 +8,28 @@ import type { PresentationListResult } from "./shared";
 import { programExportPath } from "../program-export/shared";
 
 /**
- * The program can be shown once something in it is numbered, and hidden
- * whenever it is visible, so it never gets stuck public.
+ * The days the visibility dialog lists, each with whether it is visible now:
+ * the days with a numbered presentation, which can be shown, plus every day
+ * visible now, so it can always be hidden and the program never gets stuck
+ * public. `null` when there is no day to list.
  */
-export function readProgramToggle(loaderData: PresentationListResult) {
-  const { canOrder, hasPresentations, programVisible, selectedEventId } =
+export function readProgramVisibilityDays(loaderData: PresentationListResult) {
+  const { canOrder, programExportDays, programVisibleDays, selectedEventId } =
     loaderData;
 
   if (!canOrder || selectedEventId === null) {
     return null;
   }
 
-  if (!programVisible && !hasPresentations) {
+  const days = [...new Set([...programExportDays, ...programVisibleDays])]
+    .sort()
+    .map((day) => ({ day, visible: programVisibleDays.includes(day) }));
+
+  if (days.length === 0) {
     return null;
   }
 
-  return { eventId: selectedEventId, show: !programVisible };
+  return { days, eventId: selectedEventId };
 }
 
 /**
@@ -82,8 +88,8 @@ export function PresentationOutputDialog({
 }
 
 /**
- * Reads which way the toggle goes once, when the dialog opens, so the
- * revalidation after the change does not flip the dialog before it closes.
+ * Reads the days and their state once, when the dialog opens, so the
+ * revalidation after the save does not redraw the dialog before it closes.
  */
 function ProgramVisibilityFromList({
   loaderData,
@@ -92,11 +98,11 @@ function ProgramVisibilityFromList({
   loaderData: PresentationListResult;
   onClose: () => void;
 }) {
-  const [toggle] = useState(() => readProgramToggle(loaderData));
+  const [offer] = useState(() => readProgramVisibilityDays(loaderData));
 
-  if (!toggle) {
+  if (!offer) {
     return null;
   }
 
-  return <ProgramVisibilityDialog {...toggle} onClose={onClose} />;
+  return <ProgramVisibilityDialog {...offer} onClose={onClose} />;
 }

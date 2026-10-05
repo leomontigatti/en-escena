@@ -17,7 +17,7 @@ import {
  */
 
 export type PublicProgramLoaderData = {
-  /** `null` when the program is not published, whichever of the two reasons. */
+  /** `null` when no day of the program is published, whichever of the two reasons. */
   event: {
     endsOn: string;
     name: string;
@@ -41,7 +41,11 @@ export async function loadPublicProgram(
     return { event: null, hasAcademySession, rows: [], schedules: [] };
   }
 
-  const program = await readEventProgram(event.id);
+  // Only the published days: a day still hidden may be reordered, so neither
+  // its rows nor its schedules, ceremonies included, leave the server.
+  const program = await readEventProgram(event.id, undefined, {
+    days: event.visibleDays,
+  });
 
   return {
     event: { endsOn: event.endsOn, name: event.name, startsOn: event.startsOn },

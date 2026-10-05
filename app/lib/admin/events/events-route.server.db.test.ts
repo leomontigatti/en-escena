@@ -59,7 +59,6 @@ describe("`/administracion/eventos` route", () => {
       startsAt: date("2026-05-01T12:00:00Z"),
       endsAt: date("2026-05-03T12:00:00Z"),
       active: true,
-      programVisible: true,
     });
     await createSavedEvent({
       name: "Final 2027",
@@ -201,7 +200,6 @@ describe("`/administracion/eventos` route", () => {
 
     expect(savedEvent).toMatchObject({
       active: false,
-      programVisible: false,
       requiredDepositPercentage: 45,
     });
     expect(savedEvent?.startsAt.toISOString()).toBe("2027-05-01T03:00:00.000Z");

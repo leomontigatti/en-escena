@@ -6,7 +6,6 @@ import { createEvent } from "@/lib/events/management.server";
 
 type CreateSavedEventOverrides = Partial<Parameters<typeof createEvent>[0]> & {
   active?: boolean;
-  programVisible?: boolean;
 };
 
 export function testEventDate(value: string) {
@@ -29,7 +28,7 @@ async function createSavedEventWithDefaults(
   defaultName: string,
   overrides: CreateSavedEventOverrides,
 ) {
-  const { active, programVisible, ...eventOverrides } = overrides;
+  const { active, ...eventOverrides } = overrides;
   const result = await createEvent({
     name: defaultName,
     startsAt: testEventDate("2026-05-01T12:00:00Z"),
@@ -43,7 +42,6 @@ async function createSavedEventWithDefaults(
 
   const updates = {
     active,
-    programVisible,
   };
   const definedUpdates = Object.fromEntries(
     Object.entries(updates).filter(([, value]) => value !== undefined),

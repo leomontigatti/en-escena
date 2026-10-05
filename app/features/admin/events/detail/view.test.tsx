@@ -497,7 +497,6 @@ function buildLoaderData(): EventDetailLoaderData {
       id: "event_1",
       name: "Festival 2026",
       active: true,
-      programVisible: false,
       resultsPublishedAt: null,
       requiredDepositPercentage: 30,
       startsAt: new Date("2026-03-01T00:00:00Z"),

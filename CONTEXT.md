@@ -355,7 +355,7 @@ Relation between one judge and one `presentation` they must evaluate, unique per
 _Avoid_: `presentation`, `score`
 
 **`eventProgram`** — ui: "Programa del evento"
-Public view of the active event's presentations in order, at `/programa`, without login and only while the event's program is visible. It lists every `presentation`, with non-competitive data only.
+Public view of the active event's presentations in order, at `/programa`, without login. It is published one day at a time: every day starts hidden and shows only once administration publishes it, and with no day published there is no program. It lists every `presentation` of the published days, with non-competitive data only. The portal's list of an academy's own presentations shows the same published numbers; a choreography on a day not published reads there like one not placed yet.
 _Avoid_: `resultsPublication`, score, award
 
 **`academyResults`** — ui: "Resultados de academia"

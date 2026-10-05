@@ -305,12 +305,19 @@ describe("the participation list's program visibility", () => {
 
   afterEach(renderer.cleanup);
 
-  test("asks before showing the program", async () => {
+  test("opens the day picker from the actions menu", async () => {
     const router = createMemoryRouter(
       [
         {
           path: "/administracion/presentaciones",
-          element: <PresentationsListView loaderData={buildLoaderData()} />,
+          element: (
+            <PresentationsListView
+              loaderData={buildLoaderData({
+                programExportDays: ["2026-12-04"],
+                programVisibleDays: ["2026-12-05"],
+              })}
+            />
+          ),
         },
       ],
       { initialEntries: ["/administracion/presentaciones"] },
@@ -320,16 +327,22 @@ describe("the participation list's program visibility", () => {
     await openRadixSelect(findButton("Acciones", { exact: true }));
 
     const showItem = [...document.querySelectorAll('[role="menuitem"]')].find(
-      (item) => item.textContent === "Mostrar programa",
+      (item) => item.textContent === "Mostrar/ocultar programa",
     );
 
     await act(async () => {
       (showItem as HTMLElement).click();
     });
 
-    expect(document.querySelector('[role="alertdialog"] h2')?.textContent).toBe(
-      "¿Mostrar programa?",
+    expect(document.querySelector('[role="dialog"] h2')?.textContent).toBe(
+      "Mostrar/ocultar programa",
     );
+    // A day with a number and a day visible now are both on offer.
+    expect(
+      [...document.querySelectorAll('[data-slot="choice-card"]')].map(
+        (card) => card.textContent,
+      ),
+    ).toEqual(["Viernes 4/12", "Sábado 5/12"]);
   });
 });
 
@@ -409,7 +422,7 @@ function buildLoaderData(
     highestOrderNumber: 2,
     musicDownloadDays: [],
     programExportDays: [],
-    programVisible: false,
+    programVisibleDays: [],
     selectedEventId: "event-1",
     totalCount: 2,
     totalPages: 1,

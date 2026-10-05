@@ -44,8 +44,6 @@ export const notificationToastIds = {
   "pago-registrado": "route-notification:pago-registrado",
   "pago-guardado": "route-notification:pago-guardado",
   "comprobante-recuperado": "route-notification:comprobante-recuperado",
-  "programa-visible": "route-notification:programa-visible",
-  "programa-oculto": "route-notification:programa-oculto",
   "resultados-ocultos": "route-notification:resultados-ocultos",
   "categoria-guardada": "route-notification:categoria-guardada",
   "categoria-eliminada": "route-notification:categoria-eliminada",
@@ -252,16 +250,6 @@ export const notificationToasts = {
     // record — so a toast is enough.
     message:
       "El comprobante ya estaba autorizado en ARCA. Lo recuperamos y quedó registrado.",
-    variant: "success",
-  },
-  "programa-visible": {
-    id: notificationToastIds["programa-visible"],
-    message: "Programa visible.",
-    variant: "success",
-  },
-  "programa-oculto": {
-    id: notificationToastIds["programa-oculto"],
-    message: "Programa oculto.",
     variant: "success",
   },
   "resultados-ocultos": {
