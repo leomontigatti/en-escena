@@ -1,0 +1,12 @@
+-- The program's visibility is per day now: "en_escena_program_visible_day"
+-- (migration 0044) replaced the event's boolean and was backfilled from it,
+-- and that migration runs first in the same deploy. See
+-- docs/domain/judging.md, "Program And Results".
+-- reason: the contract step is taken in the same PR as the expand step (#1475)
+-- by the user's decision, not because nothing reads the column: the container
+-- this deploy replaces still selects "program_visible", so its event reads error
+-- for the length of the deploy, and rolling back to that image no longer works
+-- once this has run. Both costs were accepted in exchange for not shipping a
+-- second deploy just to drop it.
+-- squawk-ignore ban-drop-column
+ALTER TABLE "en_escena_event" DROP COLUMN "program_visible";

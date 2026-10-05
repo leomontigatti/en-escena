@@ -3,9 +3,8 @@
 -- whose order may still change keeps its numbers away from the academies and
 -- the public. See docs/domain/judging.md, "Program And Results".
 --
--- This is the expand step. "program_visible" stays on "en_escena_event",
--- unread, so the container this deploy replaces keeps answering while the new
--- one starts; a later migration drops it.
+-- The backfill below reads "program_visible", which migration 0045 drops right
+-- after it in the same deploy.
 CREATE TABLE "en_escena_program_visible_day" (
 	"event_id" varchar(255) NOT NULL,
 	"scheduled_date" text NOT NULL

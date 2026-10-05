@@ -31,10 +31,6 @@ export const events = createTable(
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
     active: boolean("active").notNull().default(false),
-    // Read and written by nothing since the program became visible per day
-    // (`programVisibleDays` below). It stays for one deploy so the container
-    // being replaced can still select it, and a follow-up migration drops it.
-    programVisible: boolean("program_visible").notNull().default(false),
     // When administration last published results, and null while they are
     // hidden. It carries no boolean beside it: the snapshot is this timestamp
     // plus each presentation's own, and nothing about an award or an average is

@@ -194,7 +194,6 @@ function buildDetailLoaderData(): Parameters<
       endsAt: new Date("2026-05-03T03:00:00.000Z"),
       active: false,
       requiredDepositPercentage: 30,
-      programVisible: false,
       resultsPublishedAt: null,
       registrationReady: false,
       registrationReadinessMissingItems: [],
