@@ -55,7 +55,16 @@ async function loadList() {
 describe("choosing the program's visible days from the participation list", () => {
   test("publishes the chosen days, and the list reads them back", async () => {
     const fixture = await seedJudgingFixture();
-    await fixture.addPresentation({ name: "Una", orderNumber: 1 });
+    await fixture.addPresentation({
+      name: "Una",
+      orderNumber: 1,
+      scheduledDate: "2026-12-04",
+    });
+    await fixture.addPresentation({
+      name: "Otra",
+      orderNumber: 2,
+      scheduledDate: "2026-12-05",
+    });
 
     const result = await setVisibility({
       days: ["2026-12-05", "2026-12-04"],
@@ -79,6 +88,11 @@ describe("choosing the program's visible days from the participation list", () =
   // hidden, and sending it again changes nothing.
   test("hides the days the submission leaves out, the same way every time", async () => {
     const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({
+      name: "Una",
+      orderNumber: 1,
+      scheduledDate: "2026-12-05",
+    });
     await setVisibleProgramDays(fixture.event.id, ["2026-12-04", "2026-12-05"]);
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -125,6 +139,26 @@ describe("choosing the program's visible days from the participation list", () =
 
     const result = await setVisibility({
       days: ["mañana"],
+      eventId: fixture.event.id,
+    });
+
+    expect(result).toMatchObject({
+      data: { status: "error" },
+      init: { status: 400 },
+    });
+    expect(await readVisibleProgramDays(fixture.event.id)).toEqual([]);
+  });
+
+  test("refuses a day the event has no schedule on", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({
+      name: "Una",
+      orderNumber: 1,
+      scheduledDate: "2026-12-04",
+    });
+
+    const result = await setVisibility({
+      days: ["2026-12-04", "2027-01-01"],
       eventId: fixture.event.id,
     });
 

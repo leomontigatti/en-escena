@@ -157,7 +157,7 @@ function compareAcademyPresentationRows(
 }
 
 /**
- * Whether a published day of the event has a presentation, which is what
+ * Whether a published day of the event has a presentation of a choreography still taking part, which is what
  * separates "no number has been published yet" from "your academy has nothing
  * in the program". An event ordered with no day published reads as the first:
  * the academy is told nothing about an order still open to change.
@@ -182,6 +182,7 @@ export async function hasPublishedPresentations(
       and(
         eq(presentations.eventId, input.eventId),
         inArray(schedules.scheduledDate, [...input.visibleDays]),
+        notWithdrawnChoreography(),
       ),
     )
     .limit(1);

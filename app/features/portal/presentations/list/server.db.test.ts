@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { presentations, schedules } from "@/db/schema";
+import { choreographies, presentations, schedules } from "@/db/schema";
 import { loadPortalPresentationsList } from "@/features/portal/presentations/list/server";
 import {
   createAcademySession,
@@ -12,6 +12,7 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
 import { publishResults } from "@/lib/judging/results.server";
+import { hasPublishedPresentations } from "@/lib/presentations/academy-program.server";
 import { setVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -194,5 +195,41 @@ describe("loadPortalPresentationsList", () => {
       ["Oculta", null],
     ]);
     expect(JSON.stringify(loaderData)).not.toContain('"orderNumber":1');
+  });
+  test("does not count a withdrawn choreography as a published presentation", async () => {
+    const session = await createAcademySession({
+      academyName: "Academia Retirada",
+      email: "presentaciones.retirada@example.com",
+    });
+    const event = await createEventRecord({ name: "Regional 2026" });
+    await activateEvent(event.id);
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: session.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Retirada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+    await db.insert(presentations).values({
+      choreographyId: choreography.id,
+      eventId: event.id,
+      orderNumber: 1,
+    });
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt: new Date() })
+      .where(eq(choreographies.id, choreography.id));
+    await setVisibleProgramDays(event.id, [catalog.schedule.scheduledDate]);
+
+    await expect(
+      hasPublishedPresentations({
+        eventId: event.id,
+        visibleDays: [catalog.schedule.scheduledDate],
+      }),
+    ).resolves.toBe(false);
   });
 });

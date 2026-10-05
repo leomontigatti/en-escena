@@ -1,4 +1,8 @@
+import { eq } from "drizzle-orm";
 import { data, redirect } from "react-router";
+
+import { db } from "@/db";
+import { schedules } from "@/db/schema";
 
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
@@ -307,6 +311,24 @@ async function runProgramVisibility(eventId: string, formData: FormData) {
   }
 
   const days = parsed.data[programVisibleDayFieldName];
+
+  // The dialog lists the event's own days, so a date outside them is a
+  // request the form never made, and would publish nothing a schedule holds.
+  const eventDays = await db
+    .selectDistinct({ scheduledDate: schedules.scheduledDate })
+    .from(schedules)
+    .where(eq(schedules.eventId, eventId));
+  const knownDays = new Set(eventDays.map((row) => row.scheduledDate));
+
+  if (days.some((day) => !knownDays.has(day))) {
+    return data(
+      {
+        message: "No se reconocieron los días elegidos.",
+        status: "error" as const,
+      },
+      { status: 400 },
+    );
+  }
 
   await setVisibleProgramDays(eventId, days);
 
