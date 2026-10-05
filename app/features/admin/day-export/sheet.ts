@@ -37,3 +37,15 @@ export function moneyCell(amount: number, bold = false) {
     value: amount,
   };
 }
+
+/**
+ * The sum of amounts some of which may be unknown: unknown as soon as one is,
+ * rather than a partial sum that reads as complete.
+ */
+export function sumKnown(amounts: readonly (number | null)[]): number | null {
+  return amounts.reduce<number | null>(
+    (total, amount) =>
+      total === null || amount === null ? null : total + amount,
+    0,
+  );
+}

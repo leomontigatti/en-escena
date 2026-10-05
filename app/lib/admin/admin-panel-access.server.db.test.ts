@@ -35,7 +35,10 @@ const administrationRoutes = import.meta.glob<{ loader?: ChildLoader }>(
   { eager: true },
 );
 
-/** The routes reviewed for the auditor (PRD #1448): the five sections and their exports. */
+/**
+ * The routes reviewed for the auditor (PRD #1448): the five sections and their
+ * exports, then the seminar list and its export, without the seminar detail.
+ */
 const auditorReviewedRoutes = new Set([
   "administracion._index",
   "administracion.academias",
@@ -48,11 +51,13 @@ const auditorReviewedRoutes = new Set([
   "administracion.coreografias_.$choreographyId",
   "administracion.pagos",
   "administracion.pagos_.$paymentId",
+  "administracion.seminarios",
   "administracion_.academias.exportar",
   "administracion_.bailarines.exportar",
   "administracion_.profesores.exportar",
   "administracion_.coreografias.exportar",
   "administracion_.pagos.exportar",
+  "administracion_.seminarios.exportar",
 ]);
 
 const unreviewedRoutes = Object.entries(administrationRoutes).flatMap(
@@ -235,7 +240,7 @@ describe("the administration panel for an auditor", () => {
         "administracion.finanzas",
         "administracion.presentaciones",
         "administracion.resultados",
-        "administracion.seminarios",
+        "administracion.seminarios_.$seminarId",
         "administracion.usuarios",
         "administracion.comprobantes_.$comprobanteId.imprimir",
       ]),
@@ -248,8 +253,16 @@ describe("the administration panel for an auditor", () => {
     "administracion_.profesores.exportar",
     "administracion_.coreografias.exportar",
     "administracion_.pagos.exportar",
+    "administracion_.seminarios.exportar",
   ])("downloads the reviewed export %s inside the layout", async (id) => {
-    await seedPeriodExportFixture();
+    const fixture = await seedPeriodExportFixture();
+    const academy = await fixture.addAcademy({ name: "Academia Sol" });
+    const dancer = await fixture.addDancer(academy.id);
+    // The seminar export has no file for an event nobody registered in.
+    await fixture.addSeminarInscription({
+      dancerId: dancer.id,
+      registeredAt: "2026-04-10T15:00:00Z",
+    });
     const child = administrationRoutes[`/app/routes/${id}.tsx`]?.loader;
 
     if (!child) {
