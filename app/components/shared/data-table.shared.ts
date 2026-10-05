@@ -173,6 +173,10 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
      */
     matchesSearch?: (row: TData, search: string) => boolean;
     hideSearch?: boolean;
+    /**
+     * A list read as a whole: no page controls and no paging, so every row is
+     * rendered whatever `pageSize` says.
+     */
     hidePagination?: boolean;
     /**
      * Rows per page, defaulting to `defaultClientDataTablePageSize`. Raise it on
