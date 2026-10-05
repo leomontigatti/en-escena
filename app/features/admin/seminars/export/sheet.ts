@@ -89,7 +89,7 @@ export const seminarInscriptionColumns: SheetColumn<SeminarInscriptionSheetRow>[
     { header: "Total", width: 16, cell: amount((row) => row.totalAmount) },
     { header: "Pagado", width: 16, cell: amount((row) => row.allocatedAmount) },
     {
-      header: "Saldo",
+      header: "Saldo adeudado",
       width: 16,
       cell: amount((row) => row.owedBalanceAmount),
     },

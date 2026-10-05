@@ -64,10 +64,13 @@ export function seminarSheetNames(
   const sheetNames = new Map<string, string>();
 
   for (const [id, name] of named) {
-    const clean = name
-      .replace(forbiddenSheetNameCharacters, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+    // A name made only of refused characters would leave the sheet unnamed,
+    // which the writer fills with a default that may repeat another's.
+    const clean =
+      name
+        .replace(forbiddenSheetNameCharacters, " ")
+        .replace(/\s+/g, " ")
+        .trim() || "Seminario";
     let sheetName = clean.slice(0, sheetNameMaxLength).trim();
 
     for (let repeat = 2; taken.has(sheetName.toLowerCase()); repeat += 1) {
@@ -85,13 +88,14 @@ export function seminarSheetNames(
 
 /**
  * `seminarios-<event>-todos.xlsx`, or `seminarios-<event>-<seminar>.xlsx`
- * with the seminar named as on its sheet.
+ * with the seminar named as in the dialog, which a sheet name's limit has not
+ * cut.
  */
 export function buildSeminarsExportFileName(
   eventName: string,
-  seminarSheetName: string | null,
+  seminarLabel: string | null,
 ) {
-  return `seminarios-${slugify(eventName)}-${seminarSheetName === null ? exportAllSeminars : slugify(seminarSheetName)}.xlsx`;
+  return `seminarios-${slugify(eventName)}-${seminarLabel === null ? exportAllSeminars : slugify(seminarLabel) || "seminario"}.xlsx`;
 }
 
 function nameSeminars(

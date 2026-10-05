@@ -27,7 +27,7 @@ const header = [
   "Seña pagada",
   "Total",
   "Pagado",
-  "Saldo",
+  "Saldo adeudado",
 ];
 
 async function exportRequest(
@@ -284,7 +284,7 @@ describe("the auditor's seminar export", () => {
 
     const { sheets } = await exportSheets();
 
-    // The reader does not see a blank last cell, so `Saldo` is not there.
+    // The reader does not see a blank last cell, so `Saldo adeudado` is not there.
     expect(sheets.get("Julio Bocca")?.slice(1)).toEqual([
       [
         "Julio Bocca",

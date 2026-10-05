@@ -49,12 +49,16 @@ describe("naming a seminar in the export", () => {
       seminar("a", "Ana: Jazz / Contemporáneo [nivel*?]"),
       seminar("b", "Un nombre de instructor demasiado largo para una hoja"),
       seminar("c", "Un nombre de instructor demasiado largo para otra hoja"),
+      seminar("d", "/"),
+      seminar("e", "Seminario"),
     ]);
 
     expect([...sheetNames.values()]).toEqual([
       "Ana Jazz Contemporáneo nivel",
       "Un nombre de instructor demasia",
       "Un nombre de instructor dem (2)",
+      "Seminario",
+      "Seminario (2)",
     ]);
   });
 });

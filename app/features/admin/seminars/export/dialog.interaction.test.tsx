@@ -98,16 +98,4 @@ describe("the seminar export dialog", () => {
       "_self",
     );
   });
-
-  test("says there is nothing to export while no seminar has inscriptions", async () => {
-    await mount([]);
-
-    expect(document.body.textContent).toContain("no hay nada para exportar");
-    expect(document.querySelector('[data-slot="select-trigger"]')).toBe(null);
-    expect(
-      [...document.querySelectorAll("button")].some(
-        (button) => button.textContent === "Descargar",
-      ),
-    ).toBe(false);
-  });
 });

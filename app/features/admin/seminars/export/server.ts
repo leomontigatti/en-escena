@@ -12,6 +12,7 @@ import {
   workbookResponse,
   workbookSheet,
 } from "@/features/admin/day-export/server";
+import { sumKnown } from "@/features/admin/day-export/sheet";
 import { readPeriodExport } from "@/features/admin/period-export/server";
 import { resolveSeminarInscriptions } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { listSeminars } from "@/lib/seminars/repository.server";
@@ -20,6 +21,7 @@ import {
   buildSeminarsExportFileName,
   exportAllSeminars,
   exportSeminarParam,
+  seminarExportLabels,
   seminarSheetNames,
 } from "./shared";
 import {
@@ -81,7 +83,7 @@ export async function loadSeminarsExport(request: Request): Promise<Response> {
       eventName,
       chosen === exportAllSeminars
         ? null
-        : (sheetNames.get(exported[0].id) ?? null),
+        : (seminarExportLabels(eventSeminars).get(exported[0].id) ?? null),
     ),
     sheets: exported.map((seminar) => {
       const rows = rowsBySeminar.get(seminar.id) ?? [];
@@ -196,12 +198,4 @@ function totalFigures(
     owedBalanceAmount: sumKnown(rows.map((row) => row.owedBalanceAmount)),
     totalAmount: sumKnown(rows.map((row) => row.totalAmount)),
   };
-}
-
-function sumKnown(amounts: readonly (number | null)[]): number | null {
-  return amounts.reduce<number | null>(
-    (total, amount) =>
-      total === null || amount === null ? null : total + amount,
-    0,
-  );
 }

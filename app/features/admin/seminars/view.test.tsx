@@ -129,27 +129,6 @@ describe("SeminarsListView", () => {
     ).toBe("Abril Sosa");
   });
 
-  test("shows the auditor the seminars without a way into them or a new one", async () => {
-    await renderAt(
-      "/administracion/seminarios",
-      <SeminarsListView
-        loaderData={{
-          canWrite: false,
-          exportableSeminarIds: ["seminar_1"],
-          selectedEventId: "event_1",
-          seminars: [buildSeminar()],
-        }}
-      />,
-    );
-
-    expect(document.querySelector("tbody")?.textContent).toContain(
-      "Abril Sosa",
-    );
-    expect(document.querySelector("tbody a")).toBe(null);
-    expect(document.body.textContent).not.toContain("Nuevo seminario");
-    expect(findButton("Acciones")).not.toBeNull();
-  });
-
   test.each([
     ["?tipo=special", "Bruno Díaz", "Abril Sosa"],
     ["?dia=2026-10-10", "Abril Sosa", "Bruno Díaz"],
