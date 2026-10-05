@@ -213,7 +213,7 @@ const stepParamName = "paso";
 
 /**
  * Brings back the answers a reload of the tab kept, once, then keeps every
- * change. The restore waits for the browser because storage is not there on
+ * change until the choreography is saved or the academy discards it. The restore waits for the browser because storage is not there on
  * the server: the page shows no step until it has run.
  */
 function useStoredAnswers({
@@ -240,8 +240,9 @@ function useStoredAnswers({
       loaderData,
     );
 
+    // Restored answers are still unsaved: the guard asks before they go.
     if (restored) {
-      form.reset(restored);
+      form.reset(restored, { keepDefaultValues: true });
     }
 
     setIsRestored(true);
