@@ -53,12 +53,42 @@ describe("the academies list", () => {
     ].map((link) => link.textContent);
   }
 
+  test("shows participation and data status together in one column", async () => {
+    await listedAt("");
+
+    const headers = [...document.querySelectorAll("th")].map(
+      (header) => header.textContent,
+    );
+    const rows = [...document.querySelectorAll("tbody tr")].map((row) =>
+      [...row.querySelectorAll('[data-slot="badge"]')].map(
+        (badge) => badge.textContent,
+      ),
+    );
+
+    expect(headers).toEqual(["Nombre", "Contacto", "Estado"]);
+    expect(rows).toEqual([
+      ["No participando", "Incompleta"],
+      ["Participando", "Completa"],
+    ]);
+  });
+
   test.each([
     ["?datos=incompleta", ["Academia Antigua"]],
     ["?datos=completa", ["Academia Demo"]],
     ["?participando=si&datos=completa", ["Academia Demo"]],
     ["?participando=si&datos=incompleta", []],
   ])("narrows to the academies %s asks for", async (search, names) => {
+    expect(await listedAt(search)).toEqual(names);
+  });
+
+  test.each([
+    ["?busqueda=No+participando", ["Academia Antigua"]],
+    ["?busqueda=Incompleta", ["Academia Antigua"]],
+    ["?busqueda=Completa", ["Academia Antigua", "Academia Demo"]],
+    ["?busqueda=Participando+Completa", ["Academia Demo"]],
+    ["?busqueda=No+participando+Incompleta", ["Academia Antigua"]],
+    ["?busqueda=No+participando+Completa", []],
+  ])("finds academies by the status text in %s", async (search, names) => {
     expect(await listedAt(search)).toEqual(names);
   });
 });
