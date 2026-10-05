@@ -44,28 +44,31 @@
  * erred in, and far rarer.
  */
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { z } from "zod";
 
-import { SharedFieldLayout } from "@/components/shared/field-layout";
-import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FieldGroup } from "@/components/ui/field";
 import type { AllocationTargetKind } from "@/lib/finances/allocation-target.server";
 import { formatAmount, formatDancerName } from "@/lib/finances/formatters";
+import {
+  createValidatedRouteSubmitHandler,
+  useOptionalFormAction,
+} from "@/lib/shared/forms";
 
 import {
-  FetcherError,
+  AllocationPriceField,
+  MoneyAmountField,
+  moneyFormValidationMode,
+  type AllocationFormValues,
+  type RemovalFormValues,
+} from "./dialog-fields";
+import {
   MoneyDialog,
   MoneyTargetFields,
   OwedSummary,
@@ -73,7 +76,8 @@ import {
   useMoneyWriteFetcher,
 } from "./dialog-parts";
 import {
-  formatDialogPrice,
+  buildAllocationFormSchema,
+  buildMoneyAmountSchema,
   isAmountOutOfRange,
   readInscriptionMoneyDialogShape,
   resolveAllocationDialogFigures,
@@ -183,14 +187,25 @@ function AllocateMoneyDialog({
   targetKind: AllocationTargetKind;
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
-  const [amount, setAmount] = useState("");
+  const formAction = useOptionalFormAction();
   // It starts on the **effective** price: it is the one the row behind the dialog
   // shows, and the one the figures are derived from until something else is
   // picked. Opening it on the stored price left the picker saying one thing and
   // everything else another, and confirming without touching it fixed that old
   // price as soon as the allocation covered the deposit.
   const initialPriceId = inscription.effectivePrice?.id ?? "";
-  const [priceId, setPriceId] = useState(initialPriceId);
+  const form = useForm<AllocationFormValues>({
+    defaultValues: { amount: "", priceId: initialPriceId },
+    mode: moneyFormValidationMode,
+    resolver: zodResolver(
+      buildAllocationFormSchema({ inscription, priceOptions }),
+    ),
+  });
+  const { trigger } = form;
+  const [amount, priceId] = useWatch({
+    control: form.control,
+    name: ["amount", "priceId"],
+  });
   const isSaving = fetcher.state !== "idle";
   // Below the threshold the price is a live choice, so every figure is
   // re-derived on each change rather than read off the loader.
@@ -211,16 +226,32 @@ function AllocateMoneyDialog({
     onWaive,
   });
 
+  // A pick moves the ceiling, so a typed amount is read against the new one.
+  useEffect(() => {
+    if (form.getValues("amount") !== "") {
+      void trigger("amount");
+    }
+  }, [form, priceId, trigger]);
+
   return (
     <MoneyDialog
       description="El dinero se asigna desde el saldo disponible de la academia."
-      isDirty={amount !== "" || priceId !== initialPriceId}
+      isDirty={form.formState.isDirty}
       isSaving={isSaving}
       onOpenChange={onOpenChange}
       title={formatDancerName(inscription)}
     >
       {(requestClose) => (
-        <fetcher.Form method="post" className="flex flex-col gap-4">
+        <form
+          method="post"
+          noValidate
+          onSubmit={createValidatedRouteSubmitHandler(
+            form,
+            fetcher.submit,
+            formAction,
+          )}
+          className="flex flex-col gap-4"
+        >
           <input
             type="hidden"
             name="intent"
@@ -239,20 +270,18 @@ function AllocateMoneyDialog({
 
           <FieldGroup>
             <AllocationPriceField
+              control={form.control}
               effectivePrice={inscription.effectivePrice}
               isLocked={isPriceLocked}
               isSaving={isSaving}
-              onPriceIdChange={setPriceId}
-              priceId={priceId}
               priceOptions={priceOptions}
             />
 
             <MoneyAmountField
-              amount={amount}
+              control={form.control}
               id="inscription-amount"
               isSaving={isSaving}
-              maxAmount={owedBalanceAmount}
-              onAmountChange={setAmount}
+              name="amount"
               placeholderAmount={hintedAmount}
             />
           </FieldGroup>
@@ -261,8 +290,6 @@ function AllocateMoneyDialog({
             inscription they restate the price sitting right above. */}
           {holdsMoney ? <OwedSummary owed={owed} /> : null}
 
-          <FetcherError data={fetcher.data} />
-
           <AllocationFooter
             isSaving={isSaving}
             isSubmitDisabled={isSubmitDisabled}
@@ -270,121 +297,9 @@ function AllocateMoneyDialog({
             onRemoveMoney={onRemoveMoney}
             onWaive={waive}
           />
-        </fetcher.Form>
+        </form>
       )}
     </MoneyDialog>
-  );
-}
-
-/**
- * The price control of the allocation shape, which is a picker or a readout and
- * never both. Locked, it says exactly what the picker it replaces said — name,
- * amount and `Seña`, through the one formatter — so crossing the threshold
- * cannot quietly drop a figure the administrator was choosing by.
- */
-function AllocationPriceField({
-  effectivePrice,
-  isLocked,
-  isSaving,
-  onPriceIdChange,
-  priceId,
-  priceOptions,
-}: {
-  effectivePrice: InscriptionRow["effectivePrice"];
-  isLocked: boolean;
-  isSaving: boolean;
-  onPriceIdChange: (priceId: string) => void;
-  priceId: string;
-  priceOptions: PriceOption[];
-}) {
-  if (isLocked) {
-    return (
-      <ReadOnlyField label="Precio" value={formatDialogPrice(effectivePrice)} />
-    );
-  }
-
-  return (
-    <Field>
-      <FieldLabel htmlFor="inscription-price">Precio</FieldLabel>
-      <Select
-        name="priceId"
-        value={priceId}
-        onValueChange={onPriceIdChange}
-        disabled={isSaving}
-      >
-        <SelectTrigger id="inscription-price" className="w-full">
-          <SelectValue placeholder="Elegí un precio" />
-        </SelectTrigger>
-        <SelectContent>
-          {priceOptions.map((price) => (
-            <SelectItem key={price.id} value={price.id}>
-              {formatDialogPrice(price)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
-  );
-}
-
-/**
- * The amount field of the two shapes that take one. Allocating and removing are
- * typed the same way on purpose — a placeholder and never a prefilled value, and
- * the range said under the field rather than as an alert — so they share the
- * control instead of agreeing twice.
- *
- * `maxAmount` is `null` only where the ceiling is unknown, which is an
- * inscription with no applicable price: there is no range to name, so nothing is
- * said and the server's refusal is what catches it.
- */
-function MoneyAmountField({
-  amount,
-  id,
-  isSaving,
-  maxAmount,
-  onAmountChange,
-  placeholderAmount,
-}: {
-  amount: string;
-  id: string;
-  isSaving: boolean;
-  maxAmount: number | null;
-  onAmountChange: (amount: string) => void;
-  placeholderAmount: number | null;
-}) {
-  return (
-    <SharedFieldLayout
-      error={
-        isAmountOutOfRange(amount, maxAmount) && maxAmount !== null
-          ? `Ingresá un monto entre ${formatAmount(1)} y ${formatAmount(maxAmount)}.`
-          : undefined
-      }
-      id={id}
-      label="Monto"
-    >
-      {({ describedBy, isInvalid }) => (
-        <Input
-          id={id}
-          name="amount"
-          inputMode="numeric"
-          autoComplete="off"
-          aria-describedby={describedBy}
-          aria-invalid={isInvalid}
-          autoFocus
-          className="tabular-nums"
-          disabled={isSaving}
-          placeholder={
-            placeholderAmount === null
-              ? undefined
-              : formatAmount(placeholderAmount)
-          }
-          value={amount}
-          onChange={(event) =>
-            onAmountChange(event.target.value.replace(/\D/g, ""))
-          }
-        />
-      )}
-    </SharedFieldLayout>
   );
 }
 
@@ -483,7 +398,17 @@ function RemoveMoneyDialog({
   targetKind: AllocationTargetKind;
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
-  const [amount, setAmount] = useState("");
+  const formAction = useOptionalFormAction();
+  const form = useForm<RemovalFormValues>({
+    defaultValues: { amount: "" },
+    mode: moneyFormValidationMode,
+    resolver: zodResolver(
+      z.object({
+        amount: buildMoneyAmountSchema(inscription.allocatedAmount),
+      }),
+    ),
+  });
+  const amount = useWatch({ control: form.control, name: "amount" });
   const isSaving = fetcher.state !== "idle";
   const isOutOfRange = isAmountOutOfRange(amount, inscription.allocatedAmount);
   const [isWaiverBlockedOpen, setIsWaiverBlockedOpen] = useState(false);
@@ -491,13 +416,22 @@ function RemoveMoneyDialog({
   return (
     <MoneyDialog
       description="El dinero que se quita vuelve al saldo disponible de la academia."
-      isDirty={amount !== ""}
+      isDirty={form.formState.isDirty}
       isSaving={isSaving}
       onOpenChange={onOpenChange}
       title={formatDancerName(inscription)}
     >
       {(requestClose) => (
-        <fetcher.Form method="post" className="flex flex-col gap-4">
+        <form
+          method="post"
+          noValidate
+          onSubmit={createValidatedRouteSubmitHandler(
+            form,
+            fetcher.submit,
+            formAction,
+          )}
+          className="flex flex-col gap-4"
+        >
           <input
             type="hidden"
             name="intent"
@@ -517,16 +451,13 @@ function RemoveMoneyDialog({
 
           <FieldGroup>
             <MoneyAmountField
-              amount={amount}
+              control={form.control}
               id="inscription-removed-amount"
               isSaving={isSaving}
-              maxAmount={inscription.allocatedAmount}
-              onAmountChange={setAmount}
+              name="amount"
               placeholderAmount={inscription.allocatedAmount}
             />
           </FieldGroup>
-
-          <FetcherError data={fetcher.data} />
 
           <DialogFooter className={isWaivable ? "sm:justify-between" : ""}>
             {/* This shape only opens on a row with money, so `Bonificar` always
@@ -561,7 +492,7 @@ function RemoveMoneyDialog({
               </Button>
             </div>
           </DialogFooter>
-        </fetcher.Form>
+        </form>
       )}
     </MoneyDialog>
   );
@@ -582,6 +513,7 @@ function ReleaseExcessDialog({
   targetKind: AllocationTargetKind;
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
+  const formAction = useOptionalFormAction();
   const isSaving = fetcher.state !== "idle";
   const excessAmount = inscription.overAllocatedAmount ?? 0;
 
@@ -595,7 +527,17 @@ function ReleaseExcessDialog({
       title={formatDancerName(inscription)}
     >
       {(requestClose) => (
-        <fetcher.Form method="post" className="flex flex-col gap-4">
+        <form
+          method="post"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void fetcher.submit(event.currentTarget, {
+              action: formAction,
+              method: "post",
+            });
+          }}
+          className="flex flex-col gap-4"
+        >
           <input
             type="hidden"
             name="intent"
@@ -605,8 +547,6 @@ function ReleaseExcessDialog({
             inscription={inscription}
             targetKind={targetKind}
           />
-
-          <FetcherError data={fetcher.data} />
 
           <DialogFooter>
             <Button
@@ -622,7 +562,7 @@ function ReleaseExcessDialog({
               Liberar {formatAmount(excessAmount)}
             </Button>
           </DialogFooter>
-        </fetcher.Form>
+        </form>
       )}
     </MoneyDialog>
   );
