@@ -65,7 +65,7 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Tiene la presentación N.º 7");
     expect(markup).toContain(
-      "tiene número de presentación y modificarla puede necesitar atención",
+      "Si la modificás, revisá sus advertencias en Presentaciones.",
     );
     expect(markup).not.toContain("Esta coreografía ya fue evaluada");
   });
@@ -113,21 +113,12 @@ describe("ChoreographyDetailRouteView", () => {
   test("reports the price blocker in the page alert instead of on the field", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
-        scheduleCapacity: {
-          blockers: [
-            {
-              code: "no-price-preserving-option",
-              label:
-                "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y no hay cronogramas alternativos que mantengan el precio.",
-            },
-          ],
-        },
+        scheduleCapacity: { blockers: [noPricePreservingOptionBlocker] },
       }),
     });
 
-    expect(markup).toContain(
-      "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado",
-    );
+    expect(markup).toContain("Hay inscripciones con dinero asignado");
+    expect(markup).toContain(noPricePreservingOptionBlocker.label);
   });
 
   test("shows the price alert to auditors too", () => {
@@ -145,39 +136,39 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain("Hay dinero asignado.");
   });
 
-  test("does not announce a schedule capacity blocker when there is none", () => {
+  test("does not announce the money alert when nothing is blocked", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
-    expect(markup).not.toContain("No se puede reasignar el cupo de cronograma");
+    expect(markup).not.toContain("Hay inscripciones con dinero asignado");
   });
 
   test("announces the deposit as a blocker-in-waiting for the modality, auditors included", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: false,
-        modality: {
-          blockers: [
-            {
-              code: "price-change",
-              label:
-                "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
-            },
-          ],
-          options: [],
-        },
+        modality: { blockers: [priceChangeBlocker], options: [] },
       }),
     });
 
-    expect(markup).toContain(
-      "Solo se puede corregir la modalidad si el cronograma no cambia de precio",
-    );
+    expect(markup).toContain("Hay inscripciones con dinero asignado");
+    expect(markup).toContain(priceChangeBlocker.label);
   });
 
-  test("does not announce a modality blocker when there is no money on it", () => {
-    const markup = renderDetail({ loaderData: buildLoaderData() });
+  // One cause, one alert: the money is named once in the title and each
+  // field it limits is a line of the list under it.
+  test("lists both money blocks under one alert", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        modality: { blockers: [priceChangeBlocker], options: [] },
+        scheduleCapacity: { blockers: [noPricePreservingOptionBlocker] },
+      }),
+    });
 
-    expect(markup).not.toContain(
-      "Solo se puede corregir la modalidad si el cronograma no cambia de precio",
+    expect(markup.match(/Hay inscripciones con dinero asignado/g)).toHaveLength(
+      1,
+    );
+    expect(markup).toContain(
+      `<li>${noPricePreservingOptionBlocker.label}</li><li>${priceChangeBlocker.label}</li>`,
     );
   });
 
@@ -540,6 +531,18 @@ function renderDetail(
 
   return renderToStaticMarkup(<RouterProvider router={router} />);
 }
+
+const noPricePreservingOptionBlocker = {
+  code: "no-price-preserving-option",
+  label:
+    "No se puede reasignar el cupo de cronograma: ningún otro cronograma mantiene el precio.",
+} as const;
+
+const priceChangeBlocker = {
+  code: "price-change",
+  label:
+    "La modalidad solo se puede corregir si el cronograma resultante mantiene el precio.",
+} as const;
 
 const evaluatedDeletion: ChoreographyDetailLoaderData["deletion"] = {
   blockers: [

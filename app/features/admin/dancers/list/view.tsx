@@ -30,6 +30,8 @@ import {
 } from "@/lib/roster/roster-person-status.shared";
 import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
 import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
+import { dancersExportPath } from "@/features/admin/dancers/export/shared";
+import { PeriodExportMenu } from "@/features/admin/period-export/menu";
 
 import type { loadDancersList } from "./server";
 
@@ -57,6 +59,15 @@ export function DancersListRouteView({
       title="Bailarines"
       description="Consultá la ficha administrativa de cada bailarín y revisá su estado operativo desde el listado."
       requireSelectedEvent={false}
+      headerAction={
+        !loaderData.canWrite && loaderData.selectedEventId !== null ? (
+          <PeriodExportMenu
+            description="Los bailarines con inscripciones registradas en el período, en el evento activo. Dejá una fecha vacía para no acotar ese extremo."
+            path={dancersExportPath}
+            title="Exportar bailarines"
+          />
+        ) : undefined
+      }
     >
       {shouldShowTable ? (
         <DancerTable loaderData={loaderData} />

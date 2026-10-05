@@ -27,7 +27,8 @@ export function RosterSeminarInscriptionsTable({
   inscriptions,
   personKind,
 }: {
-  buildSeminarHref: (seminarId: string) => string;
+  /** Absent for a reader the seminar detail refuses: the name is plain text. */
+  buildSeminarHref?: (seminarId: string) => string;
   inscriptions: RosterSeminarInscription[];
   personKind: RosterPersonKind;
 }) {
@@ -36,11 +37,14 @@ export function RosterSeminarInscriptionsTable({
       id: "instructorName",
       header: "Instructor",
       className: "font-medium",
-      cell: (inscription) => (
-        <DataTableLink to={buildSeminarHref(inscription.seminarId)}>
-          {inscription.instructorName}
-        </DataTableLink>
-      ),
+      cell: (inscription) =>
+        buildSeminarHref ? (
+          <DataTableLink to={buildSeminarHref(inscription.seminarId)}>
+            {inscription.instructorName}
+          </DataTableLink>
+        ) : (
+          inscription.instructorName
+        ),
       filterValue: (inscription) => inscription.instructorName,
       sortValue: (inscription) => inscription.instructorName,
     },

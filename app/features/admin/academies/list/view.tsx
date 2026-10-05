@@ -11,7 +11,11 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
+import { academiesExportPath } from "@/features/admin/academies/export/shared";
+import { PeriodExportMenu } from "@/features/admin/period-export/menu";
+import { academyDataStatusLabels } from "@/lib/academies/academy-data-status";
 import { describeEmptyList } from "@/lib/list-query/list-query";
+import { AcademyDataStatusBadge } from "../data-status-badge";
 
 import type { loadAcademiesList } from "./server";
 
@@ -57,15 +61,25 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
       academy.isParticipating ? "Participando" : "No participando",
   },
   {
+    id: "data",
+    header: "Datos",
+    cell: (academy) => <AcademyDataStatusBadge status={academy.dataStatus} />,
+    filterValue: (academy) => academyDataStatusLabels[academy.dataStatus],
+  },
+  {
     id: "filters",
     header: "Filtros",
     hidden: true,
     cell: () => null,
-    filterValue: (academy) => (academy.isParticipating ? "si" : "no"),
+    // What the faceted filters match: one value per group.
+    filterValues: (academy) => [
+      academy.isParticipating ? "si" : "no",
+      academy.dataStatus === "complete" ? "completa" : "incompleta",
+    ],
   },
 ];
 
-export const academyFacetedFilterIds = ["participando"] as const;
+export const academyFacetedFilterIds = ["participando", "datos"] as const;
 
 const academyFacetedFilters: DataTableFacetedFiltersOf<
   typeof academyFacetedFilterIds
@@ -78,6 +92,19 @@ const academyFacetedFilters: DataTableFacetedFiltersOf<
       { label: "No participando", value: "no" },
     ],
   },
+  {
+    id: "datos",
+    label: "Datos",
+    options: [
+      { label: academyDataStatusLabels.complete, value: "completa" },
+      { label: academyDataStatusLabels.incomplete, value: "incompleta" },
+    ],
+    renderValue: (option) => (
+      <AcademyDataStatusBadge
+        status={option.value === "completa" ? "complete" : "incomplete"}
+      />
+    ),
+  },
 ];
 
 export function AcademiesListRouteView({
@@ -89,6 +116,15 @@ export function AcademiesListRouteView({
       selectedEventId={loaderData.selectedEventId}
       title="Academias"
       description="Consultá las academias registradas y, si hay evento activo, su participación."
+      headerAction={
+        !loaderData.canWrite && loaderData.selectedEventId !== null ? (
+          <PeriodExportMenu
+            description="Las academias con inscripciones registradas en el período, en el evento activo. Dejá una fecha vacía para no acotar ese extremo."
+            path={academiesExportPath}
+            title="Exportar academias"
+          />
+        ) : undefined
+      }
     >
       {loaderData.academies.length > 0 ? (
         <ClientDataTable

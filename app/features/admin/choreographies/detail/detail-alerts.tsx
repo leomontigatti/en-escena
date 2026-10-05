@@ -1,6 +1,7 @@
 import { Info, TriangleAlert } from "lucide-react";
 
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ReasonList } from "@/components/shared/reason-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { evaluatedChoreographyNotice } from "@/lib/choreographies/choreography-messages";
 
@@ -37,6 +38,10 @@ export function ChoreographyDetailAlerts({
     loaderData.canEdit &&
     loaderData.draft.structuralLock === null &&
     choreography.requiresExperienceLevel;
+  const moneyBlockers = [
+    ...loaderData.scheduleCapacity.blockers,
+    ...loaderData.modality.blockers,
+  ];
 
   return (
     <AlertStack>
@@ -57,8 +62,7 @@ export function ChoreographyDetailAlerts({
             Tiene la presentación N.º {choreography.presentationOrderNumber}
           </AlertTitle>
           <AlertDescription>
-            Esta coreografía tiene número de presentación y modificarla puede
-            necesitar atención en esa lista.
+            Si la modificás, revisá sus advertencias en Presentaciones.
           </AlertDescription>
         </Alert>
       )}
@@ -122,26 +126,22 @@ export function ChoreographyDetailAlerts({
 
       {/* The financial alert is not suppressed for the auditor: the reason for
           the block belongs to the choreography, not to the permissions of
-          whoever is looking. One block per line, with no list: the server's label
-          is already the whole sentence, and two blocks are two stacked
-          alerts. */}
-      {loaderData.scheduleCapacity.blockers.map((blocker) => (
-        <Alert key={blocker.code} variant="warning">
+          whoever is looking. Blocks that share a cause share one alert: the
+          title names the money once and each label says only what it limits —
+          the schedule capacity, or the modality, where a deposit is a
+          blocker-in-waiting that refuses only a save that would reprice. Two
+          alerts with one title would read as a duplicate. */}
+      {moneyBlockers.length > 0 ? (
+        <Alert variant="warning">
           <TriangleAlert aria-hidden="true" />
-          <AlertTitle>Cambios limitados por dinero asignado</AlertTitle>
-          <AlertDescription>{blocker.label}</AlertDescription>
+          <AlertTitle>Hay inscripciones con dinero asignado</AlertTitle>
+          <AlertDescription>
+            <ReasonList
+              reasons={moneyBlockers.map((blocker) => blocker.label)}
+            />
+          </AlertDescription>
         </Alert>
-      ))}
-
-      {/* A deposit does not close the modality: it only refuses a save that
-          would move the schedule, so it is announced as a blocker-in-waiting. */}
-      {loaderData.modality.blockers.map((blocker) => (
-        <Alert key={blocker.code} variant="warning">
-          <TriangleAlert aria-hidden="true" />
-          <AlertTitle>Cambios limitados por dinero asignado</AlertTitle>
-          <AlertDescription>{blocker.label}</AlertDescription>
-        </Alert>
-      ))}
+      ) : null}
     </AlertStack>
   );
 }

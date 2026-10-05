@@ -69,7 +69,7 @@ describe("academy onboarding route", () => {
             city: " rosario ",
             contactName: " contacto principal ",
             phone: "1112345678",
-            province: " santa fe ",
+            province: "santa_fe",
           }),
         ),
       ),
@@ -113,7 +113,7 @@ describe("academy onboarding route", () => {
       contactName: "Contacto Principal",
       name: "Academia Confirmada",
       phone: "1112345678",
-      province: "Santa Fe",
+      province: "santa_fe",
       userId: "supabase-confirmed-user",
     });
   });
@@ -143,6 +143,55 @@ describe("academy onboarding route", () => {
       },
     });
     await expect(db.query.academies.findMany()).resolves.toEqual([]);
+  });
+
+  test("refuses a province outside the list and creates nothing", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue(
+      accessIdentity("provincia.libre@example.com", "user-provincia-libre"),
+    );
+
+    const result = await academyOnboardingAction(
+      routeActionArgs(
+        createOnboardingRequest({
+          academyName: "Academia Libre",
+          contactName: "Contacto",
+          phone: "1112345678",
+          province: "Santa Fe",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: { province: "Elegí una provincia de la lista." },
+    });
+    await expect(db.query.academies.findMany()).resolves.toEqual([]);
+  });
+
+  test("creates an academy from abroad with `Otro país`", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue(
+      accessIdentity("extranjera@example.com", "user-extranjera"),
+    );
+
+    await expectRedirectResponse(
+      academyOnboardingAction(
+        routeActionArgs(
+          createOnboardingRequest({
+            academyName: "Academia Extranjera",
+            contactName: "Contacto",
+            phone: "1112345678",
+            province: "otro_pais",
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      db.query.academies.findFirst({
+        columns: { province: true },
+        where: eq(academies.userId, "user-extranjera"),
+      }),
+    ).resolves.toEqual({ province: "otro_pais" });
   });
 
   test("reports conflicting onboarding and rolls back partial domain writes", async () => {
@@ -194,7 +243,7 @@ describe("academy onboarding route", () => {
         contactName: "Contacto Conflicto",
         phone: "1112345678",
         city: "Ciudad",
-        province: "Provincia",
+        province: "santa_fe",
       },
     });
     await expect(
@@ -233,7 +282,7 @@ describe("academy onboarding route", () => {
         contactName: "Contacto Duplicado",
         phone: "1112345678",
         city: "Ciudad",
-        province: "Provincia",
+        province: "santa_fe",
       },
       warning: {
         kind: "academy-name",
@@ -386,7 +435,7 @@ describe("academy onboarding route", () => {
         contactName: "Contacto Telefono",
         phone: "11 1234-5678",
         city: "Ciudad",
-        province: "Provincia",
+        province: "santa_fe",
       },
     });
     await expect(db.query.user.findMany()).resolves.toEqual([]);
@@ -438,7 +487,7 @@ function createOnboardingRequest(input: {
     city: input.city ?? "Ciudad",
     contactName: input.contactName,
     phone: input.phone,
-    province: input.province ?? "Provincia",
+    province: input.province ?? "santa_fe",
   });
 
   for (const id of input.acknowledgedDuplicateIds ?? []) {

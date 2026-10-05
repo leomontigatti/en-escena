@@ -1,3 +1,4 @@
+import { formatProvinceLabel, type Province } from "@/lib/academies/provinces";
 import {
   formatGroupTypeLabel,
   type ChoreographyGroupType,
@@ -16,7 +17,7 @@ import {
 
 export type ProgramExportRow = {
   academyName: string;
-  academyProvince: string | null;
+  academyProvince: Province | null;
   categoryName: string;
   /** Whoever the reading asked to name: the program export, up to a trio. */
   dancerNames: string[];
@@ -56,7 +57,11 @@ export const programColumns: SheetColumn<ProgramExportRow>[] = [
   { header: "Modalidad", width: 20, cell: (row) => row.modalityName },
   { header: "Submodalidad", width: 20, cell: (row) => row.submodalityName },
   { header: "Academia", width: 28, cell: (row) => row.academyName },
-  { header: "Provincia", width: 16, cell: (row) => row.academyProvince },
+  {
+    header: "Provincia",
+    width: 16,
+    cell: (row) => formatProvinceLabel(row.academyProvince),
+  },
   { header: "Coreografía", width: 30, cell: (row) => row.name },
 ];
 

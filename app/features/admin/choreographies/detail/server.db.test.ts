@@ -1475,7 +1475,7 @@ describe("administrative choreography detail server", () => {
       {
         code: "no-price-preserving-option",
         label:
-          "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y no hay cronogramas alternativos que mantengan el precio.",
+          "No se puede reasignar el cupo de cronograma: ningún otro cronograma mantiene el precio.",
       },
     ]);
     // The repricing destination is omitted, not offered as disabled: only the
@@ -1853,7 +1853,7 @@ describe("administrative choreography detail server", () => {
       {
         code: "price-filtered-options",
         label:
-          "Hay inscripciones con dinero asignado, así que solo se ofrecen los cronogramas que mantienen el precio.",
+          "El cupo de cronograma solo ofrece los cronogramas que mantienen el precio.",
       },
     ]);
     // The alert names no destination and no amount: the select already lists

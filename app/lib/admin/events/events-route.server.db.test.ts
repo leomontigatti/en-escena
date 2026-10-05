@@ -150,8 +150,6 @@ describe("`/administracion/eventos` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/eventos/${event.id}`,
     });
-    const newRouteModule =
-      await import("@/routes/administracion.eventos_.nuevo");
 
     const listData = await loader(routeArgs(listRequest));
     const detailData = await detailLoader(
@@ -160,7 +158,24 @@ describe("`/administracion/eventos` route", () => {
 
     expectShellDataNotReturned(listData);
     expectShellDataNotReturned(detailData);
-    expect(Object.hasOwn(newRouteModule, "loader")).toBe(false);
+  });
+
+  test("refuses the new event form to the auditor before it renders", async () => {
+    const { loader: newLoader } =
+      await import("@/routes/administracion.eventos_.nuevo");
+    const { request: auditorRequest } = await createSignedInRequest({
+      email: "auditor.evento.nuevo@example.com",
+      role: "auditor",
+      requestUrl: "http://localhost/administracion/eventos/nuevo",
+    });
+    const { request: adminRequest } = await createSignedInRequest({
+      email: "admin.evento.nuevo@example.com",
+      role: "admin",
+      requestUrl: "http://localhost/administracion/eventos/nuevo",
+    });
+
+    await expectThrownResponse(newLoader(routeArgs(auditorRequest)), 403);
+    await expect(newLoader(routeArgs(adminRequest))).resolves.toBeNull();
   });
 
   test("creates an inactive event from the new route and redirects to detail", async () => {
@@ -331,6 +346,7 @@ function adminLoaderData() {
       roleLabel: "Administrador",
       username: "ada.admin",
     },
+    canWrite: true,
     events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
     selectedEventId: "evento_2026",
   };

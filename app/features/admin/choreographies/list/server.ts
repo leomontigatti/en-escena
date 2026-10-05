@@ -11,6 +11,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
@@ -245,7 +246,7 @@ export async function loadChoreographies(input: {
 }
 
 export async function loadChoreographyListRouteData(request: Request) {
-  await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireInternalUser(request, ["admin", "auditor"]);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
@@ -276,7 +277,11 @@ export async function loadChoreographyListRouteData(request: Request) {
     spec: choreographyListSpec,
   });
 
-  return listResult;
+  return {
+    ...listResult,
+    /** False for the auditor, who gets the `Exportar` entry instead. */
+    canWrite: canWriteInAdminPanel(user.role),
+  };
 }
 
 async function hydrateChoreographies(

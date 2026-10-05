@@ -11,6 +11,7 @@ import {
   schedules,
   submodalities,
 } from "@/db/schema";
+import type { Province } from "@/lib/academies/provinces";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import { experienceLevelLabel } from "@/lib/events/experience-levels";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
@@ -60,7 +61,7 @@ export type EventProgramCeremonySchedule = EventProgramSchedule &
  */
 export type EventProgramRow = ProgramListRow & {
   /** `null` for an academy registered before the province was asked. */
-  academyProvince: string | null;
+  academyProvince: Province | null;
   scheduleId: string;
 };
 

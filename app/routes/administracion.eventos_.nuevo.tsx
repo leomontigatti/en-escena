@@ -1,7 +1,10 @@
 import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
-import { createAdministrativeEvent } from "@/features/admin/events/create/server";
+import {
+  createAdministrativeEvent,
+  requireEventCreator,
+} from "@/features/admin/events/create/server";
 import type { EventCreateActionData } from "@/features/admin/events/create/shared";
 import { EventCreateView } from "@/features/admin/events/create/view";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
@@ -22,6 +25,14 @@ export const handle = {
     { label: "Nuevo evento" },
   ],
 } satisfies AdminRouteHandle;
+
+// The screen is a form that writes: the auditor, whom the layout admits, is
+// refused it before it renders, not only when it submits.
+export async function loader({ request }: Route.LoaderArgs) {
+  await requireEventCreator(request);
+
+  return null;
+}
 
 export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEvent(request);

@@ -4,12 +4,14 @@ import { z } from "zod";
 import { AcademyNameWarningDialog } from "@/components/auth/academy-name-warning";
 import { AccessHeader, AccessPage } from "@/components/auth/access-ui";
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
+import { SelectField } from "@/components/shared/select-field";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import {
   completeAcademyOnboarding,
   requireAcademyOnboardingUser,
 } from "@/lib/academies/onboarding.server";
+import { provinceField, provinceOptions } from "@/lib/academies/provinces";
 import {
   authToastIds,
   readFormValue,
@@ -34,15 +36,15 @@ const academyOnboardingSchema = z.object({
   academyName: requiredTextField(),
   contactName: requiredTextField(),
   phone: argentinePhoneField(),
+  province: provinceField(),
   city: requiredTextField(),
-  province: requiredTextField(),
 });
 const academyOnboardingFields = [
   "academyName",
   "contactName",
   "phone",
-  "city",
   "province",
+  "city",
 ] as const;
 type AcademyOnboardingField = (typeof academyOnboardingFields)[number];
 type AcademyOnboardingValues = z.input<typeof academyOnboardingSchema>;
@@ -51,8 +53,8 @@ const emptyAcademyOnboardingValues: AcademyOnboardingValues = {
   academyName: "",
   contactName: "",
   phone: "",
-  city: "",
   province: "",
+  city: "",
 };
 
 export const meta: Route.MetaFunction = () => [
@@ -71,15 +73,15 @@ export async function action({ request }: Route.ActionArgs) {
     academyName: readFormValue(formData.get("academyName")),
     contactName: readFormValue(formData.get("contactName")),
     phone: readFormValue(formData.get("phone")),
-    city: readFormValue(formData.get("city")),
     province: readFormValue(formData.get("province")),
+    city: readFormValue(formData.get("city")),
   } satisfies AcademyOnboardingValues;
   const parsed = academyOnboardingSchema.safeParse({
     academyName: formData.get("academyName"),
     contactName: formData.get("contactName"),
     phone: formData.get("phone"),
-    city: formData.get("city"),
     province: formData.get("province"),
+    city: formData.get("city"),
   });
 
   if (!parsed.success) {
@@ -188,18 +190,19 @@ export default function AcademyOnboardingRoute() {
             type="tel"
           />
 
+          <SelectField
+            control={form.form.control}
+            label="Provincia"
+            name="province"
+            options={provinceOptions}
+            placeholder="Elegí una provincia"
+          />
+
           <AccessTextField
             autoComplete="address-level2"
             controller={form}
             label="Ciudad"
             name="city"
-          />
-
-          <AccessTextField
-            autoComplete="address-level1"
-            controller={form}
-            label="Provincia"
-            name="province"
           />
 
           <Button className="w-full" type="submit">

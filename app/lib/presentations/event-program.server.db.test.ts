@@ -124,7 +124,7 @@ describe("readEventProgram", () => {
     const unknown = await addAcademy("Academia Sur");
     await db
       .update(academies)
-      .set({ province: "Córdoba" })
+      .set({ province: "cordoba" })
       .where(eq(academies.id, cordoba.academy.id));
     await db
       .update(academies)
@@ -136,7 +136,7 @@ describe("readEventProgram", () => {
     const program = await readEventProgram(event.id);
 
     expect(program.rows.map((row) => row.academyProvince)).toEqual([
-      "Córdoba",
+      "cordoba",
       null,
     ]);
   });

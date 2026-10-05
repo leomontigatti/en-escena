@@ -114,7 +114,56 @@ describe("`/administracion` index route", () => {
     expect(data.activeEventRegistrationReadiness?.isReady).toBe(false);
     expect(markup).not.toContain("bases sin configurar");
   });
+
+  test("shows an auditor only their sections' cards and no readiness alert", async () => {
+    const event = await createSavedEvent({ name: "En Escena 2026" });
+    await activateEvent(event.id);
+    await insertOpenSchedule(event.id);
+    const { request } = await createSignedInRequest({
+      email: "auditor.dashboard@example.com",
+      role: "auditor",
+      requestUrl: "http://localhost/administracion",
+    });
+
+    const markup = renderRoute(await loader(routeArgs(request)));
+
+    expect(markup).not.toContain("Falta configurar bases");
+    expect(markup).not.toContain("bases sin configurar");
+    expect(cardLinks(markup)).toEqual([
+      "/administracion/academias",
+      "/administracion/bailarines",
+      "/administracion/profesores",
+      "/administracion/coreografias",
+      "/administracion/pagos",
+    ]);
+  });
+
+  test("shows an administrator the cards as before", async () => {
+    const { request } = await createSignedInRequest({
+      email: "admin.dashboard.cards@example.com",
+      role: "admin",
+      requestUrl: "http://localhost/administracion",
+    });
+
+    const markup = renderRoute(await loader(routeArgs(request)));
+
+    expect(cardLinks(markup)).toEqual([
+      "/administracion/finanzas",
+      "/administracion/bailarines",
+      "/administracion/coreografias",
+      "/administracion/usuarios",
+    ]);
+  });
 });
+
+/** The access cards, in the order the home lays them out. */
+function cardLinks(markup: string) {
+  const nav = markup.slice(
+    markup.indexOf('aria-label="Accesos de administración"'),
+  );
+
+  return [...nav.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
+}
 
 function renderRoute(
   loaderData: Parameters<typeof DashboardRouteView>[0]["loaderData"],

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, payments } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { paymentAvailableAmountSql } from "@/lib/finances/payment-available-amount.server";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
@@ -66,6 +67,8 @@ export type PaymentsListSummary = {
 };
 
 export type PaymentsListLoaderData = {
+  /** False for the auditor: no `Nuevo pago`, and the `Exportar` entry instead. */
+  canWrite: boolean;
   filters: PaymentsListFilters;
   hasAnyPayment: boolean;
   rows: PaymentsListRow[];
@@ -83,7 +86,8 @@ const paymentsListSpec: ListQuerySpec<PaymentsListOrder["columnId"]> = {
 export async function loadPaymentsList(
   request: Request,
 ): Promise<PaymentsListLoaderData> {
-  await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const canWrite = canWriteInAdminPanel(user.role);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
   const url = new URL(request.url);
@@ -91,6 +95,7 @@ export async function loadPaymentsList(
 
   if (selectedEventId === null) {
     return {
+      canWrite,
       filters,
       hasAnyPayment: false,
       rows: [] as PaymentsListRow[],
@@ -158,6 +163,7 @@ export async function loadPaymentsList(
   });
 
   return {
+    canWrite,
     filters: normalizedFilters,
     hasAnyPayment: Number(totalUnfilteredCount) > 0,
     rows: paymentRows.map((row) => ({

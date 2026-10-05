@@ -47,7 +47,7 @@ export async function loadPresentationScoresRouteData(input: {
   params: { presentationId?: string };
   request: Request;
 }): Promise<PresentationScoresLoaderData> {
-  const user = await requireInternalUser(input.request, ["admin", "auditor"]);
+  const user = await requireInternalUser(input.request, ["admin"]);
   const presentation = await readPresentationScores({
     presentationId: input.params.presentationId ?? "",
   });

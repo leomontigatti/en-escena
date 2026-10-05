@@ -6,6 +6,8 @@ import type {
   mergeAcademyIntent,
 } from "@/lib/academies/academy-merge.shared";
 import type { AcademyProfileField } from "@/lib/academies/academy-profile.server";
+import type { AcademyDataStatus } from "@/lib/academies/academy-data-status";
+import { provinceField } from "@/lib/academies/provinces";
 import type { MergeRefusedActionData } from "@/lib/shared/merge";
 import { argentinePhoneField } from "@/lib/shared/argentine-phone";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -19,8 +21,8 @@ export const academyDetailSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
   contactName: z.string().trim().min(1, requiredFieldMessage),
   phone: argentinePhoneField(),
+  province: provinceField(),
   city: z.string().trim().min(1, requiredFieldMessage),
-  province: z.string().trim().min(1, requiredFieldMessage),
 });
 
 export type AcademyDetailLoaderData = {
@@ -28,6 +30,8 @@ export type AcademyDetailLoaderData = {
     /** Empty for an academy registered before the location fields existed. */
     city: string;
     contactName: string;
+    /** Derived on read: complete with both a province and a city. */
+    dataStatus: AcademyDataStatus;
     email: string;
     id: string;
     name: string;
@@ -48,7 +52,8 @@ export type AcademyDetailLoaderData = {
   selectedEventId: string | null;
 };
 
-export type AcademyDetailFormValues = z.infer<typeof academyDetailSchema>;
+/** As the form holds them: the province is text until one is picked. */
+export type AcademyDetailFormValues = z.input<typeof academyDetailSchema>;
 export type AcademyDetailFieldErrors = Partial<
   Record<AcademyProfileField, string>
 >;

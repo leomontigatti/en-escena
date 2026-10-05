@@ -33,6 +33,7 @@ import {
   DEV_SEED_ADMIN_EMAIL,
   DEV_SEED_AUDITOR_EMAIL,
   DEV_SEED_JUDGE_EMAIL,
+  DEV_SEED_LEGACY_ACADEMY_EMAIL,
   DEV_SEED_PASSWORD,
   seedDevData,
 } from "@/lib/dev-seed/seed.server";
@@ -77,6 +78,31 @@ describe("dev seed", () => {
         signInAccessUser({ email, password: DEV_SEED_PASSWORD }),
       ).resolves.toMatchObject({ user: { email } });
     }
+  });
+
+  test("seeds one academy with its location and one from before the location fields existed", async () => {
+    await seedDevData({ now });
+
+    const seeded = await db
+      .select({
+        city: academies.city,
+        name: academies.name,
+        province: academies.province,
+      })
+      .from(academies)
+      .innerJoin(user, eq(user.id, academies.userId))
+      .where(
+        inArray(user.email, [
+          DEV_SEED_ACADEMY_EMAIL,
+          DEV_SEED_LEGACY_ACADEMY_EMAIL,
+        ]),
+      )
+      .orderBy(asc(academies.name));
+
+    expect(seeded).toEqual([
+      { city: null, name: "Academia Antigua", province: null },
+      { city: "Rosario", name: "Academia Demo", province: "santa_fe" },
+    ]);
   });
 
   test("opens registrations on the active event and registers four choreographies for the academy", async () => {
