@@ -202,7 +202,7 @@ export function PortalDancerDetailRouteView({
                 <FormActions
                   backTo="/portal/bailarines"
                   form={portalDancerFormId}
-                  hasChanges={form.form.formState.isDirty}
+                  hasChanges={form.hasChanges}
                   isPending={isSubmitting}
                   onDiscard={form.discard}
                   viewTransition
@@ -367,6 +367,7 @@ function PortalDancerIdentificationFields({
         </>
       ) : (
         <PortalDancerDocumentImageFields
+          documentImages={form.documentImages}
           form={form.form}
           imageUrls={documentImageUrls}
         />
