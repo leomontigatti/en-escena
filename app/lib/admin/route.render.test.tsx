@@ -35,6 +35,7 @@ describe("`/administracion` layout route", () => {
                 roleLabel: "Administrador",
                 username: "ada.admin",
               },
+              canWrite: true,
               events: [
                 { id: "evento_2026", name: "Evento 2026", active: true },
               ],
@@ -92,6 +93,7 @@ describe("`/administracion` layout route", () => {
                 roleLabel: "Administrador",
                 username: "ada.admin",
               },
+              canWrite: true,
               events: [
                 { id: "evento_2026", name: "Evento 2026", active: true },
               ],

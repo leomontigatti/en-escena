@@ -171,7 +171,12 @@ export function ProfessorDetailForm({
       <TabsContent value="seminarios" className="pt-2">
         {selectedEventId ? (
           <RosterSeminarInscriptionsTable
-            buildSeminarHref={(seminarId) => `${seminarsPath}/${seminarId}`}
+            // The seminar detail is not reviewed for the auditor and refuses them.
+            buildSeminarHref={
+              canEdit
+                ? (seminarId) => `${seminarsPath}/${seminarId}`
+                : undefined
+            }
             inscriptions={seminarInscriptions}
             personKind="professor"
           />

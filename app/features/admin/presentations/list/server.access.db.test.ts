@@ -35,16 +35,15 @@ describe("the participation list route", () => {
     );
   });
 
-  test("lets an auditor read it and withholds the actions", async () => {
+  // Not reviewed for the auditor yet (PRD #1448): the list refuses them.
+  test("turns an auditor away from the list", async () => {
     const { request } = await createSignedInRequest({
       email: "auditor.presentacion@example.com",
       requestUrl: listUrl,
       role: "auditor",
     });
 
-    await expect(loadPresentationListRouteData(request)).resolves.toMatchObject(
-      { canOrder: false },
-    );
+    await expectThrownResponse(loadPresentationListRouteData(request), 403);
   });
 
   test("turns an academy away from the list", async () => {

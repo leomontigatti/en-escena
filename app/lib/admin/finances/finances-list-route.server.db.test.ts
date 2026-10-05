@@ -476,7 +476,8 @@ describe("`/administracion/finanzas`", () => {
     expect(markup).toContain("No hay un evento activo para operar finanzas");
   });
 
-  test("allows auditor access and blocks academy users", async () => {
+  // Not reviewed for the auditor yet (PRD #1448): the finances refuse them.
+  test("refuses auditors and academy users", async () => {
     const event = await createSavedEvent();
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.reporte.finanzas@example.com",
@@ -486,9 +487,7 @@ describe("`/administracion/finanzas`", () => {
 
     await expect(
       financeAccountsLoader(financesListRouteArgs(auditorRequest)),
-    ).resolves.toMatchObject({
-      selectedEventId: event.id,
-    });
+    ).rejects.toMatchObject({ status: 403 });
 
     const { request: academyRequest } = await createSignedInRequest({
       email: "academia.reporte.bloqueada@example.com",

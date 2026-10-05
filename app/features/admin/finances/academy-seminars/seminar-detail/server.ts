@@ -62,7 +62,7 @@ export async function loadSeminarFinanceDetail(input: {
   params: { academyId?: string; seminarId?: string };
   request: Request;
 }) {
-  await requireInternalUser(input.request, ["admin", "auditor"]);
+  await requireInternalUser(input.request, ["admin"]);
 
   const academyId = readFinanceAcademyId(input.params);
   const seminarId = readSeminarId(input.params);

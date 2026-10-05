@@ -17,8 +17,10 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { FieldGroup } from "@/components/ui/field";
+import { provinceOptions } from "@/lib/academies/provinces";
 import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
@@ -37,6 +39,7 @@ import {
   type AcademyDetailLoaderData,
 } from "./shared";
 import { AcademyMergeDialog } from "./merge-dialog";
+import { AcademyDataStatusBadge } from "../data-status-badge";
 
 export function AcademyDetailRouteView({
   actionData,
@@ -82,6 +85,7 @@ export function AcademyDetailRouteView({
       requireSelectedEvent={false}
       selectedEventId={loaderData.selectedEventId}
       title={academy.name}
+      titleBadge={<AcademyDataStatusBadge status={academy.dataStatus} />}
       description="Consultá y actualizá los datos de contacto y la ubicación de la academia."
       headerAction={
         canEdit ? (
@@ -155,19 +159,20 @@ export function AcademyDetailRouteView({
               placeholder={argentinePhonePlaceholder}
               type="tel"
             />
+            <SelectField
+              control={form.form.control}
+              disabled={!canEdit}
+              label="Provincia"
+              name="province"
+              options={provinceOptions}
+              placeholder="Elegí una provincia"
+            />
             <TextInputField
               autoComplete="address-level2"
               control={form.form.control}
               disabled={!canEdit}
               label="Ciudad"
               name="city"
-            />
-            <TextInputField
-              autoComplete="address-level1"
-              control={form.form.control}
-              disabled={!canEdit}
-              label="Provincia"
-              name="province"
             />
           </FieldGroup>
         </form>

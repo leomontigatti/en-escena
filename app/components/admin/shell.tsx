@@ -59,6 +59,8 @@ import {
 // docs/agents/coding-standards.md § Surface Prefix Rule.
 type AdminShellProps = {
   account: InternalAccount;
+  /** False for the auditor, whose navigation lists only the sections reviewed for them. */
+  canWrite: boolean;
   events: EventOption[];
   selectedEventId: string | null;
   children?: ReactNode;
@@ -212,8 +214,38 @@ const navigationGroups = [
   },
 ] satisfies SidebarNavigationGroup[];
 
+/**
+ * The sections reviewed for the auditor so far, by path. A closed list, not
+ * "every loader that admits the auditor": a section joins it when its view has
+ * been reviewed to show no control that changes data.
+ */
+const auditorSectionPaths = new Set([
+  "/administracion",
+  "/administracion/academias",
+  "/administracion/bailarines",
+  "/administracion/profesores",
+  "/administracion/coreografias",
+  "/administracion/pagos",
+]);
+
+/** The navigation the user sees: everything to whoever writes, the reviewed sections otherwise. */
+function getAdminNavigationGroups(canWrite: boolean): SidebarNavigationGroup[] {
+  if (canWrite) {
+    return navigationGroups;
+  }
+
+  return navigationGroups.flatMap((group) => {
+    const items = group.items.filter((item) =>
+      auditorSectionPaths.has(item.to),
+    );
+
+    return items.length === 0 ? [] : [{ ...group, items }];
+  });
+}
+
 export function AdminShell({
   account,
+  canWrite,
   events,
   selectedEventId,
   children,
@@ -247,7 +279,7 @@ export function AdminShell({
 
           <SidebarContent>
             <SidebarNavigationGroups
-              groups={navigationGroups}
+              groups={getAdminNavigationGroups(canWrite)}
               rootPath="/administracion"
             />
           </SidebarContent>

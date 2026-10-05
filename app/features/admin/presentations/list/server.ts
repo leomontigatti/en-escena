@@ -74,7 +74,7 @@ const presentationListSpec: ListQuerySpec<PresentationOrder["columnId"]> = {
 };
 
 export async function loadPresentationListRouteData(request: Request) {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireInternalUser(request, ["admin"]);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {

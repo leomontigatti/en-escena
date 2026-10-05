@@ -302,6 +302,13 @@
       "when": 1790992105018,
       "tag": "0042_add_schedule_award_ceremony",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791147935396,
+      "tag": "0043_academy_province_enum",
+      "breakpoints": true
     }
   ]
 }

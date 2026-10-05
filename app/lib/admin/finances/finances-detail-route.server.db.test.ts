@@ -267,7 +267,8 @@ describe("`/administracion/finanzas` academy", () => {
     expect(markup).not.toContain("Impaga");
   });
 
-  test("allows auditor read-only access and blocks non-admin payment registration", async () => {
+  // Not reviewed for the auditor yet (PRD #1448): the finances refuse them.
+  test("refuses the auditor and blocks non-admin payment registration", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "academia.auditoria.finanzas@example.com",
@@ -279,17 +280,11 @@ describe("`/administracion/finanzas` academy", () => {
       requestUrl: academyFinancesUrl(academy.academy.id, event.id),
     });
 
-    const loaderData = await academyFinancesLoader(
-      academyFinancesRouteArgs(auditorRequest, academy.academy.id),
-    );
-    const markup = renderAcademyFinancesRoute({
-      loaderData,
-    });
-
-    expect(markup).toContain("Lista financiera de las coreografías");
-    expect(markup).toContain("Seña adeudada");
-    expect(markup).not.toContain("Monto total pagado");
-    expect(markup).not.toContain("Registrar pago");
+    await expect(
+      academyFinancesLoader(
+        academyFinancesRouteArgs(auditorRequest, academy.academy.id),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
 
     // Payments are recorded from `/administracion/pagos`, and only an admin can
     // do it.

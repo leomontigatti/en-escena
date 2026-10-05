@@ -13,6 +13,7 @@ import type {
   AcademyNameMatch,
   AcademyNameWarning,
 } from "@/lib/academies/academy-name-duplicates";
+import type { Province } from "@/lib/academies/provinces";
 import { matchesToWarnAbout } from "@/lib/shared/duplicate-warning";
 import {
   isUniqueViolation,
@@ -65,7 +66,7 @@ export async function completeAcademyOnboarding(input: {
   city: string;
   contactName: string;
   phone: string;
-  province: string;
+  province: Province;
   request: Request;
 }) {
   const onboardingUser = await requireAcademyOnboardingUser(input.request);
@@ -107,7 +108,7 @@ export async function completeAcademyOnboarding(input: {
         contactName: toTitleCase(input.contactName),
         phone: input.phone,
         city: toTitleCase(input.city),
-        province: toTitleCase(input.province),
+        province: input.province,
       });
     });
   } catch (error) {

@@ -105,7 +105,7 @@ describe("the portal profile as one draft", () => {
                 contactName,
                 name: "Academia",
                 phone: "1155550000",
-                province: "Santa Fe",
+                province: "santa_fe",
               },
             },
     });
@@ -178,7 +178,7 @@ async function renderProfilePage(
               contactName,
               name: "Academia",
               phone: "1155550000",
-              province: "Santa Fe",
+              province: "santa_fe",
             },
             email: "academia@example.com",
           }) as ProfileLoaderData,

@@ -6,6 +6,7 @@ import {
   invalidArgentinePhoneMessage,
   isValidArgentinePhone,
 } from "@/lib/shared/argentine-phone";
+import type { Province } from "@/lib/academies/provinces";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
 export type AcademyProfileInput = {
@@ -13,7 +14,7 @@ export type AcademyProfileInput = {
   contactName: string;
   phone: string;
   city: string;
-  province: string;
+  province: Province;
 };
 
 export type AcademyProfileField = keyof AcademyProfileInput;
@@ -46,7 +47,7 @@ export async function updateAcademyProfile(
     contactName: toTitleCase(input.contactName),
     phone: input.phone,
     city: toTitleCase(input.city),
-    province: toTitleCase(input.province),
+    province: input.province,
   };
   const fieldErrors = getAcademyProfileFieldErrors(normalizedValues);
 

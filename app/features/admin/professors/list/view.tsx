@@ -27,6 +27,8 @@ import {
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
+import { PeriodExportMenu } from "@/features/admin/period-export/menu";
+import { professorsExportPath } from "@/features/admin/professors/export/shared";
 
 import type { loadProfessorsList } from "./server";
 
@@ -57,6 +59,15 @@ export function ProfessorsListRouteView({
       title="Profesores"
       description="Consultá la ficha administrativa de cada profesor y revisá su estado operativo desde el listado."
       requireSelectedEvent={false}
+      headerAction={
+        !loaderData.canWrite && loaderData.selectedEventId !== null ? (
+          <PeriodExportMenu
+            description="Los profesores de las coreografías con inscripciones registradas en el período, en el evento activo. Dejá una fecha vacía para no acotar ese extremo."
+            path={professorsExportPath}
+            title="Exportar profesores"
+          />
+        ) : undefined
+      }
     >
       {shouldShowTable ? (
         <ProfessorTable loaderData={loaderData} />

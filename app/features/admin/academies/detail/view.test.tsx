@@ -30,11 +30,12 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
     academy: {
       city: "Rosario",
       contactName: "Nora Norte",
+      dataStatus: "complete",
       email: "academia@example.com",
       id: "academy_1",
       name: "Academia Fork",
       phone: "3415551234",
-      province: "Santa Fe",
+      province: "santa_fe",
     },
     canEdit,
     deletionHoldings: [],
@@ -294,7 +295,7 @@ describe("AcademyDetailRouteView", () => {
           contactName: "Nora Norte",
           name: "Academia Rechazada",
           phone: "3415551234",
-          province: "Santa Fe",
+          province: "santa_fe",
         },
       },
     });
