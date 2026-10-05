@@ -469,6 +469,10 @@ _Avoid_: `availableBalanceAmount`, net debt, total paid, estimated total
 Shortfall of an inscription's allocations against its `inscriptionDepositAmount`, floored at zero. Also **gross**, also scope-owned, and always contained in `owedBalanceAmount`. The two are two cuts of the same debt, not two parts of a total.
 _Avoid_: choreography invoice, `availableBalanceAmount`, `owedBalanceAmount`, net debt
 
+**`depositPaidAmount`** — ui: "Seña pagada"
+The part of an inscription's allocations that covers its `inscriptionDepositAmount`: what is allocated, capped at the deposit. The complement of `owedDepositAmount` against the deposit on an active inscription; on a **withdrawn** one it is whatever was retained up to the deposit, which may be less with nothing owed. Scope-owned by summing, like the owed figures. Money allocated past the deposit is not in it, so it is never what a choreography has paid.
+_Avoid_: `owedDepositAmount`, total paid, `availableBalanceAmount`
+
 **`inscriptionDepositAmount`** — ui: "Seña de inscripción"
 Lower threshold of an inscription: `requiredDepositPercentage` of its `selectedPrice`, computed on the **undiscounted** price so the threshold cannot move under an academy when a discount tier changes. The percentage is the event's for a choreography inscription and the seminar's own for a seminar inscription, where covering it is also what takes the place in the quota.
 _Avoid_: choreography deposit, deposit invoice, `inscriptionStage` (retired)

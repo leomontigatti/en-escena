@@ -25,3 +25,15 @@ export function buildSheet<Row>(
     ...rows.map((row) => columns.map((column) => column.cell(row) ?? null)),
   ];
 }
+
+/** Amounts are whole pesos, written as numbers so a spreadsheet can add them. */
+export const moneyFormat = '"$"#,##0';
+
+export function moneyCell(amount: number, bold = false) {
+  return {
+    ...(bold ? { fontWeight: "bold" as const } : {}),
+    format: moneyFormat,
+    type: Number,
+    value: amount,
+  };
+}
