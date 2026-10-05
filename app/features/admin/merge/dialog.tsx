@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleAlert, Merge } from "lucide-react";
+import { Merge } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -9,7 +9,6 @@ import {
   type ComboboxFieldOption,
 } from "@/components/shared/combobox-field";
 import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,6 +30,7 @@ import {
   useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
+import { showToastMessage } from "@/lib/shared/toasts";
 
 const mergeFormSchema = z.object({
   [mergeSurvivorFieldName]: z.string().min(1, requiredFieldMessage),
@@ -38,13 +38,15 @@ const mergeFormSchema = z.object({
 
 type MergeFormValues = z.infer<typeof mergeFormSchema>;
 
+const mergeRefusalToastId = "admin-merge:refusal";
+
 /**
  * The panel's one merge confirmation, for two people and for two academies
  * (PRD #1187). The record on screen is the one removed; the operator picks the
  * survivor, reads what moves and what is lost, and confirms. The summary is the
- * caller's, because what moves differs by kind; the dialog owns the pick, the
- * post and the refusal the server answers with, which is shown here because a
- * refused merge leaves the operator on the same screen with the same choice.
+ * caller's, because what moves differs by kind; the dialog owns the pick and
+ * the post. The refusal the server answers with is a toast
+ * (`useMergeDialogState`), and the dialog stays open under it.
  */
 export function MergeDialog({
   candidates,
@@ -55,7 +57,6 @@ export function MergeDialog({
   onOpenChange,
   open,
   recordId,
-  refusal,
   renderSummary,
   title,
 }: {
@@ -67,7 +68,6 @@ export function MergeDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
   recordId: string;
-  refusal?: string;
   renderSummary: (survivorId: string) => ReactNode;
   title: string;
 }) {
@@ -130,7 +130,7 @@ export function MergeDialog({
 
           {survivorId ? renderSummary(survivorId) : null}
 
-          <MergeAlert refusal={refusal} />
+          <IrreversibleActionAlert />
 
           <DialogFooter>
             <DialogClose asChild>
@@ -156,30 +156,36 @@ export function MergeDialog({
 /**
  * The dialog's open state on a detail page. A refused merge leaves the
  * operator on the same page with the same choice to make, so each refusal
- * opens the dialog again with its reason. The state belongs to one record: a
- * merge redirects to the survivor's page, which is the same route component
- * with another id, and the dialog must not follow the operator there.
+ * toasts its reason and opens the dialog again. The state belongs to one
+ * record: a merge redirects to the survivor's page, which is the same route
+ * component with another id, and the dialog must not follow the operator there.
  */
 export function useMergeDialogState(
   recordId: string,
   actionData: { status: string; message?: string } | undefined,
 ) {
-  const refusal =
-    actionData?.status === "merge-refused" ? actionData.message : undefined;
   const [openFor, setOpenFor] = useState<string | null>(
-    refusal === undefined ? null : recordId,
+    actionData?.status === "merge-refused" ? recordId : null,
   );
 
   useEffect(() => {
-    if (actionData?.status === "merge-refused") {
-      setOpenFor(recordId);
+    if (actionData?.status !== "merge-refused") {
+      return;
     }
+
+    const message = actionData.message ?? "";
+
+    setOpenFor(recordId);
+    // Deferred like `useServerActionToast`, so the toast is not raised inside
+    // the render that brought the answer.
+    window.setTimeout(() => {
+      showToastMessage({ id: mergeRefusalToastId, message, variant: "error" });
+    }, 0);
   }, [actionData, recordId]);
 
   return {
     onOpenChange: (open: boolean) => setOpenFor(open ? recordId : null),
     open: openFor === recordId,
-    refusal,
   };
 }
 
@@ -216,20 +222,5 @@ export function MergeSummary({
         </ul>
       </div>
     </div>
-  );
-}
-
-/** Why the merge is refused, or the warning before one that cannot be undone. */
-function MergeAlert({ refusal }: { refusal?: string }) {
-  if (!refusal) {
-    return <IrreversibleActionAlert />;
-  }
-
-  return (
-    <Alert variant="destructive">
-      <CircleAlert aria-hidden="true" />
-      <AlertTitle>No se puede fusionar</AlertTitle>
-      <AlertDescription>{refusal}</AlertDescription>
-    </Alert>
   );
 }
