@@ -147,10 +147,12 @@ export function PortalDancerBirthDateField({
 }
 
 export function PortalDancerDocumentImageFields({
+  disabled = false,
   documentImages,
   form,
   imageUrls,
 }: {
+  disabled?: boolean;
   documentImages: PortalDancerDocumentImagesState;
   form: PortalDancerFormReturn;
   imageUrls: PortalDancerDetailLoaderData["documentImageUrls"];
@@ -159,6 +161,7 @@ export function PortalDancerDocumentImageFields({
     <Fragment key={documentImages.fieldsKey}>
       <FileUploadField
         control={form.control}
+        disabled={disabled}
         name="documentFrontImageStorageKey"
         fileInputName="documentFrontImage"
         fieldLabel="Imagen frente del documento"
@@ -172,6 +175,7 @@ export function PortalDancerDocumentImageFields({
       />
       <FileUploadField
         control={form.control}
+        disabled={disabled}
         name="documentBackImageStorageKey"
         fileInputName="documentBackImage"
         fieldLabel="Imagen dorso del documento"
