@@ -7,7 +7,7 @@ the source of truth for issue and pull request operations.
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies. When creating implementation issues from a PRD issue, use `--parent <PRD_NUMBER>` so GitHub records them as native sub-issues.
-- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels. For a **closed** issue read the outcome too — `gh issue view <number> --json number,title,state,stateReason,closedAt,labels,comments`; neither the plain-text view nor `gh issue list` prints `stateReason`, and with `--json` every field is opt-in, so it is invisible unless asked for. See [Reading a closed issue](#reading-a-closed-issue).
+- **Read an issue**: `gh issue view <number>` for the body, then `gh issue view <number> --comments`; outside a terminal `--comments` prints the comments alone, so it never stands in for the first. Filter comments by `jq` and fetch the labels too. For a **closed** issue read the outcome too — `gh issue view <number> --json number,title,state,stateReason,closedAt,labels,comments`; neither the plain-text view nor `gh issue list` prints `stateReason`, and with `--json` every field is opt-in, so it is invisible unless asked for. See [Reading a closed issue](#reading-a-closed-issue).
 - **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters. When listing with `--state closed` or `--state all`, add `stateReason,closedAt` to `--json` and to the `--jq` projection.
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
@@ -133,7 +133,9 @@ Create a GitHub issue.
 
 ## When a skill says "fetch the relevant ticket"
 
-Run `gh issue view <number> --comments`.
+Run `gh issue view <number>` for the body and `gh issue view <number> --comments` for the
+comments. Outside a terminal `--comments` prints only the comments, and an issue whose body is
+the spec is then read from its comments alone.
 
 ## Ticket operations
 
@@ -153,6 +155,11 @@ repo's deltas are in [workflows.md](./workflows.md#prd-workflow).
 - **Test seams**: every ticket carries a `## Test seams` section after `## Acceptance
 criteria`, taken from the PRD's **Testing Decisions** (see [Test seams](#test-seams)).
 - **Do not close or edit the PRD**, as the skill says; the PRD PR closes it on merge.
+- **A model file must follow the guide.** A PRD or ticket that names an existing file as the
+  shape to follow ("build it like `preset-dialog.tsx`") names one that conforms to
+  [style-guide.md](./style-guide.md) and [coding-standards.md](./coding-standards.md). A
+  nonconforming file is never the model, however close its shape: the implementer copies it, and
+  the review then reads the copy as the spec asking for it (#1088).
 
 ## Wayfinding operations
 

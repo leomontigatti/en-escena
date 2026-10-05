@@ -431,16 +431,18 @@ Rules:
 
 ## React Hook Form
 
-Use React Hook Form for forms with client validation, controlled components,
-derived state or several related fields. Follow shadcn's React Hook Form pattern:
-`useForm`, a Zod resolver, `Controller` when the control needs it, and `Field`
-components.
+Follow shadcn's React Hook Form pattern: `useForm`, a Zod resolver, `Controller`
+when the control needs it, and `Field` components.
 
 Rules:
 
 - Every React form in the application uses React Hook Form, Zod and shadcn/ui
-  components as the default pattern, regardless of surface (`Panel de administración`,
-  `Portal de academias`, auth, judging or public views).
+  components, regardless of surface (`Panel de administración`,
+  `Portal de academias`, auth, judging or public views). The one exception is an
+  **action-only form**: a submit button plus hidden inputs and no editable field
+  (logout, delete, withdraw, a confirmation with one intent). A form with any
+  editable control (`Input`, `Textarea`, `Select`, `Combobox`, `MultiCombobox`,
+  `Checkbox`, `Switch`, a date or time field, a file input) is not action-only.
 - Define the schema with Zod and pass it to `useForm` via `zodResolver`.
 - Derive the form types from the schema when there is Zod validation: use
   `z.input<typeof schema>` for the form's editable values and
