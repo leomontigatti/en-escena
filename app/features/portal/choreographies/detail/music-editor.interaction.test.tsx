@@ -95,13 +95,15 @@ describe("replacing a choreography's music", () => {
       configurable: true,
       value: () => "blob:tema",
     });
+    const submissions: FormData[] = [];
     const router = createMemoryRouter(
       [
         {
-          action: () => ({
-            message: "Coreografía guardada.",
-            status: "success",
-          }),
+          action: async ({ request }) => {
+            submissions.push(await request.formData());
+
+            return { message: "Coreografía guardada.", status: "success" };
+          },
           element: <MusicEditorRoute />,
           loader: loaderData,
           path: "/portal/coreografias/choreo_1",
@@ -132,6 +134,13 @@ describe("replacing a choreography's music", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
+    // The save posts the picked file with the stored key it replaces.
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0].get("intent")).toBe("update-choreography");
+    expect(submissions[0].get("musicStorageKey")).toBe("music/choreo_1.mp3");
+    // jsdom posts the input's own file list, which the stubbed `files` does not
+    // reach, so the part's presence is what can be checked here.
+    expect(submissions[0].has("musicFile")).toBe(true);
     expect(document.querySelector("audio")?.getAttribute("src")).toBe(
       storedMusicUrl,
     );

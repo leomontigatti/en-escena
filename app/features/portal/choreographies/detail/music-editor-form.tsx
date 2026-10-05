@@ -1,7 +1,8 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { Form, useNavigation } from "react-router";
+import { useCallback, useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { useNavigation } from "react-router";
 import { toast } from "sonner";
 
 import { FileUploadField } from "@/components/shared/file-upload-field";
@@ -15,11 +16,18 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
+import {
+  createValidatedRouteSubmitHandler,
+  useOptionalFormAction,
+  useOptionalSubmit,
+} from "@/lib/shared/forms";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 import {
+  choreographyMusicFormSchema,
   choreographyMusicSavedToastId,
   choreographyMusicUploadErrorToastId,
   updateChoreographyIntent,
+  type ChoreographyMusicFormValues,
   type PortalChoreographyMusicActionData,
   type PortalChoreographyMusicLoaderData,
 } from "@/features/portal/choreographies/detail/music-editor.shared";
@@ -51,11 +59,7 @@ export function ChoreographyMusicEditorForm({
       : undefined) ??
     choreography.musicStorageKey ??
     "";
-  const [musicStorageKey, setMusicStorageKey] = useState(
-    selectedMusicStorageKey,
-  );
   useEffect(() => {
-    setMusicStorageKey(selectedMusicStorageKey);
     setSelectedMusicFileName(null);
   }, [selectedMusicStorageKey]);
 
@@ -88,25 +92,30 @@ export function ChoreographyMusicEditorForm({
     }
   }, [actionData]);
 
-  const form = useForm<{ musicStorageKey: string }>({
+  // `values` follows what the route answered: the stored key, or the one a
+  // refused save sent back.
+  const form = useForm<ChoreographyMusicFormValues>({
+    resolver: zodResolver(choreographyMusicFormSchema),
     values: { musicStorageKey: selectedMusicStorageKey },
   });
+  const musicStorageKey = useWatch({
+    control: form.control,
+    name: "musicStorageKey",
+  });
+  const submit = useOptionalSubmit();
+  const formAction = useOptionalFormAction();
   const navigation = useNavigation();
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateChoreographyIntent;
 
-  const hasMusicChanged = useMemo(
-    () =>
-      selectedMusicFileName !== null ||
-      musicStorageKey !== (choreography.musicStorageKey ?? ""),
-    [choreography.musicStorageKey, musicStorageKey, selectedMusicFileName],
-  );
+  const hasMusicChanged =
+    selectedMusicFileName !== null ||
+    musicStorageKey !== (choreography.musicStorageKey ?? "");
 
   // Puts the field back on the stored song: the picked file, or the delete,
   // goes, and the remount clears the file input itself.
   const discardMusicChanges = useCallback(() => {
-    setMusicStorageKey(choreography.musicStorageKey ?? "");
     setSelectedMusicFileName(null);
     setMusicHasValidationError(false);
     form.setValue("musicStorageKey", choreography.musicStorageKey ?? "");
@@ -118,7 +127,6 @@ export function ChoreographyMusicEditorForm({
   }, []);
   const handleMusicStorageKeyChange = useCallback(
     (nextStorageKey: string) => {
-      setMusicStorageKey(nextStorageKey);
       form.setValue("musicStorageKey", nextStorageKey, {
         shouldDirty: true,
       });
@@ -131,8 +139,7 @@ export function ChoreographyMusicEditorForm({
 
       if (file) {
         // The picked file replaces the stored one on save, so the stored key
-        // goes back in, here and in the form, after a delete took it out.
-        setMusicStorageKey(choreography.musicStorageKey ?? "");
+        // goes back in after a delete took it out.
         form.setValue("musicStorageKey", choreography.musicStorageKey ?? "", {
           shouldDirty: true,
         });
@@ -141,10 +148,14 @@ export function ChoreographyMusicEditorForm({
     [choreography.musicStorageKey, form],
   );
 
+  // The post is the form element itself, so the picked file goes with it:
+  // React Hook Form validates, and the DOM carries what it does not hold.
   return (
-    <Form
+    <form
       method="post"
       encType="multipart/form-data"
+      noValidate
+      onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
       className="flex flex-1 flex-col gap-6"
     >
       {musicLock ? <MusicLockAlert lock={musicLock} /> : null}
@@ -225,7 +236,7 @@ export function ChoreographyMusicEditorForm({
           onDiscard={discardMusicChanges}
         />
       </Card>
-    </Form>
+    </form>
   );
 }
 

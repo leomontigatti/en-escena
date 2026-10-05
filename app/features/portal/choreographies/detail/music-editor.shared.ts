@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import type { PortalChoreographyDetail } from "@/lib/portal/choreographies.server";
 import type { PortalEventContext } from "@/lib/portal/event-context";
 
@@ -7,6 +9,19 @@ export const choreographyMusicUploadErrorToastId =
 export const choreographyMusicSavedToastId = "choreography-music-saved";
 export const choreographyMusicUploadErrorMessage =
   "No pudimos subir el archivo de música. Intentá nuevamente.";
+
+/**
+ * The music form's one value: the stored song's key, empty once it is deleted.
+ * The picked file travels beside it as `musicFile`, and its type and size are
+ * the upload field's to check, as the storage policy the action applies again.
+ */
+export const choreographyMusicFormSchema = z.object({
+  musicStorageKey: z.string(),
+});
+
+export type ChoreographyMusicFormValues = z.input<
+  typeof choreographyMusicFormSchema
+>;
 
 export type PortalChoreographyMusicActionData =
   | {
