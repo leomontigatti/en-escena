@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Undo2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
@@ -47,7 +47,6 @@ import {
 import { ScoreInputField } from "./score-input-field";
 
 type JudgeScoreDialogProps = {
-  fieldErrors?: Record<string, string>;
   onClose: () => void;
   presentation: JudgePresentationRow;
 };
@@ -61,7 +60,6 @@ type JudgeScoreDialogProps = {
  * there to lose.
  */
 export function JudgeScoreDialog({
-  fieldErrors,
   onClose,
   presentation,
 }: JudgeScoreDialogProps) {
@@ -86,20 +84,10 @@ export function JudgeScoreDialog({
   });
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
-  const { setError } = form;
   const disqualified = presentation.status === "disqualified";
   // A judge taps in the dark with the stage in front of them, so the button has
   // to say it took the tap: without it the same score posts twice.
   const isSaving = useJudgeSavePending(presentation.presentationId);
-
-  // A value the client accepted and the server did not — a race against the
-  // criteria of a submodality, a rule the form has not been taught — belongs on
-  // the field, beside what the judge typed.
-  useEffect(() => {
-    if (fieldErrors?.value) {
-      setError("value", { message: fieldErrors.value });
-    }
-  }, [fieldErrors, setError]);
 
   function applyAudioEvent(event: FeedbackAudioFieldEvent) {
     setAudio((current) => reduceFeedbackAudioField(current, event));
@@ -162,7 +150,6 @@ export function JudgeScoreDialog({
           >
             <FeedbackRecorder
               audioUrl={feedbackAudioFieldUrl(audio)}
-              error={fieldErrors?.audio}
               onDelete={() => applyAudioEvent({ type: "deleted" })}
               onRecorded={(take) => applyAudioEvent({ take, type: "recorded" })}
             />

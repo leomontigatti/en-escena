@@ -56,10 +56,7 @@ import {
 } from "@/lib/judging/score-value";
 import { isRouteFormPending, useSavedFormValues } from "@/lib/shared/forms";
 
-import type {
-  PresentationScoresActionData,
-  PresentationScoresLoaderData,
-} from "./server";
+import type { PresentationScoresLoaderData } from "./server";
 
 /**
  * One presentation's panel, which only administration and the auditor read.
@@ -83,14 +80,11 @@ const notApplicableText = "No aplica";
 const noFeedbackText = "Sin devolución";
 
 export function PresentationScoresView({
-  actionData,
   loaderData,
 }: {
-  actionData?: PresentationScoresActionData;
   loaderData: PresentationScoresLoaderData;
 }) {
   const { canEdit, presentation } = loaderData;
-  const fieldErrors = actionData?.fieldErrors ?? {};
 
   return (
     <AdminResourceLayout
@@ -117,16 +111,11 @@ export function PresentationScoresView({
         <MetricCard title="Premio" value={awardText(presentation)} />
       </div>
       {presentation.criteria.length === 0 ? (
-        <SingleScoresTable
-          canEdit={canEdit}
-          fieldErrors={fieldErrors}
-          judges={presentation.judges}
-        />
+        <SingleScoresTable canEdit={canEdit} judges={presentation.judges} />
       ) : (
         <JudgeSheets
           canEdit={canEdit}
           criteria={presentation.criteria}
-          fieldErrors={fieldErrors}
           judges={presentation.judges}
         />
       )}
@@ -233,11 +222,9 @@ function awardText(presentation: Presentation) {
 
 function SingleScoresTable({
   canEdit,
-  fieldErrors,
   judges,
 }: {
   canEdit: boolean;
-  fieldErrors: Record<string, string>;
   judges: readonly PresentationJudgeScore[];
 }) {
   return (
@@ -255,11 +242,7 @@ function SingleScoresTable({
             <TableCell>{judge.judgeName}</TableCell>
             <TableCell>
               {canEdit && judge.scoreId ? (
-                <SingleScoreForm
-                  error={fieldErrors[judge.scoreId]}
-                  scoreId={judge.scoreId}
-                  value={judge.value}
-                />
+                <SingleScoreForm scoreId={judge.scoreId} value={judge.value} />
               ) : (
                 <ScoreValue value={judge.value} />
               )}
@@ -294,12 +277,10 @@ function ScoresTable({ children }: { children: ReactNode }) {
 function JudgeSheets({
   canEdit,
   criteria,
-  fieldErrors,
   judges,
 }: {
   canEdit: boolean;
   criteria: readonly JudgeSheetCriterion[];
-  fieldErrors: Record<string, string>;
   judges: readonly PresentationJudgeScore[];
 }) {
   const [first] = judges;
@@ -330,7 +311,6 @@ function JudgeSheets({
           {canEdit && judge.scoreId ? (
             <SheetForm
               criteria={criteria}
-              fieldErrors={fieldErrors}
               judge={judge}
               scoreId={judge.scoreId}
             />
@@ -399,11 +379,9 @@ function JudgeSheets({
  * number, rather than after a round trip.
  */
 function SingleScoreForm({
-  error,
   scoreId,
   value,
 }: {
-  error?: string;
   scoreId: string;
   value: string | null;
 }) {
@@ -437,9 +415,6 @@ function SingleScoreForm({
       <ScoreInputField
         className="max-w-36"
         control={form.control}
-        // What the save refused belongs on the field, beside the number that was
-        // typed; the form's own message takes over as soon as it is retyped.
-        error={error}
         id={`puntaje-${scoreId}`}
         label="Puntaje"
         // The column this field sits in is already headed `Puntaje`, so the
@@ -467,12 +442,10 @@ function SingleScoreForm({
  */
 function SheetForm({
   criteria,
-  fieldErrors,
   judge,
   scoreId,
 }: {
   criteria: readonly JudgeSheetCriterion[];
-  fieldErrors: Record<string, string>;
   judge: PresentationJudgeScore;
   scoreId: string;
 }) {
@@ -542,7 +515,6 @@ function SheetForm({
           <SheetParts
             control={form.control}
             criteria={criteria}
-            fieldErrors={fieldErrors}
             fieldIdPrefix={`criterio-${scoreId}`}
           />
         </FieldGroup>

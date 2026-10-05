@@ -198,15 +198,12 @@ function readMicLevel(analyser: AnalyserNode) {
 export function FeedbackRecorder({
   audioUrl,
   disabled = false,
-  error,
   legendVariant = "label",
   onDelete,
   onRecorded,
 }: {
   audioUrl: string | null;
   disabled?: boolean;
-  /** What a save refused the take for, which the mic itself cannot report. */
-  error?: string;
   /** `legend` on a sheet, where it heads a part like the criteria's. */
   legendVariant?: "label" | "legend";
   onDelete: () => void;
@@ -239,8 +236,6 @@ export function FeedbackRecorder({
     createdUrlRef.current = recorded.url;
     onRecorded(recorded);
   });
-  const message = take.error ?? error;
-
   function handleDelete() {
     revokeCreatedUrl();
     onDelete();
@@ -263,15 +258,11 @@ export function FeedbackRecorder({
         <TakeBar take={take} disabled={disabled} />
       )}
 
-      {message ? (
+      {take.error ? (
         <Alert variant="destructive">
           <CircleAlert aria-hidden="true" />
-          <AlertTitle>
-            {take.error
-              ? "No se pudo usar el micrófono"
-              : "No se pudo guardar la devolución"}
-          </AlertTitle>
-          <AlertDescription>{message}</AlertDescription>
+          <AlertTitle>No se pudo usar el micrófono</AlertTitle>
+          <AlertDescription>{take.error}</AlertDescription>
         </Alert>
       ) : null}
     </FieldSet>

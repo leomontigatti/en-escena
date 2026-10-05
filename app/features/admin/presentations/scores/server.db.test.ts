@@ -176,7 +176,7 @@ describe("the scores route's writes", () => {
     expect(row.value).toBe("77.5");
   });
 
-  test("answers a refused value with a field error on the score", async () => {
+  test("answers a refused value with the value rule as its message", async () => {
     const presentation = await seedScoredPresentation();
 
     const result = await submitAsAdmin(presentation.presentationId, {
@@ -186,9 +186,39 @@ describe("the scores route's writes", () => {
     });
 
     expect(result).toMatchObject({
-      fieldErrors: { [presentation.scoreId]: expect.stringContaining("0.5") },
+      message: expect.stringContaining("0.5"),
       status: "error",
     });
+    expect(result).not.toHaveProperty("fieldErrors");
+  });
+
+  test("answers a refused sheet with a message, not a field error per line", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Primera",
+      orderNumber: 1,
+    });
+    const technique = await fixture.addCriterion({
+      maximum: 100,
+      name: "Técnica",
+    });
+    const judge = await fixture.assignJudge(presentation.presentationId);
+    const [score] = await db
+      .insert(scores)
+      .values({ judgeAssignmentId: judge.judgeAssignmentId, value: "70.0" })
+      .returning();
+
+    const result = await submitAsAdmin(presentation.presentationId, {
+      [`criterio.${technique.id}`]: "101",
+      intent: "edit-score",
+      scoreId: score.id,
+    });
+
+    expect(result).toMatchObject({
+      message: expect.stringContaining("planilla"),
+      status: "error",
+    });
+    expect(result).not.toHaveProperty("fieldErrors");
   });
 
   test("refuses an annulment, which no longer exists", async () => {
