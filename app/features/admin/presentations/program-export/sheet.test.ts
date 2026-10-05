@@ -12,6 +12,7 @@ function row(overrides: Partial<ProgramExportRow> = {}): ProgramExportRow {
     modalityName: "Danza clásica",
     name: "Lago",
     orderNumber: 7,
+    professorNames: ["Laura Sosa"],
     scheduleName: "Sábado mañana",
     scheduledDate: "2026-10-17",
     startTime: "10:00",
@@ -44,17 +45,19 @@ describe("the program export sheet", () => {
         "Academia",
         "Provincia",
         "Coreografía",
+        "Profesores",
         "Bailarines",
       ],
     ]);
   });
 
-  test("lays each presentation out as one row, one dancer per line", () => {
+  test("lays each presentation out as one row, one professor and one dancer per line", () => {
     const [, cells] = values(
       buildProgramSheet([
         row({
           dancerNames: ["Ana Pérez", "Bruno Gómez", "Carla Díaz"],
           groupType: "trio",
+          professorNames: ["Laura Sosa", "Marcos Vega"],
         }),
       ]),
     );
@@ -70,17 +73,19 @@ describe("the program export sheet", () => {
       "Estudio Ritmo",
       "Córdoba",
       "Lago",
+      "Laura Sosa\nMarcos Vega",
       "Ana Pérez\nBruno Gómez\nCarla Díaz",
     ]);
   });
 
-  test("leaves a missing submodality, province or dancer list empty", () => {
+  test("leaves a missing submodality, province, professor or dancer list empty", () => {
     const [, cells] = values(
       buildProgramSheet([
         row({
           academyProvince: null,
           dancerNames: [],
           groupType: "grupal",
+          professorNames: [],
           submodalityName: null,
         }),
       ]),
@@ -90,5 +95,6 @@ describe("the program export sheet", () => {
     expect(cells[6]).toBeNull();
     expect(cells[8]).toBeNull();
     expect(cells[10]).toBeNull();
+    expect(cells[11]).toBeNull();
   });
 });

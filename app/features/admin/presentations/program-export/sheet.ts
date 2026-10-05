@@ -25,13 +25,18 @@ export type ProgramExportRow = {
   modalityName: string;
   name: string;
   orderNumber: number;
+  /** Every professor of the choreography, whatever its group. */
+  professorNames: string[];
   scheduleName: string;
   scheduledDate: string;
   startTime: string;
   submodalityName: string | null;
 };
 
-/** Every column but the dancers, which each export fills its own way. */
+/**
+ * Every column but the dancers, which each export fills its own way. The
+ * professors close it, so they sit right before the dancers in both.
+ */
 export const programColumns: SheetColumn<ProgramExportRow>[] = [
   { header: "N.º", width: 6, cell: (row) => row.orderNumber },
   {
@@ -63,6 +68,11 @@ export const programColumns: SheetColumn<ProgramExportRow>[] = [
     cell: (row) => formatProvinceLabel(row.academyProvince),
   },
   { header: "Coreografía", width: 30, cell: (row) => row.name },
+  {
+    header: "Profesores",
+    width: 28,
+    cell: (row) => linePerName(row.professorNames),
+  },
 ];
 
 export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
@@ -70,12 +80,14 @@ export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
   {
     header: "Bailarines",
     width: 28,
-    cell: (row) =>
-      row.dancerNames.length === 0
-        ? null
-        : { value: row.dancerNames.join("\n"), wrap: true },
+    cell: (row) => linePerName(row.dancerNames),
   },
 ];
+
+/** One name per line of the cell, or an empty cell when there is none. */
+function linePerName(names: string[]) {
+  return names.length === 0 ? null : { value: names.join("\n"), wrap: true };
+}
 
 export function buildProgramSheet(rows: ProgramExportRow[]) {
   return buildSheet(programExportColumns, rows);

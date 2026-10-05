@@ -8,7 +8,7 @@ import { awardLabels, type Award } from "@/lib/judging/award";
 /**
  * The results as a spreadsheet: the program's columns, with the dancers
  * counted rather than named, and the presentation's average and award at the
- * end of the row.
+ * end of the row. The professors are named, one per line, before the dancers.
  */
 
 export type ResultsExportRow = ProgramExportRow & {
