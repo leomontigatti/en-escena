@@ -1,5 +1,5 @@
 import { AudioLines, Plus, Settings, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
@@ -29,12 +29,9 @@ import {
   type PortalChoreographyListItem,
 } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
-import { notificationToasts } from "@/lib/shared/notification-toasts";
-import { showToastMessage } from "@/lib/shared/toasts";
 
 type PortalChoreographiesListRouteProps = {
   loaderData: Awaited<ReturnType<typeof loadPortalChoreographiesList>>;
-  created?: boolean;
 };
 
 type PortalChoreographiesEventContext =
@@ -42,19 +39,12 @@ type PortalChoreographiesEventContext =
 
 export function PortalChoreographiesListRouteView({
   loaderData,
-  created = false,
 }: PortalChoreographiesListRouteProps) {
   const selectedEvent = loaderData.eventContext.selectedEvent;
   const creationAvailability = getPortalChoreographyCreationAvailability({
     activeDancerCount: loaderData.activeDancerCount,
     eventContext: loaderData.eventContext,
   });
-
-  useEffect(() => {
-    if (created) {
-      showToastMessage(notificationToasts["coreografia-creada"]);
-    }
-  }, [created]);
 
   return (
     <PortalListPage
