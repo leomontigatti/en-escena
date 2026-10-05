@@ -404,24 +404,45 @@ export async function readEventChoreographyFinancialStatuses(
   eventId: string,
   executor: Executor = db,
 ): Promise<Map<string, ChoreographyFinancialStatus>> {
+  const finance = await readEventFinance(eventId, executor);
+
+  return new Map(
+    [...(finance?.choreographyFinanceRowsByAcademy.values() ?? [])].flatMap(
+      (rows) => rows.map((row) => [row.id, row.financialStatus] as const),
+    ),
+  );
+}
+
+/**
+ * Every choreography inscription of the event with its figures, withdrawn ones
+ * included, in one read. The same figures every finance surface shows, at the
+ * grain a reader needs when it sums a set of its own choosing — the auditor's
+ * export sums the inscriptions registered in a period.
+ */
+export async function readEventChoreographyInscriptionFinances(
+  eventId: string,
+  executor: Executor = db,
+): Promise<ResolvedInscription[]> {
+  return (await readEventFinance(eventId, executor))?.inscriptions ?? [];
+}
+
+/** The finance of every academy with a choreography in the event, if any. */
+async function readEventFinance(
+  eventId: string,
+  executor: Executor,
+): Promise<AcademyEventFinance | null> {
   const academyRows = await executor
     .selectDistinct({ academyId: choreographies.academyId })
     .from(choreographies)
     .where(eq(choreographies.eventId, eventId));
 
   if (academyRows.length === 0) {
-    return new Map();
+    return null;
   }
 
-  const finance = await readAcademyEventFinance({
+  return await readAcademyEventFinance({
     academyIds: academyRows.map((row) => row.academyId),
     eventId,
     executor,
   });
-
-  return new Map(
-    [...finance.choreographyFinanceRowsByAcademy.values()].flatMap((rows) =>
-      rows.map((row) => [row.id, row.financialStatus] as const),
-    ),
-  );
 }

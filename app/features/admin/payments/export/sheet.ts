@@ -1,4 +1,4 @@
-import type { SheetColumn } from "@/features/admin/day-export/sheet";
+import { moneyCell, type SheetColumn } from "@/features/admin/day-export/sheet";
 import {
   formatPaymentMethodLabel,
   type PaymentMethod,
@@ -10,8 +10,6 @@ import {
  * totals; the grouped sheets break the same payments down by province and by
  * modality. Amounts are whole pesos, written as numbers in a money format.
  */
-
-export const moneyFormat = '"$"#,##0';
 
 export type CollectionMovementRow =
   | {
@@ -31,15 +29,6 @@ const movementTypeLabels = {
   payment: "Pago",
   refund: "Reembolso",
 } as const;
-
-function money(amount: number, bold = false) {
-  return {
-    ...(bold ? { fontWeight: "bold" as const } : {}),
-    format: moneyFormat,
-    type: Number,
-    value: amount,
-  };
-}
 
 function movementOnly<Value>(
   read: (row: Extract<CollectionMovementRow, { kind: "movement" }>) => Value,
@@ -80,7 +69,7 @@ export const collectionMovementColumns: SheetColumn<CollectionMovementRow>[] = [
   {
     header: "Monto",
     width: 16,
-    cell: (row) => money(row.amount, row.kind === "total"),
+    cell: (row) => moneyCell(row.amount, row.kind === "total"),
   },
 ];
 
@@ -104,7 +93,7 @@ export function collectionByGroupColumns(
     {
       header: "Monto",
       width: 16,
-      cell: (row) => money(row.amount, row.isTotal),
+      cell: (row) => moneyCell(row.amount, row.isTotal),
     },
   ];
 }
