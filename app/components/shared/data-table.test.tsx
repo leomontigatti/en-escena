@@ -953,6 +953,66 @@ describe("ServerDataTable search behind a real loader", () => {
   });
 });
 
+describe("ServerDataTable filters behind a real loader", () => {
+  const renderer = createReactDomTestRenderer();
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    renderer.cleanup();
+    vi.useRealTimers();
+  });
+
+  // The admin lists build their initial filters inline from the loader data, a
+  // new object on every render, and the router re-renders them the moment the
+  // navigation starts — while the loader data still holds the old filters.
+  test("keeps an added filter while its loader is answering", async () => {
+    const router = createLoaderBackedFilteredListRouter(
+      "/administracion/profesores",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await advanceTimers(serverLoaderDelayMs);
+
+    await addTableFilter("Estado", "Archivado");
+
+    expect(getAppliedTableFilters()).toEqual(["Estado: Archivado"]);
+
+    await advanceTimers(serverLoaderDelayMs / 2);
+
+    expect(getAppliedTableFilters()).toEqual(["Estado: Archivado"]);
+
+    await advanceTimers(serverLoaderDelayMs);
+
+    expect(getAppliedTableFilters()).toEqual(["Estado: Archivado"]);
+    expect(router.state.location.search).toBe("?estado=archived");
+  });
+
+  test("keeps a removed filter off while its loader is answering", async () => {
+    const router = createLoaderBackedFilteredListRouter(
+      "/administracion/profesores?estado=archived",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await advanceTimers(serverLoaderDelayMs);
+
+    expect(getAppliedTableFilters()).toEqual(["Estado: Archivado"]);
+
+    await removeTableFilter("Estado");
+
+    expect(getAppliedTableFilters()).toEqual([]);
+
+    await advanceTimers(serverLoaderDelayMs / 2);
+
+    expect(getAppliedTableFilters()).toEqual([]);
+
+    await advanceTimers(serverLoaderDelayMs);
+
+    expect(getAppliedTableFilters()).toEqual([]);
+    expect(router.state.location.search).toBe("");
+  });
+});
+
 describe("ClientDataTable search behind a real loader", () => {
   const renderer = createReactDomTestRenderer();
 
@@ -1444,6 +1504,57 @@ function createLoaderBackedServerListRouter(entry: string) {
 
           return {
             query: new URL(request.url).searchParams.get("busqueda") ?? "",
+          };
+        },
+        HydrateFallback: () => null,
+      },
+    ],
+    { initialEntries: [entry] },
+  );
+}
+
+function LoaderBackedFilteredServerList() {
+  const { status } = useLoaderData<{ status: string }>();
+
+  return (
+    <ServerDataTable
+      rows={[
+        {
+          id: "professor_1",
+          academy: "Academia Norte",
+          name: "Marianela Torres",
+          status: "active",
+        },
+      ]}
+      columns={columns}
+      getRowKey={(row) => row.id}
+      searchPlaceholder="Buscar por nombre"
+      facetedFilters={listFacetedFilters}
+      initialFacetedFilterValues={{
+        filters: status ? { estado: status } : {},
+      }}
+      currentPage={1}
+      totalPages={1}
+      totalRows={1}
+    />
+  );
+}
+
+function createLoaderBackedFilteredListRouter(entry: string) {
+  const [path] = entry.split("?");
+
+  return createMemoryRouter(
+    [
+      {
+        path,
+        element: <LoaderBackedFilteredServerList />,
+        loader: async ({ request }) => {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, serverLoaderDelayMs);
+          });
+
+          return {
+            status: new URL(request.url).searchParams.get("estado") ?? "",
           };
         },
         HydrateFallback: () => null,

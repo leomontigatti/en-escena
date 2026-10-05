@@ -55,6 +55,13 @@ export const emptyFacetedFilters: DataTableFacetedFilter[] = [];
  * The faceted filters' state. The base values are the ones the caller pins —a
  * filter the reader cannot lift— and the initial ones are where the reader
  * starts; they are merged in that order every time either moves.
+ *
+ * "Moves" means the values, not the object: the admin lists build their
+ * initial values inline from the loader data, so the identity changes on every
+ * render, and the router re-renders them as soon as a filter's navigation
+ * starts — with the loader data still holding the old filters. Re-seeding on
+ * identity put the old filters back for as long as the loader took to answer,
+ * so a filter just picked vanished and came back.
  */
 export function useDataTableColumnFiltersState({
   baseFacetedFilterValues,
@@ -63,35 +70,28 @@ export function useDataTableColumnFiltersState({
   baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
   initialFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
 }) {
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
-    createMergedColumnFilters(
-      baseFacetedFilterValues,
-      initialFacetedFilterValues,
-    ),
-  );
-
-  useEffect(() => {
-    setColumnFilters(
-      createMergedColumnFilters(
-        baseFacetedFilterValues,
-        initialFacetedFilterValues,
-      ),
-    );
-  }, [baseFacetedFilterValues, initialFacetedFilterValues]);
-
-  return { columnFilters, setColumnFilters };
-}
-
-function createMergedColumnFilters(
-  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
-  initialFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
-) {
-  return createColumnFilters(
+  const mergedValuesKey = JSON.stringify(
     mergeBaseFacetedFilterValues(
       baseFacetedFilterValues,
       initialFacetedFilterValues,
     ),
   );
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
+    createColumnFiltersFromKey(mergedValuesKey),
+  );
+
+  useEffect(() => {
+    setColumnFilters(createColumnFiltersFromKey(mergedValuesKey));
+  }, [mergedValuesKey]);
+
+  return { columnFilters, setColumnFilters };
+}
+
+function createColumnFiltersFromKey(mergedValuesKey: string) {
+  const mergedValues: Record<string, DataTableFacetedFilterValue> =
+    JSON.parse(mergedValuesKey);
+
+  return createColumnFilters(mergedValues);
 }
 
 /**
