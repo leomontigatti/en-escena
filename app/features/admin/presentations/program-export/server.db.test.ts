@@ -7,7 +7,9 @@ import {
   academies,
   choreographies,
   choreographyDancers,
+  choreographyProfessors,
   dancers,
+  professors,
 } from "@/db/schema";
 import {
   createSignedInAdminRequest,
@@ -210,6 +212,41 @@ describe("the program export", () => {
     // The province by its label, never by its stored value.
     expect(strings).toContain("Entre Ríos");
     expect(strings).not.toContain("entre_rios");
+  });
+
+  test("names every professor, in a group too, sorted by surname", async () => {
+    const fixture = await seedJudgingFixture();
+    const grupal = await addPresentation(fixture, {
+      dancerName: "Dario Ruiz",
+      groupType: "grupal",
+      name: "Grupal",
+      orderNumber: 1,
+      scheduledDate: "2026-05-01",
+    });
+    const [{ academyId }] = await db
+      .select({ academyId: choreographies.academyId })
+      .from(choreographies)
+      .where(eq(choreographies.id, grupal.choreographyId));
+    const linked = await db
+      .insert(professors)
+      .values([
+        { academyId, firstName: "Marcos", lastName: "Vega" },
+        { academyId, firstName: "Laura", lastName: "Sosa" },
+      ])
+      .returning({ id: professors.id });
+    await db.insert(choreographyProfessors).values(
+      linked.map(({ id }) => ({
+        choreographyId: grupal.choreographyId,
+        professorId: id,
+      })),
+    );
+
+    const strings = await readWorkbookStrings(
+      await loadProgramExport(await signedInRequest(exportAllDays)),
+    );
+
+    expect(strings).toContain("Profesores");
+    expect(strings).toContain("Laura Sosa\nMarcos Vega");
   });
 
   test("answers not found for a day with no presentation", async () => {

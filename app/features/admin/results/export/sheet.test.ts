@@ -16,6 +16,7 @@ function row(overrides: Partial<ResultsExportRow> = {}): ResultsExportRow {
     modalityName: "Danza clásica",
     name: "Lago",
     orderNumber: 7,
+    professorNames: ["Laura Sosa", "Marcos Vega"],
     scheduleName: "Sábado mañana",
     scheduledDate: "2026-10-17",
     startTime: "10:00",
@@ -35,16 +36,23 @@ function values(rows: ResultsExportRow[]) {
 }
 
 describe("the results export sheet", () => {
-  test("closes the program's columns with the dancer count, the average and the award", () => {
+  test("closes the program's columns with the professors, the dancer count, the average and the award", () => {
     const [header, cells] = values([row()]);
 
-    expect(header.slice(-4)).toEqual([
+    expect(header.slice(-5)).toEqual([
       "Coreografía",
+      "Profesores",
       "Bailarines",
       "Promedio",
       "Premio",
     ]);
-    expect(cells.slice(-4)).toEqual(["Lago", 4, 88.5, "Medalla de plata"]);
+    expect(cells.slice(-5)).toEqual([
+      "Lago",
+      "Laura Sosa\nMarcos Vega",
+      4,
+      88.5,
+      "Medalla de plata",
+    ]);
   });
 
   test("counts a solo's one dancer like any other", () => {

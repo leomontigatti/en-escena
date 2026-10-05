@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events } from "@/db/schema";
+import { choreographyProfessors, events, professors } from "@/db/schema";
 import { spreadsheetResponse } from "@/features/admin/day-export/server";
 import {
   buildExportFileName,
@@ -83,7 +83,47 @@ export async function readProgramExport(
     throw new Response("Día no encontrado", { status: 404 });
   }
 
-  return { day, eventName: event.name, rows };
+  const professorNames = await readProfessorNames(
+    rows.map((row) => row.choreographyId),
+  );
+
+  return {
+    day,
+    eventName: event.name,
+    rows: rows.map((row) => ({
+      ...row,
+      professorNames: professorNames.get(row.choreographyId) ?? [],
+    })),
+  };
+}
+
+/** Each choreography's professors, by surname and then name. */
+async function readProfessorNames(
+  choreographyIds: string[],
+): Promise<Map<string, string[]>> {
+  const linked = await db
+    .select({
+      choreographyId: choreographyProfessors.choreographyId,
+      firstName: professors.firstName,
+      lastName: professors.lastName,
+    })
+    .from(choreographyProfessors)
+    .innerJoin(
+      professors,
+      eq(professors.id, choreographyProfessors.professorId),
+    )
+    .where(inArray(choreographyProfessors.choreographyId, choreographyIds))
+    .orderBy(asc(professors.lastName), asc(professors.firstName));
+  const byChoreography = new Map<string, string[]>();
+
+  for (const professor of linked) {
+    byChoreography.set(professor.choreographyId, [
+      ...(byChoreography.get(professor.choreographyId) ?? []),
+      `${professor.firstName} ${professor.lastName}`,
+    ]);
+  }
+
+  return byChoreography;
 }
 
 export async function loadProgramExport(request: Request): Promise<Response> {
