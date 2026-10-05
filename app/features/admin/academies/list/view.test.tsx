@@ -80,4 +80,15 @@ describe("the academies list", () => {
   ])("narrows to the academies %s asks for", async (search, names) => {
     expect(await listedAt(search)).toEqual(names);
   });
+
+  test.each([
+    ["?busqueda=No+participando", ["Academia Antigua"]],
+    ["?busqueda=Incompleta", ["Academia Antigua"]],
+    ["?busqueda=Completa", ["Academia Antigua", "Academia Demo"]],
+    ["?busqueda=Participando+Completa", ["Academia Demo"]],
+    ["?busqueda=No+participando+Incompleta", ["Academia Antigua"]],
+    ["?busqueda=No+participando+Completa", []],
+  ])("finds academies by the status text in %s", async (search, names) => {
+    expect(await listedAt(search)).toEqual(names);
+  });
 });
