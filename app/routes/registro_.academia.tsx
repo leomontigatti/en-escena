@@ -12,11 +12,7 @@ import {
   requireAcademyOnboardingUser,
 } from "@/lib/academies/onboarding.server";
 import { provinceField, provinceOptions } from "@/lib/academies/provinces";
-import {
-  authToastIds,
-  readFormValue,
-  requiredTextField,
-} from "@/lib/auth/access-form.shared";
+import { authToastIds, readFormValue } from "@/lib/auth/access-form.shared";
 import {
   argentinePhoneField,
   argentinePhonePlaceholder,
@@ -28,16 +24,17 @@ import {
 import { isPublicAccessFormSubmitting } from "@/lib/auth/public-access-route.shared";
 import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+import { contentTextField } from "@/lib/shared/text-content";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/registro_.academia";
 
 const academyOnboardingSchema = z.object({
-  academyName: requiredTextField(),
-  contactName: requiredTextField(),
+  academyName: contentTextField(),
+  contactName: contentTextField(),
   phone: argentinePhoneField(),
   province: provinceField(),
-  city: requiredTextField(),
+  city: contentTextField(),
 });
 const academyOnboardingFields = [
   "academyName",
@@ -76,13 +73,7 @@ export async function action({ request }: Route.ActionArgs) {
     province: readFormValue(formData.get("province")),
     city: readFormValue(formData.get("city")),
   } satisfies AcademyOnboardingValues;
-  const parsed = academyOnboardingSchema.safeParse({
-    academyName: formData.get("academyName"),
-    contactName: formData.get("contactName"),
-    phone: formData.get("phone"),
-    province: formData.get("province"),
-    city: formData.get("city"),
-  });
+  const parsed = academyOnboardingSchema.safeParse(values);
 
   if (!parsed.success) {
     return {
