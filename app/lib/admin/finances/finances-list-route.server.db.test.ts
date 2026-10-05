@@ -211,7 +211,7 @@ describe("`/administracion/finanzas`", () => {
       dancerId: northSecondDancer.id,
     });
 
-    // Norte Pagada: paid, with the deposit and the balance in a single allocation.
+    // `Norte Pagada`: paid, with the deposit and the balance in a single allocation.
     const northPaidDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Carla",
       lastName: "Pagada",

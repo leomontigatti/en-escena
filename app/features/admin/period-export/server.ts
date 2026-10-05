@@ -88,8 +88,22 @@ export function inscriptionRegisteredInPeriod(
   period: ExportPeriod,
 ): SQL | undefined {
   return and(
-    eq(choreographies.eventId, eventId),
+    inscriptionOfAnyStateRegisteredInPeriod(eventId, period),
     activeInscription(),
+  );
+}
+
+/**
+ * The same inscriptions plus the withdrawn ones registered in the period, for
+ * the export that follows their money: a withdrawn inscription no longer
+ * counts as one, and what stays allocated to it is still money of the event.
+ */
+export function inscriptionOfAnyStateRegisteredInPeriod(
+  eventId: string,
+  period: ExportPeriod,
+): SQL | undefined {
+  return and(
+    eq(choreographies.eventId, eventId),
     timestampInPeriod(choreographyDancers.createdAt, period),
   );
 }
