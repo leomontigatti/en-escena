@@ -1,4 +1,3 @@
-import { useState, type FormEvent } from "react";
 import { useNavigation, useSubmit } from "react-router";
 
 import { PortalPageHeader } from "@/components/portal/ui";
@@ -62,11 +61,6 @@ export function CreateDancerPage({
   // does not ask about the form it just saved.
   const isSubmitting =
     navigation.state !== "idle" && navigation.formData !== undefined;
-  // A picked photo lives in its file input, not in the form's values, so it
-  // counts as a change here: it keeps `Guardar` on and the leave guard
-  // asking, and `Descartar cambios` remounts the photo fields to drop it.
-  const [hasPickedPhoto, setHasPickedPhoto] = useState(false);
-  const [photoFieldsKey, setPhotoFieldsKey] = useState(0);
 
   useServerActionToast(actionData?.status === "error" ? actionData : null, {
     toastId: "portal-bailarin-nuevo:error",
@@ -91,17 +85,6 @@ export function CreateDancerPage({
             encType="multipart/form-data"
             noValidate
             onSubmit={form.handleSubmit}
-            onChange={(event: FormEvent<HTMLFormElement>) => {
-              const target = event.target;
-
-              if (
-                target instanceof HTMLInputElement &&
-                target.type === "file" &&
-                (target.files?.length ?? 0) > 0
-              ) {
-                setHasPickedPhoto(true);
-              }
-            }}
           >
             <FieldGroup className="grid gap-5 md:grid-cols-2">
               <PortalDancerTextField
@@ -132,7 +115,7 @@ export function CreateDancerPage({
                 name="documentNumber"
               />
               <PortalDancerDocumentImageFields
-                key={photoFieldsKey}
+                documentImages={form.documentImages}
                 form={form.form}
                 imageUrls={noDocumentImages}
               />
@@ -142,13 +125,9 @@ export function CreateDancerPage({
         <FormActions
           backTo="/portal/bailarines"
           form={createDancerFormId}
-          hasChanges={form.form.formState.isDirty || hasPickedPhoto}
+          hasChanges={form.hasChanges}
           isPending={isSubmitting}
-          onDiscard={() => {
-            form.discard();
-            setHasPickedPhoto(false);
-            setPhotoFieldsKey((key) => key + 1);
-          }}
+          onDiscard={form.discard}
         />
       </Card>
 

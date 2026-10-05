@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createMemoryRouter, Link, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { PortalDancerDetailRouteView } from "@/features/portal/dancers/detail/view";
 import {
@@ -17,7 +17,25 @@ type DancerDetailProps = Parameters<typeof PortalDancerDetailRouteView>[0];
 
 const renderer = createReactDomTestRenderer();
 
-afterEach(renderer.cleanup);
+// A picked photo is previewed from a `blob:` link, which jsdom cannot make.
+const createObjectUrl = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+
+beforeEach(() => {
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: () => "blob:frente",
+  });
+});
+
+afterEach(() => {
+  renderer.cleanup();
+
+  if (createObjectUrl) {
+    Object.defineProperty(URL, "createObjectURL", createObjectUrl);
+  } else {
+    Reflect.deleteProperty(URL, "createObjectURL");
+  }
+});
 
 describe("the portal dancer detail as one draft", () => {
   test("holds `Guardar` until something changes, and `Descartar cambios` puts it back", async () => {
@@ -33,6 +51,34 @@ describe("the portal dancer detail as one draft", () => {
     await clickReactDomButton("Descartar cambios");
 
     expect(getFirstNameInput().value).toBe("Ana");
+    expect(isSaveEnabled()).toBe(false);
+  });
+
+  // A picked photo lives in its file input, not in the form's values.
+  test("turns `Guardar` on for a picked document photo, and `Descartar cambios` drops it", async () => {
+    await renderDancerPage();
+
+    await pickFrontDocumentImage();
+
+    expect(isSaveEnabled()).toBe(true);
+
+    await clickLink("Volver");
+
+    expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
+
+    await clickReactDomButton("Cancelar");
+    await clickReactDomButton("Descartar cambios");
+
+    expect(getFrontDocumentImageInput().files?.length ?? 0).toBe(0);
+    expect(isSaveEnabled()).toBe(false);
+  });
+
+  test("turns `Guardar` back off when the picked photo is removed", async () => {
+    await renderDancerPage();
+
+    await pickFrontDocumentImage();
+    await clickReactDomButton("Borrar imagen");
+
     expect(isSaveEnabled()).toBe(false);
   });
 
@@ -255,6 +301,31 @@ function getInscriptionsSearch() {
   }
 
   return input;
+}
+
+function getFrontDocumentImageInput() {
+  const input = document.querySelector<HTMLInputElement>(
+    'input[name="documentFrontImage"]',
+  );
+
+  if (!input) {
+    throw new Error("The front document image field is not in the DOM.");
+  }
+
+  return input;
+}
+
+async function pickFrontDocumentImage() {
+  const input = getFrontDocumentImageInput();
+
+  await act(async () => {
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: [new File(["image"], "frente.png", { type: "image/png" })],
+    });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await settle();
 }
 
 async function typeFirstName(value: string) {
