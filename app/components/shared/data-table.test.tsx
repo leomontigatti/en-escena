@@ -715,6 +715,43 @@ describe("ClientDataTable page in the address bar", () => {
   });
 });
 
+describe("ClientDataTable without page controls", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  const rows: Row[] = Array.from({ length: 25 }, (_, index) => ({
+    id: `choreography_${index + 1}`,
+    academy: "Academia Norte",
+    name: `Coreografía ${String(index + 1).padStart(2, "0")}`,
+    status: "active",
+  }));
+
+  function renderTable(hidePagination: boolean) {
+    return renderer.renderAsync(
+      <MemoryRouter>
+        <ClientDataTable
+          rows={rows}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          hidePagination={hidePagination}
+          searchPlaceholder="Buscar coreografía"
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  test("renders every row once a mounted table loses its page controls", async () => {
+    await renderTable(false);
+
+    expect(getRenderedRowNames()).toHaveLength(10);
+
+    await renderTable(true);
+
+    expect(getRenderedRowNames()).toHaveLength(25);
+  });
+});
+
 describe("ClientDataTable search in the address bar", () => {
   const renderer = createReactDomTestRenderer();
 

@@ -91,6 +91,7 @@ describe("the judge's list of one day's presentations", () => {
   async function mount(
     day: Pick<JudgePanelRouteData, "day" | "dayOptions" | "isOpen"> = openDay,
     url = "/juzgamiento",
+    rows = presentations,
   ) {
     const router = createMemoryRouter(
       [
@@ -105,7 +106,7 @@ describe("the judge's list of one day's presentations", () => {
                   username: "ana.juez",
                 },
                 judgingDate,
-                presentations,
+                presentations: rows,
                 ...day,
               }}
             />
@@ -144,6 +145,19 @@ describe("the judge's list of one day's presentations", () => {
     await removeTableFilter("Estado");
 
     expect(rowNames()).toHaveLength(5);
+  });
+
+  test("shows every presentation of a day longer than a page of the table", async () => {
+    const longDay = Array.from({ length: 36 }, (_, index) =>
+      buildRow({
+        orderNumber: index + 1,
+        presentationId: `long-${index + 1}`,
+      }),
+    );
+
+    await mount(openDay, "/juzgamiento", longDay);
+
+    expect(rowNames()).toHaveLength(36);
   });
 
   test("marks the first pending presentation when none was opened yet", async () => {

@@ -117,6 +117,7 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
     columns: props.columns,
     getRowKey: props.getRowKey,
     matchesSearch: props.matchesSearch,
+    paginated: !props.hidePagination,
     pagination,
     rows: props.rows,
     rowSelection,
@@ -235,6 +236,7 @@ function useClientReactTable<TData>({
   columns,
   getRowKey,
   matchesSearch,
+  paginated,
   pagination,
   rows,
   rowSelection,
@@ -254,6 +256,7 @@ function useClientReactTable<TData>({
   columns: ClientDataTableProps<TData>["columns"];
   getRowKey: ClientDataTableProps<TData>["getRowKey"];
   matchesSearch?: ClientDataTableProps<TData>["matchesSearch"];
+  paginated: boolean;
   pagination: PaginationState;
   rows: TData[];
   rowSelection: RowSelectionState;
@@ -322,6 +325,10 @@ function useClientReactTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    // A table with no page controls has no way to reach a second page, so it
+    // is not paged at all: every row is on screen. The engine caches its page
+    // model, so this switch is what turns it off on a table already mounted.
+    manualPagination: !paginated,
     getSortedRowModel: getSortedRowModel(),
     getRowId: getRowKey,
     globalFilterFn: matchesSearch
