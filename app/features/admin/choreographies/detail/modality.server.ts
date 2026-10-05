@@ -29,13 +29,14 @@ export type ChoreographyModalityOption = {
  * It is enumerated for the `auditor` too.
  *
  * Phrased around the price and not around the schedule moving, which is what
- * keeps it from reading as a second copy of the capacity alert: the schedule
- * moving is no longer what the save refuses, the price changing is.
+ * keeps it from reading as a second copy of the capacity line beside it: the
+ * schedule moving is no longer what the save refuses, the price changing is.
+ * The money is not named here: the alert's title already says it.
  */
 const priceChangeBlocker: ChoreographyModalityBlocker = {
   code: "price-change",
   label:
-    "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
+    "La modalidad solo se puede corregir si el cronograma resultante mantiene el precio.",
 };
 
 /**
