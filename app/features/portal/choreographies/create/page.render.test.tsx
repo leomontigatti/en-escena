@@ -77,7 +77,7 @@ function renderPage(
             return answers.create;
           }
 
-          throw redirect("/portal/coreografias?creada=1");
+          throw redirect("/portal/coreografias");
         },
         element: <CreateChoreographyPage loaderData={loaderData} />,
       },

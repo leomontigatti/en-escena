@@ -17,6 +17,7 @@ import {
 import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
 const choreographiesListPath = "/portal/coreografias";
 
@@ -104,7 +105,10 @@ export async function handleCreateChoreographyAction(request: Request) {
       } satisfies CreateActionData;
     }
 
-    throw redirect(`${choreographiesListPath}?creada=1`);
+    throw await redirectWithFlashNotification(
+      choreographiesListPath,
+      "coreografia-creada",
+    );
   }
 
   throw new Response("Acción no soportada.", { status: 400 });

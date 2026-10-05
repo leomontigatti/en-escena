@@ -1,5 +1,3 @@
-import { useSearchParams } from "react-router";
-
 import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
@@ -31,12 +29,5 @@ export const shouldRevalidate = createDataTableShouldRevalidate({
 export default function PortalCoreografiasRoute({
   loaderData,
 }: PortalChoreographiesListRouteProps) {
-  const [searchParams] = useSearchParams();
-
-  return (
-    <PortalChoreographiesListRouteView
-      created={searchParams.get("creada") === "1"}
-      loaderData={loaderData}
-    />
-  );
+  return <PortalChoreographiesListRouteView loaderData={loaderData} />;
 }
