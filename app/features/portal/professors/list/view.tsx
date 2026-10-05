@@ -53,6 +53,17 @@ const professorFacetedFilters: DataTableFacetedFiltersOf<
       { label: "Participando", value: "participating" },
       { label: "No participando", value: "not-participating" },
     ],
+    renderValue: (option) => (
+      <Badge
+        variant={getParticipationBadgeVariant(
+          option.value === "participating"
+            ? "participating"
+            : "not-participating",
+        )}
+      >
+        {option.label}
+      </Badge>
+    ),
   },
   {
     id: "completitud",
@@ -61,6 +72,11 @@ const professorFacetedFilters: DataTableFacetedFiltersOf<
       { label: "Completo", value: "complete" },
       { label: "Incompleto", value: "incomplete" },
     ],
+    renderValue: (option) => (
+      <Badge variant={option.value === "complete" ? "success" : "warning"}>
+        {option.label}
+      </Badge>
+    ),
   },
   {
     id: "archivo",
@@ -71,6 +87,11 @@ const professorFacetedFilters: DataTableFacetedFiltersOf<
         value: "archived",
       },
     ],
+    renderValue: (option) => (
+      <Badge variant={getRosterPersonStatusBadgeVariant("archived")}>
+        {option.label}
+      </Badge>
+    ),
   },
 ];
 

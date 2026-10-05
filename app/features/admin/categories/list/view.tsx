@@ -10,6 +10,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { BadgesList } from "@/components/shared/badges-list";
+import { Badge } from "@/components/ui/badge";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import {
@@ -81,6 +82,7 @@ const categoryFacetedFilters: DataTableFacetedFiltersOf<
     id: "tipo-de-grupo",
     label: "Tipo de grupo",
     options: groupTypeOptions,
+    renderValue: (option) => <Badge variant="secondary">{option.label}</Badge>,
   },
 ];
 

@@ -142,3 +142,25 @@ export const choreographyStatusFilterOptions = [
  * `formatInscriptionStatusBadge`'s whole range.
  */
 export const inscriptionStatusFilterOptions = choreographyStatusFilterOptions;
+
+// A `Map` and not an object: the value comes from the URL, and `constructor`
+// must find nothing rather than what every object inherits.
+const inscriptionStatusFilterBadgeVariants = new Map<
+  string,
+  FormattedInscriptionStatusBadge["variant"]
+>(
+  Object.entries({
+    ...inscriptionFinancialStatusBadgeVariants,
+    ...inscriptionAnomalyBadgeVariants,
+    [withdrawnStatusFilterOption.value]: withdrawnInscriptionBadgeVariant,
+  }),
+);
+
+/**
+ * The variant an option of the `Estado` filter wears once applied: the one
+ * `formatInscriptionStatusBadge` gives the badge of the same `value`, so the
+ * applied filter reads as the rows it narrows to.
+ */
+export function getInscriptionStatusFilterBadgeVariant(value: string) {
+  return inscriptionStatusFilterBadgeVariants.get(value) ?? "secondary";
+}

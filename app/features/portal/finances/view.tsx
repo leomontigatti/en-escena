@@ -22,6 +22,7 @@ import {
   withdrawnStatusFilterOption,
 } from "@/lib/finances/choreography-financial-status";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
+import { renderInscriptionStatusFilterValue } from "@/lib/finances/inscription-finance-columns";
 import {
   choreographiesTabValue,
   seminarsTabValue,
@@ -52,6 +53,7 @@ const seminarFinanceFacetedFilters: DataTableFacetedFiltersOf<
     id: "estado",
     label: "Estado",
     options: [...choreographyStatusFilterOptions],
+    renderValue: renderInscriptionStatusFilterValue,
   },
 ];
 
@@ -73,6 +75,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
       waivedStatusFilterOption,
       withdrawnStatusFilterOption,
     ],
+    renderValue: renderInscriptionStatusFilterValue,
   },
 ];
 

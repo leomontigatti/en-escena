@@ -91,6 +91,11 @@ const academyFacetedFilters: DataTableFacetedFiltersOf<
       { label: "Participando", value: "si" },
       { label: "No participando", value: "no" },
     ],
+    renderValue: (option) => (
+      <Badge variant={option.value === "si" ? "success" : "secondary"}>
+        {option.label}
+      </Badge>
+    ),
   },
   {
     id: "datos",

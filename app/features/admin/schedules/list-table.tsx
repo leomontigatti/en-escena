@@ -97,7 +97,10 @@ export function ScheduleList({
       getRowKey={(schedule) => schedule.id}
       searchPlaceholder="Buscar por nombre"
       textFilterColumnId="name"
-      facetedFilters={buildScheduleFacetedFilters(schedules)}
+      facetedFilters={buildScheduleFacetedFilters(schedules).map((group) => ({
+        ...group,
+        renderValue: (option) => <ResourceBadge>{option.label}</ResourceBadge>,
+      }))}
       emptyMessage={emptyScheduleList.nothingMatched}
       initialSort={{ columnId: "scheduledAt", direction: "asc" }}
     />

@@ -18,6 +18,7 @@ import {
 } from "@/lib/finances/choreography-financial-status";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
+import { renderInscriptionStatusFilterValue } from "@/lib/finances/inscription-finance-columns";
 import {
   choreographiesTabValue,
   seminarsTabValue,
@@ -47,6 +48,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
     id: "estado",
     label: "Estado",
     options: [...choreographyStatusFilterOptions],
+    renderValue: renderInscriptionStatusFilterValue,
   },
 ];
 

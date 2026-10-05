@@ -37,6 +37,7 @@ const seminarPriceFacetedFilters: DataTableFacetedFiltersOf<
     id: "tipo-de-seminario",
     label: "Tipo de seminario",
     options: seminarKindOptions,
+    renderValue: (option) => <Badge variant="secondary">{option.label}</Badge>,
   },
   {
     id: "participantes",
@@ -45,6 +46,7 @@ const seminarPriceFacetedFilters: DataTableFacetedFiltersOf<
       { label: getParticipantCellLabel(true), value: "yes" },
       { label: getParticipantCellLabel(false), value: "no" },
     ],
+    renderValue: (option) => <Badge variant="outline">{option.label}</Badge>,
   },
 ];
 
