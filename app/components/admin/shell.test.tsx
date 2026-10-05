@@ -89,6 +89,7 @@ describe("the administration navigation", () => {
         "/administracion/coreografias",
         "/administracion/pagos",
         "/administracion/profesores",
+        "/administracion/seminarios",
       ].sort(),
     );
   });

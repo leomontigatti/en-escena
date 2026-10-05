@@ -112,6 +112,8 @@ describe("SeminarsListView", () => {
       "/administracion/seminarios",
       <SeminarsListView
         loaderData={{
+          canWrite: true,
+          exportableSeminarIds: [],
           selectedEventId: "event_1",
           seminars: [buildSeminar({ availablePlaces: 12 })],
         }}
@@ -125,6 +127,27 @@ describe("SeminarsListView", () => {
       document.querySelector('a[href="/administracion/seminarios/seminar_1"]')
         ?.textContent,
     ).toBe("Abril Sosa");
+  });
+
+  test("shows the auditor the seminars without a way into them or a new one", async () => {
+    await renderAt(
+      "/administracion/seminarios",
+      <SeminarsListView
+        loaderData={{
+          canWrite: false,
+          exportableSeminarIds: ["seminar_1"],
+          selectedEventId: "event_1",
+          seminars: [buildSeminar()],
+        }}
+      />,
+    );
+
+    expect(document.querySelector("tbody")?.textContent).toContain(
+      "Abril Sosa",
+    );
+    expect(document.querySelector("tbody a")).toBe(null);
+    expect(document.body.textContent).not.toContain("Nuevo seminario");
+    expect(findButton("Acciones")).not.toBeNull();
   });
 
   test.each([
@@ -157,6 +180,8 @@ describe("SeminarsListView", () => {
       "/administracion/seminarios",
       <SeminarsListView
         loaderData={{
+          canWrite: true,
+          exportableSeminarIds: [],
           selectedEventId: "event_1",
           seminars: [
             buildSeminar(),

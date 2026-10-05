@@ -13,6 +13,8 @@ import { loadDancersList } from "@/features/admin/dancers/list/server";
 import { DancersListRouteView } from "@/features/admin/dancers/list/view";
 import { loadProfessorsList } from "@/features/admin/professors/list/server";
 import { ProfessorsListRouteView } from "@/features/admin/professors/list/view";
+import { loadSeminarsList } from "@/features/admin/seminars/list/server";
+import { SeminarsListView } from "@/features/admin/seminars/list/view";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 
 import { seedPeriodExportFixture } from "./period-export.test-support";
@@ -97,6 +99,17 @@ const lists = [
         "/administracion/pagos",
         createElement(PaymentsListRouteView, {
           loaderData: await loadPaymentsList(request),
+        }),
+      ),
+  },
+  {
+    label: "Seminarios",
+    path: "/administracion/seminarios",
+    renderList: async (request: Request) =>
+      render(
+        "/administracion/seminarios",
+        createElement(SeminarsListView, {
+          loaderData: await loadSeminarsList(request),
         }),
       ),
   },

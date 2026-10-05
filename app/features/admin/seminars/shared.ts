@@ -87,6 +87,10 @@ export type SeminarActionData = {
 };
 
 export type SeminarsListLoaderData = {
+  /** False for the auditor, who reads the list and gets the export instead. */
+  canWrite: boolean;
+  /** The seminars the auditor's export has a sheet for; empty for whoever writes. */
+  exportableSeminarIds: string[];
   selectedEventId: string | null;
   seminars: SeminarListItem[];
 };

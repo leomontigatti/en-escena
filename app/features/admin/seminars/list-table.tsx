@@ -36,9 +36,12 @@ const seminarKindBadgeVariants = {
 } as const satisfies Record<SeminarKind, "outline" | "secondary">;
 
 export function SeminarList({
+  linksToDetail,
   seminars,
   selectedEventId,
 }: {
+  /** False for the auditor, to whom the seminar's detail is closed. */
+  linksToDetail: boolean;
   seminars: SeminarListItem[];
   selectedEventId: string | null;
 }) {
@@ -47,13 +50,16 @@ export function SeminarList({
       id: "instructorName",
       header: "Instructor",
       className: "min-w-56 font-medium",
-      cell: (seminar) => (
-        <DataTableLink
-          to={buildDetailPath(basePath, seminar.id, selectedEventId)}
-        >
-          {seminar.instructorName}
-        </DataTableLink>
-      ),
+      cell: (seminar) =>
+        linksToDetail ? (
+          <DataTableLink
+            to={buildDetailPath(basePath, seminar.id, selectedEventId)}
+          >
+            {seminar.instructorName}
+          </DataTableLink>
+        ) : (
+          seminar.instructorName
+        ),
       filterValue: (seminar) => seminar.instructorName,
     },
     {

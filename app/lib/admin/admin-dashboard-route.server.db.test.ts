@@ -135,6 +135,7 @@ describe("`/administracion` index route", () => {
       "/administracion/profesores",
       "/administracion/coreografias",
       "/administracion/pagos",
+      "/administracion/seminarios",
     ]);
   });
 
