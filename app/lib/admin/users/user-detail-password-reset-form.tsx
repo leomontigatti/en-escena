@@ -1,4 +1,3 @@
-import { CircleAlert } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -8,7 +7,6 @@ import {
   useDiscardGuard,
 } from "@/components/shared/discard-guard";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,7 +21,6 @@ import {
   emptyResetPasswordValues,
   resetPasswordIntent,
   resetPasswordSchema,
-  type DetailActionData,
   type ResetPasswordFormValues,
 } from "@/lib/admin/users/user-detail.shared";
 import {
@@ -39,16 +36,13 @@ const resetPasswordFormId = "reset-password-form";
 /**
  * Setting a new password is an action on the user, not an edit of its
  * fields, so it lives in a dialog over the detail. The route closes it when the
- * reset succeeds; a refusal keeps it open with the reason inside, and a typed
- * password is not thrown away without asking.
+ * reset succeeds; a refusal is the route's toast and keeps it open over what
+ * was typed, and a typed password is not thrown away without asking.
  */
 export function InternalUserResetPasswordDialog({
-  error,
   onOpenChange,
   open,
 }: {
-  /** The refusal of the reset being attempted, not of an earlier opening. */
-  error?: DetailActionData;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
@@ -61,7 +55,7 @@ export function InternalUserResetPasswordDialog({
     mode: "onSubmit",
     resolver: zodResolver(resetPasswordSchema),
   });
-  const { reset, setError } = form;
+  const { reset } = form;
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
   const navigation = useOptionalNavigation();
@@ -82,15 +76,6 @@ export function InternalUserResetPasswordDialog({
     }
   }, [open, reset]);
 
-  // A password the client accepted and the server did not belongs on the field.
-  useEffect(() => {
-    const message = error?.resetPasswordFieldErrors.password;
-
-    if (message) {
-      setError("password", { message });
-    }
-  }, [error, setError]);
-
   return (
     <>
       <Dialog
@@ -108,13 +93,6 @@ export function InternalUserResetPasswordDialog({
               Definí una nueva contraseña para este usuario.
             </DialogDescription>
           </DialogHeader>
-          {error ? (
-            <Alert variant="destructive">
-              <CircleAlert aria-hidden="true" />
-              <AlertTitle>No se pudo restablecer la contraseña</AlertTitle>
-              <AlertDescription>{error.message}</AlertDescription>
-            </Alert>
-          ) : null}
           <form
             id={resetPasswordFormId}
             method="post"

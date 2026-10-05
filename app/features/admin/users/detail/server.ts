@@ -9,7 +9,6 @@ import {
   buildDetailActionError,
   buildDetailActionSuccess,
   buildDetailUser,
-  getResetPasswordFieldErrors,
   getUpdateInternalUserFieldErrors,
   getUpdateInternalUserServerFieldErrors,
   readResetPasswordFormValues,
@@ -103,9 +102,6 @@ export async function action({
       return buildDetailActionError({
         form: "reset-password",
         message: "Revisá la contraseña nueva.",
-        resetPasswordFieldErrors: getResetPasswordFieldErrors(
-          parsedResetPassword.error,
-        ),
         resetPasswordValues: values,
       });
     }
