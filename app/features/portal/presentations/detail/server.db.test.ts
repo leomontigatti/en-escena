@@ -7,6 +7,7 @@ import { loadPortalPresentationEvaluation } from "@/features/portal/presentation
 import { activateEvent } from "@/lib/events/management.server";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { hideResults, publishResults } from "@/lib/judging/results.server";
+import { setVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 import { createFeedbackAudioStorage } from "@/lib/storage/feedback-audio.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -21,6 +22,9 @@ const signingStorage = createFeedbackAudioStorage({
 
 type JudgingFixture = Awaited<ReturnType<typeof seedJudgingFixture>>;
 
+/** The day the seeded presentation dances, published unless a test hides it. */
+const presentationDay = "2026-05-01";
+
 async function seedPublishedEvaluation() {
   const fixture = await seedJudgingFixture();
   await activateEvent(fixture.event.id);
@@ -28,8 +32,10 @@ async function seedPublishedEvaluation() {
   const presentation = await fixture.addPresentation({
     name: "Primera",
     orderNumber: 1,
+    scheduledDate: presentationDay,
     submodalityId: null,
   });
+  await setVisibleProgramDays(fixture.event.id, [presentationDay]);
 
   return { fixture, presentation };
 }
@@ -97,6 +103,28 @@ describe("an academy's evaluation detail", () => {
         value: "88.0",
       },
     ]);
+  });
+
+  // A published result does not publish its day's order: the number stays
+  // withheld, as on the academy's list, and the result itself still answers.
+  test("names the presentation without its number while its day is not published", async () => {
+    const { fixture, presentation } = await seedPublishedEvaluation();
+    const scored = await fixture.assignJudge(presentation.presentationId);
+
+    await db
+      .insert(scores)
+      .values({ judgeAssignmentId: scored.judgeAssignmentId, value: "90.0" });
+    await publishResults(fixture.event.id);
+    await setVisibleProgramDays(fixture.event.id, []);
+
+    const loaderData = await loadEvaluation(
+      fixture,
+      presentation.choreographyId,
+    );
+
+    expect(loaderData.title).toBe("Primera");
+    expect(loaderData.average).toBe(90);
+    expect(JSON.stringify(loaderData)).not.toContain("N.º");
   });
 
   test("answers not found for another academy's presentation", async () => {

@@ -37,7 +37,7 @@ import { PresentationListActions } from "./actions-menu";
 import { JudgeAssignmentDialog } from "./judge-dialogs";
 import {
   PresentationOutputDialog,
-  readProgramToggle,
+  readProgramVisibilityDays,
   type OutputDialog,
 } from "./output-dialogs";
 import {
@@ -446,8 +446,10 @@ export function PresentationsListView({
           onExportProgram={() => setOutputDialog("programExport")}
           onJudges={setJudgeDialogMode}
           onOrder={() => setIsOrderingDialogOpen(true)}
-          onToggleProgram={() => setOutputDialog("programVisibility")}
-          programToggle={readProgramToggle(loaderData)}
+          onProgramVisibility={() => setOutputDialog("programVisibility")}
+          canSetProgramVisibility={
+            readProgramVisibilityDays(loaderData) !== null
+          }
         />
       }
     >

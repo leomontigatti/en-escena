@@ -309,6 +309,13 @@
       "when": 1791147935396,
       "tag": "0043_academy_province_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791211530749,
+      "tag": "0044_program_visible_days",
+      "breakpoints": true
     }
   ]
 }

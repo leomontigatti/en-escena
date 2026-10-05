@@ -236,25 +236,6 @@ export async function deactivateEvent(
   return { ok: true, event };
 }
 
-export async function setEventVisibility(
-  eventId: string,
-  visibility: {
-    programVisible: boolean;
-  },
-): Promise<EventMutationResult> {
-  const [event] = await db
-    .update(events)
-    .set(visibility)
-    .where(eq(events.id, eventId))
-    .returning();
-
-  if (!event) {
-    return eventNotFound();
-  }
-
-  return { ok: true, event };
-}
-
 export async function deleteEvent(
   eventId: string,
   dependencies: EventDependencies = {},

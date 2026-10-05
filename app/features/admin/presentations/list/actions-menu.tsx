@@ -6,7 +6,7 @@ import {
 
 /**
  * The participation list's actions menu: downloading the day's music,
- * exporting the program and showing or hiding it first, then the ordering and
+ * exporting the program and choosing which of its days are visible first, then the ordering and
  * the two judge dialogs. Every item opens a dialog the list owns, so the menu
  * only says which one. With nothing to offer there is no menu.
  */
@@ -15,12 +15,12 @@ type OutputActionsProps = {
   canExportProgram: boolean;
   onDownloadMusic: () => void;
   onExportProgram: () => void;
-  onToggleProgram: () => void;
+  onProgramVisibility: () => void;
   /**
-   * Which way the program's visibility can go, for the event the list shows;
-   * `null` when there is nothing to toggle.
+   * Whether some day of the program can be shown or hidden: one has a
+   * numbered presentation, or one is visible now.
    */
-  programToggle: { eventId: string; show: boolean } | null;
+  canSetProgramVisibility: boolean;
 };
 
 type OrderingActionsProps = {
@@ -40,7 +40,7 @@ export function PresentationListActions({
   const hasOutputs =
     props.canDownloadMusic ||
     props.canExportProgram ||
-    props.programToggle !== null;
+    props.canSetProgramVisibility;
 
   if (!canOrderRows && !hasOutputs) {
     return null;
@@ -58,10 +58,10 @@ export function PresentationListActions({
 function OutputItems({
   canDownloadMusic,
   canExportProgram,
+  canSetProgramVisibility,
   onDownloadMusic,
   onExportProgram,
-  onToggleProgram,
-  programToggle,
+  onProgramVisibility,
 }: OutputActionsProps) {
   return (
     <>
@@ -71,10 +71,10 @@ function OutputItems({
       {canExportProgram ? (
         <DialogItem label="Descargar programa" onOpen={onExportProgram} />
       ) : null}
-      {programToggle ? (
+      {canSetProgramVisibility ? (
         <DialogItem
-          label={programToggle.show ? "Mostrar programa" : "Ocultar programa"}
-          onOpen={onToggleProgram}
+          label="Mostrar/ocultar programa"
+          onOpen={onProgramVisibility}
         />
       ) : null}
     </>

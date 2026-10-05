@@ -31,6 +31,9 @@ export const events = createTable(
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
     active: boolean("active").notNull().default(false),
+    // Read and written by nothing since the program became visible per day
+    // (`programVisibleDays` below). It stays for one deploy so the container
+    // being replaced can still select it, and a follow-up migration drops it.
     programVisible: boolean("program_visible").notNull().default(false),
     // When administration last published results, and null while they are
     // hidden. It carries no boolean beside it: the snapshot is this timestamp
@@ -258,6 +261,31 @@ export const schedules = createTable(
     ),
   ],
 ).enableRLS();
+
+// The days of an event whose program is published: a row is a visible day, and
+// a day without one is hidden. Keyed by the date and not by the schedule, so a
+// schedule added to a published day is published with it, while a day nobody
+// has published yet — a new one included — starts hidden. A day is the
+// `scheduledDate` its schedules share. See docs/domain/judging.md, "Program And
+// Results".
+export const programVisibleDays = createTable(
+  "program_visible_day",
+  {
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    scheduledDate: text("scheduled_date").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "program_visible_day_event_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("program_visible_day_event_date_unique").on(
+      table.eventId,
+      table.scheduledDate,
+    ),
+  ],
+);
 
 // The kind of a seminar and of a seminar price. An enum rather than a boolean
 // so a third kind is a value and not a migration. See CONTEXT.md `seminarKind`.

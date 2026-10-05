@@ -1,10 +1,11 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { db } from "@/db";
-import { events } from "@/db/schema";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
+import {
+  readVisibleProgramDays,
+  setVisibleProgramDays,
+} from "@/lib/presentations/program-visibility.server";
 
 import {
   handlePresentationListAction,
@@ -12,7 +13,7 @@ import {
 } from "./server";
 import {
   programEventIdFieldName,
-  programVisibleFieldName,
+  programVisibleDayFieldName,
   setProgramVisibilityIntent,
 } from "./shared";
 
@@ -22,11 +23,14 @@ installDatabaseTestHooks();
 
 const listUrl = "http://localhost/administracion/presentaciones";
 
-async function setVisibility(input: { eventId: string; visible: boolean }) {
+async function setVisibility(input: { days: string[]; eventId: string }) {
   const body = new FormData();
   body.set("intent", setProgramVisibilityIntent);
   body.set(programEventIdFieldName, input.eventId);
-  body.set(programVisibleFieldName, String(input.visible));
+
+  for (const day of input.days) {
+    body.append(programVisibleDayFieldName, day);
+  }
 
   const { request } = await createSignedInAdminRequest({
     body,
@@ -38,67 +42,111 @@ async function setVisibility(input: { eventId: string; visible: boolean }) {
   return await handlePresentationListAction(request);
 }
 
-async function readProgramVisible(eventId: string) {
-  const [event] = await db
-    .select({ programVisible: events.programVisible })
-    .from(events)
-    .where(eq(events.id, eventId));
+async function loadList() {
+  const { request } = await createSignedInAdminRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    requestUrl: listUrl,
+    role: "admin",
+  });
 
-  return event.programVisible;
+  return await loadPresentationListRouteData(request);
 }
 
-describe("showing and hiding the program from the participation list", () => {
-  test("shows the program, and the list says it is visible", async () => {
+describe("choosing the program's visible days from the participation list", () => {
+  test("publishes the chosen days, and the list reads them back", async () => {
     const fixture = await seedJudgingFixture();
     await fixture.addPresentation({ name: "Una", orderNumber: 1 });
 
     const result = await setVisibility({
+      days: ["2026-12-05", "2026-12-04"],
       eventId: fixture.event.id,
-      visible: true,
     });
 
-    expect(result).toEqual({ message: "Programa visible.", status: "success" });
-    expect(await readProgramVisible(fixture.event.id)).toBe(true);
-
-    const { request } = await createSignedInAdminRequest({
-      email: `${crypto.randomUUID()}@example.com`,
-      requestUrl: listUrl,
-      role: "admin",
+    expect(result).toEqual({
+      message: "Programa visible de los días viernes 4/12 y sábado 5/12.",
+      status: "success",
     });
+    expect(await readVisibleProgramDays(fixture.event.id)).toEqual([
+      "2026-12-04",
+      "2026-12-05",
+    ]);
+    await expect(loadList()).resolves.toMatchObject({
+      programVisibleDays: ["2026-12-04", "2026-12-05"],
+    });
+  });
 
-    await expect(loadPresentationListRouteData(request)).resolves.toMatchObject(
-      { programVisible: true },
+  // The submission is the state asked for, not a flip: a day it leaves out is
+  // hidden, and sending it again changes nothing.
+  test("hides the days the submission leaves out, the same way every time", async () => {
+    const fixture = await seedJudgingFixture();
+    await setVisibleProgramDays(fixture.event.id, ["2026-12-04", "2026-12-05"]);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = await setVisibility({
+        days: ["2026-12-05"],
+        eventId: fixture.event.id,
+      });
+
+      expect(result).toEqual({
+        message: "Programa visible del sábado 5/12.",
+        status: "success",
+      });
+      expect(await readVisibleProgramDays(fixture.event.id)).toEqual([
+        "2026-12-05",
+      ]);
+    }
+  });
+
+  test("hides the whole program when no day is sent", async () => {
+    const fixture = await seedJudgingFixture();
+    await setVisibleProgramDays(fixture.event.id, ["2026-12-04"]);
+
+    const result = await setVisibility({ days: [], eventId: fixture.event.id });
+
+    expect(result).toEqual({ message: "Programa oculto.", status: "success" });
+    expect(await readVisibleProgramDays(fixture.event.id)).toEqual([]);
+  });
+
+  test("two saves at once leave one of them whole", async () => {
+    const fixture = await seedJudgingFixture();
+
+    await Promise.all([
+      setVisibleProgramDays(fixture.event.id, ["2026-12-04", "2026-12-05"]),
+      setVisibleProgramDays(fixture.event.id, ["2026-12-05"]),
+    ]);
+
+    expect([["2026-12-04", "2026-12-05"], ["2026-12-05"]]).toContainEqual(
+      await readVisibleProgramDays(fixture.event.id),
     );
   });
 
-  test("hides the program", async () => {
+  test("refuses a value that is not a day", async () => {
     const fixture = await seedJudgingFixture();
-    await db
-      .update(events)
-      .set({ programVisible: true })
-      .where(eq(events.id, fixture.event.id));
 
     const result = await setVisibility({
+      days: ["mañana"],
       eventId: fixture.event.id,
-      visible: false,
     });
 
-    expect(result).toEqual({ message: "Programa oculto.", status: "success" });
-    expect(await readProgramVisible(fixture.event.id)).toBe(false);
+    expect(result).toMatchObject({
+      data: { status: "error" },
+      init: { status: 400 },
+    });
+    expect(await readVisibleProgramDays(fixture.event.id)).toEqual([]);
   });
 
-  test("refuses a toggle sent for an event that is no longer the active one", async () => {
+  test("refuses a submission sent for an event that is no longer the active one", async () => {
     const fixture = await seedJudgingFixture();
 
     const result = await setVisibility({
+      days: ["2026-12-04"],
       eventId: crypto.randomUUID(),
-      visible: true,
     });
 
     expect(result).toMatchObject({
       data: { status: "error" },
       init: { status: 409 },
     });
-    expect(await readProgramVisible(fixture.event.id)).toBe(false);
+    expect(await readVisibleProgramDays(fixture.event.id)).toEqual([]);
   });
 });

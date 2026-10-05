@@ -1,10 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   categories,
   choreographies,
-  events,
   modalities,
   presentations,
   schedules,
@@ -42,7 +41,11 @@ export type AcademyPresentationRow = {
   levelLabel: string | null;
   modalityName: string;
   name: string;
-  /** `null` while the choreography has no presentation yet. */
+  /**
+   * `null` while the choreography has no presentation yet, and while its day's
+   * program is not published: a number that may still change never leaves
+   * the server.
+   */
   orderNumber: number | null;
   scheduledDate: string;
   submodalityName: string | null;
@@ -53,9 +56,18 @@ export type AcademyPresentationRow = {
  * only a withdrawn one is left out. Numbered rows come first by their number,
  * the rest after them by choreography number, which is the reading order of
  * the list.
+ *
+ * A row whose day is not among `visibleDays` loses its number before the sort,
+ * so it reads like one not placed yet: neither the number nor where it falls
+ * among the academy's others tells the academy an order still open to change.
  */
 export async function readAcademyPresentations(
-  input: { academyId: string; eventId: string },
+  input: {
+    academyId: string;
+    eventId: string;
+    /** The days whose program is published; see `readVisibleProgramDays`. */
+    visibleDays: readonly string[];
+  },
   executor: Executor = db,
 ): Promise<AcademyPresentationRow[]> {
   const [rows, financialStatuses] = await Promise.all([
@@ -107,6 +119,8 @@ export async function readAcademyPresentations(
       .map((row) => row.choreographyId),
   );
 
+  const visibleDays = new Set(input.visibleDays);
+
   return rows
     .map((row) => ({
       categoryName: row.categoryName,
@@ -120,7 +134,7 @@ export async function readAcademyPresentations(
       levelLabel: experienceLevelLabel(row.experienceLevel),
       modalityName: row.modalityName,
       name: row.name,
-      orderNumber: row.orderNumber,
+      orderNumber: visibleDays.has(row.scheduledDate) ? row.orderNumber : null,
       scheduledDate: row.scheduledDate,
       submodalityName: row.submodalityName,
     }))
@@ -142,31 +156,34 @@ function compareAcademyPresentationRows(
   return left.choreographyNumber - right.choreographyNumber;
 }
 
-/** Whether the organisation published the event's program. */
-export async function isEventProgramVisible(
-  eventId: string,
-  executor: Executor = db,
-): Promise<boolean> {
-  const [event] = await executor
-    .select({ programVisible: events.programVisible })
-    .from(events)
-    .where(eq(events.id, eventId));
-
-  return event?.programVisible ?? false;
-}
-
 /**
- * Whether the event has been ordered at all, which is what separates "nobody
- * has a number yet" from "your academy has nothing in the program".
+ * Whether a published day of the event has a presentation, which is what
+ * separates "no number has been published yet" from "your academy has nothing
+ * in the program". An event ordered with no day published reads as the first:
+ * the academy is told nothing about an order still open to change.
  */
-export async function hasEventPresentations(
-  eventId: string,
+export async function hasPublishedPresentations(
+  input: { eventId: string; visibleDays: readonly string[] },
   executor: Executor = db,
 ): Promise<boolean> {
+  if (input.visibleDays.length === 0) {
+    return false;
+  }
+
   const [presentation] = await executor
     .select({ id: presentations.id })
     .from(presentations)
-    .where(eq(presentations.eventId, eventId))
+    .innerJoin(
+      choreographies,
+      eq(presentations.choreographyId, choreographies.id),
+    )
+    .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
+    .where(
+      and(
+        eq(presentations.eventId, input.eventId),
+        inArray(schedules.scheduledDate, [...input.visibleDays]),
+      ),
+    )
     .limit(1);
 
   return presentation !== undefined;

@@ -9,7 +9,10 @@ import { db } from "@/db";
 // removes the vestige repo-wide; until then new tables are declared without it
 // rather than adding to the pile, so this test asserts the current state
 // instead of a rule nobody is enforcing.
-const tablesWithoutRowLevelSecurity = ["en_escena_event_document"];
+const tablesWithoutRowLevelSecurity = [
+  "en_escena_event_document",
+  "en_escena_program_visible_day",
+];
 
 describe("database schema security", () => {
   test("enables row-level security on every En Escena public table that declares it", async () => {
