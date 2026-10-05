@@ -28,9 +28,12 @@ minimumReleaseAge: 4320
 # Every entry needs a comment with the reason it is acceptable and when to
 # recheck it, in the style of the `nwsapi` override above.
 #
-# Empty, and meant to stay that way: `pnpm audit --prod` currently reports three
-# moderate advisories (esbuild and vitest, both reached through `better-auth`'s
-# optional peers) and nothing high or critical, and the gate only fails at high.
+# Empty, and meant to stay that way. `pnpm audit --prod` currently reports two
+# advisories, neither with a release to upgrade to: a moderate one in esbuild,
+# reached through `better-auth`'s optional `drizzle-kit` peer (#1135), and a high
+# one in node-forge, reached through `@arcasdk/core` (#1466). The gate fails only
+# on a high or critical advisory a branch introduces, so the node-forge one is
+# reported as inherited and is tracked in its issue instead of listed here.
 #
 # `auditConfig.ignoreGhsas` is the spelling pnpm 11.9.0 reads. Once
 # `packageManager` reaches pnpm >= 11.16.0, this moves to `audit.ignore`.
