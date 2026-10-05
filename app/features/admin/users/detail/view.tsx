@@ -3,6 +3,7 @@ import { Form } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { SuspendUserDialog } from "@/components/shared/suspend-user-dialog";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -23,7 +24,6 @@ import {
   type DetailViewActionData,
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
-import { SuspendUserDialog } from "@/features/admin/users/detail/suspend-user-dialog";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -169,6 +169,7 @@ function UserActionsMenu({
         open={isSuspendDialogOpen}
         onOpenChange={setIsSuspendDialogOpen}
         userName={user.name}
+        userRole={user.mainRole}
       />
     </>
   );
