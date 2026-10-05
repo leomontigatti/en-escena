@@ -51,20 +51,20 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
   {
     id: "status",
     header: "Estado",
-    cell: (academy) =>
-      academy.isParticipating ? (
-        <Badge variant="success">Participando</Badge>
-      ) : (
-        <Badge variant="secondary">No participando</Badge>
-      ),
+    className: "whitespace-normal",
+    cell: (academy) => (
+      <div className="flex flex-wrap gap-2">
+        {academy.isParticipating ? (
+          <Badge variant="success">Participando</Badge>
+        ) : (
+          <Badge variant="secondary">No participando</Badge>
+        )}
+        <AcademyDataStatusBadge status={academy.dataStatus} />
+      </div>
+    ),
+    // Both badges, so the search finds an academy by either one.
     filterValue: (academy) =>
-      academy.isParticipating ? "Participando" : "No participando",
-  },
-  {
-    id: "data",
-    header: "Datos",
-    cell: (academy) => <AcademyDataStatusBadge status={academy.dataStatus} />,
-    filterValue: (academy) => academyDataStatusLabels[academy.dataStatus],
+      `${academy.isParticipating ? "Participando" : "No participando"} ${academyDataStatusLabels[academy.dataStatus]}`,
   },
   {
     id: "filters",

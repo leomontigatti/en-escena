@@ -53,6 +53,25 @@ describe("the academies list", () => {
     ].map((link) => link.textContent);
   }
 
+  test("shows participation and data status together in one column", async () => {
+    await listedAt("");
+
+    const headers = [...document.querySelectorAll("th")].map(
+      (header) => header.textContent,
+    );
+    const rows = [...document.querySelectorAll("tbody tr")].map((row) =>
+      [...row.querySelectorAll('[data-slot="badge"]')].map(
+        (badge) => badge.textContent,
+      ),
+    );
+
+    expect(headers).toEqual(["Nombre", "Contacto", "Estado"]);
+    expect(rows).toEqual([
+      ["No participando", "Incompleta"],
+      ["Participando", "Completa"],
+    ]);
+  });
+
   test.each([
     ["?datos=incompleta", ["Academia Antigua"]],
     ["?datos=completa", ["Academia Demo"]],
