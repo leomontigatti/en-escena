@@ -103,7 +103,7 @@ export function AccessHeader({
       {description && descriptionAction ? (
         <div
           className={cn(
-            "flex items-center justify-between gap-4",
+            "flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
             descriptionSpacing,
           )}
         >

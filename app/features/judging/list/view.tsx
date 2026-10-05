@@ -216,7 +216,9 @@ function JudgeListFilters({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    // Never narrower than its filters: the description beside it wraps onto
+    // another line before an applied filter and the add button come apart.
+    <div className="flex flex-wrap items-center justify-end gap-2 lg:shrink-0 lg:flex-nowrap">
       <DataTableFilters
         groups={dayOptions.length > 0 ? [dayGroup, statusGroup] : [statusGroup]}
         selectedValues={{
