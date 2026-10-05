@@ -1,4 +1,4 @@
-import { TriangleAlert, UserX } from "lucide-react";
+import { Info, UserX } from "lucide-react";
 import { Form } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { suspendUserIntent } from "@/lib/admin/users/user-detail.shared";
+import {
+  type DetailUserRole,
+  suspendUserIntent,
+} from "@/lib/admin/users/user-detail.shared";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 /**
@@ -27,10 +30,12 @@ export function SuspendUserDialog({
   open,
   onOpenChange,
   userName,
+  userRole,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userName: string;
+  userRole: DetailUserRole;
 }) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, {
@@ -39,23 +44,20 @@ export function SuspendUserDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
-        className="sm:max-w-lg"
-        onEscapeKeyDown={(event) => {
-          event.preventDefault();
-        }}
-      >
+      <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle>¿Suspender a {userName}?</AlertDialogTitle>
           <AlertDialogDescription>
             Se cierran sus sesiones y no podrá ingresar hasta que lo reactives.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <Alert variant="warning">
-          <TriangleAlert aria-hidden="true" />
+        <Alert variant="info">
+          <Info aria-hidden="true" />
           <AlertTitle>Suspender no borra datos</AlertTitle>
           <AlertDescription>
-            Conserva su historial y sus asignaciones de juez.
+            {userRole === "judge"
+              ? "Conserva su historial y sus asignaciones de juez."
+              : "Conserva su historial."}
           </AlertDescription>
         </Alert>
         <AlertDialogFooter>

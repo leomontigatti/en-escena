@@ -172,6 +172,39 @@ describe("InternalUserDetailRouteView", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
+  test("promises judge assignments only to a judge being suspended", async () => {
+    await renderDetail({
+      user: { mainRole: "auditor", name: "Erika Sittoni" },
+    });
+    await chooseMenuItem("Suspender usuario");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("Conserva su historial.");
+    expect(dialog?.textContent).not.toContain("asignaciones de juez");
+  });
+
+  test("closes the suspension confirmation on Escape, as Cancelar does", async () => {
+    const action = vi.fn(async () => null);
+
+    await renderDetail({ action });
+    await chooseMenuItem("Suspender usuario");
+
+    await act(async () => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Escape",
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(action).not.toHaveBeenCalled();
+  });
+
   test("posts the suspend intent only once the destructive button is pressed", async () => {
     const action = vi.fn(async () => null);
 
