@@ -227,7 +227,42 @@ describe("the administration panel for an auditor", () => {
     );
 
     expect(ids).toEqual(expect.arrayContaining([...auditorReviewedRoutes]));
-    expect(unreviewedRoutes.length).toBeGreaterThan(20);
+    // Every section the PRD names as not reviewed is among the refused.
+    expect(unreviewedRoutes.map(({ id }) => id)).toEqual(
+      expect.arrayContaining([
+        "administracion.comprobantes",
+        "administracion.eventos",
+        "administracion.finanzas",
+        "administracion.presentaciones",
+        "administracion.resultados",
+        "administracion.seminarios",
+        "administracion.usuarios",
+        "administracion.comprobantes_.$comprobanteId.imprimir",
+      ]),
+    );
+  });
+
+  test.each([
+    "administracion_.academias.exportar",
+    "administracion_.bailarines.exportar",
+    "administracion_.profesores.exportar",
+    "administracion_.coreografias.exportar",
+    "administracion_.pagos.exportar",
+  ])("downloads the reviewed export %s inside the layout", async (id) => {
+    await seedPeriodExportFixture();
+    const child = administrationRoutes[`/app/routes/${id}.tsx`]?.loader;
+
+    if (!child) {
+      throw new Error(`Expected the ${id} route to export a loader.`);
+    }
+
+    const [, response] = await openPanelScreen({
+      child,
+      path: `/${id.replace(/[._]+/g, "/")}`,
+      role: "auditor",
+    });
+
+    expect((response as Response).status).toBe(200);
   });
 
   test.each(unreviewedRoutes)(

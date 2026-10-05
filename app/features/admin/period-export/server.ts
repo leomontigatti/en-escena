@@ -1,4 +1,4 @@
-import { and, eq, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, eq, exists, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -108,6 +108,35 @@ export function seminarInscriptionRegisteredInPeriod(
     eq(seminars.eventId, eventId),
     activeSeminarInscription(),
     timestampInPeriod(seminarInscriptions.createdAt, period),
+  );
+}
+
+/**
+ * Whether the person in `personColumn` (a dancer's or a professor's id) holds
+ * a seminar inscription that counts for the period.
+ */
+export function holdsSeminarInscriptionInPeriod(
+  person: "dancer" | "professor",
+  personColumn: AnyColumn,
+  eventId: string,
+  period: ExportPeriod,
+): SQL {
+  return exists(
+    db
+      .select({ id: seminarInscriptions.id })
+      .from(seminarInscriptions)
+      .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+      .where(
+        and(
+          eq(
+            person === "dancer"
+              ? seminarInscriptions.dancerId
+              : seminarInscriptions.professorId,
+            personColumn,
+          ),
+          seminarInscriptionRegisteredInPeriod(eventId, period),
+        ),
+      ),
   );
 }
 

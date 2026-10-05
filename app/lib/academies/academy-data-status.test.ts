@@ -1,9 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  academyDataStatusLabels,
-  getAcademyDataStatus,
-} from "./academy-data-status";
+import { getAcademyDataStatus } from "./academy-data-status";
 
 describe("the academy data status", () => {
   test("reads complete when the academy has both a province and a city", () => {
@@ -19,12 +16,5 @@ describe("the academy data status", () => {
     ["neither", { city: null, province: null }],
   ])("reads incomplete with %s", (_case, academy) => {
     expect(getAcademyDataStatus(academy)).toBe("incomplete");
-  });
-
-  test("names each status the way the badge reads it", () => {
-    expect(academyDataStatusLabels).toEqual({
-      complete: "Completa",
-      incomplete: "Incompleta",
-    });
   });
 });

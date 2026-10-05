@@ -7,14 +7,12 @@ import {
   choreographyDancers,
   choreographyProfessors,
   professors,
-  seminarInscriptions,
-  seminars,
 } from "@/db/schema";
 import { spreadsheetResponse } from "@/features/admin/day-export/server";
 import {
   inscriptionRegisteredInPeriod,
   readPeriodExport,
-  seminarInscriptionRegisteredInPeriod,
+  holdsSeminarInscriptionInPeriod,
 } from "@/features/admin/period-export/server";
 import { buildPeriodExportFileName } from "@/features/admin/period-export/shared";
 
@@ -63,17 +61,11 @@ export async function loadProfessorsExport(
               ),
             ),
         ),
-        exists(
-          db
-            .select({ id: seminarInscriptions.id })
-            .from(seminarInscriptions)
-            .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-            .where(
-              and(
-                eq(seminarInscriptions.professorId, professors.id),
-                seminarInscriptionRegisteredInPeriod(eventId, period),
-              ),
-            ),
+        holdsSeminarInscriptionInPeriod(
+          "professor",
+          professors.id,
+          eventId,
+          period,
         ),
       ),
     )
