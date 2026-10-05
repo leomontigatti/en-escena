@@ -348,6 +348,40 @@ describe("`/administracion/academias` detail", () => {
     expect(stored?.contactName).toBe("Academia Este");
   });
 
+  test("refuses a name, a contact or a city made only of punctuation", async () => {
+    const academy = await createAcademyUser({
+      email: "academia.punto@example.com",
+      academyName: "Academia Con Nombre",
+    });
+    const request = await buildFormRequest({
+      academyId: academy.academy.id,
+      city: "-",
+      contactName: "...",
+      email: "admin.academia.punto@example.com",
+      name: ".",
+      phone: "1112345678",
+      role: "admin",
+    });
+
+    await expect(
+      detailAction(routeArgs(request, academy.academy.id)),
+    ).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: {
+        name: "Ingresá al menos una letra o un número.",
+        city: "Ingresá al menos una letra o un número.",
+        contactName: "Ingresá al menos una letra o un número.",
+      },
+    });
+
+    const [stored] = await db
+      .select({ name: academies.name })
+      .from(academies)
+      .where(eq(academies.id, academy.academy.id));
+
+    expect(stored?.name).toBe("Academia Con Nombre");
+  });
+
   test("lets an auditor read the detail without offering the save action", async () => {
     const academy = await createAcademyUser({
       email: "academia.auditor@example.com",

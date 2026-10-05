@@ -117,6 +117,73 @@ describe("portal profile server", () => {
     });
   });
 
+  test("returns field errors without persisting a contact or a city made only of punctuation", async () => {
+    const session = await createAcademySession({
+      email: "perfil.punto@example.com",
+      academyName: "Academia Con Nombre",
+    });
+
+    const result = await handlePortalProfileAction(
+      createPortalPostRequest(
+        "http://localhost/portal/perfil",
+        session.cookie,
+        academyProfileFormData({
+          name: "Academia Con Nombre",
+          city: "-",
+          contactName: "...",
+          phone: "1112345678",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        city: "Ingresá al menos una letra o un número.",
+        contactName: "Ingresá al menos una letra o un número.",
+      },
+    });
+
+    await expect(
+      db.query.academies.findFirst({
+        where: eq(academies.id, session.academyId),
+      }),
+    ).resolves.toMatchObject({
+      city: null,
+      contactName: "Contacto",
+      name: "Academia Con Nombre",
+    });
+  });
+
+  test("lets an academy saved with a punctuation-only name update the rest, since it cannot change the name here", async () => {
+    const session = await createAcademySession({
+      email: "perfil.nombre.punto@example.com",
+      academyName: ".",
+    });
+
+    const result = await handlePortalProfileAction(
+      createPortalPostRequest(
+        "http://localhost/portal/perfil",
+        session.cookie,
+        academyProfileFormData({
+          name: ".",
+          contactName: "Responsable Nueva",
+          phone: "1112345678",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    await expect(
+      db.query.academies.findFirst({
+        where: eq(academies.id, session.academyId),
+      }),
+    ).resolves.toMatchObject({
+      contactName: "Responsable Nueva",
+      name: ".",
+    });
+  });
+
   test("refuses a province outside the list", async () => {
     const session = await createAcademySession({
       email: "perfil.province.free@example.com",
