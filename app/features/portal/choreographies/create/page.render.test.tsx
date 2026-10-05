@@ -14,6 +14,7 @@ import {
 } from "@/features/portal/choreographies/create/flow";
 import { CreateChoreographyPage } from "@/features/portal/choreographies/create/page";
 import type { CreateChoreographyRouteData } from "@/features/portal/choreographies/create/server";
+import { discardChangesTitle } from "@/lib/shared/discard-guard";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -473,6 +474,111 @@ describe("the choreography registration page", () => {
       );
 
       expect(window.sessionStorage.getItem(storageKey)).toBeNull();
+    });
+  });
+
+  describe("when the academy leaves", () => {
+    const storageKey = "registro-coreografia:academy_1:event_1";
+
+    function getDiscardDialog() {
+      return document.querySelector('[role="alertdialog"]');
+    }
+
+    async function typeName() {
+      const name =
+        document.querySelector<HTMLInputElement>("input[name='name']");
+
+      await updateReactDomForm(() => {
+        setInputValue(name as HTMLInputElement, "Danza de la Luna");
+      });
+    }
+
+    async function leave(router: ReturnType<typeof renderPage>["router"]) {
+      await act(async () => {
+        await router.navigate("/portal/coreografias");
+      });
+    }
+
+    test("leaves an untouched wizard without asking", async () => {
+      const { router } = renderPage({ resolve: resolved(buildResolution()) });
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(() => getHeading() === "La coreografía");
+
+      await leave(router);
+
+      expect(document.body.textContent).not.toContain(discardChangesTitle);
+      expect(router.state.location.pathname).toBe("/portal/coreografias");
+    });
+
+    test("asks before throwing away the answers, and forgets them once discarded", async () => {
+      const { router } = renderPage({ resolve: resolved(buildResolution()) });
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(() => getHeading() === "La coreografía");
+
+      await typeName();
+      await act(async () => {
+        document
+          .querySelector<HTMLAnchorElement>('a[href="/portal/coreografias"]')
+          ?.click();
+      });
+
+      expect(document.body.textContent).toContain(discardChangesTitle);
+      expect(router.state.location.pathname).toBe("/portal/coreografias/crear");
+
+      await clickReactDomButton("Cancelar", { within: getDiscardDialog() });
+
+      expect(getDiscardDialog()).toBeNull();
+      expect(
+        document.querySelector<HTMLInputElement>("input[name='name']")?.value,
+      ).toBe("Danza de la Luna");
+
+      await leave(router);
+      await clickReactDomButton("Descartar", { within: getDiscardDialog() });
+
+      expect(router.state.location.pathname).toBe("/portal/coreografias");
+      expect(window.sessionStorage.getItem(storageKey)).toBeNull();
+    });
+
+    test("moves between steps without asking", async () => {
+      const { router } = renderPage({ resolve: resolved(buildResolution()) });
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(() => getHeading() === "La coreografía");
+
+      await fillFirstStep();
+      await pickDancerAndResolve("¿Quiénes la prepararon?");
+      await clickReactDomButton("Anterior");
+      await clickReactDomButton("Anterior");
+      expect(getHeading()).toBe("La coreografía");
+
+      await act(async () => {
+        await router.navigate(-1);
+      });
+
+      expect(getDiscardDialog()).toBeNull();
+      expect(getHeading()).toBe("¿Quiénes bailan?");
+    });
+
+    test("asks about answers a reload brought back", async () => {
+      window.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          name: "Danza de la Luna",
+          modalityId: "modality_1",
+          submodalityId: "submodality_1",
+          dancerIds: [],
+          professorIds: [],
+          experienceLevelId: "",
+          scheduleCapacityId: "",
+        }),
+      );
+      const { router } = renderPage({ resolve: resolved(buildResolution()) });
+      await renderer.renderAsync(<RouterProvider router={router} />);
+      await waitFor(() => getHeading() === "La coreografía");
+
+      await leave(router);
+
+      expect(document.body.textContent).toContain(discardChangesTitle);
+      expect(router.state.location.pathname).toBe("/portal/coreografias/crear");
     });
   });
 });
