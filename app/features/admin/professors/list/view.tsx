@@ -75,31 +75,10 @@ export function ProfessorsListRouteView({
       description="Consultá la ficha administrativa de cada profesor y revisá su estado operativo desde el listado."
       requireSelectedEvent={false}
       headerAction={
-        loaderData.canWrite && loaderData.hasAnyProfessor ? (
-          <ResourceActionsMenu>
-            <DropdownMenuItem asChild>
-              <a
-                href={buildProfessorAccreditationsHref({
-                  professorIds: selectedRowIds,
-                  listSearch: buildProfessorListSearch(
-                    loaderData.filters,
-                    loaderData.selectedEventId,
-                  ),
-                })}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Imprimir acreditaciones
-              </a>
-            </DropdownMenuItem>
-          </ResourceActionsMenu>
-        ) : !loaderData.canWrite && loaderData.selectedEventId !== null ? (
-          <PeriodExportMenu
-            description="Los profesores de las coreografías con inscripciones registradas en el período, en el evento activo. Dejá una fecha vacía para no acotar ese extremo."
-            path={professorsExportPath}
-            title="Exportar profesores"
-          />
-        ) : undefined
+        <ProfessorsHeaderAction
+          loaderData={loaderData}
+          selectedRowIds={selectedRowIds}
+        />
       }
     >
       {shouldShowTable ? (
@@ -115,6 +94,54 @@ export function ProfessorsListRouteView({
         />
       )}
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The administrator prints accreditations, once there is anyone to print; the
+ * auditor exports, while an event is active. Nobody else gets a menu.
+ */
+function ProfessorsHeaderAction({
+  loaderData,
+  selectedRowIds,
+}: {
+  loaderData: LoaderData;
+  selectedRowIds: string[];
+}) {
+  if (loaderData.canWrite) {
+    if (!loaderData.hasAnyProfessor) {
+      return null;
+    }
+
+    const printHref = buildProfessorAccreditationsHref({
+      professorIds: selectedRowIds,
+      listSearch: buildProfessorListSearch(
+        loaderData.filters,
+        loaderData.selectedEventId,
+      ),
+    });
+
+    return (
+      <ResourceActionsMenu>
+        <DropdownMenuItem asChild>
+          <a href={printHref} target="_blank" rel="noreferrer">
+            Imprimir acreditaciones
+          </a>
+        </DropdownMenuItem>
+      </ResourceActionsMenu>
+    );
+  }
+
+  if (loaderData.selectedEventId === null) {
+    return null;
+  }
+
+  return (
+    <PeriodExportMenu
+      description="Los profesores de las coreografías con inscripciones registradas en el período, en el evento activo. Dejá una fecha vacía para no acotar ese extremo."
+      path={professorsExportPath}
+      title="Exportar profesores"
+    />
   );
 }
 
