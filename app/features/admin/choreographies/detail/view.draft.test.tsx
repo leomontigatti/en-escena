@@ -59,6 +59,8 @@ describe("the choreography detail as one draft", () => {
     expect(page.saves()).toEqual([
       expect.objectContaining({
         experienceLevelId: "profesional",
+        // Stored before the name rule and left untouched: sent as it is.
+        name: "Danza lunar",
         submodalityId: "submodality_2",
       }),
     ]);

@@ -32,6 +32,13 @@ describe("the stored form of a choreography name (#764)", () => {
     expect(stored).toBe("Danza de la Luna-Llena");
     expect(normalizeChoreographyName(stored)).toBe(stored);
   });
+
+  test("keeps a letter whose capital is two characters, so a second save stores the same", () => {
+    const stored = normalizeChoreographyName("ßeta-ßeta");
+
+    expect(stored).toBe("ßeta-ßeta");
+    expect(normalizeChoreographyName(stored)).toBe(stored);
+  });
 });
 
 describe("what a choreography name is refused for (#764)", () => {
@@ -106,6 +113,21 @@ describe("the choreography name as a form field (#764)", () => {
 
     expect(result.success).toBe(false);
     expect(result.error?.issues).toMatchObject([{ message, path: ["name"] }]);
+  });
+});
+
+describe("the form field of a name already stored (#764)", () => {
+  const schema = z.object({ name: choreographyNameField("-") });
+
+  test("lets a name from before the rule through while it is left as it is", () => {
+    expect(schema.parse({ name: "-" })).toEqual({ name: "-" });
+  });
+
+  test("holds it to the rule once it is edited", () => {
+    expect(schema.safeParse({ name: "--" }).success).toBe(false);
+    expect(schema.parse({ name: "sin título" })).toEqual({
+      name: "Sin Título",
+    });
   });
 });
 

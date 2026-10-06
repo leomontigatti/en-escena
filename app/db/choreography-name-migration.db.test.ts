@@ -104,6 +104,10 @@ describe("the choreography name rule migration (#764)", () => {
       hyphenated: "jean-pierre en parís",
       accented: "ángeles para ÉLITE ñandú",
       alreadyStored: "Sub 12 de la Casa",
+      // Whitespace JavaScript trims and collapses, and Postgres' `\s` does not.
+      oddWhitespace: "\uFEFFel\u00A0lago\u2003azul\u3000",
+      // A letter whose capital is two characters keeps its own.
+      sharpS: "ßeta de la ßeta",
     };
     const database = await migrateNames(typed);
 
@@ -117,6 +121,8 @@ describe("the choreography name rule migration (#764)", () => {
         hyphenated: "Jean-Pierre en París",
         accented: "Ángeles para Élite Ñandú",
         alreadyStored: "Sub 12 de la Casa",
+        oddWhitespace: "El Lago Azul",
+        sharpS: "ßeta de la ßeta",
       });
       // The SQL is a second statement of the rule: it must agree with the one
       // every write goes through from now on.
@@ -156,26 +162,12 @@ describe("the choreography name rule migration (#764)", () => {
     }
   });
 
-  it("normalizes a name over the ceiling, reports it and leaves the CHECK unvalidated instead of stopping the deploy", async () => {
-    const overCeiling = `los ${"a".repeat(choreographyNameMaxLength)}`;
-    const database = await migrateNames({ overCeiling });
-
-    try {
-      expect(database.names).toEqual({
-        overCeiling: `Los A${"a".repeat(choreographyNameMaxLength - 1)}`,
-      });
-      expect(database.warnings).toEqual([
-        expect.stringContaining("Choreography overCeiling keeps a name"),
-        expect.stringContaining("left NOT VALID"),
-      ]);
-      expect(database.isCheckValidated).toBe(false);
-      // Unvalidated, it still refuses every new write.
-      await expect(
-        database.insert("a".repeat(choreographyNameMaxLength + 1)),
-      ).rejects.toThrow(/choreography_name_length/);
-    } finally {
-      await database.close();
-    }
+  it("stops on a name over the ceiling instead of leaving the CHECK unvalidated", async () => {
+    await expect(
+      migrateNames({
+        overCeiling: `los ${"a".repeat(choreographyNameMaxLength)}`,
+      }),
+    ).rejects.toThrow(/choreography_name_length/);
   });
 
   it("makes the database refuse a name over the ceiling or blank, and accept one at it", async () => {

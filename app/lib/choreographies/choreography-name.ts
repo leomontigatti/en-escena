@@ -60,7 +60,13 @@ function capitalizeFirstCharacter(value: string) {
     return value;
   }
 
-  return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
+  const upperCharacter = firstCharacter.toLocaleUpperCase("es-AR");
+
+  // A letter whose capital is more than one character (`ß` → `SS`) stays as
+  // it is: capitalized, the stored form would change again on its next save.
+  return Array.from(upperCharacter).length === 1
+    ? `${upperCharacter}${rest.join("")}`
+    : value;
 }
 
 /**
@@ -103,9 +109,17 @@ export function hasChoreographyNameContent(value: string) {
   return /[\p{L}\p{N}]/u.test(value);
 }
 
-/** The name in a Zod schema: a successful parse yields the stored form. */
-export function choreographyNameField() {
+/**
+ * The name in a Zod schema: a successful parse yields the stored form. Given
+ * the name stored today, one left exactly as it is parses to itself, so a name
+ * that predates the rule does not stand in the way of saving something else.
+ */
+export function choreographyNameField(stored?: string) {
   return z.string().transform((value, context) => {
+    if (value === stored) {
+      return value;
+    }
+
     const result = validateChoreographyName(value);
 
     if (!result.ok) {

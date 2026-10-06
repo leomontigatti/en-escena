@@ -579,6 +579,40 @@ describe("saving a draft of the choreography detail", () => {
     });
   });
 
+  test("keeps a name from before the rule when a save leaves it untouched, and refuses another like it (#764)", async () => {
+    const scenario = await createDraftScenario({ slug: "nombre-previo" });
+    await db
+      .update(choreographies)
+      .set({ name: "-" })
+      .where(eq(choreographies.id, scenario.choreography.id));
+
+    const response = await scenario.saveDraft(
+      scenario.draft({
+        dancerIds: [scenario.ana.id, scenario.bea.id],
+        name: "-",
+        scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+      }),
+    );
+
+    expect(response).toMatchObject({ status: "success" });
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      groupType: "duo",
+      name: "-",
+    });
+    await expect(
+      scenario.saveDraft(
+        scenario.draft({
+          dancerIds: [scenario.ana.id, scenario.bea.id],
+          name: "--",
+          scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+        }),
+      ),
+    ).resolves.toMatchObject({
+      message: "Ingresá un nombre válido para la coreografía.",
+      status: "error",
+    });
+  });
+
   test("refuses structural changes on an evaluated choreography and accepts a rename", async () => {
     const scenario = await createDraftScenario({ slug: "evaluada-guarda" });
     evaluatedChoreographyIds.add(scenario.choreography.id);

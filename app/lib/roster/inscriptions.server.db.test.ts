@@ -233,6 +233,48 @@ describe("findProfessorChoreographies", () => {
     ]);
   });
 
+  test("lists them by name, ignoring case and accents (#764)", async () => {
+    const event = await createSavedEvent();
+    const { academy, catalog, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Orden",
+        choreographyName: "Zamba",
+        email: `profesores.orden.${crypto.randomUUID()}@example.com`,
+        event,
+      });
+    const professor = await createProfessor(academy.academy.id);
+    await db
+      .insert(choreographyProfessors)
+      .values({ choreographyId: choreography.id, professorId: professor.id });
+
+    for (const name of ["bolero", "Ángeles"]) {
+      const other = await createChoreographyRecord({
+        academyId: academy.academy.id,
+        categoryId: catalog.categoryWithLevel.id,
+        eventId: event.id,
+        experienceLevelId: catalog.level.id,
+        modalityId: catalog.modality.id,
+        name,
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+        submodalityId: catalog.submodality.id,
+      });
+      await db
+        .insert(choreographyProfessors)
+        .values({ choreographyId: other.id, professorId: professor.id });
+    }
+
+    const rows = await findProfessorChoreographies({
+      professorId: professor.id,
+      selectedEventId: event.id,
+    });
+
+    expect(rows.map((row) => row.choreographyName)).toEqual([
+      "Ángeles",
+      "bolero",
+      "Zamba",
+    ]);
+  });
+
   test("reads nothing without a selected event", async () => {
     await expect(
       findProfessorChoreographies({

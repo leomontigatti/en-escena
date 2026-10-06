@@ -33,41 +33,29 @@ FROM (
   FROM (
     SELECT
       "id",
-      lower(btrim(regexp_replace("name", '[\s ]+', ' ', 'g')) COLLATE "pg_c_utf8") AS "name"
+      lower(btrim(regexp_replace("name", '[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]+', ' ', 'g')) COLLATE "pg_c_utf8") AS "name"
     FROM "en_escena_choreography"
     WHERE ("name" COLLATE "pg_c_utf8") ~ '[[:alnum:]]'
   ) AS collapsed
 ) AS normalized
 WHERE target."id" = normalized."id"
   AND target."name" <> normalized."name";--> statement-breakpoint
-ALTER TABLE "en_escena_choreography" ADD CONSTRAINT "choreography_name_length" CHECK (char_length(btrim("en_escena_choreography"."name")) between 1 and 120) NOT VALID;--> statement-breakpoint
+ALTER TABLE "en_escena_choreography" ADD CONSTRAINT "choreography_name_length" CHECK (char_length(btrim("en_escena_choreography"."name")) between 1 and 120);--> statement-breakpoint
 -- The names the rule refuses and the backfill could not fix are reported, not
--- rewritten: `scripts/migrate.mjs` prints each warning in the deploy log. The
--- CHECK already holds for every write; it is validated here unless a stored
--- name is outside it, so one such name does not stop the deploy.
+-- rewritten: `scripts/migrate.mjs` prints each warning in the deploy log. They
+-- hold the CHECK above, which a name that is empty or over the ceiling does
+-- not: that one stops the migration until it is renamed. Production has none.
 DO $$
 DECLARE
   offending record;
-  outside_check boolean := false;
 BEGIN
   FOR offending IN
-    SELECT
-      "id",
-      char_length(btrim("name")) NOT BETWEEN 1 AND 120 AS "outside_check"
+    SELECT "id"
     FROM "en_escena_choreography"
     WHERE NOT ("name" COLLATE "pg_c_utf8") ~ '[[:alnum:]]'
-      OR char_length(btrim("name")) NOT BETWEEN 1 AND 120
     ORDER BY "id"
   LOOP
-    outside_check := outside_check OR offending."outside_check";
-    RAISE WARNING 'Choreography % keeps a name the name rule refuses (%). Rename it from the administration panel.',
-      offending."id",
-      CASE WHEN offending."outside_check" THEN 'empty or over 120 characters' ELSE 'no letter or digit' END;
+    RAISE WARNING 'Choreography % keeps a name without a letter or digit, which the name rule refuses. Rename it from the administration panel.',
+      offending."id";
   END LOOP;
-
-  IF outside_check THEN
-    RAISE WARNING 'choreography_name_length is left NOT VALID. Once those names are renamed: ALTER TABLE "en_escena_choreography" VALIDATE CONSTRAINT "choreography_name_length";';
-  ELSE
-    ALTER TABLE "en_escena_choreography" VALIDATE CONSTRAINT "choreography_name_length";
-  END IF;
 END $$;

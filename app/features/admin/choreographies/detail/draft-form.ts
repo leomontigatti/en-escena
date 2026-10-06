@@ -15,16 +15,22 @@ import type {
 } from "./draft.shared";
 import type { ChoreographyModalityOption } from "./modality.server";
 
-export const choreographyDraftSchema = z.object({
-  dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
-  experienceLevelId: z.string(),
-  modalityId: z.string(),
-  name: choreographyNameField(),
-  professionalEvaluation: z.boolean(),
-  professorIds: z.array(z.string()),
-  scheduleCapacityId: z.string(),
-  submodalityId: z.string(),
-});
+/**
+ * The draft's schema against what is saved: the name is held to the rule only
+ * once it is edited, which is how the save treats it too.
+ */
+export function getChoreographyDraftSchema(saved: ChoreographyDraft) {
+  return z.object({
+    dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
+    experienceLevelId: z.string(),
+    modalityId: z.string(),
+    name: choreographyNameField(saved.name),
+    professionalEvaluation: z.boolean(),
+    professorIds: z.array(z.string()),
+    scheduleCapacityId: z.string(),
+    submodalityId: z.string(),
+  });
+}
 
 /** The choreography as it is saved, in the shape the form edits. */
 export function toSavedChoreographyDraft(
