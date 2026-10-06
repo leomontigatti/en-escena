@@ -1,6 +1,11 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useForm, useWatch, type Control } from "react-hook-form";
 import { useFetcher } from "react-router";
+import { z } from "zod";
+
+import { SelectField } from "@/components/shared/select-field";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,19 +19,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import {
   formatGroupTypeLabel,
   type ChoreographyGroupType,
 } from "@/lib/portal/choreographies";
+import {
+  createValidatedRouteSubmitHandler,
+  useOptionalFormAction,
+} from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
@@ -55,6 +57,15 @@ type ChoreographyFinanceRow =
   AcademyFinancesLoaderData["choreographyFinanceRows"][number];
 
 /**
+ * One pick per price prompt, keyed by the field name the writer reads
+ * (`presetPriceFieldName`). Empty is a valid answer: it leaves every price
+ * where it is.
+ */
+const presetPricesFormSchema = z.record(z.string(), z.string());
+
+type PresetPricesFormValues = z.input<typeof presetPricesFormSchema>;
+
+/**
  * The preset dialog of the list actions. It pre-fills the owed figure of every
  * selected choreography — the whole point of a preset — and asks for the price
  * to fix on the inscriptions that **have not covered their deposit yet**, which is
@@ -71,8 +82,8 @@ type ChoreographyFinanceRow =
  *
  * **The figure follows the picks.** Picking a price re-prices part of the
  * selection, so leaving the pre-filled figure at the loader's would name an
- * amount the confirm is not about to write. The picks are held here rather than
- * in each field for that reason: the figure is about all of them at once.
+ * amount the confirm is not about to write. The figure watches every pick at
+ * once, because it is about all of them.
  */
 export function FinancePresetDialog({
   availableBalanceAmount,
@@ -94,6 +105,7 @@ export function FinancePresetDialog({
   stage: CobroStage;
 }) {
   const fetcher = useFetcher<AcademyFinancesActionData>();
+  const formAction = useOptionalFormAction();
   const selectedInscriptions = selectInscriptionsOf(inscriptions, selectedRows);
   const priceFields = buildPresetPriceFields({
     priceOptionsByGroupType,
@@ -103,9 +115,25 @@ export function FinancePresetDialog({
   });
   // Seeded once: the dialog mounts on a selection that cannot change under it,
   // so re-seeding could only undo what the administrator has picked since.
-  const [priceIdByGroupType, setPriceIdByGroupType] = useState(() =>
-    resolveDefaultPriceIds(priceFields),
-  );
+  const [defaultPriceIds] = useState(() => resolveDefaultPriceIds(priceFields));
+  const form = useForm<PresetPricesFormValues>({
+    defaultValues: buildPresetPriceDefaults({ defaultPriceIds, priceFields }),
+    resolver: zodResolver(presetPricesFormSchema),
+  });
+  const picks = useWatch({ control: form.control });
+  // A field with no picker keeps the price it opened on, which is still the one
+  // its figure is computed from.
+  const priceIdByGroupType = {
+    ...defaultPriceIds,
+    ...Object.fromEntries(
+      priceFields
+        .filter((field) => isPresetPricePicker(field))
+        .map((field) => [
+          field.groupType,
+          picks[presetPriceFieldName(field.groupType)] ?? "",
+        ]),
+    ),
+  };
   const isSaving = fetcher.state !== "idle";
   const owed = sumPresetOwedAmount({
     groupTypeByChoreography: Object.fromEntries(
@@ -147,7 +175,19 @@ export function FinancePresetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <fetcher.Form method="post" className="flex flex-col gap-4">
+        <form
+          method="post"
+          noValidate
+          // The post is the form element, so it carries the pickers on screen
+          // and nothing else: a picker the selection no longer offers (a
+          // revalidation took its rows away) must not post the pick it held.
+          onSubmit={createValidatedRouteSubmitHandler(
+            form,
+            fetcher.submit,
+            formAction,
+          )}
+          className="flex flex-col gap-4"
+        >
           <input
             type="hidden"
             name="intent"
@@ -165,16 +205,10 @@ export function FinancePresetDialog({
           {priceFields.map((field) => (
             <PresetPriceField
               key={field.groupType}
-              groupType={field.groupType}
-              onPriceIdChange={(priceId) =>
-                setPriceIdByGroupType((current) => ({
-                  ...current,
-                  [field.groupType]: priceId,
-                }))
-              }
               canRePrice={hasRePriceableInscription(field.inscriptions)}
+              control={form.control}
+              groupType={field.groupType}
               options={field.options}
-              priceId={priceIdByGroupType[field.groupType] ?? ""}
               showGroupType={priceFields.length > 1}
               spansSeveralSchedules={field.spansSeveralSchedules}
             />
@@ -213,7 +247,7 @@ export function FinancePresetDialog({
               Asignar
             </Button>
           </DialogFooter>
-        </fetcher.Form>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -271,6 +305,35 @@ function selectInscriptionsOf(
 
   return inscriptions.filter((inscription) =>
     choreographyIds.has(inscription.choreographyId),
+  );
+}
+
+/**
+ * Whether the field asks for a price at all: it does only when a pick would
+ * reach an inscription and there is a row to pick. The others render a note and
+ * post nothing.
+ */
+function isPresetPricePicker(field: PresetPriceFieldSpec) {
+  return (
+    hasRePriceableInscription(field.inscriptions) && field.options.length > 0
+  );
+}
+
+/**
+ * The form's starting picks: one entry per picker, on the row it opens on or
+ * empty.
+ */
+function buildPresetPriceDefaults(input: {
+  defaultPriceIds: Record<string, string>;
+  priceFields: PresetPriceFieldSpec[];
+}): PresetPricesFormValues {
+  return Object.fromEntries(
+    input.priceFields
+      .filter((field) => isPresetPricePicker(field))
+      .map((field) => [
+        presetPriceFieldName(field.groupType),
+        input.defaultPriceIds[field.groupType] ?? "",
+      ]),
   );
 }
 
@@ -347,18 +410,16 @@ function resolvePickedPrices(input: {
  */
 function PresetPriceField({
   canRePrice,
+  control,
   groupType,
-  onPriceIdChange,
   options,
-  priceId,
   showGroupType,
   spansSeveralSchedules,
 }: {
   canRePrice: boolean;
+  control: Control<PresetPricesFormValues>;
   groupType: ChoreographyGroupType;
-  onPriceIdChange: (priceId: string) => void;
   options: PresetPriceOption[];
-  priceId: string;
   showGroupType: boolean;
   spansSeveralSchedules: boolean;
 }) {
@@ -400,33 +461,25 @@ function PresetPriceField({
     );
   }
 
+  // An empty picker travels as no pick at all, which the writer reads as
+  // leaving every price where it is.
   return (
-    <Field>
-      <FieldLabel htmlFor={fieldName}>{label}</FieldLabel>
-      {/* Radix's `Select` is not a form control, so the picked row travels in a
-          hidden input, the same way `SelectField` does it. An empty picker
-          travels as no pick at all, which the writer reads as leaving every
-          price where it is. */}
-      <input type="hidden" name={fieldName} value={priceId} />
-      <Select value={priceId} onValueChange={onPriceIdChange}>
-        <SelectTrigger id={fieldName} className="w-full">
-          <SelectValue placeholder="Elegí un precio" />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {option.name} · {formatAmount(option.amount)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {spansSeveralSchedules ? (
-        <FieldDescription>
-          Las coreografías elegidas están en cronogramas distintos, así que sólo
-          ves los precios generales.
-        </FieldDescription>
-      ) : null}
-    </Field>
+    <SelectField
+      control={control}
+      description={
+        spansSeveralSchedules
+          ? "Las coreografías elegidas están en cronogramas distintos, así que sólo ves los precios generales."
+          : undefined
+      }
+      id={fieldName}
+      label={label}
+      name={fieldName}
+      options={options.map((option) => ({
+        label: `${option.name} · ${formatAmount(option.amount)}`,
+        value: option.id,
+      }))}
+      placeholder="Elegí un precio"
+    />
   );
 }
 

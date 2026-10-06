@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { act } from "react";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   clickReactDomButton,
@@ -14,6 +15,17 @@ import {
   recheckComprobanteIntent,
   type ComprobanteEmissionActionData,
 } from "./shared";
+
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 describe("EmissionDialog", () => {
   const renderer = createReactDomTestRenderer();
@@ -162,6 +174,32 @@ describe("EmissionDialog", () => {
 
     expect(document.body.textContent).toContain(
       "CUIT sin habilitar (código 10016)",
+    );
+    expect(getButton("Confirmar emisión").disabled).toBe(false);
+  });
+
+  // A refusal that is neither a contingency nor ARCA's is the server's word,
+  // so it is a toast, and the dialog stays open to retry.
+  test("toasts a refused emission and keeps the dialog open", async () => {
+    await mount({
+      billableAmount: 12000,
+      open: true,
+      action: async () => ({
+        status: "error",
+        message: "No hay nada para facturar.",
+      }),
+    });
+
+    await clickReactDomButton("Confirmar emisión");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(toastError).toHaveBeenCalledWith("No hay nada para facturar.", {
+      id: "comprobante-emission:error",
+    });
+    expect(document.body.textContent).not.toContain(
+      "No hay nada para facturar.",
     );
     expect(getButton("Confirmar emisión").disabled).toBe(false);
   });

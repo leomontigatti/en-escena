@@ -1,63 +1,63 @@
-import { useEffect, type ReactNode } from "react";
-import type { FieldPath, FieldValues, UseFormSetError } from "react-hook-form";
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 
 /**
- * What a roster form knows about a refused document number: the message for
- * the field, and the person already holding the number when the server named
- * one — an archived match above all, which is why the link exists.
+ * What a roster form knows about a refused document number: what the server
+ * said about it, and the person already holding the number when the server
+ * named one — an archived match above all, which is why the link exists.
  */
 export type RosterDocumentConflict = {
   matchHref?: string;
-  matchLabel?: string;
   message?: string;
 };
 
 /**
- * Lands the refusal on the document number field and returns the description
- * node for it. Documented exception to the style guide's "errors returned by
- * the server are not integrated with `form.setError`" rule
- * (docs/agents/style-guide.md § React Hook Form): PRD #1090 asks for this one
- * refusal on the field it is about, on every roster form. Every other server
- * answer these forms receive stays a toast.
+ * Toasts a roster form's refusal, as every server refusal is (style guide
+ * § React Hook Form). A document conflict says which number is taken instead
+ * of the generic refusal, and the toast links to the person holding it. The
+ * link is a link button in the toast's own colour, as every toast button is
+ * (style guide → Toasts), and the toast keeps the default duration.
  *
- * `actionData` is a dependency on purpose: a second identical refusal is a new
- * object, and that is what puts the message back after React Hook Form cleared
- * the errors while re-validating the resubmit.
+ * `refusal` is the action's answer itself, so the toast fires once per answer
+ * and again for a second identical refusal.
  */
-export function useRosterDocumentConflictField<
-  TFieldValues extends FieldValues,
->({
-  actionData,
+export function useRosterRefusalToast({
   conflict,
-  name,
-  setError,
+  refusal,
+  toastId,
 }: {
-  actionData: unknown;
   conflict: RosterDocumentConflict;
-  name: FieldPath<TFieldValues>;
-  setError: UseFormSetError<TFieldValues>;
-}): ReactNode {
-  const { message } = conflict;
+  refusal: { message: string } | null | undefined;
+  toastId: string;
+}) {
+  const navigate = useNavigate();
+  const { matchHref, message } = conflict;
 
   useEffect(() => {
-    if (!message) {
+    if (!refusal) {
       return;
     }
 
-    setError(name, { message, type: "server" });
-  }, [actionData, message, name, setError]);
-
-  if (!conflict.matchHref) {
-    return undefined;
-  }
-
-  return (
-    <Link
-      className="text-primary underline-offset-4 hover:underline"
-      to={conflict.matchHref}
-    >
-      {conflict.matchLabel}
-    </Link>
-  );
+    window.setTimeout(() => {
+      toast.error(message ?? refusal.message, {
+        id: toastId,
+        action: matchHref ? (
+          <Button
+            className="ml-auto h-auto p-0 text-current"
+            size="sm"
+            variant="link"
+            onClick={() => {
+              toast.dismiss(toastId);
+              void navigate(matchHref);
+            }}
+          >
+            Ver ficha
+          </Button>
+        ) : undefined,
+      });
+    }, 0);
+  }, [matchHref, message, navigate, refusal, toastId]);
 }

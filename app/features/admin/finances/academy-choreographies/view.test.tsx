@@ -479,6 +479,56 @@ describe("AcademyFinancesRouteView", () => {
     ).toBe("price_2");
   });
 
+  // What the confirm posts is the writer's whole input: the stage's intent, the
+  // selection, and one pick per group type, named as the writer reads it.
+  test("posts the stage, the selection and the picked price", async () => {
+    const submissions: FormData[] = [];
+
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        priceOptionsByGroupType: {
+          solo: [
+            {
+              amount: 10000,
+              depositAmount: 3000,
+              id: "price_1",
+              name: "Primera fecha",
+              paymentDeadline: null,
+              scheduleIds: [],
+            },
+            {
+              amount: 20000,
+              depositAmount: 6000,
+              id: "price_2",
+              name: "Segunda fecha",
+              paymentDeadline: null,
+              scheduleIds: [],
+            },
+          ],
+        },
+      }),
+      submissions,
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await openRadixSelect(
+      document.querySelector('[data-slot="select-trigger"]'),
+    );
+    await selectRadixOption("Segunda fecha · $ 20.000");
+    await act(async () => {
+      findButton("Asignar")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(submissions).toHaveLength(1);
+    expect([...submissions[0].entries()].sort()).toEqual([
+      ["choreographyId", "choreography_1"],
+      ["intent", "pay-deposit-preset"],
+      ["price-solo", "price_2"],
+    ]);
+  });
+
   /**
    * `Pagar saldo` over choreographies that have already covered their deposit is
    * ordinary — they still owe their balance — and a pick reaches none of them.
@@ -773,13 +823,18 @@ describe("AcademyFinancesRouteView", () => {
       initialEntry?: string;
       initialPresetStage?: "deposit" | "balance";
       loaderData?: AcademyFinancesLoaderData;
+      submissions?: FormData[];
     } = {},
   ) {
     const router = createMemoryRouter(
       [
         {
           path: "/administracion/finanzas/:academyId",
-          action: async () => null,
+          action: async ({ request }) => {
+            props.submissions?.push(await request.formData());
+
+            return null;
+          },
           element: (
             <AcademyFinancesRouteView
               initialPresetStage={props.initialPresetStage ?? null}

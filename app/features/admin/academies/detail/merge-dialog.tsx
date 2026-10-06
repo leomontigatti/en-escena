@@ -16,13 +16,11 @@ export function AcademyMergeDialog({
   merge,
   onOpenChange,
   open,
-  refusal,
 }: {
   academy: AcademyDetailLoaderData["academy"];
   merge: AcademyDetailLoaderData["merge"];
   onOpenChange: (open: boolean) => void;
   open: boolean;
-  refusal?: string;
 }) {
   if (!merge) {
     return null;
@@ -41,7 +39,6 @@ export function AcademyMergeDialog({
       onOpenChange={onOpenChange}
       open={open}
       recordId={academy.id}
-      refusal={refusal}
       renderSummary={(survivorId) => {
         const survivor = merge.candidates.find(
           (candidate) => candidate.id === survivorId,

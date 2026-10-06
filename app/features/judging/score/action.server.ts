@@ -3,7 +3,10 @@ import {
   type FeedbackAudioSubmission,
   saveJudgeScore,
 } from "@/lib/judging/save-score.server";
-import { scoreValueMessage } from "@/lib/judging/score-value";
+import {
+  scoreValueMessage,
+  sheetValuesMessage,
+} from "@/lib/judging/score-value";
 import { readFormString } from "@/lib/shared/forms";
 import { readSheetValues } from "./form-shared";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
@@ -20,6 +23,9 @@ import { formatUploadRejection } from "@/lib/storage/asset-kinds";
  * ordinary thing to run into mid-show, so it is an error toast over the form
  * the judge is still looking at.
  *
+ * Every refusal is told in `message`, which the panel shows as a toast; the
+ * fields show only what the form's own rule caught before posting.
+ *
  * The `Devolución` is posted as multipart with the score, because the judge's
  * one "Guardar" saves both.
  *
@@ -31,7 +37,6 @@ import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 export type JudgePanelIntent = "save-score";
 
 export type JudgePanelActionData = {
-  fieldErrors?: Record<string, string>;
   intent: JudgePanelIntent;
   message: string;
   status: "success" | "error";
@@ -39,10 +44,6 @@ export type JudgePanelActionData = {
 };
 
 const savedScoreMessage = "Guardaste el puntaje.";
-
-const invalidScoreMessage = "Revisá el puntaje.";
-
-const invalidFeedbackAudioMessage = "No se pudo guardar la devolución.";
 
 /** What a judge is told when the presentation's day is not the open one. */
 const judgingDayRefusalMessages: Partial<Record<string, string>> = {
@@ -97,9 +98,8 @@ async function saveScore(
 
   if (result.reason === "invalid-audio") {
     return {
-      fieldErrors: { audio: formatUploadRejection(result.rejection) },
       intent,
-      message: invalidFeedbackAudioMessage,
+      message: formatUploadRejection(result.rejection),
       status: "error",
       values: { presentationId, value },
     };
@@ -107,9 +107,8 @@ async function saveScore(
 
   if (result.reason === "invalid-sheet") {
     return {
-      fieldErrors: result.fieldErrors,
       intent,
-      message: invalidScoreMessage,
+      message: sheetValuesMessage,
       status: "error",
       values: { presentationId },
     };
@@ -136,9 +135,8 @@ async function saveScore(
   }
 
   return {
-    fieldErrors: { value: scoreValueMessage() },
     intent,
-    message: invalidScoreMessage,
+    message: scoreValueMessage(),
     status: "error",
     values: { presentationId, value },
   };

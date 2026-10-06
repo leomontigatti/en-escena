@@ -74,7 +74,7 @@ export function AcademyDetailRouteView({
     intent: updateAcademyIntent,
   });
 
-  // A refused merge is told in its dialog, not in a toast.
+  // A refused merge is toasted by the merge dialog's own state.
   useServerActionToast(
     actionData?.status === "merge-refused" ? undefined : actionData,
     { toastId: "administracion-academia:feedback" },

@@ -3,6 +3,7 @@ import { Form, useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { useRosterRefusalToast } from "@/components/shared/roster-document-conflict";
 import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
 import { RosterMergeDialog } from "@/features/admin/merge/roster-dialog";
@@ -20,6 +21,7 @@ import {
   ProfessorDetailHeaderActions,
 } from "./sections";
 import {
+  getProfessorDocumentConflict,
   buildProfessorDetailViewState,
   getInitialDialogIntent,
   getProfessorConfirmationAction,
@@ -51,7 +53,9 @@ export function ProfessorDetailRouteView({
   const successData = actionData?.status === "success" ? actionData : undefined;
   const mergeDialog = useMergeDialogState(loaderData.professor.id, actionData);
 
-  useServerActionToast(errorData, {
+  useRosterRefusalToast({
+    conflict: getProfessorDocumentConflict(errorData),
+    refusal: errorData,
     toastId: "admin-professor-detail:error",
   });
   useServerActionToast(successData, {
@@ -240,7 +244,6 @@ function useProfessorSave({
     professor,
   });
   const editForm = useProfessorEditForm({
-    actionData: errorData,
     savedValues,
     submittedValues:
       refused?.status === "warning"

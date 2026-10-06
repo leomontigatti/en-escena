@@ -13,7 +13,10 @@ import {
   readPresentationScores,
   type PresentationScoresView,
 } from "@/lib/judging/presentation-scores.server";
-import { scoreValueMessage } from "@/lib/judging/score-value";
+import {
+  scoreValueMessage,
+  sheetValuesMessage,
+} from "@/lib/judging/score-value";
 import { readSheetValues } from "@/features/judging/score/form-shared";
 import { readFormString } from "@/lib/shared/forms";
 
@@ -30,13 +33,11 @@ export type PresentationScoresLoaderData = {
   presentation: PresentationScoresView;
 };
 
+/**
+ * A refusal is told in `message` alone, as a toast: the fields show only what
+ * the form's own rule caught before posting.
+ */
 export type PresentationScoresActionData = {
-  /**
-   * Keyed by the score being edited for a single value, and by criterion for a
-   * sheet, because the page shows the whole panel at once: an error has to say
-   * which judge's field it belongs to.
-   */
-  fieldErrors?: Record<string, string>;
   message: string;
   status: "error" | "success";
 };
@@ -60,8 +61,6 @@ export async function loadPresentationScoresRouteData(input: {
 }
 
 const savedScoreMessage = "Guardaste el puntaje.";
-
-const invalidScoreMessage = "Revisá el puntaje.";
 
 const disqualifiedMessage = "Descalificaste la presentación.";
 
@@ -106,7 +105,6 @@ export async function handlePresentationScoresAction(input: {
 
   if (intent === "edit-score") {
     return answerEdit(
-      scoreId,
       await editScore({
         criteriaValues: readSheetValues(formData),
         presentationId,
@@ -141,12 +139,11 @@ function answerDisqualification(
 }
 
 /**
- * A refused edit names the field that has to change: the score's own row for a
- * single value, and the criterion's line on a sheet. A score the page does not
- * hold is a different thing altogether and has no field to point at.
+ * A refused edit says the rule the value broke: a single value's own, or the
+ * sheet's when a line was out of range. A score the page does not hold is a
+ * different thing altogether.
  */
 function answerEdit(
-  scoreId: string,
   result: ScoreSettlementResult,
 ): PresentationScoresActionData | ReturnType<typeof data> {
   if (result.ok) {
@@ -161,11 +158,10 @@ function answerEdit(
   }
 
   return {
-    fieldErrors:
+    message:
       result.reason === "invalid-sheet"
-        ? result.fieldErrors
-        : { [scoreId]: scoreValueMessage() },
-    message: invalidScoreMessage,
+        ? sheetValuesMessage
+        : scoreValueMessage(),
     status: "error",
   };
 }

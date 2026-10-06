@@ -54,9 +54,8 @@ import { SheetParts } from "./sheet-parts";
 
 type JudgeScoreSheetProps = {
   account: InternalAccount;
-  /** The last answer the route's action gave, which the sheet reads twice: for
-   * the fields the server refused, and to know its pass through the discard
-   * guard has been spent. */
+  /** The last answer the route's action gave, which the sheet reads to know
+   * its pass through the discard guard has been spent. */
   actionData?: JudgePanelActionData;
   /** The judging day, as a `YYYY-MM-DD` date. */
   judgingDate: string;
@@ -80,7 +79,6 @@ export function JudgeScoreSheet({
   presentation,
 }: JudgeScoreSheetProps) {
   const { criteria } = presentation;
-  const fieldErrors = actionData?.fieldErrors;
   const form = useForm<JudgeSheetFormValues>({
     defaultValues: initialJudgeSheetValues(
       criteria,
@@ -93,7 +91,6 @@ export function JudgeScoreSheet({
   );
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
-  const { setError } = form;
   const isSaving = useRef(false);
   const isDirty = hasUnsavedChanges({
     isAudioDirty: isFeedbackAudioFieldDirty(audio),
@@ -106,18 +103,6 @@ export function JudgeScoreSheet({
   });
   const isSavePending = useJudgeSavePending(presentation.presentationId);
   const { disqualified, incomplete } = readSheetState(presentation);
-
-  // A line the client accepted and the server did not — a criterion added to
-  // the submodality since the page loaded, say — belongs on its own field.
-  useEffect(() => {
-    for (const criterion of criteria) {
-      const message = fieldErrors?.[criterion.id];
-
-      if (message) {
-        setError(`values.${criterion.id}`, { message });
-      }
-    }
-  }, [criteria, fieldErrors, setError]);
 
   function discard() {
     form.reset();
@@ -184,7 +169,6 @@ export function JudgeScoreSheet({
             <FieldGroup>
               <FeedbackRecorder
                 audioUrl={feedbackAudioFieldUrl(audio)}
-                error={fieldErrors?.audio}
                 legendVariant="legend"
                 onDelete={() => applyAudioEvent({ type: "deleted" })}
                 onRecorded={(take) =>

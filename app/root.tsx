@@ -9,10 +9,10 @@ import {
   ScrollRestoration,
 } from "react-router";
 import { useEffect } from "react";
-import { Toaster } from "sonner";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { AppToaster } from "@/components/shared/app-toaster";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
 
@@ -80,7 +80,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <>
-      <Toaster richColors position="top-center" />
+      <AppToaster />
       <Outlet />
       <FlashToast toast={loaderData.flashToast} />
     </>

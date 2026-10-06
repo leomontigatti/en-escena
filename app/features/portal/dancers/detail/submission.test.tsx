@@ -8,9 +8,21 @@ import {
   installPortalSubmissionTestHooks,
   portalSubmissionRouterMocks,
   renderPortalSubmission,
+  updatePortalSubmissionForm,
 } from "@/features/portal/test-support/submission";
 import { getButton } from "@/lib/test-support/react-dom";
 import { PortalDancerDetailRouteView } from "@/features/portal/dancers/detail/view";
+
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 installPortalSubmissionTestHooks();
 
@@ -44,7 +56,7 @@ describe("dancer detail submissions", () => {
     expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
   });
 
-  test("lands the duplicate-document refusal on the field and links to the match", async () => {
+  test("toasts the duplicate-document refusal with a link to the match, off the field", async () => {
     portalSubmissionRouterMocks.useFetcher.mockReturnValue({
       data: undefined,
       state: "idle",
@@ -84,17 +96,22 @@ describe("dancer detail submissions", () => {
 
     const documentField = getDocumentNumberField();
 
-    expect(documentField.getAttribute("aria-invalid")).toBe("true");
-    expect(document.body.textContent).toContain(
+    await updatePortalSubmissionForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(documentField.getAttribute("aria-invalid")).toBeNull();
+    expect(document.body.textContent).not.toContain(
       "Ya existe un bailarín archivado con ese documento en tu academia.",
     );
-
-    const matchLink = document.querySelector<HTMLAnchorElement>(
-      'a[href="/portal/bailarines/dancer_archived_1"]',
-    );
-
-    expect(matchLink?.textContent).toBe(
-      "Ver la ficha del bailarín con ese documento",
+    expect(toastError).toHaveBeenCalledWith(
+      "Ya existe un bailarín archivado con ese documento en tu academia.",
+      expect.objectContaining({
+        action: expect.objectContaining({
+          props: expect.objectContaining({ children: "Ver ficha" }),
+        }),
+        id: "portal-bailarin-detail:error",
+      }),
     );
   });
 });

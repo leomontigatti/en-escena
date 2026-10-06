@@ -15,6 +15,17 @@ import { setInputValue } from "@/lib/test-support/react-dom";
 import { CreateProfessorPage } from "./page";
 import type { CreateProfessorActionData } from "./shared";
 
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
 installPortalSubmissionTestHooks();
 
 const refusal: CreateProfessorActionData = {
@@ -37,7 +48,17 @@ describe("CreateProfessorPage", () => {
 
     expect(input("firstName").value).toBe("Ana");
     expect(input("documentNumber").value).toBe("30111222");
-    expect(document.body.textContent).toContain(
+
+    await updatePortalSubmissionForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The refusal is the server's, so it is a toast, never on the field.
+    expect(toastError).toHaveBeenCalledWith(
+      "Ya existe un profesor con ese documento en tu academia.",
+      expect.objectContaining({ id: "portal-profesor-nuevo:error" }),
+    );
+    expect(document.body.textContent).not.toContain(
       "Ya existe un profesor con ese documento en tu academia.",
     );
   });

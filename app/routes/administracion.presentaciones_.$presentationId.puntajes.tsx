@@ -45,5 +45,5 @@ export default function PresentationScoresRoute({
 
   useServerActionToast(result);
 
-  return <PresentationScoresView actionData={result} loaderData={loaderData} />;
+  return <PresentationScoresView loaderData={loaderData} />;
 }

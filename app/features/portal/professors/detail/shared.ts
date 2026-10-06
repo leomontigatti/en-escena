@@ -164,7 +164,6 @@ export function getPortalProfessorDocumentConflict(
 
   return {
     matchHref: matchId ? `/portal/profesores/${matchId}` : undefined,
-    matchLabel: "Ver la ficha del profesor con ese documento",
     message: actionData.fieldErrors.documentNumber,
   };
 }

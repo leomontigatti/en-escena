@@ -227,7 +227,6 @@ export function getDancerDocumentConflict(
 
   return {
     matchHref: matchId ? `/administracion/bailarines/${matchId}` : undefined,
-    matchLabel: "Ver la ficha del bailarín con ese documento",
     message: actionData.fieldErrors.documentNumber,
   };
 }

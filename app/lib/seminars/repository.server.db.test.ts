@@ -103,20 +103,21 @@ describe("seminar repository", () => {
     });
   });
 
-  test("refuses the same instructor at the same moment of one event on the instructor field", async () => {
+  test("refuses the same instructor at the same moment of one event", async () => {
     const event = await createSavedEvent("Regional 2026");
     const otherEvent = await createSavedEvent("Final 2026");
 
     expectSaved(await createSeminar(event.id, seminarInput));
 
-    await expect(createSeminar(event.id, seminarInput)).resolves.toMatchObject({
+    const refused = await createSeminar(event.id, seminarInput);
+
+    expect(refused).toMatchObject({
       ok: false,
       code: "duplicate-seminar",
-      fieldErrors: {
-        instructorName:
-          "Cambiá el instructor, la fecha o la hora del seminario.",
-      },
+      error: "Ya existe un seminario de ese instructor en esa fecha y hora.",
     });
+    // The reason is the toast's alone: no field carries it.
+    expect(refused).not.toHaveProperty("fieldErrors");
 
     // The same instructor is free at another time, and in another event.
     expectSaved(

@@ -23,6 +23,16 @@ import {
 } from "@/lib/test-support/react-dom";
 
 const useNavigationMock = vi.hoisted(() => vi.fn());
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: (message: string) => toastError(message),
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 vi.mock("react-router", async () => {
   const actual =
@@ -40,6 +50,7 @@ describe("InternalUserDetailRouteView", () => {
   afterEach(() => {
     renderer.cleanup();
     useNavigationMock.mockReset();
+    toastError.mockClear();
   });
 
   test("opens a dialog from the menu without leaving the detail", async () => {
@@ -97,14 +108,15 @@ describe("InternalUserDetailRouteView", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  test("stays open and shows the reason when the reset is refused", async () => {
+  // A refusal is the server's, so it is a toast: the field shows only what the
+  // form's own rule caught.
+  test("stays open and toasts the reason when the reset is refused", async () => {
     await renderDetail({
       action: async () => ({
         status: "error" as const,
         message: "No se pudo restablecer la contraseña.",
         form: "reset-password" as const,
         fieldErrors: {},
-        resetPasswordFieldErrors: {},
         editValues: { name: "", role: "judge" as const },
         resetPasswordValues: { password: "clave-nueva" },
       }),
@@ -117,13 +129,17 @@ describe("InternalUserDetailRouteView", () => {
       await Promise.resolve();
     });
     await act(async () => {
-      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     const dialog = document.querySelector('[role="dialog"]');
 
-    expect(dialog?.textContent).toContain(
+    expect(toastError).toHaveBeenCalledWith(
       "No se pudo restablecer la contraseña.",
+    );
+    expect(dialog?.textContent).toContain("Guardar contraseña");
+    expect(dialog?.textContent).not.toContain(
+      "No se pudo restablecer la contraseña",
     );
   });
 
@@ -259,7 +275,6 @@ describe("InternalUserDetailRouteView", () => {
         message: "No se puede suspender al último administrador activo.",
         form: "status" as const,
         fieldErrors: {},
-        resetPasswordFieldErrors: {},
         editValues: { name: "", email: "", role: "judge" as const },
         resetPasswordValues: { password: "" },
       }),

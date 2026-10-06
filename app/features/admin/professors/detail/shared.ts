@@ -260,7 +260,6 @@ export function getProfessorDocumentConflict(
 
   return {
     matchHref: matchId ? `/administracion/profesores/${matchId}` : undefined,
-    matchLabel: "Ver la ficha del profesor con ese documento",
     message: actionData.fieldErrors.documentNumber,
   };
 }

@@ -9,7 +9,7 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
-import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { useRosterRefusalToast } from "@/components/shared/roster-document-conflict";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
@@ -65,7 +65,6 @@ import {
 } from "./form";
 import {
   buildPortalDancerDetailViewModel,
-  getGeneralActionError,
   getPortalDancerDocumentConflict,
   getPortalDancerFormValues,
   getPortalDancerStatusFormId,
@@ -106,12 +105,6 @@ export function PortalDancerDetailRouteView({
     values: formValues,
   });
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
-  const documentConflictDescription = useRosterDocumentConflictField({
-    actionData,
-    conflict: getPortalDancerDocumentConflict(actionData),
-    name: "documentNumber",
-    setError: form.form.setError,
-  });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<PortalDancerStatusIntent | null>(initialStatusDialogIntent);
   const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
@@ -135,7 +128,9 @@ export function PortalDancerDetailRouteView({
 
   const successData = actionData?.status === "success" ? actionData : undefined;
 
-  useServerActionToast(getGeneralActionError(actionData), {
+  useRosterRefusalToast({
+    conflict: getPortalDancerDocumentConflict(actionData),
+    refusal: actionData?.status === "error" ? actionData : null,
     toastId: "portal-bailarin-detail:error",
   });
   useServerActionToast(successData, {
@@ -220,7 +215,6 @@ export function PortalDancerDetailRouteView({
                 >
                   <input type="hidden" name="intent" value="update-dancer" />
                   <PortalDancerIdentificationFields
-                    documentConflictDescription={documentConflictDescription}
                     documentImageUrls={loaderData.documentImageUrls}
                     form={form}
                     isSubmitting={isSubmitting}
@@ -266,13 +260,11 @@ export function PortalDancerDetailRouteView({
  * is verified, which is why the whole group lives apart from the route view.
  */
 function PortalDancerIdentificationFields({
-  documentConflictDescription,
   documentImageUrls,
   form,
   isSubmitting,
   viewModel,
 }: {
-  documentConflictDescription: ReactNode;
   documentImageUrls: PortalDancerDetailLoaderData["documentImageUrls"];
   form: ReturnType<typeof usePortalDancerForm>;
   isSubmitting: boolean;
@@ -343,7 +335,6 @@ function PortalDancerIdentificationFields({
         />
       ) : (
         <PortalDancerTextField
-          description={documentConflictDescription}
           form={form.form}
           label="Número de documento"
           name="documentNumber"

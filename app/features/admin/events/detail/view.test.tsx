@@ -327,10 +327,10 @@ describe("EventDetailView form", () => {
     ).toBe("active");
   });
 
-  // The cap is the one rule a person can cross while typing, so it does not
-  // wait for a submit: the field's own invalid state turns the label, the
-  // border and the ring destructive, and the counter is told separately.
-  test("marks the how-to-pay text invalid as it crosses the cap, without a submit", async () => {
+  // The counter shows the cap live, beside the field. The field's own error
+  // waits for the submit, as every field's does, and from then on follows what
+  // is typed.
+  test("marks the how-to-pay text invalid over the cap once it is submitted", async () => {
     await renderForm();
 
     const textarea = document.querySelector<HTMLTextAreaElement>(
@@ -341,8 +341,15 @@ describe("EventDetailView form", () => {
       setTextareaValue(textarea, "a".repeat(2001));
     });
 
-    expect(textarea.getAttribute("aria-invalid")).toBe("true");
+    expect(textarea.getAttribute("aria-invalid")).toBeNull();
     expect(document.body.textContent).toContain("2001 / 2000");
+
+    await submitEventForm();
+
+    expect(textarea.getAttribute("aria-invalid")).toBe("true");
+    expect(document.body.textContent).toContain(
+      "Las instrucciones no pueden superar los 2000 caracteres.",
+    );
 
     await act(async () => {
       setTextareaValue(textarea, "a");

@@ -298,7 +298,6 @@ function DancerIdentificationSection({
             placeholder={documentTypeEmptyLabel}
           />
           <DancerTextField
-            description={editForm.documentConflictDescription}
             form={editForm.form}
             label="Número de documento"
             name="documentNumber"
