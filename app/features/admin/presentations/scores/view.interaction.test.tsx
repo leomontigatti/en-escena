@@ -449,6 +449,7 @@ function buildPresentation(
     name: "Primera",
     orderNumber: 1,
     presentationId: "presentation-1",
+    professionalEvaluation: false,
     submodalityName: "Acrobacia",
     ...overrides,
   };

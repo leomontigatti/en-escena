@@ -5,8 +5,11 @@ import { Form, useNavigation } from "react-router";
 import { toast } from "sonner";
 
 import { FileUploadField } from "@/components/shared/file-upload-field";
-import { ReasonList } from "@/components/shared/reason-list";
 import { FormActions } from "@/components/shared/form-actions";
+import {
+  ProfessionalEvaluationSwitch,
+  professionalEvaluationFieldInputClassName,
+} from "@/components/shared/professional-evaluation-switch";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
@@ -14,6 +17,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 import {
@@ -41,6 +45,14 @@ export function ChoreographyMusicEditorForm({
     isWithdrawn: choreography.isWithdrawn,
   });
   const canEditMusic = musicLock === null;
+  // `Evaluar como profesional` is the other thing the academy edits here, and
+  // it closes with the music: once evaluated, the judges read it as it was.
+  const [professionalEvaluation, setProfessionalEvaluation] = useState(
+    choreography.professionalEvaluation,
+  );
+  useEffect(() => {
+    setProfessionalEvaluation(choreography.professionalEvaluation);
+  }, [choreography.professionalEvaluation]);
   const [musicHasValidationError, setMusicHasValidationError] = useState(false);
   const [selectedMusicFileName, setSelectedMusicFileName] = useState<
     string | null
@@ -102,16 +114,20 @@ export function ChoreographyMusicEditorForm({
       musicStorageKey !== (choreography.musicStorageKey ?? ""),
     [choreography.musicStorageKey, musicStorageKey, selectedMusicFileName],
   );
+  const hasChanges =
+    hasMusicChanged ||
+    professionalEvaluation !== choreography.professionalEvaluation;
 
   // Puts the field back on the stored song: the picked file, or the delete,
   // goes, and the remount clears the file input itself.
-  const discardMusicChanges = useCallback(() => {
+  const discardChanges = useCallback(() => {
     setMusicStorageKey(choreography.musicStorageKey ?? "");
     setSelectedMusicFileName(null);
     setMusicHasValidationError(false);
+    setProfessionalEvaluation(choreography.professionalEvaluation);
     form.setValue("musicStorageKey", choreography.musicStorageKey ?? "");
     setSavedCount((count) => count + 1);
-  }, [choreography.musicStorageKey, form]);
+  }, [choreography.musicStorageKey, choreography.professionalEvaluation, form]);
 
   const handleMusicValidationErrorChange = useCallback((hasError: boolean) => {
     setMusicHasValidationError(hasError);
@@ -151,6 +167,11 @@ export function ChoreographyMusicEditorForm({
       <Card className="overflow-clip">
         <CardContent className="flex flex-col gap-5">
           <input type="hidden" name="intent" value={updateChoreographyIntent} />
+          <input
+            type="hidden"
+            name="professionalEvaluation"
+            value={professionalEvaluation ? "true" : "false"}
+          />
 
           <FieldGroup className="grid gap-5 md:grid-cols-2">
             <ReadOnlyField
@@ -168,6 +189,15 @@ export function ChoreographyMusicEditorForm({
             />
             <ReadOnlyField
               label="Categoría"
+              inputClassName={professionalEvaluationFieldInputClassName}
+              trailing={
+                <ProfessionalEvaluationSwitch
+                  checked={professionalEvaluation}
+                  disabled={!canEditMusic}
+                  placement="field"
+                  onCheckedChange={setProfessionalEvaluation}
+                />
+              }
               value={choreography.categoryName}
             />
             <ReadOnlySelectField
@@ -220,9 +250,9 @@ export function ChoreographyMusicEditorForm({
           backTo="/portal/coreografias"
           canEdit={canEditMusic}
           canSave={!musicHasValidationError}
-          hasChanges={hasMusicChanged}
+          hasChanges={hasChanges}
           isPending={isSubmitting}
-          onDiscard={discardMusicChanges}
+          onDiscard={discardChanges}
         />
       </Card>
     </Form>
@@ -230,58 +260,60 @@ export function ChoreographyMusicEditorForm({
 }
 
 /**
- * Why the music cannot change, and whether it can again (style guide, Detail
- * pages), or `null` while it can. An evaluation is for good; a withdrawal and
- * an inactive event are the administration's to undo.
+ * Why the music and the evaluation cannot change, as the state that closed
+ * them and what reopens them (style guide, Detail pages), or `null` while they
+ * can. It reads like administration's alert for the same choreography. An
+ * evaluation is for good, so it speaks alone; a withdrawal and an inactive
+ * event are the administration's to undo.
  */
 function readMusicLock(state: {
   isEvaluated: boolean;
   isEventReadOnly: boolean;
   isWithdrawn: boolean;
 }) {
-  const reasons = [
-    ...(state.isEventReadOnly ? ["El evento ya no está activo."] : []),
-    ...(state.isEvaluated ? ["La coreografía ya fue evaluada."] : []),
-    ...(state.isWithdrawn ? ["La coreografía está retirada."] : []),
-  ];
-
-  if (reasons.length === 0) {
-    return null;
-  }
-
-  return { reasons, unlock: describeMusicUnlock(state) };
-}
-
-function describeMusicUnlock(state: {
-  isEvaluated: boolean;
-  isEventReadOnly: boolean;
-  isWithdrawn: boolean;
-}) {
   if (state.isEvaluated) {
-    return "Ya no se puede cambiar.";
+    return {
+      description: evaluatedChoreographyMessage,
+      title: "Esta coreografía ya fue evaluada",
+    };
   }
 
-  const undo = [
-    ...(state.isWithdrawn ? ["restaura la coreografía"] : []),
-    ...(state.isEventReadOnly ? ["vuelve a activar el evento"] : []),
-  ];
+  if (state.isWithdrawn && state.isEventReadOnly) {
+    return {
+      description:
+        "No puede modificarse hasta que administración la restaure y vuelva a activar el evento.",
+      title: "Esta coreografía está retirada y el evento ya no está activo",
+    };
+  }
 
-  return `Se puede cambiar si administración ${undo.join(" y ")}.`;
+  if (state.isWithdrawn) {
+    return {
+      description: "No puede modificarse hasta que administración la restaure.",
+      title: "Esta coreografía está retirada",
+    };
+  }
+
+  if (state.isEventReadOnly) {
+    return {
+      description:
+        "Esta coreografía no puede modificarse hasta que administración vuelva a activar el evento.",
+      title: "El evento ya no está activo",
+    };
+  }
+
+  return null;
 }
 
 function MusicLockAlert({
   lock,
 }: {
-  lock: { reasons: string[]; unlock: string };
+  lock: { description: string; title: string };
 }) {
   return (
     <Alert variant="info">
       <Info aria-hidden="true" />
-      <AlertTitle>La música no se puede cambiar</AlertTitle>
-      <AlertDescription>
-        <p>{lock.unlock}</p>
-        <ReasonList reasons={lock.reasons} />
-      </AlertDescription>
+      <AlertTitle>{lock.title}</AlertTitle>
+      <AlertDescription>{lock.description}</AlertDescription>
     </Alert>
   );
 }

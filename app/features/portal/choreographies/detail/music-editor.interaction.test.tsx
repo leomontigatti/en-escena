@@ -47,6 +47,7 @@ function loaderData(): PortalChoreographyMusicLoaderData {
       // A replacement keeps the key: the new song is stored at the same path.
       musicDownloadUrl: storedMusicUrl,
       musicStorageKey: "music/choreo_1.mp3",
+      professionalEvaluation: false,
       name: "Coreografía",
       operationalStatus: { code: "complete", pendingItems: [] },
       professors: [],

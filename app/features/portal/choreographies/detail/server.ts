@@ -7,6 +7,7 @@ import {
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { findChoreographyForAcademyEvent } from "@/lib/portal/choreographies.server";
 import { updateChoreographyMusic } from "@/lib/portal/choreography-music.server";
+import { updateChoreographyProfessionalEvaluation } from "@/lib/portal/choreography-professional-evaluation.server";
 import {
   createDefaultChoreographyMusicStorage,
   loadChoreographyMusicDownloadUrl,
@@ -27,6 +28,8 @@ type ParsedMusicUpdateAction = {
   musicStorageKey: string;
   musicWasSubmitted: boolean;
   musicValidationError: string;
+  /** `null` when the form did not carry the switch. */
+  professionalEvaluation: boolean | null;
 };
 
 export async function loadPortalChoreographyDetail({
@@ -122,6 +125,10 @@ function parsePortalChoreographyDetailAction(input: {
       input.formData,
       "musicFileValidationError",
     ),
+    professionalEvaluation: readOptionalFormBoolean(
+      input.formData,
+      "professionalEvaluation",
+    ),
   };
 }
 
@@ -134,6 +141,21 @@ async function executeMusicUpdateAction(
 
   if (!action.musicWasSubmitted && !action.musicFile) {
     return buildUpdateError(action, choreographyMusicUploadErrorMessage);
+  }
+
+  // The switch first: it has no side effect to undo, while a music upload that
+  // fails after it still leaves the answer saved and shown by the revalidation.
+  if (action.professionalEvaluation !== null) {
+    const evaluationResult = await updateChoreographyProfessionalEvaluation({
+      academyId: action.academyId,
+      choreographyId: action.choreographyId,
+      eventId: action.eventId,
+      professionalEvaluation: action.professionalEvaluation,
+    });
+
+    if (!evaluationResult.ok) {
+      return buildUpdateError(action, evaluationResult.message);
+    }
   }
 
   try {
@@ -177,6 +199,13 @@ function readFormString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+/** `"true"` or `"false"` as the hidden input writes it; anything else, absent. */
+function readOptionalFormBoolean(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  return value === "true" ? true : value === "false" ? false : null;
 }
 
 function readOptionalFormFile(formData: FormData, key: string) {

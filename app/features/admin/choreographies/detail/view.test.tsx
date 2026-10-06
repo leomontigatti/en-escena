@@ -65,7 +65,7 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Tiene la presentación N.º 7");
     expect(markup).toContain(
-      "Si la modificás, revisá sus advertencias en Presentaciones.",
+      "Si la modificás, revisá sus advertencias en presentaciones.",
     );
     expect(markup).not.toContain("Esta coreografía ya fue evaluada");
   });
@@ -667,6 +667,7 @@ function buildChoreography(
     ],
     experienceLevelId: "amateur",
     experienceLevelName: "Amateur",
+    professionalEvaluation: false,
     experienceLevelOptions: [
       { id: "amateur", name: "Amateur" },
       { id: "profesional", name: "Profesional" },

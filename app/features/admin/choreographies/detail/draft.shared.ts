@@ -19,6 +19,7 @@ export type ChoreographyDraft = {
   experienceLevelId: string;
   modalityId: string;
   name: string;
+  professionalEvaluation: boolean;
   professorIds: string[];
   scheduleCapacityId: string;
   submodalityId: string;
@@ -30,6 +31,7 @@ const draftFieldNames = {
   modalityId: "modalityId",
   name: "name",
   previewedCategoryId: "previewedCategoryId",
+  professionalEvaluation: "professionalEvaluation",
   professorIds: "professorIds",
   scheduleCapacityId: "scheduleCapacityId",
   submodalityId: "submodalityId",
@@ -54,6 +56,10 @@ export function toChoreographyDraftFormData(input: {
   formData.set(
     draftFieldNames.scheduleCapacityId,
     input.draft.scheduleCapacityId,
+  );
+  formData.set(
+    draftFieldNames.professionalEvaluation,
+    input.draft.professionalEvaluation ? "true" : "false",
   );
 
   for (const dancerId of input.draft.dancerIds) {
@@ -90,6 +96,8 @@ export function readChoreographyDraftFormData(formData: FormData): {
       ),
       modalityId: readString(formData, draftFieldNames.modalityId),
       name: readString(formData, draftFieldNames.name),
+      professionalEvaluation:
+        readString(formData, draftFieldNames.professionalEvaluation) === "true",
       professorIds: readStrings(formData, draftFieldNames.professorIds),
       scheduleCapacityId: readString(
         formData,

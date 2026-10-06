@@ -95,6 +95,8 @@ export async function handleCreateChoreographyAction(request: Request) {
       dancerIds: readFormStringArray(formData, "dancerIds"),
       professorIds: readFormStringArray(formData, "professorIds"),
       experienceLevelId: readOptionalFormString(formData, "experienceLevelId"),
+      professionalEvaluation:
+        readFormString(formData, "professionalEvaluation") === "true",
       scheduleCapacityId: readFormString(formData, "scheduleCapacityId"),
     });
 

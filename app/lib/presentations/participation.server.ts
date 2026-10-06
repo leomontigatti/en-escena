@@ -43,6 +43,7 @@ export type ParticipationRow = PresentationOrderingRow &
     name: string;
     /** `null` while the choreography has no presentation. */
     presentationId: string | null;
+    professionalEvaluation: boolean;
     submodalityName: string | null;
   };
 
@@ -94,6 +95,7 @@ export async function readParticipationRows(
         name: choreographies.name,
         orderNumber: presentations.orderNumber,
         presentationId: presentations.id,
+        professionalEvaluation: choreographies.professionalEvaluation,
         scheduleId: schedules.id,
         scheduleName: schedules.name,
         scheduleStartTime: schedules.startTime,
@@ -153,6 +155,7 @@ export async function readParticipationRows(
         name: row.name,
         orderNumber: row.orderNumber,
         presentationId: row.presentationId,
+        professionalEvaluation: row.professionalEvaluation,
         schedule: {
           id: row.scheduleId,
           name: row.scheduleName,

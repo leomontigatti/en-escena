@@ -74,6 +74,8 @@ export type JudgePresentationRow = {
   name: string;
   orderNumber: number;
   presentationId: string;
+  /** `Evaluar como profesional`: the academy asked the judges to be severe. */
+  professionalEvaluation: boolean;
   status: JudgeScoreStatus;
   submodalityName: string | null;
   /**
@@ -107,6 +109,7 @@ export async function readJudgePresentations(
       name: choreographies.name,
       orderNumber: presentations.orderNumber,
       presentationId: presentations.id,
+      professionalEvaluation: choreographies.professionalEvaluation,
       scoreId: scores.id,
       scoreValue: scores.value,
       submodalityId: choreographies.submodalityId,
@@ -180,6 +183,7 @@ export async function readJudgePresentations(
       name: row.name,
       orderNumber: row.orderNumber,
       presentationId: row.presentationId,
+      professionalEvaluation: row.professionalEvaluation,
       status: deriveJudgeScoreStatus({
         disqualified: row.disqualifiedAt !== null,
         hasFeedbackAudio: row.feedbackAudioStorageKey !== null,

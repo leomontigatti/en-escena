@@ -80,6 +80,7 @@ function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
     name: "Primera",
     orderNumber: 1,
     presentationId: "a",
+    professionalEvaluation: false,
     status: "pending",
     submodalityName: "Lyrical",
     value: null,

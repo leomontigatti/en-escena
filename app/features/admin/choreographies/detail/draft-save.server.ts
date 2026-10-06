@@ -58,6 +58,7 @@ type DraftWrite = {
   experienceLevelId: ExperienceLevel | null;
   move: DraftScheduleOption | null;
   name: string;
+  professionalEvaluation: boolean;
   resolution: ChoreographyDraftResolution;
   submodalityId: string | null;
 };
@@ -136,6 +137,7 @@ async function planDraftWrite(input: {
     move: move.ok ? move.value : null,
     name,
     ok: true,
+    professionalEvaluation: input.draft.professionalEvaluation,
     resolution: input.resolution,
     submodalityId: submodalityId.ok ? submodalityId.value : null,
   };
@@ -191,6 +193,8 @@ function isStructuralDraft(
     resolution.changes.professors ||
     toNullable(draft.submodalityId) !== choreography.submodalityId ||
     toNullable(draft.experienceLevelId) !== choreography.experienceLevelId ||
+    // The judges read it off the heading, so it is settled once they scored.
+    draft.professionalEvaluation !== choreography.professionalEvaluation ||
     draft.scheduleCapacityId !== choreography.scheduleCapacityId
   );
 }
@@ -321,6 +325,7 @@ function isStale(
   locked: {
     categoryId: string;
     modalityId: string;
+    professionalEvaluation: boolean;
     scheduleCapacityId: string | null;
     scheduleId: string;
   },
@@ -328,6 +333,9 @@ function isStale(
   return (
     locked.categoryId !== choreography.categoryId ||
     locked.modalityId !== choreography.modalityId ||
+    // The academy writes it too, from the portal: a save decided on the old
+    // answer must not put it back, nor slip a change past the evaluation check.
+    locked.professionalEvaluation !== choreography.professionalEvaluation ||
     locked.scheduleId !== choreography.scheduleId ||
     (locked.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(locked.scheduleId)) !==
@@ -352,6 +360,7 @@ async function writeDraft(input: {
     .select({
       categoryId: choreographies.categoryId,
       modalityId: choreographies.modalityId,
+      professionalEvaluation: choreographies.professionalEvaluation,
       scheduleCapacityId: choreographies.scheduleCapacityId,
       scheduleId: choreographies.scheduleId,
     })
@@ -384,6 +393,7 @@ async function writeDraft(input: {
     .set({
       experienceLevelId: write.experienceLevelId,
       name: write.name,
+      professionalEvaluation: write.professionalEvaluation,
       submodalityId: write.submodalityId,
       updatedAt: new Date(),
       ...toPlacementColumns(write, draft),

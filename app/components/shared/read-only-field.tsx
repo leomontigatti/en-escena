@@ -21,13 +21,19 @@ type ReadOnlyFieldProps = {
   labelClassName?: string;
   name?: string;
   orientation?: SharedFieldOrientation;
+  /**
+   * A live control at the right end of the locked input, before the lock: the
+   * input is the `@container` it sizes itself by. The caller pads the input
+   * (`inputClassName`) to the room the control takes.
+   */
+  trailing?: ReactNode;
   type?: ComponentProps<typeof Input>["type"];
   value: string;
 };
 
 type ReadOnlyTextareaFieldProps = Omit<
   ReadOnlyFieldProps,
-  "displayValue" | "inputClassName"
+  "displayValue" | "inputClassName" | "trailing"
 > & {
   textareaClassName?: string;
 };
@@ -61,6 +67,7 @@ function ReadOnlyField({
   labelClassName,
   name,
   orientation,
+  trailing,
   type,
   value,
 }: ReadOnlyFieldProps) {
@@ -80,7 +87,7 @@ function ReadOnlyField({
       {({ describedBy }) => (
         <>
           <HiddenReadOnlyValue name={name} value={hiddenValue ?? value} />
-          <div className="relative">
+          <div className={cn("relative", trailing && "@container")}>
             <Input
               id={id}
               aria-describedby={describedBy}
@@ -91,6 +98,11 @@ function ReadOnlyField({
               type={type}
               className={cn("pr-9", inputClassName)}
             />
+            {trailing ? (
+              <div className="absolute top-1/2 right-9 -translate-y-1/2">
+                {trailing}
+              </div>
+            ) : null}
             <FieldControlLockIcon />
           </div>
         </>

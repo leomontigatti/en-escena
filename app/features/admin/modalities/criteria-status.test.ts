@@ -35,7 +35,7 @@ describe("a modality's criteria status", () => {
       submodalities: [solo, duo],
     };
 
-    // Solo's amateur sheet reaches 100, its profesional one stays at 60.
+    // Solo's amateur sheet reaches 100, its `profesional` one stays at 60.
     expect(incompleteSubmodalities(setup)).toEqual([solo]);
     expect(modalityCriteriaStatus(setup)).toBe("incomplete");
   });

@@ -69,6 +69,8 @@ type CreateChoreographyRegistrationInput =
     name: string;
     professorIds: string[];
     experienceLevelId: string | null;
+    /** `Evaluar como profesional`; left out, the academy did not ask. */
+    professionalEvaluation?: boolean;
     scheduleCapacityId: string;
   };
 
@@ -247,6 +249,7 @@ export async function createChoreographyRegistration(
           categoryCalculationMode: operation.resolution.categoryCalculationMode,
           categoryAgeBasis: operation.resolution.categoryAgeBasis,
           experienceLevelId: experienceLevelId.value,
+          professionalEvaluation: input.professionalEvaluation ?? false,
           scheduleId: scheduleLock.scheduleId,
           scheduleCapacityId: scheduleLock.scheduleCapacityId,
         })

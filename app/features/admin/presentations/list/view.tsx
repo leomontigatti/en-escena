@@ -1,4 +1,4 @@
-import { ListOrdered } from "lucide-react";
+import { Gavel, ListOrdered } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 
@@ -11,6 +11,7 @@ import {
   DataTableTruncatedText,
   ServerDataTable,
   type DataTableColumn,
+  type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
@@ -402,6 +403,18 @@ function PresentationOrderCell({
   );
 }
 
+// The one facet of the list: which choreographies asked to be evaluated as
+// professional. It is otherwise invisible here, since the rows carry no badge
+// for it; the judges read it off the score heading.
+const presentationFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "evaluacion",
+    icon: Gavel,
+    label: "Evaluación",
+    options: [{ label: "Profesional", value: "profesional" }],
+  },
+];
+
 /** The list's rows are choreographies, whether or not they are numbered yet. */
 const emptyPresentationList = describeEmptyList(
   "coreografías",
@@ -486,6 +499,12 @@ export function PresentationsListView({
                 onSelectedRowIdsChange={setSelectedRowIds}
                 searchPlaceholder="Buscar por número, nombre o academia"
                 initialSearchValue={loaderData.filters.query}
+                facetedFilters={presentationFacetedFilters}
+                initialFacetedFilterValues={{
+                  filters: loaderData.filters.evaluation
+                    ? { evaluacion: loaderData.filters.evaluation }
+                    : {},
+                }}
                 initialSort={loaderData.filters.order}
                 emptyMessage={emptyPresentationList.nothingMatched}
                 currentPage={loaderData.filters.page}

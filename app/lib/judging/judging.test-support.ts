@@ -59,6 +59,7 @@ export async function seedJudgingFixture() {
     experienceLevelId?: ExperienceLevel | null;
     name: string;
     orderNumber: number;
+    professionalEvaluation?: boolean;
     /** Defaults to the catalog schedule's own date; another date gets its own schedule. */
     scheduledDate?: string;
     submodalityId?: string | null;
@@ -76,6 +77,7 @@ export async function seedJudgingFixture() {
           : input.experienceLevelId,
       modalityId: catalog.modality.id,
       name: input.name,
+      professionalEvaluation: input.professionalEvaluation,
       scheduleCapacityId: scheduleId ? null : catalog.scheduleCapacity.id,
       scheduleId: scheduleId ?? undefined,
       submodalityId:

@@ -87,6 +87,19 @@ describe("a presentation's scores, as administration reads them", () => {
     expect(view?.judges[0]).not.toHaveProperty("annulled");
   });
 
+  test("carries the academy's request for a professional evaluation", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Exigente",
+      orderNumber: 1,
+      professionalEvaluation: true,
+    });
+
+    await expect(
+      readPresentationScores({ presentationId: presentation.presentationId }),
+    ).resolves.toMatchObject({ professionalEvaluation: true });
+  });
+
   test("has no average and no award once the presentation is disqualified", async () => {
     const fixture = await seedJudgingFixture();
     const presentation = await fixture.addPresentation({
