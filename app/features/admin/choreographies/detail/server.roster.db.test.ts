@@ -457,7 +457,7 @@ describe("administrative choreography roster editing", () => {
       where: eq(choreographies.id, choreography.id),
     });
 
-    expect(saved?.name).toBe("Nombre nuevo");
+    expect(saved?.name).toBe("Nombre Nuevo");
     expect(saved?.groupType).toBe("duo");
   });
 

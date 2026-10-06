@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
 import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import { validateChoreographyName } from "@/lib/choreographies/choreography-name";
 import { syncRosterInscriptions } from "@/lib/choreographies/choreography-roster-admin.server";
 import {
   validateChoreographyProfessorSelection,
@@ -45,8 +46,6 @@ import {
 } from "./shared";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-const missingNameMessage = "Ingresá el nombre de la coreografía.";
 
 const divergedResolutionMessage =
   "La resolución cambió mientras editabas la coreografía. Revisá los campos y volvé a guardar.";
@@ -114,8 +113,15 @@ async function planDraftWrite(input: {
   previewedCategoryId: string | null;
   resolution: ChoreographyDraftResolution;
 }): Promise<({ ok: true } & DraftWrite) | Refusal> {
-  const name = input.draft.name.trim();
-  const refusal = findDraftRefusal({ ...input, name });
+  const name = input.resolution.changes.name
+    ? validateChoreographyName(input.draft.name)
+    : { ok: true as const, value: input.choreography.name };
+
+  if (!name.ok) {
+    return refuse(name.message);
+  }
+
+  const refusal = findDraftRefusal(input);
 
   if (refusal) {
     return refusal;
@@ -135,7 +141,7 @@ async function planDraftWrite(input: {
   return {
     experienceLevelId: experienceLevelId.ok ? experienceLevelId.value : null,
     move: move.ok ? move.value : null,
-    name,
+    name: name.value,
     ok: true,
     professionalEvaluation: input.draft.professionalEvaluation,
     resolution: input.resolution,
@@ -144,23 +150,18 @@ async function planDraftWrite(input: {
 }
 
 /**
- * The refusals that belong to the draft as a whole: a missing name, a
- * structural edit on an evaluated choreography, a blocker the resolution
- * reported, and a preview the resolution no longer agrees with.
+ * The refusals that belong to the draft as a whole: a structural edit on an
+ * evaluated choreography, a blocker the resolution reported, and a preview the
+ * resolution no longer agrees with.
  */
 function findDraftRefusal(input: {
   choreography: ChoreographyDetail;
   draft: ChoreographyDraft;
-  name: string;
   previewedCategoryId: string | null;
   resolution: ChoreographyDraftResolution;
 }): Refusal | null {
   const { preview } = input.resolution;
   const [blocker] = preview.blockers;
-
-  if (input.name.length === 0) {
-    return refuse(missingNameMessage);
-  }
 
   if (
     preview.structuralLock &&

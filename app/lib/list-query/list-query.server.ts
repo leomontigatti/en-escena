@@ -21,6 +21,21 @@ const foldedLetters = Array.from(accentedLetters, (letter) =>
   letter.normalize("NFD").replace(/\p{Diacritic}/gu, ""),
 ).join("");
 
+/** The fold a search matches against: accents off, then lowercase. */
+function searchFold(column: SQLWrapper): SQL {
+  return sql`lower(translate(${column}, ${accentedLetters}, ${foldedLetters}))`;
+}
+
+/**
+ * A text column folded for a list ordered by name: the search fold, with the
+ * column composed (NFC) first, because the fixed list holds composed letters
+ * and a decomposed one would otherwise slip past it. The search keeps its own
+ * fold, unchanged (#739 owns it).
+ */
+export function foldedText(column: SQLWrapper): SQL {
+  return searchFold(sql`normalize(${column}, NFC)`);
+}
+
 /**
  * The SQL twin of `matchesListSearch`: a row matches when any of the columns
  * holds the search, compared accent- and case-insensitively. An empty search
@@ -39,10 +54,7 @@ export function listSearchCondition(
   const pattern = `%${escapeLikePattern(foldedSearch)}%`;
 
   return or(
-    ...columns.map(
-      (column) =>
-        sql`lower(translate(${column}, ${accentedLetters}, ${foldedLetters})) like ${pattern}`,
-    ),
+    ...columns.map((column) => sql`${searchFold(column)} like ${pattern}`),
   );
 }
 

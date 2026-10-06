@@ -6,6 +6,7 @@ import { Controller } from "react-hook-form";
 import { AccessNotice } from "@/components/auth/access-ui";
 import { ProfessionalEvaluationSwitch } from "@/components/shared/professional-evaluation-switch";
 import { Button } from "@/components/ui/button";
+import { normalizeChoreographyName } from "@/lib/choreographies/choreography-name";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import type {
   CreateChoreographyForm,
@@ -66,7 +67,7 @@ export function ChoreographyCreationSummary({
         className="@container flex flex-col divide-y rounded-lg border"
       >
         <SummaryRow label="Nombre" onEdit={() => onEdit("choreography")}>
-          {values.name.trim()}
+          {normalizeChoreographyName(values.name)}
         </SummaryRow>
         <SummaryRow label="Modalidad" onEdit={() => onEdit("choreography")}>
           {formatModalitySummary(

@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -14,6 +14,7 @@ import {
   type InscriptionThresholdResolution,
   readInscriptionThresholds,
 } from "@/lib/finances/inscription-thresholds.server";
+import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
 
 /**
  * The choreography inscriptions a dancer holds in the selected event, withdrawn
@@ -59,7 +60,7 @@ export async function findDancerInscriptions(input: {
         eq(choreographies.eventId, selectedEventId),
       ),
     )
-    .orderBy(asc(sql`lower(${choreographies.name})`));
+    .orderBy(...orderByChoreographyName(choreographies.name));
 
   // Priced by the finance read model — the row that applies on today's
   // business date, the stored row once the deposit is covered, the live
