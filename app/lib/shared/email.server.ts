@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-import { isPruebasEnvironment } from "@/lib/shared/app-environment.server";
+import { isStagingEnvironment } from "@/lib/shared/app-environment.server";
 
 export type SendEmailInput = {
   to: string;
@@ -18,10 +18,10 @@ export async function sendEmail(input: SendEmailInput) {
     return;
   }
 
-  // Pruebas holds real people's addresses, copied from production, so it only
+  // Staging holds real people's addresses, copied from production, so it only
   // sends when a test needs a real email and says so.
-  if (isPruebasEnvironment() && process.env.PRUEBAS_SEND_EMAIL !== "true") {
-    logEmail("[email:pruebas]", input);
+  if (isStagingEnvironment() && process.env.STAGING_SEND_EMAIL !== "true") {
+    logEmail("[email:staging]", input);
     return;
   }
 

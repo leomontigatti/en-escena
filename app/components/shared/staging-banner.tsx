@@ -1,9 +1,9 @@
 /**
- * Marks every page of the pruebas environment, so nobody working on its copy
+ * Marks every page of the staging environment, so nobody working on its copy
  * of production data takes it for the real system. It is fixed and lets
  * clicks through, so it sits on top of any layout without moving it.
  */
-export function PruebasBanner() {
+export function StagingBanner() {
   return (
     <div
       role="status"

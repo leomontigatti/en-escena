@@ -22,8 +22,8 @@ ADR-0013 records.
   on a different machine — see [Coolify control plane](#coolify-control-plane).
 - **Application**: Coolify resource `x1383fsxfsixpgmvd9quv7tj`, served at
   `sistema.enescena.com.ar`.
-- **Pruebas**, a second deployment on production data for specific tests, runs
-  on `rylai` too, in its own Coolify environment: see [Pruebas](./pruebas.md).
+- **Staging**, a second deployment on production data for specific tests, runs
+  on `rylai` too, in its own Coolify environment: see [Staging](./staging.md).
 - Migrations run from the container entrypoint before the app serves, so a
   failed migration is a container that will not start. See
   [Database migrations](../db/migrations.md).

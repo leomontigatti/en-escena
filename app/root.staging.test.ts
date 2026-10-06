@@ -12,7 +12,7 @@ function loaderArgs(request: Request) {
 
 const originalAppEnvironment = process.env.APP_ENVIRONMENT;
 
-describe("root pruebas flag", () => {
+describe("root staging flag", () => {
   afterEach(() => {
     if (originalAppEnvironment === undefined) {
       delete process.env.APP_ENVIRONMENT;
@@ -21,14 +21,14 @@ describe("root pruebas flag", () => {
     }
   });
 
-  test("marks every page as pruebas in the pruebas environment", async () => {
-    process.env.APP_ENVIRONMENT = "pruebas";
+  test("marks every page as staging in the staging environment", async () => {
+    process.env.APP_ENVIRONMENT = "staging";
 
     const result = await loader(
       loaderArgs(new Request("http://localhost/ingresar")),
     );
 
-    expect(result.data.isPruebas).toBe(true);
+    expect(result.data.isStaging).toBe(true);
   });
 
   test("leaves production unmarked", async () => {
@@ -38,6 +38,6 @@ describe("root pruebas flag", () => {
       loaderArgs(new Request("http://localhost/ingresar")),
     );
 
-    expect(result.data.isPruebas).toBe(false);
+    expect(result.data.isStaging).toBe(false);
   });
 });
