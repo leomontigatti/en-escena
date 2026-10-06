@@ -93,10 +93,32 @@ if [ -z "$STAGING_STORAGE_DIR" ]; then
   exit 1
 fi
 
-if [ "$(realpath -m "$STAGING_STORAGE_DIR")" = "$(realpath -m "$PROD_STORAGE_DIR")" ]; then
-  echo "Refusing: the staging storage directory is the production one" >&2
+# rsync --delete empties whatever it is pointed at, so the target must be
+# staging's own volume and share no directory with production's storage.
+staging_dir="$(realpath -m "$STAGING_STORAGE_DIR")"
+prod_dir="$(realpath -m "$PROD_STORAGE_DIR")"
+
+case "$staging_dir/" in
+"$prod_dir"/* | "$prod_dir/")
+  echo "Refusing: the staging storage directory is inside production's" >&2
   exit 1
-fi
+  ;;
+esac
+
+case "$prod_dir/" in
+"$staging_dir"/*)
+  echo "Refusing: production's storage directory is inside staging's" >&2
+  exit 1
+  ;;
+esac
+
+case "$staging_dir" in
+/var/lib/docker/volumes/"$STAGING_APP_UUID"-*-staging-filestore/_data) ;;
+*)
+  echo "Refusing: $staging_dir is not the staging volume" >&2
+  exit 1
+  ;;
+esac
 
 # Private to this run: the dump is a full copy of production PII.
 umask 077
