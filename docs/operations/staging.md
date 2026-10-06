@@ -50,8 +50,9 @@ What it holds, against production:
 1. Start the Postgres and the application from Coolify. Set the application's
    branch to what is under test (a PR's head branch, or `master`) and deploy.
    There is no staging branch: production deploys `master`, staging deploys
-   whatever needs trying before it gets there. A branch cut before staging
-   existed has no email guard; never deploy one onto production data.
+   whatever needs trying before it gets there. Only a revision that has the
+   email guard may run on production data: a branch cut before staging existed
+   lacks it, and so does `master` until the PR that adds staging merges.
 2. Reset it to production as it is now:
 
    ```sh
