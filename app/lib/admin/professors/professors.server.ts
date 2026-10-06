@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { findProfessorNameWarning } from "@/lib/roster/roster-name-duplicates.server";
@@ -34,7 +34,10 @@ import {
   toParticipationStatus,
 } from "@/lib/participation/participation.shared";
 import { readRosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
-import { rosterPersonStatusCondition } from "@/lib/roster/roster-person-status.server";
+import {
+  activeRosterPerson,
+  rosterPersonStatusCondition,
+} from "@/lib/roster/roster-person-status.server";
 
 export type ProfessorListItem = {
   id: string;
@@ -201,6 +204,51 @@ export async function listProfessors(input: {
     totalCount,
     totalPages,
   };
+}
+
+/** One `accreditation` to print: the professor's name and their academy. */
+export type ProfessorAccreditation = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  academyName: string;
+};
+
+/**
+ * The professors to print an `accreditation` for: the ticked ones when ids are
+ * given, otherwise every one the list's filters match, with no page. One per
+ * `professor` row, so a person in two academies gets two. Archived professors
+ * never print, whatever was asked, and the sheet runs by academy, then last
+ * name, then first name, so each academy's passes come out together.
+ */
+export async function listProfessorAccreditations(input: {
+  selectedEventId: string | null;
+  selection: { professorIds: string[] } | { filters: ProfessorListFilters };
+}): Promise<ProfessorAccreditation[]> {
+  const selectionCondition =
+    "professorIds" in input.selection
+      ? inArray(professors.id, input.selection.professorIds)
+      : buildProfessorWhere({
+          selectedEventId: input.selectedEventId,
+          filters: input.selection.filters,
+        });
+
+  return await db
+    .select({
+      id: professors.id,
+      firstName: professors.firstName,
+      lastName: professors.lastName,
+      academyName: academies.name,
+    })
+    .from(professors)
+    .innerJoin(academies, eq(academies.id, professors.academyId))
+    .where(and(activeRosterPerson(professors), selectionCondition))
+    .orderBy(
+      asc(sql`lower(${academies.name})`),
+      asc(sql`lower(${professors.lastName})`),
+      asc(sql`lower(${professors.firstName})`),
+      asc(professors.id),
+    );
 }
 
 export async function findProfessor(input: {
