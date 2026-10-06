@@ -77,6 +77,8 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
 - **Production infrastructure** (VPS, Coolify app, Postgres resource, storage
   volume — current state; the rationale is ADR-0013):
   [docs/operations/infrastructure.md](docs/operations/infrastructure.md).
+- **Staging** (the copy of production at `pruebas.enescena.com.ar` for specific tests, reset
+  with `pnpm staging:reset`): [docs/operations/staging.md](docs/operations/staging.md).
 - **DNS and email** (zone on Cloudflare, inbound via Email Routing, outbound via
   Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
 - **Fallow** (commit gate via `pnpm check:fallow`, and investigation tool):

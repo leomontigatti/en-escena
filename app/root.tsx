@@ -7,12 +7,15 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "react-router";
 import { useEffect } from "react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 import { AppToaster } from "@/components/shared/app-toaster";
+import { StagingBanner } from "@/components/shared/staging-banner";
+import { isStagingEnvironment } from "@/lib/shared/app-environment.server";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
 
@@ -44,16 +47,23 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  // Read here rather than in `App` so the error pages are marked too; the
+  // loader's data is absent only when the root loader itself threw.
+  const isStaging =
+    useRouteLoaderData<typeof loader>("root")?.isStaging ?? false;
+
   return (
     <html lang="es">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="apple-mobile-web-app-title" content="En Escena" />
+        {isStaging && <meta name="robots" content="noindex, nofollow" />}
         <Meta />
         <Links />
       </head>
       <body>
+        {isStaging && <StagingBanner />}
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -64,15 +74,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   const flash = await readFlashNotification(request);
+  const isStaging = isStagingEnvironment();
 
   if (!flash) {
-    return data({ flashToast: null });
+    return data({ flashToast: null, isStaging });
   }
 
   // Consume the flash cookie (one-time): the `Set-Cookie` the reader returns
   // clears it, so the toast appears once and does not come back on a reload.
   return data(
-    { flashToast: flash.toast },
+    { flashToast: flash.toast, isStaging },
     { headers: { "set-cookie": flash.setCookieHeader } },
   );
 }

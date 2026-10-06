@@ -20,6 +20,8 @@ const originalEmailProvider = process.env.EMAIL_PROVIDER;
 const originalResendApiKey = process.env.RESEND_API_KEY;
 const originalBrevoApiKey = process.env.BREVO_API_KEY;
 const originalEmailFrom = process.env.EMAIL_FROM;
+const originalAppEnvironment = process.env.APP_ENVIRONMENT;
+const originalStagingSendEmail = process.env.STAGING_SEND_EMAIL;
 
 describe("sendEmail", () => {
   beforeEach(() => {
@@ -31,6 +33,8 @@ describe("sendEmail", () => {
     process.env.RESEND_API_KEY = originalResendApiKey;
     process.env.BREVO_API_KEY = originalBrevoApiKey;
     process.env.EMAIL_FROM = originalEmailFrom;
+    restoreEnv("APP_ENVIRONMENT", originalAppEnvironment);
+    restoreEnv("STAGING_SEND_EMAIL", originalStagingSendEmail);
   });
 
   test("logs email contents outside production without provider credentials", async () => {
@@ -80,6 +84,52 @@ describe("sendEmail", () => {
       subject: "Recuperá tu acceso a En Escena",
       text: "Usá este enlace para definir una nueva contraseña: https://example.com/recuperar",
     });
+  });
+
+  test("logs instead of sending in the staging environment", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.APP_ENVIRONMENT = "staging";
+    delete process.env.STAGING_SEND_EMAIL;
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "En Escena <acceso@example.com>";
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const { sendEmail } = await import("@/lib/shared/email.server");
+
+    await sendEmail({
+      to: "academia.real@example.com",
+      subject: "Recuperá tu acceso a En Escena",
+      text: "Usá este enlace: https://pruebas.example.com/recuperar",
+    });
+
+    expect(infoSpy).toHaveBeenCalledWith(
+      [
+        "[email:staging]",
+        "To: academia.real@example.com",
+        "Subject: Recuperá tu acceso a En Escena",
+        "Usá este enlace: https://pruebas.example.com/recuperar",
+      ].join("\n"),
+    );
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    infoSpy.mockRestore();
+  });
+
+  test("sends from the staging environment only when told to", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.APP_ENVIRONMENT = "staging";
+    process.env.STAGING_SEND_EMAIL = "true";
+    delete process.env.EMAIL_PROVIDER;
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "En Escena <acceso@example.com>";
+    sendEmailMock.mockResolvedValue({ data: { id: "email_id" }, error: null });
+    const { sendEmail } = await import("@/lib/shared/email.server");
+
+    await sendEmail({
+      to: "usuario@example.com",
+      subject: "Recuperá tu acceso a En Escena",
+      text: "Usá este enlace: https://pruebas.example.com/recuperar",
+    });
+
+    expect(sendEmailMock).toHaveBeenCalledOnce();
   });
 
   test("sends production email through Brevo when selected", async () => {
@@ -188,3 +238,11 @@ describe("sendEmail", () => {
     errorSpy.mockRestore();
   });
 });
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}

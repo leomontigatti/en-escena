@@ -76,6 +76,12 @@ recommended order for a final pass is in
 | ⚠️ `pnpm restore:db:drill`      | Restore a Coolify database backup into a throwaway Postgres container and compare it against the live database. Runs on the server. See [Backups](backups.md).                 |
 | ⚠️ `pnpm restore:db:drill:b2`   | Pull the newest database backup from B2 and restore it into a scratch database on the live server. Needs no Docker, so it runs as a scheduled task. See [Backups](backups.md). |
 
+## Staging
+
+| Script                  | Purpose                                                                                                                                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ⚠️ `pnpm staging:reset` | Replace staging's database and storage with a copy of production as it is now, over SSH on `rylai`. Reads production, never writes it; stops and restarts the staging app. See [Staging](staging.md). |
+
 ## AFK Platform
 
 The one remaining workflow (Architecture Review): see
