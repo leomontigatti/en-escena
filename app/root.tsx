@@ -7,12 +7,15 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "react-router";
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { PruebasBanner } from "@/components/shared/pruebas-banner";
+import { isPruebasEnvironment } from "@/lib/shared/app-environment.server";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
 
@@ -44,16 +47,23 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  // Read here rather than in `App` so the error pages are marked too; the
+  // loader's data is absent only when the root loader itself threw.
+  const isPruebas =
+    useRouteLoaderData<typeof loader>("root")?.isPruebas ?? false;
+
   return (
     <html lang="es">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="apple-mobile-web-app-title" content="En Escena" />
+        {isPruebas && <meta name="robots" content="noindex, nofollow" />}
         <Meta />
         <Links />
       </head>
       <body>
+        {isPruebas && <PruebasBanner />}
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -64,15 +74,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   const flash = await readFlashNotification(request);
+  const isPruebas = isPruebasEnvironment();
 
   if (!flash) {
-    return data({ flashToast: null });
+    return data({ flashToast: null, isPruebas });
   }
 
   // Consume the flash cookie (one-time): the `Set-Cookie` the reader returns
   // clears it, so the toast appears once and does not come back on a reload.
   return data(
-    { flashToast: flash.toast },
+    { flashToast: flash.toast, isPruebas },
     { headers: { "set-cookie": flash.setCookieHeader } },
   );
 }

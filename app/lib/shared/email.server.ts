@@ -1,5 +1,7 @@
 import { Resend } from "resend";
 
+import { isPruebasEnvironment } from "@/lib/shared/app-environment.server";
+
 export type SendEmailInput = {
   to: string;
   subject: string;
@@ -12,14 +14,14 @@ let resendClient: Resend | undefined;
 
 export async function sendEmail(input: SendEmailInput) {
   if (process.env.NODE_ENV !== "production") {
-    console.info(
-      [
-        "[email:dev]",
-        `To: ${input.to}`,
-        `Subject: ${input.subject}`,
-        input.text,
-      ].join("\n"),
-    );
+    logEmail("[email:dev]", input);
+    return;
+  }
+
+  // Pruebas holds real people's addresses, copied from production, so it only
+  // sends when a test needs a real email and says so.
+  if (isPruebasEnvironment() && process.env.PRUEBAS_SEND_EMAIL !== "true") {
+    logEmail("[email:pruebas]", input);
     return;
   }
 
@@ -37,6 +39,14 @@ export async function sendEmail(input: SendEmailInput) {
     logProviderError(input, error, getEmailProvider());
     throw new Error("Email provider failed to send message");
   }
+}
+
+function logEmail(prefix: string, input: SendEmailInput) {
+  console.info(
+    [prefix, `To: ${input.to}`, `Subject: ${input.subject}`, input.text].join(
+      "\n",
+    ),
+  );
 }
 
 async function sendProductionEmail(input: SendEmailInput) {

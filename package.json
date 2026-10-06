@@ -43,6 +43,7 @@
     "restore:storage:drill": "sh scripts/restore-drill-from-b2.sh",
     "restore:db:drill": "sh scripts/restore-drill-database.sh",
     "restore:db:drill:b2": "sh scripts/restore-drill-database-from-b2.sh",
+    "pruebas:reset": "ssh rylai sh -s < scripts/pruebas-reset.sh",
     "db:refresh:prod": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/refresh-local-db-from-production.mjs",
     "db:worktree": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/worktree-db.ts",
     "worktree:sweep": "node --import tsx scripts/worktree-sweep.ts",
