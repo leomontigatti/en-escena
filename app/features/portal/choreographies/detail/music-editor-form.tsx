@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useNavigation } from "react-router";
 import { toast } from "sonner";
 
@@ -64,7 +64,6 @@ export function ChoreographyMusicEditorForm({
     musicHasValidationError,
     professionalEvaluation,
     savedCount,
-    setProfessionalEvaluation,
     submitMusic,
   } = useChoreographyMusicForm({
     actionData,
@@ -91,10 +90,22 @@ export function ChoreographyMusicEditorForm({
           />
 
           <ChoreographyReadOnlyFields
-            canEditEvaluation={canEditMusic}
+            categoryTrailing={
+              <Controller
+                control={form.control}
+                name="professionalEvaluation"
+                render={({ field }) => (
+                  <ProfessionalEvaluationSwitch
+                    checked={field.value}
+                    disabled={!canEditMusic}
+                    placement="field"
+                    onBlur={field.onBlur}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
+              />
+            }
             choreography={choreography}
-            onProfessionalEvaluationChange={setProfessionalEvaluation}
-            professionalEvaluation={professionalEvaluation}
           />
 
           <FieldGroup>
@@ -157,14 +168,20 @@ function useChoreographyMusicForm({
   useMusicSaveToast(actionData);
 
   // `values` follows what the route answered: the stored key, or the one a
-  // refused save sent back.
+  // refused save sent back, and the stored evaluation. What the academy
+  // changed and the answer did not settle stays, so a refused save keeps the
+  // switch where it was set.
   const form = useForm<ChoreographyMusicFormValues>({
+    resetOptions: { keepDirtyValues: true },
     resolver: zodResolver(choreographyMusicFormSchema),
-    values: { musicStorageKey: selectedMusicStorageKey },
+    values: {
+      musicStorageKey: selectedMusicStorageKey,
+      professionalEvaluation: storedProfessionalEvaluation,
+    },
   });
-  const musicStorageKey = useWatch({
+  const [musicStorageKey, professionalEvaluation] = useWatch({
     control: form.control,
-    name: "musicStorageKey",
+    name: ["musicStorageKey", "professionalEvaluation"],
   });
   const submit = useOptionalSubmit();
   const formAction = useOptionalFormAction();
@@ -172,15 +189,6 @@ function useChoreographyMusicForm({
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateChoreographyIntent;
-
-  // `Evaluar como profesional` is the other thing the academy edits here, and
-  // it closes with the music: once evaluated, the judges read it as it was.
-  const [professionalEvaluation, setProfessionalEvaluation] = useState(
-    storedProfessionalEvaluation,
-  );
-  useEffect(() => {
-    setProfessionalEvaluation(storedProfessionalEvaluation);
-  }, [storedProfessionalEvaluation]);
 
   const hasChanges =
     field.selectedMusicFileName !== null ||
@@ -194,8 +202,11 @@ function useChoreographyMusicForm({
   const discardMusicChanges = useCallback(() => {
     restartField();
     setMusicHasValidationError(false);
-    setProfessionalEvaluation(storedProfessionalEvaluation);
     form.setValue("musicStorageKey", storedMusicStorageKey);
+    // `Evaluar como profesional` is the other thing the academy edits here,
+    // and it closes with the music: once evaluated, the judges read it as it
+    // was.
+    form.setValue("professionalEvaluation", storedProfessionalEvaluation);
   }, [
     form,
     restartField,
@@ -238,7 +249,6 @@ function useChoreographyMusicForm({
     musicHasValidationError: field.musicHasValidationError,
     professionalEvaluation,
     savedCount: field.savedCount,
-    setProfessionalEvaluation,
     submitMusic: createValidatedRouteSubmitHandler(form, submit, formAction),
   };
 }
@@ -323,17 +333,17 @@ function useMusicSaveToast(actionData: PortalChoreographyMusicActionData) {
   }, [actionData]);
 }
 
-/** What the academy reads about the choreography and cannot change here. */
+/**
+ * What the academy reads about the choreography and cannot change here. The
+ * one control beside them, `Evaluar como profesional`, is the form's and rides
+ * in at the category's end, where the wizard sets it.
+ */
 function ChoreographyReadOnlyFields({
-  canEditEvaluation,
+  categoryTrailing,
   choreography,
-  onProfessionalEvaluationChange,
-  professionalEvaluation,
 }: {
-  canEditEvaluation: boolean;
+  categoryTrailing: ReactNode;
   choreography: PortalChoreographyMusicLoaderData["choreography"];
-  onProfessionalEvaluationChange: (checked: boolean) => void;
-  professionalEvaluation: boolean;
 }) {
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
@@ -350,14 +360,7 @@ function ChoreographyReadOnlyFields({
       <ReadOnlyField
         label="Categoría"
         inputClassName={professionalEvaluationFieldInputClassName}
-        trailing={
-          <ProfessionalEvaluationSwitch
-            checked={professionalEvaluation}
-            disabled={!canEditEvaluation}
-            placement="field"
-            onCheckedChange={onProfessionalEvaluationChange}
-          />
-        }
+        trailing={categoryTrailing}
         value={choreography.categoryName}
       />
       <ReadOnlySelectField

@@ -178,4 +178,118 @@ describe("replacing a choreography's music", () => {
       document.querySelector('a[aria-label="Descargar música"]'),
     ).not.toBeNull();
   });
+
+  // `Evaluar como profesional` is a field of the same form: it counts as a
+  // change, posts with the save, and goes back with `Descartar cambios`.
+  test("posts the professional evaluation the switch is set to", async () => {
+    const submissions: FormData[] = [];
+    const router = createMemoryRouter(
+      [
+        {
+          action: async ({ request }) => {
+            submissions.push(await request.formData());
+
+            return { message: "Coreografía guardada.", status: "success" };
+          },
+          element: <MusicEditorRoute />,
+          loader: loaderData,
+          path: "/portal/coreografias/choreo_1",
+        },
+      ],
+      { initialEntries: ["/portal/coreografias/choreo_1"] },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await toggleProfessionalEvaluation();
+
+    expect(getButton("Guardar").disabled).toBe(false);
+
+    await clickReactDomButton("Guardar");
+    await updateReactDomForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0].get("intent")).toBe("update-choreography");
+    expect(submissions[0].get("professionalEvaluation")).toBe("true");
+    expect(submissions[0].get("musicStorageKey")).toBe("music/choreo_1.mp3");
+  });
+
+  test("puts the switch back on `Descartar cambios`", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          element: <MusicEditorRoute />,
+          loader: loaderData,
+          path: "/portal/coreografias/choreo_1",
+        },
+      ],
+      { initialEntries: ["/portal/coreografias/choreo_1"] },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await toggleProfessionalEvaluation();
+
+    expect(professionalEvaluationSwitch().getAttribute("aria-checked")).toBe(
+      "true",
+    );
+
+    await clickReactDomButton("Descartar cambios");
+
+    expect(professionalEvaluationSwitch().getAttribute("aria-checked")).toBe(
+      "false",
+    );
+    expect(getButton("Guardar").disabled).toBe(true);
+  });
+
+  // A refused save answers with the music it kept, and the switch the academy
+  // set stays where it was.
+  test("keeps the switch after a refused save", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          action: async () => ({
+            message: "No pudimos subir el archivo de música.",
+            selectedMusicStorageKey: "",
+            status: "update-error",
+          }),
+          element: <MusicEditorRoute />,
+          loader: loaderData,
+          path: "/portal/coreografias/choreo_1",
+        },
+      ],
+      { initialEntries: ["/portal/coreografias/choreo_1"] },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await toggleProfessionalEvaluation();
+    await clickReactDomButton("Borrar música");
+    await clickReactDomButton("Guardar");
+    await updateReactDomForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(professionalEvaluationSwitch().getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    expect(getButton("Guardar").disabled).toBe(false);
+  });
 });
+
+function professionalEvaluationSwitch() {
+  const control = document.querySelector<HTMLButtonElement>(
+    'button[role="switch"][aria-label="Evaluar como profesional"]',
+  );
+
+  if (!control) {
+    throw new Error("Expected the professional evaluation switch.");
+  }
+
+  return control;
+}
+
+async function toggleProfessionalEvaluation() {
+  await updateReactDomForm(() => {
+    professionalEvaluationSwitch().click();
+  });
+}

@@ -192,7 +192,9 @@ describe("ProfessorDetailRouteView dialogs", () => {
     expect(toastError).toHaveBeenCalledWith(
       "Ya existe un profesor archivado con ese documento en la academia.",
       expect.objectContaining({
-        action: expect.objectContaining({ label: "Ver ficha" }),
+        action: expect.objectContaining({
+          props: expect.objectContaining({ children: "Ver ficha" }),
+        }),
         id: "admin-professor-detail:error",
       }),
     );

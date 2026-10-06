@@ -107,7 +107,9 @@ describe("dancer detail submissions", () => {
     expect(toastError).toHaveBeenCalledWith(
       "Ya existe un bailarín archivado con ese documento en tu academia.",
       expect.objectContaining({
-        action: expect.objectContaining({ label: "Ver ficha" }),
+        action: expect.objectContaining({
+          props: expect.objectContaining({ children: "Ver ficha" }),
+        }),
         id: "portal-bailarin-detail:error",
       }),
     );

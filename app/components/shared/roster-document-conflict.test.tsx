@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { act, useState } from "react";
+import { act, useState, type ReactElement } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -11,7 +11,7 @@ import {
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 type ToastOptions = {
-  action?: { label: string; onClick: () => void };
+  action?: ReactElement<{ children: string; onClick: () => void }>;
   id?: string;
 };
 
@@ -20,7 +20,7 @@ const toastError = vi.hoisted(() =>
 );
 
 vi.mock("sonner", () => ({
-  toast: { error: toastError },
+  toast: { dismiss: vi.fn(), error: toastError },
 }));
 
 describe("useRosterRefusalToast", () => {
@@ -79,10 +79,10 @@ describe("useRosterRefusalToast", () => {
 
     expect(message).toBe("Ya existe un bailarín archivado con ese documento.");
     expect(options?.id).toBe("roster:error");
-    expect(options?.action?.label).toBe("Ver ficha");
+    expect(options?.action?.props.children).toBe("Ver ficha");
 
     await act(async () => {
-      options?.action?.onClick();
+      options?.action?.props.onClick();
     });
 
     expect(document.body.textContent).toBe("Ficha encontrada");

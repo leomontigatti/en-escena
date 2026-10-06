@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+
 /**
  * What a roster form knows about a refused document number: what the server
  * said about it, and the person already holding the number when the server
@@ -15,7 +17,10 @@ export type RosterDocumentConflict = {
 /**
  * Toasts a roster form's refusal, as every server refusal is (style guide
  * § React Hook Form). A document conflict says which number is taken instead
- * of the generic refusal, and the toast links to the person holding it.
+ * of the generic refusal, and the toast links to the person holding it. The
+ * link is a red link button rather than sonner's own action button, so it
+ * reads as part of the error it belongs to; the toast keeps the usual
+ * duration.
  *
  * `refusal` is the action's answer itself, so the toast fires once per answer
  * and again for a second identical refusal.
@@ -40,9 +45,19 @@ export function useRosterRefusalToast({
     window.setTimeout(() => {
       toast.error(message ?? refusal.message, {
         id: toastId,
-        action: matchHref
-          ? { label: "Ver ficha", onClick: () => void navigate(matchHref) }
-          : undefined,
+        action: matchHref ? (
+          <Button
+            className="ml-auto h-auto p-0 text-destructive"
+            size="sm"
+            variant="link"
+            onClick={() => {
+              toast.dismiss(toastId);
+              void navigate(matchHref);
+            }}
+          >
+            Ver ficha
+          </Button>
+        ) : undefined,
       });
     }, 0);
   }, [matchHref, message, navigate, refusal, toastId]);

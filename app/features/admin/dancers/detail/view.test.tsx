@@ -150,7 +150,9 @@ describe("DancerDetailRouteView", () => {
     expect(toastError).toHaveBeenCalledWith(
       "Ya existe un bailarín archivado con ese documento en la academia.",
       expect.objectContaining({
-        action: expect.objectContaining({ label: "Ver ficha" }),
+        action: expect.objectContaining({
+          props: expect.objectContaining({ children: "Ver ficha" }),
+        }),
         id: "admin-dancer-detail:error",
       }),
     );
