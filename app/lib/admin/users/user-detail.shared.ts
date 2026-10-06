@@ -14,16 +14,11 @@ import {
 const passwordMinLength = 8;
 
 const updateInternalUserFieldNames = ["name", "role"] as const;
-const resetPasswordFieldNames = ["password"] as const;
 
 export type UpdateInternalUserField =
   (typeof updateInternalUserFieldNames)[number];
-export type ResetPasswordField = (typeof resetPasswordFieldNames)[number];
 export type UpdateInternalUserFieldErrors = Partial<
   Record<UpdateInternalUserField, string>
->;
-export type ResetPasswordFieldErrors = Partial<
-  Record<ResetPasswordField, string>
 >;
 
 export type UpdateInternalUserFormValues = {
@@ -90,7 +85,6 @@ export type DetailActionData = {
   status: "error";
   message: string;
   fieldErrors: UpdateInternalUserFieldErrors;
-  resetPasswordFieldErrors: ResetPasswordFieldErrors;
   editValues: UpdateInternalUserFormValues;
   resetPasswordValues: ResetPasswordFormValues;
 };
@@ -113,7 +107,6 @@ export const emptyResetPasswordValues: ResetPasswordFormValues = {
 
 const emptyUpdateInternalUserFieldErrors =
   getEmptyFieldErrors<UpdateInternalUserField>();
-const emptyResetPasswordFieldErrors = getEmptyFieldErrors<ResetPasswordField>();
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
 
@@ -248,14 +241,12 @@ export function buildDetailActionError({
   fieldErrors = emptyUpdateInternalUserFieldErrors,
   form,
   message,
-  resetPasswordFieldErrors = emptyResetPasswordFieldErrors,
   resetPasswordValues = emptyResetPasswordValues,
 }: {
   editValues?: UpdateInternalUserFormValues;
   fieldErrors?: UpdateInternalUserFieldErrors;
   form: DetailActionData["form"];
   message: string;
-  resetPasswordFieldErrors?: ResetPasswordFieldErrors;
   resetPasswordValues?: ResetPasswordFormValues;
 }): DetailActionData {
   return {
@@ -263,7 +254,6 @@ export function buildDetailActionError({
     status: "error",
     message,
     fieldErrors,
-    resetPasswordFieldErrors,
     editValues,
     resetPasswordValues,
   };
@@ -275,10 +265,6 @@ export function getUpdateInternalUserServerFieldErrors() {
 
 export function getUpdateInternalUserFieldErrors(error: z.ZodError) {
   return getFieldErrors(error, updateInternalUserFieldNames);
-}
-
-export function getResetPasswordFieldErrors(error: z.ZodError) {
-  return getFieldErrors(error, resetPasswordFieldNames);
 }
 
 function getDetailName(row: DetailUserRow, isAcademyUser: boolean) {

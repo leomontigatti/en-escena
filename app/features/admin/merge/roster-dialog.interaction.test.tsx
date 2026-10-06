@@ -35,7 +35,7 @@ const candidates: RosterMergeCandidate[] = [
   },
 ];
 
-async function renderDialog(input: { refusal?: string } = {}) {
+async function renderDialog() {
   const submissions: FormData[] = [];
   const router = createMemoryRouter(
     [
@@ -62,7 +62,6 @@ async function renderDialog(input: { refusal?: string } = {}) {
               id: "dancer-removed",
               lastName: "Paz",
             }}
-            refusal={input.refusal}
           />
         ),
       },
@@ -165,19 +164,5 @@ describe("RosterMergeDialog", () => {
 
     expect(submissions).toHaveLength(0);
     expect(document.body.textContent).toContain("Este campo es obligatorio.");
-  });
-
-  test("shows the server's refusal in place of the warning", async () => {
-    await renderDialog({
-      refusal:
-        "No se puede fusionar: los dos están en «Fuego». Quitá a uno de la coreografía antes de fusionar.",
-    });
-
-    expect(document.body.textContent).toContain(
-      "No se puede fusionar: los dos están en «Fuego».",
-    );
-    expect(document.body.textContent).not.toContain(
-      "Esta acción es irreversible.",
-    );
   });
 });

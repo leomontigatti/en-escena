@@ -6,14 +6,13 @@ import {
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
 import { FormActions } from "@/components/shared/form-actions";
-import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { useRosterRefusalToast } from "@/components/shared/roster-document-conflict";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { SelectField } from "@/components/shared/select-field";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { useLastRefusedValues } from "@/lib/shared/forms";
 import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
-import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   PortalDancerBirthDateField,
   PortalDancerDocumentImageFields,
@@ -51,18 +50,14 @@ export function CreateDancerPage({
     submit,
     values: refusedValues ?? emptyDancerValues,
   });
-  const documentConflictDescription = useRosterDocumentConflictField({
-    actionData: refusal,
-    conflict: getPortalDancerDocumentConflict(refusal),
-    name: "documentNumber",
-    setError: form.form.setError,
-  });
   // Still pending while a save redirects to the list, so the leave guard
   // does not ask about the form it just saved.
   const isSubmitting =
     navigation.state !== "idle" && navigation.formData !== undefined;
 
-  useServerActionToast(actionData?.status === "error" ? actionData : null, {
+  useRosterRefusalToast({
+    conflict: getPortalDancerDocumentConflict(refusal),
+    refusal: actionData?.status === "error" ? actionData : null,
     toastId: "portal-bailarin-nuevo:error",
   });
 
@@ -109,7 +104,6 @@ export function CreateDancerPage({
                 placeholder={documentTypeEmptyLabel}
               />
               <PortalDancerTextField
-                description={documentConflictDescription}
                 form={form.form}
                 label="Número de documento"
                 name="documentNumber"

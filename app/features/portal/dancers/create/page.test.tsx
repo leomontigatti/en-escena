@@ -15,6 +15,17 @@ import { setInputValue } from "@/lib/test-support/react-dom";
 import { CreateDancerPage } from "./page";
 import type { CreateDancerActionData } from "./shared";
 
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
 installPortalSubmissionTestHooks();
 
 const refusal: CreateDancerActionData = {
@@ -40,7 +51,17 @@ describe("CreateDancerPage", () => {
 
     expect(input("firstName").value).toBe("Ana");
     expect(input("documentNumber").value).toBe("30111222");
-    expect(document.body.textContent).toContain(
+
+    await updatePortalSubmissionForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The refusal is the server's, so it is a toast, never on the field.
+    expect(toastError).toHaveBeenCalledWith(
+      "Ya existe un bailarín con ese documento en tu academia.",
+      expect.objectContaining({ id: "portal-bailarin-nuevo:error" }),
+    );
+    expect(document.body.textContent).not.toContain(
       "Ya existe un bailarín con ese documento en tu academia.",
     );
   });

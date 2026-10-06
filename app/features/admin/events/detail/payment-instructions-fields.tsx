@@ -1,14 +1,10 @@
-import { useEffect } from "react";
 import { useWatch } from "react-hook-form";
 
 import type { EventFormController } from "@/components/admin/events/form";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { TextareaField } from "@/components/shared/textarea-field";
 import { FieldGroup } from "@/components/ui/field";
-import {
-  PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH,
-  paymentInstructionsMessages,
-} from "@/lib/admin/events/form-values";
+import { PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH } from "@/lib/admin/events/form-values";
 import { cn } from "@/lib/shared/utils";
 
 /**
@@ -27,28 +23,11 @@ export function EventPaymentInstructionsFields({
     name: "paymentInstructionsText",
   });
   // The count the schema measures, and the count the column stores: both trim
-  // first, so a trailing newline never paints the field destructive over a text
-  // the save would have accepted.
+  // first, so a trailing newline never paints the counter destructive over a
+  // text the save would have accepted. The counter shows the cap live; the
+  // field's own error waits for the submit, as every field's does.
   const length = text?.trim().length ?? 0;
   const isTooLong = length > PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH;
-  const { clearErrors, setError } = form;
-
-  // The cap is the one rule a person can cross *while typing*, so it is the one
-  // that does not wait for a submit: past 2000 the field's own `data-invalid` /
-  // `aria-invalid` turn the label, the border and the ring destructive, rather
-  // than the counter going red beside a field that still looks fine. This is
-  // the only error the textarea can carry, so clearing it here is safe.
-  useEffect(() => {
-    if (isTooLong) {
-      setError("paymentInstructionsText", {
-        message: paymentInstructionsMessages.textLength,
-        type: "max",
-      });
-    } else {
-      clearErrors("paymentInstructionsText");
-    }
-  }, [clearErrors, isTooLong, setError]);
-
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
       <TextInputField

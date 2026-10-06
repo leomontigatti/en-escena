@@ -10,12 +10,27 @@ import { toParticipationStatus } from "@/lib/participation/participation.shared"
 import { buildDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
 import type { DancerListResult } from "@/lib/admin/dancers/dancers.server.types";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
+import {
+  keepKnownChoreographyDay,
+  listEventChoreographyDays,
+} from "@/lib/choreographies/choreography-days.server";
 
 async function listDancers(input: {
   selectedEventId: string | null;
   filters: DancerListFilters;
 }): Promise<DancerListResult> {
-  const where = buildDancerFilters(input);
+  const dayOptions =
+    input.selectedEventId === null
+      ? []
+      : await listEventChoreographyDays(input.selectedEventId);
+  const filters: DancerListFilters = {
+    ...input.filters,
+    day: keepKnownChoreographyDay(input.filters.day, dayOptions),
+  };
+  const where = buildDancerFilters({
+    selectedEventId: input.selectedEventId,
+    filters,
+  });
 
   const [{ count: totalUnfilteredCount }] = await db
     .select({
@@ -34,7 +49,7 @@ async function listDancers(input: {
 
   const totalCount = Number(count);
   const { limit, offset, page, totalPages } = paginateList({
-    page: input.filters.page,
+    page: filters.page,
     pageSize: adminListPageSize,
     totalCount,
   });
@@ -42,7 +57,7 @@ async function listDancers(input: {
     input.selectedEventId,
   );
   const orderByName =
-    input.filters.order.direction === "desc"
+    filters.order.direction === "desc"
       ? [
           desc(sql`lower(${dancers.firstName})`),
           desc(sql`lower(${dancers.lastName})`),
@@ -74,8 +89,9 @@ async function listDancers(input: {
     .offset(offset);
 
   return {
+    dayOptions,
     filters: {
-      ...input.filters,
+      ...filters,
       page,
     },
     hasAnyDancer: Number(totalUnfilteredCount) > 0,

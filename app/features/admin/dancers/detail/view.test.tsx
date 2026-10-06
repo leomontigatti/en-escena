@@ -3,7 +3,7 @@
 import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import {
@@ -11,6 +11,17 @@ import {
   findButton,
 } from "@/lib/test-support/react-dom";
 import { DancerDetailRouteView } from "@/routes/administracion.bailarines_.$dancerId";
+
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 type DetailRouteViewProps = Parameters<typeof DancerDetailRouteView>[0];
 
@@ -50,13 +61,19 @@ describe("DancerDetailRouteView", () => {
 
   async function renderDetailIntoDocument(
     loaderData: DetailRouteViewProps["loaderData"],
+    actionData?: DetailRouteViewProps["actionData"],
   ) {
     const router = createMemoryRouter(
       [
         {
           path: "/administracion/bailarines/dancer-1",
           action: async () => null,
-          element: <DancerDetailRouteView loaderData={loaderData} />,
+          element: (
+            <DancerDetailRouteView
+              actionData={actionData}
+              loaderData={loaderData}
+            />
+          ),
         },
       ],
       { initialEntries: ["/administracion/bailarines/dancer-1"] },
@@ -102,35 +119,43 @@ describe("DancerDetailRouteView", () => {
     expect(markup).not.toContain("Editar");
   });
 
-  // The refusal itself lands on the field through an effect, which server
-  // rendering never runs; the link to the match is what this markup shows.
-  test("links to the dancer already holding the document", () => {
-    const markup = renderDetailView({
-      loaderData: createLoaderData(),
-      actionData: {
-        status: "error",
-        message: "Revisá los datos del Bailarín.",
-        fieldErrors: {
-          documentNumber:
-            "Ya existe un bailarín archivado con ese documento en la academia.",
-        },
-        values: {
-          firstName: "Julia",
-          lastName: "Detalle",
-          birthDate: "2012-07-12",
-          documentType: "dni",
-          documentNumber: "30111222",
-          documentFrontImageStorageKey: "",
-          documentBackImageStorageKey: "",
-        },
-        duplicateDocumentDancerId: "dancer-archivado-1",
+  // The refusal is the server's, so it is a toast like every other, and the
+  // toast carries the link to the match.
+  test("toasts the duplicate-document refusal with a link to the match", async () => {
+    await renderDetailIntoDocument(createLoaderData(), {
+      status: "error",
+      message: "Revisá los datos del Bailarín.",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un bailarín archivado con ese documento en la academia.",
       },
+      values: {
+        firstName: "Julia",
+        lastName: "Detalle",
+        birthDate: "2012-07-12",
+        documentType: "dni",
+        documentNumber: "30111222",
+        documentFrontImageStorageKey: "",
+        documentBackImageStorageKey: "",
+      },
+      duplicateDocumentDancerId: "dancer-archivado-1",
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(markup).toContain(
-      'href="/administracion/bailarines/dancer-archivado-1"',
+    expect(document.body.textContent).not.toContain(
+      "Ya existe un bailarín archivado con ese documento en la academia.",
     );
-    expect(markup).toContain("Ver la ficha del bailarín con ese documento");
+    expect(toastError).toHaveBeenCalledWith(
+      "Ya existe un bailarín archivado con ese documento en la academia.",
+      expect.objectContaining({
+        action: expect.objectContaining({
+          props: expect.objectContaining({ children: "Ver ficha" }),
+        }),
+        id: "admin-dancer-detail:error",
+      }),
+    );
   });
 
   test("keeps what was typed when a save is warned about a same-name match", () => {

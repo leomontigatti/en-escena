@@ -6,7 +6,7 @@ import {
   RouterProvider,
   useLoaderData,
 } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   clickReactDomButton,
@@ -22,6 +22,17 @@ import {
   recheckNotaCreditoIntent,
   type ComprobanteDetailActionData,
 } from "./shared";
+
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 function comprobanteFixture(
   overrides: Partial<ComprobanteDetail> = {},
@@ -175,6 +186,32 @@ describe("ComprobanteDetailRouteView", () => {
       "Nota de crédito C 0001-00000008",
     );
     expect(getButton("Anular comprobante").disabled).toBe(true);
+  });
+
+  // A refusal that is neither a contingency nor ARCA's is the server's word,
+  // so it is a toast, and the dialog stays open to retry.
+  test("toasts a refused annulment and keeps the dialog open", async () => {
+    await mount({
+      initialAnnulDialogOpen: true,
+      action: async () => ({
+        status: "error",
+        message: "Ese comprobante ya fue anulado por una nota de crédito.",
+      }),
+    });
+
+    await clickReactDomButton("Anular comprobante");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Ese comprobante ya fue anulado por una nota de crédito.",
+      { id: "comprobante-annul:error" },
+    );
+    expect(
+      document.querySelector('[role="alertdialog"]')?.textContent,
+    ).not.toContain("Ese comprobante ya fue anulado");
+    expect(getButton("Anular comprobante").disabled).toBe(false);
   });
 
   test("verify now recovers the credit note and removes the annul button", async () => {

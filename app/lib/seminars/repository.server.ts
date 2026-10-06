@@ -94,8 +94,6 @@ export type SeminarDeleteResult = { ok: true } | SeminarFailure;
 const invalidSeminarError = "Revisá los datos del seminario.";
 const duplicateSeminarError =
   "Ya existe un seminario de ese instructor en esa fecha y hora.";
-const duplicateSeminarFieldError =
-  "Cambiá el instructor, la fecha o la hora del seminario.";
 const seminarNotFoundError = "No encontramos ese seminario.";
 const requiredSeminarFieldError = "Este campo es obligatorio.";
 
@@ -515,7 +513,6 @@ function duplicateSeminarFailure(): SeminarFailure {
     ok: false,
     code: "duplicate-seminar",
     error: duplicateSeminarError,
-    fieldErrors: { instructorName: duplicateSeminarFieldError },
   };
 }
 

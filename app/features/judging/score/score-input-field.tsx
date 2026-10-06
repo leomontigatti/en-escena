@@ -17,11 +17,6 @@ type ScoreInputFieldProps<
   /** Layout only, for the surfaces that show the field inside a table cell. */
   className?: string;
   control: Control<TFieldValues>;
-  /**
-   * What a save refused the value for, which the form's own rule cannot know.
-   * The form's own message wins while the field is being typed into.
-   */
-  error?: string;
   id?: string;
   /** Shown above the field, and `sr-only` where a column header already says it. */
   label: string;
@@ -48,7 +43,6 @@ export function ScoreInputField<
   autoFocus,
   className,
   control,
-  error,
   id: providedId,
   label,
   labelAdornment,
@@ -66,7 +60,7 @@ export function ScoreInputField<
       render={({ field, fieldState }) => (
         <SharedFieldLayout
           className={className}
-          error={fieldState.error?.message ?? error}
+          error={fieldState.error?.message}
           id={id}
           label={label}
           labelAdornment={labelAdornment}

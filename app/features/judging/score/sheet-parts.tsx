@@ -37,13 +37,10 @@ import { ScoreInputField } from "./score-input-field";
 export function SheetParts({
   control,
   criteria,
-  fieldErrors,
   fieldIdPrefix,
 }: {
   control: Control<JudgeSheetFormValues>;
   criteria: readonly SheetCriterion[];
-  /** What a save refused, by criterion, for a form that shows it on the field. */
-  fieldErrors?: Record<string, string>;
   /** Makes each field's id unique where one page holds several sheets. */
   fieldIdPrefix: string;
 }) {
@@ -72,7 +69,6 @@ export function SheetParts({
               {part.criteria.map((criterion) => (
                 <ScoreInputField
                   control={control}
-                  error={fieldErrors?.[criterion.id]}
                   id={`${fieldIdPrefix}-${criterion.id}`}
                   key={criterion.id}
                   label={criterion.name}

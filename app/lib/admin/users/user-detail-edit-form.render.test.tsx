@@ -175,7 +175,6 @@ describe("InternalUserEditCard", () => {
       status: "error",
       message: "No se puede cambiar el permiso de un Administrador.",
       fieldErrors: {},
-      resetPasswordFieldErrors: {},
       editValues: { name: "Ana Jueza", role: "judge" },
       resetPasswordValues: { password: "" },
     });
@@ -193,7 +192,6 @@ describe("InternalUserEditCard", () => {
       status: "error",
       message: "No podés suspender al último administrador activo.",
       fieldErrors: {},
-      resetPasswordFieldErrors: {},
       editValues: { name: "", role: "judge" },
       resetPasswordValues: { password: "" },
     });

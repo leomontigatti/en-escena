@@ -2,12 +2,11 @@ import { useNavigation, useSubmit } from "react-router";
 
 import { PortalPageHeader } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
-import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { useRosterRefusalToast } from "@/components/shared/roster-document-conflict";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLastRefusedValues } from "@/lib/shared/forms";
 import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
-import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   PortalProfessorIdentityFields,
   usePortalProfessorForm,
@@ -37,18 +36,14 @@ export function CreateProfessorPage({
     submit,
     values: refusedValues ?? emptyProfessorValues,
   });
-  const documentConflictDescription = useRosterDocumentConflictField({
-    actionData: refusal?.status === "error" ? refusal : undefined,
-    conflict: getPortalProfessorDocumentConflict(refusal),
-    name: "documentNumber",
-    setError: form.form.setError,
-  });
   // Still pending while a save redirects to the list, so the leave guard
   // does not ask about the form it just saved.
   const isSubmitting =
     navigation.state !== "idle" && navigation.formData !== undefined;
 
-  useServerActionToast(actionData?.status === "error" ? actionData : null, {
+  useRosterRefusalToast({
+    conflict: getPortalProfessorDocumentConflict(refusal),
+    refusal: actionData?.status === "error" ? actionData : null,
     toastId: "portal-profesor-nuevo:error",
   });
 
@@ -71,10 +66,7 @@ export function CreateProfessorPage({
             noValidate
             onSubmit={form.handleSubmit}
           >
-            <PortalProfessorIdentityFields
-              documentConflictDescription={documentConflictDescription}
-              form={form.form}
-            />
+            <PortalProfessorIdentityFields form={form.form} />
           </form>
         </CardContent>
         <FormActions

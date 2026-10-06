@@ -7,7 +7,7 @@ import {
   RouterProvider,
   useLoaderData,
 } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   clickReactDomButton,
@@ -22,6 +22,17 @@ import {
 import { applyTableFilter } from "@/lib/test-support/data-table-filters";
 
 import { ChoreographyFinanceDetailView } from "./view";
+
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: (message: string) => toastError(message),
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 import type { loadChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Extract<
@@ -157,6 +168,55 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).toContain("$ 42.000");
   });
 
+  // A pick moves the ceiling. Before a submit that stays quiet; after one, the
+  // amount's error is read again against the new ceiling.
+  test("reads the amount against the picked price only once it was submitted", async () => {
+    await mount({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 0,
+          financialStatus: "depositPending",
+          owedBalanceAmount: 10000,
+          owedDepositAmount: 3000,
+        }),
+      ],
+      priceOptions: [
+        {
+          amount: 10000,
+          depositAmount: 3000,
+          id: "price_1",
+          name: "Dúo general",
+        },
+        {
+          amount: 42000,
+          depositAmount: 12600,
+          id: "price_2",
+          name: "Primer vencimiento",
+        },
+      ],
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("50000");
+    await openPriceSelect();
+    await selectRadixOption("Primer vencimiento · $ 42.000 · seña $ 12.600");
+
+    expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
+
+    await clickReactDomButton("Guardar");
+
+    expect(
+      document.querySelector('[data-slot="field-error"]')?.textContent,
+    ).toBe("Ingresá un monto entre $ 1 y $ 42.000.");
+
+    await openPriceSelect();
+    await selectRadixOption("Dúo general · $ 10.000 · seña $ 3.000");
+
+    expect(
+      document.querySelector('[data-slot="field-error"]')?.textContent,
+    ).toBe("Ingresá un monto entre $ 1 y $ 10.000.");
+  });
+
   // Below the deposit the price keeps re-deriving on its own, so the picker is
   // still there: the first peso locks nothing.
   test("keeps the picker on a row that holds money but has not covered its deposit", async () => {
@@ -205,6 +265,7 @@ describe("DancerNameCell interaction", () => {
 
   // The ceiling is what is owed, and it is said under the field instead of
   // coming back from the server as an alert.
+  // Validated on submit, as every form is: nothing is said while it is typed.
   test("says the range under the field when the allocated amount exceeds what is owed", async () => {
     await mount();
 
@@ -213,10 +274,15 @@ describe("DancerNameCell interaction", () => {
       setInputValue(amountInput(), "99999");
     });
 
+    expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
+    expect(guardarButton()?.disabled).toBe(false);
+
+    await clickReactDomButton("Guardar");
+
     expect(
       document.querySelector('[data-slot="field-error"]')?.textContent,
     ).toBe("Ingresá un monto entre $ 1 y $ 7.000.");
-    expect(guardarButton()?.disabled).toBe(true);
+    expect(dialogText()).toContain(allocateDescription);
   });
 
   test("offers the price picker while no money has landed", async () => {
@@ -328,16 +394,21 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("Bruno Benítez");
     await typeRemovedAmount("250000");
 
+    expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
+    expect(quitarButton()?.disabled).toBe(false);
+
+    await clickReactDomButton("Quitar", { exact: true });
+
     const error = document.querySelector('[data-slot="field-error"]');
 
     expect(error?.textContent).toBe("Ingresá un monto entre $ 1 y $ 10.000.");
     expect(
       amountInput("inscription-removed-amount").getAttribute("aria-invalid"),
     ).toBe("true");
-    expect(quitarButton()?.disabled).toBe(true);
+    expect(dialogText()).toContain(removeDescription);
   });
 
-  test("clears the range error and re-enables Quitar once the amount fits", async () => {
+  test("clears the range error once the amount fits", async () => {
     await mount({
       inscriptions: [
         inscriptionFixture({
@@ -351,10 +422,10 @@ describe("DancerNameCell interaction", () => {
 
     await clickReactDomButton("Bruno Benítez");
     await typeRemovedAmount("250000");
+    await clickReactDomButton("Quitar", { exact: true });
     await typeRemovedAmount("2500");
 
     expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
-    expect(quitarButton()?.disabled).toBe(false);
   });
 
   test("reaches the removal dialog from a row that still owes something", async () => {
@@ -461,8 +532,9 @@ describe("DancerNameCell interaction", () => {
   // Regression (#708): a refused write left its reason on screen for an instant
   // and then took the dialog with it. The dialog lived in a table cell, so the
   // revalidation that follows the write rebuilt the columns off the fresh
-  // `loaderData` and remounted the row.
-  test("keeps the dialog open, with the reason, when the write is refused", async () => {
+  // `loaderData` and remounted the row. The reason is the server's, so it is a
+  // toast, and the dialog stays open under it with what was typed.
+  test("keeps the dialog open, and toasts the reason, when the write is refused", async () => {
     await mountAgainst(() => ({
       status: "error",
       message: "El saldo disponible de la academia no alcanza.",
@@ -471,11 +543,207 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("Bruno Benítez");
     await typeAmount("5000");
     await clickReactDomButton("Guardar");
+    await updateReactDomForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
-    expect(dialogText()).toContain(
+    expect(toastError).toHaveBeenCalledWith(
+      "El saldo disponible de la academia no alcanza.",
+    );
+    expect(dialogText()).not.toContain(
       "El saldo disponible de la academia no alcanza.",
     );
     expect(dialogText()).toContain(allocateDescription);
+    expect(amountInput().value).toBe("5000");
+  });
+
+  // The refusal left in `fetcher.data` must not keep the dialog open once a
+  // retry goes through: the write that redirects clears it.
+  test("closes the dialog when a retry after a refusal goes through", async () => {
+    let answers = 0;
+    await mountAgainst(() => {
+      answers += 1;
+
+      return answers === 1
+        ? {
+            status: "error",
+            message: "El saldo disponible de la academia no alcanza.",
+          }
+        : redirect("/");
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("5000");
+    await clickReactDomButton("Guardar");
+    await updateReactDomForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(dialogText()).toContain(allocateDescription);
+
+    await clickReactDomButton("Guardar");
+    await updateReactDomForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(answers).toBe(2);
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+  });
+
+  // What each gesture posts is the writer's whole input. A locked price posts
+  // no `priceId` at all, which is how the writer knows to keep the stored row.
+  test("posts the amount, without a price, on a locked allocation", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(async ({ request }) => {
+      posted.push(await request.formData());
+
+      return redirect("/");
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("5000");
+    await clickReactDomButton("Guardar");
+
+    expect(posted.map((formData) => [...formData.entries()].sort())).toEqual([
+      [
+        ["amount", "5000"],
+        ["inscriptionId", "inscription_orphan"],
+        ["intent", "allocate-inscription"],
+        ["targetKind", "choreography"],
+      ],
+    ]);
+  });
+
+  test("posts the picked price with the amount while the price is open", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(
+      async ({ request }) => {
+        posted.push(await request.formData());
+
+        return redirect("/");
+      },
+      {
+        inscriptions: [
+          inscriptionFixture({
+            allocatedAmount: 0,
+            financialStatus: "depositPending",
+            owedBalanceAmount: 10000,
+            owedDepositAmount: 3000,
+          }),
+        ],
+      },
+    );
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("3000");
+    await clickReactDomButton("Guardar");
+
+    expect(posted.map((formData) => [...formData.entries()].sort())).toEqual([
+      [
+        ["amount", "3000"],
+        ["inscriptionId", "inscription_orphan"],
+        ["intent", "allocate-inscription"],
+        ["priceId", "price_1"],
+        ["targetKind", "choreography"],
+      ],
+    ]);
+  });
+
+  test("posts the release with nothing typed, and closes once it goes through", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(
+      async ({ request }) => {
+        posted.push(await request.formData());
+
+        return redirect("/");
+      },
+      {
+        inscriptions: [
+          inscriptionFixture({
+            allocatedAmount: 12000,
+            anomalies: ["overAllocated"],
+            financialStatus: "paidInFull",
+            overAllocatedAmount: 2000,
+            owedBalanceAmount: 0,
+            owedDepositAmount: 0,
+          }),
+        ],
+      },
+    );
+
+    await clickReactDomButton("Bruno Benítez");
+    await clickReactDomButton("Liberar $ 2.000");
+
+    expect(posted.map((formData) => [...formData.entries()].sort())).toEqual([
+      [
+        ["inscriptionId", "inscription_orphan"],
+        ["intent", "release-inscription-excess"],
+        ["targetKind", "choreography"],
+      ],
+    ]);
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+  });
+
+  // Validation is asynchronous, so a second submit can land before the first
+  // has posted: money is written once however many times it is confirmed.
+  test("posts an allocation once when it is confirmed twice", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(async ({ request }) => {
+      posted.push(await request.formData());
+
+      return redirect("/");
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("5000");
+    await updateReactDomForm(async () => {
+      const form = amountInput().form;
+
+      form?.requestSubmit();
+      form?.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(posted).toHaveLength(1);
+  });
+
+  test("posts nothing when the amount is out of range", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(async ({ request }) => {
+      posted.push(await request.formData());
+
+      return redirect("/");
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("99999");
+    await clickReactDomButton("Guardar");
+
+    expect(posted).toHaveLength(0);
+    expect(dialogText()).toContain("Ingresá un monto entre $ 1 y $ 7.000.");
+  });
+
+  test("posts the amount to take off on a removal", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(async ({ request }) => {
+      posted.push(await request.formData());
+
+      return redirect("/");
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await clickReactDomButton("Quitar dinero");
+    await typeRemovedAmount("2500");
+    await clickReactDomButton("Quitar", { exact: true });
+
+    expect(posted.map((formData) => [...formData.entries()].sort())).toEqual([
+      [
+        ["amount", "2500"],
+        ["inscriptionId", "inscription_orphan"],
+        ["intent", "remove-inscription-money"],
+        ["targetKind", "choreography"],
+      ],
+    ]);
   });
 
   test("closes the dialog when the write goes through", async () => {
@@ -523,7 +791,10 @@ describe("DancerNameCell interaction", () => {
   });
 
   /** Mounts the view behind a real loader, so a write revalidates it. */
-  async function mountAgainst(action: () => unknown) {
+  async function mountAgainst(
+    action: (args: { request: Request }) => unknown,
+    overrides: Partial<ChoreographyFinanceDetailLoaderData> = {},
+  ) {
     function ChoreographyFinanceDetailRoute() {
       const loaderData = useLoaderData() as ChoreographyFinanceDetailLoaderData;
 
@@ -536,7 +807,7 @@ describe("DancerNameCell interaction", () => {
           path: "/",
           action,
           // A fresh object on every call, the way a revalidation hands it over.
-          loader: () => loaderDataFixture(),
+          loader: () => loaderDataFixture(overrides),
           Component: ChoreographyFinanceDetailRoute,
         },
       ],

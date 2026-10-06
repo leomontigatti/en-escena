@@ -27,6 +27,10 @@ export function useAccessForm<TFieldValues extends FieldValues>({
   const form = useForm<TFieldValues, unknown, TFieldValues>({
     defaultValues: values,
     mode: "onSubmit",
+    // A cast the style guide asks to avoid, kept on purpose: `zodResolver`
+    // cannot infer a schema the hook only knows generically, and widens it to
+    // `FieldValues`. The types do not diverge; each route's schema and values
+    // agree, and only the generic is lost.
     resolver: zodResolver(schema as never) as Resolver<
       TFieldValues,
       unknown,

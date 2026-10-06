@@ -8,6 +8,8 @@
  * dialog's arithmetic testable without mounting a dialog.
  */
 
+import { z } from "zod";
+
 import {
   calculateTotalAmount,
   deriveInscriptionFinancialFigures,
@@ -207,10 +209,60 @@ export function resolveAllocationDialogFigures(input: {
  * range — it is the state the field opens in. With no ceiling known there is
  * nothing to be outside of.
  */
-export function isAmountOutOfRange(amount: string, maxAmount: number | null) {
+function isAmountOutOfRange(amount: string, maxAmount: number | null) {
   return (
     amount !== "" &&
     maxAmount !== null &&
     (Number(amount) < 1 || Number(amount) > maxAmount)
   );
+}
+
+/**
+ * The amount field's rule, for a form that knows its ceiling: the range above,
+ * said in the field's own words. An empty box passes, as above — the submit
+ * waits for an amount instead.
+ */
+function buildMoneyAmountSchema(maxAmount: number | null) {
+  return z.string().refine((amount) => !isAmountOutOfRange(amount, maxAmount), {
+    message:
+      maxAmount === null
+        ? ""
+        : `Ingresá un monto entre ${formatAmount(1)} y ${formatAmount(maxAmount)}.`,
+  });
+}
+
+/** The removal form's rule: any amount up to what the inscription holds. */
+export function buildRemovalFormSchema(allocatedAmount: number) {
+  return z.object({ amount: buildMoneyAmountSchema(allocatedAmount) });
+}
+
+/**
+ * The allocation form's rule. Its ceiling is what the inscription owes against
+ * the **picked** price, so it is read off the values being validated rather
+ * than off the row: a pick moves it.
+ */
+export function buildAllocationFormSchema(input: {
+  inscription: InscriptionRow;
+  priceOptions: PriceOption[];
+}) {
+  return z
+    .object({ amount: z.string(), priceId: z.string() })
+    .superRefine((values, context) => {
+      const { owedBalanceAmount } = resolveAllocationDialogFigures({
+        inscription: input.inscription,
+        priceId: values.priceId,
+        priceOptions: input.priceOptions,
+      });
+      const amount = buildMoneyAmountSchema(owedBalanceAmount).safeParse(
+        values.amount,
+      );
+
+      if (!amount.success) {
+        context.addIssue({
+          code: "custom",
+          message: amount.error.issues[0]?.message ?? "",
+          path: ["amount"],
+        });
+      }
+    });
 }

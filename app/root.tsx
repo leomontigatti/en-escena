@@ -10,10 +10,10 @@ import {
   useRouteLoaderData,
 } from "react-router";
 import { useEffect } from "react";
-import { Toaster } from "sonner";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { AppToaster } from "@/components/shared/app-toaster";
 import { StagingBanner } from "@/components/shared/staging-banner";
 import { isStagingEnvironment } from "@/lib/shared/app-environment.server";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
@@ -91,7 +91,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <>
-      <Toaster richColors position="top-center" />
+      <AppToaster />
       <Outlet />
       <FlashToast toast={loaderData.flashToast} />
     </>

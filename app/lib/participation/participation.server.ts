@@ -15,8 +15,28 @@ import type { Executor } from "@/lib/finances/choreography-cobro-support.server"
 const participationInscriptionAlias = "participation_choreography_dancer";
 const participationChoreographyAlias = "participation_choreography";
 
+/**
+ * Narrows a participation `exists` to the choreographies of one day: the day is
+ * the `scheduledDate` of the schedule the choreography sits on. Empty without a
+ * day, so the participation reads the whole event.
+ */
+function scheduledDateSql(scheduledDate: string | null) {
+  if (scheduledDate === null) {
+    return sql``;
+  }
+
+  return sql`and exists (
+      select 1
+      from ${sql.identifier("en_escena_schedule")} participation_schedule
+      where participation_schedule.id = participation_choreography.schedule_id
+        and participation_schedule.scheduled_date = ${scheduledDate}
+    )`;
+}
+
+/** `scheduledDate` narrows it to one day of the event, see `scheduledDateSql`. */
 export function buildDancerEventParticipationSql(
   selectedEventId: string | null,
+  scheduledDate: string | null = null,
 ) {
   if (selectedEventId === null) {
     return sql<boolean>`false`;
@@ -30,6 +50,7 @@ export function buildDancerEventParticipationSql(
     where participation_choreography_dancer.dancer_id = ${sql.identifier("en_escena_dancer")}.${sql.identifier("id")}
       and participation_choreography.event_id = ${selectedEventId}
       and ${activeInscriptionSql(participationInscriptionAlias)}
+      ${scheduledDateSql(scheduledDate)}
   )`;
 }
 
@@ -48,8 +69,10 @@ export function buildDancerAnyEventParticipationSql() {
   )`;
 }
 
+/** `scheduledDate` narrows it to one day of the event, see `scheduledDateSql`. */
 export function buildProfessorEventParticipationSql(
   selectedEventId: string | null,
+  scheduledDate: string | null = null,
 ) {
   if (selectedEventId === null) {
     return sql<boolean>`false`;
@@ -63,6 +86,7 @@ export function buildProfessorEventParticipationSql(
     where participation_choreography_professor.professor_id = ${sql.identifier("en_escena_professor")}.${sql.identifier("id")}
       and participation_choreography.event_id = ${selectedEventId}
       and ${notWithdrawnChoreographySql(participationChoreographyAlias)}
+      ${scheduledDateSql(scheduledDate)}
   )`;
 }
 

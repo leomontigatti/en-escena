@@ -42,13 +42,9 @@ export function InternalUserDetailRouteView({
   const errorData = actionData?.status === "error" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
 
-  // A refusal of the password reset is told inside its dialog, which stays open.
-  useServerActionToast(
-    errorData?.form === "reset-password" ? undefined : errorData,
-    {
-      toastId: notificationToastIds["user-form-error"],
-    },
-  );
+  useServerActionToast(errorData, {
+    toastId: notificationToastIds["user-form-error"],
+  });
   useServerActionToast(successData, {
     toastId: "admin-user-detail:success",
   });
@@ -62,11 +58,7 @@ export function InternalUserDetailRouteView({
       )}
       headerAction={
         canManageInternalUser ? (
-          <UserActionsMenu
-            errorData={errorData}
-            successData={successData}
-            user={savedUser}
-          />
+          <UserActionsMenu successData={successData} user={savedUser} />
         ) : null
       }
       requireSelectedEvent={false}
@@ -110,11 +102,9 @@ function UserDetailBody({
 }
 
 function UserActionsMenu({
-  errorData,
   successData,
   user,
 }: {
-  errorData?: DetailActionData;
   successData?: DetailSuccessData;
   user: DetailUser;
 }) {
@@ -122,18 +112,11 @@ function UserActionsMenu({
   // which unmounts everything the menu content holds.
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-  // What the route had already answered when the reset dialog opened, so an
-  // earlier refusal is not shown again in a fresh opening.
-  const [errorAtOpening, setErrorAtOpening] = useState(errorData);
-  const resetError =
-    errorData?.form === "reset-password" && errorData !== errorAtOpening
-      ? errorData
-      : undefined;
 
   // Neither dialog's action leaves the detail, so nothing unmounts them when it
   // succeeds. Close them on the success result rather than on the submit: a
   // refusal — the last active administrator, oneself, a rejected password — has
-  // to leave the dialog standing with its reason. See docs/agents/form-feedback.md.
+  // to leave the dialog standing under its toast. See docs/agents/form-feedback.md.
   useEffect(() => {
     if (successData) {
       setIsSuspendDialogOpen(false);
@@ -145,12 +128,7 @@ function UserActionsMenu({
     <>
       <ResourceActionsMenu contentClassName="w-56">
         <DropdownMenuGroup>
-          <DropdownMenuItem
-            onSelect={() => {
-              setErrorAtOpening(errorData);
-              setIsResetDialogOpen(true);
-            }}
-          >
+          <DropdownMenuItem onSelect={() => setIsResetDialogOpen(true)}>
             Restablecer contraseña
           </DropdownMenuItem>
           {user.state === "suspended" ? null : <DropdownMenuSeparator />}
@@ -161,7 +139,6 @@ function UserActionsMenu({
         </DropdownMenuGroup>
       </ResourceActionsMenu>
       <InternalUserResetPasswordDialog
-        error={resetError}
         onOpenChange={setIsResetDialogOpen}
         open={isResetDialogOpen}
       />

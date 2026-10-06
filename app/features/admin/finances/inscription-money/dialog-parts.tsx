@@ -3,15 +3,20 @@
  * chrome, the fetcher they write with, and the small pieces they each render.
  */
 
-import { Check, CircleAlert } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { Check } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useFetcher } from "react-router";
 
 import {
   DiscardChangesDialog,
   useDiscardGuard,
 } from "@/components/shared/discard-guard";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import type { AllocationTargetKind } from "@/lib/finances/allocation-target.server";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
   formatOwedAmount,
@@ -28,6 +34,8 @@ import {
   type OwedAgainstPrice,
 } from "./figures";
 import { targetKindFieldName } from "./intents";
+
+const inscriptionMoneyRefusalToastId = "inscription-money:refusal";
 
 /**
  * What every shape submits besides its intent: which inscription, and of which
@@ -58,8 +66,9 @@ export function MoneyTargetFields({
 /**
  * The fetcher the three shapes write with, and the one rule about when the
  * dialog goes away: **only a write that went through closes it.** A refusal
- * comes back as a message in `fetcher.data` and has to stay readable, which it
- * is not if the dialog closes on top of it (#708).
+ * comes back as a message in `fetcher.data`, which is toasted, and the dialog
+ * stays open under it with what was typed: closing it on top of the refusal
+ * threw that away (#708).
  *
  * The refusal is read off `data.status`, not off the mere presence of `data`.
  * Today the action redirects once it has written and so brings nothing back,
@@ -67,31 +76,68 @@ export function MoneyTargetFields({
  * dialog-write row of `docs/agents/form-feedback.md`, which expects the result
  * to come back from `fetcher.data`. Keying off presence would make the dialog
  * silently stop closing the day the action is aligned to the matrix.
+ *
+ * A write is counted when the promise of its `submit` settles, which is once
+ * the action and the revalidation after it are done, rather than read off the
+ * fetcher's state: a write that settles before the dialog renders it as
+ * pending would otherwise never be seen to have happened. Every shape posts
+ * through the `submit` returned here for that reason.
+ *
+ * It also posts **one write at a time**: a submit that arrives while another is
+ * in flight is dropped. Validation runs before the post and is asynchronous,
+ * so a second confirm can land before the first one shows as pending; posted
+ * twice, money would be written twice, and the first post, superseded, would
+ * still settle and close the dialog under the second.
  */
 export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
-  const isSaving = fetcher.state !== "idle";
   const isRefused = fetcher.data?.status === "error";
-  const hasSubmittedRef = useRef(false);
+  const [settledWrites, setSettledWrites] = useState(0);
+  const answeredWrites = useRef(0);
+  const isWriting = useRef(false);
+  // What `fetcher.data` held when the last write left. A write that redirects
+  // brings nothing back and leaves the data as it was, so a refusal from an
+  // earlier write is only this write's answer when it is a new object.
+  const dataBeforeWrite = useRef(fetcher.data);
+  const { data, submit: submitFetcher } = fetcher;
+
+  useServerActionToast(isRefused ? fetcher.data : undefined, {
+    toastId: inscriptionMoneyRefusalToastId,
+  });
 
   useEffect(() => {
-    if (isSaving) {
-      hasSubmittedRef.current = true;
+    if (settledWrites === answeredWrites.current) {
       return;
     }
 
-    if (!hasSubmittedRef.current) {
-      return;
-    }
+    answeredWrites.current = settledWrites;
 
-    hasSubmittedRef.current = false;
-
-    if (!isRefused) {
+    if (!isRefused || data === dataBeforeWrite.current) {
       onOpenChange(false);
     }
-  }, [isRefused, isSaving, onOpenChange]);
+  }, [data, isRefused, onOpenChange, settledWrites]);
 
-  return fetcher;
+  const submit = useCallback<typeof submitFetcher>(
+    async (target, options) => {
+      if (isWriting.current) {
+        return;
+      }
+
+      isWriting.current = true;
+      dataBeforeWrite.current = data;
+
+      try {
+        await submitFetcher(target, options);
+      } finally {
+        isWriting.current = false;
+      }
+
+      setSettledWrites((count) => count + 1);
+    },
+    [data, submitFetcher],
+  );
+
+  return { data: fetcher.data, state: fetcher.state, submit };
 }
 
 /**
@@ -175,24 +221,6 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="text-sm font-medium tabular-nums">{value}</span>
     </div>
-  );
-}
-
-export function FetcherError({
-  data,
-}: {
-  data: { message: string } | undefined;
-}) {
-  if (!data) {
-    return null;
-  }
-
-  return (
-    <Alert variant="destructive">
-      <CircleAlert aria-hidden="true" />
-      <AlertTitle>No se pudo guardar</AlertTitle>
-      <AlertDescription>{data.message}</AlertDescription>
-    </Alert>
   );
 }
 

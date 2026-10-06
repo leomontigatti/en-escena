@@ -272,21 +272,7 @@ export function getPortalDancerDocumentConflict(
 
   return {
     matchHref: matchId ? `/portal/bailarines/${matchId}` : undefined,
-    matchLabel: "Ver la ficha del bailarín con ese documento",
     message: actionData.fieldErrors.documentNumber,
-  };
-}
-
-export function getGeneralActionError(
-  actionData?: PortalDancerDetailActionData,
-) {
-  if (actionData?.status !== "error") {
-    return null;
-  }
-
-  return {
-    status: "error" as const,
-    message: actionData.message,
   };
 }
 

@@ -7,6 +7,7 @@ import {
   readDancerParticipationFilter,
   type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
+import { readChoreographyDayFilter } from "@/lib/choreographies/choreography-days.server";
 import { readListQuery } from "@/lib/list-query/list-query";
 import { listSearchCondition } from "@/lib/list-query/list-query.server";
 import { readRosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
@@ -17,6 +18,7 @@ function readDancerFilters(searchParams: URLSearchParams): DancerListFilters {
   const listQuery = readListQuery(searchParams, dancerListSpec);
 
   return {
+    day: readChoreographyDayFilter(searchParams),
     order: listQuery.order,
     participation: readDancerParticipationFilter(
       searchParams.get("participando"),
@@ -54,6 +56,12 @@ function buildDancerFilters(input: {
     } else {
       conditions.push(sql`not ${participationSql}`);
     }
+  }
+
+  if (input.selectedEventId !== null && input.filters.day !== null) {
+    conditions.push(
+      sql`${buildDancerEventParticipationSql(input.selectedEventId, input.filters.day)}`,
+    );
   }
 
   if (input.filters.identification === "incomplete") {

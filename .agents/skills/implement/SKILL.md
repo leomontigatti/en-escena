@@ -77,6 +77,12 @@ branch, running the test or the call when reading does not settle it, then give 
   [coderabbit-triage.md](../babysit-pr/coderabbit-triage.md#the-three-verbs) that you cannot
   settle from the issue. Bring it to them in the final report.
 
+When the spec and `docs/agents/style-guide.md` or `coding-standards.md` disagree, the standard
+wins unless the spec names the exception in so many words: a spec that points at a nonconforming
+file as its model asks for the file's shape, not its breach. Such a finding is a Standards one
+whichever axis raised it, and it is a **fix**, or an **ask** when an exception is wanted. A finding
+backed by the standards is never a **decline** on your judgement alone.
+
 Done when every finding carries a verb and every **fix** is made. Repeat step 3 for anything you
 touched. Refactoring belongs here, under green tests.
 

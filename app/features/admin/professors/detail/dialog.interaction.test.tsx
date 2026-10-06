@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, test } from "vitest";
+import { act } from "react";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import {
@@ -13,6 +14,17 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import { ProfessorDetailRouteView } from "./view";
+
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 type ProfessorDetailViewProps = Parameters<typeof ProfessorDetailRouteView>[0];
 type ProfessorEditConsequence =
@@ -140,7 +152,7 @@ describe("ProfessorDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("Cancelar");
   });
 
-  test("lands the duplicate-document refusal on the field and links to the match", async () => {
+  test("toasts the duplicate-document refusal with a link to the match, off the field", async () => {
     await renderer.renderAsync(
       renderInDataRouter(
         "/administracion/profesores/profesor_1",
@@ -169,15 +181,23 @@ describe("ProfessorDetailRouteView dialogs", () => {
       'input[name="documentNumber"]',
     );
 
-    expect(documentField?.getAttribute("aria-invalid")).toBe("true");
-    expect(document.body.textContent).toContain(
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(documentField?.getAttribute("aria-invalid")).toBeNull();
+    expect(document.body.textContent).not.toContain(
       "Ya existe un profesor archivado con ese documento en la academia.",
     );
-    expect(
-      document.querySelector(
-        'a[href="/administracion/profesores/profesor_archivado_1"]',
-      )?.textContent,
-    ).toBe("Ver la ficha del profesor con ese documento");
+    expect(toastError).toHaveBeenCalledWith(
+      "Ya existe un profesor archivado con ese documento en la academia.",
+      expect.objectContaining({
+        action: expect.objectContaining({
+          props: expect.objectContaining({ children: "Ver ficha" }),
+        }),
+        id: "admin-professor-detail:error",
+      }),
+    );
   });
 });
 

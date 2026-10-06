@@ -1,19 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { BirthDateField } from "@/components/shared/birth-date-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 
-import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import { useSavedFormValues } from "@/lib/shared/forms";
 
-import {
-  buildDancerUpdateSchema,
-  getDancerDocumentConflict,
-  type DancerActionError,
-  type DancerEditFormValues,
-} from "./shared";
+import { buildDancerUpdateSchema, type DancerEditFormValues } from "./shared";
 
 type DancerEditFormReturn = UseFormReturn<
   DancerEditFormValues,
@@ -30,12 +23,10 @@ type DancerEditFormReturn = UseFormReturn<
  * reset the form to clean.
  */
 export function useDancerEditForm({
-  actionData,
   eventStartDate,
   savedValues,
   submittedValues,
 }: {
-  actionData?: DancerActionError;
   eventStartDate: string | null;
   savedValues: DancerEditFormValues;
   submittedValues: DancerEditFormValues | null;
@@ -49,16 +40,8 @@ export function useDancerEditForm({
   });
   useSavedFormValues(form, savedValues, submittedValues);
 
-  const documentConflictDescription = useRosterDocumentConflictField({
-    actionData,
-    conflict: getDancerDocumentConflict(actionData),
-    name: "documentNumber",
-    setError: form.setError,
-  });
-
   return {
     discard: () => form.reset(savedValues),
-    documentConflictDescription,
     eventStartDate,
     form,
     hasChanges: form.formState.isDirty,
@@ -66,12 +49,10 @@ export function useDancerEditForm({
 }
 
 export function DancerTextField({
-  description,
   form,
   label,
   name,
 }: {
-  description?: ReactNode;
   form: DancerEditFormReturn;
   label: string;
   name:
@@ -85,7 +66,6 @@ export function DancerTextField({
     <TextInputField
       autoComplete="off"
       control={form.control}
-      description={description}
       label={label}
       name={name}
     />

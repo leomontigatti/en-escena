@@ -20,7 +20,6 @@ export function RosterMergeDialog({
   onOpenChange,
   open,
   person,
-  refusal,
 }: {
   kind: RosterPersonKind;
   /** `null` for a read-only auditor, who gets no dialog at all. */
@@ -36,7 +35,6 @@ export function RosterMergeDialog({
     id: string;
     lastName: string;
   };
-  refusal?: string;
 }) {
   if (!merge) {
     return null;
@@ -59,7 +57,6 @@ export function RosterMergeDialog({
       onOpenChange={onOpenChange}
       open={open}
       recordId={person.id}
-      refusal={refusal}
       renderSummary={(survivorId) => {
         const survivor = candidates.find(
           (candidate) => candidate.id === survivorId,

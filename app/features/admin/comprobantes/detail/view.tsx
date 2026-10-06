@@ -1,4 +1,4 @@
-import { Ban, CircleAlert } from "lucide-react";
+import { Ban } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useFetcher } from "react-router";
 
@@ -10,7 +10,6 @@ import { BackButton } from "@/components/shared/action-buttons";
 import { PinnedActions } from "@/components/shared/pinned-actions";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -43,6 +42,7 @@ import {
   formatComprobanteStatusLabel,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
+import { useServerActionToast } from "@/lib/shared/toasts";
 import { lowercaseFirst } from "@/lib/shared/utils";
 
 import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
@@ -227,8 +227,6 @@ function AnnulDialog({
   const actionData = fetcher.data;
   const contingency =
     actionData?.status === "contingency" ? actionData.contingency : null;
-  const genericError =
-    actionData?.status === "error" ? actionData.message : null;
 
   // Manual verification is declared by the operator, so it cannot survive a new
   // attempt: every response from the server clears it and the retry goes back to
@@ -239,6 +237,10 @@ function AnnulDialog({
   }, [fetcher.data]);
 
   const submitState = resolveContingencySubmitState(contingency, acknowledged);
+
+  useServerActionToast(actionData?.status === "error" ? actionData : null, {
+    toastId: "comprobante-annul:error",
+  });
 
   function handleOpenChange(next: boolean) {
     if (isSaving) {
@@ -280,14 +282,6 @@ function AnnulDialog({
               }
               recheckIntent={recheckNotaCreditoIntent}
             />
-          ) : null}
-
-          {genericError ? (
-            <Alert variant="destructive">
-              <CircleAlert aria-hidden="true" />
-              <AlertTitle>No se pudo anular el comprobante</AlertTitle>
-              <AlertDescription>{genericError}</AlertDescription>
-            </Alert>
           ) : null}
 
           <AlertDialogFooter>

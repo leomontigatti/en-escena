@@ -189,7 +189,9 @@ describe("the `/juzgamiento` action", () => {
     },
   );
 
-  test("answers with the field error for a value that is not a half step", async () => {
+  // A refusal is a toast, never a field error: the value rule rides on the
+  // message the judge reads.
+  test("answers a value that is not a half step with the value rule", async () => {
     const judge = await signIn("judge", "Juana Juez");
     const { fixture, presentation } = await seedOpenPresentation();
 
@@ -204,10 +206,11 @@ describe("the `/juzgamiento` action", () => {
     );
 
     expect(result).toMatchObject({
-      fieldErrors: { value: scoreValueMessage() },
+      message: scoreValueMessage(),
       status: "error",
       values: { presentationId: presentation.presentationId, value: "90.2" },
     });
+    expect(result).not.toHaveProperty("fieldErrors");
   });
 
   // The take rides along with the score as multipart, so a file the policy
@@ -234,9 +237,10 @@ describe("the `/juzgamiento` action", () => {
     );
 
     expect(result).toMatchObject({
-      fieldErrors: { audio: "El audio de la devolución debe ser WEBM." },
+      message: "El audio de la devolución debe ser WEBM.",
       status: "error",
     });
+    expect(result).not.toHaveProperty("fieldErrors");
     expect(
       await db
         .select()

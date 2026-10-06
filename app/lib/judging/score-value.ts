@@ -20,6 +20,13 @@ export function scoreValueMessage(maximum: number = singleScoreMaximum) {
 }
 
 /**
+ * The same rule for a whole sheet, which a save refuses as one: each line is
+ * out of its own maximum, so no single number can be named.
+ */
+export const sheetValuesMessage =
+  "Revisá la planilla: cada línea va de 0 a su máximo, de 0.5 en 0.5.";
+
+/**
  * The typed score as a number, or null when the field cannot be saved as it
  * stands. A half-typed value is a value the sheet cannot use rather than one to
  * round, so nothing here repairs the input.

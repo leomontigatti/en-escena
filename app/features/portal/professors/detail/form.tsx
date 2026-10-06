@@ -1,5 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ReactNode } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
 import type { SubmitFunction } from "react-router";
 
@@ -60,10 +59,8 @@ export function usePortalProfessorForm({
  * creates one and on the ficha that edits it.
  */
 export function PortalProfessorIdentityFields({
-  documentConflictDescription,
   form,
 }: {
-  documentConflictDescription?: ReactNode;
   form: ProfessorFormReturn;
 }) {
   return (
@@ -80,7 +77,6 @@ export function PortalProfessorIdentityFields({
         placeholder={documentTypeEmptyLabel}
       />
       <ProfessorTextField
-        description={documentConflictDescription}
         form={form}
         label="Número de documento"
         name="documentNumber"
@@ -90,12 +86,10 @@ export function PortalProfessorIdentityFields({
 }
 
 function ProfessorTextField({
-  description,
   form,
   label,
   name,
 }: {
-  description?: ReactNode;
   form: ProfessorFormReturn;
   label: string;
   name: FieldPath<ProfessorFormValues>;
@@ -106,7 +100,6 @@ function ProfessorTextField({
     <TextInputField
       autoComplete={autoComplete}
       control={form.control}
-      description={description}
       label={label}
       name={name}
     />
