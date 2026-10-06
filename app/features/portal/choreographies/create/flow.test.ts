@@ -707,7 +707,6 @@ describe("restoreCreateChoreographyAnswers", () => {
           dancerIds: ["dancer_1"],
           professorIds: ["professor_1"],
           experienceLevelId: "",
-          professionalEvaluation: false,
           scheduleCapacityId: "",
         },
         options,

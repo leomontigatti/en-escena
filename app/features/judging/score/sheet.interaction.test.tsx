@@ -64,9 +64,9 @@ function buildRow(
     status: "pending",
     submodalityName: "Acrobática",
     value: null,
+    professionalEvaluation: false,
     ...overrides,
     presentationId: overrides.presentationId,
-    professionalEvaluation: false,
   };
 }
 
