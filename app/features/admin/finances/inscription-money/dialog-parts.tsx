@@ -82,12 +82,19 @@ export function MoneyTargetFields({
  * fetcher's state: a write that settles before the dialog renders it as
  * pending would otherwise never be seen to have happened. Every shape posts
  * through the `submit` returned here for that reason.
+ *
+ * It also posts **one write at a time**: a submit that arrives while another is
+ * in flight is dropped. Validation runs before the post and is asynchronous,
+ * so a second confirm can land before the first one shows as pending; posted
+ * twice, money would be written twice, and the first post, superseded, would
+ * still settle and close the dialog under the second.
  */
 export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
   const isRefused = fetcher.data?.status === "error";
   const [settledWrites, setSettledWrites] = useState(0);
   const answeredWrites = useRef(0);
+  const isWriting = useRef(false);
   const { submit: submitFetcher } = fetcher;
 
   useServerActionToast(isRefused ? fetcher.data : undefined, {
@@ -108,7 +115,18 @@ export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
 
   const submit = useCallback<typeof submitFetcher>(
     async (target, options) => {
-      await submitFetcher(target, options);
+      if (isWriting.current) {
+        return;
+      }
+
+      isWriting.current = true;
+
+      try {
+        await submitFetcher(target, options);
+      } finally {
+        isWriting.current = false;
+      }
+
       setSettledWrites((count) => count + 1);
     },
     [submitFetcher],

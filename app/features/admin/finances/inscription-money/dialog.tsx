@@ -48,7 +48,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -77,7 +76,7 @@ import {
 } from "./dialog-parts";
 import {
   buildAllocationFormSchema,
-  buildMoneyAmountSchema,
+  buildRemovalFormSchema,
   isAmountOutOfRange,
   readInscriptionMoneyDialogShape,
   resolveAllocationDialogFigures,
@@ -201,7 +200,7 @@ function AllocateMoneyDialog({
       buildAllocationFormSchema({ inscription, priceOptions }),
     ),
   });
-  const { trigger } = form;
+  const { getValues, trigger } = form;
   const [amount, priceId] = useWatch({
     control: form.control,
     name: ["amount", "priceId"],
@@ -228,10 +227,10 @@ function AllocateMoneyDialog({
 
   // A pick moves the ceiling, so a typed amount is read against the new one.
   useEffect(() => {
-    if (form.getValues("amount") !== "") {
+    if (getValues("amount") !== "") {
       void trigger("amount");
     }
-  }, [form, priceId, trigger]);
+  }, [getValues, priceId, trigger]);
 
   return (
     <MoneyDialog
@@ -402,11 +401,7 @@ function RemoveMoneyDialog({
   const form = useForm<RemovalFormValues>({
     defaultValues: { amount: "" },
     mode: moneyFormValidationMode,
-    resolver: zodResolver(
-      z.object({
-        amount: buildMoneyAmountSchema(inscription.allocatedAmount),
-      }),
-    ),
+    resolver: zodResolver(buildRemovalFormSchema(inscription.allocatedAmount)),
   });
   const amount = useWatch({ control: form.control, name: "amount" });
   const isSaving = fetcher.state !== "idle";

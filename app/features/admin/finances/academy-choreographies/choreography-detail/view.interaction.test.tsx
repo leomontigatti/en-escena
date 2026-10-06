@@ -591,6 +591,29 @@ describe("DancerNameCell interaction", () => {
     expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
   });
 
+  // Validation is asynchronous, so a second submit can land before the first
+  // has posted: money is written once however many times it is confirmed.
+  test("posts an allocation once when it is confirmed twice", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(async ({ request }) => {
+      posted.push(await request.formData());
+
+      return redirect("/");
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("5000");
+    await updateReactDomForm(async () => {
+      const form = amountInput().form;
+
+      form?.requestSubmit();
+      form?.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(posted).toHaveLength(1);
+  });
+
   test("posts the amount to take off on a removal", async () => {
     const posted: FormData[] = [];
     await mountAgainst(async ({ request }) => {

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Merge } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -30,7 +30,7 @@ import {
   useOptionalNavigation,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
-import { showToastMessage } from "@/lib/shared/toasts";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 const mergeFormSchema = z.object({
   [mergeSurvivorFieldName]: z.string().min(1, requiredFieldMessage),
@@ -168,20 +168,23 @@ export function useMergeDialogState(
     actionData?.status === "merge-refused" ? recordId : null,
   );
 
+  // One object per answer, so a second identical refusal toasts again and a
+  // re-render does not.
+  const refusal = useMemo(
+    () =>
+      actionData?.status === "merge-refused"
+        ? { message: actionData.message ?? "", status: "error" as const }
+        : undefined,
+    [actionData],
+  );
+
+  useServerActionToast(refusal, { toastId: mergeRefusalToastId });
+
   useEffect(() => {
-    if (actionData?.status !== "merge-refused") {
-      return;
+    if (refusal) {
+      setOpenFor(recordId);
     }
-
-    const message = actionData.message ?? "";
-
-    setOpenFor(recordId);
-    // Deferred like `useServerActionToast`, so the toast is not raised inside
-    // the render that brought the answer.
-    window.setTimeout(() => {
-      showToastMessage({ id: mergeRefusalToastId, message, variant: "error" });
-    }, 0);
-  }, [actionData, recordId]);
+  }, [recordId, refusal]);
 
   return {
     onOpenChange: (open: boolean) => setOpenFor(open ? recordId : null),

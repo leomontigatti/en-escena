@@ -25,7 +25,10 @@ import {
   formatGroupTypeLabel,
   type ChoreographyGroupType,
 } from "@/lib/portal/choreographies";
-import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
+import {
+  createValidatedRouteSubmitHandler,
+  useOptionalFormAction,
+} from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
@@ -102,6 +105,7 @@ export function FinancePresetDialog({
   stage: CobroStage;
 }) {
   const fetcher = useFetcher<AcademyFinancesActionData>();
+  const formAction = useOptionalFormAction();
   const selectedInscriptions = selectInscriptionsOf(inscriptions, selectedRows);
   const priceFields = buildPresetPriceFields({
     priceOptionsByGroupType,
@@ -174,10 +178,13 @@ export function FinancePresetDialog({
         <form
           method="post"
           noValidate
-          onSubmit={createValidatedReactRouterSubmitHandler(
+          // The post is the form element, so it carries the pickers on screen
+          // and nothing else: a picker the selection no longer offers (a
+          // revalidation took its rows away) must not post the pick it held.
+          onSubmit={createValidatedRouteSubmitHandler(
             form,
             fetcher.submit,
-            { method: "post" },
+            formAction,
           )}
           className="flex flex-col gap-4"
         >
@@ -314,7 +321,7 @@ function isPresetPricePicker(field: PresetPriceFieldSpec) {
 
 /**
  * The form's starting picks: one entry per picker, on the row it opens on or
- * empty, so the post carries exactly the fields shown.
+ * empty.
  */
 function buildPresetPriceDefaults(input: {
   defaultPriceIds: Record<string, string>;

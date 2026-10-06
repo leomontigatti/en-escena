@@ -20,8 +20,9 @@ CodeRabbit, opened the thread.
 
 A finding backed by `docs/agents/coding-standards.md` or `docs/agents/style-guide.md` is never
 declined on the triager's judgement alone: it is a **fix**, or an **ask** when the code is a
-deliberate exception the user rules on. A comment in the code naming the exception and the spec
-that asked for it (a PRD by number) is that ruling, already given, and is the disproof to cite.
+deliberate exception the user rules on. The one ruling already given is a spec that names the
+exception in so many words: decline only by quoting that line of the PRD or issue. A comment in
+the code is the implementer's claim, not the ruling; it points at where to look.
 
 From CodeRabbit's third pass on a PR (`coderabbitPasses` ≥ 3), lean toward **decline** for a
 finding that matches a pattern below: code churned to quiet a bot is a cost, not a fix. The

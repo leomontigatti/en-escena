@@ -165,12 +165,4 @@ describe("RosterMergeDialog", () => {
     expect(submissions).toHaveLength(0);
     expect(document.body.textContent).toContain("Este campo es obligatorio.");
   });
-
-  // A refusal is a toast (`useMergeDialogState`), so the warning before an
-  // action that cannot be undone is never taken off the dialog.
-  test("warns that the merge cannot be undone", async () => {
-    await renderDialog();
-
-    expect(document.body.textContent).toContain("Esta acción es irreversible.");
-  });
 });

@@ -4,23 +4,18 @@
  * shapes take.
  */
 
-import {
-  Controller,
-  type Control,
-  type FieldValues,
-  type Path,
-} from "react-hook-form";
+import type { Control, FieldValues, Path } from "react-hook-form";
 import type { z } from "zod";
 
-import { SharedFieldLayout } from "@/components/shared/field-layout";
+import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
-import { Input } from "@/components/ui/input";
 import { formatAmount } from "@/lib/finances/formatters";
 
 import {
   formatDialogPrice,
   type buildAllocationFormSchema,
+  type buildRemovalFormSchema,
   type InscriptionRow,
   type PriceOption,
 } from "./figures";
@@ -29,7 +24,9 @@ export type AllocationFormValues = z.input<
   ReturnType<typeof buildAllocationFormSchema>
 >;
 
-export type RemovalFormValues = { amount: string };
+export type RemovalFormValues = z.input<
+  ReturnType<typeof buildRemovalFormSchema>
+>;
 
 /**
  * The amount is validated as it is typed, against the documented
@@ -89,9 +86,9 @@ export function AllocationPriceField({
  * the range said under the field rather than as an alert — so they share the
  * control instead of agreeing twice.
  *
- * `maxAmount` is `null` only where the ceiling is unknown, which is an
- * inscription with no applicable price: there is no range to name, so nothing is
- * said and the server's refusal is what catches it.
+ * The range is the form schema's (`buildMoneyAmountSchema`). Its ceiling is
+ * unknown only on an inscription with no applicable price: there is no range to
+ * name, so nothing is said and the server's refusal is what catches it.
  */
 export function MoneyAmountField<TFieldValues extends FieldValues>({
   control,
@@ -107,38 +104,18 @@ export function MoneyAmountField<TFieldValues extends FieldValues>({
   placeholderAmount: number | null;
 }) {
   return (
-    <Controller
+    <IntegerInputField
+      autoComplete="off"
+      autoFocus
       control={control}
+      disabled={isSaving}
+      id={id}
+      inputClassName="tabular-nums"
+      label="Monto"
       name={name}
-      render={({ field, fieldState }) => (
-        <SharedFieldLayout
-          error={fieldState.error?.message || undefined}
-          id={id}
-          label="Monto"
-        >
-          {({ describedBy, isInvalid }) => (
-            <Input
-              {...field}
-              id={id}
-              inputMode="numeric"
-              autoComplete="off"
-              aria-describedby={describedBy}
-              aria-invalid={isInvalid}
-              autoFocus
-              className="tabular-nums"
-              disabled={isSaving}
-              placeholder={
-                placeholderAmount === null
-                  ? undefined
-                  : formatAmount(placeholderAmount)
-              }
-              onChange={(event) =>
-                field.onChange(event.target.value.replace(/\D/g, ""))
-              }
-            />
-          )}
-        </SharedFieldLayout>
-      )}
+      placeholder={
+        placeholderAmount === null ? undefined : formatAmount(placeholderAmount)
+      }
     />
   );
 }

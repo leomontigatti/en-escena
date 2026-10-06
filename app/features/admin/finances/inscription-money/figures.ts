@@ -222,13 +222,18 @@ export function isAmountOutOfRange(amount: string, maxAmount: number | null) {
  * said in the field's own words. An empty box passes, as above — the submit
  * waits for an amount instead.
  */
-export function buildMoneyAmountSchema(maxAmount: number | null) {
+function buildMoneyAmountSchema(maxAmount: number | null) {
   return z.string().refine((amount) => !isAmountOutOfRange(amount, maxAmount), {
     message:
       maxAmount === null
         ? ""
         : `Ingresá un monto entre ${formatAmount(1)} y ${formatAmount(maxAmount)}.`,
   });
+}
+
+/** The removal form's rule: any amount up to what the inscription holds. */
+export function buildRemovalFormSchema(allocatedAmount: number) {
+  return z.object({ amount: buildMoneyAmountSchema(allocatedAmount) });
 }
 
 /**
