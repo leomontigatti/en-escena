@@ -556,6 +556,38 @@ describe("saving a draft of the choreography detail", () => {
       name: "Otro nombre",
     });
   });
+
+  test("writes whether the choreography is evaluated as professional", async () => {
+    const scenario = await createDraftScenario({ slug: "profesional" });
+
+    const response = await scenario.saveDraft(
+      scenario.draft({ professionalEvaluation: true }),
+    );
+
+    expect(response).toMatchObject({ status: "success" });
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      professionalEvaluation: true,
+    });
+  });
+
+  test("refuses to change the professional evaluation of an evaluated choreography", async () => {
+    const scenario = await createDraftScenario({
+      slug: "profesional-evaluada",
+    });
+    evaluatedChoreographyIds.add(scenario.choreography.id);
+
+    const response = await scenario.saveDraft(
+      scenario.draft({ professionalEvaluation: true }),
+    );
+
+    expect(response).toEqual({
+      message: evaluatedChoreographyMessage,
+      status: "error",
+    });
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      professionalEvaluation: false,
+    });
+  });
 });
 
 async function createDraftScenario(input: {
@@ -635,6 +667,7 @@ async function createDraftScenario(input: {
         experienceLevelId: "",
         modalityId: catalog.modality.id,
         name: choreography.name,
+        professionalEvaluation: false,
         professorIds: [],
         scheduleCapacityId: heldCapacityId,
         submodalityId: catalog.submodality.id,

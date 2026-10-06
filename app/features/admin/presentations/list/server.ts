@@ -97,6 +97,7 @@ export async function loadPresentationListRouteData(request: Request) {
   redirectToCanonicalListUrl(request, {
     facets: {
       dia: result.filters.day,
+      evaluacion: result.filters.evaluation,
       advertencias: result.filters.warnings,
     },
     query: {
@@ -459,6 +460,10 @@ function readPresentationFilters(
 
   return {
     day: readListFacet(searchParams, "dia"),
+    evaluation:
+      readListFacet(searchParams, "evaluacion") === "profesional"
+        ? "profesional"
+        : null,
     order: listQuery.order,
     page: listQuery.page,
     query: listQuery.search,
@@ -491,6 +496,7 @@ function buildPresentationListItem(
     name: row.name,
     orderNumber: row.orderNumber,
     presentationId: row.presentationId,
+    professionalEvaluation: row.professionalEvaluation,
     scheduledDate: row.schedule.scheduledDate,
     submodalityName: row.submodalityName,
     warnings: event.warnings.get(row.choreographyId) ?? [],
@@ -506,6 +512,10 @@ function matchesPresentationFilters(
   }
 
   if (filters.warnings === "con" && item.warnings.length === 0) {
+    return false;
+  }
+
+  if (filters.evaluation === "profesional" && !item.professionalEvaluation) {
     return false;
   }
 

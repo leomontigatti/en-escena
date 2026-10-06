@@ -542,6 +542,7 @@ function buildLoaderData(
       ],
       experienceLevelId: "amateur",
       experienceLevelName: "Amateur",
+      professionalEvaluation: false,
       experienceLevelOptions: [
         { id: "amateur", name: "Amateur" },
         { id: "profesional", name: "Profesional" },

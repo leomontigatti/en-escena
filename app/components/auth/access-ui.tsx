@@ -55,6 +55,8 @@ type AccessHeaderProps = {
   eyebrow?: string;
   media?: ReactNode;
   title: string;
+  /** A badge for the record's state, drawn beside the title. */
+  titleBadge?: ReactNode;
   /** `h2` on a private panel's page, as on the admin's; `h1` on the public forms. */
   titleLevel?: 1 | 2;
   description?: ReactNode;
@@ -69,11 +71,11 @@ export function AccessHeader({
   eyebrow,
   media,
   title,
+  titleBadge,
   titleLevel = 1,
   description,
   tone = "default",
 }: AccessHeaderProps) {
-  const Title = titleLevel === 1 ? "h1" : "h2";
   // A panel's title sits on its description as the admin's does.
   const descriptionSpacing = titleLevel === 1 ? "mt-4" : "mt-1";
   const descriptionClassName =
@@ -92,14 +94,11 @@ export function AccessHeader({
           {eyebrow}
         </p>
       ) : null}
-      <Title
-        className={cn(
-          "mt-3 font-semibold text-pretty text-foreground",
-          titleLevel === 1 ? "text-3xl" : "text-xl",
-        )}
-      >
-        {title}
-      </Title>
+      <AccessHeaderTitle
+        title={title}
+        titleBadge={titleBadge}
+        titleLevel={titleLevel}
+      />
       {description && descriptionAction ? (
         <div
           className={cn(
@@ -116,6 +115,27 @@ export function AccessHeader({
         </p>
       ) : null}
     </header>
+  );
+}
+
+function AccessHeaderTitle({
+  title,
+  titleBadge,
+  titleLevel,
+}: Pick<AccessHeaderProps, "title" | "titleBadge"> & { titleLevel: 1 | 2 }) {
+  const Title = titleLevel === 1 ? "h1" : "h2";
+
+  return (
+    <Title
+      className={cn(
+        "mt-3 font-semibold text-pretty text-foreground",
+        titleLevel === 1 ? "text-3xl" : "text-xl",
+        titleBadge && "flex flex-wrap items-center gap-x-3 gap-y-1",
+      )}
+    >
+      {title}
+      {titleBadge}
+    </Title>
   );
 }
 

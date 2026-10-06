@@ -62,7 +62,7 @@ export function ChoreographyDetailAlerts({
             Tiene la presentación N.º {choreography.presentationOrderNumber}
           </AlertTitle>
           <AlertDescription>
-            Si la modificás, revisá sus advertencias en Presentaciones.
+            Si la modificás, revisá sus advertencias en presentaciones.
           </AlertDescription>
         </Alert>
       )}

@@ -16,6 +16,7 @@ export const choreographyDraftSchema = z.object({
   experienceLevelId: z.string(),
   modalityId: z.string(),
   name: z.string().trim().min(1, requiredFieldMessage),
+  professionalEvaluation: z.boolean(),
   professorIds: z.array(z.string()),
   scheduleCapacityId: z.string(),
   submodalityId: z.string(),
@@ -30,6 +31,7 @@ export function toSavedChoreographyDraft(
     experienceLevelId: choreography.experienceLevelId ?? "",
     modalityId: choreography.modalityId,
     name: choreography.name,
+    professionalEvaluation: choreography.professionalEvaluation,
     professorIds: choreography.professors.map((professor) => professor.id),
     scheduleCapacityId: choreography.scheduleCapacityId,
     submodalityId: choreography.submodalityId ?? "",
@@ -50,6 +52,7 @@ export function isChoreographyDraftDirty(
     draft.modalityId !== saved.modalityId ||
     draft.submodalityId !== saved.submodalityId ||
     draft.experienceLevelId !== saved.experienceLevelId ||
+    draft.professionalEvaluation !== saved.professionalEvaluation ||
     draft.scheduleCapacityId !== saved.scheduleCapacityId ||
     !haveSameIds(draft.dancerIds, saved.dancerIds) ||
     !haveSameIds(draft.professorIds, saved.professorIds)

@@ -68,6 +68,8 @@ export type PresentationScoresView = {
   name: string;
   orderNumber: number;
   presentationId: string;
+  /** `Evaluar como profesional`: the academy asked the judges to be severe. */
+  professionalEvaluation: boolean;
   submodalityName: string | null;
 };
 
@@ -89,6 +91,7 @@ export async function readPresentationScores(
       modalityName: modalities.name,
       name: choreographies.name,
       orderNumber: presentations.orderNumber,
+      professionalEvaluation: choreographies.professionalEvaluation,
       submodalityId: choreographies.submodalityId,
       submodalityName: submodalities.name,
     })
@@ -133,6 +136,7 @@ export async function readPresentationScores(
     name: presentation.name,
     orderNumber: presentation.orderNumber,
     presentationId: input.presentationId,
+    professionalEvaluation: presentation.professionalEvaluation,
     submodalityName: presentation.submodalityName,
   };
 }

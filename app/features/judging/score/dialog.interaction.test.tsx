@@ -37,6 +37,7 @@ function buildRow(
     status: "pending",
     submodalityName: "Lyrical",
     value: null,
+    professionalEvaluation: false,
     ...overrides,
     presentationId: overrides.presentationId,
   };

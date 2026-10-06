@@ -32,6 +32,8 @@ import {
 } from "@/lib/judging/score-value";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 
+import { ProfessionalEvaluationBadge } from "@/components/shared/professional-evaluation-badge";
+
 import {
   formatPresentationSummary,
   formatPresentationTitle,
@@ -139,7 +141,12 @@ export function JudgeScoreDialog({
       >
         <DialogContent onInteractOutside={(event) => event.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>{formatPresentationTitle(presentation)}</DialogTitle>
+            <DialogTitle className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {formatPresentationTitle(presentation)}
+              <ProfessionalEvaluationBadge
+                professionalEvaluation={presentation.professionalEvaluation}
+              />
+            </DialogTitle>
             <DialogDescription>
               {formatPresentationSummary(presentation)}
             </DialogDescription>
@@ -148,7 +155,7 @@ export function JudgeScoreDialog({
           <form
             id="judge-score-form"
             method="post"
-            className="flex w-full flex-col gap-4"
+            className="flex w-full min-w-0 flex-col gap-4"
             // A disqualified presentation takes nothing but the take, so the
             // score field is not there to be validated.
             onSubmit={

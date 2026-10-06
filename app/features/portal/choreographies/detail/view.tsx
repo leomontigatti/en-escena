@@ -33,7 +33,7 @@ export function PortalChoreographyDetailRouteView({
         title={`${loaderData.choreography.name} # ${formatEventSequenceNumber(
           loaderData.choreography.choreographyNumber,
         )}`}
-        description="Actualizá la música de esta coreografía. El resto de los datos se editan desde administración."
+        description="Actualizá la música de esta coreografía o cómo se evalúa. El resto de los datos se editan desde administración."
       />
 
       <AlertStack>
