@@ -50,10 +50,9 @@ describe("PortalProfessorDetailRouteView", () => {
     expect(markup).not.toContain("Activo");
   });
 
-  // The document refusal is the exception: it lands on the field through an
-  // effect, which server rendering never runs, so only the link to the match
-  // shows up in this markup.
-  test("links to the professor already holding the document", () => {
+  // The document refusal is a toast like every other server refusal, so the
+  // form shows neither its reason nor a link, only what was typed.
+  test("keeps the document refusal off the form", () => {
     const markup = renderProfessorDetail({
       actionData: {
         status: "error",
@@ -72,8 +71,9 @@ describe("PortalProfessorDetailRouteView", () => {
       },
     });
 
-    expect(markup).toContain('href="/portal/profesores/professor_archived_1"');
-    expect(markup).toContain("Ver la ficha del profesor con ese documento");
+    expect(markup).not.toContain("/portal/profesores/professor_archived_1");
+    expect(markup).not.toContain("Ya existe un profesor archivado");
+    expect(markup).toContain('name="documentNumber" value="30111222"');
   });
 
   test("keeps what was typed when a save is warned about a same-name match", () => {
@@ -118,7 +118,6 @@ describe("PortalProfessorDetailRouteView", () => {
     });
 
     expect(markup).not.toContain("Seleccioná el tipo de documento.");
-    expect(markup).not.toContain("Ver la ficha del profesor con ese documento");
     expect(markup).toContain('name="documentNumber" value="1234"');
     expect(markup).toContain('name="documentType" value=""');
   });

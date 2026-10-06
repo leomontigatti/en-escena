@@ -145,7 +145,7 @@ describe("admin seminars", () => {
     );
   });
 
-  test("refuses the same instructor at the same moment on the instructor field", async () => {
+  test("refuses the same instructor at the same moment with the reason", async () => {
     const event = await createSavedEvent();
     await createSavedSeminar(event.id);
     const request = await buildSignedRequest(
@@ -156,10 +156,8 @@ describe("admin seminars", () => {
     await expect(handleSeminarCreateAction(request)).resolves.toMatchObject({
       status: "error",
       intent: "create-seminar",
-      fieldErrors: {
-        instructorName:
-          "Cambiá el instructor, la fecha o la hora del seminario.",
-      },
+      message: "Ya existe un seminario de ese instructor en esa fecha y hora.",
+      fieldErrors: undefined,
       values: seminarFields,
     });
   });

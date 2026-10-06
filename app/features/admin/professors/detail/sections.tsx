@@ -296,7 +296,6 @@ function ProfessorAdministrativeDataSection({
             placeholder={documentTypeEmptyLabel}
           />
           <ProfessorTextField
-            description={editForm.documentConflictDescription}
             form={editForm.form}
             label="Número de documento"
             name="documentNumber"

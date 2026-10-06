@@ -8,7 +8,7 @@ import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
-import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { useRosterRefusalToast } from "@/components/shared/roster-document-conflict";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { ProfessorChoreographiesTable } from "@/components/shared/roster-inscriptions-table";
@@ -96,12 +96,6 @@ export function PortalProfessorDetailRouteView({
     submit,
     values: formValues,
   });
-  const documentConflictDescription = useRosterDocumentConflictField({
-    actionData,
-    conflict: getPortalProfessorDocumentConflict(actionData),
-    name: "documentNumber",
-    setError: form.form.setError,
-  });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
   const { statusAction } = buildPortalProfessorDetailViewModel({
@@ -118,7 +112,9 @@ export function PortalProfessorDetailRouteView({
   });
   const title = `${loaderData.professor.firstName} ${loaderData.professor.lastName}`;
 
-  useServerActionToast(getGeneralActionError(actionData), {
+  useRosterRefusalToast({
+    conflict: getPortalProfessorDocumentConflict(actionData),
+    refusal: actionData,
     toastId: "portal-profesor-detail:error",
   });
   useServerActionToast(successData, {
@@ -170,10 +166,7 @@ export function PortalProfessorDetailRouteView({
                   name="intent"
                   value={updateProfessorIntent}
                 />
-                <PortalProfessorIdentityFields
-                  documentConflictDescription={documentConflictDescription}
-                  form={form.form}
-                />
+                <PortalProfessorIdentityFields form={form.form} />
               </form>
             </CardContent>
             <FormActions
@@ -381,19 +374,6 @@ function getProfessorStatusFormId(intent: ProfessorStatusIntent | null) {
     case null:
       return "portal-profesor-status-form";
   }
-}
-
-function getGeneralActionError(
-  actionData?: Extract<ActionData, { status: "error" }>,
-) {
-  if (!actionData) {
-    return null;
-  }
-
-  return {
-    status: "error" as const,
-    message: actionData.message,
-  };
 }
 
 /**

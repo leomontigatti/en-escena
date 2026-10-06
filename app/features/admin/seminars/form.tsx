@@ -106,7 +106,7 @@ export function useSeminarForm({
   });
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
-  const { reset, setError } = form;
+  const { reset } = form;
   const [hasSelectedPicture, setHasSelectedPicture] = useState(false);
   const [pictureFieldKey, setPictureFieldKey] = useState(0);
 
@@ -124,28 +124,6 @@ export function useSeminarForm({
     setHasSelectedPicture(false);
     setPictureFieldKey((key) => key + 1);
   }, [reset]);
-
-  // Documented exception to the style guide's "server errors are toasts, never
-  // `FieldError`s" rule (docs/agents/style-guide.md § React Hook Form): the PRD
-  // asks for the duplicate-seminar refusal on the instructor field by name, so
-  // it is the one server outcome that lands inline. Nothing else reaches it in
-  // practice: the other `fieldErrors` the server can send restate this same Zod
-  // schema, which validated on the client before the submit left. The quota
-  // floor and every other refusal carry no field and stay toasts.
-  useEffect(() => {
-    if (actionData?.intent !== intent || !actionData.fieldErrors) {
-      return;
-    }
-
-    for (const [fieldName, message] of Object.entries(actionData.fieldErrors)) {
-      if (message) {
-        setError(fieldName as keyof SeminarFormValues, {
-          message,
-          type: "manual",
-        });
-      }
-    }
-  }, [actionData, intent, setError]);
 
   return {
     discard,

@@ -4,6 +4,7 @@ import { Form, useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { useRosterRefusalToast } from "@/components/shared/roster-document-conflict";
 import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useMergeDialogState } from "@/features/admin/merge/dialog";
@@ -18,6 +19,7 @@ import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitio
 
 import { useDancerEditForm } from "./form";
 import {
+  getDancerDocumentConflict,
   buildDancerDetailViewState,
   getDancerConfirmation,
   getDancerEditValues,
@@ -61,7 +63,9 @@ export function DancerDetailRouteView({
     loaderData.dancer.id,
   );
 
-  useServerActionToast(errorData, {
+  useRosterRefusalToast({
+    conflict: getDancerDocumentConflict(errorData),
+    refusal: errorData,
     toastId: "admin-dancer-detail:error",
   });
   useServerActionToast(successData, {
@@ -247,7 +251,6 @@ function useDancerSave({
   const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
   const refusedError = refused?.status === "error" ? refused : undefined;
   const editForm = useDancerEditForm({
-    actionData: errorData,
     eventStartDate: loaderData.activeEventStartDate,
     savedValues: getDancerEditValues({ actionData: undefined, dancer }),
     submittedValues:

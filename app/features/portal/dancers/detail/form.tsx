@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import type { SubmitFunction } from "react-router";
 
@@ -111,12 +111,10 @@ export function usePortalDancerForm({
 }
 
 export function PortalDancerTextField({
-  description,
   form,
   label,
   name,
 }: {
-  description?: ReactNode;
   form: PortalDancerFormReturn;
   label: string;
   name: PortalDancerTextFieldName;
@@ -125,7 +123,6 @@ export function PortalDancerTextField({
     <TextInputField
       autoComplete={getPortalDancerFieldAutoComplete(name)}
       control={form.control}
-      description={description}
       label={label}
       name={name}
     />

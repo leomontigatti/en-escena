@@ -1,8 +1,7 @@
-import { Check, CircleAlert } from "lucide-react";
+import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -21,6 +20,7 @@ import {
 } from "@/lib/comprobantes/contingency-alert";
 
 import { formatAmount } from "@/lib/finances/formatters";
+import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
@@ -54,8 +54,6 @@ export function EmissionDialog({
   const isSaving = fetcher.state !== "idle";
   const contingency =
     fetcher.data?.status === "contingency" ? fetcher.data.contingency : null;
-  const genericError =
-    fetcher.data?.status === "error" ? fetcher.data.message : null;
 
   // Manual verification is declared by the operator, so it cannot survive a new
   // attempt: every response from the server clears it and the retry goes back to
@@ -66,6 +64,10 @@ export function EmissionDialog({
   }, [fetcher.data]);
 
   const submitState = resolveContingencySubmitState(contingency, acknowledged);
+
+  useServerActionToast(fetcher.data?.status === "error" ? fetcher.data : null, {
+    toastId: "comprobante-emission:error",
+  });
 
   function handleOpenChange(next: boolean) {
     if (isSaving) {
@@ -106,14 +108,6 @@ export function EmissionDialog({
               }
               recheckIntent={recheckComprobanteIntent}
             />
-          ) : null}
-
-          {genericError ? (
-            <Alert variant="destructive">
-              <CircleAlert aria-hidden="true" />
-              <AlertTitle>No se pudo emitir el comprobante</AlertTitle>
-              <AlertDescription>{genericError}</AlertDescription>
-            </Alert>
           ) : null}
 
           <AlertDialogFooter>
