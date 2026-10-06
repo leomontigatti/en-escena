@@ -1,4 +1,4 @@
-import { Info, SquareArrowOutUpRight, TriangleAlert } from "lucide-react";
+import { SquareArrowOutUpRight, TriangleAlert } from "lucide-react";
 import { Link } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
@@ -16,8 +16,10 @@ import type { PortalPresentationsLoaderData } from "./server";
 
 /**
  * The academy's read-only view of the order: the shared program list without
- * the academy column, plus the two notices only the portal gives — that the
- * numbers can still change, and which choreographies still owe their deposit.
+ * the academy column, plus the one notice only the portal gives — which
+ * choreographies still owe their deposit. It shows the same published numbers
+ * as the public program: a row of a day not published comes from the loader
+ * without its number, so it reads exactly like one not placed yet.
  */
 export function PortalPresentationsListView({
   loaderData,
@@ -42,7 +44,7 @@ export function PortalPresentationsListView({
       title="Presentaciones"
       description="Consultá el número y el cronograma con el que presenta cada coreografía de tu academia en el evento activo."
       action={
-        loaderData.programVisible ? (
+        loaderData.hasVisibleDay ? (
           <Button asChild variant="outline">
             <Link to="/programa">
               <SquareArrowOutUpRight
@@ -60,17 +62,6 @@ export function PortalPresentationsListView({
       ) : (
         <>
           <AlertStack>
-            {loaderData.programVisible ? null : (
-              <Alert variant="info">
-                <Info aria-hidden="true" />
-                <AlertTitle>Programa sin publicar</AlertTitle>
-                <AlertDescription>
-                  El programa del evento todavía no se publicó. Los números
-                  pueden cambiar hasta que la organización lo publique.
-                </AlertDescription>
-              </Alert>
-            )}
-
             {belowDepositCount > 0 ? (
               <Alert variant="warning">
                 <TriangleAlert aria-hidden="true" />
@@ -113,8 +104,8 @@ export function PortalPresentationsListView({
 
 /**
  * The three states that have nothing to list, apart because they are three
- * different answers: no event, an event nobody has ordered yet, and an event
- * ordered where this academy has no choreography in it.
+ * different answers: no event, an event with no published number yet, and an
+ * event published where this academy has no choreography in it.
  */
 function selectEmptyState(loaderData: PortalPresentationsLoaderData) {
   if (!loaderData.hasActiveEvent) {
@@ -125,11 +116,13 @@ function selectEmptyState(loaderData: PortalPresentationsLoaderData) {
     };
   }
 
-  if (!loaderData.isEventOrdered) {
+  // An order with no day published is, to the academy, no order yet: it is
+  // told when the numbers can be read, not that they exist.
+  if (!loaderData.hasPublishedPresentations) {
     return {
       title: "Todavía no hay orden de presentaciones",
       description:
-        "Cuando la organización ordene el evento vas a ver acá el número de cada coreografía.",
+        "Cuando la organización publique el programa vas a ver acá el número de cada coreografía.",
     };
   }
 

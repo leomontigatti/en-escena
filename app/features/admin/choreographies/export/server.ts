@@ -11,6 +11,7 @@ import {
   workbookResponse,
   workbookSheet,
 } from "@/features/admin/day-export/server";
+import { sumKnown } from "@/features/admin/day-export/sheet";
 import {
   inscriptionOfAnyStateRegisteredInPeriod,
   readPeriodExport,
@@ -224,14 +225,6 @@ function financeFiguresOf(
     totalAmount: sumKnown(figures.map((row) => row.totalAmount)),
     withdrawnInscriptions: inscriptions.length - active.length,
   };
-}
-
-function sumKnown(amounts: readonly (number | null)[]): number | null {
-  return amounts.reduce<number | null>(
-    (total, amount) =>
-      total === null || amount === null ? null : total + amount,
-    0,
-  );
 }
 
 /** Academies and dancers are distinct counts; every inscription counts. */

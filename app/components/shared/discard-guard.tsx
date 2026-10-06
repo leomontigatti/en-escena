@@ -92,13 +92,19 @@ export function useDiscardGuard({
  * own URL never looks like leaving; one that goes elsewhere passes
  * `isSaving` as a ref it sets before submitting, because the navigation starts
  * before a re-render could report it.
+ *
+ * A page that keeps its own state in the search, as the choreography wizard
+ * keeps its step, passes `isSearchInPage`: it is left only when the path
+ * changes, whichever way the browser's back and forward take it.
  */
 export function useUnsavedChangesGuard({
   isDirty,
   isSaving,
+  isSearchInPage = false,
 }: {
   isDirty: boolean;
   isSaving: boolean | { readonly current: boolean };
+  isSearchInPage?: boolean;
 }): DiscardChangesDialogProps {
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -106,7 +112,7 @@ export function useUnsavedChangesGuard({
       !readFlag(isSaving) &&
       !isInPageNavigation(nextLocation.state) &&
       (currentLocation.pathname !== nextLocation.pathname ||
-        currentLocation.search !== nextLocation.search),
+        (!isSearchInPage && currentLocation.search !== nextLocation.search)),
   );
 
   useEffect(() => {

@@ -1,4 +1,8 @@
+import { eq } from "drizzle-orm";
 import { data, redirect } from "react-router";
+
+import { db } from "@/db";
+import { schedules } from "@/db/schema";
 
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
@@ -10,10 +14,11 @@ import {
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import { setEventVisibility } from "@/lib/events/management.server";
-import { isEventProgramVisible } from "@/lib/presentations/academy-program.server";
+import {
+  readVisibleProgramDays,
+  setVisibleProgramDays,
+} from "@/lib/presentations/program-visibility.server";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
-import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   assignJudges,
   readAssignableJudges,
@@ -43,13 +48,15 @@ import {
   assignJudgesIntent,
   formatAutomaticOrderingMessage,
   formatJudgeAssignmentMessage,
+  formatProgramVisibilityMessage,
   judgeAssignmentSchema,
   judgeIdFieldName,
   movePresentationIntent,
   orderAutomaticallyIntent,
   presentationChoreographyIdFieldName,
   programEventIdFieldName,
-  programVisibleFieldName,
+  programVisibilitySchema,
+  programVisibleDayFieldName,
   removeJudgesIntent,
   setProgramVisibilityIntent,
   type PresentationListActionData,
@@ -122,7 +129,7 @@ async function loadPresentationList(input: {
       musicDownloadDays: [],
       presentations: [],
       programExportDays: [],
-      programVisible: false,
+      programVisibleDays: [],
       selectedEventId: null,
       totalCount: 0,
       totalPages: 1,
@@ -144,13 +151,13 @@ async function loadPresentationList(input: {
     assigned,
     evaluationStatuses,
     musicDownloadDays,
-    programVisible,
+    programVisibleDays,
   ] = await Promise.all([
     readAssignableJudges(),
     readAssignedJudges(rows.map((row) => row.choreographyId)),
     readPresentationEvaluationStatuses(rows.map((row) => row.choreographyId)),
     readMusicDownloadDays(input.selectedEventId),
-    isEventProgramVisible(input.selectedEventId),
+    readVisibleProgramDays(input.selectedEventId),
   ]);
   const items = rows.map((row) =>
     buildPresentationListItem(row, {
@@ -197,7 +204,7 @@ async function loadPresentationList(input: {
           .map((item) => item.scheduledDate),
       ),
     ].sort(),
-    programVisible,
+    programVisibleDays,
     selectedEventId: input.selectedEventId,
     totalCount: filteredItems.length,
     totalPages,
@@ -270,9 +277,10 @@ export async function handlePresentationListAction(
 }
 
 /**
- * Shows or hides the program on the public page and the academies' portal. The
- * form carries the event it was shown for: one switched in between is refused
- * rather than having its program published unseen.
+ * Sets which days of the program the public page and the academies' portal
+ * show. The submission is the whole set of visible days, so the days it leaves
+ * out are hidden. The form carries the event it was shown for: one switched in
+ * between is refused rather than having its program published unseen.
  */
 async function runProgramVisibility(eventId: string, formData: FormData) {
   if (formData.get(programEventIdFieldName) !== eventId) {
@@ -286,21 +294,46 @@ async function runProgramVisibility(eventId: string, formData: FormData) {
     );
   }
 
-  const programVisible = formData.get(programVisibleFieldName) === "true";
-  const result = await setEventVisibility(eventId, { programVisible });
+  const parsed = programVisibilitySchema.safeParse({
+    [programVisibleDayFieldName]: formData.getAll(programVisibleDayFieldName),
+  });
 
-  if (!result.ok) {
+  if (!parsed.success) {
+    // The dialog only sends the days it lists, so this is a request the form
+    // never made: a toast, not a field error.
     return data(
-      { message: "No encontramos ese evento.", status: "error" as const },
-      { status: 404 },
+      {
+        message: "No se reconocieron los días elegidos.",
+        status: "error" as const,
+      },
+      { status: 400 },
     );
   }
 
+  const days = parsed.data[programVisibleDayFieldName];
+
+  // The dialog lists the event's own days, so a date outside them is a
+  // request the form never made, and would publish nothing a schedule holds.
+  const eventDays = await db
+    .selectDistinct({ scheduledDate: schedules.scheduledDate })
+    .from(schedules)
+    .where(eq(schedules.eventId, eventId));
+  const knownDays = new Set(eventDays.map((row) => row.scheduledDate));
+
+  if (days.some((day) => !knownDays.has(day))) {
+    return data(
+      {
+        message: "No se reconocieron los días elegidos.",
+        status: "error" as const,
+      },
+      { status: 400 },
+    );
+  }
+
+  await setVisibleProgramDays(eventId, days);
+
   return {
-    message:
-      notificationToasts[
-        programVisible ? "programa-visible" : "programa-oculto"
-      ].message,
+    message: formatProgramVisibilityMessage(days),
     status: "success" as const,
   };
 }

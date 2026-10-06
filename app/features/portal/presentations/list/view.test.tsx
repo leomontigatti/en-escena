@@ -12,7 +12,7 @@ describe("PortalPresentationsListView", () => {
   test("shows the empty state when there is no active event", () => {
     const markup = renderView({
       hasActiveEvent: false,
-      isEventOrdered: false,
+      hasPublishedPresentations: false,
       rows: [],
     });
 
@@ -22,12 +22,12 @@ describe("PortalPresentationsListView", () => {
     );
   });
 
-  test("shows the empty state when the event has not been ordered yet", () => {
-    const markup = renderView({ isEventOrdered: false });
+  test("shows the empty state while no published day has a presentation", () => {
+    const markup = renderView({ hasPublishedPresentations: false });
 
     expect(markup).toContain("Todavía no hay orden de presentaciones");
     expect(markup).toContain(
-      "Cuando la organización ordene el evento vas a ver acá el número de cada coreografía.",
+      "Cuando la organización publique el programa vas a ver acá el número de cada coreografía.",
     );
   });
 
@@ -40,21 +40,12 @@ describe("PortalPresentationsListView", () => {
     );
   });
 
-  test("links to the full program only while it is published", () => {
-    expect(renderView({ programVisible: true })).toContain(
+  test("links to the full program once any day of it is published", () => {
+    expect(renderView({ hasVisibleDay: true })).toContain(
       "Ver programa completo",
     );
-    expect(renderView({ programVisible: false })).not.toContain(
+    expect(renderView({ hasVisibleDay: false })).not.toContain(
       "Ver programa completo",
-    );
-  });
-
-  test("warns that the numbers can still change while the program is hidden", () => {
-    expect(renderView({ programVisible: false })).toContain(
-      "El programa del evento todavía no se publicó. Los números pueden cambiar hasta que la organización lo publique.",
-    );
-    expect(renderView({ programVisible: true })).not.toContain(
-      "El programa del evento todavía no se publicó",
     );
   });
 
@@ -158,8 +149,8 @@ function buildRow(
 function renderView(overrides: Partial<PortalPresentationsLoaderData> = {}) {
   const loaderData: PortalPresentationsLoaderData = {
     hasActiveEvent: true,
-    isEventOrdered: true,
-    programVisible: false,
+    hasPublishedPresentations: true,
+    hasVisibleDay: true,
     rows: [buildRow()],
     ...overrides,
   };

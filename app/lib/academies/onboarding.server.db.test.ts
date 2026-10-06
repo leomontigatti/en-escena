@@ -145,6 +145,33 @@ describe("academy onboarding route", () => {
     await expect(db.query.academies.findMany()).resolves.toEqual([]);
   });
 
+  test("refuses a name, a contact or a city made only of punctuation and creates nothing", async () => {
+    getVerifiedAccessIdentity.mockResolvedValue(
+      accessIdentity("solo.punto@example.com", "user-solo-punto"),
+    );
+
+    const result = await academyOnboardingAction(
+      routeActionArgs(
+        createOnboardingRequest({
+          academyName: ".",
+          city: "-",
+          contactName: "...",
+          phone: "1112345678",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        academyName: "Ingresá al menos una letra o un número.",
+        city: "Ingresá al menos una letra o un número.",
+        contactName: "Ingresá al menos una letra o un número.",
+      },
+    });
+    await expect(db.query.academies.findMany()).resolves.toEqual([]);
+  });
+
   test("refuses a province outside the list and creates nothing", async () => {
     getVerifiedAccessIdentity.mockResolvedValue(
       accessIdentity("provincia.libre@example.com", "user-provincia-libre"),

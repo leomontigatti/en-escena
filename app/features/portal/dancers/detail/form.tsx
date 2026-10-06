@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import type { SubmitFunction } from "react-router";
 
@@ -26,6 +26,19 @@ type PortalDancerFormReturn = UseFormReturn<
   PortalDancerFormValues
 >;
 
+type DocumentImageSide = "back" | "front";
+
+const noPickedDocumentImages: Record<DocumentImageSide, boolean> = {
+  back: false,
+  front: false,
+};
+
+type PortalDancerDocumentImagesState = {
+  /** Changes when the photo fields have to let go of what they hold. */
+  fieldsKey: string;
+  onPickedChange: (side: DocumentImageSide, isPicked: boolean) => void;
+};
+
 type PortalDancerTextFieldName =
   | "documentBackImageStorageKey"
   | "documentFrontImageStorageKey"
@@ -37,6 +50,11 @@ type PortalDancerTextFieldName =
  * `savedValues` is what the dancer holds and what "changed" is measured
  * against; `values` is what the form shows, which after a refused save is what
  * was typed, which still reads as changed ({@link useSavedFormValues}).
+ *
+ * A picked photo lives in its file input, not in the form's values, so
+ * `isDirty` cannot see it: `hasChanges` counts it, and `discard` and a save
+ * that stores new photos remount the photo fields, so their file inputs let
+ * go of what they held and a stale photo does not ride along on the next save.
  */
 export function usePortalDancerForm({
   eventStartDate,
@@ -58,9 +76,33 @@ export function usePortalDancerForm({
   );
   useSavedFormValues(form, savedValues, values);
 
+  const [pickedDocumentImages, setPickedDocumentImages] = useState(
+    noPickedDocumentImages,
+  );
+  const [discardCount, setDiscardCount] = useState(0);
+  const savedDocumentImagesKey = `${savedValues.documentFrontImageStorageKey}:${savedValues.documentBackImageStorageKey}`;
+
+  useEffect(() => {
+    setPickedDocumentImages(noPickedDocumentImages);
+  }, [savedDocumentImagesKey]);
+
   return {
-    discard: () => form.reset(savedValues),
+    discard: () => {
+      form.reset(savedValues);
+      setPickedDocumentImages(noPickedDocumentImages);
+      setDiscardCount((count) => count + 1);
+    },
+    documentImages: {
+      fieldsKey: `${savedDocumentImagesKey}:${discardCount}`,
+      onPickedChange: (side, isPicked) => {
+        setPickedDocumentImages((picked) => ({ ...picked, [side]: isPicked }));
+      },
+    } satisfies PortalDancerDocumentImagesState,
     form,
+    hasChanges:
+      form.formState.isDirty ||
+      pickedDocumentImages.front ||
+      pickedDocumentImages.back,
     handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
       encType: "multipart/form-data",
       method: "post",
@@ -105,34 +147,46 @@ export function PortalDancerBirthDateField({
 }
 
 export function PortalDancerDocumentImageFields({
+  disabled = false,
+  documentImages,
   form,
   imageUrls,
 }: {
+  disabled?: boolean;
+  documentImages: PortalDancerDocumentImagesState;
   form: PortalDancerFormReturn;
   imageUrls: PortalDancerDetailLoaderData["documentImageUrls"];
 }) {
   return (
-    <>
+    <Fragment key={documentImages.fieldsKey}>
       <FileUploadField
         control={form.control}
+        disabled={disabled}
         name="documentFrontImageStorageKey"
         fileInputName="documentFrontImage"
         fieldLabel="Imagen frente del documento"
         existingPreviewUrl={imageUrls.front}
+        onSelectedFileChange={(file) =>
+          documentImages.onPickedChange("front", file !== null)
+        }
         label="Arrastrá o hacé click"
         offersCamera
         {...getAssetUploadFieldProps("dancerDocumentImage")}
       />
       <FileUploadField
         control={form.control}
+        disabled={disabled}
         name="documentBackImageStorageKey"
         fileInputName="documentBackImage"
         fieldLabel="Imagen dorso del documento"
         existingPreviewUrl={imageUrls.back}
+        onSelectedFileChange={(file) =>
+          documentImages.onPickedChange("back", file !== null)
+        }
         label="Arrastrá o hacé click"
         offersCamera
         {...getAssetUploadFieldProps("dancerDocumentImage")}
       />
-    </>
+    </Fragment>
   );
 }

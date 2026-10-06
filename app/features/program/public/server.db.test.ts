@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { events, presentations } from "@/db/schema";
+import { events, presentations, schedules } from "@/db/schema";
 import {
   createChoreographyRecord,
   createEventCatalog,
@@ -12,6 +12,7 @@ import {
   createSavedEvent,
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
+import { setVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -43,12 +44,10 @@ async function seedPublishedProgram() {
     eventId: event.id,
     orderNumber: 1,
   });
-  await db
-    .update(events)
-    .set({ active: true, programVisible: true })
-    .where(eq(events.id, event.id));
+  await db.update(events).set({ active: true }).where(eq(events.id, event.id));
+  await setVisibleProgramDays(event.id, [catalog.schedule.scheduledDate]);
 
-  return { catalog, choreography, event };
+  return { academy, catalog, choreography, event };
 }
 
 describe("loadPublicProgram", () => {
@@ -65,20 +64,59 @@ describe("loadPublicProgram", () => {
     expect(loaderData.schedules).toHaveLength(1);
   });
 
-  test("answers the same nothing with the program hidden and with no active event", async () => {
+  test("leaves out every row and schedule of a day not published", async () => {
+    const { academy, catalog, choreography, event } =
+      await seedPublishedProgram();
+    const [hiddenDay] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Día sin publicar",
+        scheduledDate: "2099-12-31",
+        startTime: "10:00",
+        awardCeremonyDate: "2099-12-31",
+        awardCeremonyTime: "13:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    const hidden = await createChoreographyRecord({
+      academyId: academy.id,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Oculta",
+      scheduleCapacityId: null,
+      scheduleId: hiddenDay.id,
+    });
+    await db.insert(presentations).values({
+      choreographyId: hidden.id,
+      eventId: event.id,
+      orderNumber: 2,
+    });
+
+    const loaderData = await loadPublicProgram(new Request(programUrl));
+
+    expect(loaderData.rows.map((row) => row.choreographyId)).toEqual([
+      choreography.id,
+    ]);
+    expect(loaderData.schedules.map((schedule) => schedule.id)).toEqual([
+      catalog.schedule.id,
+    ]);
+  });
+
+  test("answers the same nothing with no day published and with no active event", async () => {
     const { event } = await seedPublishedProgram();
 
-    await db
-      .update(events)
-      .set({ programVisible: false })
-      .where(eq(events.id, event.id));
+    await setVisibleProgramDays(event.id, []);
 
     const hidden = await loadPublicProgram(new Request(programUrl));
 
     await db
       .update(events)
-      .set({ active: false, programVisible: true })
+      .set({ active: false })
       .where(eq(events.id, event.id));
+    await setVisibleProgramDays(event.id, ["2026-05-01"]);
 
     const noEvent = await loadPublicProgram(new Request(programUrl));
 

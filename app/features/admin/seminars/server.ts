@@ -1,7 +1,12 @@
 import { redirect } from "react-router";
 
+import { listExportableSeminarIds } from "@/features/admin/seminars/export/server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
+import {
+  requireAdminPanelReader,
+  requireAdminPanelUser,
+} from "@/lib/auth/internal-navigation.server";
 import { seminarHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
 import { listSeminarInscriptions } from "@/lib/seminars/inscription-rosters.server";
@@ -22,6 +27,10 @@ import {
 export async function loadSeminarContext(request: Request) {
   await requireAdminPanelUser(request);
 
+  return await loadSeminarEventContext(request);
+}
+
+async function loadSeminarEventContext(request: Request) {
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
@@ -31,12 +40,24 @@ export async function loadSeminarContext(request: Request) {
   return eventContext;
 }
 
+/**
+ * The list is the one seminar screen the auditor reads: without the way into a
+ * seminar's detail, which stays the administrator's, and with the export the
+ * administrator does not get.
+ */
 export async function loadSeminarsListData(
   request: Request,
 ): Promise<SeminarsListLoaderData> {
-  const { selectedEventId } = await loadSeminarContext(request);
+  const user = await requireAdminPanelReader(request);
+  const { selectedEventId } = await loadSeminarEventContext(request);
+  const canWrite = canWriteInAdminPanel(user.role);
 
   return {
+    canWrite,
+    exportableSeminarIds:
+      canWrite || selectedEventId === null
+        ? []
+        : [...(await listExportableSeminarIds(selectedEventId))],
     selectedEventId,
     seminars: selectedEventId ? await listSeminars(selectedEventId) : [],
   };

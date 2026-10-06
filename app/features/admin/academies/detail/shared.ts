@@ -10,7 +10,7 @@ import type { AcademyDataStatus } from "@/lib/academies/academy-data-status";
 import { provinceField } from "@/lib/academies/provinces";
 import type { MergeRefusedActionData } from "@/lib/shared/merge";
 import { argentinePhoneField } from "@/lib/shared/argentine-phone";
-import { requiredFieldMessage } from "@/lib/shared/forms";
+import { contentTextField } from "@/lib/shared/text-content";
 
 export const academyDetailFormId = "administracion-academia-detalle-form";
 export const updateAcademyIntent = "update-academy";
@@ -18,11 +18,11 @@ export const deleteAcademyIntent = "delete-academy";
 export const academySavedMessage = "Academia guardada.";
 
 export const academyDetailSchema = z.object({
-  name: z.string().trim().min(1, requiredFieldMessage),
-  contactName: z.string().trim().min(1, requiredFieldMessage),
+  name: contentTextField(),
+  contactName: contentTextField(),
   phone: argentinePhoneField(),
   province: provinceField(),
-  city: z.string().trim().min(1, requiredFieldMessage),
+  city: contentTextField(),
 });
 
 export type AcademyDetailLoaderData = {

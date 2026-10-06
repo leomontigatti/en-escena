@@ -2,6 +2,10 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 
 import { AccessNotice } from "@/components/auth/access-ui";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/shared/discard-guard";
 import { PinnedActions } from "@/components/shared/pinned-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +26,11 @@ export function CreateChoreographyPage({
 }) {
   const wizard = useCreateChoreographyWizard(loaderData);
   const { currentStepIndex, steps, submission } = wizard;
+  const discardDialog = useUnsavedChangesGuard({
+    isDirty: wizard.form.formState.isDirty,
+    isSaving: submission.isSubmitting,
+    isSearchInPage: true,
+  });
 
   return (
     <section
@@ -87,9 +96,7 @@ export function CreateChoreographyPage({
         <PinnedActions>
           {currentStepIndex === 0 ? (
             <Button asChild variant="outline">
-              <Link to="/portal/coreografias" onClick={wizard.clearAnswers}>
-                Cancelar
-              </Link>
+              <Link to="/portal/coreografias">Cancelar</Link>
             </Button>
           ) : (
             <Button
@@ -105,6 +112,14 @@ export function CreateChoreographyPage({
           <CreateChoreographyNextAction wizard={wizard} />
         </PinnedActions>
       </Card>
+
+      <DiscardChangesDialog
+        {...discardDialog}
+        onDiscard={() => {
+          wizard.clearAnswers();
+          discardDialog.onDiscard();
+        }}
+      />
     </section>
   );
 }

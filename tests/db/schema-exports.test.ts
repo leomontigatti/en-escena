@@ -35,6 +35,7 @@ const schemaExportNames = [
   "province",
   "payments",
   "presentations",
+  "programVisibleDays",
   "paymentAllocations",
   "scoreCriterionValues",
   "scores",

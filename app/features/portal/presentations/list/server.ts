@@ -2,10 +2,10 @@ import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { readPublishedResultChoreographyIds } from "@/lib/judging/results.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 import {
-  hasEventPresentations,
-  isEventProgramVisible,
+  hasPublishedPresentations,
   readAcademyPresentations,
 } from "@/lib/presentations/academy-program.server";
+import { readVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 
 import type { ProgramListRow } from "@/features/program/shared";
 
@@ -27,10 +27,13 @@ export type PortalPresentationRow = ProgramListRow & {
 
 export type PortalPresentationsLoaderData = {
   hasActiveEvent: boolean;
-  /** Whether the event has any presentation at all, its own empty state. */
-  isEventOrdered: boolean;
-  /** The header action to the full program follows it. */
-  programVisible: boolean;
+  /**
+   * Whether a published day has any presentation, its own empty state: an
+   * event ordered with no day published has told the academy nothing yet.
+   */
+  hasPublishedPresentations: boolean;
+  /** Whether any day's program is published; the link to it follows. */
+  hasVisibleDay: boolean;
   rows: PortalPresentationRow[];
 };
 
@@ -43,19 +46,22 @@ export async function loadPortalPresentationsList(
   if (!activeEvent) {
     return {
       hasActiveEvent: false,
-      isEventOrdered: false,
-      programVisible: false,
+      hasPublishedPresentations: false,
+      hasVisibleDay: false,
       rows: [],
     };
   }
 
-  const [rows, isEventOrdered, programVisible] = await Promise.all([
+  // The published days are read first and handed to both reads, so a row of a
+  // hidden day loses its number here, on the server, and never reaches the page.
+  const visibleDays = await readVisibleProgramDays(activeEvent.id);
+  const [rows, hasPublished] = await Promise.all([
     readAcademyPresentations({
       academyId: academy.id,
       eventId: activeEvent.id,
+      visibleDays,
     }),
-    hasEventPresentations(activeEvent.id),
-    isEventProgramVisible(activeEvent.id),
+    hasPublishedPresentations({ eventId: activeEvent.id, visibleDays }),
   ]);
 
   // Asked once for the whole list rather than once per row, and always through
@@ -66,8 +72,8 @@ export async function loadPortalPresentationsList(
 
   return {
     hasActiveEvent: true,
-    isEventOrdered,
-    programVisible,
+    hasPublishedPresentations: hasPublished,
+    hasVisibleDay: visibleDays.length > 0,
     rows: rows.map((row) => ({
       ...row,
       academyName: academy.name,

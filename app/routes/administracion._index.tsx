@@ -6,6 +6,7 @@ import {
   GraduationCap,
   HandCoins,
   Music2,
+  Presentation,
   ShieldUser,
   TriangleAlert,
   Users,
@@ -231,5 +232,12 @@ const auditorHomeCards = [
     description: "Revisá los pagos registrados para el evento activo.",
     icon: HandCoins,
     to: "/administracion/pagos",
+  },
+  {
+    title: "Seminarios",
+    description:
+      "Consultá los seminarios del evento activo y exportá sus inscriptos.",
+    icon: Presentation,
+    to: "/administracion/seminarios",
   },
 ] satisfies HomeAccessCardItem[];

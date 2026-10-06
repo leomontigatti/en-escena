@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -20,6 +20,7 @@ import {
   listsDancerNames,
   readProgramDancerNames,
 } from "@/lib/presentations/program-dancer-names.server";
+import { readVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import type { ProgramListRow } from "@/features/program/shared";
@@ -71,6 +72,8 @@ export type EventProgramEvent = {
   id: string;
   name: string;
   startsOn: string;
+  /** The days whose program is published, in date order; never empty. */
+  visibleDays: string[];
 };
 
 export type EventProgram = {
@@ -79,9 +82,9 @@ export type EventProgram = {
 };
 
 /**
- * The active event, but only once the organisation published its program. A
- * missing event and an unpublished program are one answer on purpose: the
- * public page never says which of the two it is.
+ * The active event, but only once the organisation published the program of at
+ * least one of its days. A missing event and a program with no published day
+ * are one answer on purpose: the public page never says which of the two it is.
  */
 export async function findPublishedProgramEvent(
   executor: Executor = db,
@@ -91,7 +94,6 @@ export async function findPublishedProgramEvent(
       endsAt: events.endsAt,
       id: events.id,
       name: events.name,
-      programVisible: events.programVisible,
       startsAt: events.startsAt,
     })
     .from(events)
@@ -99,7 +101,13 @@ export async function findPublishedProgramEvent(
     .orderBy(desc(events.startsAt))
     .limit(1);
 
-  if (!event || !event.programVisible) {
+  if (!event) {
+    return null;
+  }
+
+  const visibleDays = await readVisibleProgramDays(event.id, executor);
+
+  if (visibleDays.length === 0) {
     return null;
   }
 
@@ -108,6 +116,7 @@ export async function findPublishedProgramEvent(
     id: event.id,
     name: event.name,
     startsOn: getBusinessDateOnly(event.startsAt),
+    visibleDays,
   };
 }
 
@@ -128,9 +137,18 @@ export async function readEventProgram(
      * caller has room for more, as the spreadsheet exports do.
      */
     namesDancersOf?: (groupType: ChoreographyGroupType) => boolean;
+    /**
+     * Narrows the program to these days, rows and schedules alike: the public
+     * page passes the published ones. Every day when absent.
+     */
+    days?: readonly string[];
   } = {},
 ): Promise<EventProgram> {
   const namesDancersOf = options.namesDancersOf ?? listsDancerNames;
+  const onDays: SQL | undefined =
+    options.days === undefined
+      ? undefined
+      : inArray(schedules.scheduledDate, [...options.days]);
   const [rows, eventSchedules] = await Promise.all([
     executor
       .select({
@@ -165,7 +183,11 @@ export async function readEventProgram(
       .innerJoin(categories, eq(choreographies.categoryId, categories.id))
       .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
       .where(
-        and(eq(presentations.eventId, eventId), notWithdrawnChoreography()),
+        and(
+          eq(presentations.eventId, eventId),
+          notWithdrawnChoreography(),
+          onDays,
+        ),
       )
       .orderBy(asc(presentations.orderNumber)),
     executor
@@ -178,7 +200,7 @@ export async function readEventProgram(
         awardCeremonyTime: schedules.awardCeremonyTime,
       })
       .from(schedules)
-      .where(eq(schedules.eventId, eventId))
+      .where(and(eq(schedules.eventId, eventId), onDays))
       .orderBy(asc(schedules.scheduledDate), asc(schedules.startTime)),
   ]);
 

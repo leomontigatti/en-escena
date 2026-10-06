@@ -112,6 +112,8 @@ describe("SeminarsListView", () => {
       "/administracion/seminarios",
       <SeminarsListView
         loaderData={{
+          canWrite: true,
+          exportableSeminarIds: [],
           selectedEventId: "event_1",
           seminars: [buildSeminar({ availablePlaces: 12 })],
         }}
@@ -157,6 +159,8 @@ describe("SeminarsListView", () => {
       "/administracion/seminarios",
       <SeminarsListView
         loaderData={{
+          canWrite: true,
+          exportableSeminarIds: [],
           selectedEventId: "event_1",
           seminars: [
             buildSeminar(),

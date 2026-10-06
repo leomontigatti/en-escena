@@ -226,6 +226,7 @@ const auditorSectionPaths = new Set([
   "/administracion/profesores",
   "/administracion/coreografias",
   "/administracion/pagos",
+  "/administracion/seminarios",
 ]);
 
 /** The navigation the user sees: everything to whoever writes, the reviewed sections otherwise. */

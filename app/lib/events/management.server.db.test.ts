@@ -10,10 +10,13 @@ import {
   deactivateEvent,
   deleteEvent,
   eventHasOperationalDependencies,
-  setEventVisibility,
   updateEvent,
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import {
+  readVisibleProgramDays,
+  setVisibleProgramDays,
+} from "@/lib/presentations/program-visibility.server";
 import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -21,7 +24,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("event management", () => {
-  test("creates inactive events with deposit and visibility defaults", async () => {
+  test("creates inactive events with deposit defaults and no published day", async () => {
     const result = await createEvent(eventInput({ name: "Regional 2026" }));
 
     expect(result).toMatchObject({
@@ -29,7 +32,6 @@ describe("event management", () => {
       event: {
         name: "Regional 2026",
         active: false,
-        programVisible: false,
         requiredDepositPercentage: 30,
       },
     });
@@ -38,9 +40,9 @@ describe("event management", () => {
 
     expect(savedEvent).toMatchObject({
       active: false,
-      programVisible: false,
       requiredDepositPercentage: 30,
     });
+    expect(await readVisibleProgramDays(savedEvent!.id)).toEqual([]);
   });
 
   test.each([
@@ -287,39 +289,18 @@ describe("event management", () => {
     );
   });
 
-  test("deactivation leaves event data and visibility flags intact", async () => {
+  test("deactivation leaves event data and published days intact", async () => {
     const event = await createSavedEvent("Regional 2026");
     await activateEvent(event.id);
-    await setEventVisibility(event.id, { programVisible: true });
+    await setVisibleProgramDays(event.id, ["2026-05-01"]);
 
     const result = await deactivateEvent(event.id);
 
     expect(result).toMatchObject({
       ok: true,
-      event: {
-        active: false,
-        programVisible: true,
-        requiredDepositPercentage: 30,
-      },
+      event: { active: false, requiredDepositPercentage: 30 },
     });
-  });
-
-  test("updates program visibility independently of active status", async () => {
-    const event = await createSavedEvent("Regional 2026");
-
-    await expect(
-      setEventVisibility(event.id, { programVisible: true }),
-    ).resolves.toMatchObject({
-      ok: true,
-      event: { active: false, programVisible: true },
-    });
-
-    await expect(
-      setEventVisibility(event.id, { programVisible: false }),
-    ).resolves.toMatchObject({
-      ok: true,
-      event: { active: false, programVisible: false },
-    });
+    expect(await readVisibleProgramDays(event.id)).toEqual(["2026-05-01"]);
   });
 
   test("deletes only inactive events without operational dependencies", async () => {
