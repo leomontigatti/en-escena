@@ -7,6 +7,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { Spinner } from "@/components/ui/spinner";
 
 type SearchInputProps = Omit<
   ComponentProps<typeof InputGroupInput>,
@@ -17,6 +18,12 @@ type SearchInputProps = Omit<
    * whatever the typed value goes through (a debounce, say). Without it,
    * clearing is a change like any other.
    */
+  /**
+   * Whether the results this box narrows are being fetched: a spinner takes
+   * the magnifier's place, so the signal sits where the reader just acted and
+   * the box keeps its size.
+   */
+  isLoading?: boolean;
   onClear?: () => void;
   onValueChange: (value: string) => void;
   value: string;
@@ -25,6 +32,7 @@ type SearchInputProps = Omit<
 /** A search box: the magnifier, the input, and a clear button once there is a query. */
 function SearchInput({
   className,
+  isLoading = false,
   onClear,
   onValueChange,
   value,
@@ -32,7 +40,13 @@ function SearchInput({
 }: SearchInputProps) {
   return (
     <InputGroup className={className}>
-      <SearchInputIcon />
+      {isLoading ? (
+        <InputGroupAddon>
+          <Spinner aria-label="Actualizando" />
+        </InputGroupAddon>
+      ) : (
+        <SearchInputIcon />
+      )}
       <InputGroupInput
         type="text"
         value={value}
