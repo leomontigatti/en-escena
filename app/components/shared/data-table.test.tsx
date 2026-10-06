@@ -170,7 +170,9 @@ describe("DataTable", () => {
       'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados&amp;orden=name%3Adesc"',
     );
     expect(markup).toContain(">1<");
-    expect(markup).toContain("Actualizando");
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain('data-slot="spinner"');
+    expect(markup).not.toContain("Actualizando…");
     expect(markup).toContain(
       'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados"',
     );
