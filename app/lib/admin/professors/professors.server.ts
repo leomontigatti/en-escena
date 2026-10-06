@@ -35,6 +35,12 @@ import {
 } from "@/lib/participation/participation.shared";
 import { readRosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
 import {
+  keepKnownChoreographyDay,
+  listEventChoreographyDays,
+  readChoreographyDayFilter,
+  type ChoreographyDayOption,
+} from "@/lib/choreographies/choreography-days.server";
+import {
   activeRosterPerson,
   rosterPersonStatusCondition,
 } from "@/lib/roster/roster-person-status.server";
@@ -50,6 +56,8 @@ export type ProfessorListItem = {
 };
 
 export type ProfessorListResult = {
+  /** The days the selected event's choreographies fall on; none without one. */
+  dayOptions: ChoreographyDayOption[];
   filters: ProfessorListFilters;
   hasAnyProfessor: boolean;
   items: ProfessorListItem[];
@@ -113,6 +121,7 @@ export function readProfessorFilters(
   const listQuery = readListQuery(searchParams, professorListSpec);
 
   return {
+    day: readChoreographyDayFilter(searchParams),
     order: listQuery.order,
     participation: readProfessorParticipationFilter(
       searchParams.get("participando"),
@@ -127,7 +136,18 @@ export async function listProfessors(input: {
   selectedEventId: string | null;
   filters: ProfessorListFilters;
 }): Promise<ProfessorListResult> {
-  const where = buildProfessorWhere(input);
+  const dayOptions =
+    input.selectedEventId === null
+      ? []
+      : await listEventChoreographyDays(input.selectedEventId);
+  const filters: ProfessorListFilters = {
+    ...input.filters,
+    day: keepKnownChoreographyDay(input.filters.day, dayOptions),
+  };
+  const where = buildProfessorWhere({
+    selectedEventId: input.selectedEventId,
+    filters,
+  });
 
   const [{ count: totalUnfilteredCount }] = await db
     .select({
@@ -146,7 +166,7 @@ export async function listProfessors(input: {
 
   const totalCount = Number(count);
   const { limit, offset, page, totalPages } = paginateList({
-    page: input.filters.page,
+    page: filters.page,
     pageSize: adminListPageSize,
     totalCount,
   });
@@ -154,7 +174,7 @@ export async function listProfessors(input: {
     input.selectedEventId,
   );
   const orderByName =
-    input.filters.order.direction === "desc"
+    filters.order.direction === "desc"
       ? [
           desc(sql`lower(${professors.firstName})`),
           desc(sql`lower(${professors.lastName})`),
@@ -183,8 +203,9 @@ export async function listProfessors(input: {
     .offset(offset);
 
   return {
+    dayOptions,
     filters: {
-      ...input.filters,
+      ...filters,
       page,
     },
     hasAnyProfessor: Number(totalUnfilteredCount) > 0,
@@ -485,6 +506,12 @@ function buildProfessorWhere(input: {
       input.filters.participation === "yes"
         ? sql`${participationSql}`
         : sql`not ${participationSql}`,
+    );
+  }
+
+  if (input.selectedEventId !== null && input.filters.day !== null) {
+    conditions.push(
+      sql`${buildProfessorEventParticipationSql(input.selectedEventId, input.filters.day)}`,
     );
   }
 

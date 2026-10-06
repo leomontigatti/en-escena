@@ -33,6 +33,7 @@ export async function loadDancersList(request: Request) {
     /** False for the auditor, who gets the `Exportar` entry instead. */
     canWrite: canWriteInAdminPanel(user.role),
     selectedEventId: eventContext.selectedEventId,
+    dayOptions: listResult.dayOptions,
     filters: listResult.filters,
     hasAnyDancer: listResult.hasAnyDancer,
     dancers: listResult.items,

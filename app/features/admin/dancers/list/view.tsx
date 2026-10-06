@@ -134,7 +134,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.dancers}
       columns={columns}
       getRowKey={(dancer) => dancer.id}
-      searchPlaceholder="Buscar por nombre o documento"
+      searchPlaceholder="Buscar por nombre, documento o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildDancerFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
@@ -220,6 +220,15 @@ function buildDancerFacetedFilters(
           {option.label}
         </Badge>
       ),
+    });
+  }
+
+  // Empty without a selected event, so the day is offered only with one.
+  if (loaderData.dayOptions.length > 0) {
+    groups.push({
+      id: "dia",
+      label: "Día",
+      options: loaderData.dayOptions,
     });
   }
 

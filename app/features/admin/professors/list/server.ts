@@ -36,6 +36,7 @@ export async function loadProfessorsList(request: Request) {
     /** False for the auditor, who gets the `Exportar` entry instead. */
     canWrite: canWriteInAdminPanel(user.role),
     selectedEventId: eventContext.selectedEventId,
+    dayOptions: listResult.dayOptions,
     filters: listResult.filters,
     hasAnyProfessor: listResult.hasAnyProfessor,
     professors: listResult.items,

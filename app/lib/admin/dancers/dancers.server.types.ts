@@ -1,4 +1,5 @@
 import type { dancers } from "@/db/schema";
+import type { ChoreographyDayOption } from "@/lib/choreographies/choreography-days.server";
 import type { DancerBirthDateScheduleMove } from "@/lib/choreographies/dancer-birthdate-messages";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
@@ -25,6 +26,8 @@ export type DancerListItem = {
 };
 
 export type DancerListResult = {
+  /** The days the selected event's choreographies fall on; none without one. */
+  dayOptions: ChoreographyDayOption[];
   filters: DancerListFilters;
   hasAnyDancer: boolean;
   items: DancerListItem[];
