@@ -41,6 +41,7 @@ type EventChoreographyFixtureInput = {
   groupType?: GroupType;
   dancerIds?: string[];
   professorIds?: string[];
+  scheduledDate?: string;
 };
 
 type SavedScheduleFixtureInput = {
@@ -197,6 +198,7 @@ export async function createEventChoreographyFixture({
   groupType = "solo",
   dancerIds = [],
   professorIds = [],
+  scheduledDate = "2026-05-01",
 }: EventChoreographyFixtureInput) {
   const modality = await expectCreated(
     createModality(eventId, {
@@ -206,7 +208,7 @@ export async function createEventChoreographyFixture({
   const block = await expectCreated(
     createSchedule(eventId, {
       name: `${name} Bloque`,
-      scheduledDate: "2026-05-01",
+      scheduledDate,
       startTime: "10:00",
       totalCapacity: 10,
       modalityIds: [modality.id],
