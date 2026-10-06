@@ -209,7 +209,7 @@ function ProfessorTable({
       canSelectRow={(professor) => professor.active}
       selectedRowIds={selectedRowIds}
       onSelectedRowIdsChange={onSelectedRowIdsChange}
-      searchPlaceholder="Buscar por nombre o documento"
+      searchPlaceholder="Buscar por nombre, documento o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildProfessorFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildInitialFacetedFilterValues(loaderData)}
@@ -256,6 +256,15 @@ function buildProfessorFacetedFilters(
           {option.label}
         </Badge>
       ),
+    });
+  }
+
+  // Empty without a selected event, so the day is offered only with one.
+  if (loaderData.dayOptions.length > 0) {
+    groups.push({
+      id: "dia",
+      label: "Día",
+      options: loaderData.dayOptions,
     });
   }
 

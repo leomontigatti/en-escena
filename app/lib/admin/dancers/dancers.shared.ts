@@ -17,6 +17,8 @@ export type DancerIdentificationStatus =
   "incomplete" | "unverified" | "verified";
 
 export type DancerListFilters = {
+  /** A `YYYY-MM-DD` the event's choreographies fall on, or `null` for any. */
+  day: string | null;
   order: ListOrder<"nombre">;
   participation: DancerParticipationFilter;
   query: string;
@@ -33,8 +35,8 @@ export const dancerListSpec: ListQuerySpec<"nombre"> = {
 
 /**
  * The list's facets as the URL writes them, each absent at its default.
- * Participation only narrows the list while an event is active, so without one
- * it is not written at all.
+ * Participation and the day only narrow the list while an event is active, so
+ * without one they are not written at all.
  */
 export function toDancerListFacets(
   filters: DancerListFilters,
@@ -45,6 +47,7 @@ export function toDancerListFacets(
       selectedEventId === null
         ? null
         : toDancerParticipationSearchValue(filters.participation),
+    dia: selectedEventId === null ? null : filters.day,
     identificacion:
       filters.identification === "all"
         ? null

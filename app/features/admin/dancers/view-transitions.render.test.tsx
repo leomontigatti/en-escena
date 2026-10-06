@@ -110,7 +110,9 @@ async function renderRoute(path: string, element: React.ReactElement) {
 function buildListLoaderData() {
   return {
     selectedEventId: "event_1",
+    dayOptions: [] as { label: string; value: string }[],
     filters: {
+      day: null,
       order: { columnId: "nombre", direction: "asc" },
       participation: "all",
       query: "",

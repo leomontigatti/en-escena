@@ -9,6 +9,11 @@ import {
 } from "@/lib/admin/test-support/db";
 import { createProfessor } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
+import {
+  createEventChoreographyFixture,
+  createEventFixtureDates,
+  createSavedEvent,
+} from "@/lib/events/bases-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -106,6 +111,39 @@ describe("loadProfessorAccreditationsPrint", () => {
     expect(printedProfessorIds(html).sort()).toEqual(
       matching.map((row) => row.id).sort(),
     );
+  });
+
+  test("with nothing ticked, prints only the professors dancing on the list's day", async () => {
+    const event = await createSavedEvent("Regional Días", {
+      activate: true,
+      dates: createEventFixtureDates(2026),
+    });
+    const academy = await seedAcademy("Academia Días");
+    const friday = await createProfessor(academy.id, { firstName: "Vera" });
+    const saturday = await createProfessor(academy.id, { firstName: "Sara" });
+    await createEventChoreographyFixture({
+      academyId: academy.id,
+      eventId: event.id,
+      name: "Viernes",
+      professorIds: [friday.id],
+      scheduledDate: "2026-05-01",
+    });
+    await createEventChoreographyFixture({
+      academyId: academy.id,
+      eventId: event.id,
+      name: "Sábado",
+      professorIds: [saturday.id],
+      scheduledDate: "2026-05-02",
+    });
+
+    const html = await printHtml(
+      buildProfessorAccreditationsHref({
+        professorIds: [],
+        listSearch: "dia=2026-05-02",
+      }),
+    );
+
+    expect(printedProfessorIds(html)).toEqual([saturday.id]);
   });
 
   test("points every QR code at the public program on the configured base URL", async () => {
