@@ -14,16 +14,16 @@ type SearchInputProps = Omit<
   "onChange" | "type" | "value"
 > & {
   /**
-   * What the clear button does, when emptying the box is worth more than
-   * whatever the typed value goes through (a debounce, say). Without it,
-   * clearing is a change like any other.
-   */
-  /**
    * Whether the results this box narrows are being fetched: a spinner takes
    * the magnifier's place, so the signal sits where the reader just acted and
    * the box keeps its size.
    */
   isLoading?: boolean;
+  /**
+   * What the clear button does, when emptying the box is worth more than
+   * whatever the typed value goes through (a debounce, say). Without it,
+   * clearing is a change like any other.
+   */
   onClear?: () => void;
   onValueChange: (value: string) => void;
   value: string;
