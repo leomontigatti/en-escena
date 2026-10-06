@@ -17,7 +17,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
-import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
+import { evaluatedChoreographyAlert } from "@/lib/choreographies/choreography-messages";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 import {
@@ -272,10 +272,7 @@ function readMusicLock(state: {
   isWithdrawn: boolean;
 }) {
   if (state.isEvaluated) {
-    return {
-      description: evaluatedChoreographyMessage,
-      title: "Esta coreografía ya fue evaluada",
-    };
+    return evaluatedChoreographyAlert;
   }
 
   if (state.isWithdrawn && state.isEventReadOnly) {

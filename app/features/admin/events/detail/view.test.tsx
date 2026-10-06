@@ -101,8 +101,10 @@ describe("EventDetailView delete", () => {
       "Las fechas y la seña no se pueden cambiar",
     );
     expect(document.body.textContent).toContain(
-      "Tiene coreografías inscriptas.",
+      "El evento ya tiene coreografías inscriptas. Se van a poder cambiar si se eliminan todas.",
     );
+    // One reason only: a one-item list under it would repeat the sentence.
+    expect(document.querySelector('[role="alert"] li')).toBeNull();
     expect(
       document.querySelector<HTMLInputElement>(
         'input[name="requiredDepositPercentage"]',
