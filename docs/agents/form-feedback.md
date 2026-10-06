@@ -144,7 +144,7 @@ carries it (PRD #1090):
 - **Nothing is stored** about an acknowledgement: saving the same values again warns
   again.
 - **A refusal always wins.** The warning runs after validation and after the hard
-  uniqueness pre-checks, so a document already used in the academy is a refusal,
+  uniqueness pre-checks, so a document number already used by another record of the same roster (dancers with dancers, professors with professors) is a refusal,
   never a warning the user can click past.
 - **Known limit:** matching is case-insensitive and whitespace-insensitive but
   **accent-sensitive** (`lower(...)` in SQL, no folding extension installed), so
