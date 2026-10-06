@@ -18,9 +18,8 @@ export type RosterDocumentConflict = {
  * Toasts a roster form's refusal, as every server refusal is (style guide
  * § React Hook Form). A document conflict says which number is taken instead
  * of the generic refusal, and the toast links to the person holding it. The
- * link is a red link button rather than sonner's own action button, so it
- * reads as part of the error it belongs to; the toast keeps the usual
- * duration.
+ * link is a link button in the toast's own colour, as every toast button is
+ * (style guide → Toasts), and the toast keeps the default duration.
  *
  * `refusal` is the action's answer itself, so the toast fires once per answer
  * and again for a second identical refusal.
@@ -47,7 +46,7 @@ export function useRosterRefusalToast({
         id: toastId,
         action: matchHref ? (
           <Button
-            className="ml-auto h-auto p-0 text-destructive"
+            className="ml-auto h-auto p-0 text-current"
             size="sm"
             variant="link"
             onClick={() => {

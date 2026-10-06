@@ -261,7 +261,7 @@ describe("access UI validation", () => {
   test("returns the logout completion notice for login", () => {
     expect(getLoginNotice(new URLSearchParams("sesion=cerrada"))).toEqual({
       id: "auth:sesion-cerrada",
-      variant: "info",
+      variant: "success",
       message: "Cerraste sesión.",
     });
   });

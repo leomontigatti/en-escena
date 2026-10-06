@@ -170,6 +170,25 @@ paragraph spacing: the title is the headline.
 A list inside an alert is a bulleted `ul` (`list-disc pl-5`) inside the
 `AlertDescription`.
 
+### Toasts
+
+What a toast says and when one fires is in "Show server action feedback with
+toasts" under React Hook Form, and in [form-feedback.md](form-feedback.md). How
+it looks:
+
+- **Icons.** A toast draws the icon of the `Alert` of the same kind, so a
+  message reads the same as a toast and as an alert: `error` → `CircleAlert`,
+  `warning` → `TriangleAlert`, `info` → `Info`, `success` → `CircleCheck`.
+  They are set once on `AppToaster` (`app/components/shared/app-toaster.tsx`)
+  from `alertVariantIcons`; never pass `icon` to a single toast.
+- **Duration.** Leave Sonner's default. Set `duration` only for a specific case
+  that needs it, and say why beside it.
+- **Buttons.** A toast's button is a `Button` with `variant="link"` in the
+  toast's own colour (`text-current`), passed as the toast's `action`, and it
+  dismisses the toast when it acts. Sonner's filled action button is not used.
+  `useRosterRefusalToast` (`app/components/shared/roster-document-conflict.tsx`)
+  is the model.
+
 ## States and badges
 
 Use `Badge` with the variants defined in `app/components/ui/badge.tsx`. The
