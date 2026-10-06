@@ -293,12 +293,7 @@ function buildChoreographiesRouter(
       {
         path: "/portal/coreografias",
         action: async () => null,
-        element: (
-          <PortalChoreographiesListRouteView
-            created={input.created}
-            loaderData={loaderData}
-          />
-        ),
+        element: <PortalChoreographiesListRouteView loaderData={loaderData} />,
       },
     ],
     { initialEntries: [initialEntry] },

@@ -28,6 +28,8 @@ import {
   createPortalPostRequest,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
+import { readFlashNotification } from "@/lib/shared/flash-notification.server";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -198,9 +200,13 @@ describe("the create choreography page action", () => {
       302,
     );
 
-    expect(response.headers.get("Location")).toBe(
-      "/portal/coreografias?creada=1",
+    expect(response.headers.get("Location")).toBe("/portal/coreografias");
+    const flash = await readFlashNotification(
+      new Request("http://localhost/portal/coreografias", {
+        headers: { cookie: response.headers.get("Set-Cookie") ?? "" },
+      }),
     );
+    expect(flash?.toast).toEqual(notificationToasts["coreografia-creada"]);
 
     const [storedChoreography] = await db.query.choreographies.findMany({
       where: eq(choreographies.academyId, ownerSession.academyId),
