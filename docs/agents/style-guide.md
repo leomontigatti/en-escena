@@ -168,7 +168,8 @@ description. Do not restyle a span into a headline or tighten the description's
 paragraph spacing: the title is the headline.
 
 A list inside an alert is a bulleted `ul` (`list-disc pl-5`) inside the
-`AlertDescription`.
+`AlertDescription`. A reason that can only ever be one is a sentence, not a
+one-item list, and the description never repeats the title.
 
 ## States and badges
 

@@ -33,8 +33,10 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Esta coreografía ya fue evaluada");
     expect(markup).toContain(
-      "Esta coreografía ya fue evaluada y no puede modificarse.",
+      "No puede modificarse. La evaluación no se puede anular.",
     );
+    // The description does not repeat the title.
+    expect(markup).not.toContain("ya fue evaluada y no puede modificarse");
     expect(markup).not.toContain("Tampoco puede eliminarse ni retirarse.");
   });
 
@@ -375,7 +377,10 @@ describe("ChoreographyDetailRouteView", () => {
     expect(dialog?.querySelector("h2")?.textContent).toBe(
       "No se puede eliminar la coreografía",
     );
-    expect(dialog?.textContent).toContain("La presentación ya fue evaluada.");
+    expect(dialog?.textContent).toContain("La presentación ya fue evaluada");
+    expect(dialog?.textContent).toContain("La evaluación no se puede anular.");
+    // One reason only: a one-item list would repeat the alert's title.
+    expect(dialog?.querySelector("li")).toBeNull();
     expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
   });
 
