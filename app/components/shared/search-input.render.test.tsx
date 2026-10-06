@@ -95,4 +95,29 @@ describe("SearchInput", () => {
     expect(onClear).toHaveBeenCalledOnce();
     expect(onValueChange).not.toHaveBeenCalled();
   });
+
+  test("swaps the magnifier for a spinner while loading, and back once done", async () => {
+    await renderer.renderAsync(
+      <SearchInput
+        placeholder="Buscar por nombre"
+        value="Paz"
+        isLoading
+        onValueChange={() => {}}
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="spinner"]')).not.toBeNull();
+    expect(document.querySelector("svg.lucide-search")).toBeNull();
+
+    await renderer.renderAsync(
+      <SearchInput
+        placeholder="Buscar por nombre"
+        value="Paz"
+        onValueChange={() => {}}
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="spinner"]')).toBeNull();
+    expect(document.querySelector("svg.lucide-search")).not.toBeNull();
+  });
 });

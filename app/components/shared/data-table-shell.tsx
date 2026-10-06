@@ -28,7 +28,6 @@ import { createContext, useContext, useId, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   DataTablePagination,
   SortIcon,
@@ -254,11 +253,20 @@ export function DataTableShell<TData>({
 
   return (
     <div className="flex flex-col gap-3">
-      <DataTableToolbar filters={filters} search={search} />
+      <DataTableToolbar
+        filters={filters}
+        isLoading={isLoading}
+        search={search}
+      />
       <div
+        aria-busy={isLoading}
         className={cn(
           "rounded-lg border bg-background transition-opacity",
-          isLoading && "opacity-75",
+          // The rows stay put and fade after a beat, so a fast reload never
+          // flickers; the way back is immediate. The spinner is in the search
+          // box, where the reader acted, rather than in a footer that is off
+          // screen on a long list.
+          isLoading && "opacity-60 delay-150",
         )}
       >
         {reorder ? (
@@ -269,9 +277,7 @@ export function DataTableShell<TData>({
           tableElement
         )}
       </div>
-      {!pagination.hidden ? (
-        <DataTableFooter isLoading={isLoading} pagination={pagination} />
-      ) : null}
+      {!pagination.hidden ? <DataTableFooter pagination={pagination} /> : null}
     </div>
   );
 }
@@ -351,9 +357,11 @@ function resolveDataTableColumnWidth<TData>({
  */
 function DataTableToolbar({
   filters,
+  isLoading,
   search,
 }: {
   filters: DataTableFiltersProps;
+  isLoading: boolean;
   search: DataTableSearchProps;
 }) {
   const hasFacetedFilters = filters.groups.length > 0;
@@ -364,7 +372,9 @@ function DataTableToolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {!search.hidden ? <DataTableSearchField search={search} /> : null}
+      {!search.hidden ? (
+        <DataTableSearchField isLoading={isLoading} search={search} />
+      ) : null}
       {hasFacetedFilters ? (
         <DataTableFilters
           groups={filters.groups}
@@ -379,10 +389,17 @@ function DataTableToolbar({
 }
 
 /** The search input, sized for the toolbar. */
-function DataTableSearchField({ search }: { search: DataTableSearchProps }) {
+function DataTableSearchField({
+  isLoading,
+  search,
+}: {
+  isLoading: boolean;
+  search: DataTableSearchProps;
+}) {
   return (
     <div className="w-full sm:w-80">
       <SearchInput
+        isLoading={isLoading}
         aria-label="Buscar en la tabla"
         placeholder={search.placeholder}
         value={search.query}
@@ -658,10 +675,8 @@ function DataTableTemplate<TContext extends object>({
  * the number they are looking at is not the whole set.
  */
 function DataTableFooter({
-  isLoading,
   pagination,
 }: {
-  isLoading: boolean;
   pagination: DataTablePaginationProps;
 }) {
   return (
@@ -669,12 +684,6 @@ function DataTableFooter({
       <p className="text-sm text-muted-foreground">
         {pagination.filteredRowCount} de {pagination.totalRows}{" "}
         {pagination.totalRows === 1 ? "registro" : "registros"}
-        {isLoading ? (
-          <span className="ml-2 inline-flex items-center gap-1">
-            <Spinner aria-hidden="true" />
-            Actualizando…
-          </span>
-        ) : null}
       </p>
       <DataTablePagination
         basePath={pagination.basePath}
