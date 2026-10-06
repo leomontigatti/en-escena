@@ -171,7 +171,7 @@ async function saveAdministrativeProfessor({
 
   if (!parsed.success) {
     return buildProfessorActionError(
-      "Revisá los campos marcados.",
+      "Revisá los datos del formulario.",
       getFieldErrors(parsed.error, professorFieldNames),
       values,
     );

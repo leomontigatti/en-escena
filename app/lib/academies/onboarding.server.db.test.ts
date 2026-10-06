@@ -455,7 +455,7 @@ describe("academy onboarding route", () => {
         city: undefined,
         province: undefined,
       },
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       status: "error",
       values: {
         academyName: "Academia Telefono",

@@ -86,7 +86,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   if (!parsed.success) {
     return {
       status: "error" as const,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: getFieldErrors(parsed.error, completeInvitationFields),
       values,
     };

@@ -30,7 +30,7 @@ installPortalSubmissionTestHooks();
 
 const refusal: CreateDancerActionData = {
   status: "error",
-  message: "Revisá los campos marcados.",
+  message: "Revisá los datos del formulario.",
   fieldErrors: {
     documentNumber: "Ya existe un bailarín con ese documento en tu academia.",
   },

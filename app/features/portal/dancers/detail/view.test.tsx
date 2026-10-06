@@ -100,7 +100,7 @@ describe("PortalDancerDetailRouteView", () => {
     const markup = renderDancerDetail({
       actionData: {
         status: "error",
-        message: "Revisá los campos marcados.",
+        message: "Revisá los datos del formulario.",
         fieldErrors: {
           documentType: "Seleccioná el tipo de documento.",
           documentNumber: "Ingresá el número de documento.",
