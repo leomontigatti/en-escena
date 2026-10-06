@@ -694,6 +694,29 @@ describe("choreography registration confirmation", () => {
     });
     expect(storedChoreographies).toHaveLength(2);
   });
+
+  test("stores whether the academy asked for a professional evaluation, and defaults to not asking", async () => {
+    const scenario = await createSameCastScenario({
+      academyName: "Academia Exigente",
+      email: "registro.coreografia.exigente@example.com",
+    });
+
+    const asked = await expectRegistered(
+      scenario.registrationInput({
+        name: "Luna Llena",
+        professionalEvaluation: true,
+      }),
+    );
+    const notAsked = await expectRegistered(
+      scenario.registrationInput({
+        name: "Luna Nueva",
+        professionalEvaluation: false,
+      }),
+    );
+
+    expect(asked.choreography.professionalEvaluation).toBe(true);
+    expect(notAsked.choreography.professionalEvaluation).toBe(false);
+  });
 });
 
 /**

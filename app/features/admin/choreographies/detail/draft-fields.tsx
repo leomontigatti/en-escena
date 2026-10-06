@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
+import { Controller } from "react-hook-form";
 
 import { ChecklistField } from "@/components/shared/checklist-field";
+import {
+  ProfessionalEvaluationSwitch,
+  professionalEvaluationFieldInputClassName,
+} from "@/components/shared/professional-evaluation-switch";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
@@ -99,8 +104,26 @@ export function ChoreographyClassificationFields({
       </DerivedField>
 
       <DerivedField pending={isDeriving} reason={findReason(draft, "category")}>
+        {/* `Evaluar como profesional` rides on the category it is set beside
+            in the wizard. It is structural: the judges read it as it was. */}
         <ReadOnlyField
           label={<PendingLabel pending={isDeriving} text="Categoría" />}
+          inputClassName={professionalEvaluationFieldInputClassName}
+          trailing={
+            <Controller
+              control={draft.form.control}
+              name="professionalEvaluation"
+              render={({ field }) => (
+                <ProfessionalEvaluationSwitch
+                  checked={field.value}
+                  disabled={isDeriving || draft.isStructureLocked}
+                  placement="field"
+                  onBlur={field.onBlur}
+                  onCheckedChange={field.onChange}
+                />
+              )}
+            />
+          }
           value={shown.category?.name ?? ""}
         />
       </DerivedField>

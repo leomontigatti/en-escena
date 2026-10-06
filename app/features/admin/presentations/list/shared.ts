@@ -104,6 +104,8 @@ export type PresentationListItem = {
   assignedJudgeIds: string[];
   /** `null` while the choreography has no presentation, so nothing to score. */
   presentationId: string | null;
+  /** `Evaluar como profesional`, which the `evaluacion` facet narrows to. */
+  professionalEvaluation: boolean;
   scheduledDate: string;
   submodalityName: string | null;
   warnings: PresentationWarning[];
@@ -111,6 +113,8 @@ export type PresentationListItem = {
 
 export type PresentationListFilters = {
   day: string | null;
+  /** The one value of the `evaluacion` facet; `null` shows every row. */
+  evaluation: "profesional" | null;
   order: PresentationOrder;
   page: number;
   query: string;

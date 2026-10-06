@@ -24,6 +24,7 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
   categoryId: string;
   experienceLevelId: string | null;
   isEvaluated: boolean;
+  professionalEvaluation: boolean;
   /**
    * Whether the resolved category declares levels. The academy does not edit the
    * level, but it does need to tell "not applicable" from "missing": two kinds of
@@ -65,6 +66,7 @@ type ChoreographyRow = {
 };
 
 type ChoreographyDetailRow = ChoreographyRow & {
+  professionalEvaluation: boolean;
   scheduleId: string;
   scheduleName: string;
   scheduleDate: string;
@@ -124,6 +126,7 @@ export async function findChoreographyForAcademyEvent(
       submodalityName: submodalities.name,
       categoryName: categories.name,
       categoryExperienceLevels: categories.experienceLevels,
+      professionalEvaluation: choreographies.professionalEvaluation,
       scheduleId: schedules.id,
       scheduleName: schedules.name,
       scheduleDate: schedules.scheduledDate,
@@ -197,6 +200,7 @@ export async function findChoreographyForAcademyEvent(
     experienceLevelId: row.experienceLevelId,
     isEvaluated,
     musicStorageKey: row.musicStorageKey,
+    professionalEvaluation: row.professionalEvaluation,
     requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
     scheduleCapacityId:
       row.scheduleCapacityId ??

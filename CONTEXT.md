@@ -545,6 +545,10 @@ _Avoid_: `modality`, `groupType`
 Classification related to a category and chosen by the academy where applicable.
 _Avoid_: `category`
 
+**`professionalEvaluation`** — ui: "Evaluar como profesional"
+A choreography's request to be judged more severely, a yes or no its academy sets and any choreography can carry. It tells the judges how to read the choreography and nothing else: the `scoreSheet`, the `award` bands, the price and the schedule are the same either way. It is independent of `experienceLevel`, so a choreography at the `Profesional` level may or may not ask for it, and one in a category with no levels can.
+_Avoid_: `experienceLevel`, professional level
+
 **`notApplicableValue`** — ui: "No aplica"
 Empty value of a field that cannot hold one in this context, as opposed to one that has none yet. Reserved for the second case is "Sin asignar": the field admits a value and it is missing, which is what leaves a choreography `incomplete`. Rendering both the same way hides an incomplete record behind a correct-looking one.
 _Avoid_: `Sin asignar`, `Sin datos`, blank

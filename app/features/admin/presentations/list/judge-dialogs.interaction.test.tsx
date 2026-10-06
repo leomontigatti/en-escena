@@ -271,6 +271,7 @@ function buildItem(
     name: "Primera",
     orderNumber: 1,
     presentationId: "presentation-1",
+    professionalEvaluation: false,
     scheduledDate: "2026-05-01",
     submodalityName: null,
     warnings: [],
@@ -286,6 +287,7 @@ function buildLoaderData(): PresentationListResult {
     days: ["2026-05-01"],
     filters: {
       day: null,
+      evaluation: null,
       order: { columnId: "orden", direction: "asc" },
       page: 1,
       query: "",

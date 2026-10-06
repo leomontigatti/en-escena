@@ -74,6 +74,7 @@ export const createChoreographySchema = z.object({
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
   professorIds: z.array(z.string()).min(1, requiredFieldMessage),
   experienceLevelId: z.string().trim().optional(),
+  professionalEvaluation: z.boolean(),
   scheduleCapacityId: z.string().trim().optional(),
 });
 
@@ -90,6 +91,7 @@ export const emptyCreateChoreographyValues: CreateChoreographyFormValues = {
   dancerIds: [],
   professorIds: [],
   experienceLevelId: "",
+  professionalEvaluation: false,
   scheduleCapacityId: "",
 };
 
@@ -184,6 +186,8 @@ const storedAnswersSchema = z.object({
   dancerIds: z.array(z.string()),
   professorIds: z.array(z.string()),
   experienceLevelId: z.string().optional(),
+  // Answers stored before the switch existed have no entry: they did not ask.
+  professionalEvaluation: z.boolean().optional(),
   scheduleCapacityId: z.string().optional(),
 });
 
@@ -226,6 +230,7 @@ export function restoreCreateChoreographyAnswers(
     dancerIds: keepOffered(answers.dancerIds, options.activeDancers),
     professorIds: keepOffered(answers.professorIds, options.activeProfessors),
     experienceLevelId: answers.experienceLevelId ?? "",
+    professionalEvaluation: answers.professionalEvaluation ?? false,
     scheduleCapacityId: answers.scheduleCapacityId ?? "",
   };
 }
@@ -533,6 +538,7 @@ export function buildCreateChoreographyFormData(input: {
   dancerIds: string[];
   professorIds: string[];
   experienceLevelId: string;
+  professionalEvaluation: boolean;
   scheduleCapacityId: string;
 }) {
   const formData = new FormData();
@@ -548,6 +554,10 @@ export function buildCreateChoreographyFormData(input: {
   appendFormStringArray(formData, "dancerIds", input.dancerIds);
   appendFormStringArray(formData, "professorIds", input.professorIds);
   setOptionalFormString(formData, "experienceLevelId", input.experienceLevelId);
+  // Sent only when asked, as a checkbox would be: absent reads as `false`.
+  if (input.professionalEvaluation) {
+    formData.set("professionalEvaluation", "true");
+  }
   formData.set("scheduleCapacityId", input.scheduleCapacityId);
   appendFormStringArray(
     formData,

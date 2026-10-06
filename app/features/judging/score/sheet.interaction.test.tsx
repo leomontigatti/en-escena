@@ -66,6 +66,7 @@ function buildRow(
     value: null,
     ...overrides,
     presentationId: overrides.presentationId,
+    professionalEvaluation: false,
   };
 }
 

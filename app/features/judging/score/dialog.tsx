@@ -32,6 +32,8 @@ import {
 } from "@/lib/judging/score-value";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 
+import { ProfessionalEvaluationBadge } from "@/components/shared/professional-evaluation-badge";
+
 import {
   formatPresentationSummary,
   formatPresentationTitle,
@@ -139,7 +141,12 @@ export function JudgeScoreDialog({
       >
         <DialogContent onInteractOutside={(event) => event.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>{formatPresentationTitle(presentation)}</DialogTitle>
+            <DialogTitle className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {formatPresentationTitle(presentation)}
+              <ProfessionalEvaluationBadge
+                professionalEvaluation={presentation.professionalEvaluation}
+              />
+            </DialogTitle>
             <DialogDescription>
               {formatPresentationSummary(presentation)}
             </DialogDescription>

@@ -172,11 +172,14 @@ export async function seedDevData(input: {
   });
   // Scored in the block the disqualification freezes anyway, and under its own
   // submodality: a score locks the criteria of the submodality it was given
-  // in, and `Lírico` has to keep its criteria editable.
+  // in, and `Lírico` has to keep its criteria editable. Evaluated as
+  // professional, so the judge's heading shows the badge and the switch is
+  // seen locked behind a score.
   const scoredChoreographyId = await registerSolo({
     ...registration,
     name: "Río Arriba",
     dancerId: roster.caro,
+    professionalEvaluation: true,
     professorId: roster.nora,
     scheduleCapacityId: catalog.afternoonCapacity.id,
     submodalityId: catalog.scoredSubmodality.id,
@@ -395,6 +398,7 @@ type SeedRegistration = {
   name: string;
   dancerId: string;
   professorId: string;
+  professionalEvaluation?: boolean;
   scheduleCapacityId: string;
   /** Defaults to the catalog's first submodality. */
   submodalityId?: string;
@@ -411,6 +415,7 @@ async function registerSolo(input: SeedRegistration) {
       dancerIds: [input.dancerId],
       professorIds: [input.professorId],
       experienceLevelId: null,
+      professionalEvaluation: input.professionalEvaluation,
       scheduleCapacityId: input.scheduleCapacityId,
     }),
     `register ${input.name}`,

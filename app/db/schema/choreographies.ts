@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   foreignKey,
   index,
   integer,
@@ -61,6 +62,13 @@ export const choreographies = createTable(
       "category_calculation_mode",
     ).notNull(),
     experienceLevelId: experienceLevel("experience_level"),
+    // `Evaluar como profesional`: the academy asks the judges to be more
+    // severe. A yes/no the judges read off the score heading and nothing else
+    // reads: the sheet, the award bands, the price and the order are the same
+    // either way, and it is independent of `experienceLevelId`.
+    professionalEvaluation: boolean("professional_evaluation")
+      .notNull()
+      .default(false),
     scheduleId: varchar("schedule_id", { length: 255 }).notNull(),
     scheduleCapacityId: varchar("schedule_capacity_id", {
       length: 255,

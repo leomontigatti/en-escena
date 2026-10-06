@@ -1,10 +1,14 @@
 import { Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Controller } from "react-hook-form";
+
 import { AccessNotice } from "@/components/auth/access-ui";
+import { ProfessionalEvaluationSwitch } from "@/components/shared/professional-evaluation-switch";
 import { Button } from "@/components/ui/button";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import type {
+  CreateChoreographyForm,
   CreateChoreographyFormValues,
   CreateChoreographyStep,
   PortalResolvedRegistrationResolution,
@@ -21,16 +25,19 @@ import { StepIntro } from "@/features/portal/choreographies/create/step-intro";
 
 /**
  * Every answer with a way back to the step that gave it. The category has none:
- * it follows from the dancers, so it is changed there.
+ * it follows from the dancers, so it is changed there. Its row carries the one
+ * answer asked here, `Evaluar como profesional`, in the room `Cambiar` leaves.
  */
 export function ChoreographyCreationSummary({
   baseOptions,
+  form,
   onEdit,
   professors,
   resolution,
   values,
 }: {
   baseOptions: ChoreographyRegistrationBaseOptions;
+  form: CreateChoreographyForm;
   onEdit: (step: CreateChoreographyStep) => void;
   professors: ActiveProfessor[];
   resolution: PortalResolvedRegistrationResolution;
@@ -51,12 +58,12 @@ export function ChoreographyCreationSummary({
         title="Estos datos no se pueden cambiar después"
         variant="warning"
       >
-        Una vez guardada la coreografía, solo vas a poder cargar o cambiar la
-        música.
+        Una vez guardada la coreografía, solo vas a poder cambiar la música y si
+        se evalúa como profesional.
       </AccessNotice>
       <dl
         aria-label="Resumen de coreografía"
-        className="flex flex-col divide-y rounded-lg border"
+        className="@container flex flex-col divide-y rounded-lg border"
       >
         <SummaryRow label="Nombre" onEdit={() => onEdit("choreography")}>
           {values.name.trim()}
@@ -74,7 +81,23 @@ export function ChoreographyCreationSummary({
         >
           {formatPeopleNames(resolution.dancers)}
         </SummaryRow>
-        <SummaryRow label="Categoría">
+        <SummaryRow
+          label="Categoría"
+          trailing={
+            <Controller
+              control={form.control}
+              name="professionalEvaluation"
+              render={({ field }) => (
+                <ProfessionalEvaluationSwitch
+                  checked={field.value}
+                  placement="summary"
+                  onBlur={field.onBlur}
+                  onCheckedChange={field.onChange}
+                />
+              )}
+            />
+          }
+        >
           {formatCategoryAndGroupTypeSummary(resolution)}
         </SummaryRow>
         {resolution.experienceLevel.required ? (
@@ -109,19 +132,23 @@ function SummaryRow({
   children,
   label,
   onEdit,
+  trailing,
 }: {
   children: ReactNode;
   label: string;
   onEdit?: () => void;
+  /** What the row carries instead of `Cambiar`. */
+  trailing?: ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 px-4 py-3">
+    <div className="flex items-center gap-3 px-4 py-3">
       <div className="flex flex-1 flex-col gap-0.5">
         <dt className="text-xs font-semibold text-muted-foreground uppercase">
           {label}
         </dt>
         <dd className="text-sm">{children}</dd>
       </div>
+      {trailing}
       {onEdit ? (
         <Button
           type="button"

@@ -94,6 +94,28 @@ describe("the judge's list of one day's presentations", () => {
     expect(JSON.stringify(row)).not.toContain("90.0");
   });
 
+  test("tells the judge the academy asked for a professional evaluation", async () => {
+    const fixture = await seedJudgingFixture();
+    const asked = await fixture.addPresentation({
+      name: "Exigente",
+      orderNumber: 1,
+      professionalEvaluation: true,
+    });
+    const regular = await fixture.addPresentation({
+      name: "Regular",
+      orderNumber: 2,
+    });
+    const { judgeId } = await fixture.assignJudge(asked.presentationId);
+    await fixture.assignJudge(regular.presentationId, judgeId);
+
+    await expect(
+      readJudgePresentations({ scheduledDate: showDay, judgeId }),
+    ).resolves.toMatchObject([
+      { name: "Exigente", professionalEvaluation: true },
+      { name: "Regular", professionalEvaluation: false },
+    ]);
+  });
+
   test("reads a category without levels as admitting none", async () => {
     const fixture = await seedJudgingFixture();
     const presentation = await fixture.addPresentation({

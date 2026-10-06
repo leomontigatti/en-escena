@@ -8,6 +8,10 @@ import { FileUploadField } from "@/components/shared/file-upload-field";
 import { ReasonList } from "@/components/shared/reason-list";
 import { FormActions } from "@/components/shared/form-actions";
 import {
+  ProfessionalEvaluationSwitch,
+  professionalEvaluationFieldInputClassName,
+} from "@/components/shared/professional-evaluation-switch";
+import {
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
@@ -41,6 +45,14 @@ export function ChoreographyMusicEditorForm({
     isWithdrawn: choreography.isWithdrawn,
   });
   const canEditMusic = musicLock === null;
+  // `Evaluar como profesional` is the other thing the academy edits here, and
+  // it closes with the music: once evaluated, the judges read it as it was.
+  const [professionalEvaluation, setProfessionalEvaluation] = useState(
+    choreography.professionalEvaluation,
+  );
+  useEffect(() => {
+    setProfessionalEvaluation(choreography.professionalEvaluation);
+  }, [choreography.professionalEvaluation]);
   const [musicHasValidationError, setMusicHasValidationError] = useState(false);
   const [selectedMusicFileName, setSelectedMusicFileName] = useState<
     string | null
@@ -102,16 +114,20 @@ export function ChoreographyMusicEditorForm({
       musicStorageKey !== (choreography.musicStorageKey ?? ""),
     [choreography.musicStorageKey, musicStorageKey, selectedMusicFileName],
   );
+  const hasChanges =
+    hasMusicChanged ||
+    professionalEvaluation !== choreography.professionalEvaluation;
 
   // Puts the field back on the stored song: the picked file, or the delete,
   // goes, and the remount clears the file input itself.
-  const discardMusicChanges = useCallback(() => {
+  const discardChanges = useCallback(() => {
     setMusicStorageKey(choreography.musicStorageKey ?? "");
     setSelectedMusicFileName(null);
     setMusicHasValidationError(false);
+    setProfessionalEvaluation(choreography.professionalEvaluation);
     form.setValue("musicStorageKey", choreography.musicStorageKey ?? "");
     setSavedCount((count) => count + 1);
-  }, [choreography.musicStorageKey, form]);
+  }, [choreography.musicStorageKey, choreography.professionalEvaluation, form]);
 
   const handleMusicValidationErrorChange = useCallback((hasError: boolean) => {
     setMusicHasValidationError(hasError);
@@ -151,6 +167,11 @@ export function ChoreographyMusicEditorForm({
       <Card className="overflow-clip">
         <CardContent className="flex flex-col gap-5">
           <input type="hidden" name="intent" value={updateChoreographyIntent} />
+          <input
+            type="hidden"
+            name="professionalEvaluation"
+            value={professionalEvaluation ? "true" : "false"}
+          />
 
           <FieldGroup className="grid gap-5 md:grid-cols-2">
             <ReadOnlyField
@@ -168,6 +189,15 @@ export function ChoreographyMusicEditorForm({
             />
             <ReadOnlyField
               label="Categoría"
+              inputClassName={professionalEvaluationFieldInputClassName}
+              trailing={
+                <ProfessionalEvaluationSwitch
+                  checked={professionalEvaluation}
+                  disabled={!canEditMusic}
+                  placement="field"
+                  onCheckedChange={setProfessionalEvaluation}
+                />
+              }
               value={choreography.categoryName}
             />
             <ReadOnlySelectField
@@ -220,9 +250,9 @@ export function ChoreographyMusicEditorForm({
           backTo="/portal/coreografias"
           canEdit={canEditMusic}
           canSave={!musicHasValidationError}
-          hasChanges={hasMusicChanged}
+          hasChanges={hasChanges}
           isPending={isSubmitting}
-          onDiscard={discardMusicChanges}
+          onDiscard={discardChanges}
         />
       </Card>
     </Form>
@@ -277,7 +307,7 @@ function MusicLockAlert({
   return (
     <Alert variant="info">
       <Info aria-hidden="true" />
-      <AlertTitle>La música no se puede cambiar</AlertTitle>
+      <AlertTitle>La música y la evaluación no se pueden cambiar</AlertTitle>
       <AlertDescription>
         <p>{lock.unlock}</p>
         <ReasonList reasons={lock.reasons} />
