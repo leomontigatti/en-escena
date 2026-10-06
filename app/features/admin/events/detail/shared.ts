@@ -79,18 +79,6 @@ export type EventDetailLoaderData = {
   registrationReadiness: EventRegistrationReadiness;
 };
 
-const choreographiesInscribedReason = "Tiene coreografías inscriptas.";
-
-/**
- * Why the dates and the deposit cannot change: choreographies were inscribed
- * and priced against them. Empty means they are editable.
- */
-export function getEventStructureLockReasons({
-  hasChoreographies,
-}: Pick<EventDetailLoaderData, "hasChoreographies">) {
-  return hasChoreographies ? [choreographiesInscribedReason] : [];
-}
-
 /**
  * Why `Eliminar` cannot run, the two refusals `deleteEvent` makes. Empty means
  * the confirmation opens.
@@ -101,7 +89,7 @@ export function getEventDeleteBlockReasons({
 }: Pick<EventDetailLoaderData, "event" | "hasChoreographies">) {
   return [
     ...(event.active ? ["Es el evento activo."] : []),
-    ...getEventStructureLockReasons({ hasChoreographies }),
+    ...(hasChoreographies ? ["Tiene coreografías inscriptas."] : []),
   ];
 }
 

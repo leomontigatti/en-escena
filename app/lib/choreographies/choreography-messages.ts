@@ -3,8 +3,8 @@ import { groupTypeLabels, type GroupType } from "@/lib/events/group-types";
 export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 
 /**
- * The one sentence the evaluated lock speaks with: the alert the detail renders
- * and every refusal the server returns. The lock is not per field — an
+ * The one sentence the evaluated lock speaks with: every refusal the server
+ * returns, and the alert below in two parts. The lock is not per field — an
  * evaluated choreography is closed as a whole, so naming the field the form
  * happened to send would suggest the others are open.
  *
@@ -16,10 +16,20 @@ export const evaluatedChoreographyMessage =
   "Esta coreografía ya fue evaluada y no puede modificarse.";
 
 /**
- * The detail's alert says the lock is for good (style guide, Detail pages):
- * there is no score annulment, so nothing unlocks an evaluated choreography.
+ * The evaluated lock as an alert: the refusal's sentence split in two, so the
+ * description does not repeat the title word for word.
  */
-export const evaluatedChoreographyNotice = `${evaluatedChoreographyMessage} La evaluación no se puede anular.`;
+export const evaluatedChoreographyAlert = {
+  description: "No puede modificarse.",
+  title: "Esta coreografía ya fue evaluada",
+} as const;
+
+/**
+ * Administration's alert also says the lock is for good (style guide, Detail
+ * pages): there is no score annulment, so nothing unlocks an evaluated
+ * choreography.
+ */
+export const evaluatedChoreographyNotice = `${evaluatedChoreographyAlert.description} La evaluación no se puede anular.`;
 
 /**
  * A single text for the experience-level rejection. It lives here and not in the

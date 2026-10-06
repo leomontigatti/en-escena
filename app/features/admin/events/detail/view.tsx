@@ -60,7 +60,6 @@ import type { EventRegistrationMissingCode } from "@/lib/events/registration-rea
 import {
   eventActionPath,
   getEventDeleteBlockReasons,
-  getEventStructureLockReasons,
   getMissingItemAdminPath,
   getMissingItemLinkLabel,
   getMissingItemSummary,
@@ -107,7 +106,7 @@ export function EventDetailView({
         actionData={errorData}
         documents={loaderData.documents}
         registrationReadiness={loaderData.registrationReadiness}
-        structureLockReasons={getEventStructureLockReasons(loaderData)}
+        isStructureLocked={loaderData.hasChoreographies}
       />
     </AdminResourceLayout>
   );
@@ -186,13 +185,14 @@ function EditEventPanel({
   actionData,
   documents,
   registrationReadiness,
-  structureLockReasons,
+  isStructureLocked,
 }: {
   event: EventDetailLoaderData["event"];
   actionData?: Extract<EventDetailActionData, { status: "error" }>;
   documents: EventDetailLoaderData["documents"];
   registrationReadiness: EventDetailLoaderData["registrationReadiness"];
-  structureLockReasons: string[];
+  /** Choreographies were inscribed and priced against the dates and deposit. */
+  isStructureLocked: boolean;
 }) {
   const savedValues = eventFormValues(event);
   const eventForm = useEventForm({
@@ -220,16 +220,14 @@ function EditEventPanel({
         {!registrationReadiness.isReady ? (
           <EventRegistrationReadinessAlert readiness={registrationReadiness} />
         ) : null}
-        {structureLockReasons.length > 0 ? (
+        {/* One reason only, so it is a sentence, not a one-item list. */}
+        {isStructureLocked ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
             <AlertTitle>Las fechas y la seña no se pueden cambiar</AlertTitle>
             <AlertDescription>
-              <p>
-                Se pueden cambiar cuando el evento no tenga coreografías
-                inscriptas.
-              </p>
-              <ReasonList reasons={structureLockReasons} />
+              El evento ya tiene coreografías inscriptas. Se van a poder cambiar
+              si se eliminan todas.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -259,9 +257,7 @@ function EditEventPanel({
         >
           <EventFormFields
             controller={eventForm}
-            lockedValues={
-              structureLockReasons.length > 0 ? savedValues : undefined
-            }
+            lockedValues={isStructureLocked ? savedValues : undefined}
           />
           <EventFormTabs
             controller={eventForm}
