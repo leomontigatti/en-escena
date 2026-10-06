@@ -29,7 +29,9 @@ All on `rylai`, in the `staging` environment of the `enescena` Coolify project.
 DNS is an `A` record to `rylai`, proxied through Cloudflare like `sistema`:
 `rylai` only accepts `443` from Cloudflare. The WAF and rate-limiting rules in
 [DNS and email](./dns-and-email.md#24-proxy-and-waf-over-sistema) are scoped to
-`sistema` and do not cover it.
+`sistema` and do not cover it. The domain is also in `allowedActionOrigins`
+(`react-router.config.ts`): a new one goes there too, or every form submit,
+login included, fails with a 400.
 
 What it holds, against production:
 
