@@ -34,6 +34,7 @@ test("orders a list by name ignoring case and accents, the stored name breaking 
     "angeles",
     "Bolero",
     "Élite",
+    "Cu\u0301mbia",
   ]) {
     await createChoreographyRecord({
       academyId: owner.academyId,
@@ -56,6 +57,7 @@ test("orders a list by name ignoring case and accents, the stored name breaking 
     "angeles",
     "Ángeles",
     "Bolero",
+    "Cu\u0301mbia",
     "Élite",
     "los cascanueces",
     "Zamba",

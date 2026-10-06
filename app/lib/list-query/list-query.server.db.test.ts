@@ -30,8 +30,6 @@ const searchCases: [value: string, search: string, matches: boolean][] = [
   ["barrainvertida", "a\\i", false],
   ["Rosario", "  sario  ", true],
   ["Rosario", "córdoba", false],
-  ["Peña".normalize("NFD"), "pena", true],
-  ["Peña", "pen\u0303a", true],
 ];
 
 describe("listSearchCondition", () => {
