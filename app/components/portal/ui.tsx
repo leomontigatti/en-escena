@@ -43,7 +43,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -187,7 +187,6 @@ export function PortalEmptyState({
 type CoreographyCreationState = {
   tone: "ready" | "blocked" | "info";
   message: string;
-  details: string[];
 };
 
 type AlertVariant = NonNullable<ComponentProps<typeof Alert>["variant"]>;
@@ -541,15 +540,6 @@ export function PortalCoreographiesSection({
                     {creationAvailabilityPresentation.badgeLabel}
                   </Badge>
                 </AlertTitle>
-                {creationAvailability.details.length > 0 ? (
-                  <AlertDescription>
-                    <ul className="mt-2 list-disc pl-5">
-                      {creationAvailability.details.map((detail) => (
-                        <li key={detail}>{detail}</li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                ) : null}
               </Alert>
             </CardContent>
           </>
@@ -618,7 +608,6 @@ function getCoreographyCreationState(
     return {
       tone: "blocked",
       message: "Todavía no hay un Evento activo para registrar coreografías.",
-      details: [],
     };
   }
 
@@ -629,7 +618,6 @@ function getCoreographyCreationState(
       tone: "blocked",
       message:
         "El Evento activo todavía no tiene la configuración mínima para registrar coreografías.",
-      details: [],
     };
   }
 
@@ -644,7 +632,6 @@ function getCoreographyCreationState(
       tone: "ready",
       message:
         "La creación de coreografías va a estar disponible para este Evento mientras las inscripciones estén abiertas.",
-      details: [],
     };
   }
 
@@ -652,6 +639,5 @@ function getCoreographyCreationState(
     tone: "info",
     message:
       "La creación de coreografías va a estar disponible cuando exista un Evento activo y las inscripciones estén abiertas.",
-    details: [],
   };
 }

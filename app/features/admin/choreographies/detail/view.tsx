@@ -12,7 +12,6 @@ import { FileUploadField } from "@/components/shared/file-upload-field";
 import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
-import { ReasonList } from "@/components/shared/reason-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -123,14 +122,10 @@ export function ChoreographyDetailRouteView({
           description="Una coreografía con la presentación evaluada no se puede eliminar ni retirar."
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
-          reasons={
-            <ReasonList
-              reasons={loaderData.deletion.blockers.map(
-                (blocker) => blocker.label,
-              )}
-            />
-          }
-          reasonsTitle="Ya fue evaluada"
+          // The only blocker is the evaluation, so the reason is a sentence
+          // rather than a one-item list repeating the title.
+          reasons="La evaluación no se puede anular."
+          reasonsTitle="La presentación ya fue evaluada"
           title="No se puede eliminar la coreografía"
         />
       ) : null}

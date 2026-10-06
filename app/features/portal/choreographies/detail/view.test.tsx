@@ -47,9 +47,8 @@ describe("PortalChoreographyDetailRouteView", () => {
       "No puede modificarse hasta que administración la restaure.",
     );
     expect(evaluated).toContain("Esta coreografía ya fue evaluada");
-    expect(evaluated).toContain(
-      "Esta coreografía ya fue evaluada y no puede modificarse.",
-    );
+    expect(evaluated).toContain("No puede modificarse.");
+    expect(evaluated).not.toContain("ya fue evaluada y no puede modificarse");
     expect(evaluated).not.toContain("La evaluación no se puede anular.");
     expect(takingPart).not.toContain("no puede modificarse");
   });
