@@ -123,6 +123,10 @@ describe("the form field of a name already stored (#764)", () => {
     expect(schema.parse({ name: "-" })).toEqual({ name: "-" });
   });
 
+  test("treats a retyped form of the stored name as no change", () => {
+    expect(schema.parse({ name: " - " })).toEqual({ name: "-" });
+  });
+
   test("holds it to the rule once it is edited", () => {
     expect(schema.safeParse({ name: "--" }).success).toBe(false);
     expect(schema.parse({ name: "sin título" })).toEqual({

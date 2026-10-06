@@ -116,8 +116,8 @@ export function hasChoreographyNameContent(value: string) {
  */
 export function choreographyNameField(stored?: string) {
   return z.string().transform((value, context) => {
-    if (value === stored) {
-      return value;
+    if (stored !== undefined && !isChoreographyNameChanged(value, stored)) {
+      return stored;
     }
 
     const result = validateChoreographyName(value);

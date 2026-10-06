@@ -23,10 +23,12 @@ const foldedLetters = Array.from(accentedLetters, (letter) =>
 
 /**
  * A text column folded for comparison: accents off, then lowercase. What a
- * search matches against, and what a list ordered by name sorts by.
+ * search matches against, and what a list ordered by name sorts by. The
+ * column is composed (NFC) first, because the fixed list holds composed letters
+ * and a decomposed one would otherwise slip past it.
  */
 export function foldedText(column: SQLWrapper): SQL {
-  return sql`lower(translate(${column}, ${accentedLetters}, ${foldedLetters}))`;
+  return sql`lower(translate(normalize(${column}, NFC), ${accentedLetters}, ${foldedLetters}))`;
 }
 
 /**
