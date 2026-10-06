@@ -95,7 +95,11 @@ export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
   const [settledWrites, setSettledWrites] = useState(0);
   const answeredWrites = useRef(0);
   const isWriting = useRef(false);
-  const { submit: submitFetcher } = fetcher;
+  // What `fetcher.data` held when the last write left. A write that redirects
+  // brings nothing back and leaves the data as it was, so a refusal from an
+  // earlier write is only this write's answer when it is a new object.
+  const dataBeforeWrite = useRef(fetcher.data);
+  const { data, submit: submitFetcher } = fetcher;
 
   useServerActionToast(isRefused ? fetcher.data : undefined, {
     toastId: inscriptionMoneyRefusalToastId,
@@ -108,10 +112,10 @@ export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
 
     answeredWrites.current = settledWrites;
 
-    if (!isRefused) {
+    if (!isRefused || data === dataBeforeWrite.current) {
       onOpenChange(false);
     }
-  }, [isRefused, onOpenChange, settledWrites]);
+  }, [data, isRefused, onOpenChange, settledWrites]);
 
   const submit = useCallback<typeof submitFetcher>(
     async (target, options) => {
@@ -120,6 +124,7 @@ export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
       }
 
       isWriting.current = true;
+      dataBeforeWrite.current = data;
 
       try {
         await submitFetcher(target, options);
@@ -129,7 +134,7 @@ export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
 
       setSettledWrites((count) => count + 1);
     },
-    [submitFetcher],
+    [data, submitFetcher],
   );
 
   return { data: fetcher.data, state: fetcher.state, submit };

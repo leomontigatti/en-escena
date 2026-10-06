@@ -557,6 +557,39 @@ describe("DancerNameCell interaction", () => {
     expect(amountInput().value).toBe("5000");
   });
 
+  // The refusal left in `fetcher.data` must not keep the dialog open once a
+  // retry goes through: the write that redirects clears it.
+  test("closes the dialog when a retry after a refusal goes through", async () => {
+    let answers = 0;
+    await mountAgainst(() => {
+      answers += 1;
+
+      return answers === 1
+        ? {
+            status: "error",
+            message: "El saldo disponible de la academia no alcanza.",
+          }
+        : redirect("/");
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("5000");
+    await clickReactDomButton("Guardar");
+    await updateReactDomForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(dialogText()).toContain(allocateDescription);
+
+    await clickReactDomButton("Guardar");
+    await updateReactDomForm(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(answers).toBe(2);
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+  });
+
   // What each gesture posts is the writer's whole input. A locked price posts
   // no `priceId` at all, which is how the writer knows to keep the stored row.
   test("posts the amount, without a price, on a locked allocation", async () => {
