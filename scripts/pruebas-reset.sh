@@ -23,6 +23,7 @@ require_command() {
 
 require_command docker
 require_command rsync
+require_command flock
 
 # Coolify names a database container after the resource UUID, and an
 # application container after the UUID plus a per-deploy suffix.
@@ -33,7 +34,15 @@ PRUEBAS_APP_UUID="${PRUEBAS_APP_UUID:-ojdw5oppaq326mgohwvqew1s}"
 # Where the app reads its storage from, inside its container.
 STORAGE_MOUNT_PATH="/var/lib/en-escena/storage"
 DATABASE_NAME="enescena"
-WORK_DIR="${TMPDIR:-/tmp}/en-escena-pruebas-reset"
+LOCK_FILE="/run/lock/en-escena-pruebas-reset.lock"
+
+# Two resets at once would restore each other's half-written dumps.
+exec 9>"$LOCK_FILE"
+
+if ! flock -n 9; then
+  echo "Another pruebas reset is running" >&2
+  exit 1
+fi
 
 # The one mistake this script must not make is writing to production, so the
 # targets are checked against the sources before anything runs.
@@ -53,10 +62,24 @@ if [ -z "$(docker ps -q -f "name=^${PRUEBAS_DB_CONTAINER}\$")" ]; then
   exit 1
 fi
 
-app_container="$(docker ps -a --format "{{.Names}}" -f "name=^${PRUEBAS_APP_UUID}-" | head -n 1)"
+# The running container is the one serving pruebas. A stopped one is only
+# picked when it is the only container there is: after a failed deploy two may
+# exist, and stopping the wrong one would leave the app writing to the database
+# while it is being replaced.
+app_container="$(docker ps --format "{{.Names}}" -f "name=^${PRUEBAS_APP_UUID}-")"
+
+if [ -z "$app_container" ]; then
+  app_container="$(docker ps -a --format "{{.Names}}" -f "name=^${PRUEBAS_APP_UUID}-")"
+fi
 
 if [ -z "$app_container" ]; then
   echo "No pruebas app container found for $PRUEBAS_APP_UUID; deploy it from Coolify first" >&2
+  exit 1
+fi
+
+if [ "$(printf "%s\n" "$app_container" | wc -l)" -ne 1 ]; then
+  echo "More than one pruebas app container; leave one in Coolify and retry:" >&2
+  printf "%s\n" "$app_container" >&2
   exit 1
 fi
 
@@ -75,11 +98,12 @@ if [ "$(realpath -m "$PRUEBAS_STORAGE_DIR")" = "$(realpath -m "$PROD_STORAGE_DIR
   exit 1
 fi
 
-mkdir -p "$WORK_DIR"
+# Private to this run: the dump is a full copy of production PII.
+umask 077
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/en-escena-pruebas-reset.XXXXXX")"
 dump="$WORK_DIR/production.dmp"
 
 cleanup() {
-  # The dump is a full copy of production PII.
   rm -rf "$WORK_DIR"
 }
 
