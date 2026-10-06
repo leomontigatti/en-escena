@@ -47,10 +47,10 @@ describe("PortalChoreographyDetailRouteView", () => {
     );
     expect(withdrawn).toContain("La coreografía está retirada.");
     expect(withdrawn).toContain(
-      "Se puede cambiar si administración restaura la coreografía.",
+      "Se pueden cambiar si administración restaura la coreografía.",
     );
     expect(evaluated).toContain("La coreografía ya fue evaluada.");
-    expect(evaluated).toContain("Ya no se puede cambiar.");
+    expect(evaluated).toContain("Ya no se pueden cambiar.");
     expect(takingPart).not.toContain(
       "La música y la evaluación no se pueden cambiar",
     );

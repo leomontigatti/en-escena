@@ -288,7 +288,7 @@ function describeMusicUnlock(state: {
   isWithdrawn: boolean;
 }) {
   if (state.isEvaluated) {
-    return "Ya no se puede cambiar.";
+    return "Ya no se pueden cambiar.";
   }
 
   const undo = [
@@ -296,7 +296,7 @@ function describeMusicUnlock(state: {
     ...(state.isEventReadOnly ? ["vuelve a activar el evento"] : []),
   ];
 
-  return `Se puede cambiar si administración ${undo.join(" y ")}.`;
+  return `Se pueden cambiar si administración ${undo.join(" y ")}.`;
 }
 
 function MusicLockAlert({
