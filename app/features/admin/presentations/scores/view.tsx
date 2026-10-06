@@ -41,6 +41,7 @@ import {
   type JudgeSheetFormValues,
 } from "@/features/judging/score/form-shared";
 import { ScoreInputField } from "@/features/judging/score/score-input-field";
+import { ProfessionalEvaluationBadge } from "@/components/shared/professional-evaluation-badge";
 import {
   formatPresentationSummary,
   formatPresentationTitle,
@@ -91,6 +92,11 @@ export function PresentationScoresView({
       description={formatPresentationSummary(presentation)}
       requireSelectedEvent={false}
       title={formatPresentationTitle(presentation)}
+      titleBadge={
+        <ProfessionalEvaluationBadge
+          professionalEvaluation={presentation.professionalEvaluation}
+        />
+      }
       headerAction={
         <PresentationActions canEdit={canEdit} presentation={presentation} />
       }

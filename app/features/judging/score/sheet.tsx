@@ -33,6 +33,8 @@ import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { hasUnsavedChanges } from "@/lib/shared/discard-guard";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 
+import { ProfessionalEvaluationBadge } from "@/components/shared/professional-evaluation-badge";
+
 import {
   formatPresentationSummary,
   formatPresentationTitle,
@@ -135,6 +137,11 @@ export function JudgeScoreSheet({
       <AccessHeader
         eyebrow={formatScheduleDayHeading(judgingDate)}
         title={formatPresentationTitle(presentation)}
+        titleBadge={
+          <ProfessionalEvaluationBadge
+            professionalEvaluation={presentation.professionalEvaluation}
+          />
+        }
         titleLevel={2}
         description={formatPresentationSummary(presentation)}
       />

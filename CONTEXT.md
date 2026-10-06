@@ -358,6 +358,10 @@ _Avoid_: `presentation`, `score`
 Public view of the active event's presentations in order, at `/programa`, without login. It is published one day at a time: every day starts hidden and shows only once administration publishes it, and with no day published there is no program. It lists every `presentation` of the published days, with non-competitive data only. The portal's list of an academy's own presentations shows the same published numbers; a choreography on a day not published reads there like one not placed yet.
 _Avoid_: `resultsPublication`, score, award
 
+**`accreditation`** — ui: "Acreditación"
+The printed entry pass a `professor` wears during the event, carrying their name, their `academy` and a QR code to the `eventProgram`. Administration prints it from the professors list; one per `professor`, with nothing recorded about the printing.
+_Avoid_: credential, credencial, badge, pass
+
 **`academyResults`** — ui: "Resultados de academia"
 The evaluation detail an academy opens from its own presentations list, behind its login, for a presentation whose result is published: the `award` beside the title, the average at the top right, and one card per judge with the judge's name, their score, the `scoreSheet` breakdown when there is one, and their `feedbackAudio`. Judges who never scored are dropped in the loader, so they never reach the browser; a disqualified presentation shows `Descalificada`, no award, no average and no scores, and keeps the audios. A presentation that is not the academy's own, is not published, or belongs to hidden results answers "not found", and that check is the access control on the `feedbackAudio` signed URL.
 _Avoid_: `resultsPublication`, public results, ranking
@@ -544,6 +548,10 @@ _Avoid_: `modality`, `groupType`
 **`experienceLevel`** — ui: "Nivel de experiencia"
 Classification related to a category and chosen by the academy where applicable.
 _Avoid_: `category`
+
+**`professionalEvaluation`** — ui: "Evaluar como profesional"
+A choreography's request to be judged more severely, a yes or no its academy sets and any choreography can carry. It tells the judges how to read the choreography and nothing else: the `scoreSheet`, the `award` bands, the price and the schedule are the same either way. It is independent of `experienceLevel`, so a choreography at the `Profesional` level may or may not ask for it, and one in a category with no levels can.
+_Avoid_: `experienceLevel`, professional level
 
 **`notApplicableValue`** — ui: "No aplica"
 Empty value of a field that cannot hold one in this context, as opposed to one that has none yet. Reserved for the second case is "Sin asignar": the field admits a value and it is missing, which is what leaves a choreography `incomplete`. Rendering both the same way hides an incomplete record behind a correct-looking one.

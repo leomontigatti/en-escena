@@ -168,7 +168,9 @@ describe("`/administracion/profesores` route", () => {
     expect(searchMarkup).toContain("No participando");
     expect(searchMarkup).not.toContain("Identificación incompleta");
     expect(searchMarkup).not.toContain("Identificación completa");
-    expect(searchMarkup).not.toContain("Acciones");
+    // The header's menu, which holds `Imprimir acreditaciones`; the rows have
+    // no actions of their own.
+    expect(countOccurrences(searchMarkup, "Acciones")).toBe(1);
     expect(searchMarkup).toContain(
       `/administracion/profesores/${nonParticipatingProfessor.id}?busqueda=Academia+Sur`,
     );

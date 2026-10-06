@@ -68,6 +68,7 @@ type ChoreographyDetailRow = {
   modalityName: string;
   musicStorageKey: string | null;
   name: string;
+  professionalEvaluation: boolean;
   scheduleCapacityId: string | null;
   scheduleDate: string;
   scheduleId: string;
@@ -94,6 +95,7 @@ export type ChoreographyDetail = {
   }>;
   experienceLevelId: string | null;
   experienceLevelName: string | null;
+  professionalEvaluation: boolean;
   /**
    * The levels the resolved category admits today. It is the list the select
    * offers and the one the intent accepts.
@@ -164,6 +166,7 @@ export async function findChoreographyDetail(input: {
       id: choreographies.id,
       modalityId: choreographies.modalityId,
       modalityName: modalities.name,
+      professionalEvaluation: choreographies.professionalEvaluation,
       musicStorageKey: choreographies.musicStorageKey,
       name: choreographies.name,
       scheduleCapacityId: scheduleCapacities.id,
@@ -225,6 +228,7 @@ export async function findChoreographyDetail(input: {
     dancers: dancerRows,
     experienceLevelId: row.experienceLevelId,
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
+    professionalEvaluation: row.professionalEvaluation,
     experienceLevelOptions: resolveChoreographyExperienceLevelOptions({
       categoryExperienceLevels: row.categoryExperienceLevels,
     }),

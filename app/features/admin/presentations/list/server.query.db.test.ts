@@ -45,6 +45,26 @@ describe("the participation list's query", () => {
     ]);
   });
 
+  test("narrows the list to the choreographies evaluated as professional", async () => {
+    const fixture = await seedJudgingFixture();
+    const asked = await fixture.addPresentation({
+      name: "Exigente",
+      orderNumber: 1,
+      professionalEvaluation: true,
+    });
+    await fixture.addPresentation({ name: "Regular", orderNumber: 2 });
+
+    const result = await loadTheList("?evaluacion=profesional");
+
+    expect(result.filters.evaluation).toBe("profesional");
+    expect(result.presentations.map((row) => row.id)).toEqual([
+      asked.choreographyId,
+    ]);
+    expect(result.presentations[0]).toMatchObject({
+      professionalEvaluation: true,
+    });
+  });
+
   // `orden` is both the parameter and the running-order column's id.
   test("keeps sorting the running order descending from an `orden:desc` link", async () => {
     const fixture = await seedJudgingFixture();

@@ -475,6 +475,7 @@ function useChoreographySubmission({
         dancerIds: values.dancerIds,
         professorIds: values.professorIds,
         experienceLevelId: values.experienceLevelId ?? "",
+        professionalEvaluation: values.professionalEvaluation,
         scheduleCapacityId: values.scheduleCapacityId ?? "",
       }),
       { method: "post" },

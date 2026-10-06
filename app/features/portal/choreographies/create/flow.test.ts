@@ -64,6 +64,7 @@ describe("choreography create flow helpers", () => {
       dancerIds: ["dancer_1"],
       professorIds: [],
       experienceLevelId: "",
+      professionalEvaluation: false,
       scheduleCapacityId: "",
     });
 
@@ -86,6 +87,7 @@ describe("choreography create flow helpers", () => {
       dancerIds: ["dancer_1"],
       professorIds: ["professor_1"],
       experienceLevelId: "",
+      professionalEvaluation: false,
       scheduleCapacityId: "",
     });
 
@@ -109,6 +111,7 @@ describe("canAdvanceFromStep", () => {
     dancerIds: ["dancer_1"],
     professorIds: ["professor_1"],
     experienceLevelId: "",
+    professionalEvaluation: false,
     scheduleCapacityId: "",
   };
 
@@ -181,6 +184,7 @@ describe("canAdvanceFromStep", () => {
         values: {
           ...values,
           experienceLevelId: "amateur",
+          professionalEvaluation: false,
           scheduleCapacityId: "capacity_2",
         },
       }),
@@ -396,6 +400,7 @@ describe("buildCreateChoreographyFormData", () => {
       dancerIds: ["dancer_1"],
       professorIds: ["professor_1"],
       experienceLevelId: "",
+      professionalEvaluation: false,
       scheduleCapacityId: "capacity_1",
     });
 
@@ -414,10 +419,39 @@ describe("buildCreateChoreographyFormData", () => {
       dancerIds: ["dancer_1"],
       professorIds: ["professor_1"],
       experienceLevelId: "",
+      professionalEvaluation: false,
       scheduleCapacityId: "capacity_1",
     });
 
     expect(formData.getAll("acknowledgedDuplicateIds")).toEqual([]);
+  });
+
+  test("says whether the academy asked for a professional evaluation", () => {
+    const input = {
+      eventId: "event_1",
+      name: "Luna Llena",
+      modalityId: "modality_1",
+      submodalityId: "",
+      canChooseSubmodality: false,
+      dancerIds: ["dancer_1"],
+      professorIds: ["professor_1"],
+      experienceLevelId: "",
+      professionalEvaluation: false,
+      scheduleCapacityId: "capacity_1",
+    };
+
+    expect(
+      buildCreateChoreographyFormData({
+        ...input,
+        professionalEvaluation: true,
+      }).get("professionalEvaluation"),
+    ).toBe("true");
+    expect(
+      buildCreateChoreographyFormData({
+        ...input,
+        professionalEvaluation: false,
+      }).has("professionalEvaluation"),
+    ).toBe(false);
   });
 });
 
@@ -475,6 +509,7 @@ describe("resolvePortalRegistrationCategory", () => {
 describe("applyRegistrationResolution", () => {
   const answers = {
     experienceLevelId: "amateur",
+    professionalEvaluation: false,
     modalityName: "Jazz",
     scheduleCapacityId: "capacity_2",
   };
@@ -655,10 +690,28 @@ describe("restoreCreateChoreographyAnswers", () => {
       dancerIds: ["dancer_2"],
       professorIds: ["professor_1"],
       experienceLevelId: "amateur",
+      professionalEvaluation: true,
       scheduleCapacityId: "capacity_1",
     };
 
     expect(restoreCreateChoreographyAnswers(stored, options)).toEqual(stored);
+  });
+
+  test("restores answers stored before the professional evaluation existed as not asking for it", () => {
+    expect(
+      restoreCreateChoreographyAnswers(
+        {
+          name: "Danza de la Luna",
+          modalityId: "modality_1",
+          submodalityId: "",
+          dancerIds: ["dancer_1"],
+          professorIds: ["professor_1"],
+          experienceLevelId: "",
+          scheduleCapacityId: "",
+        },
+        options,
+      ),
+    ).toMatchObject({ professionalEvaluation: false });
   });
 
   test("drops the people, modality and submodality no longer offered", () => {
@@ -671,6 +724,7 @@ describe("restoreCreateChoreographyAnswers", () => {
           dancerIds: ["dancer_1", "dancer_inactive"],
           professorIds: ["professor_gone"],
           experienceLevelId: "",
+          professionalEvaluation: false,
           scheduleCapacityId: "",
         },
         options,
@@ -682,6 +736,7 @@ describe("restoreCreateChoreographyAnswers", () => {
       dancerIds: ["dancer_1"],
       professorIds: [],
       experienceLevelId: "",
+      professionalEvaluation: false,
       scheduleCapacityId: "",
     });
   });
@@ -703,6 +758,7 @@ describe("clampCreateChoreographyStep", () => {
     dancerIds: ["dancer_1"],
     professorIds: ["professor_1"],
     experienceLevelId: "",
+    professionalEvaluation: false,
     scheduleCapacityId: "",
   };
 

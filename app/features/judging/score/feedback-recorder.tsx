@@ -242,7 +242,9 @@ export function FeedbackRecorder({
   }
 
   return (
-    <FieldSet>
+    // A fieldset is as wide as its content at least, and the waveform's bars
+    // are wider than a phone: `min-w-0` lets the row shrink instead.
+    <FieldSet className="min-w-0">
       <FieldLegend variant={legendVariant}>
         Devolución{" "}
         <span className="font-normal text-muted-foreground">(opcional)</span>

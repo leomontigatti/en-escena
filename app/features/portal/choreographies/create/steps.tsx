@@ -41,6 +41,7 @@ export function CreateChoreographyStepContent(props: StepProps) {
       return props.wizard.resolution ? (
         <ChoreographyCreationSummary
           baseOptions={props.loaderData.registrationBaseOptions}
+          form={props.wizard.form}
           professors={props.loaderData.activeProfessors}
           resolution={props.wizard.resolution}
           values={props.wizard.values}

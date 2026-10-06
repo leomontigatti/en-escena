@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import {
   AdminEmptyState,
   AdminResourceLayout,
@@ -8,7 +10,9 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   buildProfessorListSearch,
   toProfessorListFacets,
@@ -28,6 +32,7 @@ import {
 } from "@/lib/roster/roster-person-status.shared";
 import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
 import { PeriodExportMenu } from "@/features/admin/period-export/menu";
+import { buildProfessorAccreditationsHref } from "@/features/admin/professors/accreditations/shared";
 import { professorsExportPath } from "@/features/admin/professors/export/shared";
 
 import type { loadProfessorsList } from "./server";
@@ -52,6 +57,16 @@ export function ProfessorsListRouteView({
     loaderData.professors.length > 0 ||
     hasActiveListFilters(loaderData) ||
     loaderData.hasAnyProfessor;
+  // Lifted out of the table because it drives the print action in the header:
+  // the ticked rows are what it prints. The list is server-paginated, so any
+  // navigation sends other rows, and ticks carried over would print professors
+  // nobody can see; clearing falls back to printing what the list matches.
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const visibleRowIds = loaderData.professors.map((row) => row.id).join(",");
+
+  useEffect(() => {
+    setSelectedRowIds([]);
+  }, [visibleRowIds]);
 
   return (
     <AdminResourceLayout
@@ -60,17 +75,18 @@ export function ProfessorsListRouteView({
       description="Consultá la ficha administrativa de cada profesor y revisá su estado operativo desde el listado."
       requireSelectedEvent={false}
       headerAction={
-        !loaderData.canWrite && loaderData.selectedEventId !== null ? (
-          <PeriodExportMenu
-            description="Los profesores de las coreografías con inscripciones registradas en el período, en el evento activo. Dejá una fecha vacía para no acotar ese extremo."
-            path={professorsExportPath}
-            title="Exportar profesores"
-          />
-        ) : undefined
+        <ProfessorsHeaderAction
+          loaderData={loaderData}
+          selectedRowIds={selectedRowIds}
+        />
       }
     >
       {shouldShowTable ? (
-        <ProfessorTable loaderData={loaderData} />
+        <ProfessorTable
+          loaderData={loaderData}
+          selectedRowIds={selectedRowIds}
+          onSelectedRowIdsChange={setSelectedRowIds}
+        />
       ) : (
         <AdminEmptyState
           title={emptyProfessorList.nothingYet}
@@ -81,7 +97,63 @@ export function ProfessorsListRouteView({
   );
 }
 
-function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
+/**
+ * The administrator prints accreditations, once there is anyone to print; the
+ * auditor exports, while an event is active. Nobody else gets a menu.
+ */
+function ProfessorsHeaderAction({
+  loaderData,
+  selectedRowIds,
+}: {
+  loaderData: LoaderData;
+  selectedRowIds: string[];
+}) {
+  if (loaderData.canWrite) {
+    if (!loaderData.hasAnyProfessor) {
+      return null;
+    }
+
+    const printHref = buildProfessorAccreditationsHref({
+      professorIds: selectedRowIds,
+      listSearch: buildProfessorListSearch(
+        loaderData.filters,
+        loaderData.selectedEventId,
+      ),
+    });
+
+    return (
+      <ResourceActionsMenu>
+        <DropdownMenuItem asChild>
+          <a href={printHref} target="_blank" rel="noreferrer">
+            Imprimir acreditaciones
+          </a>
+        </DropdownMenuItem>
+      </ResourceActionsMenu>
+    );
+  }
+
+  if (loaderData.selectedEventId === null) {
+    return null;
+  }
+
+  return (
+    <PeriodExportMenu
+      description="Los profesores de las coreografías con inscripciones registradas en el período, en el evento activo. Dejá una fecha vacía para no acotar ese extremo."
+      path={professorsExportPath}
+      title="Exportar profesores"
+    />
+  );
+}
+
+function ProfessorTable({
+  loaderData,
+  selectedRowIds,
+  onSelectedRowIdsChange,
+}: {
+  loaderData: LoaderData;
+  selectedRowIds: string[];
+  onSelectedRowIdsChange: (selectedRowIds: string[]) => void;
+}) {
   const columns: DataTableColumn<ProfessorRow>[] = [
     {
       id: "nombre",
@@ -131,6 +203,12 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.professors}
       columns={columns}
       getRowKey={(professor) => professor.id}
+      // Only the administrator prints, and an archived professor never gets a
+      // pass, so their row cannot be ticked.
+      selectableRows={loaderData.canWrite}
+      canSelectRow={(professor) => professor.active}
+      selectedRowIds={selectedRowIds}
+      onSelectedRowIdsChange={onSelectedRowIdsChange}
       searchPlaceholder="Buscar por nombre o documento"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildProfessorFacetedFilters(loaderData)}

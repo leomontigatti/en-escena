@@ -42,14 +42,16 @@ describe("PortalChoreographyDetailRouteView", () => {
     });
     const takingPart = renderChoreographyDetail();
 
-    expect(withdrawn).toContain("La música no se puede cambiar");
-    expect(withdrawn).toContain("La coreografía está retirada.");
+    expect(withdrawn).toContain("Esta coreografía está retirada");
     expect(withdrawn).toContain(
-      "Se puede cambiar si administración restaura la coreografía.",
+      "No puede modificarse hasta que administración la restaure.",
     );
-    expect(evaluated).toContain("La coreografía ya fue evaluada.");
-    expect(evaluated).toContain("Ya no se puede cambiar.");
-    expect(takingPart).not.toContain("La música no se puede cambiar");
+    expect(evaluated).toContain("Esta coreografía ya fue evaluada");
+    expect(evaluated).toContain(
+      "Esta coreografía ya fue evaluada y no puede modificarse.",
+    );
+    expect(evaluated).not.toContain("La evaluación no se puede anular.");
+    expect(takingPart).not.toContain("no puede modificarse");
   });
 
   // The alert asks the academy to load what is missing, and a withdrawn
@@ -162,6 +164,7 @@ function choreographyDetailRow(
       pendingItems: [],
     },
     musicStorageKey: "music/choreo_1.mp3",
+    professionalEvaluation: false,
     musicDownloadUrl: null,
     scheduleCapacityId: "schedule_1",
     scheduleName: "Bloque mañana",
