@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import {
+  choreographyNameField,
+  isChoreographyNameChanged,
+} from "@/lib/choreographies/choreography-name";
 import { haveSameIds } from "@/lib/choreographies/choreography-roster.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
@@ -15,7 +19,7 @@ export const choreographyDraftSchema = z.object({
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
   experienceLevelId: z.string(),
   modalityId: z.string(),
-  name: z.string().trim().min(1, requiredFieldMessage),
+  name: choreographyNameField(),
   professionalEvaluation: z.boolean(),
   professorIds: z.array(z.string()),
   scheduleCapacityId: z.string(),
@@ -48,7 +52,7 @@ export function isChoreographyDraftDirty(
   saved: ChoreographyDraft,
 ) {
   return (
-    draft.name.trim() !== saved.name ||
+    isChoreographyNameChanged(draft.name, saved.name) ||
     draft.modalityId !== saved.modalityId ||
     draft.submodalityId !== saved.submodalityId ||
     draft.experienceLevelId !== saved.experienceLevelId ||

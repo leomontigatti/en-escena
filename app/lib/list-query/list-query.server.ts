@@ -22,6 +22,14 @@ const foldedLetters = Array.from(accentedLetters, (letter) =>
 ).join("");
 
 /**
+ * A text column folded for comparison: accents off, then lowercase. What a
+ * search matches against, and what a list ordered by name sorts by.
+ */
+export function foldedText(column: SQLWrapper): SQL {
+  return sql`lower(translate(${column}, ${accentedLetters}, ${foldedLetters}))`;
+}
+
+/**
  * The SQL twin of `matchesListSearch`: a row matches when any of the columns
  * holds the search, compared accent- and case-insensitively. An empty search
  * asks nothing, so the caller can add the result to its conditions as it is.
@@ -39,10 +47,7 @@ export function listSearchCondition(
   const pattern = `%${escapeLikePattern(foldedSearch)}%`;
 
   return or(
-    ...columns.map(
-      (column) =>
-        sql`lower(translate(${column}, ${accentedLetters}, ${foldedLetters})) like ${pattern}`,
-    ),
+    ...columns.map((column) => sql`${foldedText(column)} like ${pattern}`),
   );
 }
 

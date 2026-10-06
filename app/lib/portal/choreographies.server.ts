@@ -19,6 +19,7 @@ import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters
 import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
 import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
 
 export type PortalChoreographyDetail = PortalChoreographyListItem & {
   categoryId: string;
@@ -103,7 +104,10 @@ export async function listChoreographiesForAcademyEvent(
         eq(choreographies.eventId, eventId),
       ),
     )
-    .orderBy(desc(choreographies.createdAt), asc(choreographies.name));
+    .orderBy(
+      desc(choreographies.createdAt),
+      ...orderByChoreographyName(choreographies.name),
+    );
 
   return await hydrateChoreographyRows(rows);
 }

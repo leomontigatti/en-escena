@@ -209,7 +209,7 @@ describe("administrative choreography detail server", () => {
         columns: { name: true },
         where: eq(choreographies.id, choreography.id),
       }),
-    ).resolves.toEqual({ name: "Nombre nuevo" });
+    ).resolves.toEqual({ name: "Nombre Nuevo" });
 
     await expectThrownResponse(
       submitDraftAsAuditor({
@@ -223,7 +223,7 @@ describe("administrative choreography detail server", () => {
         columns: { name: true },
         where: eq(choreographies.id, choreography.id),
       }),
-    ).resolves.toEqual({ name: "Nombre nuevo" });
+    ).resolves.toEqual({ name: "Nombre Nuevo" });
   });
 
   test("deletes eligible active-event choreographies and cascades roster links", async () => {

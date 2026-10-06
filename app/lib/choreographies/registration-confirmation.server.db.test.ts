@@ -17,6 +17,7 @@ import {
   createOpenEventCatalog,
   createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-name.test-support";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
 import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
@@ -144,6 +145,47 @@ describe("choreography registration confirmation", () => {
       where: eq(choreographies.academyId, owner.academyId),
     });
     expect(storedChoreographies).toHaveLength(0);
+  });
+
+  test("stores a name in the form the administrative save stores it, and refuses what it refuses (#764)", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Regla del Nombre",
+      email: "registro.coreografia.regla-del-nombre@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const professor = await createProfessor(owner.academyId);
+
+    for (const [index, nameCase] of choreographyNameWriteCases.entries()) {
+      // A dancer per name: the same cast under one stored name is a duplicate.
+      const dancer = await createDancer(owner.academyId, {
+        birthDate: "2014-05-01",
+        documentNumber: `3000000${index}`,
+      });
+      const result = await createChoreographyRegistration({
+        academyId: owner.academyId,
+        eventId: event.id,
+        name: nameCase.typed,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+        professorIds: [professor.id],
+        experienceLevelId: catalog.level.id,
+        scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      });
+
+      if ("refusal" in nameCase) {
+        expect(result).toMatchObject({
+          ok: false,
+          code: "invalid-name",
+          error: nameCase.refusal,
+        });
+      } else {
+        expect(result).toMatchObject({
+          ok: true,
+          choreography: { name: nameCase.stored },
+        });
+      }
+    }
   });
 
   test("revalidates level and schedule capacity on final confirmation and rejects stale or tampered payloads", async () => {

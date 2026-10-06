@@ -5,9 +5,8 @@ import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.ser
 
 import type { CreateChoreographyRegistrationResult } from "@/lib/choreographies/registration-confirmation.server";
 import {
-  choreographyNameMaxLength,
+  choreographyNameField,
   hasChoreographyNameContent,
-  invalidChoreographyNameMessage,
 } from "@/lib/choreographies/choreography-name";
 import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
@@ -60,15 +59,7 @@ export type CreateChoreographyStep =
   "choreography" | "dancers" | "category" | "professors" | "summary";
 
 export const createChoreographySchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, requiredFieldMessage)
-    .refine(hasChoreographyNameContent, invalidChoreographyNameMessage)
-    .max(
-      choreographyNameMaxLength,
-      "El nombre de la coreografía no puede superar los 120 caracteres.",
-    ),
+  name: choreographyNameField(),
   modalityId: z.string().trim().min(1, requiredFieldMessage),
   submodalityId: z.string().trim().optional(),
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),

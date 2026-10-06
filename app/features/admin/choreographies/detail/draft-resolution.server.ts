@@ -5,6 +5,7 @@ import {
   noCompatibleCategoryModalityMessage,
   noCompatibleCategoryRosterMessage,
 } from "@/lib/choreographies/choreography-messages";
+import { isChoreographyNameChanged } from "@/lib/choreographies/choreography-name";
 import { readRosterDancers } from "@/lib/choreographies/choreography-roster-dancers.server";
 import { haveSameIds } from "@/lib/choreographies/choreography-roster.shared";
 import {
@@ -299,7 +300,7 @@ function readDraftChanges(
     classification: dancers || modality,
     dancers,
     modality,
-    name: draft.name.trim() !== choreography.name,
+    name: isChoreographyNameChanged(draft.name, choreography.name),
     professors: !haveSameIds(
       choreography.professors.map((professor) => professor.id),
       draft.professorIds,

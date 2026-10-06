@@ -30,6 +30,7 @@ import {
   type RosterMergeEventInscriptions,
 } from "./roster-merge.shared";
 import type { RosterPersonKind } from "./roster-person-status.shared";
+import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -292,7 +293,7 @@ async function findSharedChoreographies(
           eq(other.dancerId, input.survivorId),
         ),
       )
-      .orderBy(asc(choreographies.name));
+      .orderBy(...orderByChoreographyName(choreographies.name));
 
     return rows.map((row) => row.name);
   }
@@ -315,7 +316,7 @@ async function findSharedChoreographies(
         eq(other.professorId, input.survivorId),
       ),
     )
-    .orderBy(asc(choreographies.name));
+    .orderBy(...orderByChoreographyName(choreographies.name));
 
   return rows.map((row) => row.name);
 }

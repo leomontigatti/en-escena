@@ -16,12 +16,7 @@ import {
 } from "@/lib/choreographies/choreography-duplicates";
 import { matchesToWarnAbout } from "@/lib/shared/duplicate-warning";
 import { normalizedTextEquals } from "@/lib/shared/text-normalization.server";
-import {
-  choreographyNameMaxLength,
-  collapseChoreographyNameWhitespace,
-  hasChoreographyNameContent,
-  invalidChoreographyNameMessage,
-} from "@/lib/choreographies/choreography-name";
+import { validateChoreographyName } from "@/lib/choreographies/choreography-name";
 import {
   resolveChoreographyRegistrationOperation,
   type ChoreographyRegistrationOperationFailureCode,
@@ -45,21 +40,6 @@ import {
   type ExperienceLevel,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
-
-const choreographyTitleCaseParticles = new Set([
-  "a",
-  "con",
-  "de",
-  "del",
-  "el",
-  "en",
-  "la",
-  "las",
-  "los",
-  "para",
-  "por",
-  "y",
-]);
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -115,10 +95,10 @@ export type CreateChoreographyRegistrationResult =
 export async function createChoreographyRegistration(
   input: CreateChoreographyRegistrationInput,
 ): Promise<CreateChoreographyRegistrationResult> {
-  const normalizedName = normalizeChoreographyName(input.name);
+  const normalizedName = validateChoreographyName(input.name);
 
   if (!normalizedName.ok) {
-    return normalizedName.failure;
+    return createFailure("invalid-name", normalizedName.message);
   }
 
   const uniqueProfessorIds = [...new Set(input.professorIds)];
@@ -286,75 +266,6 @@ export async function createChoreographyRegistration(
     ok: true,
     choreography,
   };
-}
-
-function normalizeChoreographyName(
-  value: string,
-):
-  | { ok: true; value: string }
-  | { ok: false; failure: CreateChoreographyRegistrationFailure } {
-  const normalizedValue = collapseChoreographyNameWhitespace(value);
-
-  if (normalizedValue.length === 0) {
-    return {
-      ok: false,
-      failure: createFailure(
-        "invalid-name",
-        "Ingresá el nombre de la coreografía.",
-      ),
-    };
-  }
-
-  if (!hasChoreographyNameContent(normalizedValue)) {
-    return {
-      ok: false,
-      failure: createFailure("invalid-name", invalidChoreographyNameMessage),
-    };
-  }
-
-  if (normalizedValue.length > choreographyNameMaxLength) {
-    return {
-      ok: false,
-      failure: createFailure(
-        "invalid-name",
-        "El nombre de la coreografía no puede superar los 120 caracteres.",
-      ),
-    };
-  }
-
-  return {
-    ok: true,
-    value: toChoreographyTitleCase(normalizedValue),
-  };
-}
-
-function toChoreographyTitleCase(value: string) {
-  return value
-    .split(" ")
-    .filter((word) => word.length > 0)
-    .map((word, index) => {
-      const lowerWord = word.toLocaleLowerCase("es-AR");
-
-      if (index > 0 && choreographyTitleCaseParticles.has(lowerWord)) {
-        return lowerWord;
-      }
-
-      return lowerWord
-        .split("-")
-        .map((part) => capitalizeFirstCharacter(part))
-        .join("-");
-    })
-    .join(" ");
-}
-
-function capitalizeFirstCharacter(value: string) {
-  const [firstCharacter, ...rest] = Array.from(value);
-
-  if (!firstCharacter) {
-    return value;
-  }
-
-  return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
 }
 
 /**

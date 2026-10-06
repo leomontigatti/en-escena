@@ -330,6 +330,13 @@
       "when": 1791243915409,
       "tag": "0046_choreography_professional_evaluation",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791310946762,
+      "tag": "0047_choreography_name_rule",
+      "breakpoints": true
     }
   ]
 }

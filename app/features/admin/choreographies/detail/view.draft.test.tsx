@@ -75,7 +75,7 @@ describe("the choreography detail as one draft", () => {
     expect(findDialog()).toBeUndefined();
     expect(page.saves()).toEqual([
       expect.objectContaining({
-        name: "Danza solar",
+        name: "Danza Solar",
         professorIds: ["professor_1", "professor_2"],
       }),
     ]);
