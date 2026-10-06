@@ -42,18 +42,16 @@ describe("PortalChoreographyDetailRouteView", () => {
     });
     const takingPart = renderChoreographyDetail();
 
+    expect(withdrawn).toContain("Esta coreografía está retirada");
     expect(withdrawn).toContain(
-      "La música y la evaluación no se pueden cambiar",
+      "No puede modificarse hasta que administración la restaure.",
     );
-    expect(withdrawn).toContain("La coreografía está retirada.");
-    expect(withdrawn).toContain(
-      "Se pueden cambiar si administración restaura la coreografía.",
+    expect(evaluated).toContain("Esta coreografía ya fue evaluada");
+    expect(evaluated).toContain(
+      "Esta coreografía ya fue evaluada y no puede modificarse.",
     );
-    expect(evaluated).toContain("La coreografía ya fue evaluada.");
-    expect(evaluated).toContain("Ya no se pueden cambiar.");
-    expect(takingPart).not.toContain(
-      "La música y la evaluación no se pueden cambiar",
-    );
+    expect(evaluated).not.toContain("La evaluación no se puede anular.");
+    expect(takingPart).not.toContain("no puede modificarse");
   });
 
   // The alert asks the academy to load what is missing, and a withdrawn
