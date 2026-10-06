@@ -168,6 +168,55 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).toContain("$ 42.000");
   });
 
+  // A pick moves the ceiling. Before a submit that stays quiet; after one, the
+  // amount's error is read again against the new ceiling.
+  test("reads the amount against the picked price only once it was submitted", async () => {
+    await mount({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 0,
+          financialStatus: "depositPending",
+          owedBalanceAmount: 10000,
+          owedDepositAmount: 3000,
+        }),
+      ],
+      priceOptions: [
+        {
+          amount: 10000,
+          depositAmount: 3000,
+          id: "price_1",
+          name: "Dúo general",
+        },
+        {
+          amount: 42000,
+          depositAmount: 12600,
+          id: "price_2",
+          name: "Primer vencimiento",
+        },
+      ],
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("50000");
+    await openPriceSelect();
+    await selectRadixOption("Primer vencimiento · $ 42.000 · seña $ 12.600");
+
+    expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
+
+    await clickReactDomButton("Guardar");
+
+    expect(
+      document.querySelector('[data-slot="field-error"]')?.textContent,
+    ).toBe("Ingresá un monto entre $ 1 y $ 42.000.");
+
+    await openPriceSelect();
+    await selectRadixOption("Dúo general · $ 10.000 · seña $ 3.000");
+
+    expect(
+      document.querySelector('[data-slot="field-error"]')?.textContent,
+    ).toBe("Ingresá un monto entre $ 1 y $ 10.000.");
+  });
+
   // Below the deposit the price keeps re-deriving on its own, so the picker is
   // still there: the first peso locks nothing.
   test("keeps the picker on a row that holds money but has not covered its deposit", async () => {

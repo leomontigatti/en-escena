@@ -294,7 +294,7 @@ What the dialog announced is advisory.
 
 ## Duplicate warnings
 
-- Uniqueness that the data supports is a **refusal** on the field (the document number above). Where a hard rule would turn away legitimate registrations, the guard **warns** instead: the action answers with the records it found, the surface names them, and an explicit confirmation continues. The mechanism is one and is documented in [docs/agents/form-feedback.md](../agents/form-feedback.md).
+- Uniqueness that the data supports is a **refusal** (a document number already in the academy): a toast that names the taken number and links to the person holding it. Where a hard rule would turn away legitimate registrations, the guard **warns** instead: the action answers with the records it found, the surface names them, and an explicit confirmation continues. The mechanism is one and is documented in [docs/agents/form-feedback.md](../agents/form-feedback.md).
 - The warning rules of this domain: a dancer with the same name and birth date in the academy, a professor with the same name in the academy, a choreography with the same name and cast in the event, and —at signup— an academy with the same name.
 - Every warning check is case-insensitive and whitespace-insensitive, and **accent-sensitive**: `Sofía` and `Sofia` do not match. No accent-folding extension is installed and adding one was not this rule's call.
 - Nothing is stored about a confirmation: the next save of the same values warns again.

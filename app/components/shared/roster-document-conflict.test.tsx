@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -95,6 +95,40 @@ describe("useRosterRefusalToast", () => {
       action: undefined,
       id: "roster:error",
     });
+  });
+
+  // A re-render of the same answer stays quiet; a second refusal is a new
+  // answer, and says so again even when it reads the same.
+  test("toasts once per answer, and again for a new identical one", async () => {
+    let answer: (refusal: { message: string }) => void = () => {};
+    let rerender: () => void = () => {};
+
+    function Answering() {
+      const [refusal, setRefusal] = useState({ message: "No se pudo." });
+      const [, setCount] = useState(0);
+      answer = setRefusal;
+      rerender = () => setCount((count) => count + 1);
+
+      return <Form conflict={{}} refusal={refusal} />;
+    }
+
+    const router = createMemoryRouter([{ path: "/", element: <Answering /> }]);
+    const tick = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await tick();
+    expect(toastError).toHaveBeenCalledTimes(1);
+
+    await act(async () => rerender());
+    await tick();
+    expect(toastError).toHaveBeenCalledTimes(1);
+
+    await act(async () => answer({ message: "No se pudo." }));
+    await tick();
+    expect(toastError).toHaveBeenCalledTimes(2);
   });
 
   test("says nothing without a refusal", async () => {
