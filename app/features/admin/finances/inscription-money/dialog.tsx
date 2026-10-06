@@ -63,7 +63,6 @@ import {
 import {
   AllocationPriceField,
   MoneyAmountField,
-  moneyFormValidationMode,
   type AllocationFormValues,
   type RemovalFormValues,
 } from "./dialog-fields";
@@ -77,7 +76,6 @@ import {
 import {
   buildAllocationFormSchema,
   buildRemovalFormSchema,
-  isAmountOutOfRange,
   readInscriptionMoneyDialogShape,
   resolveAllocationDialogFigures,
   type InscriptionRow,
@@ -195,12 +193,15 @@ function AllocateMoneyDialog({
   const initialPriceId = inscription.effectivePrice?.id ?? "";
   const form = useForm<AllocationFormValues>({
     defaultValues: { amount: "", priceId: initialPriceId },
-    mode: moneyFormValidationMode,
     resolver: zodResolver(
       buildAllocationFormSchema({ inscription, priceOptions }),
     ),
   });
-  const { getValues, trigger } = form;
+  const {
+    formState: { isSubmitted },
+    getValues,
+    trigger,
+  } = form;
   const [amount, priceId] = useWatch({
     control: form.control,
     name: ["amount", "priceId"],
@@ -210,27 +211,21 @@ function AllocateMoneyDialog({
   // re-derived on each change rather than read off the loader.
   const { hintedAmount, isPriceLocked, ...owed } =
     resolveAllocationDialogFigures({ inscription, priceId, priceOptions });
-  // The ceiling is what the inscription owes, which is what the server refuses
-  // against. The academy's pool is another ceiling, and that one is not known
-  // here: it stays an alert.
-  const owedBalanceAmount = owed.owedBalanceAmount;
   const holdsMoney = inscription.allocatedAmount > 0;
   const isSubmitDisabled =
-    isSaving ||
-    amount === "" ||
-    isAmountOutOfRange(amount, owedBalanceAmount) ||
-    (!isPriceLocked && priceOptions.length === 0);
+    isSaving || amount === "" || (!isPriceLocked && priceOptions.length === 0);
   const { blockedDialog, waive } = useWaiverGesture({
     allocatedAmount: inscription.allocatedAmount,
     onWaive,
   });
 
-  // A pick moves the ceiling, so a typed amount is read against the new one.
+  // A pick moves the ceiling, so once a submit has shown the amount's error,
+  // the amount is read again against the new one.
   useEffect(() => {
-    if (getValues("amount") !== "") {
+    if (isSubmitted && getValues("amount") !== "") {
       void trigger("amount");
     }
-  }, [getValues, priceId, trigger]);
+  }, [getValues, isSubmitted, priceId, trigger]);
 
   return (
     <MoneyDialog
@@ -400,12 +395,10 @@ function RemoveMoneyDialog({
   const formAction = useOptionalFormAction();
   const form = useForm<RemovalFormValues>({
     defaultValues: { amount: "" },
-    mode: moneyFormValidationMode,
     resolver: zodResolver(buildRemovalFormSchema(inscription.allocatedAmount)),
   });
   const amount = useWatch({ control: form.control, name: "amount" });
   const isSaving = fetcher.state !== "idle";
-  const isOutOfRange = isAmountOutOfRange(amount, inscription.allocatedAmount);
   const [isWaiverBlockedOpen, setIsWaiverBlockedOpen] = useState(false);
 
   return (
@@ -480,7 +473,7 @@ function RemoveMoneyDialog({
               <Button
                 type="submit"
                 variant="destructive"
-                disabled={isSaving || amount === "" || isOutOfRange}
+                disabled={isSaving || amount === ""}
               >
                 <SubmitIcon isSaving={isSaving} />
                 Quitar

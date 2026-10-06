@@ -29,15 +29,6 @@ export type RemovalFormValues = z.input<
 >;
 
 /**
- * The amount is validated as it is typed, against the documented
- * validate-on-submit rule (style guide § React Hook Form): the submit stays
- * disabled while the amount is out of range, so the field has to say why at
- * once, and an amount out of range is never a half-typed one — the ceiling is
- * a figure the dialog already names.
- */
-export const moneyFormValidationMode = "onChange";
-
-/**
  * The price control of the allocation shape, which is a picker or a readout and
  * never both. Locked, it says exactly what the picker it replaces said — name,
  * amount and `Seña`, through the one formatter — so crossing the threshold

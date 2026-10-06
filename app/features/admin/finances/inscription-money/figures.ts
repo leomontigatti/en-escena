@@ -209,7 +209,7 @@ export function resolveAllocationDialogFigures(input: {
  * range — it is the state the field opens in. With no ceiling known there is
  * nothing to be outside of.
  */
-export function isAmountOutOfRange(amount: string, maxAmount: number | null) {
+function isAmountOutOfRange(amount: string, maxAmount: number | null) {
   return (
     amount !== "" &&
     maxAmount !== null &&

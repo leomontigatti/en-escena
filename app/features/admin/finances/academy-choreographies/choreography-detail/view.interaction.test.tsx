@@ -216,6 +216,7 @@ describe("DancerNameCell interaction", () => {
 
   // The ceiling is what is owed, and it is said under the field instead of
   // coming back from the server as an alert.
+  // Validated on submit, as every form is: nothing is said while it is typed.
   test("says the range under the field when the allocated amount exceeds what is owed", async () => {
     await mount();
 
@@ -224,10 +225,15 @@ describe("DancerNameCell interaction", () => {
       setInputValue(amountInput(), "99999");
     });
 
+    expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
+    expect(guardarButton()?.disabled).toBe(false);
+
+    await clickReactDomButton("Guardar");
+
     expect(
       document.querySelector('[data-slot="field-error"]')?.textContent,
     ).toBe("Ingresá un monto entre $ 1 y $ 7.000.");
-    expect(guardarButton()?.disabled).toBe(true);
+    expect(dialogText()).toContain(allocateDescription);
   });
 
   test("offers the price picker while no money has landed", async () => {
@@ -339,16 +345,21 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("Bruno Benítez");
     await typeRemovedAmount("250000");
 
+    expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
+    expect(quitarButton()?.disabled).toBe(false);
+
+    await clickReactDomButton("Quitar", { exact: true });
+
     const error = document.querySelector('[data-slot="field-error"]');
 
     expect(error?.textContent).toBe("Ingresá un monto entre $ 1 y $ 10.000.");
     expect(
       amountInput("inscription-removed-amount").getAttribute("aria-invalid"),
     ).toBe("true");
-    expect(quitarButton()?.disabled).toBe(true);
+    expect(dialogText()).toContain(removeDescription);
   });
 
-  test("clears the range error and re-enables Quitar once the amount fits", async () => {
+  test("clears the range error once the amount fits", async () => {
     await mount({
       inscriptions: [
         inscriptionFixture({
@@ -362,10 +373,10 @@ describe("DancerNameCell interaction", () => {
 
     await clickReactDomButton("Bruno Benítez");
     await typeRemovedAmount("250000");
+    await clickReactDomButton("Quitar", { exact: true });
     await typeRemovedAmount("2500");
 
     expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
-    expect(quitarButton()?.disabled).toBe(false);
   });
 
   test("reaches the removal dialog from a row that still owes something", async () => {
@@ -612,6 +623,22 @@ describe("DancerNameCell interaction", () => {
     });
 
     expect(posted).toHaveLength(1);
+  });
+
+  test("posts nothing when the amount is out of range", async () => {
+    const posted: FormData[] = [];
+    await mountAgainst(async ({ request }) => {
+      posted.push(await request.formData());
+
+      return redirect("/");
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("99999");
+    await clickReactDomButton("Guardar");
+
+    expect(posted).toHaveLength(0);
+    expect(dialogText()).toContain("Ingresá un monto entre $ 1 y $ 7.000.");
   });
 
   test("posts the amount to take off on a removal", async () => {
