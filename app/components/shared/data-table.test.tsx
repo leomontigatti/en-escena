@@ -754,6 +754,48 @@ describe("ClientDataTable without page controls", () => {
   });
 });
 
+describe("ClientDataTable filtered summary", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  const rows: Row[] = Array.from({ length: 15 }, (_, index) => ({
+    id: `choreography_${index + 1}`,
+    academy: index < 12 ? "Academia Norte" : "Academia Sur",
+    name: `Coreografía ${String(index + 1).padStart(2, "0")}`,
+    status: "active",
+  }));
+
+  function renderTable(initialEntry: string) {
+    return renderer.renderAsync(
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <ClientDataTable
+          rows={rows}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          renderFilteredSummary={(filteredRows) => (
+            <output>{filteredRows.length} filas</output>
+          )}
+          searchPlaceholder="Buscar coreografía"
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  test("hands the summary every page of the rows, not the page on screen", async () => {
+    await renderTable("/lista");
+
+    expect(getRenderedRowNames()).toHaveLength(10);
+    expect(document.querySelector("output")?.textContent).toBe("15 filas");
+  });
+
+  test("hands the summary only the rows the search leaves", async () => {
+    await renderTable("/lista?busqueda=sur");
+
+    expect(document.querySelector("output")?.textContent).toBe("3 filas");
+  });
+});
+
 describe("ClientDataTable search in the address bar", () => {
   const renderer = createReactDomTestRenderer();
 

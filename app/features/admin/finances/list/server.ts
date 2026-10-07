@@ -1,7 +1,15 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, choreographies, payments } from "@/db/schema";
+import {
+  academies,
+  choreographies,
+  dancers,
+  payments,
+  professors,
+  seminarInscriptions,
+  seminars,
+} from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import {
@@ -73,27 +81,46 @@ export async function loadFinancesList(request: Request) {
   };
 }
 
+/**
+ * Every academy with money at stake in the event: a choreography, a payment or
+ * a seminar inscription. The last one matters on its own because an academy
+ * can register people in a seminar without registering a choreography or
+ * paying anything yet, and what it owes is still owed. A seminar inscription
+ * has no academy column: it is read through the person, as everywhere else.
+ */
 async function listAcademyIdsForEvent(eventId: string) {
-  const [academyIdsWithChoreographies, academyIdsWithPayments] =
-    await Promise.all([
-      db
-        .selectDistinct({
-          academyId: choreographies.academyId,
-        })
-        .from(choreographies)
-        .where(eq(choreographies.eventId, eventId)),
-      db
-        .selectDistinct({
-          academyId: payments.academyId,
-        })
-        .from(payments)
-        .where(eq(payments.eventId, eventId)),
-    ]);
+  const seminarAcademyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
+  const [
+    academyIdsWithChoreographies,
+    academyIdsWithPayments,
+    academyIdsWithSeminarInscriptions,
+  ] = await Promise.all([
+    db
+      .selectDistinct({
+        academyId: choreographies.academyId,
+      })
+      .from(choreographies)
+      .where(eq(choreographies.eventId, eventId)),
+    db
+      .selectDistinct({
+        academyId: payments.academyId,
+      })
+      .from(payments)
+      .where(eq(payments.eventId, eventId)),
+    db
+      .selectDistinct({ academyId: seminarAcademyId })
+      .from(seminarInscriptions)
+      .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+      .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+      .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+      .where(eq(seminars.eventId, eventId)),
+  ]);
 
   return [
     ...new Set([
       ...academyIdsWithChoreographies.map((row) => row.academyId),
       ...academyIdsWithPayments.map((row) => row.academyId),
+      ...academyIdsWithSeminarInscriptions.map((row) => row.academyId),
     ]),
   ];
 }

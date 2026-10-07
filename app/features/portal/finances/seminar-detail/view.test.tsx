@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
+import { seminarInscriptionFinanceRowFixture } from "@/lib/finances/seminar-inscriptions.test-support";
+
 import type { loadPortalSeminarFinanceDetail } from "./server";
 import { PortalSeminarFinanceDetailRouteView } from "./view";
 
@@ -144,26 +146,5 @@ function loaderDataFixture(overrides: Partial<LoaderData> = {}): LoaderData {
 function inscriptionFixture(
   overrides: Partial<InscriptionRow> = {},
 ): InscriptionRow {
-  return {
-    allocatedAmount: 5000,
-    anomalies: [],
-    dancerDiscountAmount: 0,
-    depositAmount: 5000,
-    effectivePrice: {
-      amount: 10000,
-      depositAmount: 5000,
-      id: "seminar_price_1",
-      name: "Participante general",
-    },
-    financialStatus: "depositMet",
-    firstName: "Ana",
-    inscriptionId: "seminar_inscription_1",
-    lastName: "López",
-    overAllocatedAmount: 0,
-    owedBalanceAmount: 5000,
-    owedDepositAmount: 0,
-    totalAmount: 10000,
-    withdrawn: false,
-    ...overrides,
-  };
+  return seminarInscriptionFinanceRowFixture(overrides);
 }

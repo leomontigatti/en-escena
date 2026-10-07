@@ -178,6 +178,11 @@ const financeNavigationItems = [
     icon: ClipboardList,
   },
   {
+    label: "Seminarios",
+    to: "/administracion/finanzas/seminarios",
+    icon: Presentation,
+  },
+  {
     label: "Pagos",
     to: "/administracion/pagos",
     icon: HandCoins,
