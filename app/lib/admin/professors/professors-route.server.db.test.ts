@@ -1142,7 +1142,8 @@ describe("`/administracion/profesores` route", () => {
         ),
       ),
     ).resolves.toEqual({
-      status: "merge-refused",
+      status: "error",
+      intent: "merge-professor",
       message: "Solo se pueden fusionar profesores de la misma academia.",
     });
     await expectPersistedProfessor(removed.id, { active: true });

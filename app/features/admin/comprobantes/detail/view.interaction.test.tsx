@@ -156,13 +156,13 @@ describe("ComprobanteDetailRouteView", () => {
         if (entries.intent === recheckNotaCreditoIntent) {
           recheckPayloads.push(entries);
           return {
-            status: "contingency",
+            status: "warning",
             contingency: { status: "recovered" },
           };
         }
 
         return {
-          status: "contingency",
+          status: "warning",
           contingency: {
             status: "unverified",
             message:
@@ -257,7 +257,7 @@ describe("ComprobanteDetailRouteView", () => {
             const data = await action(args);
 
             if (
-              data.status === "contingency" &&
+              data.status === "warning" &&
               data.contingency.status === "recovered"
             ) {
               annulled = true;

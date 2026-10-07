@@ -178,7 +178,7 @@ async function mergeAcademy({
 }): Promise<AcademyDetailActionData | never> {
   if (readFormString(formData, "id") !== academyId) {
     return {
-      status: "merge-refused",
+      status: "error",
       intent: mergeAcademyIntent,
       message: "Confirmá la fusión desde la ficha.",
     };
@@ -191,7 +191,7 @@ async function mergeAcademy({
 
   if (!result.ok) {
     return {
-      status: "merge-refused",
+      status: "error",
       intent: mergeAcademyIntent,
       message: result.message,
     };

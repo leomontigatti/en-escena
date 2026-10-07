@@ -226,7 +226,7 @@ function AnnulDialog({
   const isSaving = fetcher.state !== "idle";
   const actionData = fetcher.data;
   const contingency =
-    actionData?.status === "contingency" ? actionData.contingency : null;
+    actionData?.status === "warning" ? actionData.contingency : null;
 
   // Manual verification is declared by the operator, so it cannot survive a new
   // attempt: every response from the server clears it and the retry goes back to

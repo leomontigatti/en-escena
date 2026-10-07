@@ -66,7 +66,7 @@ describe("EmissionDialog", () => {
       ? never
       : Extract<
           ComprobanteEmissionActionData,
-          { status: "contingency" }
+          { status: "warning" }
         >["contingency"],
   ) {
     const recheckPayloads: Array<Record<string, string>> = [];
@@ -84,12 +84,12 @@ describe("EmissionDialog", () => {
         if (entries.intent === recheckComprobanteIntent) {
           recheckPayloads.push(entries);
           return {
-            status: "contingency",
+            status: "warning",
             contingency: { status: "recovered" },
           };
         }
 
-        return { status: "contingency", contingency };
+        return { status: "warning", contingency };
       },
     };
   }

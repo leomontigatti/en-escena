@@ -28,7 +28,10 @@ type DetailRouteViewProps = Parameters<typeof DancerDetailRouteView>[0];
 describe("DancerDetailRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
-  afterEach(renderer.cleanup);
+  afterEach(() => {
+    renderer.cleanup();
+    toastError.mockClear();
+  });
 
   // Taking part in the active event is the normal state of most of the roster,
   // so `Archivar` stays enabled and says why on the click instead of an alert
@@ -156,6 +159,35 @@ describe("DancerDetailRouteView", () => {
         id: "admin-dancer-detail:error",
       }),
     );
+  });
+
+  // A refused merge is an error like a refused save; its intent is what keeps
+  // it out of the edit form, so it toasts once, through the merge dialog, and
+  // the dialog opens again over the fields as they were.
+  test("answers a refused merge with the dialog and one toast, leaving the form alone", async () => {
+    await renderDetailIntoDocument(
+      createLoaderData({ merge: { candidates: [], inscriptionsByEvent: [] } }),
+      {
+        status: "error",
+        intent: "merge-dancer",
+        message: "No se puede fusionar: los dos están en «Coreo».",
+      },
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(toastError).toHaveBeenCalledWith(
+      "No se puede fusionar: los dos están en «Coreo».",
+      expect.objectContaining({ id: "admin-merge:refusal" }),
+    );
+    expect(document.body.textContent).toContain("¿Fusionar al bailarín?");
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="firstName"]')
+        ?.value,
+    ).toBe("Julia");
+    expect(findButton("Guardar", { exact: true })?.disabled).toBe(true);
   });
 
   test("keeps what was typed when a save is warned about a same-name match", () => {

@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { AcademyDetailRouteView } from "@/features/admin/academies/detail/view";
 import type {
@@ -17,13 +17,36 @@ import {
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
+const toastError = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
 const renderer = createReactDomTestRenderer();
 
 afterEach(() => {
   renderer.cleanup();
+  toastError.mockClear();
 });
 
 const academyPath = "/administracion/academias/academy_1";
+
+const mergeOptions: AcademyDetailLoaderData["merge"] = {
+  candidates: [],
+  holdings: {
+    choreographies: 0,
+    comprobantes: 0,
+    dancers: 0,
+    payments: 0,
+    professors: 0,
+  },
+};
 
 function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
   return {
@@ -49,11 +72,13 @@ async function renderDetail({
   canEdit = true,
   deletionHoldings = [],
   initialDeleteDialogOpen = false,
+  merge = null,
 }: {
   actionData?: AcademyDetailActionData;
   canEdit?: boolean;
   deletionHoldings?: string[];
   initialDeleteDialogOpen?: boolean;
+  merge?: AcademyDetailLoaderData["merge"];
 } = {}) {
   let saves = 0;
 
@@ -75,7 +100,11 @@ async function renderDetail({
           <AcademyDetailRouteView
             actionData={actionData}
             initialDeleteDialogOpen={initialDeleteDialogOpen}
-            loaderData={{ ...buildLoaderData(canEdit), deletionHoldings }}
+            loaderData={{
+              ...buildLoaderData(canEdit),
+              deletionHoldings,
+              merge,
+            }}
           />
         ),
       },
@@ -306,6 +335,30 @@ describe("AcademyDetailRouteView", () => {
 
     await clickReactDomButton("Descartar cambios");
 
+    expect(readInput("name").value).toBe("Academia Fork");
+    expect(isSaveEnabled()).toBe(false);
+  });
+
+  // A refused merge is an error like a refused save; its intent is what keeps
+  // it out of the edit form, so it toasts once, through the merge dialog, and
+  // the dialog opens again over the fields as they were.
+  test("answers a refused merge with the dialog and one toast, leaving the form alone", async () => {
+    await renderDetail({
+      actionData: {
+        intent: "merge-academy",
+        message: "No se puede fusionar: las dos tienen comprobantes.",
+        status: "error",
+      },
+      merge: mergeOptions,
+    });
+    await settle();
+
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(toastError).toHaveBeenCalledWith(
+      "No se puede fusionar: las dos tienen comprobantes.",
+      expect.objectContaining({ id: "admin-merge:refusal" }),
+    );
+    expect(document.body.textContent).toContain("¿Fusionar la academia?");
     expect(readInput("name").value).toBe("Academia Fork");
     expect(isSaveEnabled()).toBe(false);
   });

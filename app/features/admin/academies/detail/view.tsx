@@ -21,12 +21,14 @@ import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { FieldGroup } from "@/components/ui/field";
 import { provinceOptions } from "@/lib/academies/provinces";
+import { mergeAcademyIntent } from "@/lib/academies/academy-merge.shared";
 import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
   useSavedFormValues,
 } from "@/lib/shared/forms";
+import { isMergeRefusal } from "@/lib/shared/merge";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
@@ -68,7 +70,11 @@ export function AcademyDetailRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  const mergeDialog = useMergeDialogState(academy.id, actionData);
+  const mergeDialog = useMergeDialogState(
+    academy.id,
+    actionData,
+    mergeAcademyIntent,
+  );
   const navigation = useNavigation();
   const isSaving = isRouteFormPending(navigation, {
     intent: updateAcademyIntent,
@@ -76,7 +82,7 @@ export function AcademyDetailRouteView({
 
   // A refused merge is toasted by the merge dialog's own state.
   useServerActionToast(
-    actionData?.status === "merge-refused" ? undefined : actionData,
+    isMergeRefusal(actionData, mergeAcademyIntent) ? undefined : actionData,
     { toastId: "administracion-academia:feedback" },
   );
 

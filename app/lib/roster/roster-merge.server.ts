@@ -26,6 +26,7 @@ import {
 
 import {
   getRosterMergeKindCopy,
+  rosterMergeIntents,
   type RosterMergeCandidate,
   type RosterMergeEventInscriptions,
 } from "./roster-merge.shared";
@@ -179,14 +180,17 @@ const mergeDestinations = {
  * with a flash (docs/agents/form-feedback.md); a refusal leaves the operator on
  * the same page and returns to the dialog as action data.
  */
-export async function submitRosterMerge(input: {
+export async function submitRosterMerge<Kind extends RosterPersonKind>(input: {
   formData: FormData;
-  kind: RosterPersonKind;
+  kind: Kind;
   personId: string;
-}): Promise<MergeRefusedActionData> {
+}): Promise<MergeRefusedActionData<(typeof rosterMergeIntents)[Kind]>> {
+  const intent = rosterMergeIntents[input.kind];
+
   if (readFormString(input.formData, "id") !== input.personId) {
     return {
-      status: "merge-refused",
+      status: "error",
+      intent,
       message: "Confirmá la fusión desde la ficha.",
     };
   }
@@ -198,7 +202,7 @@ export async function submitRosterMerge(input: {
   });
 
   if (!result.ok) {
-    return { status: "merge-refused", message: result.message };
+    return { status: "error", intent, message: result.message };
   }
 
   const destination = mergeDestinations[input.kind];

@@ -33,7 +33,10 @@ type ProfessorEditConsequence =
 describe("ProfessorDetailRouteView dialogs", () => {
   const renderer = createReactDomTestRenderer();
 
-  afterEach(renderer.cleanup);
+  afterEach(() => {
+    renderer.cleanup();
+    toastError.mockClear();
+  });
 
   test("editing a non-consequential professor saves without a confirmation dialog", async () => {
     await renderer.renderAsync(
@@ -127,6 +130,40 @@ describe("ProfessorDetailRouteView dialogs", () => {
     expect(readFirstName().value).toBe("Julieta");
     expect(getButton("Guardar").hasAttribute("disabled")).toBe(false);
     expect(findButton("Descartar cambios")).toBeDefined();
+  });
+
+  // A refused merge is an error like a refused save; its intent is what keeps
+  // it out of the edit form, so it toasts once, through the merge dialog, and
+  // the dialog opens again over the fields as they were.
+  test("answers a refused merge with the dialog and one toast, leaving the form alone", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/profesores/profesor_1",
+        <ProfessorDetailRouteView
+          loaderData={{
+            ...createLoaderData(),
+            merge: { candidates: [], inscriptionsByEvent: [] },
+          }}
+          actionData={{
+            status: "error",
+            intent: "merge-professor",
+            message: "No se puede fusionar: los dos están en «Coreo».",
+          }}
+        />,
+      ),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(toastError).toHaveBeenCalledWith(
+      "No se puede fusionar: los dos están en «Coreo».",
+      expect.objectContaining({ id: "admin-merge:refusal" }),
+    );
+    expect(document.body.textContent).toContain("¿Fusionar al profesor?");
+    expect(readFirstName().value).toBe("Julia");
+    expect(getButton("Guardar").hasAttribute("disabled")).toBe(true);
   });
 
   test("shows an auditor the fields disabled and only Volver", async () => {

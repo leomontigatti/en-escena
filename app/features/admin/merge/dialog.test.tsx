@@ -27,14 +27,16 @@ afterEach(() => {
 
 let latest: ReturnType<typeof useMergeDialogState>;
 
+const mergeIntent = "merge-dancer";
+
 function Probe({
   actionData,
   recordId,
 }: {
-  actionData?: { status: string; message?: string };
+  actionData?: { status: string; intent?: string; message?: string };
   recordId: string;
 }) {
-  latest = useMergeDialogState(recordId, actionData);
+  latest = useMergeDialogState(recordId, actionData, mergeIntent);
 
   return null;
 }
@@ -61,7 +63,11 @@ describe("useMergeDialogState", () => {
   test("opens again and toasts the reason when the server refuses the merge", async () => {
     await renderer.renderAsync(
       <Probe
-        actionData={{ status: "merge-refused", message: "No se puede." }}
+        actionData={{
+          status: "error",
+          intent: mergeIntent,
+          message: "No se puede.",
+        }}
         recordId="removed"
       />,
     );
@@ -71,5 +77,25 @@ describe("useMergeDialogState", () => {
 
     expect(latest.open).toBe(true);
     expect(toastError).toHaveBeenCalledWith("No se puede.");
+  });
+
+  // The refusal is an error like any other; the intent is what makes it the
+  // dialog's, so another form's error neither opens it nor toasts through it.
+  test.each([
+    ["an error of another intent", { intent: "update-dancer" }],
+    ["an error with no intent", {}],
+  ])("leaves %s to its own form", async (_label, tag) => {
+    await renderer.renderAsync(
+      <Probe
+        actionData={{ status: "error", message: "No se pudo.", ...tag }}
+        recordId="removed"
+      />,
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(latest.open).toBe(false);
+    expect(toastError).not.toHaveBeenCalled();
   });
 });

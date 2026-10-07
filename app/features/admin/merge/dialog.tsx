@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { mergeSurvivorFieldName } from "@/lib/shared/merge";
+import { isMergeRefusal, mergeSurvivorFieldName } from "@/lib/shared/merge";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
@@ -156,26 +156,29 @@ export function MergeDialog({
 /**
  * The dialog's open state on a detail page. A refused merge leaves the
  * operator on the same page with the same choice to make, so each refusal
- * toasts its reason and opens the dialog again. The state belongs to one
- * record: a merge redirects to the survivor's page, which is the same route
- * component with another id, and the dialog must not follow the operator there.
+ * toasts its reason and opens the dialog again. A refusal is an `"error"`
+ * answer carrying `mergeIntent`; an error of any other form is not the
+ * dialog's. The state belongs to one record: a merge redirects to the
+ * survivor's page, which is the same route component with another id, and the
+ * dialog must not follow the operator there.
  */
-export function useMergeDialogState(
+export function useMergeDialogState<ActionData extends { status: string }>(
   recordId: string,
-  actionData: { status: string; message?: string } | undefined,
+  actionData: ActionData | undefined,
+  mergeIntent: string,
 ) {
   const [openFor, setOpenFor] = useState<string | null>(
-    actionData?.status === "merge-refused" ? recordId : null,
+    isMergeRefusal(actionData, mergeIntent) ? recordId : null,
   );
 
   // One object per answer, so a second identical refusal toasts again and a
   // re-render does not.
   const refusal = useMemo(
     () =>
-      actionData?.status === "merge-refused"
-        ? { message: actionData.message ?? "", status: "error" as const }
+      isMergeRefusal(actionData, mergeIntent)
+        ? { message: actionData.message, status: "error" as const }
         : undefined,
-    [actionData],
+    [actionData, mergeIntent],
   );
 
   useServerActionToast(refusal, { toastId: mergeRefusalToastId });

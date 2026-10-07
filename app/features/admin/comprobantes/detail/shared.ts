@@ -17,4 +17,4 @@ export const recheckNotaCreditoIntent = "recheck-nota-credito";
 
 export type ComprobanteDetailActionData =
   | { status: "error"; message: string }
-  | { status: "contingency"; contingency: ComprobanteContingency };
+  | { status: "warning"; contingency: ComprobanteContingency };

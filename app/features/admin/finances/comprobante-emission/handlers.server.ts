@@ -94,7 +94,7 @@ export async function handleRecheckComprobante(
   // Recovery by re-verification stays in the dialog: it does not cross a
   // redirect, so it arrives as alert state and not as a toast.
   if (outcome.ok) {
-    return { status: "contingency", contingency: { status: "recovered" } };
+    return { status: "warning", contingency: { status: "recovered" } };
   }
 
   return toContingencyActionData(outcome);

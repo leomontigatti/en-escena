@@ -293,7 +293,7 @@ describe("portal choreographies music-only editing", () => {
         ),
       }),
     ).resolves.toMatchObject({
-      status: "update-error",
+      status: "error",
       message: "No podés editar la música porque la coreografía está retirada.",
     });
 

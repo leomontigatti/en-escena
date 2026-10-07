@@ -62,11 +62,13 @@ export function toComprobanteContingency(
   return null;
 }
 
-// What an action returns on a failure: the contingency if ARCA produced one, and
-// otherwise a generic error. Both features produce it identically.
+// What an action returns on a failure: a warning carrying the contingency if ARCA
+// produced one, and otherwise a generic error. The warning has no message of
+// its own; the dialog renders the `contingency` payload as an alert. Both
+// features produce it identically.
 export type ContingencyActionData =
   | { status: "error"; message: string }
-  | { status: "contingency"; contingency: ComprobanteContingency };
+  | { status: "warning"; contingency: ComprobanteContingency };
 
 /**
  * Wraps `toComprobanteContingency` in the `actionData` the two dialogs consume.
@@ -81,6 +83,6 @@ export function toContingencyActionData(
   const contingency = toComprobanteContingency(failure);
 
   return contingency
-    ? { status: "contingency", contingency }
+    ? { status: "warning", contingency }
     : { status: "error", message: failure.message };
 }

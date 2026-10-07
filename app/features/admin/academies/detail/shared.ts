@@ -76,4 +76,4 @@ export type AcademyDetailActionData =
       intent: typeof deleteAcademyIntent;
       message: string;
     }
-  | (MergeRefusedActionData & { intent: typeof mergeAcademyIntent });
+  | MergeRefusedActionData<typeof mergeAcademyIntent>;

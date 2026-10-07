@@ -28,8 +28,8 @@ describe("isUnexpectedActionError", () => {
       { intent: "create-choreography", result: { ok: false, error: "No." } },
     ],
     [
-      "a narrower error variant",
-      { status: "update-error", message: "No pudimos guardar la música." },
+      "a warning result",
+      { status: "warning", message: "Revisá los datos antes de seguir." },
     ],
     ["an error result with no message", { status: "error" }],
   ])("leaves %s alone", (_label, data) => {

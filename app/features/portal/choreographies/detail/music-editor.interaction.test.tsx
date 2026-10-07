@@ -248,10 +248,10 @@ describe("replacing a choreography's music", () => {
     const router = createMemoryRouter(
       [
         {
-          action: async () => ({
+          action: async (): Promise<PortalChoreographyMusicActionData> => ({
             message: "No pudimos subir el archivo de música.",
             selectedMusicStorageKey: "",
-            status: "update-error",
+            status: "error",
           }),
           element: <MusicEditorRoute />,
           loader: loaderData,

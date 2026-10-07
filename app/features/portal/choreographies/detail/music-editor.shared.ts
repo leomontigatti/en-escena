@@ -27,18 +27,17 @@ export type ChoreographyMusicFormValues = z.input<
 
 export type PortalChoreographyMusicActionData =
   | {
-      status: "update-error";
-      message: string;
-      selectedMusicStorageKey?: string;
-    }
-  | {
       status: "success";
       message: string;
     }
-  // What `recoverableClientAction` returns when the submit fails unexpectedly.
+  // A refused save sends back the key it was asked to keep, so a delete the
+  // academy asked for survives the answer. The unexpected failure
+  // `recoverableClientAction` returns arrives with no key, and the field keeps
+  // the stored one.
   | {
       status: "error";
       message: string;
+      selectedMusicStorageKey?: string;
     }
   | undefined;
 

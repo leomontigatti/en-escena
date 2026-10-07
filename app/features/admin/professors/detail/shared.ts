@@ -8,6 +8,7 @@ import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-dupli
 import type {
   RosterMergeCandidate,
   RosterMergeEventInscriptions,
+  rosterMergeIntents,
 } from "@/lib/roster/roster-merge.shared";
 import type { MergeRefusedActionData } from "@/lib/shared/merge";
 import {
@@ -82,7 +83,7 @@ export type ProfessorActionSuccess = {
 export type ProfessorDetailActionData =
   | ProfessorActionError
   | ProfessorActionSuccess
-  | MergeRefusedActionData
+  | MergeRefusedActionData<typeof rosterMergeIntents.professor>
   | RosterNameWarningActionData<ProfessorEditFormValues>;
 
 export type ProfessorRouteNotification = Extract<

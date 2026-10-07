@@ -75,11 +75,12 @@ export type JudgeAssignmentSubmissionValues = z.output<
 >;
 
 /**
- * A move says nothing when it works — the refreshed list is the answer — so it
- * has a status of its own that carries no message to show.
+ * A move says nothing when it works — the refreshed list is the answer — so its
+ * success carries no message to show, and readers key on `message`, not on the
+ * status.
  */
 export type PresentationListActionData =
-  { message: string; status: "error" | "success" } | { status: "moved" };
+  { message: string; status: "error" | "success" } | { status: "success" };
 
 export type PresentationListItem = {
   academyName: string;

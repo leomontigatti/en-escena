@@ -421,7 +421,7 @@ async function runMovePresentation(eventId: string, formData: FormData) {
   });
 
   if (result.ok) {
-    return { status: "moved" as const };
+    return { status: "success" as const };
   }
 
   return data(
