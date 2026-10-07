@@ -121,8 +121,11 @@ Use shadcn components for feedback and empty states.
 Rules:
 
 - Use `Alert` for callouts, notices, errors not tied to a field, and success
-  messages that persist on screen. If `Alert` is not installed and the case needs
-  it, add it before creating custom markup.
+  messages that persist on screen. Which class of message goes to an alert, a
+  toast or a field is
+  [form-feedback.md § Which channel carries a message](form-feedback.md#which-channel-carries-a-message).
+  If `Alert` is not installed and the case needs it, add it before creating
+  custom markup.
 - Use `Empty` for no-data states with a title, description and primary action. If
   `Empty` is not installed and the case needs it, add it before creating custom
   markup.
@@ -394,7 +397,7 @@ header. Alerts about the form sit above the card.
 
 How an edit screen saves decides the shape of its form, so settle it before
 laying the fields out. What happens after the submit (stay or redirect, which
-toast) is [form-feedback.md](form-feedback.md).
+channel carries the message) is [form-feedback.md](form-feedback.md).
 
 Rules:
 
@@ -514,7 +517,8 @@ Rules:
 - Show only client validation errors inline. Errors returned by the server are
   not integrated with `form.setError` and are not shown as `FieldError`; they are
   shown with a toast and, when useful, the form keeps the submitted values so the
-  person can correct and resubmit.
+  person can correct and resubmit. The channel for every class of message is in
+  [form-feedback.md § Which channel carries a message](form-feedback.md#which-channel-carries-a-message).
 - When an RHF form posts to a React Router action with `useSubmit`, use
   `createValidatedRouteFormDataSubmitHandler` so the submitted `FormData` is built
   from the values RHF validated, preserving `intent`, submit buttons and other
@@ -705,7 +709,9 @@ instead.
   The fields render as the shared read-only ones (`ReadOnlyField`,
   `ReadOnlyDateField`, `ReadOnlySelectField`, `ReadOnlyTextareaField`), not as
   a disabled picker or select: every locked field looks the same, and the
-  value still travels in the body.
+  value still travels in the body. The alert shows to every role that can see
+  the record, auditors included. A field with no meaning for the record is left
+  out rather than rendered locked: not applicable is not blocked.
 - An action the record's state forbids is never refused after the submit, and
   never disabled either, on a detail page or a list page alike (the portal's
   `Nueva coreografía` too): the `Acciones` menu item or button stays enabled, and

@@ -1,8 +1,9 @@
 # Form feedback and redirection
 
-The single convention for feedback (success/error toasts) and redirection in form
-`action`s across En Escena. It answers #201 ("do we need the query param in the URL
-to show a toast?") and is the durable reference for PRD #409.
+The single convention for feedback and redirection in form `action`s across En
+Escena: which channel carries each class of message (field error, alert, dialog
+or toast), and how a message reaches it. It answers #201 ("do we need the query
+param in the URL to show a toast?") and is the durable reference for PRD #409.
 
 Base rule for any new form: **first decide whether the current view still makes
 sense after the submit**. That determines whether you stay or redirect, and by which
@@ -28,6 +29,90 @@ cleaned the param.
 
 We redirect **only when the current view stops existing or stops making sense**, not
 to show feedback.
+
+## Which channel carries a message
+
+One question decides it: **is the message about a state of the record, or about
+the submit the user just made?** A state stays on screen: a field error from
+client validation, an alert, a dialog. The result of a submit is a toast.
+
+| Class                                                                                                                                     | Channel                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Client validation failing on submit                                                                                                       | `FieldError` through RHF/Zod: the only field error shown after a submit.                                                                                                                                                                                |
+| Server refusal of a submit, with or without `fieldErrors`                                                                                 | `destructive` toast. The copy says what to fix and names the blocking item when there is one (`useRosterRefusalToast`, the document-number refusal with a link to the holder, is the model). The form keeps its values. No `form.setError`, no `Alert`. |
+| Failure of an action with no form behind it (inline row delete, toggle, reorder, a `fetcher` button)                                      | `destructive` toast.                                                                                                                                                                                                                                    |
+| Unexpected failure (the generic `{ status: "error" }` from `recoverableClientAction`, a network drop)                                     | `destructive` toast.                                                                                                                                                                                                                                    |
+| Message that arrives after a redirect (flash session)                                                                                     | Toast: the view it belonged to is gone.                                                                                                                                                                                                                 |
+| Success                                                                                                                                   | Toast. A success that must stay on screen is a `success` `Alert` ([style-guide.md § Alert variants](style-guide.md#alert-variants)).                                                                                                                    |
+| Duplicate warning (`status: "warning"`)                                                                                                   | The confirmation `AlertDialog` ([A third answer](#a-third-answer-the-duplicate-warning)).                                                                                                                                                               |
+| Field locked by the record's state, conditionally or for good                                                                             | `info` `Alert` in the page's `AlertStack`, above the form card, listing every reason and what unlocks it, or saying nothing does. The field renders as a `ReadOnly*Field`. The lock icon alone explains nothing and is never the channel.               |
+| Action forbidden by the record's state                                                                                                    | `BlockedActionDialog`, opened by the click on a control that stays enabled, with every reason in its `info` `Alert` ([style-guide.md § Detail pages](style-guide.md#detail-pages)).                                                                     |
+| A condition the user should know before acting, derived or found in the background (recategorised choreographies, registration readiness) | `Alert` in the page's `AlertStack`: `warning` if the user should fix it or will regret going ahead, `info` otherwise.                                                                                                                                   |
+
+- **Copy** says what happened and how to fix it, and names the blocking items
+  (the modalities that have choreographies assigned). Generic copy is only the
+  fallback.
+- **Toasts auto-dismiss** (Sonner's default). The form keeps the values the
+  refusal judged, so a dismissed toast costs a resubmit, not data.
+
+### What is not a block
+
+Three cases get no message:
+
+- **A field read-only by design** on every record of its kind on that surface
+  (the academy a choreography belongs to). Its lock icon is enough.
+- **A surface read-only because of the role** (an auditor). The role is the
+  reason, and an alert on every page would stop being read.
+- **A field that does not apply** to this record (a submodality when the
+  modality has none) is left out of the form, not rendered locked. Not
+  applicable is a different class from blocked: a lock promises a cause, and
+  absence promises nothing.
+
+**Block reasons are never filtered by role.** A lock caused by the record's state
+shows to everyone who can see the record, auditors included: it describes the
+record, not the viewer. Suppressing the alert for a role is a defect.
+
+### Block reasons and result statuses
+
+**Block reasons are a server-built array of `{ code, label }`**: every reason is
+listed, none takes precedence, and they render as the alert's list
+([style-guide.md § Alert content](style-guide.md#alert-content)) in the field
+lock alert or in `BlockedActionDialog`. The `label` is the copy, and the server
+builds it because the server owns the rule. A `code` is born consumed: it exists
+only if something reads it, a test asserting which reasons fired or a rendering
+branch. A code nothing reads is removed, not kept for later.
+`DancerEditingBlockReason`, the `reasonCode` in
+`app/lib/choreographies/choreography-roster.shared.ts`, is one its callers throw
+away; it is consumed or dropped when that code is next touched.
+
+**An action result's `status` names its outcome, not its channel**: an action
+answers with `"success"`, `"error"` or `"warning"`. The channel comes from the
+message class ([Which channel carries a message](#which-channel-carries-a-message)).
+`ToastVariant` also accepts `info`, which is reserved until a product case
+needs it ([style-guide.md § React Hook Form](style-guide.md#react-hook-form)).
+Anything a reader needs beyond the status travels as the answer's payload (the
+`contingency` the comprobante dialog renders, the `selectedMusicStorageKey` the
+music editor keeps), or as the `intent` the request carried when the question is
+which form the answer belongs to (how the payment delete dialog keys its
+re-open); the reader narrows on that field, never on a status of its own. A
+status no reader knows about is silently dropped, which is how the choreography
+detail's `"roster-error"` answers were lost (#661). Four statuses predate this
+rule, and each has a place in it: `"moved"` becomes `status: "success"` with no
+message (its reader already keys on `message`, so nothing changes);
+`"update-error"` becomes `status: "error"` with the `selectedMusicStorageKey`
+payload; `"contingency"` becomes `status: "warning"` with the `contingency`
+payload, the shape the duplicate warning uses; and `"merge-refused"` becomes
+`status: "error"` with `intent`, which is what the merge dialog's re-open really
+keys on.
+
+### Testing and scope
+
+The seam is per feature: a view's interaction test asserts that a refusal reaches
+it as a toast, and #619's test is the model. The status contract is a type, so
+`pnpm typecheck` holds it and no shared test is needed.
+
+#517 (rendering server `fieldErrors` on the fields) was decided against by this
+rule on 2026-10-07; views do not read `fieldErrors`.
 
 ## Behavior matrix
 
@@ -193,10 +278,10 @@ Two consequences for a view:
   plain `status === "error"` narrowing is enough only where the result is a
   closed union that already carries a `status`.
 - **Mind the fetchers with no toast.** A `useFetcher` that drops anything not
-  tagged with its own intent — the roster and modality resolutions of the
-  choreography detail — drops the generic error too, and there the user sees
-  nothing at all. Handle it before the intent guard, put the message on the
-  field, and mark the submission as answered so the effect does not resubmit in
+  tagged with its own intent — the draft resolution of the choreography
+  detail — drops the generic error too, and there the user sees
+  nothing at all. Handle it before the intent guard, show it as a toast, and
+  mark the submission as answered so the effect does not resubmit in
   a loop.
 - **A dialog re-opened by the shape of the result needs the intent too.** The
   generic error carries no `values` and no `intent`, so "no `values`" or "not my
