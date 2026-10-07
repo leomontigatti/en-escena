@@ -63,11 +63,11 @@ export function CreateDancerPage({
 
   return (
     <section
-      aria-labelledby="nuevo-bailarin-title"
+      aria-labelledby="new-dancer-title"
       className="flex flex-1 flex-col gap-6"
     >
       <PortalPageHeader
-        titleId="nuevo-bailarin-title"
+        titleId="new-dancer-title"
         title="Nuevo bailarín"
         description="Cargá sus datos y, si las tenés a mano, las fotos del documento."
       />

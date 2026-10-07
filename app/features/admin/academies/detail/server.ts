@@ -160,7 +160,7 @@ async function deleteAcademy({
 
   throw await redirectWithFlashNotification(
     "/administracion/academias",
-    "academia-eliminada",
+    "academy-deleted",
   );
 }
 
@@ -199,7 +199,7 @@ async function mergeAcademy({
 
   throw await redirectWithFlashNotification(
     `/administracion/academias/${result.survivor.id}`,
-    "academias-fusionadas",
+    "academies-merged",
   );
 }
 

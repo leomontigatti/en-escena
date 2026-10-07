@@ -208,7 +208,7 @@ describe("`/administracion/eventos` route", () => {
       response,
       `/administracion/eventos/${savedEvent?.id}`,
       {
-        id: "route-notification:evento-guardado",
+        id: "route-notification:event-saved",
         message: "Evento guardado.",
         variant: "success",
       },

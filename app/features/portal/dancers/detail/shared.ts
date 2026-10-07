@@ -95,8 +95,7 @@ export type PortalDancerDetailActionData =
  * `app/features/admin/dancers/detail/shared.ts`.
  */
 export function buildPortalDancerActionSuccess(
-  notification:
-    "bailarin-archivado" | "bailarin-guardado" | "bailarin-reactivado",
+  notification: "dancer-archived" | "dancer-saved" | "dancer-reactivated",
   recategorisedChoreographies: RecategorisedChoreography[],
   scheduleMoves: DancerBirthDateScheduleMove[] = [],
 ): PortalDancerDetailActionData {

@@ -78,7 +78,7 @@ const publicProgramColumns: ProgramPrintColumn<EventProgramRow>[] = [
     ),
   },
   {
-    id: "category",
+    id: "categoryGroup",
     header: "Categoría / Tipo de grupo",
     width: 20,
     className: "text-muted-foreground",

@@ -203,7 +203,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
       db.query.events.findFirst({ where: eq(events.id, event.id) }),
     ).resolves.toBeUndefined();
     await expectFlashRedirect(response, "/administracion/eventos", {
-      id: "route-notification:evento-eliminado",
+      id: "route-notification:event-deleted",
       message: "Evento eliminado.",
       variant: "success",
     });

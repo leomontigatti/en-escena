@@ -206,7 +206,7 @@ describe("the create choreography page action", () => {
         headers: { cookie: response.headers.get("Set-Cookie") ?? "" },
       }),
     );
-    expect(flash?.toast).toEqual(notificationToasts["coreografia-creada"]);
+    expect(flash?.toast).toEqual(notificationToasts["choreography-created"]);
 
     const [storedChoreography] = await db.query.choreographies.findMany({
       where: eq(choreographies.academyId, ownerSession.academyId),

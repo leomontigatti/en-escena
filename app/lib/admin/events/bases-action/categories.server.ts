@@ -23,8 +23,8 @@ import {
 import { buildDetailPath, buildListPath } from "@/lib/shared/navigation";
 
 const categoryBasePath = "/administracion/categorias";
-const categorySavedNotification = "categoria-guardada";
-const categoryDeletedNotification = "categoria-eliminada";
+const categorySavedNotification = "category-saved";
+const categoryDeletedNotification = "category-deleted";
 const categoryDeleteConfirmationMessage =
   "Confirmá el borrado de la categoría antes de continuar.";
 

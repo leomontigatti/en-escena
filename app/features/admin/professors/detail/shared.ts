@@ -87,7 +87,7 @@ export type ProfessorDetailActionData =
 
 export type ProfessorRouteNotification = Extract<
   NotificationKey,
-  "profesor-archivado" | "profesor-guardado" | "profesor-reactivado"
+  "professor-archived" | "professor-saved" | "professor-reactivated"
 >;
 
 export type ProfessorDialogIntent =

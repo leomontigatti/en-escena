@@ -109,7 +109,7 @@ export async function handleCreateChoreographyAction(request: Request) {
 
     throw await redirectWithFlashNotification(
       choreographiesListPath,
-      "coreografia-creada",
+      "choreography-created",
     );
   }
 

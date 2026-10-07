@@ -43,7 +43,7 @@ export function PortalSeminarFinanceDetailRouteView({
 
   return (
     <PortalListPage
-      titleId="finanzas-seminario-title"
+      titleId="finances-seminar-title"
       title={seminar.instructorName}
       description={`Revisá los importes del seminario del ${formatDate(
         seminar.scheduledDate,

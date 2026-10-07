@@ -89,8 +89,8 @@ export async function action({
 
     return buildDetailActionSuccess(
       parsedIntent.data === suspendUserIntent
-        ? "usuario-interno-suspendido"
-        : "usuario-interno-reactivado",
+        ? "internal-user-suspended"
+        : "internal-user-reactivated",
     );
   }
 
@@ -120,7 +120,7 @@ export async function action({
       });
     }
 
-    return buildDetailActionSuccess("usuario-interno-restablecido");
+    return buildDetailActionSuccess("internal-user-reset");
   }
 
   const values = readUpdateInternalUserFormValues(formData);
@@ -151,7 +151,7 @@ export async function action({
     });
   }
 
-  return buildDetailActionSuccess("usuario-interno-actualizado");
+  return buildDetailActionSuccess("internal-user-updated");
 }
 
 async function findDetailUserRow(

@@ -166,7 +166,7 @@ async function handleAnnulComprobante(input: {
     // like the dialog's `recovered`: that way the operator can tell "it recovered
     // on its own" from "I recovered it myself".
     throw outcome.recovered
-      ? await redirectWithFlashNotification(url, "comprobante-recuperado")
+      ? await redirectWithFlashNotification(url, "comprobante-recovered")
       : redirect(url);
   }
 

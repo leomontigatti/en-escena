@@ -48,7 +48,7 @@ describe("admin payment create", () => {
       response,
       `/administracion/pagos/${payment?.id}`,
       {
-        id: "route-notification:pago-registrado",
+        id: "route-notification:payment-recorded",
         message: "Pago registrado.",
         variant: "success",
       },

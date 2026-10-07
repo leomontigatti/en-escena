@@ -40,7 +40,7 @@ export function PortalPresentationsListView({
 
   return (
     <PortalListPage
-      titleId="presentaciones-title"
+      titleId="presentations-title"
       title="Presentaciones"
       description="Consultá el número y el cronograma con el que presenta cada coreografía de tu academia en el evento activo."
       action={

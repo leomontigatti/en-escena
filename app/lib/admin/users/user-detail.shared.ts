@@ -144,10 +144,10 @@ export const resetPasswordSchema = z.object({
 
 export type UserRouteNotification = Extract<
   NotificationKey,
-  | "usuario-interno-actualizado"
-  | "usuario-interno-reactivado"
-  | "usuario-interno-restablecido"
-  | "usuario-interno-suspendido"
+  | "internal-user-updated"
+  | "internal-user-reactivated"
+  | "internal-user-reset"
+  | "internal-user-suspended"
 >;
 
 export function buildDetailUser(row: DetailUserRow): DetailUser {

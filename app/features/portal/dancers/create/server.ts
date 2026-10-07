@@ -127,7 +127,7 @@ export async function handleCreateDancerAction({
     };
   }
 
-  throw await redirectWithFlashNotification(dancersListPath, "bailarin-creado");
+  throw await redirectWithFlashNotification(dancersListPath, "dancer-created");
 }
 
 function getCreateDancerFieldErrors(error: z.ZodError<PortalDancerFormValues>) {

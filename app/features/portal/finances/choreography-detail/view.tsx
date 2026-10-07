@@ -42,7 +42,7 @@ export function PortalChoreographyFinanceDetailRouteView({
 
   return (
     <PortalListPage
-      titleId="finanzas-coreografia-title"
+      titleId="finances-choreography-title"
       title={`${choreography.name} # ${formatEventSequenceNumber(
         choreography.choreographyNumber,
       )}`}

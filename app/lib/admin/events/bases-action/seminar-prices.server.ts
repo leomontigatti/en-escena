@@ -30,8 +30,8 @@ const seminarPriceBasePath = "/administracion/precios/seminarios";
 // Deleting a row leaves the detail, and the list it returns to is the seminar
 // tab of `Precios`: the tab is a search param so the redirect can name it.
 const seminarPriceListPath = `/administracion/precios?${kindTabParam}=seminarios`;
-const seminarPriceSavedNotification = "precio-guardado";
-const seminarPriceDeletedNotification = "precio-eliminado";
+const seminarPriceSavedNotification = "price-saved";
+const seminarPriceDeletedNotification = "price-deleted";
 
 export const seminarPriceActionHandler: EventBasesActionHandler<SeminarPriceActionInput> =
   {

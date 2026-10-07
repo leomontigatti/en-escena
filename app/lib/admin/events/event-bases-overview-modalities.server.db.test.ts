@@ -217,7 +217,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       response,
       `/administracion/modalidades/${modality?.id}`,
       {
-        id: "route-notification:modalidad-guardada",
+        id: "route-notification:modality-saved",
         message: "Modalidad guardada.",
         variant: "success",
       },
@@ -457,7 +457,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       response,
       `/administracion/modalidades/${modality?.id}`,
       {
-        id: "route-notification:modalidad-guardada",
+        id: "route-notification:modality-saved",
         message: "Modalidad guardada.",
         variant: "success",
       },

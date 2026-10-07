@@ -6,59 +6,57 @@ type NotificationToast = ToastMessage & {
 
 export const notificationToastIds = {
   "event-form-error": "route-notification:event-form-error",
-  "perfil-guardado": "route-notification:perfil-guardado",
-  "profesor-creado": "route-notification:profesor-creado",
-  "profesor-guardado": "route-notification:profesor-guardado",
-  "profesor-archivado": "route-notification:profesor-archivado",
-  "profesor-reactivado": "route-notification:profesor-reactivado",
-  "bailarin-creado": "route-notification:bailarin-creado",
-  "bailarin-guardado": "route-notification:bailarin-guardado",
-  "bailarin-guardado-requiere-verificacion":
-    "route-notification:bailarin-guardado-requiere-verificacion",
-  "bailarin-archivado": "route-notification:bailarin-archivado",
-  "bailarin-reactivado": "route-notification:bailarin-reactivado",
-  "bailarin-verificado": "route-notification:bailarin-verificado",
-  "bailarines-fusionados": "route-notification:bailarines-fusionados",
-  "profesores-fusionados": "route-notification:profesores-fusionados",
-  "coreografia-creada": "route-notification:coreografia-creada",
-  "coreografia-guardada": "route-notification:coreografia-guardada",
-  "coreografia-eliminada": "route-notification:coreografia-eliminada",
-  "coreografia-retirada": "route-notification:coreografia-retirada",
-  "coreografia-restaurada": "route-notification:coreografia-restaurada",
+  "profile-saved": "route-notification:profile-saved",
+  "professor-created": "route-notification:professor-created",
+  "professor-saved": "route-notification:professor-saved",
+  "professor-archived": "route-notification:professor-archived",
+  "professor-reactivated": "route-notification:professor-reactivated",
+  "dancer-created": "route-notification:dancer-created",
+  "dancer-saved": "route-notification:dancer-saved",
+  "dancer-saved-needs-verification":
+    "route-notification:dancer-saved-needs-verification",
+  "dancer-archived": "route-notification:dancer-archived",
+  "dancer-reactivated": "route-notification:dancer-reactivated",
+  "dancer-verified": "route-notification:dancer-verified",
+  "dancers-merged": "route-notification:dancers-merged",
+  "professors-merged": "route-notification:professors-merged",
+  "choreography-created": "route-notification:choreography-created",
+  "choreography-saved": "route-notification:choreography-saved",
+  "choreography-deleted": "route-notification:choreography-deleted",
+  "choreography-withdrawn": "route-notification:choreography-withdrawn",
+  "choreography-restored": "route-notification:choreography-restored",
   "user-form-error": "route-notification:user-form-error",
-  "evento-activado": "route-notification:evento-activado",
-  "evento-desactivado": "route-notification:evento-desactivado",
-  "evento-guardado": "route-notification:evento-guardado",
-  "evento-eliminado": "route-notification:evento-eliminado",
-  "cronograma-guardado": "route-notification:cronograma-guardado",
-  "cronograma-eliminado": "route-notification:cronograma-eliminado",
-  "inscripciones-abiertas": "route-notification:inscripciones-abiertas",
-  "inscripciones-cerradas": "route-notification:inscripciones-cerradas",
-  "seminario-creado": "route-notification:seminario-creado",
-  "seminario-guardado": "route-notification:seminario-guardado",
-  "seminario-eliminado": "route-notification:seminario-eliminado",
-  "cupo-cronograma-guardado": "route-notification:cupo-cronograma-guardado",
-  "cupo-cronograma-eliminado": "route-notification:cupo-cronograma-eliminado",
-  "precio-guardado": "route-notification:precio-guardado",
-  "precio-eliminado": "route-notification:precio-eliminado",
-  "pago-registrado": "route-notification:pago-registrado",
-  "pago-guardado": "route-notification:pago-guardado",
-  "comprobante-recuperado": "route-notification:comprobante-recuperado",
-  "resultados-ocultos": "route-notification:resultados-ocultos",
-  "categoria-guardada": "route-notification:categoria-guardada",
-  "categoria-eliminada": "route-notification:categoria-eliminada",
-  "modalidad-guardada": "route-notification:modalidad-guardada",
-  "modalidad-eliminada": "route-notification:modalidad-eliminada",
-  "criterios-guardados": "route-notification:criterios-guardados",
-  "academia-eliminada": "route-notification:academia-eliminada",
-  "academias-fusionadas": "route-notification:academias-fusionadas",
-  "usuario-interno-creado": "route-notification:usuario-interno-creado",
-  "usuario-interno-actualizado":
-    "route-notification:usuario-interno-actualizado",
-  "usuario-interno-restablecido":
-    "route-notification:usuario-interno-restablecido",
-  "usuario-interno-suspendido": "route-notification:usuario-interno-suspendido",
-  "usuario-interno-reactivado": "route-notification:usuario-interno-reactivado",
+  "event-activated": "route-notification:event-activated",
+  "event-deactivated": "route-notification:event-deactivated",
+  "event-saved": "route-notification:event-saved",
+  "event-deleted": "route-notification:event-deleted",
+  "schedule-saved": "route-notification:schedule-saved",
+  "schedule-deleted": "route-notification:schedule-deleted",
+  "registration-opened": "route-notification:registration-opened",
+  "registration-closed": "route-notification:registration-closed",
+  "seminar-created": "route-notification:seminar-created",
+  "seminar-saved": "route-notification:seminar-saved",
+  "seminar-deleted": "route-notification:seminar-deleted",
+  "schedule-capacity-saved": "route-notification:schedule-capacity-saved",
+  "schedule-capacity-deleted": "route-notification:schedule-capacity-deleted",
+  "price-saved": "route-notification:price-saved",
+  "price-deleted": "route-notification:price-deleted",
+  "payment-recorded": "route-notification:payment-recorded",
+  "payment-saved": "route-notification:payment-saved",
+  "comprobante-recovered": "route-notification:comprobante-recovered",
+  "results-hidden": "route-notification:results-hidden",
+  "category-saved": "route-notification:category-saved",
+  "category-deleted": "route-notification:category-deleted",
+  "modality-saved": "route-notification:modality-saved",
+  "modality-deleted": "route-notification:modality-deleted",
+  "criteria-saved": "route-notification:criteria-saved",
+  "academy-deleted": "route-notification:academy-deleted",
+  "academies-merged": "route-notification:academies-merged",
+  "internal-user-created": "route-notification:internal-user-created",
+  "internal-user-updated": "route-notification:internal-user-updated",
+  "internal-user-reset": "route-notification:internal-user-reset",
+  "internal-user-suspended": "route-notification:internal-user-suspended",
+  "internal-user-reactivated": "route-notification:internal-user-reactivated",
 } as const;
 
 type NotificationToastKey = Exclude<
@@ -67,183 +65,183 @@ type NotificationToastKey = Exclude<
 >;
 
 export const notificationToasts = {
-  "perfil-guardado": {
-    id: notificationToastIds["perfil-guardado"],
+  "profile-saved": {
+    id: notificationToastIds["profile-saved"],
     message: "Perfil guardado.",
     variant: "success",
   },
-  "profesor-creado": {
-    id: notificationToastIds["profesor-creado"],
+  "professor-created": {
+    id: notificationToastIds["professor-created"],
     message: "Profesor creado.",
     variant: "success",
   },
-  "profesor-guardado": {
-    id: notificationToastIds["profesor-guardado"],
+  "professor-saved": {
+    id: notificationToastIds["professor-saved"],
     message: "Profesor guardado.",
     variant: "success",
   },
-  "profesor-archivado": {
-    id: notificationToastIds["profesor-archivado"],
+  "professor-archived": {
+    id: notificationToastIds["professor-archived"],
     message: "Profesor archivado.",
     variant: "success",
   },
-  "profesor-reactivado": {
-    id: notificationToastIds["profesor-reactivado"],
+  "professor-reactivated": {
+    id: notificationToastIds["professor-reactivated"],
     message: "Profesor reactivado.",
     variant: "success",
   },
-  "bailarin-creado": {
-    id: notificationToastIds["bailarin-creado"],
+  "dancer-created": {
+    id: notificationToastIds["dancer-created"],
     message: "Bailarín creado.",
     variant: "success",
   },
-  "bailarin-guardado": {
-    id: notificationToastIds["bailarin-guardado"],
+  "dancer-saved": {
+    id: notificationToastIds["dancer-saved"],
     message: "Bailarín guardado.",
     variant: "success",
   },
-  "bailarin-guardado-requiere-verificacion": {
-    id: notificationToastIds["bailarin-guardado-requiere-verificacion"],
+  "dancer-saved-needs-verification": {
+    id: notificationToastIds["dancer-saved-needs-verification"],
     message: "Bailarín guardado. La identidad volvió a no verificado.",
     variant: "success",
   },
-  "bailarines-fusionados": {
-    id: notificationToastIds["bailarines-fusionados"],
+  "dancers-merged": {
+    id: notificationToastIds["dancers-merged"],
     message: "Bailarines fusionados.",
     variant: "success",
   },
-  "profesores-fusionados": {
-    id: notificationToastIds["profesores-fusionados"],
+  "professors-merged": {
+    id: notificationToastIds["professors-merged"],
     message: "Profesores fusionados.",
     variant: "success",
   },
-  "bailarin-archivado": {
-    id: notificationToastIds["bailarin-archivado"],
+  "dancer-archived": {
+    id: notificationToastIds["dancer-archived"],
     message: "Bailarín archivado.",
     variant: "success",
   },
-  "bailarin-reactivado": {
-    id: notificationToastIds["bailarin-reactivado"],
+  "dancer-reactivated": {
+    id: notificationToastIds["dancer-reactivated"],
     message: "Bailarín reactivado.",
     variant: "success",
   },
-  "bailarin-verificado": {
-    id: notificationToastIds["bailarin-verificado"],
+  "dancer-verified": {
+    id: notificationToastIds["dancer-verified"],
     message: "Bailarín verificado.",
     variant: "success",
   },
-  "coreografia-creada": {
-    id: notificationToastIds["coreografia-creada"],
+  "choreography-created": {
+    id: notificationToastIds["choreography-created"],
     message: "Coreografía creada.",
     variant: "success",
   },
-  "coreografia-guardada": {
-    id: notificationToastIds["coreografia-guardada"],
+  "choreography-saved": {
+    id: notificationToastIds["choreography-saved"],
     message: "Coreografía guardada.",
     variant: "success",
   },
-  "coreografia-eliminada": {
-    id: notificationToastIds["coreografia-eliminada"],
+  "choreography-deleted": {
+    id: notificationToastIds["choreography-deleted"],
     message: "Coreografía eliminada.",
     variant: "success",
   },
-  "coreografia-retirada": {
-    id: notificationToastIds["coreografia-retirada"],
+  "choreography-withdrawn": {
+    id: notificationToastIds["choreography-withdrawn"],
     message: "Coreografía retirada. Su dinero sigue asignado.",
     variant: "success",
   },
-  "coreografia-restaurada": {
-    id: notificationToastIds["coreografia-restaurada"],
+  "choreography-restored": {
+    id: notificationToastIds["choreography-restored"],
     message: "Coreografía restaurada.",
     variant: "success",
   },
-  "evento-activado": {
-    id: notificationToastIds["evento-activado"],
+  "event-activated": {
+    id: notificationToastIds["event-activated"],
     message: "Evento activado.",
     variant: "success",
   },
-  "evento-desactivado": {
-    id: notificationToastIds["evento-desactivado"],
+  "event-deactivated": {
+    id: notificationToastIds["event-deactivated"],
     message: "Evento desactivado.",
     variant: "success",
   },
-  "evento-guardado": {
-    id: notificationToastIds["evento-guardado"],
+  "event-saved": {
+    id: notificationToastIds["event-saved"],
     message: "Evento guardado.",
     variant: "success",
   },
-  "evento-eliminado": {
-    id: notificationToastIds["evento-eliminado"],
+  "event-deleted": {
+    id: notificationToastIds["event-deleted"],
     message: "Evento eliminado.",
     variant: "success",
   },
-  "cronograma-guardado": {
-    id: notificationToastIds["cronograma-guardado"],
+  "schedule-saved": {
+    id: notificationToastIds["schedule-saved"],
     message: "Cronograma guardado.",
     variant: "success",
   },
-  "cronograma-eliminado": {
-    id: notificationToastIds["cronograma-eliminado"],
+  "schedule-deleted": {
+    id: notificationToastIds["schedule-deleted"],
     message: "Cronograma eliminado.",
     variant: "success",
   },
-  "inscripciones-abiertas": {
-    id: notificationToastIds["inscripciones-abiertas"],
+  "registration-opened": {
+    id: notificationToastIds["registration-opened"],
     message: "Inscripciones abiertas.",
     variant: "success",
   },
-  "inscripciones-cerradas": {
-    id: notificationToastIds["inscripciones-cerradas"],
+  "registration-closed": {
+    id: notificationToastIds["registration-closed"],
     message: "Inscripciones cerradas.",
     variant: "success",
   },
-  "seminario-creado": {
-    id: notificationToastIds["seminario-creado"],
+  "seminar-created": {
+    id: notificationToastIds["seminar-created"],
     message: "Seminario creado.",
     variant: "success",
   },
-  "seminario-guardado": {
-    id: notificationToastIds["seminario-guardado"],
+  "seminar-saved": {
+    id: notificationToastIds["seminar-saved"],
     message: "Seminario guardado.",
     variant: "success",
   },
-  "seminario-eliminado": {
-    id: notificationToastIds["seminario-eliminado"],
+  "seminar-deleted": {
+    id: notificationToastIds["seminar-deleted"],
     message: "Seminario eliminado.",
     variant: "success",
   },
-  "cupo-cronograma-guardado": {
-    id: notificationToastIds["cupo-cronograma-guardado"],
+  "schedule-capacity-saved": {
+    id: notificationToastIds["schedule-capacity-saved"],
     message: "Cupo de cronograma guardado.",
     variant: "success",
   },
-  "cupo-cronograma-eliminado": {
-    id: notificationToastIds["cupo-cronograma-eliminado"],
+  "schedule-capacity-deleted": {
+    id: notificationToastIds["schedule-capacity-deleted"],
     message: "Cupo de cronograma eliminado.",
     variant: "success",
   },
-  "precio-guardado": {
-    id: notificationToastIds["precio-guardado"],
+  "price-saved": {
+    id: notificationToastIds["price-saved"],
     message: "Precio guardado.",
     variant: "success",
   },
-  "precio-eliminado": {
-    id: notificationToastIds["precio-eliminado"],
+  "price-deleted": {
+    id: notificationToastIds["price-deleted"],
     message: "Precio eliminado.",
     variant: "success",
   },
-  "pago-registrado": {
-    id: notificationToastIds["pago-registrado"],
+  "payment-recorded": {
+    id: notificationToastIds["payment-recorded"],
     message: "Pago registrado.",
     variant: "success",
   },
-  "pago-guardado": {
-    id: notificationToastIds["pago-guardado"],
+  "payment-saved": {
+    id: notificationToastIds["payment-saved"],
     message: "Pago guardado.",
     variant: "success",
   },
-  "comprobante-recuperado": {
-    id: notificationToastIds["comprobante-recuperado"],
+  "comprobante-recovered": {
+    id: notificationToastIds["comprobante-recovered"],
     // The emission was seen failing for up to 45 seconds and then finished fine:
     // switching to "done" without saying anything reads as a glitch (ADR-0012). It
     // carries no pending action — the comprobante ended up authorized and on
@@ -252,68 +250,68 @@ export const notificationToasts = {
       "El comprobante ya estaba autorizado en ARCA. Lo recuperamos y quedó registrado.",
     variant: "success",
   },
-  "resultados-ocultos": {
-    id: notificationToastIds["resultados-ocultos"],
+  "results-hidden": {
+    id: notificationToastIds["results-hidden"],
     message: "Se ocultaron los resultados.",
     variant: "success",
   },
-  "categoria-guardada": {
-    id: notificationToastIds["categoria-guardada"],
+  "category-saved": {
+    id: notificationToastIds["category-saved"],
     message: "Categoría guardada.",
     variant: "success",
   },
-  "categoria-eliminada": {
-    id: notificationToastIds["categoria-eliminada"],
+  "category-deleted": {
+    id: notificationToastIds["category-deleted"],
     message: "Categoría eliminada.",
     variant: "success",
   },
-  "modalidad-guardada": {
-    id: notificationToastIds["modalidad-guardada"],
+  "modality-saved": {
+    id: notificationToastIds["modality-saved"],
     message: "Modalidad guardada.",
     variant: "success",
   },
-  "criterios-guardados": {
-    id: notificationToastIds["criterios-guardados"],
+  "criteria-saved": {
+    id: notificationToastIds["criteria-saved"],
     message: "Criterios guardados.",
     variant: "success",
   },
-  "modalidad-eliminada": {
-    id: notificationToastIds["modalidad-eliminada"],
+  "modality-deleted": {
+    id: notificationToastIds["modality-deleted"],
     message: "Modalidad eliminada.",
     variant: "success",
   },
-  "academia-eliminada": {
-    id: notificationToastIds["academia-eliminada"],
+  "academy-deleted": {
+    id: notificationToastIds["academy-deleted"],
     message: "Academia eliminada.",
     variant: "success",
   },
-  "academias-fusionadas": {
-    id: notificationToastIds["academias-fusionadas"],
+  "academies-merged": {
+    id: notificationToastIds["academies-merged"],
     message: "Academias fusionadas.",
     variant: "success",
   },
-  "usuario-interno-creado": {
-    id: notificationToastIds["usuario-interno-creado"],
+  "internal-user-created": {
+    id: notificationToastIds["internal-user-created"],
     message: "Usuario interno creado.",
     variant: "success",
   },
-  "usuario-interno-actualizado": {
-    id: notificationToastIds["usuario-interno-actualizado"],
+  "internal-user-updated": {
+    id: notificationToastIds["internal-user-updated"],
     message: "Usuario interno actualizado.",
     variant: "success",
   },
-  "usuario-interno-restablecido": {
-    id: notificationToastIds["usuario-interno-restablecido"],
+  "internal-user-reset": {
+    id: notificationToastIds["internal-user-reset"],
     message: "Contraseña restablecida.",
     variant: "success",
   },
-  "usuario-interno-suspendido": {
-    id: notificationToastIds["usuario-interno-suspendido"],
+  "internal-user-suspended": {
+    id: notificationToastIds["internal-user-suspended"],
     message: "Usuario suspendido.",
     variant: "success",
   },
-  "usuario-interno-reactivado": {
-    id: notificationToastIds["usuario-interno-reactivado"],
+  "internal-user-reactivated": {
+    id: notificationToastIds["internal-user-reactivated"],
     message: "Usuario reactivado.",
     variant: "success",
   },
