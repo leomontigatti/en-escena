@@ -53,7 +53,7 @@ export function EmissionDialog({
   const fetcher = useFetcher<ComprobanteEmissionActionData>();
   const isSaving = fetcher.state !== "idle";
   const contingency =
-    fetcher.data?.status === "contingency" ? fetcher.data.contingency : null;
+    fetcher.data?.status === "warning" ? fetcher.data.contingency : null;
 
   // Manual verification is declared by the operator, so it cannot survive a new
   // attempt: every response from the server clears it and the retry goes back to

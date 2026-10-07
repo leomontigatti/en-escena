@@ -14,6 +14,8 @@ import {
   isRouteFormPending,
   useLatestActionData,
 } from "@/lib/shared/forms";
+import { rosterMergeIntents } from "@/lib/roster/roster-merge.shared";
+import { isMergeRefusal } from "@/lib/shared/merge";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
@@ -25,6 +27,7 @@ import {
   getDancerEditValues,
   getInitialDialogIntent,
   getSubmittedDancerUpdateValues,
+  type DancerActionError,
   type DancerDetailActionData,
   type DancerDetailLoaderData,
   type DancerDialogIntent,
@@ -52,12 +55,22 @@ export function DancerDetailRouteView({
   actionData,
   loaderData,
 }: DancerDetailRouteViewProps) {
-  const errorData = actionData?.status === "error" ? actionData : undefined;
+  // A refused merge is an `"error"` too; its intent hands it to the merge
+  // dialog, and the edit form never sees it.
+  const errorData =
+    actionData?.status === "error" &&
+    !isMergeRefusal(actionData, rosterMergeIntents.dancer)
+      ? actionData
+      : undefined;
   // A warning keeps the submitted values in the form and asks the
   // administrator to confirm.
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
-  const mergeDialog = useMergeDialogState(loaderData.dancer.id, actionData);
+  const mergeDialog = useMergeDialogState(
+    loaderData.dancer.id,
+    actionData,
+    rosterMergeIntents.dancer,
+  );
   const latestActionData = useLatestActionData(
     actionData,
     loaderData.dancer.id,
@@ -240,7 +253,7 @@ function useDancerSave({
   nameWarning,
   refused,
 }: {
-  errorData?: Extract<DancerDetailActionData, { status: "error" }>;
+  errorData?: DancerActionError;
   loaderData: DancerDetailLoaderData;
   nameWarning?: Extract<DancerDetailActionData, { status: "warning" }>;
   /** The latest answer, kept so the refused values outlive a search in the
@@ -249,7 +262,11 @@ function useDancerSave({
 }) {
   const dancer = loaderData.dancer;
   const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
-  const refusedError = refused?.status === "error" ? refused : undefined;
+  const refusedError =
+    refused?.status === "error" &&
+    !isMergeRefusal(refused, rosterMergeIntents.dancer)
+      ? refused
+      : undefined;
   const editForm = useDancerEditForm({
     eventStartDate: loaderData.activeEventStartDate,
     savedValues: getDancerEditValues({ actionData: undefined, dancer }),

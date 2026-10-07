@@ -13,7 +13,11 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import { PresentationsListView } from "./view";
-import type { PresentationListItem, PresentationListResult } from "./shared";
+import type {
+  PresentationListActionData,
+  PresentationListItem,
+  PresentationListResult,
+} from "./shared";
 
 const toastError = vi.fn();
 
@@ -29,11 +33,11 @@ vi.mock("sonner", () => ({
 describe("the participation list moved by hand", () => {
   const renderer = createReactDomTestRenderer();
   const submissions: Record<string, string>[] = [];
-  let actionResponse: unknown = { status: "moved" };
+  let actionResponse: PresentationListActionData = { status: "success" };
 
   beforeEach(() => {
     submissions.length = 0;
-    actionResponse = { status: "moved" };
+    actionResponse = { status: "success" };
     toastError.mockClear();
   });
 
@@ -181,6 +185,23 @@ describe("the participation list moved by hand", () => {
         intent: "move-presentation",
       },
     ]);
+  });
+
+  test("says nothing when the move works", async () => {
+    await mount();
+
+    const input = numberInput("Segunda");
+
+    await updateReactDomForm(() => {
+      setInputValue(input, "1");
+    });
+    await pressEnter(input);
+    await updateReactDomForm(async () => {
+      await Promise.resolve();
+    });
+
+    expect(submissions).toHaveLength(1);
+    expect(toastError).not.toHaveBeenCalled();
   });
 
   test("says why a refused move did not happen", async () => {

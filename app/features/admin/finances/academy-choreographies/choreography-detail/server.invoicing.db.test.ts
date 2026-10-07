@@ -568,9 +568,9 @@ describe("financial detail — comprobante emission axis", () => {
         ),
     });
 
-    expect(result).toMatchObject({ status: "contingency" });
+    expect(result).toMatchObject({ status: "warning" });
     if (
-      result.status === "contingency" &&
+      result.status === "warning" &&
       result.contingency.status === "rejected"
     ) {
       expect(result.contingency.resultado).toBe("R");
@@ -676,7 +676,7 @@ describe("financial detail — comprobante emission axis", () => {
     // It does not cross a redirect: it arrives as alert state, distinguishable
     // from recovery during the original submit.
     expect(result).toEqual({
-      status: "contingency",
+      status: "warning",
       contingency: { status: "recovered" },
     });
     expect(billing.createVoucher).not.toHaveBeenCalled();
@@ -723,7 +723,7 @@ describe("financial detail — comprobante emission axis", () => {
     });
 
     expect(result).toMatchObject({
-      status: "contingency",
+      status: "warning",
       contingency: { status: "unverified", cbteNro: 999 },
     });
 

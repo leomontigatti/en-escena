@@ -22,4 +22,4 @@ export const emitComprobanteConfirmValue = "irreversible";
 // union, so the dialog reads one shape whichever page it is mounted on.
 export type ComprobanteEmissionActionData =
   | { status: "error"; message: string }
-  | { status: "contingency"; contingency: ComprobanteContingency };
+  | { status: "warning"; contingency: ComprobanteContingency };

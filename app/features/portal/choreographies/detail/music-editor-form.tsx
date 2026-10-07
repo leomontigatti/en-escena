@@ -308,7 +308,7 @@ function readAnsweredMusicStorageKey(
   storedMusicStorageKey: string,
 ) {
   const answered =
-    actionData?.status === "update-error"
+    actionData?.status === "error"
       ? actionData.selectedMusicStorageKey
       : undefined;
 

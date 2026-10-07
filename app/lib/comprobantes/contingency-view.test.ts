@@ -92,7 +92,7 @@ describe("toContingencyActionData", () => {
         message: "no se emitió",
       }),
     ).toEqual({
-      status: "contingency",
+      status: "warning",
       contingency: { status: "not-emitted", message: "no se emitió" },
     });
   });

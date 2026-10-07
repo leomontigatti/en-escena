@@ -12,6 +12,8 @@ import {
   isRouteFormPending,
   useLatestActionData,
 } from "@/lib/shared/forms";
+import { rosterMergeIntents } from "@/lib/roster/roster-merge.shared";
+import { isMergeRefusal } from "@/lib/shared/merge";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { useProfessorEditForm } from "./form";
@@ -28,6 +30,7 @@ import {
   getProfessorDialogFormId,
   getProfessorEditValues,
   getSubmittedProfessorUpdateValues,
+  type ProfessorActionError,
   type ProfessorDetailActionData,
   type ProfessorDetailLoaderData,
   type ProfessorDialogIntent,
@@ -46,12 +49,22 @@ export function ProfessorDetailRouteView({
   actionData,
   loaderData,
 }: ProfessorDetailRouteViewProps) {
-  const errorData = actionData?.status === "error" ? actionData : undefined;
+  // A refused merge is an `"error"` too; its intent hands it to the merge
+  // dialog, and the edit form never sees it.
+  const errorData =
+    actionData?.status === "error" &&
+    !isMergeRefusal(actionData, rosterMergeIntents.professor)
+      ? actionData
+      : undefined;
   // A warning keeps the submitted values in the form and asks the
   // administrator to confirm.
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
-  const mergeDialog = useMergeDialogState(loaderData.professor.id, actionData);
+  const mergeDialog = useMergeDialogState(
+    loaderData.professor.id,
+    actionData,
+    rosterMergeIntents.professor,
+  );
 
   useRosterRefusalToast({
     conflict: getProfessorDocumentConflict(errorData),
@@ -230,7 +243,7 @@ function useProfessorSave({
   professor,
   refused,
 }: {
-  errorData?: Extract<ProfessorDetailActionData, { status: "error" }>;
+  errorData?: ProfessorActionError;
   professor: ProfessorDetailLoaderData["professor"];
   /** The latest answer, kept so the refused values outlive a search in the
    * other tabs' lists. */
@@ -238,7 +251,11 @@ function useProfessorSave({
 }) {
   const isConsequential = professor.editConsequence !== null;
   const submittedUpdateValues = getSubmittedProfessorUpdateValues(errorData);
-  const refusedError = refused?.status === "error" ? refused : undefined;
+  const refusedError =
+    refused?.status === "error" &&
+    !isMergeRefusal(refused, rosterMergeIntents.professor)
+      ? refused
+      : undefined;
   const savedValues = getProfessorEditValues({
     actionData: undefined,
     professor,

@@ -4,6 +4,7 @@ import type { RosterNameWarningActionData } from "@/lib/roster/roster-name-dupli
 import type {
   RosterMergeCandidate,
   RosterMergeEventInscriptions,
+  rosterMergeIntents,
 } from "@/lib/roster/roster-merge.shared";
 import type { MergeRefusedActionData } from "@/lib/shared/merge";
 import {
@@ -99,7 +100,7 @@ export type DancerActionSuccess = {
 export type DancerDetailActionData =
   | DancerActionError
   | DancerActionSuccess
-  | MergeRefusedActionData
+  | MergeRefusedActionData<typeof rosterMergeIntents.dancer>
   | RosterNameWarningActionData<DancerEditFormValues>;
 
 export type DancerRouteNotification = Extract<

@@ -676,7 +676,7 @@ describe("`/administracion/academias` detail", () => {
     await expect(
       detailAction(routeArgs(request, academy.academy.id)),
     ).resolves.toEqual({
-      status: "merge-refused",
+      status: "error",
       intent: "merge-academy",
       message: "Elegí otra academia para fusionar.",
     });

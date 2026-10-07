@@ -389,7 +389,7 @@ describe("handleComprobanteDetailAction — anular", () => {
     });
 
     expect(result).toMatchObject({
-      status: "contingency",
+      status: "warning",
       contingency: { status: "rejected", resultado: "R" },
     });
 
@@ -448,7 +448,7 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
     expect(billing.createVoucher).not.toHaveBeenCalled();
     // It stays in the dialog: it does not cross a redirect.
     expect(result).toEqual({
-      status: "contingency",
+      status: "warning",
       contingency: { status: "recovered" },
     });
 
@@ -480,7 +480,7 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
     );
 
     expect(result).toMatchObject({
-      status: "contingency",
+      status: "warning",
       contingency: { status: "unverified", cbteTipo: 13, cbteNro: 8 },
     });
 
@@ -506,7 +506,7 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
     );
 
     expect(result).toMatchObject({
-      status: "contingency",
+      status: "warning",
       contingency: { status: "unverified" },
     });
   });

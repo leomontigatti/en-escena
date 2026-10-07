@@ -136,11 +136,11 @@ async function executeMusicUpdateAction(
   action: ParsedMusicUpdateAction,
 ): Promise<PortalChoreographyMusicActionData> {
   if (action.musicValidationError) {
-    return buildUpdateError(action, action.musicValidationError);
+    return buildRefusedSave(action, action.musicValidationError);
   }
 
   if (!action.musicWasSubmitted && !action.musicFile) {
-    return buildUpdateError(action, choreographyMusicUploadErrorMessage);
+    return buildRefusedSave(action, choreographyMusicUploadErrorMessage);
   }
 
   // The switch first: it has no side effect to undo, while a music upload that
@@ -154,7 +154,7 @@ async function executeMusicUpdateAction(
     });
 
     if (!evaluationResult.ok) {
-      return buildUpdateError(action, evaluationResult.message);
+      return buildRefusedSave(action, evaluationResult.message);
     }
   }
 
@@ -169,13 +169,13 @@ async function executeMusicUpdateAction(
     });
 
     if (!musicResult.ok) {
-      return buildUpdateError(action, musicResult.message);
+      return buildRefusedSave(action, musicResult.message);
     }
   } catch {
     // Everything the academy can act on now arrives as `ok: false` with its own
     // Spanish copy. What is left here is infrastructure failing, which no
     // rewording of theirs can fix.
-    return buildUpdateError(action, choreographyMusicUploadErrorMessage);
+    return buildRefusedSave(action, choreographyMusicUploadErrorMessage);
   }
 
   return {
@@ -184,12 +184,12 @@ async function executeMusicUpdateAction(
   };
 }
 
-function buildUpdateError(
+function buildRefusedSave(
   action: ParsedMusicUpdateAction,
   message: string,
 ): PortalChoreographyMusicActionData {
   return {
-    status: "update-error",
+    status: "error",
     message,
     selectedMusicStorageKey: action.musicStorageKey,
   };

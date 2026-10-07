@@ -96,14 +96,12 @@ music editor keeps), or as the `intent` the request carried when the question is
 which form the answer belongs to (how the payment delete dialog keys its
 re-open); the reader narrows on that field, never on a status of its own. A
 status no reader knows about is silently dropped, which is how the choreography
-detail's `"roster-error"` answers were lost (#661). Four statuses predate this
-rule, and each has a place in it: `"moved"` becomes `status: "success"` with no
-message (its reader already keys on `message`, so nothing changes);
-`"update-error"` becomes `status: "error"` with the `selectedMusicStorageKey`
-payload; `"contingency"` becomes `status: "warning"` with the `contingency`
-payload, the shape the duplicate warning uses; and `"merge-refused"` becomes
-`status: "error"` with `intent`, which is what the merge dialog's re-open really
-keys on.
+detail's `"roster-error"` answers were lost (#661). The payload cases are the
+comprobante dialogs' `contingency` on a `"warning"`, the music editor's
+`selectedMusicStorageKey` on an `"error"`, and the moved presentation's
+`"success"` with no message at all; the intent case is the merge refusal, an
+`"error"` the merge dialog claims by its `intent` (`isMergeRefusal`) so the edit
+form beside it never reads it as a rejected edit.
 
 ### Testing and scope
 
@@ -272,9 +270,9 @@ Two consequences for a view:
   fetcher went idle without its own error shape" now closes over an unexpected
   failure too. Key the close on `status === "success"`.
 - **Read the generic shape.** A view whose result type is narrower than
-  `{ status: "error", message }` — an intent-tagged result, a `status:
-"update-error"` variant — has to accept the generic error as well, or the
-  failure is silent. `isUnexpectedActionError` is the predicate for that test;
+  `{ status: "error", message }` — an intent-tagged result, say — has to
+  accept the generic error as well, or the failure is silent.
+  `isUnexpectedActionError` is the predicate for that test;
   plain `status === "error"` narrowing is enough only where the result is a
   closed union that already carries a `status`.
 - **Mind the fetchers with no toast.** A `useFetcher` that drops anything not
