@@ -31,7 +31,7 @@ describe("flash notification helper", () => {
   test("attaches a flash message to a redirect that transports it", async () => {
     const response = await redirectWithFlashNotification(
       "/eventos",
-      "evento-eliminado",
+      "event-deleted",
     );
 
     expect(response.status).toBe(302);
@@ -44,7 +44,7 @@ describe("flash notification helper", () => {
     const flash = await readFlashNotification(request);
 
     expect(flash?.toast).toEqual({
-      id: "route-notification:evento-eliminado",
+      id: "route-notification:event-deleted",
       message: "Evento eliminado.",
       variant: "success",
     });
@@ -53,7 +53,7 @@ describe("flash notification helper", () => {
   test("honours a custom redirect status", async () => {
     const response = await redirectWithFlashNotification(
       "/eventos",
-      "evento-eliminado",
+      "event-deleted",
       303,
     );
 
@@ -63,7 +63,7 @@ describe("flash notification helper", () => {
   test("consumes the flash message exactly once", async () => {
     const redirectResponse = await redirectWithFlashNotification(
       "/eventos",
-      "evento-eliminado",
+      "event-deleted",
     );
 
     const firstRequest = requestWithCookie(

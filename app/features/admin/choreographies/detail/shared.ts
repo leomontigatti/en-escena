@@ -61,7 +61,7 @@ export type ChoreographySuccessData = {
 // docs/agents/form-feedback.md.
 export function choreographySavedSuccess(): ChoreographySuccessData {
   return {
-    message: notificationToasts["coreografia-guardada"].message,
+    message: notificationToasts["choreography-saved"].message,
     status: "success",
   };
 }
@@ -85,7 +85,7 @@ export function canRestoreChoreography(input: {
 // the choreography is still the page the admin is on, only no longer withdrawn.
 export function choreographyRestoredSuccess(): ChoreographySuccessData {
   return {
-    message: notificationToasts["coreografia-restaurada"].message,
+    message: notificationToasts["choreography-restored"].message,
     status: "success",
   };
 }

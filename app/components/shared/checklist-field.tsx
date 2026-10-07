@@ -33,7 +33,7 @@ type ChecklistFieldProps<
   searchLabel: string;
 };
 
-type ChecklistTab = "todos" | "seleccionados";
+type ChecklistTab = "all" | "selected";
 
 /**
  * Picks options from a list shown in place, not in a popover: a long list —
@@ -56,7 +56,7 @@ function ChecklistField<
   searchLabel,
 }: ChecklistFieldProps<TFieldValues, TName>) {
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<ChecklistTab>("todos");
+  const [tab, setTab] = useState<ChecklistTab>("all");
 
   return (
     <Controller
@@ -68,7 +68,7 @@ function ChecklistField<
           : [];
         const rows = options.filter(
           (option) =>
-            (tab === "todos" || selected.includes(option.value)) &&
+            (tab === "all" || selected.includes(option.value)) &&
             matchesListSearch(query, [option.label]),
         );
 
@@ -100,8 +100,8 @@ function ChecklistField<
                 onValueChange={(value) => setTab(value as ChecklistTab)}
               >
                 <TabsList variant="line">
-                  <TabsTrigger value="todos">Todos</TabsTrigger>
-                  <TabsTrigger value="seleccionados">
+                  <TabsTrigger value="all">Todos</TabsTrigger>
+                  <TabsTrigger value="selected">
                     Seleccionados
                     <span className="sr-only">, </span>
                     <Badge variant="secondary">{selected.length}</Badge>
@@ -116,7 +116,7 @@ function ChecklistField<
             >
               {rows.length === 0 ? (
                 <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  {tab === "seleccionados" && query.length === 0
+                  {tab === "selected" && query.length === 0
                     ? emptySelectionMessage
                     : "Sin resultados."}
                 </p>

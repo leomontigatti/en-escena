@@ -399,7 +399,7 @@ function buildJudgePresentationColumns(
 ): DataTableColumn<JudgePresentationRow>[] {
   return [
     {
-      id: "orden",
+      id: "order",
       header: "N.º",
       cell: (row) => row.orderNumber,
       leading: true,
@@ -407,7 +407,7 @@ function buildJudgePresentationColumns(
       width: 6,
     },
     {
-      id: "nombre",
+      id: "name",
       header: "Nombre",
       className: "font-medium",
       cell: (row) =>
@@ -426,14 +426,14 @@ function buildJudgePresentationColumns(
       width: 14,
     },
     {
-      id: "academia",
+      id: "academy",
       header: "Academia",
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
       width: 13,
     },
     {
-      id: "modalidadSubmodalidad",
+      id: "modality",
       header: "Modalidad / Submodalidad",
       className: "text-muted-foreground",
       cell: (row) => (
@@ -447,7 +447,7 @@ function buildJudgePresentationColumns(
       width: 21,
     },
     {
-      id: "categoriaTipoGrupo",
+      id: "categoryGroup",
       header: "Categoría / Tipo de grupo",
       className: "text-muted-foreground",
       cell: (row) => (
@@ -461,7 +461,7 @@ function buildJudgePresentationColumns(
       width: 20,
     },
     {
-      id: "nivel",
+      id: "experienceLevel",
       header: "Nivel",
       className: "text-muted-foreground",
       cell: (row) => (
@@ -470,7 +470,7 @@ function buildJudgePresentationColumns(
       width: 10,
     },
     {
-      id: "estado",
+      id: "status",
       header: "Estado",
       cell: (row) => {
         const badge = judgeScoreStatusBadge({ ...row, isOpen });

@@ -27,7 +27,7 @@ export function PortalSeminarsListRouteView({
 }) {
   return (
     <PortalListPage
-      titleId="seminarios-title"
+      titleId="seminars-title"
       title="Seminarios"
       description="Inscribí a los bailarines y profesores de tu academia en los seminarios del evento activo. Cada inscripción toma su lugar cuando administración registra su seña."
     >

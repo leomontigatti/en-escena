@@ -127,7 +127,7 @@ function buildProgramColumns({
       sortValue: (row) => row.orderNumber,
     },
     {
-      id: "nombre",
+      id: "name",
       header: "Nombre",
       width: selectNameWidth({ showAcademy, showLevel }),
       className: "font-medium",
@@ -146,7 +146,7 @@ function buildProgramColumns({
     },
     showAcademy
       ? {
-          id: "academia",
+          id: "academy",
           header: "Academia",
           width: 19,
           className: "text-muted-foreground",
@@ -154,7 +154,7 @@ function buildProgramColumns({
         }
       : null,
     {
-      id: "modalidadSubmodalidad",
+      id: "modality",
       header: "Modalidad / Submodalidad",
       width: 21,
       className: "text-muted-foreground",
@@ -168,7 +168,7 @@ function buildProgramColumns({
       ),
     },
     {
-      id: "categoriaTipoGrupo",
+      id: "categoryGroup",
       header: "Categoría / Tipo de grupo",
       width: 20,
       className: "text-muted-foreground",
@@ -182,7 +182,7 @@ function buildProgramColumns({
       ),
     },
     {
-      id: "bailarines",
+      id: "dancers",
       header: "Bailarines",
       width: showLevel ? 14 : 17,
       className: "text-muted-foreground",
@@ -192,7 +192,7 @@ function buildProgramColumns({
     },
     showLevel
       ? {
-          id: "nivel",
+          id: "experienceLevel",
           header: "Nivel",
           width: 11,
           className: "text-muted-foreground",

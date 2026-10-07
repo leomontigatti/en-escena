@@ -30,8 +30,8 @@ import {
 } from "@/lib/shared/navigation";
 
 const priceBasePath = "/administracion/precios";
-const priceSavedNotification = "precio-guardado";
-const priceDeletedNotification = "precio-eliminado";
+const priceSavedNotification = "price-saved";
+const priceDeletedNotification = "price-deleted";
 
 export const priceActionHandler: EventBasesActionHandler<PriceActionInput> = {
   readInput: readPriceActionInput,

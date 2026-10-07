@@ -88,7 +88,7 @@ export async function handlePortalProfileAction(request: Request) {
 
   return {
     status: "success" as const,
-    message: notificationToasts["perfil-guardado"].message,
+    message: notificationToasts["profile-saved"].message,
   };
 }
 
