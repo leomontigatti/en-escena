@@ -68,7 +68,7 @@ What it holds, against production:
    staging held is gone.
 
 3. Sign in with the same email and password as in production: the accounts
-   come with the copy. A recovery or invitation link is in the app's log in
+   come with the copy. A recovery link is in the app's log in
    Coolify, under `[email:staging]`.
 4. Stop both resources when done. They hold a full copy of production's
    personal data, so do not leave them up between tests.

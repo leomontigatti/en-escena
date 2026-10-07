@@ -83,9 +83,6 @@ export type AccessAuthProvider = {
     input: CredentialUserInput,
   ): Promise<AccessCredentialUser>;
   signOutCurrentSession(request: Request): Promise<{ headers: Headers }>;
-  signUpCredentialUser(
-    input: CredentialUserInput,
-  ): Promise<AccessCredentialUser>;
   startEmailSignUp(input: EmailSignUpInput): Promise<EmailSignUpResult>;
   deleteAccessUser(userId: string): Promise<void>;
   requestPasswordReset(

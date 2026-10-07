@@ -1,6 +1,6 @@
 # Access
 
-Rules for public academy registration, users, sessions and internal invitations.
+Rules for public academy registration, users and sessions.
 
 - Public academy registration starts with email plus password and asks the access auth provider (Better Auth, ADR-0013) to send the confirmation link.
 - The access auth provider owns public registration email confirmation and the confirmed academy identity session created from that email link. The confirmation URL keeps the legacy `token_hash` plus `type=signup` shape so links already emailed keep working; the current provider accepts it and it must not be "corrected".
@@ -26,7 +26,7 @@ Rules for public academy registration, users, sessions and internal invitations.
 - An administrator's main permission cannot be changed from the application: the edit form locks it and the server refuses any change away from `admin` on an account that already holds it. Promoting another internal user to `admin` is allowed; demoting one is a database-only operation.
 - Creating internal users, changing permissions, suspending or reactivating users and administrative password resets leave no administrative audit trail: there is no record of who changed what. Raw passwords and password hashes are never persisted outside the credential store.
 - Internal users use the app-owned credential store and the same 8-hour session policy as academy users.
-- Better Auth owns production academy credentials, public registration email confirmation, academy password recovery and academy sessions; app code owns academy onboarding, invitations and the local test harness. Pre-cutover `sb-*` cookies are only expired by a migration shim (`app/lib/auth/legacy-session-cookies.server.ts`), not read by any provider.
+- Better Auth owns production academy credentials, public registration email confirmation, academy password recovery and academy sessions; app code owns academy onboarding, direct internal-user creation (ADR-0003) and the local test harness. Pre-cutover `sb-*` cookies are only expired by a migration shim (`app/lib/auth/legacy-session-cookies.server.ts`), not read by any provider.
 
 ## Permission Matrix
 

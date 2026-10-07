@@ -83,7 +83,7 @@ describe("route clientAction guardrail", () => {
     // The re-export shape the #989 sweep originally missed, on one line and
     // wrapped over several, which is how Prettier breaks a long list.
     "export { action, loader, InternalUserDetailRouteView };",
-    "export {\n  action,\n  loader,\n  internalInvitationRedirectPath,\n};",
+    "export {\n  action,\n  loader,\n  InternalUserCreateRouteView,\n};",
     "export { loader, action };",
   ])("reads %s as an action export", (source) => {
     expect(exportsAction(source)).toBe(true);
