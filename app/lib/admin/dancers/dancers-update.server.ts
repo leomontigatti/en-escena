@@ -57,7 +57,7 @@ export async function updateAdministrativeDancer(input: {
   if (!normalizedDocument.ok || Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors,
       values,
     };
@@ -76,7 +76,7 @@ export async function updateAdministrativeDancer(input: {
   if (documentConflict) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: { documentNumber: documentConflict.message },
       values,
       duplicateDocumentDancerId: documentConflict.dancerId,
@@ -154,7 +154,7 @@ export async function updateAdministrativeDancer(input: {
   if (!guarded.ok) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: { documentNumber: guarded.conflict.message },
       values,
       duplicateDocumentDancerId: guarded.conflict.dancerId,
@@ -166,7 +166,7 @@ export async function updateAdministrativeDancer(input: {
   if (!write.ok) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: { birthDate: write.birthDateMessage },
       values,
     };

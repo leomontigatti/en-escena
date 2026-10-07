@@ -98,7 +98,7 @@ describe("handleCreateProfessorAction", () => {
 
     expect(result).toMatchObject({
       status: "error",
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: { documentType: "Seleccioná el tipo de documento." },
       values: {
         firstName: "Ana",

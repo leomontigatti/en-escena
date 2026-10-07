@@ -46,7 +46,7 @@ describe("access UI validation", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: {
         identifier: requiredFieldMessage,
         password: requiredFieldMessage,

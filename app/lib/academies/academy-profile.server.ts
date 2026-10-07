@@ -28,7 +28,7 @@ export type UpdateAcademyProfileResult =
       values: AcademyProfileInput;
     };
 
-const reviewAcademyProfileFieldsMessage = "Revisá los campos marcados.";
+const reviewAcademyProfileFieldsMessage = "Revisá los datos del formulario.";
 const requiredFieldMessage = "Este campo es obligatorio.";
 
 export async function updateAcademyProfile(

@@ -566,7 +566,7 @@ describe("`/administracion/profesores` route", () => {
       professorId: professor.id,
       actionData: {
         status: "error",
-        message: "Revisá los campos marcados.",
+        message: "Revisá los datos del formulario.",
         fieldErrors: {
           documentNumber: "Ingresá el número de documento.",
         },

@@ -42,7 +42,7 @@ describe("getInitialDialogIntent", () => {
       getInitialDialogIntent({
         actionData: {
           status: "error",
-          message: "Revisá los campos marcados.",
+          message: "Revisá los datos del formulario.",
           fieldErrors: {},
           values: updateValues,
         },
@@ -59,7 +59,7 @@ describe("getInitialDialogIntent", () => {
       getInitialDialogIntent({
         actionData: {
           status: "error",
-          message: "Revisá los campos marcados.",
+          message: "Revisá los datos del formulario.",
           fieldErrors: {},
           values: updateValues,
         },

@@ -60,7 +60,7 @@ export async function handlePortalProfileAction(request: Request) {
 
     return {
       status: "error" as const,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: {
         name: flattened.name?.[0],
         contactName: flattened.contactName?.[0],
