@@ -278,8 +278,8 @@ Two consequences for a view:
   plain `status === "error"` narrowing is enough only where the result is a
   closed union that already carries a `status`.
 - **Mind the fetchers with no toast.** A `useFetcher` that drops anything not
-  tagged with its own intent — the roster and modality resolutions of the
-  choreography detail — drops the generic error too, and there the user sees
+  tagged with its own intent — the draft resolution of the choreography
+  detail — drops the generic error too, and there the user sees
   nothing at all. Handle it before the intent guard, show it as a toast, and
   mark the submission as answered so the effect does not resubmit in
   a loop.
