@@ -225,7 +225,7 @@ export function PortalAcademyFinancesRouteView({
   if (!loaderData.activeEvent) {
     return (
       <PortalListPage
-        titleId="finanzas-title"
+        titleId="finances-title"
         title="Resumen financiero"
         description={portalFinancesDescription}
       >
@@ -240,7 +240,7 @@ export function PortalAcademyFinancesRouteView({
 
   return (
     <PortalListPage
-      titleId="finanzas-title"
+      titleId="finances-title"
       title="Resumen financiero"
       description={portalFinancesDescription}
     >

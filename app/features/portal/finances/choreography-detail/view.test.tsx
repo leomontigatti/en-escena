@@ -17,7 +17,7 @@ describe("PortalChoreographyFinanceDetailRouteView", () => {
   // same way the administrator's finance detail titles it.
   test("titles the detail with the choreography name and number", () => {
     const title = renderDetail().match(
-      /id="finanzas-coreografia-title"[^>]*>([^<]*)</,
+      /id="finances-choreography-title"[^>]*>([^<]*)</,
     );
 
     expect(title?.[1]).toBe("Aire # 00001");

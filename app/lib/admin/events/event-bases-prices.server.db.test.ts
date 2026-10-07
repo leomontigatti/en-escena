@@ -464,7 +464,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       302,
     );
     await expectFlashRedirect(updatePriceResponse, "/administracion/precios", {
-      id: "route-notification:precio-guardado",
+      id: "route-notification:price-saved",
       message: "Precio guardado.",
       variant: "success",
     });

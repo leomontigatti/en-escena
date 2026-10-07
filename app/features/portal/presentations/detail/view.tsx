@@ -48,7 +48,7 @@ export function PortalPresentationEvaluationView({
 }) {
   return (
     <PortalListPage
-      titleId="evaluacion-title"
+      titleId="evaluation-title"
       title={
         <span className="flex flex-wrap items-center gap-2">
           {loaderData.title}

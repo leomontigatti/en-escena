@@ -109,7 +109,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     sortValue: (choreography) => choreography.academyName,
   },
   {
-    id: "modalidadSubmodalidad",
+    id: "modality",
     header: "Modalidad / Submodalidad",
     width: 21,
     className: "text-muted-foreground",
@@ -123,7 +123,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     ),
   },
   {
-    id: "categoriaTipoGrupo",
+    id: "categoryGroup",
     header: "Categoría / Tipo de grupo",
     width: 20,
     className: "text-muted-foreground",
@@ -137,7 +137,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     ),
   },
   {
-    id: "estado",
+    id: "status",
     header: "Estado",
     width: 10,
     cell: (choreography) => (

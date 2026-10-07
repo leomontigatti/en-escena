@@ -35,6 +35,10 @@ export type DataTableSortValue =
 export type DataTableLayout = "auto" | "fit";
 
 export type DataTableColumn<TData> = {
+  /**
+   * Internal, so English, unless the column sorts: a sortable column's id is the
+   * order the list writes in the URL (`nombre:desc`), and URLs are Spanish.
+   */
   id: string;
   header: string;
   cell: (row: TData) => ReactNode;

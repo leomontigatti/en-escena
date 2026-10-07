@@ -41,9 +41,9 @@ import {
 } from "@/lib/shared/navigation";
 
 const modalityBasePath = "/administracion/modalidades";
-const modalitySavedNotification = "modalidad-guardada";
-const modalityDeletedNotification = "modalidad-eliminada";
-const criteriaSavedNotification = "criterios-guardados";
+const modalitySavedNotification = "modality-saved";
+const modalityDeletedNotification = "modality-deleted";
+const criteriaSavedNotification = "criteria-saved";
 const submodalityFieldNames = ["id", "name"] as const;
 const criterionFieldNames = ["kind", "maximum", "name"] as const;
 

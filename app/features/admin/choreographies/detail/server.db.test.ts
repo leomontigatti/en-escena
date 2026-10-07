@@ -277,7 +277,7 @@ describe("administrative choreography detail server", () => {
     }
     expect(response.status).toBe(302);
     await expectFlashRedirect(response, "/administracion/coreografias", {
-      id: "route-notification:coreografia-eliminada",
+      id: "route-notification:choreography-deleted",
       message: "Coreografía eliminada.",
       variant: "success",
     });
@@ -414,7 +414,7 @@ describe("administrative choreography detail server", () => {
       throw new Error("Expected redirect response.");
     }
     await expectFlashRedirect(response, "/administracion/coreografias", {
-      id: "route-notification:coreografia-retirada",
+      id: "route-notification:choreography-withdrawn",
       message: "Coreografía retirada. Su dinero sigue asignado.",
       variant: "success",
     });

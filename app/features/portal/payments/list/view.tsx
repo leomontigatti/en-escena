@@ -98,7 +98,7 @@ export function PortalAcademyPaymentsRouteView({
   if (!loaderData.activeEvent) {
     return (
       <PortalListPage
-        titleId="pagos-title"
+        titleId="payments-title"
         title="Pagos"
         description="Consultá los pagos que administración registró para tu academia."
       >
@@ -123,7 +123,7 @@ export function PortalAcademyPaymentsRouteView({
   if (loaderData.payments.length === 0) {
     return (
       <PortalListPage
-        titleId="pagos-title"
+        titleId="payments-title"
         title="Pagos"
         description="Consultá los pagos que administración registró para tu academia."
       >
@@ -139,7 +139,7 @@ export function PortalAcademyPaymentsRouteView({
 
   return (
     <PortalListPage
-      titleId="pagos-title"
+      titleId="payments-title"
       title="Pagos"
       description="Consultá los pagos que administración registró para tu academia."
     >

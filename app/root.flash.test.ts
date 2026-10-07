@@ -24,7 +24,7 @@ describe("root flash toast loader", () => {
   test("surfaces the flash toast and consumes the cookie", async () => {
     const redirectResponse = await redirectWithFlashNotification(
       "/administracion/eventos/abc",
-      "evento-guardado",
+      "event-saved",
     );
     const setCookie = redirectResponse.headers.get("set-cookie");
 
@@ -35,7 +35,7 @@ describe("root flash toast loader", () => {
     const result = await loader(loaderArgs(requestFromSetCookie(setCookie)));
 
     expect(result.data.flashToast).toEqual({
-      id: "route-notification:evento-guardado",
+      id: "route-notification:event-saved",
       message: "Evento guardado.",
       variant: "success",
     });

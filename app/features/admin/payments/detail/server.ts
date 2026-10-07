@@ -210,7 +210,7 @@ async function updatePayment(input: {
   return {
     status: "success",
     intent: updatePaymentIntent,
-    message: notificationToasts["pago-guardado"].message,
+    message: notificationToasts["payment-saved"].message,
   };
 }
 

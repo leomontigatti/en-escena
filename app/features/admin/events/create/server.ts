@@ -43,6 +43,6 @@ export async function createAdministrativeEvent(request: Request) {
 
   throw await redirectWithFlashNotification(
     `/administracion/eventos/${result.event.id}`,
-    "evento-guardado",
+    "event-saved",
   );
 }

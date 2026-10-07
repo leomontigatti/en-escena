@@ -49,11 +49,11 @@ export function CreateProfessorPage({
 
   return (
     <section
-      aria-labelledby="nuevo-profesor-title"
+      aria-labelledby="new-professor-title"
       className="flex flex-1 flex-col gap-6"
     >
       <PortalPageHeader
-        titleId="nuevo-profesor-title"
+        titleId="new-professor-title"
         title="Nuevo profesor"
         description="Cargá sus datos; el documento podés completarlo más adelante."
       />

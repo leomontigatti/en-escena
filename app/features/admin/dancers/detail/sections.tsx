@@ -189,17 +189,17 @@ export function DancerDetailForm({
   const resetListQuery = useResetListQuery();
 
   return (
-    <Tabs defaultValue="identificacion" onValueChange={resetListQuery}>
+    <Tabs defaultValue="identification" onValueChange={resetListQuery}>
       <TabsList variant="line">
-        <TabsTrigger value="identificacion">Identificación</TabsTrigger>
-        <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
-        <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
+        <TabsTrigger value="identification">Identificación</TabsTrigger>
+        <TabsTrigger value="inscriptions">Inscripciones</TabsTrigger>
+        <TabsTrigger value="seminars">Seminarios</TabsTrigger>
       </TabsList>
       {/* Kept mounted behind the other tab, so the leave guard in `Guardar`'s
           footer still covers the draft from there. */}
       <TabsContent
         forceMount
-        value="identificacion"
+        value="identification"
         className="pt-2 data-[state=inactive]:hidden"
       >
         <form
@@ -238,13 +238,13 @@ export function DancerDetailForm({
           ) : null}
         </form>
       </TabsContent>
-      <TabsContent value="inscripciones" className="pt-2">
+      <TabsContent value="inscriptions" className="pt-2">
         <InscriptionsSection
           inscriptions={dancer.inscriptions}
           selectedEventId={selectedEventId}
         />
       </TabsContent>
-      <TabsContent value="seminarios" className="pt-2">
+      <TabsContent value="seminars" className="pt-2">
         <SeminarInscriptionsSection
           // The seminar detail is not reviewed for the auditor and refuses them.
           canOpenSeminar={canEdit}

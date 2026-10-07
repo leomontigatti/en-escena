@@ -110,7 +110,7 @@ export function PortalDancersListRouteView({
 }) {
   return (
     <PortalListPage
-      titleId="bailarines-title"
+      titleId="dancers-title"
       title="Bailarines"
       description="Gestioná los bailarines de tu academia y priorizá los registros que todavía necesitan documento o imágenes."
       action={

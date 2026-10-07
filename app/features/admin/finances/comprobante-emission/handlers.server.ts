@@ -61,7 +61,7 @@ export async function handleEmitComprobante(
     // on its own" from "I recovered it myself".
     throw await redirectToDetail(
       input.detailUrl,
-      outcome.recovered ? "comprobante-recuperado" : undefined,
+      outcome.recovered ? "comprobante-recovered" : undefined,
     );
   }
 

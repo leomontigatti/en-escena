@@ -109,7 +109,7 @@ export async function handlePortalDancerDetailAction(input: {
         status: 404,
       });
     }
-    return buildPortalDancerActionSuccess("bailarin-archivado", []);
+    return buildPortalDancerActionSuccess("dancer-archived", []);
   }
 
   if (intent === "reactivate-dancer") {
@@ -126,7 +126,7 @@ export async function handlePortalDancerDetailAction(input: {
         status: 404,
       });
     }
-    return buildPortalDancerActionSuccess("bailarin-reactivado", []);
+    return buildPortalDancerActionSuccess("dancer-reactivated", []);
   }
 
   if (intent !== "" && intent !== "update-dancer") {
@@ -240,7 +240,7 @@ async function savePortalDancer({
   });
 
   return buildPortalDancerActionSuccess(
-    "bailarin-guardado",
+    "dancer-saved",
     result.recategorisedChoreographies,
     result.scheduleMoves,
   );

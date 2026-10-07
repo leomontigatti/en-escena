@@ -94,7 +94,7 @@ export async function handlePortalProfessorDetailAction({
     }
     return {
       status: "success" as const,
-      message: notificationToasts["profesor-archivado"].message,
+      message: notificationToasts["professor-archived"].message,
     };
   }
 
@@ -114,7 +114,7 @@ export async function handlePortalProfessorDetailAction({
     }
     return {
       status: "success" as const,
-      message: notificationToasts["profesor-reactivado"].message,
+      message: notificationToasts["professor-reactivated"].message,
     };
   }
 
@@ -152,7 +152,7 @@ export async function handlePortalProfessorDetailAction({
 
   return {
     status: "success" as const,
-    message: notificationToasts["profesor-guardado"].message,
+    message: notificationToasts["professor-saved"].message,
   };
 }
 

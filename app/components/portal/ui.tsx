@@ -502,11 +502,11 @@ export function PortalCoreographiesSection({
     creationAvailabilityPresentationByTone[creationAvailability.tone];
 
   return (
-    <section className="mt-8" aria-labelledby="coreografias-title">
+    <section className="mt-8" aria-labelledby="choreographies-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p
-            id="coreografias-title"
+            id="choreographies-title"
             className="text-sm font-semibold text-foreground"
           >
             Coreografías

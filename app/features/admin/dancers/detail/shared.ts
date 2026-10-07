@@ -104,11 +104,11 @@ export type DancerDetailActionData =
 
 export type DancerRouteNotification = Extract<
   NotificationKey,
-  | "bailarin-archivado"
-  | "bailarin-guardado"
-  | "bailarin-guardado-requiere-verificacion"
-  | "bailarin-reactivado"
-  | "bailarin-verificado"
+  | "dancer-archived"
+  | "dancer-saved"
+  | "dancer-saved-needs-verification"
+  | "dancer-reactivated"
+  | "dancer-verified"
 >;
 
 export type DancerStatusAction = {
