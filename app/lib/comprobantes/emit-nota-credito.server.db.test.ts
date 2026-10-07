@@ -610,7 +610,7 @@ describe("annulComprobante", () => {
 describe("annulComprobante (ARCA does not respond)", () => {
   // A choreography with a comprobante of 4000 in force, ready to annul. The
   // credit note to attempt is number 8 (`ultimoNotaCreditoAutorizado` = 7).
-  async function seedFacturaVigente(prefix: string) {
+  async function seedValidInvoice(prefix: string) {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `${prefix}.${crypto.randomUUID()}@example.com`,
@@ -647,7 +647,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   }
 
   test("with the sequence lookup cut off, nothing was annulled and ARCA is not queried", async () => {
-    const { choreography, factura } = await seedFacturaVigente("lookup");
+    const { choreography, factura } = await seedValidInvoice("lookup");
     const billing = fakeBilling({ getLastVoucher: vi.fn(connectionLost) });
 
     const outcome = await annulComprobante(
@@ -666,7 +666,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   });
 
   test("with authorization cut off, it queries the exact type 13 credit note and persists it with the returned CAE", async () => {
-    const { choreography, factura } = await seedFacturaVigente("recuperada");
+    const { choreography, factura } = await seedValidInvoice("recuperada");
     const billing = fakeBilling({
       createVoucher: vi.fn(connectionLost),
       getVoucherInfo: vi.fn(async () => consultada()),
@@ -696,7 +696,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   });
 
   test("an authorization timeout also triggers recovery", async () => {
-    const { factura } = await seedFacturaVigente("auth-timeout");
+    const { factura } = await seedValidInvoice("auth-timeout");
     const billing = fakeBilling({
       createVoucher: vi.fn(neverAnswers),
       getVoucherInfo: vi.fn(async () => consultada()),
@@ -712,7 +712,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   });
 
   test("if ARCA does not have that credit note, nothing was annulled and retrying is safe", async () => {
-    const { choreography, factura } = await seedFacturaVigente("sin-nota");
+    const { choreography, factura } = await seedValidInvoice("sin-nota");
 
     const outcome = await annulComprobante(
       { comprobanteId: factura.id },
@@ -733,7 +733,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   });
 
   test("if the lookup fails too, the result is unverified and carries the credit note it could not resolve", async () => {
-    const { choreography, factura } = await seedFacturaVigente("no-verificada");
+    const { choreography, factura } = await seedValidInvoice("no-verificada");
 
     const outcome = await annulComprobante(
       { comprobanteId: factura.id },
@@ -758,7 +758,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   });
 
   test("a queried credit note with a different amount is not ours: it is not persisted", async () => {
-    const { choreography, factura } = await seedFacturaVigente("otro-importe");
+    const { choreography, factura } = await seedValidInvoice("otro-importe");
 
     const outcome = await annulComprobante(
       { comprobanteId: factura.id },
@@ -777,7 +777,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   });
 
   test("a queried credit note with a different date is not ours either", async () => {
-    const { choreography, factura } = await seedFacturaVigente("otra-fecha");
+    const { choreography, factura } = await seedValidInvoice("otra-fecha");
 
     const outcome = await annulComprobante(
       { comprobanteId: factura.id },

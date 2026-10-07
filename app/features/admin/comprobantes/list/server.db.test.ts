@@ -210,14 +210,14 @@ describe("loadComprobantesList", () => {
       name: "Coreografía Alfa",
     });
 
-    const anulada = await recordComprobante(
+    const annulledInvoice = await recordComprobante(
       facturaCInput({
         choreographyId: alfa.choreography.id,
         eventId: event.id,
         cbteNro: 1,
       }),
     );
-    const vigente = await recordComprobante(
+    const validInvoice = await recordComprobante(
       facturaCInput({
         choreographyId: alfa.choreography.id,
         eventId: event.id,
@@ -230,23 +230,25 @@ describe("loadComprobantesList", () => {
         eventId: event.id,
         cbteTipo: 13,
         cbteNro: 3,
-        associatedComprobanteId: anulada.id,
+        associatedComprobanteId: annulledInvoice.id,
       }),
     );
 
-    const anuladas = await loadComprobantesList(
+    const annulledList = await loadComprobantesList(
       await signedInAdminRequest("?estado=anulada"),
     );
-    expect(anuladas.rows.map((row) => row.id)).toEqual([anulada.id]);
-    expect(anuladas.totalCount).toBe(1);
+    expect(annulledList.rows.map((row) => row.id)).toEqual([
+      annulledInvoice.id,
+    ]);
+    expect(annulledList.totalCount).toBe(1);
 
-    const vigentes = await loadComprobantesList(
+    const validList = await loadComprobantesList(
       await signedInAdminRequest("?estado=vigente"),
     );
-    expect(new Set(vigentes.rows.map((row) => row.id))).toEqual(
-      new Set([vigente.id, notaCredito.id]),
+    expect(new Set(validList.rows.map((row) => row.id))).toEqual(
+      new Set([validInvoice.id, notaCredito.id]),
     );
-    expect(vigentes.totalCount).toBe(2);
+    expect(validList.totalCount).toBe(2);
   });
 
   test("filters by comprobante type", async () => {

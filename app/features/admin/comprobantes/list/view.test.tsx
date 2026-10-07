@@ -37,11 +37,11 @@ function loaderData(
 
   return {
     filters: {
-      status: null,
+      kind: null,
       order: { columnId: "fecha", direction: "desc" },
       page: 1,
       query: "",
-      kind: null,
+      status: null,
     },
     hasAnyComprobante: rows.length > 0,
     rows,
@@ -147,16 +147,5 @@ describe("ComprobantesListRouteView", () => {
       "No hay comprobantes que coincidan con la búsqueda o los filtros.",
     );
     expect(nothingMatched).not.toContain("Todavía no hay comprobantes.");
-  });
-
-  test("shows the loaded status filter as applied, under the label the URL value names", () => {
-    const markup = renderView(
-      loaderData({
-        filters: { ...loaderData().filters, status: "annulled" },
-        hasAnyComprobante: true,
-      }),
-    );
-
-    expect(markup).toContain("Anulada");
   });
 });

@@ -157,7 +157,7 @@ async function seedAllocation(input: {
   });
 }
 
-async function recordVigenteFactura(input: {
+async function recordValidInvoice(input: {
   choreographyId: string;
   eventId: string;
   inscriptionId: string;
@@ -298,7 +298,7 @@ describe("financial detail — comprobante emission axis", () => {
       email: "academia.vigente@example.com",
       paidAmount: 3000,
     });
-    await recordVigenteFactura({
+    await recordValidInvoice({
       choreographyId: seeded.choreographyId,
       eventId: seeded.eventId,
       inscriptionId: seeded.inscriptionId,
@@ -321,7 +321,7 @@ describe("financial detail — comprobante emission axis", () => {
       email: "academia.remanente@example.com",
       paidAmount: 3000,
     });
-    await recordVigenteFactura({
+    await recordValidInvoice({
       choreographyId: seeded.choreographyId,
       eventId: seeded.eventId,
       inscriptionId: seeded.inscriptionId,
@@ -350,7 +350,7 @@ describe("financial detail — comprobante emission axis", () => {
       email: "academia.anulada@example.com",
       paidAmount: 3000,
     });
-    const factura = await recordVigenteFactura({
+    const factura = await recordValidInvoice({
       choreographyId: seeded.choreographyId,
       eventId: seeded.eventId,
       inscriptionId: seeded.inscriptionId,
@@ -426,7 +426,7 @@ describe("financial detail — comprobante emission axis", () => {
       eventId: event.id,
       inscriptionId: inscriptionA.id,
     });
-    await recordVigenteFactura({
+    await recordValidInvoice({
       choreographyId: choreography.id,
       eventId: event.id,
       inscriptionId: inscriptionA.id,

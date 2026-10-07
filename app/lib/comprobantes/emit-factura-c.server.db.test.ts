@@ -805,7 +805,7 @@ describe("emitFacturaC", () => {
 describe("emitFacturaC (ARCA does not respond)", () => {
   // A choreography with 5000 collected and nothing billed: the sequence number
   // to attempt is 43 (`ultimoAutorizado` = 42).
-  async function seedCobrado(prefix: string) {
+  async function seedCollectedChoreography(prefix: string) {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `${prefix}.${crypto.randomUUID()}@example.com`,
@@ -849,7 +849,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   }
 
   test("with the sequence lookup cut off, nothing was emitted and ARCA is not queried", async () => {
-    const choreography = await seedCobrado("lookup");
+    const choreography = await seedCollectedChoreography("lookup");
 
     const { deps, outcome } = await emitWith(
       choreography.id,
@@ -867,7 +867,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   });
 
   test("a sequence lookup timeout counts as a communication failure", async () => {
-    const choreography = await seedCobrado("lookup-timeout");
+    const choreography = await seedCollectedChoreography("lookup-timeout");
 
     const { outcome } = await emitWith(
       choreography.id,
@@ -880,7 +880,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   });
 
   test("with authorization cut off, it queries the exact comprobante and persists it with the CAE ARCA returns", async () => {
-    const choreography = await seedCobrado("recuperado");
+    const choreography = await seedCollectedChoreography("recuperado");
 
     const { deps, outcome } = await emitWith(
       choreography.id,
@@ -912,7 +912,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   });
 
   test("an authorization timeout also triggers recovery", async () => {
-    const choreography = await seedCobrado("auth-timeout");
+    const choreography = await seedCollectedChoreography("auth-timeout");
 
     const { deps, outcome } = await emitWith(
       choreography.id,
@@ -932,7 +932,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   });
 
   test("if ARCA does not have that comprobante, nothing was emitted and retrying is safe", async () => {
-    const choreography = await seedCobrado("sin-comprobante");
+    const choreography = await seedCollectedChoreography("sin-comprobante");
 
     const { outcome } = await emitWith(
       choreography.id,
@@ -954,7 +954,9 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   // flight, so the answer may be just "not yet". Enabling the retry here is what
   // would emit a second comprobante for the same amount.
   test("if authorization timed out, ARCA not having it does not enable a retry", async () => {
-    const choreography = await seedCobrado("timeout-sin-comprobante");
+    const choreography = await seedCollectedChoreography(
+      "timeout-sin-comprobante",
+    );
 
     const { outcome } = await emitWith(
       choreography.id,
@@ -977,7 +979,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   });
 
   test("if the lookup fails too, the result is unverified and carries the comprobante it could not resolve", async () => {
-    const choreography = await seedCobrado("no-verificado");
+    const choreography = await seedCollectedChoreography("no-verificado");
 
     const { outcome } = await emitWith(
       choreography.id,
@@ -1001,7 +1003,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   // Sequence numbers are not reserved: a comprobante carrying the number we
   // attempted is not necessarily ours (ADR-0012 decision 4).
   test("a queried comprobante with a different amount is not ours: it is not persisted", async () => {
-    const choreography = await seedCobrado("otro-importe");
+    const choreography = await seedCollectedChoreography("otro-importe");
 
     const { outcome } = await emitWith(
       choreography.id,
@@ -1019,7 +1021,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   });
 
   test("a queried comprobante with a different date is not ours either", async () => {
-    const choreography = await seedCobrado("otra-fecha");
+    const choreography = await seedCollectedChoreography("otra-fecha");
 
     const { outcome } = await emitWith(
       choreography.id,
@@ -1052,7 +1054,8 @@ describe("emitFacturaC (ARCA does not respond)", () => {
     }
 
     test("the comprobante shows up in ARCA: it is persisted with that CAE and without authorizing again", async () => {
-      const choreography = await seedCobrado("recheck-recuperado");
+      const choreography =
+        await seedCollectedChoreography("recheck-recuperado");
 
       const { deps, outcome } = await recheckWith(
         choreography.id,
@@ -1081,7 +1084,9 @@ describe("emitFacturaC (ARCA does not respond)", () => {
     // not from the form: a tampered or stale `cbteNro` cannot force somebody
     // else's CAE to be persisted (ADR-0012 decision 4).
     test("the server recomputes the amount: if the queried one does not match, it stays unverified", async () => {
-      const choreography = await seedCobrado("recheck-otro-importe");
+      const choreography = await seedCollectedChoreography(
+        "recheck-otro-importe",
+      );
 
       const { outcome } = await recheckWith(
         choreography.id,
@@ -1100,7 +1105,9 @@ describe("emitFacturaC (ARCA does not respond)", () => {
     // It can only prove the positive: nobody has measured how long a request can
     // live on ARCA's side, so a `null` never gets promoted to `not-emitted`.
     test("if ARCA still does not have it, it stays unverified and never becomes not emitted", async () => {
-      const choreography = await seedCobrado("recheck-sin-comprobante");
+      const choreography = await seedCollectedChoreography(
+        "recheck-sin-comprobante",
+      );
 
       const { outcome } = await recheckWith(
         choreography.id,
@@ -1120,7 +1127,9 @@ describe("emitFacturaC (ARCA does not respond)", () => {
   });
 
   test("an ARCA rejection is still a rejection, distinguishable from a communication failure", async () => {
-    const choreography = await seedCobrado("rechazo-vs-contingencia");
+    const choreography = await seedCollectedChoreography(
+      "rechazo-vs-contingencia",
+    );
 
     const { deps, outcome } = await emitWith(
       choreography.id,

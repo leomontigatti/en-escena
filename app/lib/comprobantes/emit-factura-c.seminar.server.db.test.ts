@@ -372,8 +372,8 @@ describe("the comprobante anchor", () => {
       emissionDeps(nextInSeries(44, "41124578989846")),
     );
 
-    const [stillVigente] = await listAnchorComprobantes(anchor);
-    expect(stillVigente.status).toBe("valid");
+    const [stillValid] = await listAnchorComprobantes(anchor);
+    expect(stillValid.status).toBe("valid");
 
     const annulled = await annulComprobante(
       { comprobanteId: factura!.id },
