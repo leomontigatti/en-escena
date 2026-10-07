@@ -514,9 +514,10 @@ Rules:
   component, and put `aria-invalid` on `SelectTrigger`.
 - For dynamic arrays, use `useFieldArray`, `FieldSet`, `FieldLegend` and
   `FieldDescription`; use `field.id` as the key.
-- A server refusal tied to a field is set with
-  `form.setError(name, { type: "server", message })` and shown by the same
-  `FieldError`. The channel for every other class of message is in
+- Show only client validation errors inline. Errors returned by the server are
+  not integrated with `form.setError` and are not shown as `FieldError`; they are
+  shown with a toast and, when useful, the form keeps the submitted values so the
+  person can correct and resubmit. The channel for every class of message is in
   [form-feedback.md § Which channel carries a message](form-feedback.md#which-channel-carries-a-message).
 - When an RHF form posts to a React Router action with `useSubmit`, use
   `createValidatedRouteFormDataSubmitHandler` so the submitted `FormData` is built
@@ -539,6 +540,9 @@ Rules:
   checkboxes and future files.
 - Show server action feedback with toasts:
   - Success confirmed by the server: `toast.success`.
+  - Error confirmed by the server, with or without `fieldErrors`: `toast.error`.
+    Do not duplicate those errors in inline fields; inline validation belongs to
+    the RHF/Zod client schema.
   - For successes after a redirect, carry the message in the flash session
     (`app/lib/shared/flash-notification.server.ts`). The `notificacion` search
     parameter was removed in #416 — see
@@ -551,13 +555,10 @@ Rules:
     exports the `clientAction` that produces it. The view stays mounted, so it
     must read that generic `{ status: "error", message }` as well as its own
     result shapes — see [form-feedback.md](form-feedback.md).
-  - A success travels as a toast unless the outcome has to stay on screen, in
-    which case it is a `success` `Alert` ([Alert variants](#alert-variants)).
-    Do not use an `Alert` for the errors
-    [form-feedback.md](form-feedback.md#which-channel-carries-a-message) sends
-    to a toast. A refusal tied to no field, with the form still on screen, is
-    a `destructive` `Alert` above the form card, and it clears on the next edit
-    or submit.
+  - Do not use inline `Alert` or `Notice` for server confirmations or errors
+    unless the message must remain as a persistent screen state. Use inline
+    alerts only for current conditions, warnings before acting or visible screen
+    constraints; not for the result of an already submitted action.
 - Type submit handlers as `React.SubmitEvent<HTMLFormElement>` or
   `React.SubmitEventHandler<HTMLFormElement>`. Do not use `React.FormEvent` or
   `React.FormEventHandler` for forms: in React 19 those types are deprecated
