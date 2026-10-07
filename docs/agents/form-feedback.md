@@ -234,7 +234,7 @@ That is why auth uses **its own query params**, translated to a toast in `ingres
 - `sesion=cerrada` — logout (`salir.tsx`).
 - `recuperacion=ok` — password change completed (`cambiar-contrasena.tsx`).
 
-There the query param is the right tool. "Invalid link" errors (invitation/recovery
+There the query param is the right tool. "Invalid link" errors (recovery
 with an invalid token, email confirmation error) are shown as an inline static page,
 without a toast, and are likewise outside the submit matrix.
 
