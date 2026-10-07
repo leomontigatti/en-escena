@@ -38,7 +38,7 @@ const printStyles = `
     cursor: pointer;
   }
   .header { display: flex; justify-content: space-between; align-items: flex-start; }
-  .header .letra {
+  .header .letter {
     border: 1px solid #111827;
     width: 56px;
     height: 56px;
@@ -48,9 +48,9 @@ const printStyles = `
     font-size: 40px;
     font-weight: 700;
   }
-  .titulo { font-size: 20px; font-weight: 700; margin: 0; }
-  .codigo { color: #6b7280; font-size: 12px; }
-  .numero, .fecha { margin: 2px 0; }
+  .title { font-size: 20px; font-weight: 700; margin: 0; }
+  .code { color: #6b7280; font-size: 12px; }
+  .number, .date { margin: 2px 0; }
   .block { margin-top: 24px; }
   .block h2 {
     font-size: 12px;
@@ -61,14 +61,14 @@ const printStyles = `
   }
   table { width: 100%; border-collapse: collapse; margin-top: 8px; }
   th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e7eb; }
-  td.importe, th.importe { text-align: right; }
+  td.amount, th.amount { text-align: right; }
   .total { text-align: right; font-size: 18px; font-weight: 700; margin-top: 12px; }
-  .servicio { margin-top: 12px; font-size: 13px; color: #374151; }
-  .servicio p { margin: 2px 0; }
+  .service { margin-top: 12px; font-size: 13px; color: #374151; }
+  .service p { margin: 2px 0; }
   .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; gap: 24px; }
   .qr svg { width: 140px; height: 140px; }
   .cae { text-align: right; }
-  .estado { display: inline-block; padding: 2px 8px; border: 1px solid #111827; border-radius: 999px; font-size: 12px; }
+  .status { display: inline-block; padding: 2px 8px; border: 1px solid #111827; border-radius: 999px; font-size: 12px; }
   @media print {
     body { background: #ffffff; padding: 0; }
     .sheet { border: none; }
@@ -91,7 +91,7 @@ export function ComprobantePrintDocument({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{`${model.header.titulo} ${model.numero} | En Escena`}</title>
+        <title>{`${model.header.title} ${model.number} | En Escena`}</title>
         <style dangerouslySetInnerHTML={{ __html: printStyles }} />
       </head>
       <body>
@@ -103,33 +103,33 @@ export function ComprobantePrintDocument({
         <div className="sheet">
           <div className="header">
             <div>
-              <p className="titulo">{model.header.titulo}</p>
-              <p className="codigo">Cód. {model.header.codigo}</p>
-              <p className="numero">
-                <strong>N°:</strong> {model.numero}
+              <p className="title">{model.header.title}</p>
+              <p className="code">Cód. {model.header.code}</p>
+              <p className="number">
+                <strong>N°:</strong> {model.number}
               </p>
-              <p className="fecha">
-                <strong>Fecha de emisión:</strong> {model.fechaEmision}
+              <p className="date">
+                <strong>Fecha de emisión:</strong> {model.issueDate}
               </p>
-              <p className="codigo">Evento: {model.eventName}</p>
+              <p className="code">Evento: {model.eventName}</p>
             </div>
-            <div className="letra" aria-hidden="true">
-              {model.header.letra}
+            <div className="letter" aria-hidden="true">
+              {model.header.letter}
             </div>
           </div>
 
           <div className="block">
             <h2>Emisor</h2>
             <p>
-              <strong>{model.emisorRazonSocial}</strong>
+              <strong>{model.issuerLegalName}</strong>
             </p>
-            <p>CUIT: {model.emisorCuit}</p>
-            <p>Condición frente al IVA: {model.emisorCondicionIva}</p>
+            <p>CUIT: {model.issuerCuit}</p>
+            <p>Condición frente al IVA: {model.issuerVatCondition}</p>
           </div>
 
           <div className="block">
             <h2>Receptor</h2>
-            <p>Condición frente al IVA: {model.receptorCondicionIva}</p>
+            <p>Condición frente al IVA: {model.recipientVatCondition}</p>
             <p>
               {model.academyName} — {model.anchorLabel}
             </p>
@@ -141,31 +141,30 @@ export function ComprobantePrintDocument({
               <thead>
                 <tr>
                   <th>Descripción</th>
-                  <th className="importe">Importe</th>
+                  <th className="amount">Importe</th>
                 </tr>
               </thead>
               <tbody>
                 {model.lines.map((line, index) => (
                   <tr key={index}>
-                    <td>{line.descripcion}</td>
-                    <td className="importe">{line.importe}</td>
+                    <td>{line.description}</td>
+                    <td className="amount">{line.amount}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="total">Total: {model.importeTotal}</p>
-            {(model.periodoDesde || model.vencimientoPago) && (
-              <div className="servicio">
-                {model.periodoDesde && model.periodoHasta && (
+            <p className="total">Total: {model.totalAmount}</p>
+            {(model.servicePeriodFrom || model.paymentDueDate) && (
+              <div className="service">
+                {model.servicePeriodFrom && model.servicePeriodTo && (
                   <p>
-                    <strong>Período facturado:</strong> {model.periodoDesde} —{" "}
-                    {model.periodoHasta}
+                    <strong>Período facturado:</strong>{" "}
+                    {model.servicePeriodFrom} — {model.servicePeriodTo}
                   </p>
                 )}
-                {model.vencimientoPago && (
+                {model.paymentDueDate && (
                   <p>
-                    <strong>Vencimiento de pago:</strong>{" "}
-                    {model.vencimientoPago}
+                    <strong>Vencimiento de pago:</strong> {model.paymentDueDate}
                   </p>
                 )}
               </div>
@@ -179,7 +178,7 @@ export function ComprobantePrintDocument({
                 data-qr-url={model.qrUrl}
                 dangerouslySetInnerHTML={{ __html: qrCodeSvg }}
               />
-              <p className="codigo">{model.comprobanteAutorizadoLabel}</p>
+              <p className="code">{model.authorizedLabel}</p>
             </div>
             <div className="cae">
               <p>
@@ -189,7 +188,7 @@ export function ComprobantePrintDocument({
                 <strong>Vto. CAE:</strong> {model.caeVto}
               </p>
               <p>
-                Estado: <span className="estado">{model.estadoLabel}</span>
+                Estado: <span className="status">{model.statusLabel}</span>
               </p>
             </div>
           </div>

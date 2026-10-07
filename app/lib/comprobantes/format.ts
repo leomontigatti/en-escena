@@ -65,8 +65,8 @@ export function comprobanteTipoBadgeVariant(
 }
 
 const comprobanteStatusLabels: Record<ComprobanteStatus, string> = {
-  vigente: "Vigente",
-  anulada: "Anulada",
+  valid: "Vigente",
+  annulled: "Anulada",
 };
 
 export function formatComprobanteStatusLabel(

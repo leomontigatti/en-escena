@@ -29,7 +29,7 @@ export const comprobanteIssuerIvaCondition = pgEnum(
 // `Comprobante` — ARCA electronic fiscal comprobante (`Factura C`, `CbteTipo` 11;
 // `Nota de crédito C`, type 13). It is a DERIVED and IMMUTABLE document
 // (#320/#326): it never governs financial state and, once emitted with a CAE,
-// it is neither edited nor deleted. The `vigente`/`anulada` state is NOT
+// it is neither edited nor deleted. The `valid`/`annulled` state is NOT
 // persisted: it is derived from the existence of an associated credit note
 // (see comprobante-status.server).
 export const comprobantes = createTable(
@@ -91,7 +91,7 @@ export const comprobantes = createTable(
     caeVto: text("cae_vto").notNull(),
     // Associated comprobante: a credit note (type 13) points here at the
     // invoice it annuls (`CbtesAsoc`). Null on an invoice. From the invoice's
-    // side, the existence of a row referencing it is what derives it to `anulada`.
+    // side, the existence of a row referencing it is what derives it to `annulled`.
     associatedComprobanteId: varchar("associated_comprobante_id", {
       length: 255,
     }),

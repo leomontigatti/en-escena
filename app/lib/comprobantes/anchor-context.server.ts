@@ -14,7 +14,7 @@ import type { ComprobanteAnchorReading } from "./anchor-reading";
 
 /**
  * Everything a surface needs to say what one comprobante belongs to: the anchor
- * itself (the scope its `vigente`/`anulada` state is derived over), how that
+ * itself (the scope its `valid`/`annulled` state is derived over), how that
  * anchor reads, and the academy and event around it.
  *
  * The academy comes off the **root's own column** and not off the choreography:

@@ -908,8 +908,8 @@ settled model:
   amount and is neither a deposit nor a balance. It carries no right-hand side because
   the receptor block already prints `{academy} — {choreography}` and there is no
   dancer to name until #657 renders one line per inscription.
-- Status is derived, never stored, and has **two** values: `vigente` and
-  `anulada`. It is derived by **existence** — a comprobante is `anulada` when
+- Status is derived, never stored, and has **two** values: `valid` and
+  `annulled`. It is derived by **existence** — a comprobante is `annulled` when
   some other comprobante **of the same anchor** points at it. The one-amendment
   unique index is untouched by the second anchor: it caps a comprobante at one
   amendment whatever it is anchored on.
@@ -917,7 +917,7 @@ settled model:
   status above, shown on the global comprobante list and detail. The financial
   detail's `Seña` and `Saldo` metric cards carry **no** badge and **no** link to
   a comprobante: the `Vigente` / `Desactualizada` pair they used to carry read a
-  `porción` — which vigente invoice covered it and whether new money had landed
+  `porción` — which valid invoice covered it and whether new money had landed
   inside it — and went with the field. A choreography's comprobantes are reached
   from the global list, which searches by choreography name.
 - **`Anular comprobante` exists** as an action on the comprobante detail. It

@@ -18,7 +18,7 @@ function comprobanteRow(
     cbteFch: "20260722",
     impTotal: 25000,
     cae: "11112222333344",
-    status: "vigente",
+    status: "valid",
     anchor: {
       kind: "choreography",
       choreographyId: "choreo_1",
@@ -37,11 +37,11 @@ function loaderData(
 
   return {
     filters: {
-      estado: null,
+      kind: null,
       order: { columnId: "fecha", direction: "desc" },
       page: 1,
       query: "",
-      tipo: null,
+      status: null,
     },
     hasAnyComprobante: rows.length > 0,
     rows,
@@ -65,7 +65,7 @@ describe("ComprobantesListRouteView", () => {
     const markup = renderView(
       loaderData({
         rows: [
-          comprobanteRow({ status: "anulada" }),
+          comprobanteRow({ status: "annulled" }),
           comprobanteRow({
             id: "comprobante_2",
             cbteTipo: 13,
