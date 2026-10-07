@@ -31,7 +31,9 @@ type ScoreInputFieldProps<
  * The one field a judge taps in the dark. It takes digits and a single point —
  * the tablet's numeric keypad types a point and nothing else, and the score is
  * the deliberate exception to es-AR formatting — and carries its maximum right
- * after the value, so "90.5" is always read against what it is out of.
+ * after the value, so "90.5" is always read against what it is out of. A
+ * keystroke that would take the value past that maximum is ignored, the same
+ * way a stray letter is, so a criterion out of 10 never holds 105.
  *
  * Administration's own corrections go through the same field, so a score is
  * typed and read the same way on both sides of the panel.
@@ -76,9 +78,24 @@ export function ScoreInputField<
                 id={id}
                 inputMode="decimal"
                 onChange={(event) => {
-                  event.currentTarget.value = toScoreInputValue(
-                    event.currentTarget.value,
-                  );
+                  const input = event.currentTarget;
+                  const value = toScoreInputValue(input.value);
+
+                  if (Number(value) > maximum) {
+                    // Put the caret back where it was before the keystroke,
+                    // or the judge's next Backspace takes the wrong digit.
+                    const previous = field.value ?? "";
+                    const caret = Math.max(
+                      0,
+                      (input.selectionStart ?? input.value.length) -
+                        (input.value.length - previous.length),
+                    );
+                    input.value = previous;
+                    input.setSelectionRange(caret, caret);
+                    return;
+                  }
+
+                  input.value = value;
                   field.onChange(event);
                 }}
                 pattern="[0-9.]*"
