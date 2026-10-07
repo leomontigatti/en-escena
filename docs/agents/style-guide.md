@@ -121,8 +121,11 @@ Use shadcn components for feedback and empty states.
 Rules:
 
 - Use `Alert` for callouts, notices, errors not tied to a field, and success
-  messages that persist on screen. If `Alert` is not installed and the case needs
-  it, add it before creating custom markup.
+  messages that persist on screen. Which class of message goes to an alert, a
+  toast or a field is
+  [form-feedback.md § Which channel carries a message](form-feedback.md#which-channel-carries-a-message).
+  If `Alert` is not installed and the case needs it, add it before creating
+  custom markup.
 - Use `Empty` for no-data states with a title, description and primary action. If
   `Empty` is not installed and the case needs it, add it before creating custom
   markup.
@@ -394,7 +397,7 @@ header. Alerts about the form sit above the card.
 
 How an edit screen saves decides the shape of its form, so settle it before
 laying the fields out. What happens after the submit (stay or redirect, which
-toast) is [form-feedback.md](form-feedback.md).
+channel carries the message) is [form-feedback.md](form-feedback.md).
 
 Rules:
 
@@ -511,10 +514,10 @@ Rules:
   component, and put `aria-invalid` on `SelectTrigger`.
 - For dynamic arrays, use `useFieldArray`, `FieldSet`, `FieldLegend` and
   `FieldDescription`; use `field.id` as the key.
-- Show only client validation errors inline. Errors returned by the server are
-  not integrated with `form.setError` and are not shown as `FieldError`; they are
-  shown with a toast and, when useful, the form keeps the submitted values so the
-  person can correct and resubmit.
+- A server refusal tied to a field is set with
+  `form.setError(name, { type: "server", message })` and shown by the same
+  `FieldError`. The channel for every other class of message is in
+  [form-feedback.md § Which channel carries a message](form-feedback.md#which-channel-carries-a-message).
 - When an RHF form posts to a React Router action with `useSubmit`, use
   `createValidatedRouteFormDataSubmitHandler` so the submitted `FormData` is built
   from the values RHF validated, preserving `intent`, submit buttons and other
@@ -536,9 +539,6 @@ Rules:
   checkboxes and future files.
 - Show server action feedback with toasts:
   - Success confirmed by the server: `toast.success`.
-  - Error confirmed by the server, with or without `fieldErrors`: `toast.error`.
-    Do not duplicate those errors in inline fields; inline validation belongs to
-    the RHF/Zod client schema.
   - For successes after a redirect, carry the message in the flash session
     (`app/lib/shared/flash-notification.server.ts`). The `notificacion` search
     parameter was removed in #416 — see
@@ -551,10 +551,13 @@ Rules:
     exports the `clientAction` that produces it. The view stays mounted, so it
     must read that generic `{ status: "error", message }` as well as its own
     result shapes — see [form-feedback.md](form-feedback.md).
-  - Do not use inline `Alert` or `Notice` for server confirmations or errors
-    unless the message must remain as a persistent screen state. Use inline
-    alerts only for current conditions, warnings before acting or visible screen
-    constraints; not for the result of an already submitted action.
+  - A success travels as a toast unless the outcome has to stay on screen, in
+    which case it is a `success` `Alert` ([Alert variants](#alert-variants)).
+    Do not use an `Alert` for the errors
+    [form-feedback.md](form-feedback.md#which-channel-carries-a-message) sends
+    to a toast. A refusal tied to no field, with the form still on screen, is
+    a `destructive` `Alert` above the form card, and it clears on the next edit
+    or submit.
 - Type submit handlers as `React.SubmitEvent<HTMLFormElement>` or
   `React.SubmitEventHandler<HTMLFormElement>`. Do not use `React.FormEvent` or
   `React.FormEventHandler` for forms: in React 19 those types are deprecated
@@ -705,7 +708,9 @@ instead.
   The fields render as the shared read-only ones (`ReadOnlyField`,
   `ReadOnlyDateField`, `ReadOnlySelectField`, `ReadOnlyTextareaField`), not as
   a disabled picker or select: every locked field looks the same, and the
-  value still travels in the body.
+  value still travels in the body. The alert shows to every role that can see
+  the record, auditors included. A field with no meaning for the record is left
+  out rather than rendered locked: not applicable is not blocked.
 - An action the record's state forbids is never refused after the submit, and
   never disabled either, on a detail page or a list page alike (the portal's
   `Nueva coreografía` too): the `Acciones` menu item or button stays enabled, and

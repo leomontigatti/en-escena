@@ -1,8 +1,9 @@
 # Form feedback and redirection
 
-The single convention for feedback (success/error toasts) and redirection in form
-`action`s across En Escena. It answers #201 ("do we need the query param in the URL
-to show a toast?") and is the durable reference for PRD #409.
+The single convention for feedback and redirection in form `action`s across En
+Escena: which channel carries each class of message (field error, alert, dialog
+or toast), and how a message reaches it. It answers #201 ("do we need the query
+param in the URL to show a toast?") and is the durable reference for PRD #409.
 
 Base rule for any new form: **first decide whether the current view still makes
 sense after the submit**. That determines whether you stay or redirect, and by which
@@ -28,6 +29,95 @@ cleaned the param.
 
 We redirect **only when the current view stops existing or stops making sense**, not
 to show feedback.
+
+## Which channel carries a message
+
+One question decides it: **is there something still on screen that the message
+is about?** A field or a form to correct, a lock to work around or a condition to
+weigh keeps the message with it, as a field error, an alert or a dialog. A failed
+action with nothing to correct, a redirect, or a success is a toast.
+
+| Class                                                                                                                                     | Channel                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Refusal tied to a field (server `fieldErrors`, or a business refusal about one field, such as a document number already held)             | `FieldError` on the field, through `form.setError(name, { type: "server", message })`. No toast.                                                                                                                                          |
+| Refusal tied to no field, with the form still on screen                                                                                   | `destructive` `Alert` in the page's `AlertStack`, above the form card; in a dialog, first in the dialog body, above the fields. No toast.                                                                                                 |
+| Failure of an action with no form behind it (inline row delete, toggle, reorder, a `fetcher` button)                                      | `destructive` toast: the action failed and there is no form to correct.                                                                                                                                                                   |
+| Unexpected failure (the generic `{ status: "error" }` from `recoverableClientAction`, a network drop)                                     | `destructive` toast: nothing the user typed is wrong, so there is nothing to correct.                                                                                                                                                     |
+| Message that arrives after a redirect (flash session)                                                                                     | Toast: the view it belonged to is gone, so nothing on screen is left to fix.                                                                                                                                                              |
+| Success                                                                                                                                   | Toast. A success that must stay on screen is a `success` `Alert` ([style-guide.md § Alert variants](style-guide.md#alert-variants)).                                                                                                      |
+| Duplicate warning (`status: "warning"`)                                                                                                   | The confirmation `AlertDialog` ([A third answer](#a-third-answer-the-duplicate-warning)).                                                                                                                                                 |
+| Field locked by the record's state, conditionally or for good                                                                             | `info` `Alert` in the page's `AlertStack`, above the form card, listing every reason and what unlocks it, or saying nothing does. The field renders as a `ReadOnly*Field`. The lock icon alone explains nothing and is never the channel. |
+| Action forbidden by the record's state                                                                                                    | `BlockedActionDialog`, opened by the click on a control that stays enabled, with every reason in its `info` `Alert` ([style-guide.md § Detail pages](style-guide.md#detail-pages)).                                                       |
+| A condition the user should know before acting, derived or found in the background (recategorised choreographies, registration readiness) | `Alert` in the page's `AlertStack`: `warning` if the user should fix it or will regret going ahead, `info` otherwise.                                                                                                                     |
+
+- **Both server marks clear** when the user edits the affected field (the field
+  error) or edits or resubmits the form (the alert), so a stale refusal never
+  outlives the values it judged.
+- **Copy** says what happened and how to fix it, and names the blocking items
+  (the modalities that have choreographies assigned). Generic copy is only the
+  fallback.
+- **Toasts auto-dismiss** (Sonner's default), so a toast is never the channel for
+  something the user has to act on in the form in front of them.
+
+### What is not a block
+
+Three cases get no message:
+
+- **A field read-only by design** on every record of its kind on that surface
+  (the academy a choreography belongs to). Its lock icon is enough.
+- **A surface read-only because of the role** (an auditor). The role is the
+  reason, and an alert on every page would stop being read.
+- **A field that does not apply** to this record (a submodality when the
+  modality has none) is left out of the form, not rendered locked. Not
+  applicable is a different class from blocked: a lock promises a cause, and
+  absence promises nothing.
+
+**Block reasons are never filtered by role.** A lock caused by the record's state
+shows to everyone who can see the record, auditors included: it describes the
+record, not the viewer. Suppressing the alert for a role is a defect.
+
+### Block reasons and result statuses
+
+**Block reasons are a server-built array of `{ code, label }`**: every reason is
+listed, none takes precedence, and they render as the alert's list
+([style-guide.md § Alert content](style-guide.md#alert-content)) in the field
+lock alert or in `BlockedActionDialog`. The `label` is the copy, and the server
+builds it because the server owns the rule. A `code` is born consumed: it exists
+only if something reads it, a test asserting which reasons fired or a rendering
+branch. A code nothing reads is removed, not kept for later.
+`DancerEditingBlockReason`, the `reasonCode` in
+`app/lib/choreographies/choreography-roster.shared.ts`, is one its callers throw
+away; it is consumed or dropped when that code is next touched.
+
+**An action result's `status` says which channel the answer travels by, and only
+that**: an action answers with `"success"`, `"error"` or `"warning"`.
+`ToastVariant` also accepts `info`, which is reserved until a product case
+needs it ([style-guide.md § React Hook Form](style-guide.md#react-hook-form)).
+A feature that needs to tell its outcomes apart adds a field (`intent`, `kind`, `reason`), never a new status. A status no
+reader knows about is silently dropped, which is how the choreography detail's
+`"roster-error"` answers were lost (#661). The statuses that predate this rule
+(`"contingency"` on the comprobante emission and annulment, `"update-error"`,
+`"merge-refused"`, `"moved"`) are exceptions, not a model for a new one.
+
+### Testing and scope
+
+The seam is per feature: a view's interaction test asserts that a refusal reaches
+it on the channel the table gives (a field error or an alert, not a toast). The
+shared mapping helper is tested once, in its own file. The status contract is a
+type, so `pnpm typecheck` holds it and no shared test is needed.
+
+#619 is the reference case. Its page-level block reasons, its `{ code, label }`
+shape and its refusal to hide reasons from auditors stand. Its assertion that a
+rejection reaches the view as a toast is superseded: a form refusal reaches the
+view as a field error or an `AlertStack` alert, and that assertion moves to the
+new channel when #517 lands.
+
+#517 builds the one helper that maps `fieldErrors` to `setError` and a no-field
+refusal to the alert, absorbing the roster document conflict
+(`useRosterRefusalToast`, today a toast with a link and under this table a
+field-tied refusal) and the seminars' `setError` loop, and applies it to the
+producers. Until it lands, views keep their current channel; a new view follows
+the table.
 
 ## Behavior matrix
 
@@ -66,11 +156,13 @@ What changes is how the message reaches the client.
 
 ### Direct from `actionData` (the cases that stay)
 
-The `action` returns `{ status, message }`; the route passes that object through
-`useServerActionToast` (`app/lib/shared/toasts.ts`), which fires the toast with
-`showToastMessage`. See prior art in `features/portal/profile/action.test.ts`
-(the branch returning `data({ status: "success", ... })`). The toast's stable `id` is
-passed to Sonner so a re-render does not stack duplicates.
+The `action` returns `{ status, message }`. An answer that travels as a toast
+goes through `useServerActionToast` (`app/lib/shared/toasts.ts`), which fires it
+with `showToastMessage`; a refusal tied to the form goes to the field or the
+alert ([Which channel carries a message](#which-channel-carries-a-message)).
+See prior art in `features/portal/profile/action.test.ts` (the branch returning
+`data({ status: "success", ... })`). The toast's stable `id` is passed to Sonner
+so a re-render does not stack duplicates.
 
 This is the pattern for create/edit via dialog, edit in a detail view and inline
 delete. It touches neither the URL nor the session.
