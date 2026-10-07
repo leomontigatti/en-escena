@@ -44,6 +44,7 @@ import {
   activeRosterPerson,
   rosterPersonStatusCondition,
 } from "@/lib/roster/roster-person-status.server";
+import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
 
 export type ProfessorListItem = {
   id: string;
@@ -327,7 +328,7 @@ export async function findProfessor(input: {
               eq(choreographies.eventId, input.selectedEventId),
             ),
           )
-          .orderBy(asc(sql`lower(${choreographies.name})`));
+          .orderBy(...orderByChoreographyName(choreographies.name));
 
   return {
     id: row.id,

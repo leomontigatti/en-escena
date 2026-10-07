@@ -11,7 +11,7 @@ Read order for domain work:
 ## Files
 
 - [events.md](./events.md) - event context, settings, administration and portal shell rules.
-- [access.md](./access.md) - registration, users, sessions and invitations.
+- [access.md](./access.md) - registration, users and sessions.
 - [choreographies.md](./choreographies.md) - roster links, choreography registration, locks and `Bases del evento`.
 - [judging.md](./judging.md) - presentations, judging, ranking, results, scores and feedback.
 - [seminars.md](./seminars.md) - seminars offered by an event, their quota, the seminar inscriptions academies register from their roster, and (specified, not built) their prices and the place a covered deposit takes.

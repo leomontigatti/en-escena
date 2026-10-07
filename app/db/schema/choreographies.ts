@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -124,6 +125,13 @@ export const choreographies = createTable(
     }),
     index("choreography_schedule_id_idx").on(table.scheduleId),
     index("choreography_schedule_capacity_id_idx").on(table.scheduleCapacityId),
+    // The database twin of `choreographyNameMaxLength`: the application's
+    // refusal is what the user reads, and this stops a write that went around
+    // it from storing a name no screen or comprobante can render.
+    check(
+      "choreography_name_length",
+      sql`char_length(btrim(${table.name})) between 1 and 120`,
+    ),
   ],
 ).enableRLS();
 

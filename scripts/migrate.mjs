@@ -227,7 +227,13 @@ async function main() {
   const sql = postgres(databaseUrl, {
     max: 1,
     connect_timeout: 5,
-    onnotice: () => {},
+    // Notices are noise ("schema already exists, skipping"); a warning is a
+    // migration reporting rows it left for a person to fix.
+    onnotice: (notice) => {
+      if (notice.severity === "WARNING") {
+        console.warn(`[migrate] ${notice.message}`);
+      }
+    },
   });
 
   try {

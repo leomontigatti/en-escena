@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import {
+  choreographyNameField,
+  isChoreographyNameChanged,
+} from "@/lib/choreographies/choreography-name";
 import { haveSameIds } from "@/lib/choreographies/choreography-roster.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
@@ -11,16 +15,22 @@ import type {
 } from "./draft.shared";
 import type { ChoreographyModalityOption } from "./modality.server";
 
-export const choreographyDraftSchema = z.object({
-  dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
-  experienceLevelId: z.string(),
-  modalityId: z.string(),
-  name: z.string().trim().min(1, requiredFieldMessage),
-  professionalEvaluation: z.boolean(),
-  professorIds: z.array(z.string()),
-  scheduleCapacityId: z.string(),
-  submodalityId: z.string(),
-});
+/**
+ * The draft's schema against what is saved: the name is held to the rule only
+ * once it is edited, which is how the save treats it too.
+ */
+export function getChoreographyDraftSchema(saved: ChoreographyDraft) {
+  return z.object({
+    dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
+    experienceLevelId: z.string(),
+    modalityId: z.string(),
+    name: choreographyNameField(saved.name),
+    professionalEvaluation: z.boolean(),
+    professorIds: z.array(z.string()),
+    scheduleCapacityId: z.string(),
+    submodalityId: z.string(),
+  });
+}
 
 /** The choreography as it is saved, in the shape the form edits. */
 export function toSavedChoreographyDraft(
@@ -48,7 +58,7 @@ export function isChoreographyDraftDirty(
   saved: ChoreographyDraft,
 ) {
   return (
-    draft.name.trim() !== saved.name ||
+    isChoreographyNameChanged(draft.name, saved.name) ||
     draft.modalityId !== saved.modalityId ||
     draft.submodalityId !== saved.submodalityId ||
     draft.experienceLevelId !== saved.experienceLevelId ||

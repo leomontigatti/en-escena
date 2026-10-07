@@ -32,6 +32,7 @@ import {
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
+import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-name.test-support";
 import {
   evaluatedChoreographyMessage,
   noCompatibleCategoryModalityMessage,
@@ -307,7 +308,7 @@ describe("saving a draft of the choreography detail", () => {
       experienceLevelId: "amateur",
       groupType: "duo",
       modalityId: target.modality.id,
-      name: "Nuevo nombre",
+      name: "Nuevo Nombre",
       scheduleCapacityId: target.duoCapacity.id,
       scheduleId: target.schedule.id,
       submodalityId: target.submodality?.id,
@@ -535,6 +536,83 @@ describe("saving a draft of the choreography detail", () => {
     });
   });
 
+  test("stores a name in the form the portal registration stores it, and refuses what it refuses (#764)", async () => {
+    const scenario = await createDraftScenario({ slug: "regla-del-nombre" });
+
+    for (const nameCase of choreographyNameWriteCases) {
+      const before = await scenario.readChoreography();
+      const response = await scenario.saveDraft(
+        scenario.draft({ name: nameCase.typed }),
+      );
+
+      if ("refusal" in nameCase) {
+        expect(response).toEqual({
+          message: nameCase.refusal,
+          status: "error",
+        });
+        await expect(scenario.readChoreography()).resolves.toEqual(before);
+      } else {
+        expect(response).toMatchObject({ status: "success" });
+        await expect(scenario.readChoreography()).resolves.toMatchObject({
+          name: nameCase.stored,
+        });
+      }
+    }
+  });
+
+  test("leaves the stored name as it is when a save changes only the roster (#764)", async () => {
+    const scenario = await createDraftScenario({ slug: "nombre-intacto" });
+    await scenario.saveDraft(scenario.draft({ name: "danza de la luna" }));
+
+    const response = await scenario.saveDraft(
+      scenario.draft({
+        dancerIds: [scenario.ana.id, scenario.bea.id],
+        name: "Danza de la Luna",
+        scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+      }),
+    );
+
+    expect(response).toMatchObject({ status: "success" });
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      groupType: "duo",
+      name: "Danza de la Luna",
+    });
+  });
+
+  test("keeps a name from before the rule when a save leaves it untouched, and refuses another like it (#764)", async () => {
+    const scenario = await createDraftScenario({ slug: "nombre-previo" });
+    await db
+      .update(choreographies)
+      .set({ name: "-" })
+      .where(eq(choreographies.id, scenario.choreography.id));
+
+    const response = await scenario.saveDraft(
+      scenario.draft({
+        dancerIds: [scenario.ana.id, scenario.bea.id],
+        name: "-",
+        scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+      }),
+    );
+
+    expect(response).toMatchObject({ status: "success" });
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      groupType: "duo",
+      name: "-",
+    });
+    await expect(
+      scenario.saveDraft(
+        scenario.draft({
+          dancerIds: [scenario.ana.id, scenario.bea.id],
+          name: "--",
+          scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
+        }),
+      ),
+    ).resolves.toMatchObject({
+      message: "Ingresá un nombre válido para la coreografía.",
+      status: "error",
+    });
+  });
+
   test("refuses structural changes on an evaluated choreography and accepts a rename", async () => {
     const scenario = await createDraftScenario({ slug: "evaluada-guarda" });
     evaluatedChoreographyIds.add(scenario.choreography.id);
@@ -553,7 +631,7 @@ describe("saving a draft of the choreography detail", () => {
     expect(rename).toMatchObject({ status: "success" });
     await expect(scenario.readChoreography()).resolves.toMatchObject({
       groupType: "solo",
-      name: "Otro nombre",
+      name: "Otro Nombre",
     });
   });
 

@@ -132,15 +132,15 @@ _Avoid_: internal email, alias, account
 
 **`accessRecovery`** — ui: "Recuperación de acceso"
 Flow through which an existing academy recovers its access via a link sent to its verified email.
-_Avoid_: `academyRegistration`, `internalUserInvitation`
+_Avoid_: `academyRegistration`
 
 **`internalUserPasswordReset`** — ui: "Restablecimiento administrativo de contraseña"
 Administrative action that assigns a new password to an internal user and closes their open sessions; it is the recovery mechanism for internal users, who receive no email.
-_Avoid_: `accessRecovery`, `internalUserInvitation`
+_Avoid_: `accessRecovery`
 
 **`accessSession`** — ui: "Sesión de acceso"
 Authenticated period of a user inside the system.
-_Avoid_: `academyRegistration`, `internalUserInvitation`, `accessRecovery`
+_Avoid_: `academyRegistration`, `accessRecovery`
 
 **`suspendedUser`** — ui: "Usuario suspendido"
 User who keeps their history but cannot start or maintain access sessions.
@@ -154,9 +154,8 @@ _Avoid_: auditor, academy user
 Internal user who reads administration and never writes: every administration surface is either read-only or hidden to them. A control that would change data is absent for an auditor rather than locked, while a lock that reports a state of the data reads the same as for anyone else.
 _Avoid_: `admin`, read-only administrator, `Auditoría` as the name of the permission
 
-**`internalUserInvitation`** — ui: "Invitación de usuario interno"
-Administrative flow to enable an administration, audit or judging user.
-_Avoid_: `academyRegistration`, `accessRecovery`
+**`Invitación de usuario interno`** _(retired term)_ — no code identifier
+Administrative flow that emailed a 24-hour link (`/invitacion/:token`) through which a person set their own password and became an administration, audit or judging user. ADR-0003 replaced it with direct creation and nothing issued one after that; its routes, its server modules and the `en_escena_internal_user_invitation` table were removed in #1495. Do not use: an **`admin`** creates an internal user directly with their password, and internal users receive no email (see **`internalUsername`**).
 
 **`judge`** — ui: "Juez"
 Internal user assigned to evaluate an event's presentations.
@@ -213,6 +212,10 @@ _Avoid_: `choreography.createdAt`, `financialReferenceDate` (retired), payment d
 **`choreography`** — ui: "Coreografía"
 Choreography registered by an academy for a concrete event. Nothing about its name is unique — two solos of different dancers share a piece name all the time — but confirming one **warns** when the academy already has a non-withdrawn choreography of the same name **and** the same cast in that event, naming it by **`choreographyNumber`** and name; same name with another cast and same cast with another name are both ordinary and pass unremarked.
 _Avoid_: reusable work, `inscription`, number
+
+**`choreographyName`** — ui: "Nombre de coreografía"
+The academy-chosen name of a choreography, normalized on write by one rule that the registration wizard and the administrative save share (`validateChoreographyName`): whitespace collapsed, Spanish title case with the particles (`de`, `la`, `y`…) lowercase after the first word and a capital after each hyphen, at least one letter or digit, and at most 120 characters, a ceiling with a `CHECK` twin in the database. It is not unique: two academies, and one academy twice, may name a choreography the same thing. A name stored before the rule that has no letter or digit is kept while an administrative save leaves it untouched, and held to the rule once it is edited. A list ordered by name orders it accent- and case-insensitively (`orderByChoreographyName`). The rule is the choreography's own: categories, modalities, schedules and people's names are capitalized by other rules.
+_Avoid_: academy name, display title, free text
 
 **`choreographyNumber`** — ui: "#"
 The short number a choreography is searched and quoted by, unique within its event rather than globally: every screen that lists choreographies already works against a chosen event, and a choreography's event never changes, so the number stays fixed for life. It identifies, it does not count — neither deleting a choreography nor withdrawing one gives its number back, since a **`withdrawnChoreography`** keeps the number it was quoted by, so the sequence has gaps by design and `#00042` does not mean "the event's forty-second choreography". The per-event counter behind it — the same one that numbers `paymentNumber`, and named `eventFinancialSequence` while it only counted money — hands it out inside the transaction that inserts, and `formatEventSequenceNumber` renders it zero-padded at the shared width. It does not replace the `id`, which stays the UUID every route and foreign key uses.
