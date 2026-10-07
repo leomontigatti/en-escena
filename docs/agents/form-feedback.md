@@ -89,8 +89,10 @@ branch. A code nothing reads is removed, not kept for later.
 `app/lib/choreographies/choreography-roster.shared.ts`, is one its callers throw
 away; it is consumed or dropped when that code is next touched.
 
-**An action result's `status` says which channel the answer travels by, and only
-that**: an action answers with `"success"`, `"error"` or `"warning"`.
+**An action result's `status` names its outcome, not its channel**: an action
+answers with `"success"`, `"error"` or `"warning"`. The channel comes from the
+message class, any `fieldErrors`, and whether the relevant view is still on
+screen ([Which channel carries a message](#which-channel-carries-a-message)).
 `ToastVariant` also accepts `info`, which is reserved until a product case
 needs it ([style-guide.md § React Hook Form](style-guide.md#react-hook-form)).
 A feature that needs to tell its outcomes apart adds a field (`intent`, `kind`, `reason`), never a new status. A status no
