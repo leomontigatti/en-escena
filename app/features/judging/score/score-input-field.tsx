@@ -78,14 +78,24 @@ export function ScoreInputField<
                 id={id}
                 inputMode="decimal"
                 onChange={(event) => {
-                  const value = toScoreInputValue(event.currentTarget.value);
+                  const input = event.currentTarget;
+                  const value = toScoreInputValue(input.value);
 
                   if (Number(value) > maximum) {
-                    event.currentTarget.value = field.value ?? "";
+                    // Put the caret back where it was before the keystroke,
+                    // or the judge's next Backspace takes the wrong digit.
+                    const previous = field.value ?? "";
+                    const caret = Math.max(
+                      0,
+                      (input.selectionStart ?? input.value.length) -
+                        (input.value.length - previous.length),
+                    );
+                    input.value = previous;
+                    input.setSelectionRange(caret, caret);
                     return;
                   }
 
-                  event.currentTarget.value = value;
+                  input.value = value;
                   field.onChange(event);
                 }}
                 pattern="[0-9.]*"
