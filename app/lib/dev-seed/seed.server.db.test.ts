@@ -256,7 +256,7 @@ describe("dev seed", () => {
     await expect(
       listAnchorComprobantes(choreographyAnchor(invoiced?.id ?? "")),
     ).resolves.toMatchObject([
-      { cbteTipo: 11, cbteNro: 1, impTotal: 10000, status: "vigente" },
+      { cbteTipo: 11, cbteNro: 1, impTotal: 10000, status: "valid" },
     ]);
     await expect(db.$count(comprobantes)).resolves.toBe(1);
   });

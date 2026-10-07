@@ -429,12 +429,16 @@ _Avoid_: income, sales, billing, `comprobante` totals, `availableBalanceAmount`
 Electronic tax receipt —a `Factura C`, issued against ARCA/WSFEv1— derived from inscriptions, payments and allocations, and never governing financial state. It belongs to one **anchor**, of two kinds with a `CHECK` requiring exactly one: a `choreography`, or a `(seminar, academy)` unit (`seminarId` plus the root's own not-null `academyId`, derived from the choreography on a choreography row and taken from the emission input on a seminar one). It is immutable once it carries a CAE, and amended only by another comprobante **of the same anchor**; an anchor that was ever invoiced is permanently undeletable. `comprobante` is **the only reserved Spanish term inside code**; adding another requires an ADR, and `factura` is not one of them — in prose it is an invoice. What the emission and amendment rules are today, and where they are still the ADR-0014 target rather than the code, is in [docs/domain/finances.md](docs/domain/finances.md).
 _Avoid_: `payment`, `paymentAllocation`, choreography invoice (retired), voucher
 
+**`valid`** / **`annulled`** — ui: "Vigente" / "Anulada"
+The derived status of a **`comprobante`**: `annulled` once a credit note of the same anchor references it, `valid` otherwise. It is never stored. The Spanish words are its label and the `estado` filter's URL values, not identifiers.
+_Avoid_: `vigente`, `anulada`, cancelled, voided
+
 **`Porción`** _(retired term)_ — no code identifier
 Label that classified a **`comprobante`** as covering the deposit, the balance or both. It only made sense under the two-rung ladder map #547 retired: money is now allocated in arbitrary amounts against two thresholds, so a comprobante covers an amount and is neither rung. The column, its pgEnum, its derivation and its printed label are gone; the printed line names the service sold instead. It is retired as a _concept_, not as a string: the comprobante list still scrubs a stale `porcion` query parameter out of old URLs, which canonicalises a bookmark rather than reading anything. Do not use.
 _Avoid_: `comprobante`, `inscriptionStage` (retired), deposit invoice, balance invoice
 
 **`Desactualizada`** _(retired term)_ — no code identifier
-Currency badge each of the choreography financial detail's two `porción` metric cards carried, paired with a `Vigente` that meant "the covering invoice bills every peso collected in this portion". It read a portion and died with **`Porción`**; those cards now carry no badge and no comprobante link. The surviving `Vigente` is the unrelated one — the derived `vigente` / `anulada` status of a **`comprobante`**, shown on the global comprobante list and detail. Do not use.
+Currency badge each of the choreography financial detail's two `porción` metric cards carried, paired with a `Vigente` that meant "the covering invoice bills every peso collected in this portion". It read a portion and died with **`Porción`**; those cards now carry no badge and no comprobante link. The surviving `Vigente` is the unrelated one — the **`valid`** label of a **`comprobante`**, shown on the global comprobante list and detail. Do not use.
 _Avoid_: `comprobanteStatus`, `Vigente` (comprobante status), stale, outdated
 
 **`Plata`** _(retired term)_ — no code identifier

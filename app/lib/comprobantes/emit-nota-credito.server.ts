@@ -156,7 +156,7 @@ async function resolveNotaCreditoChoreography(
     };
   }
 
-  if (target.status === "anulada") {
+  if (target.status === "annulled") {
     return {
       ok: false,
       reason: "already-annulled",

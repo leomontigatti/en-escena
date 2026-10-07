@@ -109,7 +109,7 @@ export type FacturaCEmissionOutcome =
  *
  * The invoice is a DERIVED document (#320): it never governs financial state.
  * What is billed is the money actually collected (payment allocations) that no
- * vigente type-11 invoice of the SAME ANCHOR covers yet, through the
+ * valid type-11 invoice of the SAME ANCHOR covers yet, through the
  * per-inscription anti-double-billing derivation (#323/#326).
  *
  * The `CbteNro` is derived from `FECompUltimoAutorizado + 1`. Only an approved
@@ -379,7 +379,7 @@ export type AnchorBillable = {
  * Billable amount of one anchor: its internal lines, one per inscription with a
  * positive remainder, plus the total. It is what the emission UX (#447) previews
  * before confirming and what `emitFacturaC` bills. It does not call ARCA: it
- * only crosses collections against vigente invoices of the same anchor.
+ * only crosses collections against valid invoices of the same anchor.
  */
 export async function resolveAnchorBillable(
   anchor: ComprobanteAnchor,
@@ -432,7 +432,7 @@ async function readAnchorInscriptionIds(
 
 /**
  * Billable amount of each inscription: what was collected (payment allocations)
- * minus what the anchor's VIGENTE type-11 invoices already cover. Only
+ * minus what the anchor's VALID type-11 invoices already cover. Only
  * inscriptions with a positive remainder are included. An annulled invoice stops
  * counting as billed — its status derives from the credit note — so its
  * amount becomes billable again.
@@ -526,7 +526,7 @@ async function sumBilledByInscription(
   for (const comprobante of existing) {
     if (
       comprobante.cbteTipo !== FACTURA_C_CBTE_TIPO ||
-      comprobante.status !== "vigente"
+      comprobante.status !== "valid"
     ) {
       continue;
     }

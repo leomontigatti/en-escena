@@ -4,7 +4,6 @@ import {
   formatComprobanteAnchorLabel,
   type ComprobanteAnchorReading,
 } from "@/lib/comprobantes/anchor-reading";
-import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import type { ComprobanteWithLines } from "@/lib/comprobantes/comprobantes.server";
 import {
   formatComprobanteArcaDate,
@@ -12,13 +11,13 @@ import {
   formatComprobanteStatusLabel,
 } from "@/lib/comprobantes/format";
 import {
-  COMPROBANTE_AUTORIZADO_LABEL,
-  comprobanteImpresoHeader,
-  EMISOR_CONDICION_IVA_LABEL,
-  EMISOR_RAZON_SOCIAL,
-  RECEPTOR_CONDICION_IVA_LABEL,
-  type ComprobanteImpresoHeader,
-} from "@/lib/comprobantes/impreso";
+  COMPROBANTE_AUTHORIZED_LABEL,
+  comprobantePrintHeader,
+  ISSUER_VAT_CONDITION_LABEL,
+  ISSUER_LEGAL_NAME,
+  RECIPIENT_VAT_CONDITION_LABEL,
+  type ComprobantePrintHeader,
+} from "@/lib/comprobantes/printout";
 
 // The anchor/academy/event context anchoring the comprobante in the printout.
 // The anchor travels as its reading and not as a choreography name, because the
@@ -40,38 +39,37 @@ export type ComprobantePrintRecord = ComprobanteWithLines &
 // service was sold for is already in the receptor block. See
 // `buildComprobantePrintViewModel`.
 export type ComprobantePrintLine = {
-  descripcion: string;
-  importe: string;
+  description: string;
+  amount: string;
 };
 
 // The printable view's model, with every text already formatted. It is the
 // contract the HTML document consumes and the one the test's snapshot validates.
 export type ComprobantePrintViewModel = {
-  header: ComprobanteImpresoHeader;
-  numero: string;
-  fechaEmision: string;
-  emisorRazonSocial: string;
-  emisorCuit: string;
-  emisorCondicionIva: string;
-  receptorCondicionIva: string;
+  header: ComprobantePrintHeader;
+  number: string;
+  issueDate: string;
+  issuerLegalName: string;
+  issuerCuit: string;
+  issuerVatCondition: string;
+  recipientVatCondition: string;
   academyName: string;
   // The unit the receptor block names beside the academy: the choreography's
   // name, or `Seminario {instructor}, {fecha}`.
   anchorLabel: string;
   eventName: string;
   lines: ComprobantePrintLine[];
-  importeTotal: string;
+  totalAmount: string;
   // The billed service period and payment due date (Concepto 2, RG 1415),
   // already formatted to `DD/MM/AAAA`. `null` when the snapshot does not carry
   // them (the pre-existing row emitted as Concepto 1 never carried service dates).
-  periodoDesde: string | null;
-  periodoHasta: string | null;
-  vencimientoPago: string | null;
+  servicePeriodFrom: string | null;
+  servicePeriodTo: string | null;
+  paymentDueDate: string | null;
   cae: string;
   caeVto: string;
-  estado: ComprobanteStatus;
-  estadoLabel: string;
-  comprobanteAutorizadoLabel: string;
+  statusLabel: string;
+  authorizedLabel: string;
   qrUrl: string;
 };
 
@@ -101,36 +99,35 @@ const PRINT_LINE_DESCRIPTION = "Inscripción";
 
 // Builds the printable view's model from the comprobante's immutable snapshot.
 // It is a pure read-only projection: it does NOT call ARCA and mutates nothing.
-// The legends reflect the exempt issuer (impreso.ts).
+// The legends reflect the exempt issuer (printout.ts).
 export function buildComprobantePrintViewModel(
   record: ComprobantePrintRecord,
 ): ComprobantePrintViewModel {
   return {
-    header: comprobanteImpresoHeader(record.cbteTipo),
-    numero: formatComprobanteNumber(record),
-    fechaEmision: formatComprobanteArcaDate(record.cbteFch),
-    emisorRazonSocial: EMISOR_RAZON_SOCIAL,
-    emisorCuit: record.issuerCuit,
-    emisorCondicionIva: EMISOR_CONDICION_IVA_LABEL,
-    receptorCondicionIva: RECEPTOR_CONDICION_IVA_LABEL,
+    header: comprobantePrintHeader(record.cbteTipo),
+    number: formatComprobanteNumber(record),
+    issueDate: formatComprobanteArcaDate(record.cbteFch),
+    issuerLegalName: ISSUER_LEGAL_NAME,
+    issuerCuit: record.issuerCuit,
+    issuerVatCondition: ISSUER_VAT_CONDITION_LABEL,
+    recipientVatCondition: RECIPIENT_VAT_CONDITION_LABEL,
     academyName: record.academyName,
     anchorLabel: formatComprobanteAnchorLabel(record.anchor),
     eventName: record.eventName,
     lines: [
       {
-        descripcion: PRINT_LINE_DESCRIPTION,
-        importe: formatAmount(record.impTotal),
+        description: PRINT_LINE_DESCRIPTION,
+        amount: formatAmount(record.impTotal),
       },
     ],
-    importeTotal: formatAmount(record.impTotal),
-    periodoDesde: formatArcaDateOrNull(record.fchServDesde),
-    periodoHasta: formatArcaDateOrNull(record.fchServHasta),
-    vencimientoPago: formatArcaDateOrNull(record.fchVtoPago),
+    totalAmount: formatAmount(record.impTotal),
+    servicePeriodFrom: formatArcaDateOrNull(record.fchServDesde),
+    servicePeriodTo: formatArcaDateOrNull(record.fchServHasta),
+    paymentDueDate: formatArcaDateOrNull(record.fchVtoPago),
     cae: record.cae,
     caeVto: formatComprobanteArcaDate(record.caeVto),
-    estado: record.status,
-    estadoLabel: formatComprobanteStatusLabel(record.status),
-    comprobanteAutorizadoLabel: COMPROBANTE_AUTORIZADO_LABEL,
+    statusLabel: formatComprobanteStatusLabel(record.status),
+    authorizedLabel: COMPROBANTE_AUTHORIZED_LABEL,
     qrUrl: buildComprobanteQrUrl(record),
   };
 }

@@ -265,7 +265,7 @@ describe("emitFacturaC on a (seminar, academy) unit", () => {
       choreographyId: null,
       impTotal: 6000,
       seminarId: seminar.id,
-      status: "vigente",
+      status: "valid",
     });
     expect(persisted.lines).toHaveLength(1);
     expect(persisted.lines[0]).toMatchObject({
@@ -373,7 +373,7 @@ describe("the comprobante anchor", () => {
     );
 
     const [stillVigente] = await listAnchorComprobantes(anchor);
-    expect(stillVigente.status).toBe("vigente");
+    expect(stillVigente.status).toBe("valid");
 
     const annulled = await annulComprobante(
       { comprobanteId: factura!.id },
@@ -389,9 +389,9 @@ describe("the comprobante anchor", () => {
 
     const scope = await listAnchorComprobantes(anchor);
     // The mirror credit note anchors on the same pair, which is what derives
-    // the invoice to `anulada` — and what keeps it out of the other unit.
+    // the invoice to `annulled` — and what keeps it out of the other unit.
     expect(scope).toHaveLength(2);
-    expect(scope[0].status).toBe("anulada");
+    expect(scope[0].status).toBe("annulled");
     expect(scope[1]).toMatchObject({
       academyId: first.academyId,
       cbteTipo: 13,

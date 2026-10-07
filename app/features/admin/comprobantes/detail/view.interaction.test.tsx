@@ -49,7 +49,7 @@ function comprobanteFixture(
     fchServDesde: "20260801",
     fchServHasta: "20260803",
     fchVtoPago: "20260722",
-    status: "vigente",
+    status: "valid",
     anchor: {
       kind: "choreography",
       choreographyId: "choreography_1",
@@ -250,7 +250,7 @@ describe("ComprobanteDetailRouteView", () => {
           loader: () => ({
             comprobante: comprobanteFixture({
               canAnnul: !annulled,
-              status: annulled ? "anulada" : "vigente",
+              status: annulled ? "annulled" : "valid",
             }),
           }),
           async action(args: { request: Request }) {
@@ -361,7 +361,7 @@ describe("ComprobanteDetailRouteView", () => {
 
   test("hides the annul affordance when the comprobante is already annulled", async () => {
     await mount({
-      comprobante: { status: "anulada", canAnnul: false },
+      comprobante: { status: "annulled", canAnnul: false },
       initialAnnulDialogOpen: true,
     });
 

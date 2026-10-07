@@ -18,7 +18,7 @@ function comprobanteRow(
     cbteFch: "20260722",
     impTotal: 25000,
     cae: "11112222333344",
-    status: "vigente",
+    status: "valid",
     anchor: {
       kind: "choreography",
       choreographyId: "choreo_1",
@@ -37,11 +37,11 @@ function loaderData(
 
   return {
     filters: {
-      estado: null,
+      status: null,
       order: { columnId: "fecha", direction: "desc" },
       page: 1,
       query: "",
-      tipo: null,
+      kind: null,
     },
     hasAnyComprobante: rows.length > 0,
     rows,
@@ -65,7 +65,7 @@ describe("ComprobantesListRouteView", () => {
     const markup = renderView(
       loaderData({
         rows: [
-          comprobanteRow({ status: "anulada" }),
+          comprobanteRow({ status: "annulled" }),
           comprobanteRow({
             id: "comprobante_2",
             cbteTipo: 13,
@@ -147,5 +147,16 @@ describe("ComprobantesListRouteView", () => {
       "No hay comprobantes que coincidan con la búsqueda o los filtros.",
     );
     expect(nothingMatched).not.toContain("Todavía no hay comprobantes.");
+  });
+
+  test("shows the loaded status filter as applied, under the label the URL value names", () => {
+    const markup = renderView(
+      loaderData({
+        filters: { ...loaderData().filters, status: "annulled" },
+        hasAnyComprobante: true,
+      }),
+    );
+
+    expect(markup).toContain("Anulada");
   });
 });

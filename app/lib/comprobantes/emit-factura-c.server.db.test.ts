@@ -231,7 +231,7 @@ describe("emitFacturaC", () => {
       receptorDocNro: "0",
       receptorIvaConditionId: 5,
       cae: "41124578989845",
-      status: "vigente",
+      status: "valid",
     });
     expect(
       [...persisted.lines].map((line) => line.amount).sort((a, b) => a - b),
@@ -607,7 +607,7 @@ describe("emitFacturaC", () => {
     // line was billed, so the aggregate billed (3000) exceeds the aggregate
     // collected (1000) while B still has a remainder. The remainder is resolved
     // PER INSCRIPTION, so B's 1000 is billable and this emission is legitimate —
-    // there is money collected that no vigente invoice covers. The loader's
+    // there is money collected that no valid invoice covers. The loader's
     // `canEmit` asserts the same state in
     // `choreography-detail/server.invoicing.db.test.ts`; this is the server side
     // of that pair, and what makes the two agree an assertion rather than a
@@ -906,7 +906,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
       impTotal: 5000,
       cae: "41124578989845",
       caeVto: "20260801",
-      status: "vigente",
+      status: "valid",
     });
     expect(persisted.lines).toHaveLength(1);
   });
@@ -1073,7 +1073,7 @@ describe("emitFacturaC (ARCA does not respond)", () => {
         cbteNro: 43,
         impTotal: 5000,
         cae: "41124578989845",
-        status: "vigente",
+        status: "valid",
       });
     });
 

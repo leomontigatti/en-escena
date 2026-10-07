@@ -261,7 +261,7 @@ describe("loadComprobanteDetail", () => {
       scheduledDate: "2030-10-10",
     });
     expect(comprobante.fchServDesde).toBe("20301010");
-    expect(comprobante.status).toBe("vigente");
+    expect(comprobante.status).toBe("valid");
   });
 
   test("loads the comprobante snapshot with its anchoring context", async () => {
@@ -288,7 +288,7 @@ describe("loadComprobanteDetail", () => {
     });
     expect(comprobante.fchServDesde).toBe("20260801");
     expect(comprobante.fchServHasta).toBe("20260803");
-    expect(comprobante.status).toBe("vigente");
+    expect(comprobante.status).toBe("valid");
     expect(comprobante.canAnnul).toBe(true);
   });
 

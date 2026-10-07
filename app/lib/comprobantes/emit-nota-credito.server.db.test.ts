@@ -267,14 +267,14 @@ describe("annulComprobante", () => {
     const facturaRow = rows.find((row) => row.id === factura.id);
     const notaCredito = rows.find((row) => row.cbteTipo === 13);
     // The original ends up annulled; the credit note, in force and associated.
-    expect(facturaRow?.status).toBe("anulada");
+    expect(facturaRow?.status).toBe("annulled");
     expect(notaCredito).toMatchObject({
       cbteTipo: 13,
       cbteNro: 8,
       impTotal: 7000,
       issuerIvaCondition: "exento",
       associatedComprobanteId: factura.id,
-      status: "vigente",
+      status: "valid",
     });
   });
 
@@ -479,7 +479,7 @@ describe("annulComprobante", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(3);
-    expect(rows.every((row) => row.status === "vigente")).toBe(true);
+    expect(rows.every((row) => row.status === "valid")).toBe(true);
   });
 
   test("an ARCA rejection persists no credit note and does not annul the original", async () => {
@@ -517,7 +517,7 @@ describe("annulComprobante", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("vigente");
+    expect(rows[0].status).toBe("valid");
   });
 
   test("rejects a comprobante that does not exist", async () => {
@@ -596,7 +596,7 @@ describe("annulComprobante", () => {
     expect(facturas).toHaveLength(2);
     expect(notas).toHaveLength(2);
     // Both invoices ended up annulled by their respective credit note.
-    expect(facturas.every((row) => row.status === "anulada")).toBe(true);
+    expect(facturas.every((row) => row.status === "annulled")).toBe(true);
     // Each credit note references a different invoice.
     expect(new Set(notas.map((row) => row.associatedComprobanteId)).size).toBe(
       2,
@@ -662,7 +662,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("vigente");
+    expect(rows[0].status).toBe("valid");
   });
 
   test("with authorization cut off, it queries the exact type 13 credit note and persists it with the returned CAE", async () => {
@@ -692,7 +692,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
     const rows = await listAnchorComprobantes(
       choreographyAnchor(choreography.id),
     );
-    expect(rows.find((row) => row.id === factura.id)?.status).toBe("anulada");
+    expect(rows.find((row) => row.id === factura.id)?.status).toBe("annulled");
   });
 
   test("an authorization timeout also triggers recovery", async () => {
@@ -729,7 +729,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("vigente");
+    expect(rows[0].status).toBe("valid");
   });
 
   test("if the lookup fails too, the result is unverified and carries the credit note it could not resolve", async () => {
@@ -754,7 +754,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("vigente");
+    expect(rows[0].status).toBe("valid");
   });
 
   test("a queried credit note with a different amount is not ours: it is not persisted", async () => {

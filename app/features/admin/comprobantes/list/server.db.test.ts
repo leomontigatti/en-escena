@@ -175,7 +175,7 @@ describe("loadComprobantesList", () => {
 
     const facturaAlfaRow = data.rows.find((row) => row.id === facturaAlfa.id);
     expect(facturaAlfaRow).toMatchObject({
-      status: "anulada",
+      status: "annulled",
       cae: "11112222333344",
       ptoVta: 3,
       cbteNro: 7,
@@ -190,12 +190,12 @@ describe("loadComprobantesList", () => {
     });
 
     const notaCreditoRow = data.rows.find((row) => row.cbteTipo === 13);
-    expect(notaCreditoRow?.status).toBe("vigente");
+    expect(notaCreditoRow?.status).toBe("valid");
 
     const facturaBetaRow = data.rows.find(
       (row) => row.cbteTipo === 11 && row.id !== facturaAlfa.id,
     );
-    expect(facturaBetaRow?.status).toBe("vigente");
+    expect(facturaBetaRow?.status).toBe("valid");
     expect(facturaBetaRow?.academyName).toBe("Academia Beta");
   });
 
