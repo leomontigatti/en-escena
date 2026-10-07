@@ -254,10 +254,48 @@ describe("scoring a submodality with criteria", () => {
     expect(total()).toBe("77.5 / 100");
   });
 
+  test("will not take a keystroke past a criterion's own maximum", async () => {
+    await mount({ presentationId: "a" });
+
+    await type("interpretacion", "4");
+    await type("interpretacion", "40");
+    await type("interpretacion", "405");
+
+    expect(criterionInput("interpretacion")?.value).toBe("40");
+
+    await type("interpretacion", "40.5");
+
+    expect(criterionInput("interpretacion")?.value).toBe("40");
+  });
+
+  test("leaves the caret where it was when it refuses a keystroke", async () => {
+    await mount({ presentationId: "a" });
+
+    await type("interpretacion", "30");
+
+    const input = criterionInput("interpretacion");
+
+    // A "5" typed before the "3": the browser has already put it in the
+    // field, with the caret right after it, when the change arrives.
+    await updateReactDomForm(() => {
+      if (input) {
+        Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )?.set?.call(input, "530");
+        input.setSelectionRange(1, 1);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+
+    expect(input?.value).toBe("30");
+    expect(input?.selectionStart).toBe(0);
+  });
+
   test("errors only once the judge saves, naming each criterion's own maximum", async () => {
     await mount({ presentationId: "a" });
 
-    await type("penalizacion", "25");
+    await type("penalizacion", "12.3");
 
     expect(errorMessages()).toEqual([]);
 
