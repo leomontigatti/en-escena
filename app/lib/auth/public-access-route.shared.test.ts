@@ -57,7 +57,7 @@ describe("public access route shared helpers", () => {
       }),
     ).toEqual({
       status: "error",
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: {
         email: requiredFieldMessage,
       },
@@ -144,7 +144,7 @@ describe("public access route shared helpers", () => {
       ok: false,
       response: {
         status: "error",
-        message: "Revisá los campos marcados.",
+        message: "Revisá los datos del formulario.",
         fieldErrors: {
           email: requiredFieldMessage,
           password: requiredFieldMessage,

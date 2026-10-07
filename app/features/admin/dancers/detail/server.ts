@@ -183,7 +183,7 @@ async function saveAdministrativeDancer({
 
   if (!parsed.success) {
     return buildDancerActionError(
-      "Revisá los campos marcados.",
+      "Revisá los datos del formulario.",
       getFieldErrors(parsed.error, dancerFieldNames),
       values,
     );

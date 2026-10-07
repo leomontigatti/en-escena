@@ -396,7 +396,7 @@ export async function updateAdministrativeProfessor(input: {
   if (!normalizedDocument.ok) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors,
       values,
     };
@@ -405,7 +405,7 @@ export async function updateAdministrativeProfessor(input: {
   if (Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors,
       values,
     };
@@ -424,7 +424,7 @@ export async function updateAdministrativeProfessor(input: {
   if (documentConflict) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: { documentNumber: documentConflict.message },
       values,
       duplicateDocumentProfessorId: documentConflict.professorId,
@@ -471,7 +471,7 @@ export async function updateAdministrativeProfessor(input: {
   if (!guarded.ok) {
     return {
       ok: false,
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: { documentNumber: guarded.conflict.message },
       values,
       duplicateDocumentProfessorId: guarded.conflict.professorId,

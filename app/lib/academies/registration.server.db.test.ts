@@ -28,7 +28,7 @@ describe("academy registration start", () => {
 
     expect(result).toEqual({
       status: "error",
-      message: "Revisá los campos marcados.",
+      message: "Revisá los datos del formulario.",
       fieldErrors: {
         email: "Ingresá un correo electrónico válido.",
         password: "La contraseña debe tener al menos 8 caracteres.",

@@ -18,7 +18,7 @@ export type PublicAccessFormResult<
   values: Values;
 };
 
-const invalidFormMessage = "Revisá los campos marcados.";
+const invalidFormMessage = "Revisá los datos del formulario.";
 
 type ParsePublicAccessFormResult<
   Schema extends z.ZodTypeAny,
