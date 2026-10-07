@@ -48,28 +48,28 @@ type ProgramPrintColumn<Row> = {
  */
 const publicProgramColumns: ProgramPrintColumn<EventProgramRow>[] = [
   {
-    id: "orden",
+    id: "order",
     header: "N.º",
     width: 7,
     className: "font-medium tabular-nums",
     cell: (row) => formatProgramOrderNumber(row),
   },
   {
-    id: "nombre",
+    id: "name",
     header: "Nombre",
     width: 18,
     className: "font-medium",
     cell: (row) => <DataTableTruncatedText value={row.name} />,
   },
   {
-    id: "academia",
+    id: "academy",
     header: "Academia",
     width: 18,
     className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
   {
-    id: "modalidad",
+    id: "modality",
     header: "Modalidad / Submodalidad",
     width: 20,
     className: "text-muted-foreground",
@@ -78,7 +78,7 @@ const publicProgramColumns: ProgramPrintColumn<EventProgramRow>[] = [
     ),
   },
   {
-    id: "categoria",
+    id: "category",
     header: "Categoría / Tipo de grupo",
     width: 20,
     className: "text-muted-foreground",
@@ -90,7 +90,7 @@ const publicProgramColumns: ProgramPrintColumn<EventProgramRow>[] = [
     ),
   },
   {
-    id: "bailarines",
+    id: "dancers",
     header: "Bailarines",
     width: 17,
     className: "text-muted-foreground",

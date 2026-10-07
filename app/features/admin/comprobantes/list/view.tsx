@@ -59,7 +59,7 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     sortValue: (row) => `${row.ptoVta}-${String(row.cbteNro).padStart(8, "0")}`,
   },
   {
-    id: "tipo",
+    id: "kind",
     header: "Tipo",
     width: 6,
     cell: (row) => (
@@ -72,14 +72,14 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     ),
   },
   {
-    id: "academia",
+    id: "academy",
     header: "Academia",
     width: 23,
     className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
   {
-    id: "unidad",
+    id: "anchor",
     // One column for both anchors: a choreography reads as its name, a seminar
     // as `Seminario {instructor}, {fecha}`. There is no kind facet — the reading
     // already says which it is, and a two-value filter over a list scoped to one
@@ -105,7 +105,7 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     },
   },
   {
-    id: "estado",
+    id: "status",
     header: "Estado",
     width: 10,
     cell: (row) => (
@@ -123,7 +123,7 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     sortValue: (row) => row.cbteFch,
   },
   {
-    id: "importe",
+    id: "amount",
     header: "Importe",
     width: 12,
     className: "text-right tabular-nums",
