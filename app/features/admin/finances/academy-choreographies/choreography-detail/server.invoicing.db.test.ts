@@ -275,7 +275,7 @@ function detailUrl(input: {
 }
 
 describe("financial detail — comprobante emission axis", () => {
-  test("has the whole cobro billable when no comprobante covers it yet", async () => {
+  test("has the whole collected amount billable when no comprobante covers it yet", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Sin Factura",
       choreographyName: "Coreografía sin factura",
@@ -291,7 +291,7 @@ describe("financial detail — comprobante emission axis", () => {
     });
   });
 
-  test("leaves nothing billable once a valid invoice covers the whole cobro", async () => {
+  test("leaves nothing billable once a valid invoice covers the whole collected amount", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Vigente",
       choreographyName: "Coreografía vigente",
