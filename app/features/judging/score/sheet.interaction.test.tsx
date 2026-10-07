@@ -254,10 +254,24 @@ describe("scoring a submodality with criteria", () => {
     expect(total()).toBe("77.5 / 100");
   });
 
+  test("will not take a keystroke past a criterion's own maximum", async () => {
+    await mount({ presentationId: "a" });
+
+    await type("interpretacion", "4");
+    await type("interpretacion", "40");
+    await type("interpretacion", "405");
+
+    expect(criterionInput("interpretacion")?.value).toBe("40");
+
+    await type("interpretacion", "40.5");
+
+    expect(criterionInput("interpretacion")?.value).toBe("40");
+  });
+
   test("errors only once the judge saves, naming each criterion's own maximum", async () => {
     await mount({ presentationId: "a" });
 
-    await type("penalizacion", "25");
+    await type("penalizacion", "12.3");
 
     expect(errorMessages()).toEqual([]);
 

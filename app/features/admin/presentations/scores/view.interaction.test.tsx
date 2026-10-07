@@ -385,7 +385,7 @@ describe("correcting the panel's scores", () => {
     expect(discardButton()).toBeUndefined();
   });
 
-  test("refuses a line over its own criterion's maximum", async () => {
+  test("keeps a line within its own criterion's maximum", async () => {
     await mount({
       criteria: [
         {
@@ -407,6 +407,9 @@ describe("correcting the panel's scores", () => {
 
     await type("criterio-score-1-falls", "25");
 
+    expect(input("criterio-score-1-falls")?.value).toBe("5");
+
+    await type("criterio-score-1-falls", "7.3");
     await updateReactDomForm(() => {
       saveButtons()[0]?.click();
     });
