@@ -124,7 +124,7 @@ describe("recordComprobante persistence", () => {
     ]);
   });
 
-  test("the status is derived: `vigente` by default, `anulada` when an associated credit note exists", async () => {
+  test("the status is derived: `valid` by default, `annulled` when an associated credit note exists", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `estado.${crypto.randomUUID()}@example.com`,
     );
@@ -140,7 +140,7 @@ describe("recordComprobante persistence", () => {
     const [beforeAnnulment] = await listAnchorComprobantes(
       choreographyAnchor(choreography.id),
     );
-    expect(beforeAnnulment.status).toBe("vigente");
+    expect(beforeAnnulment.status).toBe("valid");
 
     // A mirror `Nota de crédito C` (type 13), anchored to the same choreography and
     // pointing at the invoice via `associatedComprobanteId` (CbtesAsoc).
@@ -161,17 +161,17 @@ describe("recordComprobante persistence", () => {
     const facturaRow = afterAnnulment.find((row) => row.id === factura.id);
     const notaCredito = afterAnnulment.find((row) => row.cbteTipo === 13);
 
-    expect(facturaRow?.status).toBe("anulada");
-    expect(notaCredito?.status).toBe("vigente");
+    expect(facturaRow?.status).toBe("annulled");
+    expect(notaCredito?.status).toBe("valid");
   });
 
-  test("the `vigente`/`anulada` status is not persisted as a column", async () => {
+  test("the `valid`/`annulled` status is not persisted as a column", async () => {
     const result = await db.execute<{ column_name: string }>(
       sql`select column_name from information_schema.columns where table_name = 'en_escena_comprobante'`,
     );
     const columns = readRows(result).map((row) => row.column_name);
 
-    for (const forbidden of ["status", "estado", "vigente", "anulada"]) {
+    for (const forbidden of ["status", "estado", "valid", "annulled"]) {
       expect(columns).not.toContain(forbidden);
     }
   });

@@ -161,11 +161,11 @@ export async function mergeRosterPeople(
 
 const mergeDestinations = {
   dancer: {
-    notification: "bailarines-fusionados",
+    notification: "dancers-merged",
     path: "/administracion/bailarines",
   },
   professor: {
-    notification: "profesores-fusionados",
+    notification: "professors-merged",
     path: "/administracion/profesores",
   },
 } as const satisfies Record<

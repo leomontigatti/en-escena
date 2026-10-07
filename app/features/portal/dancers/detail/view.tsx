@@ -141,10 +141,10 @@ export function PortalDancerDetailRouteView({
     <>
       <section
         className="flex flex-1 flex-col gap-6"
-        aria-labelledby="bailarin-detail-title"
+        aria-labelledby="dancer-detail-title"
       >
         <PortalPageHeader
-          titleId="bailarin-detail-title"
+          titleId="dancer-detail-title"
           title={viewModel.title}
           titleStyle={viewTransitionStyle}
           description="Actualizá los datos de este bailarín."
@@ -178,18 +178,18 @@ export function PortalDancerDetailRouteView({
           showsVerifiedIdentityAlert={viewModel.showsVerifiedIdentityAlert}
         />
 
-        <Tabs defaultValue="identificacion" onValueChange={resetListQuery}>
+        <Tabs defaultValue="identification" onValueChange={resetListQuery}>
           <TabsList variant="line">
-            <TabsTrigger value="identificacion">Identificación</TabsTrigger>
-            <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
-            <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
+            <TabsTrigger value="identification">Identificación</TabsTrigger>
+            <TabsTrigger value="inscriptions">Inscripciones</TabsTrigger>
+            <TabsTrigger value="seminars">Seminarios</TabsTrigger>
           </TabsList>
           {/* Kept mounted behind the other tab, so a file picked here is
               still in its input after a look at the inscriptions and the
               leave guard in `Guardar`'s footer still covers the draft. */}
           <TabsContent
             forceMount
-            value="identificacion"
+            value="identification"
             className="pt-2 data-[state=inactive]:hidden"
           >
             <PortalDancerFormSection
@@ -224,13 +224,13 @@ export function PortalDancerDetailRouteView({
               </CardContent>
             </PortalDancerFormSection>
           </TabsContent>
-          <TabsContent value="inscripciones" className="pt-2">
+          <TabsContent value="inscriptions" className="pt-2">
             <PortalDancerInscriptionsSection
               inscriptions={loaderData.inscriptions}
               selectedEventId={loaderData.selectedEventId}
             />
           </TabsContent>
-          <TabsContent value="seminarios" className="pt-2">
+          <TabsContent value="seminars" className="pt-2">
             <PortalDancerSeminarInscriptionsSection
               inscriptions={loaderData.seminarInscriptions}
               selectedEventId={loaderData.selectedEventId}
@@ -390,10 +390,10 @@ function PortalDancerAlertsSection({
 }) {
   return (
     <section
-      aria-labelledby="bailarin-detail-alerts-title"
+      aria-labelledby="dancer-detail-alerts-title"
       className="flex flex-col gap-6"
     >
-      <h2 id="bailarin-detail-alerts-title" className="sr-only">
+      <h2 id="dancer-detail-alerts-title" className="sr-only">
         Alertas de la ficha del bailarín
       </h2>
       <AlertStack>
@@ -505,10 +505,10 @@ function PortalDancerFormSection({
 }) {
   return (
     <section
-      aria-labelledby="bailarin-detail-form-title"
+      aria-labelledby="dancer-detail-form-title"
       className="flex flex-col"
     >
-      <h2 id="bailarin-detail-form-title" className="sr-only">
+      <h2 id="dancer-detail-form-title" className="sr-only">
         Ficha del bailarín
       </h2>
       <Card className="overflow-clip">

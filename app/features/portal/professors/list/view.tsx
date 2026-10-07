@@ -102,7 +102,7 @@ export function PortalProfessorsListRouteView({
 }) {
   return (
     <PortalListPage
-      titleId="profesores-title"
+      titleId="professors-title"
       title="Profesores"
       description="Gestioná los profesores de tu academia y completá su identificación cuando tengas los datos."
       action={

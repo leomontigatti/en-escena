@@ -11,10 +11,7 @@ import {
   createAccessUser,
   readAccessSession,
 } from "@/lib/auth/access-auth.test-support";
-import {
-  completeInternalUserInvitation,
-  requestInternalUserInvitation,
-} from "@/lib/admin/users/user-invitation.server";
+import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
 import { action as signInAction } from "@/routes/ingresar";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -175,43 +172,45 @@ describe("access session policy", () => {
     );
   });
 
-  test("internal invitation sessions use the base policy", async () => {
-    let invitationEmailText = "";
+  test("internal user sign-in sessions use the base policy", async () => {
+    const [adminUser] = await db
+      .insert(user)
+      .values({
+        email: "admin.sesion@example.com",
+        name: "Admin Sesión",
+        emailVerified: true,
+        role: "admin",
+      })
+      .returning();
 
-    await requestInternalUserInvitation(
-      {
-        email: "invitado-sesion@example.com",
-        role: "auditor",
-        requestUrl: "http://localhost/administracion/usuarios/nuevo",
-      },
-      {
-        sendEmail: async (input) => {
-          invitationEmailText = input.text;
-        },
-      },
-    );
-
-    const invitationToken = extractInvitationToken(invitationEmailText);
-
-    const invitationStartedAt = Date.now();
-    const result = await completeInternalUserInvitation({
-      token: invitationToken,
-      password: "password-segura",
-      request: new Request(`http://localhost/invitacion/${invitationToken}`),
-    });
-
-    expect(result.ok).toBe(true);
-
-    if (!result.ok) {
-      throw new Error("Expected invitation to complete.");
+    if (!adminUser) {
+      throw new Error("Expected admin user to be created.");
     }
 
-    const invitationSession = await findSessionByUserId(result.userId);
+    const created = await createInternalUser({
+      name: "Auditor Sesión",
+      internalUsername: "auditor.sesion",
+      role: "auditor",
+      password: "password-segura",
+      createdByUserId: adminUser.id,
+    });
 
-    expectHeadersToSetSessionCookie(result.headers);
+    if (!created.ok) {
+      throw new Error(`Expected internal user creation: ${created.error}`);
+    }
+
+    const loginStartedAt = Date.now();
+    const loginResponse = await expectThrownResponse(
+      submitSignInAction("auditor.sesion"),
+    );
+
+    expectResponseToSetSessionCookie(loginResponse);
+
+    const internalSession = await findSessionByUserId(created.userId);
+
     expectSessionExpiresInPolicyWindow(
-      invitationSession.expiresAt,
-      invitationStartedAt,
+      internalSession.expiresAt,
+      loginStartedAt,
     );
   });
 });
@@ -246,9 +245,9 @@ async function findSessionByToken(sessionToken: string) {
   return savedSession;
 }
 
-function createSignInRequest(email: string) {
+function createSignInRequest(identifier: string) {
   const formData = new FormData();
-  formData.set("identifier", email);
+  formData.set("identifier", identifier);
   formData.set("password", "password-segura");
 
   return new Request("http://localhost/ingresar", {
@@ -257,24 +256,14 @@ function createSignInRequest(email: string) {
   });
 }
 
-function submitSignInAction(email: string) {
+function submitSignInAction(identifier: string) {
   return signInAction({
     url: new URL("http://localhost/ingresar"),
     pattern: "/ingresar",
-    request: createSignInRequest(email),
+    request: createSignInRequest(identifier),
     params: {},
     context: {},
   });
-}
-
-function extractInvitationToken(text: string) {
-  const match = text.match(/\/invitacion\/([A-Za-z0-9_-]+)/);
-
-  if (!match?.[1]) {
-    throw new Error(`Invitation link was not found in email: ${text}`);
-  }
-
-  return match[1];
 }
 
 function expectSessionExpiresInPolicyWindow(

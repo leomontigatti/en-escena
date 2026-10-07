@@ -23,6 +23,11 @@ import {
   redirectToCanonicalListUrl,
 } from "@/lib/list-query/list-query.server";
 
+import {
+  comprobanteStatusSearchValues,
+  readComprobanteStatusSearchValue,
+} from "./shared";
+
 // A row of the global comprobantes list (#339 variant A, #483). It is read-only:
 // it exposes the already emitted fiscal snapshot (numbering, CAE, amount, date)
 // alongside its derived state, the academy and the anchor's reading — of either
@@ -44,7 +49,7 @@ export type ComprobantesListRow = {
 // Type facet: only `Factura C` (11) and `Nota de crédito C` (13) are emitted. The
 // value travels as a stable slug in the URL, so the filter is not coupled to the
 // label.
-export type ComprobanteTipoFacet = "factura_c" | "nota_credito_c";
+export type ComprobanteKindFacet = "factura_c" | "nota_credito_c";
 
 export type ComprobantesListOrder = {
   columnId: "fecha" | "numero";
@@ -52,11 +57,11 @@ export type ComprobantesListOrder = {
 };
 
 export type ComprobantesListFilters = {
-  estado: ComprobanteStatus | null;
+  kind: ComprobanteKindFacet | null;
   order: ComprobantesListOrder;
   page: number;
   query: string;
-  tipo: ComprobanteTipoFacet | null;
+  status: ComprobanteStatus | null;
 };
 
 export type ComprobantesListLoaderData = {
@@ -75,7 +80,7 @@ const comprobantesListSpec: ListQuerySpec<ComprobantesListOrder["columnId"]> = {
 
 /**
  * The global list of comprobantes emitted in the active event, paginated, sorted
- * and filtered on the server (it grows over time, #483). The `vigente`/`anulada`
+ * and filtered on the server (it grows over time, #483). The `valid`/`annulled`
  * state is NOT persisted: it is derived in SQL from the existence of a credit
  * note of the same event referencing the invoice via
  * `associatedComprobanteId`, so that the state filter and the pagination operate
@@ -134,7 +139,7 @@ export async function loadComprobantesList(
       cbteFch: comprobantes.cbteFch,
       impTotal: comprobantes.impTotal,
       cae: comprobantes.cae,
-      status: sql<ComprobanteStatus>`case when ${isAnnulled} then 'anulada' else 'vigente' end`,
+      status: sql<ComprobanteStatus>`case when ${isAnnulled} then 'annulled' else 'valid' end`,
       // The two anchor columns with their joined readings: each row satisfies
       // exactly one of the LEFT joins, and the root's `CHECK` is what makes the
       // branch in `readAnchorFromJoins` total. The academy comes off the root's
@@ -182,7 +187,13 @@ export async function loadComprobantesList(
   // Retired facets (`academia`, `porcion`) are not declared, so old URLs drop
   // them on the way.
   redirectToCanonicalListUrl(request, {
-    facets: { estado: normalizedFilters.estado, tipo: normalizedFilters.tipo },
+    facets: {
+      estado:
+        normalizedFilters.status === null
+          ? null
+          : comprobanteStatusSearchValues[normalizedFilters.status],
+      tipo: normalizedFilters.kind,
+    },
     query: {
       order: normalizedFilters.order,
       page: normalizedFilters.page,
@@ -201,7 +212,7 @@ export async function loadComprobantesList(
   };
 }
 
-// Derived `anulada`: a credit note of the same event referencing this row
+// Derived `annulled`: a credit note of the same event referencing this row
 // exists. Correlated with the outer row via `associatedComprobanteId`.
 function buildAnnulledExists(selectedEventId: string): SQL {
   const notaCredito = alias(comprobantes, "nota_credito");
@@ -225,19 +236,15 @@ function readComprobantesListFilters(
   const listQuery = readListQuery(searchParams, comprobantesListSpec);
 
   return {
-    estado: readEstado(searchParams.get("estado")),
+    kind: readKind(searchParams.get("tipo")),
     order: listQuery.order,
     page: listQuery.page,
     query: listQuery.search,
-    tipo: readTipo(searchParams.get("tipo")),
+    status: readComprobanteStatusSearchValue(searchParams.get("estado")),
   };
 }
 
-function readEstado(value: string | null): ComprobanteStatus | null {
-  return value === "vigente" || value === "anulada" ? value : null;
-}
-
-function readTipo(value: string | null): ComprobanteTipoFacet | null {
+function readKind(value: string | null): ComprobanteKindFacet | null {
   return value === "factura_c" || value === "nota_credito_c" ? value : null;
 }
 
@@ -262,21 +269,21 @@ function buildComprobantesWhere(
     conditions.push(searchCondition);
   }
 
-  if (filters.estado === "anulada") {
+  if (filters.status === "annulled") {
     conditions.push(isAnnulled);
-  } else if (filters.estado === "vigente") {
+  } else if (filters.status === "valid") {
     conditions.push(not(isAnnulled));
   }
 
-  if (filters.tipo !== null) {
-    conditions.push(eq(comprobantes.cbteTipo, tipoToCbteTipo(filters.tipo)));
+  if (filters.kind !== null) {
+    conditions.push(eq(comprobantes.cbteTipo, kindToCbteTipo(filters.kind)));
   }
 
   return and(...conditions);
 }
 
-function tipoToCbteTipo(tipo: ComprobanteTipoFacet): number {
-  return tipo === "factura_c" ? FACTURA_C_CBTE_TIPO : NOTA_CREDITO_C_CBTE_TIPO;
+function kindToCbteTipo(kind: ComprobanteKindFacet): number {
+  return kind === "factura_c" ? FACTURA_C_CBTE_TIPO : NOTA_CREDITO_C_CBTE_TIPO;
 }
 
 function buildComprobantesOrderBy(order: ComprobantesListOrder) {

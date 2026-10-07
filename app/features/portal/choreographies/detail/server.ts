@@ -16,7 +16,7 @@ import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 const choreographySavedMessage =
-  notificationToasts["coreografia-guardada"].message;
+  notificationToasts["choreography-saved"].message;
 const readOnlyEventMessage = "Este evento es de solo lectura.";
 const unsupportedActionMessage = "Acción no soportada.";
 

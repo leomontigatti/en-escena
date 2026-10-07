@@ -53,6 +53,6 @@ export async function action({ request }: { request: Request }) {
 
   throw await redirectWithFlashNotification(
     `/administracion/usuarios/${result.userId}`,
-    "usuario-interno-creado",
+    "internal-user-created",
   );
 }

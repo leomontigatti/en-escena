@@ -142,8 +142,8 @@ export async function handleProfessorDetailAction(input: {
 
     return buildProfessorActionSuccess(
       intent === "archive-professor"
-        ? "profesor-archivado"
-        : "profesor-reactivado",
+        ? "professor-archived"
+        : "professor-reactivated",
     );
   }
 
@@ -171,7 +171,7 @@ async function saveAdministrativeProfessor({
 
   if (!parsed.success) {
     return buildProfessorActionError(
-      "Revisá los campos marcados.",
+      "Revisá los datos del formulario.",
       getFieldErrors(parsed.error, professorFieldNames),
       values,
     );
@@ -201,7 +201,7 @@ async function saveAdministrativeProfessor({
     );
   }
 
-  return buildProfessorActionSuccess("profesor-guardado");
+  return buildProfessorActionSuccess("professor-saved");
 }
 
 function readProfessorId(params: { professorId?: string }) {

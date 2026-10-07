@@ -292,7 +292,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       createResponse,
       `/administracion/categorias/${createdCategoryId}`,
       {
-        id: "route-notification:categoria-guardada",
+        id: "route-notification:category-saved",
         message: "Categoría guardada.",
         variant: "success",
       },
@@ -343,7 +343,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       updateResponse,
       `/administracion/categorias/${createdCategoryId}`,
       {
-        id: "route-notification:categoria-guardada",
+        id: "route-notification:category-saved",
         message: "Categoría guardada.",
         variant: "success",
       },
@@ -370,7 +370,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       302,
     );
     await expectFlashRedirect(deleteResponse, "/administracion/categorias", {
-      id: "route-notification:categoria-eliminada",
+      id: "route-notification:category-deleted",
       message: "Categoría eliminada.",
       variant: "success",
     });
@@ -638,7 +638,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
       }),
     ).resolves.toBeUndefined();
     await expectFlashRedirect(response, "/administracion/modalidades", {
-      id: "route-notification:modalidad-eliminada",
+      id: "route-notification:modality-deleted",
       message: "Modalidad eliminada.",
       variant: "success",
     });

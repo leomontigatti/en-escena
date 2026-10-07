@@ -162,7 +162,7 @@ export async function expectPriceSavedRedirect(response: Response) {
   );
 
   expect(flash?.toast).toEqual({
-    id: "route-notification:precio-guardado",
+    id: "route-notification:price-saved",
     message: "Precio guardado.",
     variant: "success",
   });
@@ -170,7 +170,7 @@ export async function expectPriceSavedRedirect(response: Response) {
 
 export async function expectPriceDeletedRedirect(response: Response) {
   await expectFlashRedirect(response, "/administracion/precios", {
-    id: "route-notification:precio-eliminado",
+    id: "route-notification:price-deleted",
     message: "Precio eliminado.",
     variant: "success",
   });

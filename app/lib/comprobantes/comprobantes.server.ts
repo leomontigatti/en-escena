@@ -182,7 +182,7 @@ export async function seminarHasComprobantes(
 /**
  * Every comprobante of ONE anchor, with its derived state and its internal
  * lines. The mirror credit note anchors to the same unit, so the set per anchor
- * is self-contained for deriving `vigente`/`anulada` — which is what makes a
+ * is self-contained for deriving `valid`/`annulled` — which is what makes a
  * comprobante annullable only by another of its own anchor.
  */
 export async function listAnchorComprobantes(

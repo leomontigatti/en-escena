@@ -84,6 +84,6 @@ export async function handlePaymentCreateAction(
 
   throw await redirectWithFlashNotification(
     `/administracion/pagos/${paymentId}`,
-    "pago-registrado",
+    "payment-recorded",
   );
 }

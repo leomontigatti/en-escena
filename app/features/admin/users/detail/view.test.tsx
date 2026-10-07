@@ -91,8 +91,7 @@ describe("InternalUserDetailRouteView", () => {
 
   test("closes the dialog once the reset succeeds", async () => {
     await renderDetail({
-      action: async () =>
-        buildDetailActionSuccess("usuario-interno-restablecido"),
+      action: async () => buildDetailActionSuccess("internal-user-reset"),
     });
     await chooseMenuItem("Restablecer contraseña");
     await typePassword("clave-nueva");
@@ -255,8 +254,7 @@ describe("InternalUserDetailRouteView", () => {
 
   test("closes the confirmation once the suspension succeeds", async () => {
     await renderDetail({
-      action: async () =>
-        buildDetailActionSuccess("usuario-interno-suspendido"),
+      action: async () => buildDetailActionSuccess("internal-user-suspended"),
     });
     await chooseMenuItem("Suspender usuario");
 

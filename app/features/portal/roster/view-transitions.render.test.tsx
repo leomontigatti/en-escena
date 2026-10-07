@@ -87,11 +87,11 @@ describe("portal view transitions", () => {
       />,
     );
 
-    expect(document.getElementById("bailarin-detail-title")?.textContent).toBe(
+    expect(document.getElementById("dancer-detail-title")?.textContent).toBe(
       "Ana Paz",
     );
     expect(
-      document.getElementById("bailarin-detail-title")?.getAttribute("style"),
+      document.getElementById("dancer-detail-title")?.getAttribute("style"),
     ).toContain("view-transition-name: record-title");
 
     await renderRoute(
@@ -129,11 +129,11 @@ describe("portal view transitions", () => {
       />,
     );
 
-    expect(document.getElementById("profesor-detail-title")?.textContent).toBe(
+    expect(document.getElementById("professor-detail-title")?.textContent).toBe(
       "Luz Suárez",
     );
     expect(
-      document.getElementById("profesor-detail-title")?.getAttribute("style"),
+      document.getElementById("professor-detail-title")?.getAttribute("style"),
     ).toContain("view-transition-name: record-title");
   });
 });

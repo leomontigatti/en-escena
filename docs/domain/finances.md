@@ -397,16 +397,22 @@ is covered — which closes, for seminars, the known divergence below. The
 `Señada`-without-a-place band this creates for the seminar quota is named in
 `docs/domain/seminars.md`, "The place".
 
-**Known divergence — a roster change can leave a crossed price impossible.**
-Because nothing refreshes `selectedPriceId`, a roster change that moves the
-group type or the schedule leaves a **crossed** inscription holding a row that no
-longer belongs to what is being sold; below the threshold the read-time
-derivation follows the new key on its own. ADR-0014's 2026-09-09 correction
-withdrew §3's `groupType` refresh without replacing it, so this is open. Tracked
-in [#660](https://github.com/leomontigatti/en-escena/issues/660). The only guard in
-place is the schedule-capacity one, which refuses a save of the choreography
+**Known divergence — a roster change can leave a crossed price on the wrong
+group type.** Because nothing refreshes `selectedPriceId`, a roster change that
+moves the group type leaves a **crossed** inscription holding a row of the old
+one: a `Solo` paid in full that becomes a `Dúo` keeps the `Solo` row and keeps
+reading `Pagada`. Below the threshold the read-time derivation follows the new
+key on its own. ADR-0014's 2026-09-09 correction withdrew §3's `groupType`
+refresh without replacing it, so this is open. Tracked in
+[#660](https://github.com/leomontigatti/en-escena/issues/660). The
+price-divergence guard does not catch it. It refuses a save of the choreography
 detail that moves the schedule or its capacity, whichever field moved it, when
-an inscription holding money would be charged a different price there.
+an inscription holding money would be charged a different price there, and a
+crossed inscription is charged its stored row on both sides of the move. A
+roster change on a choreography that uses its schedule's total capacity moves
+neither, so the save does not ask the guard at all. The schedule axis is
+closed: a general row prices every schedule, and the guard refuses a move that
+takes a crossed inscription off the schedules its special row covers.
 
 - **The dancer detail prices with the finance rules.** `findDancerInscriptions`
   reads each inscription through `readInscriptionThresholds`, so the tab shows
@@ -902,8 +908,8 @@ settled model:
   amount and is neither a deposit nor a balance. It carries no right-hand side because
   the receptor block already prints `{academy} — {choreography}` and there is no
   dancer to name until #657 renders one line per inscription.
-- Status is derived, never stored, and has **two** values: `vigente` and
-  `anulada`. It is derived by **existence** — a comprobante is `anulada` when
+- Status is derived, never stored, and has **two** values: `valid` and
+  `annulled`. It is derived by **existence** — a comprobante is `annulled` when
   some other comprobante **of the same anchor** points at it. The one-amendment
   unique index is untouched by the second anchor: it caps a comprobante at one
   amendment whatever it is anchored on.
@@ -911,7 +917,7 @@ settled model:
   status above, shown on the global comprobante list and detail. The financial
   detail's `Seña` and `Saldo` metric cards carry **no** badge and **no** link to
   a comprobante: the `Vigente` / `Desactualizada` pair they used to carry read a
-  `porción` — which vigente invoice covered it and whether new money had landed
+  `porción` — which valid invoice covered it and whether new money had landed
   inside it — and went with the field. A choreography's comprobantes are reached
   from the global list, which searches by choreography name.
 - **`Anular comprobante` exists** as an action on the comprobante detail. It

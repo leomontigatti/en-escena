@@ -48,7 +48,7 @@ export function PortalChoreographiesListRouteView({
 
   return (
     <PortalListPage
-      titleId="coreografias-title"
+      titleId="choreographies-title"
       title="Coreografías"
       description="Gestioná las coreografías de tu academia que van a participar del evento y seguí su estado operativo."
       action={

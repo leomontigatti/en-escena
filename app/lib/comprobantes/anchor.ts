@@ -35,7 +35,7 @@ export function seminarAnchor(
 }
 
 /**
- * The set of comprobantes that share an anchor: the scope `vigente`/`anulada`
+ * The set of comprobantes that share an anchor: the scope `valid`/`annulled`
  * is derived over, and the scope the billed amounts are subtracted from.
  *
  * A choreography scope does NOT filter by academy: the choreography names one,

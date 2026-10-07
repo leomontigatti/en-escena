@@ -33,6 +33,7 @@ import {
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
+import { comprobanteStatusSearchValues } from "./shared";
 
 type ComprobantesListRouteViewProps = {
   loaderData: ComprobantesListLoaderData;
@@ -59,7 +60,7 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     sortValue: (row) => `${row.ptoVta}-${String(row.cbteNro).padStart(8, "0")}`,
   },
   {
-    id: "tipo",
+    id: "kind",
     header: "Tipo",
     width: 6,
     cell: (row) => (
@@ -72,14 +73,14 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     ),
   },
   {
-    id: "academia",
+    id: "academy",
     header: "Academia",
     width: 23,
     className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
   {
-    id: "unidad",
+    id: "anchor",
     // One column for both anchors: a choreography reads as its name, a seminar
     // as `Seminario {instructor}, {fecha}`. There is no kind facet — the reading
     // already says which it is, and a two-value filter over a list scoped to one
@@ -105,11 +106,11 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     },
   },
   {
-    id: "estado",
+    id: "status",
     header: "Estado",
     width: 10,
     cell: (row) => (
-      <Badge variant={row.status === "vigente" ? "success" : "destructive"}>
+      <Badge variant={row.status === "valid" ? "success" : "destructive"}>
         {formatComprobanteStatusLabel(row.status)}
       </Badge>
     ),
@@ -123,7 +124,7 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     sortValue: (row) => row.cbteFch,
   },
   {
-    id: "importe",
+    id: "amount",
     header: "Importe",
     width: 12,
     className: "text-right tabular-nums",
@@ -137,11 +138,17 @@ const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
     id: "estado",
     label: "Estado",
     options: [
-      { label: "Vigente", value: "vigente" },
-      { label: "Anulada", value: "anulada" },
+      { label: "Vigente", value: comprobanteStatusSearchValues.valid },
+      { label: "Anulada", value: comprobanteStatusSearchValues.annulled },
     ],
     renderValue: (option) => (
-      <Badge variant={option.value === "vigente" ? "success" : "destructive"}>
+      <Badge
+        variant={
+          option.value === comprobanteStatusSearchValues.valid
+            ? "success"
+            : "destructive"
+        }
+      >
         {option.label}
       </Badge>
     ),
@@ -189,8 +196,8 @@ export function ComprobantesListRouteView({
     loaderData.rows.length > 0 ||
     loaderData.hasAnyComprobante ||
     loaderData.filters.query.length > 0 ||
-    loaderData.filters.estado !== null ||
-    loaderData.filters.tipo !== null;
+    loaderData.filters.status !== null ||
+    loaderData.filters.kind !== null;
 
   return (
     <AdminResourceLayout
@@ -239,12 +246,12 @@ function buildInitialFacetedFilterValues(
 ): Record<string, DataTableFacetedFilterValue> {
   const filters: DataTableFacetedFilterValue = {};
 
-  if (loaderData.filters.estado !== null) {
-    filters.estado = loaderData.filters.estado;
+  if (loaderData.filters.status !== null) {
+    filters.estado = comprobanteStatusSearchValues[loaderData.filters.status];
   }
 
-  if (loaderData.filters.tipo !== null) {
-    filters.tipo = loaderData.filters.tipo;
+  if (loaderData.filters.kind !== null) {
+    filters.tipo = loaderData.filters.kind;
   }
 
   return {

@@ -80,7 +80,7 @@ describe("`/administracion/usuarios/nuevo` route", () => {
       response,
       `/administracion/usuarios/${savedUser?.id}`,
       {
-        id: "route-notification:usuario-interno-creado",
+        id: "route-notification:internal-user-created",
         message: "Usuario interno creado.",
         variant: "success",
       },

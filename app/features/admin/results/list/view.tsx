@@ -63,7 +63,7 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
     sortValue: (row) => row.orderNumber,
   },
   {
-    id: "nombre",
+    id: "name",
     header: "Nombre",
     width: 13,
     className: "font-medium",
@@ -86,14 +86,14 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
     },
   },
   {
-    id: "academia",
+    id: "academy",
     header: "Academia",
     width: 12,
     className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
   {
-    id: "modalidadSubmodalidad",
+    id: "modality",
     header: "Modalidad / Submodalidad",
     width: 20,
     className: "text-muted-foreground",
@@ -107,7 +107,7 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
     ),
   },
   {
-    id: "categoriaTipoGrupo",
+    id: "categoryGroup",
     header: "Categoría / Tipo de grupo",
     width: 19,
     className: "text-muted-foreground",
@@ -121,7 +121,7 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
     ),
   },
   {
-    id: "nivel",
+    id: "experienceLevel",
     header: "Nivel",
     width: 7,
     className: "text-muted-foreground",
@@ -136,13 +136,13 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
     ),
   },
   {
-    id: "premio",
+    id: "award",
     header: "Premio",
     width: 17,
     cell: (row) => <ResultAwardCell row={row} />,
   },
   {
-    id: "promedio",
+    id: "average",
     header: "Promedio",
     width: 10,
     className: "tabular-nums",

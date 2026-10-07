@@ -66,7 +66,7 @@ export type UpdateProfessorResult =
       duplicateDocumentProfessorId?: string;
     };
 
-const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
+const reviewProfessorFieldsMessage = "Revisá los datos del formulario.";
 type ProfessorIdentityRow = Pick<
   typeof professors.$inferSelect,
   "id" | "firstName" | "lastName" | "active" | "documentType" | "documentNumber"

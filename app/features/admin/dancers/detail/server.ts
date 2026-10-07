@@ -127,9 +127,7 @@ export async function handleDancerDetailAction(input: {
     }
 
     return buildDancerActionSuccess(
-      intent === "archive-dancer"
-        ? "bailarin-archivado"
-        : "bailarin-reactivado",
+      intent === "archive-dancer" ? "dancer-archived" : "dancer-reactivated",
       [],
     );
   }
@@ -148,7 +146,7 @@ export async function handleDancerDetailAction(input: {
       selectedEventId: eventContext.selectedEventId,
     });
 
-    return buildDancerActionSuccess("bailarin-verificado", []);
+    return buildDancerActionSuccess("dancer-verified", []);
   }
 
   return await saveAdministrativeDancer({
@@ -185,7 +183,7 @@ async function saveAdministrativeDancer({
 
   if (!parsed.success) {
     return buildDancerActionError(
-      "Revisá los campos marcados.",
+      "Revisá los datos del formulario.",
       getFieldErrors(parsed.error, dancerFieldNames),
       values,
     );
@@ -217,8 +215,8 @@ async function saveAdministrativeDancer({
 
   return buildDancerActionSuccess(
     result.verificationInvalidated
-      ? "bailarin-guardado-requiere-verificacion"
-      : "bailarin-guardado",
+      ? "dancer-saved-needs-verification"
+      : "dancer-saved",
     result.recategorisedChoreographies,
     result.scheduleMoves,
   );

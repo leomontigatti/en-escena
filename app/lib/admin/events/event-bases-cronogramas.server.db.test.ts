@@ -155,7 +155,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
       createScheduleResponse,
       `/administracion/cronogramas/${schedule?.id}`,
       {
-        id: "route-notification:cronograma-guardado",
+        id: "route-notification:schedule-saved",
         message: "Cronograma guardado.",
         variant: "success",
       },
@@ -214,7 +214,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
       updateScheduleResponse,
       "/administracion/cronogramas",
       {
-        id: "route-notification:cronograma-guardado",
+        id: "route-notification:schedule-saved",
         message: "Cronograma guardado.",
         variant: "success",
       },
@@ -242,7 +242,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
       deleteScheduleResponse,
       "/administracion/cronogramas",
       {
-        id: "route-notification:cronograma-eliminado",
+        id: "route-notification:schedule-deleted",
         message: "Cronograma eliminado.",
         variant: "success",
       },
@@ -389,7 +389,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
       createScheduleCapacityResponse,
       `/administracion/cronogramas/${schedule.id}`,
       {
-        id: "route-notification:cupo-cronograma-guardado",
+        id: "route-notification:schedule-capacity-saved",
         message: "Cupo de cronograma guardado.",
         variant: "success",
       },
@@ -453,7 +453,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
       updateScheduleCapacityResponse,
       `/administracion/cronogramas/${schedule.id}`,
       {
-        id: "route-notification:cupo-cronograma-guardado",
+        id: "route-notification:schedule-capacity-saved",
         message: "Cupo de cronograma guardado.",
         variant: "success",
       },
@@ -492,7 +492,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
       deleteScheduleCapacityResponse,
       `/administracion/cronogramas/${schedule.id}`,
       {
-        id: "route-notification:cupo-cronograma-eliminado",
+        id: "route-notification:schedule-capacity-deleted",
         message: "Cupo de cronograma eliminado.",
         variant: "success",
       },
@@ -824,7 +824,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     await expectFlashRedirect(
       await expectThrownResponse(action(routeArgs(openRequest.request)), 302),
       detailPath,
-      notificationToasts["inscripciones-abiertas"],
+      notificationToasts["registration-opened"],
     );
     await expect(findSavedScheduleById(scheduleId)).resolves.toMatchObject({
       registrationOpen: true,
@@ -848,7 +848,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
     await expectFlashRedirect(
       await expectThrownResponse(action(routeArgs(closeRequest.request)), 302),
       detailPath,
-      notificationToasts["inscripciones-cerradas"],
+      notificationToasts["registration-closed"],
     );
     await expect(findSavedScheduleById(scheduleId)).resolves.toMatchObject({
       registrationOpen: false,

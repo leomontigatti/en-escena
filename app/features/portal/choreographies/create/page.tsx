@@ -34,13 +34,13 @@ export function CreateChoreographyPage({
 
   return (
     <section
-      aria-labelledby="nueva-coreografia-title"
+      aria-labelledby="new-choreography-title"
       className="flex flex-1 flex-col gap-6"
     >
       <header className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
-            <h2 id="nueva-coreografia-title" className="text-xl font-semibold">
+            <h2 id="new-choreography-title" className="text-xl font-semibold">
               Nueva coreografía
             </h2>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">

@@ -101,7 +101,7 @@ function buildPresentationColumns({
     ...(moving.canDrag
       ? [
           {
-            id: "arrastrar",
+            id: "drag",
             header: "",
             leading: true,
             // The weights started as the prototype's (#912), settled against
@@ -133,7 +133,7 @@ function buildPresentationColumns({
       sortValue: (row) => row.orderNumber ?? Number.MAX_SAFE_INTEGER,
     },
     {
-      id: "nombre",
+      id: "name",
       header: "Nombre",
       width: 14,
       className: "font-medium",
@@ -157,14 +157,14 @@ function buildPresentationColumns({
       },
     },
     {
-      id: "academia",
+      id: "academy",
       header: "Academia",
       width: 13,
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
     },
     {
-      id: "modalidadSubmodalidad",
+      id: "modality",
       header: "Modalidad / Submodalidad",
       width: 21,
       className: "text-muted-foreground",
@@ -178,7 +178,7 @@ function buildPresentationColumns({
       ),
     },
     {
-      id: "categoriaTipoGrupo",
+      id: "categoryGroup",
       header: "Categoría / Tipo de grupo",
       width: 20,
       className: "text-muted-foreground",
@@ -192,7 +192,7 @@ function buildPresentationColumns({
       ),
     },
     {
-      id: "nivel",
+      id: "experienceLevel",
       header: "Nivel",
       width: 8,
       className: "text-muted-foreground",
@@ -207,7 +207,7 @@ function buildPresentationColumns({
       ),
     },
     {
-      id: "estado",
+      id: "status",
       header: "Estado",
       width: 11,
       cell: (row) => <PresentationStatusBadge row={row} />,

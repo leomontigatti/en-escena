@@ -64,7 +64,7 @@ export async function handleCreateProfessorAction({
 
   throw await redirectWithFlashNotification(
     professorsListPath,
-    "profesor-creado",
+    "professor-created",
   );
 }
 

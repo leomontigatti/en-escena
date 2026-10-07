@@ -61,16 +61,16 @@ export function SeminarDetailView({
       {/* Above the tabs, never inside one: what is locked is the seminar
           itself, so the reason reads the same from either tab. */}
       <GuardAlert reason={lockReason} />
-      <Tabs defaultValue="informacion">
+      <Tabs defaultValue="information">
         <TabsList variant="line">
-          <TabsTrigger value="informacion">Información</TabsTrigger>
-          <TabsTrigger value="inscriptos">Inscriptos</TabsTrigger>
+          <TabsTrigger value="information">Información</TabsTrigger>
+          <TabsTrigger value="inscriptions">Inscriptos</TabsTrigger>
         </TabsList>
         {/* Kept mounted behind the other tab, so a picked picture survives a
             look at the inscriptions and the leave guard in `Guardar`'s footer
             still covers the draft from there. */}
         <TabsContent
-          value="informacion"
+          value="information"
           forceMount
           className="pt-2 data-[state=inactive]:hidden"
         >
@@ -98,7 +98,7 @@ export function SeminarDetailView({
             />
           </SeminarFormPanel>
         </TabsContent>
-        <TabsContent value="inscriptos" className="pt-2">
+        <TabsContent value="inscriptions" className="pt-2">
           <SeminarInscriptionsTable inscriptions={loaderData.inscriptions} />
         </TabsContent>
       </Tabs>

@@ -91,10 +91,10 @@ export function PortalProfileRouteView({
   return (
     <section
       className="flex flex-1 flex-col gap-6"
-      aria-labelledby="perfil-title"
+      aria-labelledby="profile-title"
     >
       <PortalPageHeader
-        titleId="perfil-title"
+        titleId="profile-title"
         title="Perfil"
         description="Actualizá los datos para identificar a tu academia, saber de dónde es y contactar a la persona responsable."
         action={<ProfileActionsMenu />}

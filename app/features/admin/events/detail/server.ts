@@ -44,7 +44,7 @@ import {
 
 type EventRouteNotification = Extract<
   NotificationKey,
-  "evento-activado" | "evento-desactivado" | "evento-guardado"
+  "event-activated" | "event-deactivated" | "event-saved"
 >;
 
 export async function loadEventDetail(
@@ -94,14 +94,14 @@ export async function updateAdministrativeEvent(
       return updateEventAction(eventId, formData);
 
     case "activate":
-      return successOrError(activateEvent(eventId), "evento-activado");
+      return successOrError(activateEvent(eventId), "event-activated");
 
     case "deactivate":
       if (formData.get("confirmDeactivation") !== eventId) {
         return actionError("Confirmá la desactivación del evento.");
       }
 
-      return successOrError(deactivateEvent(eventId), "evento-desactivado");
+      return successOrError(deactivateEvent(eventId), "event-deactivated");
 
     case "delete":
       if (formData.get("confirmDeletion") !== eventId) {
@@ -147,7 +147,7 @@ async function updateEventAction(eventId: string, formData: FormData) {
     return actionError(documentsResult.message);
   }
 
-  return actionSuccess("evento-guardado");
+  return actionSuccess("event-saved");
 }
 
 /**
@@ -228,7 +228,7 @@ async function redirectAfterDeletion(
 
   throw await redirectWithFlashNotification(
     "/administracion/eventos",
-    "evento-eliminado",
+    "event-deleted",
   );
 }
 

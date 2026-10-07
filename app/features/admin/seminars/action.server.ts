@@ -71,7 +71,7 @@ export async function handleSeminarCreateAction(
 
   throw await redirectWithFlashNotification(
     buildDetailPath(basePath, result.seminar.id, selectedEventId),
-    "seminario-creado",
+    "seminar-created",
   );
 }
 
@@ -122,7 +122,7 @@ export async function handleSeminarDetailAction(
   return {
     status: "success",
     intent: updateSeminarIntent,
-    message: notificationToasts["seminario-guardado"].message,
+    message: notificationToasts["seminar-saved"].message,
   };
 }
 
@@ -167,7 +167,7 @@ async function removeSeminar(
 
   throw await redirectWithFlashNotification(
     buildListPath(basePath, selectedEventId),
-    "seminario-eliminado",
+    "seminar-deleted",
   );
 }
 

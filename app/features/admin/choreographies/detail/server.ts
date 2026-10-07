@@ -275,8 +275,8 @@ export async function handleChoreographyDetailAction(input: {
     return redirectWithFlashNotification(
       choreographiesPath,
       outcome === "withdrawn"
-        ? "coreografia-retirada"
-        : "coreografia-eliminada",
+        ? "choreography-withdrawn"
+        : "choreography-deleted",
     );
   }
 

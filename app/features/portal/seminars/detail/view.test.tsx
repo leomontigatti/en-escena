@@ -77,7 +77,7 @@ describe("PortalSeminarDetailRouteView", () => {
 
     const text = document.body.textContent ?? "";
 
-    expect(document.querySelector("#seminario-title")?.textContent).toBe(
+    expect(document.querySelector("#seminar-title")?.textContent).toBe(
       "Abril Sosa",
     );
     expect(text).toContain("10 de octubre de 2026 · 18:30");

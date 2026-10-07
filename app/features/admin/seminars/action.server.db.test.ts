@@ -138,7 +138,7 @@ describe("admin seminars", () => {
       response,
       `/administracion/seminarios/${seminar?.id}`,
       {
-        id: "route-notification:seminario-creado",
+        id: "route-notification:seminar-created",
         message: "Seminario creado.",
         variant: "success",
       },
@@ -232,7 +232,7 @@ describe("admin seminars", () => {
     );
 
     await expectFlashRedirect(response, "/administracion/seminarios", {
-      id: "route-notification:seminario-eliminado",
+      id: "route-notification:seminar-deleted",
       message: "Seminario eliminado.",
       variant: "success",
     });

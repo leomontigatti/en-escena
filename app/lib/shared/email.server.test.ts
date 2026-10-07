@@ -49,7 +49,7 @@ describe("sendEmail", () => {
     await sendEmail({
       to: "academia@example.com",
       subject: "Te invitaron a En Escena",
-      text: "Usá este enlace para confirmar tu correo: http://localhost/invitacion/token-prueba",
+      text: "Usá este enlace para confirmar tu correo: http://localhost/registro/confirmar?token_hash=token-prueba",
     });
 
     expect(infoSpy).toHaveBeenCalledWith(
@@ -57,7 +57,7 @@ describe("sendEmail", () => {
         "[email:dev]",
         "To: academia@example.com",
         "Subject: Te invitaron a En Escena",
-        "Usá este enlace para confirmar tu correo: http://localhost/invitacion/token-prueba",
+        "Usá este enlace para confirmar tu correo: http://localhost/registro/confirmar?token_hash=token-prueba",
       ].join("\n"),
     );
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ describe("sendEmail", () => {
     await sendEmail({
       to: "usuario@example.com",
       subject: "Te invitaron a En Escena",
-      text: "Usá este enlace para confirmar tu correo: https://example.com/invitacion/token",
+      text: "Usá este enlace para confirmar tu correo: https://example.com/registro/confirmar?token_hash=token",
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -163,7 +163,7 @@ describe("sendEmail", () => {
           to: [{ email: "usuario@example.com" }],
           subject: "Te invitaron a En Escena",
           textContent:
-            "Usá este enlace para confirmar tu correo: https://example.com/invitacion/token",
+            "Usá este enlace para confirmar tu correo: https://example.com/registro/confirmar?token_hash=token",
         }),
       },
     );
@@ -181,7 +181,7 @@ describe("sendEmail", () => {
       sendEmail({
         to: "usuario@example.com",
         subject: "Te invitaron a En Escena",
-        text: "Usá este enlace para confirmar tu correo: https://example.com/invitacion/token",
+        text: "Usá este enlace para confirmar tu correo: https://example.com/registro/confirmar?token_hash=token",
       }),
     ).rejects.toThrow("RESEND_API_KEY is required to send production email");
   });
@@ -197,7 +197,7 @@ describe("sendEmail", () => {
       sendEmail({
         to: "usuario@example.com",
         subject: "Te invitaron a En Escena",
-        text: "Usá este enlace para confirmar tu correo: https://example.com/invitacion/token",
+        text: "Usá este enlace para confirmar tu correo: https://example.com/registro/confirmar?token_hash=token",
       }),
     ).rejects.toThrow("BREVO_API_KEY is required to send production email");
   });
@@ -218,7 +218,7 @@ describe("sendEmail", () => {
       sendEmail({
         to: "usuario@example.com",
         subject: "Te invitaron a En Escena",
-        text: "Usá este enlace para confirmar tu correo: https://example.com/invitacion/token",
+        text: "Usá este enlace para confirmar tu correo: https://example.com/registro/confirmar?token_hash=token",
       }),
     ).rejects.toThrow("Email provider failed to send message");
 

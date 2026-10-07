@@ -45,12 +45,12 @@ import {
 } from "@/lib/shared/navigation";
 
 const scheduleBasePath = "/administracion/cronogramas";
-const scheduleSavedNotification = "cronograma-guardado";
-const scheduleDeletedNotification = "cronograma-eliminado";
-const scheduleCapacitySavedNotification = "cupo-cronograma-guardado";
-const scheduleCapacityDeletedNotification = "cupo-cronograma-eliminado";
-const scheduleRegistrationOpenedNotification = "inscripciones-abiertas";
-const scheduleRegistrationClosedNotification = "inscripciones-cerradas";
+const scheduleSavedNotification = "schedule-saved";
+const scheduleDeletedNotification = "schedule-deleted";
+const scheduleCapacitySavedNotification = "schedule-capacity-saved";
+const scheduleCapacityDeletedNotification = "schedule-capacity-deleted";
+const scheduleRegistrationOpenedNotification = "registration-opened";
+const scheduleRegistrationClosedNotification = "registration-closed";
 const scheduleDeleteConfirmationMessage =
   "Confirmá el borrado del cronograma antes de continuar.";
 const scheduleCapacityFieldNames = ["id", "groupType", "capacity"] as const;

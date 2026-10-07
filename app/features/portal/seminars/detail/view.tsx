@@ -88,7 +88,7 @@ export function PortalSeminarDetailRouteView({
   return (
     <>
       <PortalListPage
-        titleId="seminario-title"
+        titleId="seminar-title"
         title={seminar.instructorName}
         description={formatPortalSeminarMoment(seminar)}
         action={

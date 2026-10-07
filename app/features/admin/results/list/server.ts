@@ -225,7 +225,7 @@ export async function handleResultsListAction(
     await hideResults(eventContext.selectedEventId);
 
     return {
-      message: notificationToasts["resultados-ocultos"].message,
+      message: notificationToasts["results-hidden"].message,
       status: "success",
     };
   }

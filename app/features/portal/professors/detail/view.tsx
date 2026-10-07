@@ -125,10 +125,10 @@ export function PortalProfessorDetailRouteView({
     <>
       <section
         className="flex flex-1 flex-col gap-6"
-        aria-labelledby="profesor-detail-title"
+        aria-labelledby="professor-detail-title"
       >
         <PortalPageHeader
-          titleId="profesor-detail-title"
+          titleId="professor-detail-title"
           title={title}
           titleStyle={viewTransitionStyle}
           description="Actualizá los datos de este profesor."
@@ -213,20 +213,20 @@ function PortalProfessorDetailTabs({
   const resetListQuery = useResetListQuery();
 
   return (
-    <Tabs defaultValue="identificacion" onValueChange={resetListQuery}>
+    <Tabs defaultValue="identification" onValueChange={resetListQuery}>
       <TabsList variant="line">
-        <TabsTrigger value="identificacion">Identificación</TabsTrigger>
-        <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
-        <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
+        <TabsTrigger value="identification">Identificación</TabsTrigger>
+        <TabsTrigger value="inscriptions">Inscripciones</TabsTrigger>
+        <TabsTrigger value="seminars">Seminarios</TabsTrigger>
       </TabsList>
       <TabsContent
         forceMount
-        value="identificacion"
+        value="identification"
         className="pt-2 data-[state=inactive]:hidden"
       >
         {children}
       </TabsContent>
-      <TabsContent value="inscripciones" className="pt-2">
+      <TabsContent value="inscriptions" className="pt-2">
         {loaderData.selectedEventId ? (
           <ProfessorChoreographiesTable
             buildChoreographyHref={(choreographyId) =>
@@ -238,7 +238,7 @@ function PortalProfessorDetailTabs({
           <NoActiveEventState subject="inscripciones" />
         )}
       </TabsContent>
-      <TabsContent value="seminarios" className="pt-2">
+      <TabsContent value="seminars" className="pt-2">
         {loaderData.selectedEventId ? (
           <RosterSeminarInscriptionsTable
             buildSeminarHref={portalSeminarDetailPath}
