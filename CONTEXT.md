@@ -132,15 +132,15 @@ _Avoid_: internal email, alias, account
 
 **`accessRecovery`** — ui: "Recuperación de acceso"
 Flow through which an existing academy recovers its access via a link sent to its verified email.
-_Avoid_: `academyRegistration`, `internalUserInvitation`
+_Avoid_: `academyRegistration`
 
 **`internalUserPasswordReset`** — ui: "Restablecimiento administrativo de contraseña"
 Administrative action that assigns a new password to an internal user and closes their open sessions; it is the recovery mechanism for internal users, who receive no email.
-_Avoid_: `accessRecovery`, `internalUserInvitation`
+_Avoid_: `accessRecovery`
 
 **`accessSession`** — ui: "Sesión de acceso"
 Authenticated period of a user inside the system.
-_Avoid_: `academyRegistration`, `internalUserInvitation`, `accessRecovery`
+_Avoid_: `academyRegistration`, `accessRecovery`
 
 **`suspendedUser`** — ui: "Usuario suspendido"
 User who keeps their history but cannot start or maintain access sessions.
@@ -154,9 +154,8 @@ _Avoid_: auditor, academy user
 Internal user who reads administration and never writes: every administration surface is either read-only or hidden to them. A control that would change data is absent for an auditor rather than locked, while a lock that reports a state of the data reads the same as for anyone else.
 _Avoid_: `admin`, read-only administrator, `Auditoría` as the name of the permission
 
-**`internalUserInvitation`** — ui: "Invitación de usuario interno"
-Administrative flow to enable an administration, audit or judging user.
-_Avoid_: `academyRegistration`, `accessRecovery`
+**`Invitación de usuario interno`** _(retired term)_ — no code identifier
+Administrative flow that emailed a 24-hour link (`/invitacion/:token`) through which a person set their own password and became an administration, audit or judging user. ADR-0003 replaced it with direct creation and nothing issued one after that; its routes, its server modules and the `en_escena_internal_user_invitation` table were removed in #1495. Do not use: an **`admin`** creates an internal user directly with their password, and internal users receive no email (see **`internalUsername`**).
 
 **`judge`** — ui: "Juez"
 Internal user assigned to evaluate an event's presentations.

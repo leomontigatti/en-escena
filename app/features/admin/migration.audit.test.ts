@@ -134,10 +134,6 @@ const migratedAdminRouteAudits = [
     "administracion.usuarios_.$userId.tsx",
     "@/features/admin/users/",
   ),
-  migratedAdminRoute(
-    "administracion.usuarios_.invitaciones.tsx",
-    "@/features/admin/users/",
-  ),
 ] as const;
 
 const expectedAdminComponentFiles = [

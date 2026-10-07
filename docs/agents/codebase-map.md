@@ -61,15 +61,15 @@ onboarding.
 ## Access And Internal Users
 
 Use for login, session policy, password recovery,
-internal invitations, suspension and internal user administration.
+suspension and internal user administration.
 
 - Domain: `docs/domain/access.md`
 - ADRs: `docs/adr/0003-direct-internal-user-access.md`, `docs/adr/0013-exit-supabase.md`
 - Local operation: `docs/local-auth.md`
-- Routes: `app/routes/ingresar.tsx`, `app/routes/recuperar-acceso.tsx`, `app/routes/recuperar-acceso_.nueva.tsx`, `app/routes/cambiar-contrasena.tsx`, `app/routes/invitacion_.$token.tsx`, `app/routes/salir.tsx`, `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`, `app/routes/administracion.usuarios_.invitaciones.tsx`
+- Routes: `app/routes/ingresar.tsx`, `app/routes/recuperar-acceso.tsx`, `app/routes/recuperar-acceso_.nueva.tsx`, `app/routes/cambiar-contrasena.tsx`, `app/routes/salir.tsx`, `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`
 - Feature modules: `app/features/admin/users/list/`, `app/features/admin/users/detail/`
-- Server modules: `app/lib/auth/internal-access.server.ts`, `app/lib/auth/internal-login.server.ts`, `app/lib/auth/access-recovery.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-update.server.ts`, `app/lib/admin/users/internal-user-suspension.server.ts`, `app/lib/admin/users/user-invitation.server.ts`
-- Tests: `app/lib/auth/auth-session-policy.server.db.test.ts`, `app/lib/auth/access-recovery.server.db.test.ts`, `app/lib/auth/change-password-route.server.db.test.ts`, `app/lib/auth/logout-route.server.db.test.ts`, `app/lib/admin/users/users-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create.server.db.test.ts`, `app/lib/admin/users/user-invitation.server.db.test.ts`, `app/lib/admin/users/user-detail-route.server.db.test.ts`
+- Server modules: `app/lib/auth/internal-access.server.ts`, `app/lib/auth/internal-login.server.ts`, `app/lib/auth/access-recovery.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-update.server.ts`, `app/lib/admin/users/internal-user-suspension.server.ts`
+- Tests: `app/lib/auth/auth-session-policy.server.db.test.ts`, `app/lib/auth/access-recovery.server.db.test.ts`, `app/lib/auth/change-password-route.server.db.test.ts`, `app/lib/auth/logout-route.server.db.test.ts`, `app/lib/admin/users/users-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create.server.db.test.ts`, `app/lib/admin/users/user-detail-route.server.db.test.ts`
 
 ## Portal Roster
 
@@ -143,16 +143,16 @@ breadcrumbs/navigation and active event selector wiring.
 
 ## Admin Users
 
-Use for internal user list, create, detail, invitations, suspension and
+Use for internal user list, create, detail, suspension and
 password reset flows.
 
 - Domain: `docs/domain/access.md`
 - ADRs: `docs/adr/0003-direct-internal-user-access.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
-- Routes: `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`, `app/routes/administracion.usuarios_.invitaciones.tsx`
-- Feature modules: `app/features/admin/users/list/`, `app/features/admin/users/create/`, `app/features/admin/users/detail/`, `app/features/admin/users/invitations/`
-- Shared modules kept in `app/lib` because they stay neutral to several admin flows: `app/lib/admin/users/users-list.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-update.server.ts`, `app/lib/admin/users/internal-user-suspension.server.ts`, `app/lib/admin/users/internal-user-password-reset.server.ts`, `app/lib/admin/users/internal-user-credentials.server.ts`, `app/lib/admin/users/internal-user-credentials.shared.ts`, `app/lib/admin/users/user-invitation.server.ts`, `app/lib/auth/internal-navigation.server.ts`
+- Routes: `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`
+- Feature modules: `app/features/admin/users/list/`, `app/features/admin/users/create/`, `app/features/admin/users/detail/`
+- Shared modules kept in `app/lib` because they stay neutral to several admin flows: `app/lib/admin/users/users-list.server.ts`, `app/lib/admin/users/internal-user-create.server.ts`, `app/lib/admin/users/internal-user-update.server.ts`, `app/lib/admin/users/internal-user-suspension.server.ts`, `app/lib/admin/users/internal-user-password-reset.server.ts`, `app/lib/admin/users/internal-user-credentials.server.ts`, `app/lib/admin/users/internal-user-credentials.shared.ts`, `app/lib/auth/internal-navigation.server.ts`
 - Shared UI still reused by the feature views: `app/lib/admin/users/user-detail-cards.tsx`, `app/lib/admin/users/user-detail-edit-form.tsx`, `app/lib/admin/users/user-detail-password-reset-form.tsx`, `app/lib/admin/users/user-detail-role-field.tsx`
-- Tests: `app/lib/admin/users/users-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create.server.db.test.ts`, `app/lib/admin/users/user-detail-route.server.db.test.ts`, `app/lib/admin/users/internal-invitation-route.server.db.test.ts`, `app/lib/admin/users/user-invitation.server.db.test.ts`, `app/features/admin/users/list/view.test.tsx`
+- Tests: `app/lib/admin/users/users-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create-route.server.db.test.ts`, `app/lib/admin/users/internal-user-create.server.db.test.ts`, `app/lib/admin/users/user-detail-route.server.db.test.ts`, `app/features/admin/users/list/view.test.tsx`
 
 ## Admin Choreographies
 

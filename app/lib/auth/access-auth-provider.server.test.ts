@@ -11,7 +11,6 @@ const betterAuthAdapter = {
   requestPasswordReset: vi.fn(),
   signInCredentialUser: vi.fn(),
   signOutCurrentSession: vi.fn(),
-  signUpCredentialUser: vi.fn(),
   startEmailSignUp: vi.fn(),
   updatePasswordForRecovery: vi.fn(),
   verifyPasswordRecoveryOtp: vi.fn(),

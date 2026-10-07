@@ -107,7 +107,6 @@ const adminMigrationMapRequirements = [
   "`app/routes/administracion.profesores_.$professorId.tsx`",
   "`app/routes/administracion.bailarines_.$dancerId.tsx`",
   "`app/routes/administracion.coreografias.tsx`",
-  "`app/routes/administracion.usuarios_.invitaciones.tsx`",
   "`app/routes/administracion.eventos_.$eventId.tsx`",
   "`app/routes/administracion.modalidades_.$modalityId.tsx`",
   "`app/routes/administracion.categorias_.$categoryId.tsx`",

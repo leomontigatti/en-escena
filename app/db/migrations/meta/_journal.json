@@ -337,6 +337,13 @@
       "when": 1791310946762,
       "tag": "0047_choreography_name_rule",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791380435226,
+      "tag": "0048_drop_internal_user_invitation",
+      "breakpoints": true
     }
   ]
 }
