@@ -8,7 +8,7 @@ import {
   verifyPassword,
 } from "better-auth/crypto";
 import { admin } from "better-auth/plugins";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { parse, serialize } from "cookie";
 
 import { db } from "@/db";
@@ -190,51 +190,6 @@ export async function readLatestBetterAuthResetToken(
   return row.identifier.slice(RESET_PASSWORD_IDENTIFIER_PREFIX.length);
 }
 
-// Better Auth's `provider_id` for local credentials (email + password).
-export const CREDENTIAL_PROVIDER_ID = "credential";
-
-// Better Auth's native scrypt hasher (`auth.$context.password`). Returns the
-// hash in the format Better Auth verifies at sign-in, so a user created with
-// these helpers can authenticate with `auth.api.signInEmail`.
-export async function hashBetterAuthPassword(
-  password: string,
-): Promise<string> {
-  const ctx = await auth.$context;
-  return ctx.password.hash(password);
-}
-
-// Creates or updates a user's email+password credential, hashing with Better
-// Auth. Replaces `upsertLocalAccessPassword` from the retired test provider
-// (#422); used by internal-user sign-up and by invitations.
-export async function upsertBetterAuthCredentialPassword(input: {
-  password: string;
-  userId: string;
-}): Promise<void> {
-  const passwordHash = await hashBetterAuthPassword(input.password);
-  const existingCredential = await db.query.account.findFirst({
-    columns: { id: true },
-    where: and(
-      eq(account.userId, input.userId),
-      eq(account.providerId, CREDENTIAL_PROVIDER_ID),
-    ),
-  });
-
-  if (existingCredential?.id) {
-    await db
-      .update(account)
-      .set({ password: passwordHash, updatedAt: new Date() })
-      .where(eq(account.id, existingCredential.id));
-    return;
-  }
-
-  await db.insert(account).values({
-    accountId: input.userId,
-    providerId: CREDENTIAL_PROVIDER_ID,
-    password: passwordHash,
-    userId: input.userId,
-  });
-}
-
 // Signed cookie that carries the Better Auth reset token between the code
 // exchange (`exchangePasswordRecoveryCode`) and the password change
 // (`updatePasswordForRecovery`). Replaces the Supabase provider's
@@ -295,17 +250,6 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       headers.append("set-cookie", buildRecoveryTokenCookie(null));
 
       return { headers };
-    },
-
-    async signUpCredentialUser(
-      input: CredentialUserInput,
-    ): Promise<AccessCredentialUser> {
-      const { headers, response } = await createBetterAuthCredentialUser({
-        email: input.email,
-        password: input.password,
-      });
-
-      return { headers, userId: response.user.id };
     },
 
     async startEmailSignUp(

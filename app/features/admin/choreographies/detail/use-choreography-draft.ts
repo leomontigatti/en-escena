@@ -9,7 +9,7 @@ import {
 } from "react-router";
 
 import {
-  choreographyDraftSchema,
+  getChoreographyDraftSchema,
   hasChoreographyDraftConsequences,
   isChoreographyDraftDirty,
   isChoreographyDraftResolved,
@@ -37,10 +37,11 @@ export function useChoreographyDraft(loaderData: ChoreographyDetailLoaderData) {
     () => toSavedChoreographyDraft(choreography),
     [choreography],
   );
+  const schema = useMemo(() => getChoreographyDraftSchema(saved), [saved]);
   const form = useForm<ChoreographyDraft>({
     defaultValues: saved,
     mode: "onSubmit",
-    resolver: zodResolver(choreographyDraftSchema),
+    resolver: zodResolver(schema),
   });
   const { getValues, reset, setValue } = form;
   const draft = useWatch({ control: form.control }) as ChoreographyDraft;

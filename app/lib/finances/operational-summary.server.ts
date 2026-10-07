@@ -36,6 +36,7 @@ import {
   readAcademySeminarFinance,
   type SeminarOperationalFinanceRow,
 } from "@/lib/finances/seminar-operational-summary.server";
+import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
 
 type InscriptionRow = {
   id: string;
@@ -177,7 +178,10 @@ async function readAcademyEventFinance(input: {
             inArray(choreographies.academyId, input.academyIds),
           ),
         )
-        .orderBy(asc(choreographies.name), asc(choreographies.createdAt)),
+        .orderBy(
+          ...orderByChoreographyName(choreographies.name),
+          asc(choreographies.createdAt),
+        ),
       loadEventPriceRows(executor, input.eventId),
       readAcademySeminarFinance({
         academyIds: input.academyIds,

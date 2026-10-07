@@ -3,6 +3,7 @@
 // The registration page walked as an academy walks it, against a stub action
 // that answers each intent the way the server does (#1236).
 
+import { validateChoreographyName } from "@/lib/choreographies/choreography-name";
 import { act } from "react";
 import { createMemoryRouter, redirect, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
@@ -173,11 +174,11 @@ async function goNext() {
   await clickReactDomButton("Siguiente", { exact: true });
 }
 
-async function fillFirstStep() {
+async function fillFirstStep(typedName = "Danza de la Luna") {
   const name = document.querySelector<HTMLInputElement>("input[name='name']");
 
   await updateReactDomForm(() => {
-    setInputValue(name as HTMLInputElement, "Danza de la Luna");
+    setInputValue(name as HTMLInputElement, typedName);
   });
   await goNext();
 }
@@ -234,6 +235,31 @@ describe("the choreography registration page", () => {
     expect(created?.getAll("dancerIds")).toEqual(["dancer_1"]);
     expect(created?.getAll("professorIds")).toEqual(["professor_1"]);
     expect(created?.get("scheduleCapacityId")).toBe("capacity_1");
+  });
+
+  test("shows on the summary the name as it will be stored, and saves that one (#764)", async () => {
+    const { router, submissions } = renderPage({
+      resolve: resolved(buildResolution()),
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await fillFirstStep("  danza   DE la luna ");
+    await pickDancerAndResolve("¿Quiénes la prepararon?");
+    await clickLabel("Luz Suárez");
+    await goNext();
+
+    expect(getHeading()).toBe("Revisá antes de guardar");
+    expect(document.body.textContent).toContain("Danza de la Luna");
+
+    await clickReactDomButton("Guardar");
+    await waitFor(
+      () => router.state.location.pathname === "/portal/coreografias",
+    );
+
+    // The registration stores what the rule makes of the submitted name.
+    expect(
+      validateChoreographyName(String(submissions.at(-1)?.get("name"))),
+    ).toEqual({ ok: true, value: "Danza de la Luna" });
   });
 
   test("asks the level and the schedule on the category step, with a full schedule greyed out", async () => {

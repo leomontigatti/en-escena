@@ -212,7 +212,6 @@ The main local auth routes are:
 - `/recuperar-acceso`: request an access recovery email.
 - `/cambiar-contrasena?code=...`: complete the academy recovery flow after
   following the emailed link.
-- `/invitacion/:token`: complete an internal user invitation.
 
 ## Local Email
 
@@ -220,8 +219,7 @@ In non-production environments, `app/lib/shared/email.server.ts` logs messages t
 server console with an `[email:dev]` prefix and does not require provider
 credentials.
 
-Invitation links are built from the incoming request URL. Public academy
-registration confirmation and recovery emails are now app-owned through Better
+Public academy registration confirmation and recovery emails are now app-owned through Better
 Auth (#420): the app builds the Spanish content and sends it via
 `app/lib/shared/email.server.ts`, so in non-production the link is printed to the
 server console with the `[email:dev]` prefix. The demo accounts above skip this
@@ -235,8 +233,6 @@ flow; to test registration itself, or as an alternative to the seed, use it:
    `[email:dev]` console log.
 5. Follow that link and complete the academy form.
 
-The same console logging pattern still applies to internal invitation emails.
-
 If the submitted registration email already belongs to a user, the browser still
 shows the generic response and does not reveal whether the account already
 exists.
@@ -245,7 +241,7 @@ exists.
 
 Production access emails use the app email boundary in
 `app/lib/shared/email.server.ts`. Until the En Escena sending domain is ready,
-use Brevo for app-owned internal invitation emails:
+use Brevo for the app-owned access emails:
 
 ```sh
 EMAIL_PROVIDER="brevo"
@@ -264,9 +260,8 @@ RESEND_API_KEY="re_..."
 EMAIL_FROM="En Escena <acceso@your-verified-domain.example>"
 ```
 
-`EMAIL_FROM` must use an address on the verified Resend sending domain. Both the
-internal invitation emails and the Better Auth registration/recovery emails use
-this sender.
+`EMAIL_FROM` must use an address on the verified Resend sending domain. The Better Auth
+registration and recovery emails use this sender.
 
 Registration and recovery emails are app-owned through Better Auth (#420): the
 app builds the Spanish content and sends it through the email boundary. The
@@ -297,8 +292,8 @@ access flows and the local test harness:
 
 - Public academy onboarding creates an `Academia` for an already confirmed
   academy identity.
-- Internal invitation tokens create or activate one internal user role:
-  administration, audit or judging.
+- Admins create internal users directly (ADR-0003), each with one internal
+  role: administration, audit or judging.
 - Internal password recovery remains an administrative reset that sets the new
   password outright; internal users do not receive recovery emails.
 - Roles, academy ownership, internal usernames and suspension are app-domain
@@ -311,7 +306,7 @@ The following are not required for local operation or implementation:
 
 ## Agent References
 
-When changing auth, registration, recovery or invitation behavior, keep this
+When changing auth, registration or recovery behavior, keep this
 reference order:
 
 1. `CONTEXT.md`, the domain glossary and repo workflows are authoritative.

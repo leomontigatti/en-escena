@@ -26,7 +26,6 @@ const schemaExportNames = [
   "experienceLevel",
   "paymentMethod",
   "groupType",
-  "internalUserInvitations",
   "judgeAssignments",
   "modalities",
   "prices",

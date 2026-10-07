@@ -15,6 +15,7 @@ import type {
   RosterSeminarInscription,
 } from "@/lib/roster/inscriptions";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
+import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
 
 /**
  * The choreographies a professor is linked to in the selected event. A link
@@ -51,7 +52,7 @@ export async function findProfessorChoreographies(input: {
         eq(choreographies.eventId, input.selectedEventId),
       ),
     )
-    .orderBy(asc(sql`lower(${choreographies.name})`));
+    .orderBy(...orderByChoreographyName(choreographies.name));
 
   return rows;
 }
