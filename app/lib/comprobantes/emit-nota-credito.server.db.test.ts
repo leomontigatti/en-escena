@@ -267,14 +267,14 @@ describe("annulComprobante", () => {
     const facturaRow = rows.find((row) => row.id === factura.id);
     const notaCredito = rows.find((row) => row.cbteTipo === 13);
     // The original ends up annulled; the credit note, in force and associated.
-    expect(facturaRow?.status).toBe("anulada");
+    expect(facturaRow?.status).toBe("annulled");
     expect(notaCredito).toMatchObject({
       cbteTipo: 13,
       cbteNro: 8,
       impTotal: 7000,
       issuerIvaCondition: "exento",
       associatedComprobanteId: factura.id,
-      status: "vigente",
+      status: "valid",
     });
   });
 
@@ -479,7 +479,7 @@ describe("annulComprobante", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(3);
-    expect(rows.every((row) => row.status === "vigente")).toBe(true);
+    expect(rows.every((row) => row.status === "valid")).toBe(true);
   });
 
   test("an ARCA rejection persists no credit note and does not annul the original", async () => {
@@ -517,7 +517,7 @@ describe("annulComprobante", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("vigente");
+    expect(rows[0].status).toBe("valid");
   });
 
   test("rejects a comprobante that does not exist", async () => {
@@ -596,7 +596,7 @@ describe("annulComprobante", () => {
     expect(facturas).toHaveLength(2);
     expect(notas).toHaveLength(2);
     // Both invoices ended up annulled by their respective credit note.
-    expect(facturas.every((row) => row.status === "anulada")).toBe(true);
+    expect(facturas.every((row) => row.status === "annulled")).toBe(true);
     // Each credit note references a different invoice.
     expect(new Set(notas.map((row) => row.associatedComprobanteId)).size).toBe(
       2,
@@ -610,7 +610,7 @@ describe("annulComprobante", () => {
 describe("annulComprobante (ARCA does not respond)", () => {
   // A choreography with a comprobante of 4000 in force, ready to annul. The
   // credit note to attempt is number 8 (`ultimoNotaCreditoAutorizado` = 7).
-  async function seedFacturaVigente(prefix: string) {
+  async function seedValidInvoice(prefix: string) {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `${prefix}.${crypto.randomUUID()}@example.com`,
@@ -647,7 +647,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   }
 
   test("with the sequence lookup cut off, nothing was annulled and ARCA is not queried", async () => {
-    const { choreography, factura } = await seedFacturaVigente("lookup");
+    const { choreography, factura } = await seedValidInvoice("lookup");
     const billing = fakeBilling({ getLastVoucher: vi.fn(connectionLost) });
 
     const outcome = await annulComprobante(
@@ -662,11 +662,11 @@ describe("annulComprobante (ARCA does not respond)", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("vigente");
+    expect(rows[0].status).toBe("valid");
   });
 
   test("with authorization cut off, it queries the exact type 13 credit note and persists it with the returned CAE", async () => {
-    const { choreography, factura } = await seedFacturaVigente("recuperada");
+    const { choreography, factura } = await seedValidInvoice("recuperada");
     const billing = fakeBilling({
       createVoucher: vi.fn(connectionLost),
       getVoucherInfo: vi.fn(async () => consultada()),
@@ -692,11 +692,11 @@ describe("annulComprobante (ARCA does not respond)", () => {
     const rows = await listAnchorComprobantes(
       choreographyAnchor(choreography.id),
     );
-    expect(rows.find((row) => row.id === factura.id)?.status).toBe("anulada");
+    expect(rows.find((row) => row.id === factura.id)?.status).toBe("annulled");
   });
 
   test("an authorization timeout also triggers recovery", async () => {
-    const { factura } = await seedFacturaVigente("auth-timeout");
+    const { factura } = await seedValidInvoice("auth-timeout");
     const billing = fakeBilling({
       createVoucher: vi.fn(neverAnswers),
       getVoucherInfo: vi.fn(async () => consultada()),
@@ -712,7 +712,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   });
 
   test("if ARCA does not have that credit note, nothing was annulled and retrying is safe", async () => {
-    const { choreography, factura } = await seedFacturaVigente("sin-nota");
+    const { choreography, factura } = await seedValidInvoice("sin-nota");
 
     const outcome = await annulComprobante(
       { comprobanteId: factura.id },
@@ -729,11 +729,11 @@ describe("annulComprobante (ARCA does not respond)", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("vigente");
+    expect(rows[0].status).toBe("valid");
   });
 
   test("if the lookup fails too, the result is unverified and carries the credit note it could not resolve", async () => {
-    const { choreography, factura } = await seedFacturaVigente("no-verificada");
+    const { choreography, factura } = await seedValidInvoice("no-verificada");
 
     const outcome = await annulComprobante(
       { comprobanteId: factura.id },
@@ -754,11 +754,11 @@ describe("annulComprobante (ARCA does not respond)", () => {
       choreographyAnchor(choreography.id),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe("vigente");
+    expect(rows[0].status).toBe("valid");
   });
 
   test("a queried credit note with a different amount is not ours: it is not persisted", async () => {
-    const { choreography, factura } = await seedFacturaVigente("otro-importe");
+    const { choreography, factura } = await seedValidInvoice("otro-importe");
 
     const outcome = await annulComprobante(
       { comprobanteId: factura.id },
@@ -777,7 +777,7 @@ describe("annulComprobante (ARCA does not respond)", () => {
   });
 
   test("a queried credit note with a different date is not ours either", async () => {
-    const { choreography, factura } = await seedFacturaVigente("otra-fecha");
+    const { choreography, factura } = await seedValidInvoice("otra-fecha");
 
     const outcome = await annulComprobante(
       { comprobanteId: factura.id },

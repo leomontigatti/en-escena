@@ -175,7 +175,7 @@ describe("loadComprobantesList", () => {
 
     const facturaAlfaRow = data.rows.find((row) => row.id === facturaAlfa.id);
     expect(facturaAlfaRow).toMatchObject({
-      status: "anulada",
+      status: "annulled",
       cae: "11112222333344",
       ptoVta: 3,
       cbteNro: 7,
@@ -190,12 +190,12 @@ describe("loadComprobantesList", () => {
     });
 
     const notaCreditoRow = data.rows.find((row) => row.cbteTipo === 13);
-    expect(notaCreditoRow?.status).toBe("vigente");
+    expect(notaCreditoRow?.status).toBe("valid");
 
     const facturaBetaRow = data.rows.find(
       (row) => row.cbteTipo === 11 && row.id !== facturaAlfa.id,
     );
-    expect(facturaBetaRow?.status).toBe("vigente");
+    expect(facturaBetaRow?.status).toBe("valid");
     expect(facturaBetaRow?.academyName).toBe("Academia Beta");
   });
 
@@ -210,14 +210,14 @@ describe("loadComprobantesList", () => {
       name: "Coreografía Alfa",
     });
 
-    const anulada = await recordComprobante(
+    const annulledInvoice = await recordComprobante(
       facturaCInput({
         choreographyId: alfa.choreography.id,
         eventId: event.id,
         cbteNro: 1,
       }),
     );
-    const vigente = await recordComprobante(
+    const validInvoice = await recordComprobante(
       facturaCInput({
         choreographyId: alfa.choreography.id,
         eventId: event.id,
@@ -230,23 +230,25 @@ describe("loadComprobantesList", () => {
         eventId: event.id,
         cbteTipo: 13,
         cbteNro: 3,
-        associatedComprobanteId: anulada.id,
+        associatedComprobanteId: annulledInvoice.id,
       }),
     );
 
-    const anuladas = await loadComprobantesList(
+    const annulledList = await loadComprobantesList(
       await signedInAdminRequest("?estado=anulada"),
     );
-    expect(anuladas.rows.map((row) => row.id)).toEqual([anulada.id]);
-    expect(anuladas.totalCount).toBe(1);
+    expect(annulledList.rows.map((row) => row.id)).toEqual([
+      annulledInvoice.id,
+    ]);
+    expect(annulledList.totalCount).toBe(1);
 
-    const vigentes = await loadComprobantesList(
+    const validList = await loadComprobantesList(
       await signedInAdminRequest("?estado=vigente"),
     );
-    expect(new Set(vigentes.rows.map((row) => row.id))).toEqual(
-      new Set([vigente.id, notaCredito.id]),
+    expect(new Set(validList.rows.map((row) => row.id))).toEqual(
+      new Set([validInvoice.id, notaCredito.id]),
     );
-    expect(vigentes.totalCount).toBe(2);
+    expect(validList.totalCount).toBe(2);
   });
 
   test("filters by comprobante type", async () => {

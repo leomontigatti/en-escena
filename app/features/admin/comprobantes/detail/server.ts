@@ -98,7 +98,7 @@ export async function loadComprobanteDetail(
       academyId: context.academyId,
       academyName: context.academyName,
       eventName: context.eventName,
-      canAnnul: comprobante.status === "vigente",
+      canAnnul: comprobante.status === "valid",
     },
   };
 }

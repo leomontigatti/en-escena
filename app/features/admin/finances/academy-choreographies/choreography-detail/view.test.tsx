@@ -122,7 +122,7 @@ describe("ChoreographyFinanceDetailView", () => {
   test("carries no comprobante badge or link on the amount cards", () => {
     // `porcion` is deleted, and with it the two `Vigente`/`Desactualizada`
     // badges the deposit and balance cards carried: each read *a portion* — which
-    // vigente invoice covered it, and whether new money had landed inside it —
+    // valid invoice covered it, and whether new money had landed inside it —
     // and with no portion there is nothing to cover. The surviving
     // `Vigente`/`Anulada` badge is the comprobante's own status, and it lives on
     // the global comprobante list and detail.

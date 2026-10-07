@@ -38,7 +38,7 @@ function printRecord(
     caeVto: "20260801",
     associatedComprobanteId: null,
     createdAt: new Date("2026-07-22T12:00:00Z"),
-    status: "vigente",
+    status: "valid",
     lines: [
       {
         id: "line_1",
@@ -103,14 +103,14 @@ describe("buildComprobantePrintViewModel", () => {
   test("projects the comprobante snapshot with #334's numbering and legends", () => {
     const model = buildComprobantePrintViewModel(printRecord());
 
-    expect(model.numero).toBe("0003-00000007");
-    expect(model.header.titulo).toBe("Factura C");
-    expect(model.header.letra).toBe("C");
-    expect(model.header.codigo).toBe("011");
-    expect(model.fechaEmision).toBe("22/07/2026");
+    expect(model.number).toBe("0003-00000007");
+    expect(model.header.title).toBe("Factura C");
+    expect(model.header.letter).toBe("C");
+    expect(model.header.code).toBe("011");
+    expect(model.issueDate).toBe("22/07/2026");
     expect(model.caeVto).toBe("01/08/2026");
     expect(model.cae).toBe("11112222333344");
-    expect(model.estadoLabel).toBe("Vigente");
+    expect(model.statusLabel).toBe("Vigente");
   });
 
   test("projects a single `Inscripción` line with the total", () => {
@@ -121,13 +121,13 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.lines).toHaveLength(1);
     // The description names the service sold, not a rung of the retired ladder:
     // `porcion` is deleted, so a comprobante is neither deposit nor balance.
-    expect(model.lines[0].descripcion).toBe("Inscripción");
-    expect(model.lines[0].importe).toBe(model.importeTotal);
+    expect(model.lines[0].description).toBe("Inscripción");
+    expect(model.lines[0].amount).toBe(model.totalAmount);
     // It carries no right-hand side: the receptor block already names the
     // academy and the choreography, and there is no dancer to name until #657
     // renders one line per inscription.
-    expect(model.lines[0].descripcion).not.toContain("Coreografía Alfa");
-    expect(model.lines[0].descripcion).not.toContain("Certamen 2026");
+    expect(model.lines[0].description).not.toContain("Coreografía Alfa");
+    expect(model.lines[0].description).not.toContain("Certamen 2026");
   });
 
   test("exposes the snapshot's billed period and payment due date", () => {
@@ -139,29 +139,29 @@ describe("buildComprobantePrintViewModel", () => {
       }),
     );
 
-    expect(model.periodoDesde).toBe("01/08/2026");
-    expect(model.periodoHasta).toBe("03/08/2026");
-    expect(model.vencimientoPago).toBe("22/07/2026");
+    expect(model.servicePeriodFrom).toBe("01/08/2026");
+    expect(model.servicePeriodTo).toBe("03/08/2026");
+    expect(model.paymentDueDate).toBe("22/07/2026");
   });
 
   test("preserves null service dates when the snapshot does not carry them", () => {
     const model = buildComprobantePrintViewModel(printRecord());
 
-    expect(model.periodoDesde).toBeNull();
-    expect(model.periodoHasta).toBeNull();
-    expect(model.vencimientoPago).toBeNull();
+    expect(model.servicePeriodFrom).toBeNull();
+    expect(model.servicePeriodTo).toBeNull();
+    expect(model.paymentDueDate).toBeNull();
   });
 
   test("reflects the exempt issuer (not a monotributista)", () => {
     const model = buildComprobantePrintViewModel(printRecord());
 
-    expect(model.emisorRazonSocial).toBe(
+    expect(model.issuerLegalName).toBe(
       "Proyecciones Artísticas Asociación Civil",
     );
-    expect(model.emisorCuit).toBe("30717611590");
-    expect(model.emisorCondicionIva).toBe("IVA Exento");
-    expect(model.emisorCondicionIva).not.toContain("Monotributo");
-    expect(model.receptorCondicionIva).toBe("Consumidor Final");
+    expect(model.issuerCuit).toBe("30717611590");
+    expect(model.issuerVatCondition).toBe("IVA Exento");
+    expect(model.issuerVatCondition).not.toContain("Monotributo");
+    expect(model.recipientVatCondition).toBe("Consumidor Final");
   });
 
   test("reads a seminar unit as the instructor and the date beside the academy", () => {
@@ -171,21 +171,21 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.academyName).toBe("Academia Alfa");
     // The single line is the same constant on both kinds.
     expect(model.lines).toHaveLength(1);
-    expect(model.lines[0].descripcion).toBe("Inscripción");
+    expect(model.lines[0].description).toBe("Inscripción");
     // The seminar is taught on one day, so the period collapses to it, and what
     // is billed was already collected.
-    expect(model.periodoDesde).toBe("10/10/2030");
-    expect(model.periodoHasta).toBe("10/10/2030");
-    expect(model.vencimientoPago).toBe(model.fechaEmision);
+    expect(model.servicePeriodFrom).toBe("10/10/2030");
+    expect(model.servicePeriodTo).toBe("10/10/2030");
+    expect(model.paymentDueDate).toBe(model.issueDate);
   });
 
   test("uses the credit note heading for type 13", () => {
     const model = buildComprobantePrintViewModel(
-      printRecord({ cbteTipo: 13, status: "anulada" }),
+      printRecord({ cbteTipo: 13, status: "annulled" }),
     );
 
-    expect(model.header.titulo).toBe("Nota de Crédito C");
-    expect(model.header.codigo).toBe("013");
+    expect(model.header.title).toBe("Nota de Crédito C");
+    expect(model.header.code).toBe("013");
   });
 });
 
