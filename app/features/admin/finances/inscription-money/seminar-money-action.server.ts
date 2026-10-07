@@ -14,7 +14,16 @@ import {
   removeInscriptionMoneyIntent,
 } from "./intents";
 
-export type SeminarMoneyRefusal = { message: string; status: "error" };
+/** What a money gesture answers: a refusal keeps the dialog open; a success
+ * is for the screen that stays put to read out. */
+export type SeminarMoneyAnswer =
+  { message: string; status: "error" } | { message: string; status: "success" };
+
+const successMessages: Record<string, string> = {
+  [allocateInscriptionIntent]: "Dinero asignado.",
+  [releaseInscriptionExcessIntent]: "Excedente liberado.",
+  [removeInscriptionMoneyIntent]: "Dinero quitado.",
+};
 
 const seminarMoneyIntents: readonly string[] = [
   allocateInscriptionIntent,
@@ -31,14 +40,15 @@ const seminarMoneyIntents: readonly string[] = [
  *
  * The gestures differ only in what they read off the form: an amount for two
  * of them and nothing at all for the release, whose figure is computed.
- * Returns `null` when the write went through, leaving each screen to decide
- * what follows (the detail redirects to itself, the list stays); a refusal
- * otherwise, which keeps the dialog open with what the administrator typed.
+ * Answers a success when the write went through, leaving each screen to decide
+ * what follows (the detail redirects to itself, the list stays and toasts it);
+ * a refusal otherwise, which keeps the dialog open with what the administrator
+ * typed.
  */
 export async function runSeminarInscriptionMoneyIntent(input: {
   eventId: string;
   formData: FormData;
-}): Promise<SeminarMoneyRefusal | null> {
+}): Promise<SeminarMoneyAnswer> {
   const intent = String(input.formData.get("intent") ?? "");
 
   // The shared dialog carries the kind it is about, and this action owns one
@@ -68,7 +78,7 @@ export async function runSeminarInscriptionMoneyIntent(input: {
   if (intent === releaseInscriptionExcessIntent) {
     const released = await releaseSeminarInscriptionExcess(target);
 
-    return released.ok ? null : { status: "error", message: released.message };
+    return answer(intent, released);
   }
 
   const amount = readMoneyAmount(input.formData);
@@ -86,5 +96,14 @@ export async function runSeminarInscriptionMoneyIntent(input: {
         })
       : await removeFromSeminarInscription({ ...target, amount });
 
-  return result.ok ? null : { status: "error", message: result.message };
+  return answer(intent, result);
+}
+
+function answer(
+  intent: string,
+  result: { ok: true } | { ok: false; message: string },
+): SeminarMoneyAnswer {
+  return result.ok
+    ? { status: "success", message: successMessages[intent] ?? "" }
+    : { status: "error", message: result.message };
 }

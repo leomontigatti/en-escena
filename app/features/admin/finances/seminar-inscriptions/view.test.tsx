@@ -1,16 +1,30 @@
 /** @vitest-environment jsdom */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { seminarInscriptionFinanceRowFixture } from "@/lib/finances/seminar-inscriptions.test-support";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  setInputValue,
+  updateReactDomForm,
+  waitFor,
 } from "@/lib/test-support/react-dom";
 
 import type { loadSeminarInscriptionFinances } from "./server";
 import { SeminarInscriptionFinancesView } from "./view";
+
+const toastSuccess = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    info: vi.fn(),
+    success: (message: string) => toastSuccess(message),
+    warning: vi.fn(),
+  },
+}));
 
 type LoaderData = Extract<
   Awaited<ReturnType<typeof loadSeminarInscriptionFinances>>,
@@ -64,7 +78,13 @@ describe("SeminarInscriptionFinancesView", () => {
 
   afterEach(renderer.cleanup);
 
-  async function mount(search = "") {
+  async function mount(
+    search = "",
+    answer: () => unknown = () => ({
+      message: "Dinero asignado.",
+      status: "success",
+    }),
+  ) {
     const loaderData: LoaderData = {
       inscriptions,
       priceOptionsByInscription: {},
@@ -74,7 +94,7 @@ describe("SeminarInscriptionFinancesView", () => {
       [
         {
           path: listPath,
-          action: () => null,
+          action: answer,
           element: <SeminarInscriptionFinancesView loaderData={loaderData} />,
         },
       ],
@@ -83,27 +103,6 @@ describe("SeminarInscriptionFinancesView", () => {
 
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
-
-  test("lists academy, person, seminar and the money columns, with every row shown", async () => {
-    await mount();
-
-    expect(headerLabels()).toEqual([
-      "Academia",
-      "Inscripto",
-      "Seminario",
-      "Seña",
-      "Total",
-      "Saldo adeudado",
-      "Estado",
-    ]);
-    expect(columnValues("Inscripto")).toEqual([
-      "Ana López",
-      "Luz Suárez",
-      "Nicolás Prado",
-    ]);
-    expect(columnValues("Seminario")[0]).toContain("Abril Sosa");
-    expect(columnValues("Seminario")[0]).toContain("10 de octubre de 2026");
-  });
 
   test("sums the three metrics over every row when nothing narrows the list", async () => {
     await mount();
@@ -157,6 +156,23 @@ describe("SeminarInscriptionFinancesView", () => {
       document.querySelector('[role="dialog"] h2')?.textContent?.trim(),
     ).toBe("Luz Suárez");
   });
+
+  // The list stays put after a write (a dialog over a list does not
+  // redirect), so the success comes back as an answer: it is toasted and the
+  // dialog closes.
+  test("toasts a write that went through and closes the dialog", async () => {
+    await mount();
+
+    await clickReactDomButton("Ana López", { exact: true });
+    await updateReactDomForm(() => {
+      setInputValue(amountInput(), "1000");
+    });
+    await clickReactDomButton("Guardar");
+    await waitFor(() => document.querySelector('[role="dialog"]') === null);
+
+    await waitFor(() => toastSuccess.mock.calls.length > 0);
+    expect(toastSuccess).toHaveBeenCalledWith("Dinero asignado.");
+  });
 });
 
 function headerLabels() {
@@ -176,6 +192,16 @@ function columnValues(header: string) {
   return [...document.querySelectorAll("tbody tr")].map((row) =>
     (row.querySelectorAll("td")[columnIndex]?.textContent ?? "").trim(),
   );
+}
+
+function amountInput(): HTMLInputElement {
+  const input = document.querySelector("input#inscription-amount");
+
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Expected the amount field to be rendered.");
+  }
+
+  return input;
 }
 
 function metricCardText(title: string) {

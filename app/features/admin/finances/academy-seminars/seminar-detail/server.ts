@@ -211,7 +211,7 @@ export async function handleSeminarFinanceAction(input: {
 
   const result = await runSeminarInscriptionMoneyIntent({ eventId, formData });
 
-  if (result !== null) {
+  if (result.status === "error") {
     return result;
   }
 

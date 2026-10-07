@@ -1,6 +1,6 @@
 import {
   runSeminarInscriptionMoneyIntent,
-  type SeminarMoneyRefusal,
+  type SeminarMoneyAnswer,
 } from "@/features/admin/finances/inscription-money/seminar-money-action.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
@@ -67,11 +67,12 @@ export async function loadSeminarInscriptionFinances(request: Request) {
 /**
  * The money dialog's three gestures, posted from the list. A write that went
  * through stays on the list (form-feedback: a dialog over a list does not
- * redirect): the loader revalidates and the row shows its new figures.
+ * redirect): the loader revalidates, the row shows its new figures and the
+ * success is toasted.
  */
 export async function handleSeminarInscriptionFinancesAction(
   request: Request,
-): Promise<SeminarMoneyRefusal | null> {
+): Promise<SeminarMoneyAnswer> {
   await requireAdminUser(request);
   const eventContext = await loadEventContext(request);
 

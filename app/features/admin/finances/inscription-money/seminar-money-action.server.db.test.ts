@@ -33,7 +33,7 @@ describe("the seminar inscription money action", () => {
       priceId: fixture.priceId,
     });
 
-    expect(result).toBeNull();
+    expect(result).toEqual({ message: "Dinero asignado.", status: "success" });
     expect(await readAllocatedAmount(fixture.nicolasInscriptionId)).toBe(10000);
   });
 
@@ -72,7 +72,7 @@ describe("the seminar inscription money action", () => {
       intent: "release-inscription-excess",
     });
 
-    expect(removed).toBeNull();
+    expect(removed).toEqual({ message: "Dinero quitado.", status: "success" });
     expect(released).toEqual({
       message: "Esta inscripción no tiene excedente para liberar.",
       status: "error",
