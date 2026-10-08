@@ -34,7 +34,8 @@ vi.mock("sonner", () => ({
 /**
  * Three judges, two modalities: Ana and Bruno agree on Vecina in Jazz, Carla
  * has no pick there, and only Carla picked in Tap. Pirueta is a finalist
- * through Tap, so it is marked in Jazz too, where nobody picked it.
+ * through Tap, so it is marked in Jazz too, where nobody picked it. Pirueta
+ * has both banners, Vecina one.
  */
 const picks: GrandFinalPicks = {
   judges: [
@@ -49,6 +50,7 @@ const picks: GrandFinalPicks = {
       academies: [
         {
           academyId: "pirueta",
+          bannerCount: 2,
           eligible: true,
           finalist: true,
           name: "Academia Pirueta",
@@ -56,6 +58,7 @@ const picks: GrandFinalPicks = {
         },
         {
           academyId: "vecina",
+          bannerCount: 1,
           eligible: true,
           finalist: true,
           name: "Academia Vecina",
@@ -69,6 +72,7 @@ const picks: GrandFinalPicks = {
       academies: [
         {
           academyId: "pirueta",
+          bannerCount: 2,
           eligible: true,
           finalist: true,
           name: "Academia Pirueta",
@@ -76,6 +80,7 @@ const picks: GrandFinalPicks = {
         },
         {
           academyId: "zapateo",
+          bannerCount: 0,
           eligible: true,
           finalist: false,
           name: "Academia Zapateo",
@@ -152,15 +157,15 @@ describe("administration's `Gran final` list", () => {
     await mount();
 
     expect(readTable("Danza Jazz")).toEqual({
-      headers: ["Academia", "Ana Juez", "Bruno Juez", "Carla Juez"],
+      headers: ["Academia", "Banners", "Ana Juez", "Bruno Juez", "Carla Juez"],
       rows: [
-        ["Academia PiruetaFinalista", "—", "—", "—"],
-        ["Academia VecinaFinalista", "Elegida", "Elegida", "—"],
+        ["Academia PiruetaFinalista", "Cargados", "—", "—", "—"],
+        ["Academia VecinaFinalista", "Falta 1", "Elegida", "Elegida", "—"],
       ],
     });
     expect(readTable("Tap").rows).toEqual([
-      ["Academia PiruetaFinalista", "—", "—", "Elegida"],
-      ["Academia Zapateo", "—", "—", "—"],
+      ["Academia PiruetaFinalista", "Cargados", "—", "—", "Elegida"],
+      ["Academia Zapateo", "—", "—", "—", "—"],
     ]);
   });
 

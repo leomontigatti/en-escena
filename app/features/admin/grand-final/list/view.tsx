@@ -10,6 +10,7 @@ import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -20,6 +21,7 @@ import type {
   GrandFinalPicks,
 } from "@/lib/grand-final/picks-overview.server";
 
+import { buildFinalistBannersPath } from "../banners/shared";
 import { FinalistPickChangeDialog } from "./pick-dialog";
 import type {
   FinalistPickChangeBlockReason,
@@ -29,7 +31,8 @@ import type {
 /**
  * Administration's `Gran final` list for the active event: one table per
  * modality, an academy per row and a judge per column, so each judge's
- * `finalistPick` reads as a check in the academy's row. The `Acciones` menu
+ * `finalistPick` reads as a check in the academy's row, and each finalist's
+ * banners as a status beside its name. The `Acciones` menu
  * holds the change of any judge's pick, with no window; the later actions of
  * the `grandFinal` join it.
  */
@@ -128,6 +131,11 @@ function ModalityTable({
       className: "font-medium",
       cell: (row) => <AcademyCell row={row} />,
     },
+    {
+      id: "banners",
+      header: "Banners",
+      cell: (row) => (row.finalist ? <BannerStatus row={row} /> : "—"),
+    },
     ...judges.map((judge): DataTableColumn<GrandFinalAcademyRow> => ({
       id: `judge-${judge.id}`,
       header: judge.name,
@@ -156,17 +164,36 @@ function ModalityTable({
 /**
  * The academy, `Finalista` when any judge picked it in any modality, and a
  * warning when it is here only because a judge picked it before it stopped
- * being eligible.
+ * being eligible. A finalist's name opens its banner form.
  */
 function AcademyCell({ row }: { row: GrandFinalAcademyRow }) {
   return (
     <div className="flex items-center gap-2">
-      {row.name}
+      {row.finalist ? (
+        <DataTableLink to={buildFinalistBannersPath(row.academyId)} recordTitle>
+          {row.name}
+        </DataTableLink>
+      ) : (
+        row.name
+      )}
       {row.finalist ? <Badge variant="success">Finalista</Badge> : null}
       {row.eligible ? null : (
         <Badge variant="warning">No cumple los requisitos</Badge>
       )}
     </div>
+  );
+}
+
+/** Whether the finalist has the two banners the vote page shows. */
+function BannerStatus({ row }: { row: GrandFinalAcademyRow }) {
+  if (row.bannerCount >= 2) {
+    return <Badge variant="success">Cargados</Badge>;
+  }
+
+  return (
+    <Badge variant="warning">
+      {row.bannerCount === 1 ? "Falta 1" : "Sin banners"}
+    </Badge>
   );
 }
 

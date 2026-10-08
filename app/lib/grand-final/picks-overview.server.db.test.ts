@@ -1,8 +1,11 @@
 import { describe, expect, test } from "vitest";
 
+import { saveFinalistBanners } from "@/lib/grand-final/banners.server";
 import { setFinalistPick } from "@/lib/grand-final/finalist-pick.server";
 import { readGrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
 import { seedEligibilityFixture } from "@/lib/grand-final/grand-final.test-support";
+import { createGrandFinalBannerStorage } from "@/lib/storage/grand-final-banners.server";
+import { pngFile } from "@/lib/test-support/images";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -80,6 +83,7 @@ describe("`readGrandFinalPicks`", () => {
           academies: [
             {
               academyId: seed.pirueta,
+              bannerCount: 0,
               eligible: true,
               finalist: true,
               name: "Academia Pirueta",
@@ -87,6 +91,7 @@ describe("`readGrandFinalPicks`", () => {
             },
             {
               academyId: seed.vecina,
+              bannerCount: 0,
               eligible: true,
               finalist: true,
               name: "Academia Vecina",
@@ -100,6 +105,7 @@ describe("`readGrandFinalPicks`", () => {
           academies: [
             {
               academyId: seed.pirueta,
+              bannerCount: 0,
               eligible: true,
               finalist: true,
               name: "Academia Pirueta",
@@ -107,6 +113,7 @@ describe("`readGrandFinalPicks`", () => {
             },
             {
               academyId: seed.zapateo,
+              bannerCount: 0,
               eligible: true,
               finalist: false,
               name: "Academia Zapateo",
@@ -134,6 +141,7 @@ describe("`readGrandFinalPicks`", () => {
       expect.objectContaining({ academyId: seed.pirueta, eligible: true }),
       {
         academyId: seed.vecina,
+        bannerCount: 0,
         eligible: false,
         finalist: true,
         name: "Academia Vecina",
@@ -156,5 +164,52 @@ describe("`readGrandFinalPicks`", () => {
     expect(
       modalities.find((row) => row.modalityId === salsa)?.academies,
     ).toEqual([]);
+  });
+
+  // Banners belong to the academy within the event: a pick moved to another
+  // academy and back finds them where they were.
+  test("counts each academy's banners, and keeps them through a pick change", async () => {
+    const seed = await seedTwoModalities();
+    const storage = createGrandFinalBannerStorage({
+      createSignedUrl: async () => "https://example.test/signed",
+      remove: async () => {},
+      upload: async () => {},
+    });
+
+    await setFinalistPick({
+      academyId: seed.vecina,
+      judgeId: seed.ana,
+      modalityId: seed.jazz,
+    });
+    await expect(
+      saveFinalistBanners({
+        academyId: seed.vecina,
+        changes: {
+          first: { file: pngFile("a.png", 1920, 1080), kind: "upload" },
+          second: { kind: "keep" },
+        },
+        eventId: seed.fixture.eventId,
+        storage,
+      }),
+    ).resolves.toEqual({ ok: true });
+    await setFinalistPick({
+      academyId: seed.pirueta,
+      judgeId: seed.ana,
+      modalityId: seed.jazz,
+    });
+    await setFinalistPick({
+      academyId: seed.vecina,
+      judgeId: seed.ana,
+      modalityId: seed.jazz,
+    });
+
+    const { modalities } = await readGrandFinalPicks(seed.fixture.eventId);
+
+    expect(
+      modalities[0].academies.map((row) => [row.name, row.bannerCount]),
+    ).toEqual([
+      ["Academia Pirueta", 0],
+      ["Academia Vecina", 1],
+    ]);
   });
 });

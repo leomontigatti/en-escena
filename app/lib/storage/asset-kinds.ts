@@ -12,6 +12,7 @@ export type AssetKind =
   | "dancerDocumentImage"
   | "eventDocument"
   | "feedbackAudio"
+  | "grandFinalBanner"
   | "seminarInstructorPicture";
 
 export type AssetKindPolicy = {
@@ -92,6 +93,21 @@ export const assetKindPolicies = {
     maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
     signedUrlExpiresInSeconds: 300,
     subjectLabel: "El audio de la devolución",
+  },
+  // A `finalist`'s two pictures on the `Gran final` vote page. The shape rule
+  // (16:9, a minimum width) needs the image's own dimensions, so it lives in
+  // `grand-final-banners.server.ts` beside the decoder, not in this policy.
+  grandFinalBanner: {
+    bucket: "en-escena-grand-final-banners",
+    extensionByContentType: {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    },
+    formatListLabel: "JPG, PNG o WEBP",
+    maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
+    signedUrlExpiresInSeconds: 300,
+    subjectLabel: "El banner",
   },
   // The bucket deliberately drops the `en-escena-` prefix the other three
   // carry: nothing globs on it, and the name is pinned by a test either way.

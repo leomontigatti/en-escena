@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   foreignKey,
   index,
+  text,
   timestamp,
   uniqueIndex,
   varchar,
@@ -71,5 +72,56 @@ export const finalistPicks = createTable(
       table.modalityId,
     ),
     index("finalist_pick_academy_idx").on(table.academyId),
+  ],
+).enableRLS();
+
+/**
+ * The two banner pictures a `finalist` shows on the `Gran final` vote page,
+ * as storage keys on the uploads volume, never URLs. They belong to the
+ * academy within the event, not to a pick: changing or dropping a pick leaves
+ * them where they are, and an academy picked again finds them already there.
+ * Either key is null until its picture is uploaded.
+ *
+ * Cascade on both, as for the picks: a merged or deleted academy takes its
+ * banners with it, and the objects stay orphaned on the volume as a deleted
+ * event's documents do.
+ */
+export const finalistBanners = createTable(
+  "finalist_banner",
+  {
+    id: uuidPrimaryKey(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    academyId: varchar("academy_id", { length: 255 }).notNull(),
+    firstStorageKey: text("first_storage_key"),
+    secondStorageKey: text("second_storage_key"),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "finalist_banner_event_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.academyId],
+      foreignColumns: [academies.id],
+      name: "finalist_banner_academy_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("finalist_banner_event_academy_unique").on(
+      table.eventId,
+      table.academyId,
+    ),
+    index("finalist_banner_academy_idx").on(table.academyId),
   ],
 ).enableRLS();

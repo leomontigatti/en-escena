@@ -351,6 +351,13 @@
       "when": 1791468768876,
       "tag": "0049_finalist_pick",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791492392263,
+      "tag": "0050_finalist_banner",
+      "breakpoints": true
     }
   ]
 }

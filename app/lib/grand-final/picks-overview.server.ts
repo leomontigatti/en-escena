@@ -2,6 +2,7 @@ import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { finalistPicks, modalities } from "@/db/schema";
+import { readBannerCounts } from "@/lib/grand-final/banners.server";
 import { grandFinalEligibility } from "@/lib/grand-final/eligibility.server";
 import {
   readEventJudges,
@@ -20,6 +21,8 @@ export type { GrandFinalJudge };
 
 export type GrandFinalAcademyRow = {
   academyId: string;
+  /** How many of its two `Gran final` banners the academy has, 0 to 2. */
+  bannerCount: number;
   /**
    * False only for an academy that is listed because a judge picked it and
    * has stopped being eligible since: the pick stays until it is changed.
@@ -46,23 +49,25 @@ export type GrandFinalPicks = {
 export async function readGrandFinalPicks(
   eventId: string,
 ): Promise<GrandFinalPicks> {
-  const [eventModalities, eligible, picks, judges] = await Promise.all([
-    db
-      .select({ id: modalities.id, name: modalities.name })
-      .from(modalities)
-      .where(eq(modalities.eventId, eventId))
-      .orderBy(asc(modalities.name)),
-    grandFinalEligibility(eventId),
-    db
-      .select({
-        academyId: finalistPicks.academyId,
-        judgeId: finalistPicks.judgeId,
-        modalityId: finalistPicks.modalityId,
-      })
-      .from(finalistPicks)
-      .where(eq(finalistPicks.eventId, eventId)),
-    readEventJudges(eventId),
-  ]);
+  const [eventModalities, eligible, picks, judges, bannerCounts] =
+    await Promise.all([
+      db
+        .select({ id: modalities.id, name: modalities.name })
+        .from(modalities)
+        .where(eq(modalities.eventId, eventId))
+        .orderBy(asc(modalities.name)),
+      grandFinalEligibility(eventId),
+      db
+        .select({
+          academyId: finalistPicks.academyId,
+          judgeId: finalistPicks.judgeId,
+          modalityId: finalistPicks.modalityId,
+        })
+        .from(finalistPicks)
+        .where(eq(finalistPicks.eventId, eventId)),
+      readEventJudges(eventId),
+      readBannerCounts(eventId),
+    ]);
   const names = await readAcademyNames([
     ...eligible.map((pair) => pair.academyId),
     ...picks.map((pick) => pick.academyId),
@@ -88,6 +93,7 @@ export async function readGrandFinalPicks(
         academies: [...academyIds]
           .map((academyId) => ({
             academyId,
+            bannerCount: bannerCounts.get(academyId) ?? 0,
             eligible: eligibleIds.includes(academyId),
             finalist: finalistIds.has(academyId),
             name: names.get(academyId) ?? "",
