@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
@@ -24,6 +24,7 @@ import {
   loader as financeAccountsLoader,
 } from "@/routes/administracion.finanzas";
 import { date as choreographyDate } from "@/features/portal/choreographies/test-support/db";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 export async function createSavedEvent(
   overrides: Partial<Parameters<typeof createEvent>[0]> = {},
@@ -245,11 +246,8 @@ export function renderFinanceAccountsRoute(input: {
   loaderData: Awaited<ReturnType<typeof financeAccountsLoader>>;
 }) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: ["/administracion/finanzas"],
-      },
+    renderInDataRouter(
+      "/administracion/finanzas",
       createElement(FinancesListRouteView, {
         loaderData: input.loaderData,
       }),

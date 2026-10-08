@@ -15,7 +15,6 @@ type BackButtonProps = Omit<
   "asChild" | "children" | "variant"
 > & {
   to: ComponentProps<typeof Link>["to"];
-  viewTransition?: boolean;
 };
 
 type OptionalPendingButtonProps = Omit<
@@ -75,13 +74,13 @@ export function DestroyButton({
  * On a phone it is its chevron alone, a square like an icon button, so a form
  * footer keeps `Volver`, `Descartar cambios` and `Guardar` on one row. The
  * word stays for screen readers.
+ *
+ * It always goes as a view transition, so a record's title morphs back into
+ * its row in the list (`app/components/shared/record-title.ts`); a page with
+ * no record title changes at once, as `app/app.css` leaves the rest of the
+ * page unanimated.
  */
-export function BackButton({
-  className,
-  to,
-  viewTransition,
-  ...buttonProps
-}: BackButtonProps) {
+export function BackButton({ className, to, ...buttonProps }: BackButtonProps) {
   const navigate = useNavigate();
 
   function goBack(event: MouseEvent<HTMLAnchorElement>) {
@@ -101,7 +100,7 @@ export function BackButton({
         className,
       )}
     >
-      <Link to={to} viewTransition={viewTransition} onClick={goBack}>
+      <Link to={to} viewTransition onClick={goBack}>
         <ChevronLeft aria-hidden="true" data-icon="inline-start" />
         <span className="max-sm:sr-only">Volver</span>
       </Link>

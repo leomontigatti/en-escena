@@ -27,7 +27,6 @@ type FormActionsProps = {
   hasChanges: boolean;
   isPending: boolean;
   onDiscard: () => void;
-  viewTransition?: boolean;
 };
 
 /**
@@ -45,7 +44,6 @@ export function FormActions({
   hasChanges,
   isPending,
   onDiscard,
-  viewTransition,
 }: FormActionsProps) {
   const discardDialog = useUnsavedChangesGuard({
     isDirty: canEdit && hasChanges,
@@ -55,7 +53,7 @@ export function FormActions({
   return (
     <>
       <PinnedActions>
-        <BackButton to={backTo} viewTransition={viewTransition} />
+        <BackButton to={backTo} />
         {canEdit ? (
           <div className="flex items-center gap-3">
             {hasChanges ? (

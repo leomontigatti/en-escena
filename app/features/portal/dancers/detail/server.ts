@@ -27,6 +27,7 @@ import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.server";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 import {
   buildPortalDancerActionSuccess,
@@ -438,10 +439,16 @@ async function uploadDancerDocumentImage(input: {
     }
 
     return { ok: true, storageKey: uploaded.storageKey };
-  } catch {
+  } catch (thrown) {
     // Only infrastructure reaches here now: every policy rejection arrives as a
     // value above, so rewording a message cannot silently degrade this to the
     // generic sentence.
+    console.error("[storage:dancer-document:error]", {
+      dancerId: input.dancerId,
+      side: input.side,
+      error: describeServerError(thrown),
+    });
+
     return {
       ok: false,
       message: `No pudimos subir el archivo del ${fieldLabel}. Intentá nuevamente.`,

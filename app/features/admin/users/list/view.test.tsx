@@ -1,9 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { InternalUsersListRouteView } from "@/features/admin/users/list/view";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 describe("InternalUsersListRouteView", () => {
   test("keeps filtered empty results inside the users table", () => {
@@ -107,9 +107,8 @@ function renderRoute(
   > = {},
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      { initialEntries: ["/administracion/usuarios"] },
+    renderInDataRouter(
+      "/administracion/usuarios",
       createElement(InternalUsersListRouteView, {
         loaderData: {
           canManage: false,

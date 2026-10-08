@@ -29,7 +29,6 @@ import {
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
-import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { dancersExportPath } from "@/features/admin/dancers/export/shared";
 import { PeriodExportMenu } from "@/features/admin/period-export/menu";
 
@@ -89,10 +88,12 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       className: "w-1/2 font-medium",
       headerClassName: "w-1/2",
       cell: (dancer) => (
-        <DancerDetailLink
-          href={buildDancerDetailHref(loaderData, dancer.id)}
-          name={`${dancer.firstName} ${dancer.lastName}`}
-        />
+        <DataTableLink
+          recordTitle
+          to={buildDancerDetailHref(loaderData, dancer.id)}
+        >
+          {dancer.firstName} {dancer.lastName}
+        </DataTableLink>
       ),
       filterValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
       sortValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
@@ -281,16 +282,6 @@ function buildDancerStatusSummary(dancer: DancerRow) {
   values.push(getGroupedDancerIdentificationLabel(dancer.identificationStatus));
 
   return values.join(" ");
-}
-
-function DancerDetailLink({ href, name }: { href: string; name: string }) {
-  const viewTransitionStyle = useRecordTitleLinkTransitionStyle(href);
-
-  return (
-    <DataTableLink to={href} viewTransition style={viewTransitionStyle}>
-      {name}
-    </DataTableLink>
-  );
 }
 
 function buildDancerDetailHref(loaderData: LoaderData, dancerId: string) {

@@ -46,7 +46,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
       header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (event) => (
-        <DataTableLink to={`/administracion/eventos/${event.id}`}>
+        <DataTableLink recordTitle to={`/administracion/eventos/${event.id}`}>
           {event.name}
         </DataTableLink>
       ),

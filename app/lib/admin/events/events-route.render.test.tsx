@@ -1,14 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
-
-// The form footer's leave guard needs a data router, which a static render
-// inside `MemoryRouter` does not have; an idle blocker stands in for it.
-vi.mock("react-router", async () => ({
-  ...(await vi.importActual<typeof import("react-router")>("react-router")),
-  useBlocker: () => ({ state: "unblocked" }),
-}));
 
 vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireAdminPanelUser: vi.fn(),
@@ -18,6 +10,7 @@ import type { EventListRow } from "@/features/admin/events/list/shared";
 import { defaultEventFormValues } from "@/lib/admin/events/form-values";
 import { EventsListRouteView } from "@/routes/administracion.eventos";
 import { NewEventRouteView } from "@/routes/administracion.eventos_.nuevo";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 describe("`/administracion/eventos` route rendering", () => {
   test("renders an empty events state with a link to create a new event", () => {
@@ -96,9 +89,8 @@ function renderRoute(
   loaderData: Partial<Parameters<typeof EventsListRouteView>[0]["loaderData"]>,
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      { initialEntries: ["/administracion/eventos"] },
+    renderInDataRouter(
+      "/administracion/eventos",
       createElement(EventsListRouteView, {
         loaderData: {
           events: [],
@@ -113,9 +105,8 @@ function renderCreateRoute(
   actionData?: Parameters<typeof NewEventRouteView>[0]["actionData"],
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      { initialEntries: ["/administracion/eventos/nuevo"] },
+    renderInDataRouter(
+      "/administracion/eventos/nuevo",
       createElement(NewEventRouteView, {
         actionData,
       }),

@@ -1,7 +1,5 @@
 import {
   data,
-  type ErrorResponse,
-  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
@@ -14,8 +12,12 @@ import { useEffect } from "react";
 import type { Route } from "./+types/root";
 import "./app.css";
 import { AppToaster } from "@/components/shared/app-toaster";
+import { ErrorScreen } from "@/components/shared/error-panel";
 import { StagingBanner } from "@/components/shared/staging-banner";
-import { isStagingEnvironment } from "@/lib/shared/app-environment.server";
+import {
+  isStagingEnvironment,
+  readRelease,
+} from "@/lib/shared/app-environment.server";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
 
@@ -49,8 +51,8 @@ export const links: Route.LinksFunction = () => [
 export function Layout({ children }: { children: React.ReactNode }) {
   // Read here rather than in `App` so the error pages are marked too; the
   // loader's data is absent only when the root loader itself threw.
-  const isStaging =
-    useRouteLoaderData<typeof loader>("root")?.isStaging ?? false;
+  const rootData = useRouteLoaderData<typeof loader>("root");
+  const isStaging = rootData?.isStaging ?? false;
 
   return (
     <html lang="es">
@@ -59,6 +61,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="apple-mobile-web-app-title" content="En Escena" />
         {isStaging && <meta name="robots" content="noindex, nofollow" />}
+        {/* Read by entry.client.tsx to stamp `[client:unexpected]` lines. */}
+        {rootData && <meta name="release" content={rootData.release} />}
         <Meta />
         <Links />
       </head>
@@ -75,15 +79,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export async function loader({ request }: Route.LoaderArgs) {
   const flash = await readFlashNotification(request);
   const isStaging = isStagingEnvironment();
+  const release = readRelease();
 
   if (!flash) {
-    return data({ flashToast: null, isStaging });
+    return data({ flashToast: null, isStaging, release });
   }
 
   // Consume the flash cookie (one-time): the `Set-Cookie` the reader returns
   // clears it, so the toast appears once and does not come back on a reload.
   return data(
-    { flashToast: flash.toast, isStaging },
+    { flashToast: flash.toast, isStaging, release },
     { headers: { "set-cookie": flash.setCookieHeader } },
   );
 }
@@ -116,67 +121,6 @@ function FlashToast({ toast }: { toast: ToastMessage | null }) {
   return null;
 }
 
-const genericErrorDescription = "La aplicación no pudo completar la solicitud.";
-
-/**
- * Whether React Router built this error response itself instead of a loader or
- * an action throwing one. `isRouteErrorResponse` requires the `internal` flag
- * at runtime but narrows to `ErrorResponse`, which does not declare it, so it
- * is read through a local type. Should the flag ever go away, this reads as
- * "not internal" and the internal-404 test fails loudly.
- */
-function isBuiltByRouter(error: ErrorResponse) {
-  return (error as { internal?: boolean }).internal === true;
-}
-
-/**
- * Picks the copy the root boundary shows for a thrown value.
- *
- * A `Response` thrown by a loader or an action reaches us as an error response
- * whose body is in `data` and whose `statusText` is empty, so that body — the
- * refusal the user is meant to read — comes first.
- *
- * Two kinds of `data` are deliberately skipped. A non-string body (a JSON
- * `data(...)`) would print as `[object Object]`. And React Router builds its
- * own error responses with `internal: true` and an `Error` whose message it
- * stringifies into `data`, so an unknown URL arrives carrying `Error: No route
- * matches URL "/..."` — English developer text naming route ids and paths,
- * never copy for a user. Both fall through to `statusText`, which is what the
- * boundary showed before it read `data` at all.
- */
-export function getErrorBoundaryCopy(error: unknown) {
-  if (isRouteErrorResponse(error)) {
-    const thrownMessage =
-      !isBuiltByRouter(error) && typeof error.data === "string"
-        ? error.data
-        : "";
-
-    return {
-      title:
-        error.status === 404 ? "Página no encontrada" : `Error ${error.status}`,
-      description: thrownMessage || error.statusText || genericErrorDescription,
-    };
-  }
-
-  if (error instanceof Error) {
-    return { title: "Ocurrió un error", description: error.message };
-  }
-
-  return { title: "Ocurrió un error", description: genericErrorDescription };
-}
-
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  const { title, description } = getErrorBoundaryCopy(error);
-
-  return (
-    <main className="grid min-h-screen place-items-center px-6">
-      <section className="w-full max-w-lg rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm">
-        <p className="text-sm font-medium text-muted-foreground">En Escena</p>
-        <h1 className="mt-2 text-2xl font-semibold text-foreground">{title}</h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          {description}
-        </p>
-      </section>
-    </main>
-  );
+  return <ErrorScreen error={error} />;
 }

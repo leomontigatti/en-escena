@@ -29,7 +29,10 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     header: "Nombre",
     className: "min-w-56 font-medium",
     cell: (row) => (
-      <DataTableLink to={`/administracion/finanzas/${row.academyId}`}>
+      <DataTableLink
+        recordTitle
+        to={`/administracion/finanzas/${row.academyId}`}
+      >
         {row.academyName}
       </DataTableLink>
     ),

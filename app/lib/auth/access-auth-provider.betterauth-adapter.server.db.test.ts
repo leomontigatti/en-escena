@@ -1,11 +1,15 @@
 import { randomBytes, scryptSync } from "node:crypto";
 
 import { and, eq, like } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { account, accessSession, user, verification } from "@/db/schema";
 import { createBetterAuthAccessAuthProvider } from "@/lib/auth/access-auth-provider.betterauth.server";
+import {
+  RecoveryLinkRefusedError,
+  SignUpConfirmationRefusedError,
+} from "@/lib/auth/access-auth-provider.shared.server";
 import {
   createAccessRequestCookie,
   createAccessUser,
@@ -49,6 +53,48 @@ describe("Better Auth AccessAuthProvider adapter", () => {
       requestWithCookies(confirmation.headers),
     );
     expect(session?.user.email).toBe("alta@example.com");
+  });
+
+  test("logs a pending sign-up it cannot decrypt before refusing it", async () => {
+    const { debugConfirmationTokenHash } = await provider.startEmailSignUp({
+      email: "rotada@example.com",
+      password: "password-segura",
+      redirectTo: "http://localhost/registro/confirmar",
+      request: new Request("http://localhost/registro"),
+    });
+    // What a secret rotated between sign-up and confirmation leaves behind.
+    await db
+      .update(verification)
+      .set({
+        value: JSON.stringify({
+          email: "rotada@example.com",
+          password: "not-a-ciphertext",
+        }),
+      })
+      .where(like(verification.identifier, `%${debugConfirmationTokenHash}`));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      await expect(
+        provider.confirmEmailOtp({
+          request: new Request("http://localhost/registro/confirmar"),
+          tokenHash: debugConfirmationTokenHash!,
+          type: "signup",
+        }),
+      ).rejects.toBeInstanceOf(SignUpConfirmationRefusedError);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith("[auth:provider:error]", {
+        operation: "confirmEmailOtp",
+        error: expect.any(String),
+      });
+      expect(JSON.stringify(consoleError.mock.calls)).not.toContain(
+        "rotada@example.com",
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   test("recovers the password through the code exchange and revokes sessions", async () => {
@@ -156,6 +202,16 @@ describe("Better Auth AccessAuthProvider adapter", () => {
     expect(signIn.userId).toBe(created.user.id);
   });
 
+  test("refuses an unknown sign-up confirmation link", async () => {
+    await expect(
+      provider.confirmEmailOtp({
+        request: new Request("http://localhost/registro/confirmar"),
+        tokenHash: "hash-inexistente",
+        type: "signup",
+      }),
+    ).rejects.toBeInstanceOf(SignUpConfirmationRefusedError);
+  });
+
   test("rejects an unknown recovery code", async () => {
     await expect(
       provider.exchangePasswordRecoveryCode({
@@ -163,7 +219,50 @@ describe("Better Auth AccessAuthProvider adapter", () => {
         redirectTo: "http://localhost/cambiar-contrasena",
         request: new Request("http://localhost/cambiar-contrasena"),
       }),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(RecoveryLinkRefusedError);
+  });
+
+  test("refuses a recovery link used a second time", async () => {
+    const created = await createAccessUser({
+      email: "reuse@example.com",
+      name: "reuse@example.com",
+      password: "password-vieja",
+    });
+    await db
+      .update(user)
+      .set({ emailVerified: true, role: "academy" })
+      .where(eq(user.id, created.user.id));
+    const resetResult = await provider.requestPasswordReset({
+      email: "reuse@example.com",
+      redirectTo: "http://localhost/cambiar-contrasena",
+      request: new Request("http://localhost/recuperar-acceso"),
+    });
+    const exchange = await provider.exchangePasswordRecoveryCode({
+      code: resetResult.debugRecoveryCode!,
+      redirectTo: "http://localhost/cambiar-contrasena?recuperacion=1",
+      request: new Request("http://localhost/cambiar-contrasena"),
+    });
+    const recoveryRequest = () => requestWithCookies(exchange.headers);
+    await provider.updatePasswordForRecovery({
+      newPassword: "password-nueva",
+      request: recoveryRequest(),
+    });
+
+    await expect(
+      provider.updatePasswordForRecovery({
+        newPassword: "password-otra",
+        request: recoveryRequest(),
+      }),
+    ).rejects.toBeInstanceOf(RecoveryLinkRefusedError);
+  });
+
+  test("refuses a password change with no recovery session", async () => {
+    await expect(
+      provider.updatePasswordForRecovery({
+        newPassword: "password-nueva",
+        request: new Request("http://localhost/cambiar-contrasena"),
+      }),
+    ).rejects.toBeInstanceOf(RecoveryLinkRefusedError);
   });
 });
 

@@ -99,7 +99,10 @@ function ChoreographyTable({
       // gave one destination two targets, which reads as a choice and is not.
       cell: (choreography) => (
         <DataTableTruncatedText value={choreography.name}>
-          <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
+          <DataTableLink
+            recordTitle
+            to={`/portal/coreografias/${choreography.id}`}
+          >
             {choreography.name}
           </DataTableLink>
         </DataTableTruncatedText>

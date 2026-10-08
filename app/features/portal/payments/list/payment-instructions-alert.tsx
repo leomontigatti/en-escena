@@ -159,6 +159,7 @@ function CopyIconButton({ label, value }: { label: string; value: string }) {
         navigator.clipboard
           ?.writeText(value)
           .then(() => setCopied(true))
+          // A refused write leaves the icon unchanged, and the user can press again.
           .catch(() => {});
       }}
     >

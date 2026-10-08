@@ -102,3 +102,28 @@ export type AccessAuthProvider = {
     userId: string;
   }>;
 };
+
+/**
+ * The provider's refusal of a recovery link that is unknown, expired or already
+ * used. It is the only failure the recovery flow expects: anything else the
+ * provider throws is infrastructure, and is logged before it reads as the same
+ * "invalid link" message.
+ */
+export class RecoveryLinkRefusedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RecoveryLinkRefusedError";
+  }
+}
+
+/**
+ * The provider's refusal of a sign-up confirmation link whose pending sign-up
+ * is unknown, expired or already confirmed: the academy's to fix by signing up
+ * again. Anything else is infrastructure, and is logged before the same page.
+ */
+export class SignUpConfirmationRefusedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SignUpConfirmationRefusedError";
+  }
+}

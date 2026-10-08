@@ -93,6 +93,7 @@ function ModalitiesTable({
       cell: (modality) => (
         <DataTableTruncatedText value={modality.name}>
           <DataTableLink
+            recordTitle
             to={buildDetailPath(basePath, modality.id, selectedEventId)}
           >
             {modality.name}
