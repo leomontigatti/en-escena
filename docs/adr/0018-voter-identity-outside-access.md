@@ -1,4 +1,4 @@
-# ADR-0018: A voter is not a user, and the Gran final is not an award
+# ADR-0018: A voter is not a user, and the `Gran final` is not an award
 
 **Status**: proposed
 
@@ -12,7 +12,7 @@ outside the access domain**: its own table keyed by provider and provider
 subject, its own short-lived signed cookie, and an OAuth exchange done by a
 small module of its own. It is never a `user`, gets no role, is never listed
 under `Usuarios`, cannot be suspended, and an email it shares with an `academy`
-account links nothing. We also decided that the Gran final is **a ranking of
+account links nothing. We also decided that the `Gran final` is **a ranking of
 academies beside `award`, not a new award value**: `award` stays the single
 recognition of a `presentation`, with no position and no tie, and the glossary
 entry says so.
@@ -30,7 +30,7 @@ entry says so.
   separate table from a hook.** Rejected: the provider flow still creates the
   `user` and `account` rows before any hook runs, so the separation would be
   cosmetic.
-- **A fifth `award` value, "Premio del público".** Rejected: `award` is read
+- **A fifth `award` value, `Premio del público`.** Rejected: `award` is read
   off a presentation's average and compares nothing; a public vote ranks
   academies against each other, has a tie rule and a second round, and is
   published separately. Folding it into `award` would break every surface that

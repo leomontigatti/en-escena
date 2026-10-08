@@ -413,7 +413,7 @@ _Avoid_: numeric score, `presentation`, refund, money returned
 The one competitive ranking of the domain: the `event`'s `finalist` academies ranked by public `vote`. It is decided by the audience, not by the judges' scores, and it is the only place where academies are compared to one another. It is not an `award` and carries none of the award bands.
 _Avoid_: `award`, `Premio del público` (retired), people's choice, ranking of presentations
 
-**`grandFinalGroup`** — ui: "Infantiles" (and `Mayores` for the other half)
+**`grandFinalGroup`** — ui: "Infantiles"
 Which half of the `grandFinal` requirement a `category` counts towards, read off the first word of its name: `Baby` or `Infantil` is `children` (`Infantiles`), `Juvenil`, `Mayores` or `Adulto` (`Adultos` too) is `adults` (`Mayores`), anything else counts for neither. The rule is fixed in code for this event: nothing configures it and no screen shows it. Ages are never read.
 _Avoid_: age cutoff, per-category mark, `none` as a stored value, configurable group
 
@@ -429,8 +429,8 @@ _Avoid_: nomination, vote, consensus, pick per day
 An `academy` with at least one `finalistPick` across every modality, with no weight for how many judges picked it or how often. A `votingRound` takes its own copy of the finalists when it opens, so a later pick never changes a round in progress.
 _Avoid_: candidate, nominee, winner
 
-**`votingRound`** — ui: "Votación" (states `Votación abierta`, `Votación cerrada`)
-One run of the public vote over a fixed set of `finalist` academies, opened and closed by administration, holding its own votes. An event has one round, or two: a second one, `Desempate`, exists only when the first closes with a tie for first place and holds only the tied academies; a tie in the second round is broken by the greater number of QR votes, and both academies win when that is tied too.
+**`votingRound`** — ui: "Votación"
+One run of the public vote over a fixed set of `finalist` academies, opened and closed by administration, holding its own votes. An event has one round, or two: a second one, `Desempate`, exists only when the first closes with a tie for first place and holds only the tied academies; a tie in the second round is broken by the greater number of QR votes, and both academies win when that is tied too. Its states read `Votación abierta` and `Votación cerrada`.
 _Avoid_: `votingWindow`, poll, election, third round
 
 **`vote`** — ui: "Voto"
