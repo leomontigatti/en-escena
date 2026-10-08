@@ -31,6 +31,11 @@ function SidebarNavigationGroups({
   rootPath,
 }: SidebarNavigationGroupsProps) {
   const location = useLocation();
+  const activePath = findActiveNavigationPath(
+    location.pathname,
+    groups.flatMap((group) => group.items.map((item) => item.to)),
+    rootPath,
+  );
 
   return groups.map((group, index) => (
     <SidebarGroup key={group.label ?? `navigation-group-${index}`}>
@@ -42,11 +47,7 @@ function SidebarNavigationGroups({
           <SidebarNavigationMenuItem
             key={item.to}
             item={item}
-            isActive={isNavigationItemActive(
-              location.pathname,
-              item.to,
-              rootPath,
-            )}
+            isActive={item.to === activePath}
           />
         ))}
       </SidebarMenu>
@@ -80,6 +81,26 @@ function SidebarNavigationMenuItem({
       )}
     </SidebarMenuItem>
   );
+}
+
+/**
+ * The one item the reader is in: the deepest whose path holds the current one.
+ * A section can live under another's path (`Finanzas › Seminarios` under the
+ * academy list's `/administracion/finanzas`), and only the deeper one is where
+ * the reader is.
+ */
+function findActiveNavigationPath(
+  pathname: string,
+  paths: string[],
+  rootPath: string,
+): string | null {
+  return paths
+    .filter((to) => isNavigationItemActive(pathname, to, rootPath))
+    .reduce<string | null>(
+      (deepest, to) =>
+        deepest === null || to.length > deepest.length ? to : deepest,
+      null,
+    );
 }
 
 function isNavigationItemActive(

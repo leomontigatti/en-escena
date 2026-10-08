@@ -9,6 +9,7 @@ import * as adminEvents from "@/routes/administracion.eventos";
 import * as adminFinances from "@/routes/administracion.finanzas";
 import * as adminAcademyFinances from "@/routes/administracion.finanzas_.$academyId";
 import * as adminChoreographyFinances from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
+import * as adminSeminarInscriptionFinances from "@/routes/administracion.finanzas_.seminarios";
 import * as adminModalities from "@/routes/administracion.modalidades";
 import * as adminPayments from "@/routes/administracion.pagos";
 import * as adminPrices from "@/routes/administracion.precios";
@@ -41,6 +42,10 @@ const browserPaginatedRoutes: { name: string; routeModule: object }[] = [
   {
     name: "administración · finanzas de una coreografía",
     routeModule: adminChoreographyFinances,
+  },
+  {
+    name: "administración · finanzas de los seminarios",
+    routeModule: adminSeminarInscriptionFinances,
   },
   { name: "administración · modalidades", routeModule: adminModalities },
   { name: "administración · precios", routeModule: adminPrices },

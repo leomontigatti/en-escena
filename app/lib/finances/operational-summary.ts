@@ -81,6 +81,21 @@ export function sumOperationalFinanceAmounts(
   );
 }
 
+/**
+ * Sums one figure over a set of inscriptions, where `null` is an inscription no
+ * price reaches: it adds nothing and leaves the sum incomplete, exactly as the
+ * server's rollup does, so a list summed on the client reads `Pendiente` where
+ * the same rows summed on the server would.
+ */
+export function sumInscriptionFinanceAmounts(
+  amounts: readonly (number | null)[],
+): OperationalFinanceAmount {
+  return buildOperationalFinanceAmount({
+    amount: amounts.reduce<number>((total, amount) => total + (amount ?? 0), 0),
+    missingPriceCount: amounts.filter((amount) => amount === null).length,
+  });
+}
+
 export function emptyOperationalFinanceSummary(): OperationalFinanceSummary {
   return {
     availableBalanceAmount: 0,

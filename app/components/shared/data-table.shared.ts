@@ -189,6 +189,12 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
      */
     pageSize?: number;
     initialSort?: DataTableSort;
+    /**
+     * Drawn above the table with the rows the search and the filters leave,
+     * every page of them: figures that sum what the reader is looking at
+     * follow each filter without the view re-deriving it.
+     */
+    renderFilteredSummary?: (filteredRows: TData[]) => ReactNode;
   };
 
 /**

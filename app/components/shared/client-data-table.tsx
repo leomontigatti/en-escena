@@ -156,39 +156,44 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
   };
 
   return (
-    <DataTableShell
-      emptyMessage={emptyMessage}
-      filters={{
-        getSelectedValues: getSelectedFilterValues,
-        groups: facetedFilters,
-        onChange: setFacetedFilterValue,
-      }}
-      getRowProps={props.getRowProps}
-      // Never loading: the rows are already here, so nothing the reader does to
-      // this table waits on anything.
-      isLoading={false}
-      layout={props.layout ?? "auto"}
-      pagination={{
-        basePath: location.pathname,
-        canNextPage: table.getCanNextPage(),
-        canPreviousPage: table.getCanPreviousPage(),
-        currentPage: table.getState().pagination.pageIndex + 1,
-        filteredRowCount: table.getFilteredRowModel().rows.length,
-        hidden: props.hidePagination ?? false,
-        onNextPage: () => table.nextPage(),
-        onPageChange: (nextPage) => table.setPageIndex(nextPage - 1),
-        onPreviousPage: () => table.previousPage(),
-        pageCount,
-        totalRows: table.getCoreRowModel().rows.length,
-      }}
-      search={{
-        hidden: props.hideSearch ?? false,
-        onChange: setSearchQuery,
-        placeholder: props.searchPlaceholder,
-        query: searchQuery,
-      }}
-      table={table}
-    />
+    <>
+      {props.renderFilteredSummary?.(
+        table.getFilteredRowModel().rows.map((row) => row.original),
+      )}
+      <DataTableShell
+        emptyMessage={emptyMessage}
+        filters={{
+          getSelectedValues: getSelectedFilterValues,
+          groups: facetedFilters,
+          onChange: setFacetedFilterValue,
+        }}
+        getRowProps={props.getRowProps}
+        // Never loading: the rows are already here, so nothing the reader does to
+        // this table waits on anything.
+        isLoading={false}
+        layout={props.layout ?? "auto"}
+        pagination={{
+          basePath: location.pathname,
+          canNextPage: table.getCanNextPage(),
+          canPreviousPage: table.getCanPreviousPage(),
+          currentPage: table.getState().pagination.pageIndex + 1,
+          filteredRowCount: table.getFilteredRowModel().rows.length,
+          hidden: props.hidePagination ?? false,
+          onNextPage: () => table.nextPage(),
+          onPageChange: (nextPage) => table.setPageIndex(nextPage - 1),
+          onPreviousPage: () => table.previousPage(),
+          pageCount,
+          totalRows: table.getCoreRowModel().rows.length,
+        }}
+        search={{
+          hidden: props.hideSearch ?? false,
+          onChange: setSearchQuery,
+          placeholder: props.searchPlaceholder,
+          query: searchQuery,
+        }}
+        table={table}
+      />
+    </>
   );
 }
 

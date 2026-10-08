@@ -24,6 +24,16 @@ const navigationGroups = [
         icon: Users,
       },
       {
+        label: "Finanzas",
+        to: "/portal/finanzas",
+        icon: Receipt,
+      },
+      {
+        label: "Seminarios",
+        to: "/portal/finanzas/seminarios",
+        icon: Receipt,
+      },
+      {
         label: "Reportes",
         to: "/portal/reportes",
         icon: Receipt,
@@ -44,6 +54,18 @@ describe("SidebarNavigationGroups", () => {
     expect(childMarkup).toContain('href="/portal/profesores"');
   });
 
+  // A section nested under another section's path belongs to the deeper item
+  // alone: lighting both would say the reader is in two places at once.
+  test("marks only the most specific item when one item's path nests another's", () => {
+    const nestedMarkup = renderNavigation("/portal/finanzas/seminarios");
+    const parentMarkup = renderNavigation("/portal/finanzas/academy_1");
+
+    expect(countOccurrences(nestedMarkup, 'data-active="true"')).toBe(1);
+    expect(activeHref(nestedMarkup)).toBe("/portal/finanzas/seminarios");
+    expect(countOccurrences(parentMarkup, 'data-active="true"')).toBe(1);
+    expect(activeHref(parentMarkup)).toBe("/portal/finanzas");
+  });
+
   test("renders disabled navigation items without links", () => {
     const markup = renderNavigation("/portal");
 
@@ -61,6 +83,10 @@ function renderNavigation(pathname: string) {
       </SidebarProvider>
     </MemoryRouter>,
   );
+}
+
+function activeHref(markup: string) {
+  return markup.match(/data-active="true"[^>]*href="([^"]+)"/)?.[1] ?? null;
 }
 
 function countOccurrences(value: string, search: string) {
