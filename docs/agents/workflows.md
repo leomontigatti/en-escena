@@ -800,6 +800,10 @@ The academy portal intentionally uses a React Router layout route:
   authorization, even when they do not need shell data in their return value.
 - Portal breadcrumbs come from `handle.portalBreadcrumbs` on child routes and
   are collected by `getPortalBreadcrumbItems(matches)` in `portal.tsx`.
+- `portal.tsx` also exports the `ErrorBoundary` that renders a child's error
+  inside the shell (`app/components/shared/error-panel.tsx`). Child routes do
+  not export their own; a `handle` breadcrumb function must tolerate
+  `match.data` being `undefined`, because it runs for the failed child too.
 
 Do not reintroduce `portal.profesores.$professorId.tsx`,
 `portal.bailarines.$dancerId.tsx`, or
@@ -823,6 +827,8 @@ The `Panel de administración` also uses a React Router layout route:
   `getAdminBreadcrumbItems(matches)` and `getAdminShellOptions(matches)`.
 - Use `handle.adminShell.showEventSelector = false` for global user-management
   screens that should not show the active-event summary.
+- `administracion.tsx` also exports the `ErrorBoundary` that renders a child's
+  error inside the shell, under the same rules as the portal's above.
 - List/detail/form routes that should share the administration shell but not
   nest inside the list component use trailing-underscore sibling filenames:
   `administracion.profesores_.$professorId.tsx`,

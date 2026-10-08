@@ -1,10 +1,12 @@
-import { Outlet, useMatches } from "react-router";
+import type { ReactNode } from "react";
+import { Outlet, useMatches, useRouteLoaderData } from "react-router";
 
 import {
   AdminShell,
   getAdminBreadcrumbItems,
   getAdminShellOptions,
 } from "@/components/admin/shell";
+import { ErrorPanel, ErrorScreen } from "@/components/shared/error-panel";
 import {
   loadShellEventContext,
   type AdminShellEventContext,
@@ -41,7 +43,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-export function AdminShellRouteView({ loaderData }: AdminShellRouteProps) {
+function AdminShellLayout({
+  loaderData,
+  children,
+}: AdminShellRouteProps & { children: ReactNode }) {
   const matches = useMatches();
   const shellOptions = getAdminShellOptions(matches);
 
@@ -54,8 +59,37 @@ export function AdminShellRouteView({ loaderData }: AdminShellRouteProps) {
       breadcrumbItems={getAdminBreadcrumbItems(matches)}
       showEventSelector={shellOptions.showEventSelector}
     >
-      <Outlet />
+      {children}
     </AdminShell>
+  );
+}
+
+export function AdminShellRouteView({ loaderData }: AdminShellRouteProps) {
+  return (
+    <AdminShellLayout loaderData={loaderData}>
+      <Outlet />
+    </AdminShellLayout>
+  );
+}
+
+/**
+ * A screen's error renders where its `<Outlet />` would, so the sidebar and
+ * header stay. When this route's own loader is what failed there is no shell
+ * data, and the error takes the whole screen like the root boundary's.
+ */
+export function ErrorBoundary({
+  error,
+}: Pick<Route.ErrorBoundaryProps, "error">) {
+  const loaderData = useRouteLoaderData<typeof loader>("routes/administracion");
+
+  if (!loaderData) {
+    return <ErrorScreen error={error} />;
+  }
+
+  return (
+    <AdminShellLayout loaderData={loaderData}>
+      <ErrorPanel error={error} homeHref="/administracion" />
+    </AdminShellLayout>
   );
 }
 
