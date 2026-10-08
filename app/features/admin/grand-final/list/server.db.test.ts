@@ -124,4 +124,23 @@ describe("the `Gran final` list route", () => {
 
     expect(picks?.modalities[0].academies[0].pickedByJudgeIds).toEqual([]);
   });
+
+  test("tells the dialog why a pick cannot change while the event has no judge and no eligible academy", async () => {
+    await seedEligibilityFixture();
+
+    const { pickChangeBlockReasons } = await loadTheList();
+
+    expect(pickChangeBlockReasons.map((reason) => reason.code)).toEqual([
+      "no-event-judge",
+      "no-eligible-academy",
+    ]);
+  });
+
+  test("leaves the change open with a judge of the event and an eligible academy", async () => {
+    await seedJazz();
+
+    await expect(loadTheList()).resolves.toMatchObject({
+      pickChangeBlockReasons: [],
+    });
+  });
 });

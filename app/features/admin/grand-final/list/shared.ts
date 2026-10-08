@@ -31,7 +31,18 @@ export type GrandFinalListActionData = {
   status: "error" | "success";
 };
 
+/**
+ * Why `Cambiar elección de finalista` cannot run: it needs a judge of the event
+ * and an academy eligible somewhere. Built by the server, which owns the rule
+ * (docs/agents/form-feedback.md).
+ */
+export type FinalistPickChangeBlockReason = {
+  code: "no-eligible-academy" | "no-event-judge";
+  label: string;
+};
+
 export type GrandFinalListResult = {
+  pickChangeBlockReasons: FinalistPickChangeBlockReason[];
   picks: GrandFinalPicks | null;
   selectedEventId: string | null;
 };

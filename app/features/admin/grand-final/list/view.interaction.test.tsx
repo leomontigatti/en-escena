@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { GrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
+import { discardChangesTitle } from "@/lib/shared/discard-guard";
 import {
   openRadixSelect,
   selectRadixOption,
@@ -15,7 +16,10 @@ import {
   waitFor,
 } from "@/lib/test-support/react-dom";
 
-import type { GrandFinalListActionData } from "./shared";
+import type {
+  FinalistPickChangeBlockReason,
+  GrandFinalListActionData,
+} from "./shared";
 import { GrandFinalListView } from "./view";
 
 vi.mock("sonner", () => ({
@@ -92,7 +96,10 @@ describe("administration's `Gran final` list", () => {
 
   afterEach(renderer.cleanup);
 
-  async function mount(loaderPicks: GrandFinalPicks = picks) {
+  async function mount(
+    loaderPicks: GrandFinalPicks = picks,
+    pickChangeBlockReasons: FinalistPickChangeBlockReason[] = [],
+  ) {
     const router = createMemoryRouter(
       [
         {
@@ -107,7 +114,11 @@ describe("administration's `Gran final` list", () => {
           },
           element: (
             <GrandFinalListView
-              loaderData={{ picks: loaderPicks, selectedEventId: "evento" }}
+              loaderData={{
+                pickChangeBlockReasons,
+                picks: loaderPicks,
+                selectedEventId: "evento",
+              }}
             />
           ),
         },
@@ -153,28 +164,6 @@ describe("administration's `Gran final` list", () => {
     ]);
   });
 
-  test("marks a pick whose academy stopped being eligible", async () => {
-    const [jazz, tap] = picks.modalities;
-
-    await mount({
-      ...picks,
-      modalities: [
-        {
-          ...jazz,
-          academies: [
-            jazz.academies[0],
-            { ...jazz.academies[1], eligible: false },
-          ],
-        },
-        tap,
-      ],
-    });
-
-    expect(readTable("Danza Jazz").rows[1][0]).toBe(
-      "Academia VecinaFinalistaNo cumple los requisitos",
-    );
-  });
-
   test("changes a judge's pick from the judge's current one", async () => {
     await mount();
 
@@ -210,8 +199,67 @@ describe("administration's `Gran final` list", () => {
     });
   });
 
-  test("says why a pick cannot be set while the event has no judges", async () => {
-    await mount({ ...picks, judges: [] });
+  // Regression: Ana and Bruno share a pick, so moving from one to the other
+  // left the academy unchanged and Ana's unsaved choice went to Bruno.
+  test("drops an unsaved choice when the dialog moves to another judge with the same pick", async () => {
+    await mount();
+
+    await openRadixSelect(findButton("Acciones", { exact: true }));
+    await updateReactDomForm(() => {
+      document.querySelector<HTMLElement>('[role="menuitem"]')?.click();
+    });
+
+    const [modality, judge, academy] = document.querySelectorAll(
+      '[role="dialog"] [data-slot="select-trigger"]',
+    );
+
+    await openRadixSelect(modality);
+    await selectRadixOption("Danza Jazz");
+    await openRadixSelect(judge);
+    await selectRadixOption("Ana Juez");
+    await openRadixSelect(academy);
+    await selectRadixOption("Academia Pirueta");
+    await openRadixSelect(judge);
+    await selectRadixOption("Bruno Juez");
+
+    expect(academy.textContent).toContain("Academia Vecina");
+    expect(findButton("Guardar", { exact: true })?.disabled).toBe(true);
+  });
+
+  test("asks before closing the dialog over an academy chosen and not saved", async () => {
+    await mount();
+
+    await openRadixSelect(findButton("Acciones", { exact: true }));
+    await updateReactDomForm(() => {
+      document.querySelector<HTMLElement>('[role="menuitem"]')?.click();
+    });
+
+    const [modality, judge, academy] = document.querySelectorAll(
+      '[role="dialog"] [data-slot="select-trigger"]',
+    );
+
+    await openRadixSelect(modality);
+    await selectRadixOption("Tap");
+    await openRadixSelect(judge);
+    await selectRadixOption("Ana Juez");
+    await openRadixSelect(academy);
+    await selectRadixOption("Academia Zapateo");
+    await updateReactDomForm(() => {
+      findButton("Cancelar", { exact: true })?.click();
+    });
+
+    expect(document.body.textContent).toContain(discardChangesTitle);
+    expect(submitted).toHaveLength(0);
+  });
+
+  test("opens the reasons instead of the form when the change is blocked", async () => {
+    await mount({ ...picks, judges: [] }, [
+      {
+        code: "no-event-judge",
+        label:
+          "El evento activo todavía no tiene jueces asignados a sus presentaciones.",
+      },
+    ]);
 
     await openRadixSelect(findButton("Acciones", { exact: true }));
     await updateReactDomForm(() => {

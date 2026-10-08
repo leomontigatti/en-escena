@@ -21,7 +21,10 @@ import type {
 } from "@/lib/grand-final/picks-overview.server";
 
 import { FinalistPickChangeDialog } from "./pick-dialog";
-import type { GrandFinalListResult } from "./shared";
+import type {
+  FinalistPickChangeBlockReason,
+  GrandFinalListResult,
+} from "./shared";
 
 /**
  * Administration's `Gran final` list for the active event: one table per
@@ -61,6 +64,7 @@ export function GrandFinalListView({
       {picks ? <GrandFinalModalities picks={picks} /> : null}
       {picks ? (
         <PickDialog
+          blockReasons={loaderData.pickChangeBlockReasons}
           onOpenChange={setIsPickDialogOpen}
           open={isPickDialogOpen}
           picks={picks}
@@ -167,39 +171,30 @@ function AcademyCell({ row }: { row: GrandFinalAcademyRow }) {
 }
 
 /**
- * The change of a pick needs a judge of the event and an academy eligible
- * somewhere; without either the menu item says what is missing instead.
+ * The change of a pick, or, when the loader found it cannot run, the
+ * acknowledgment that lists why.
  */
 function PickDialog({
+  blockReasons,
   onOpenChange,
   open,
   picks,
 }: {
+  blockReasons: FinalistPickChangeBlockReason[];
   onOpenChange: (open: boolean) => void;
   open: boolean;
   picks: GrandFinalPicks;
 }) {
-  const reasons = [
-    picks.judges.length === 0
-      ? "El evento activo todavía no tiene jueces asignados a sus presentaciones."
-      : null,
-    picks.modalities.some((modality) =>
-      modality.academies.some((academy) => academy.eligible),
-    )
-      ? null
-      : "Ninguna academia cumple los requisitos en ninguna modalidad.",
-  ].filter((reason) => reason !== null);
-
-  if (reasons.length > 0) {
+  if (blockReasons.length > 0) {
     return (
       <BlockedActionDialog
         description="Hace falta un juez del evento y una academia que cumpla los requisitos."
         onOpenChange={onOpenChange}
         open={open}
         reasons={
-          <ul className="list-disc pl-4">
-            {reasons.map((reason) => (
-              <li key={reason}>{reason}</li>
+          <ul className="list-disc pl-5">
+            {blockReasons.map((reason) => (
+              <li key={reason.code}>{reason.label}</li>
             ))}
           </ul>
         }

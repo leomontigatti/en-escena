@@ -6,11 +6,15 @@ import {
   setFinalistPick,
   type SetFinalistPickResult,
 } from "@/lib/grand-final/finalist-pick.server";
-import { readGrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
+import {
+  readGrandFinalPicks,
+  type GrandFinalPicks,
+} from "@/lib/grand-final/picks-overview.server";
 import { readFormString } from "@/lib/shared/forms";
 
 import {
   finalistPickChangeSchema,
+  type FinalistPickChangeBlockReason,
   type GrandFinalListActionData,
   type GrandFinalListResult,
 } from "./shared";
@@ -30,11 +34,42 @@ export async function loadGrandFinalListRouteData(
   }
 
   const { selectedEventId } = eventContext;
+  const picks = selectedEventId
+    ? await readGrandFinalPicks(selectedEventId)
+    : null;
 
   return {
-    picks: selectedEventId ? await readGrandFinalPicks(selectedEventId) : null,
+    pickChangeBlockReasons: picks ? readPickChangeBlockReasons(picks) : [],
+    picks,
     selectedEventId,
   };
+}
+
+function readPickChangeBlockReasons(
+  picks: GrandFinalPicks,
+): FinalistPickChangeBlockReason[] {
+  const reasons: FinalistPickChangeBlockReason[] = [];
+
+  if (picks.judges.length === 0) {
+    reasons.push({
+      code: "no-event-judge",
+      label:
+        "El evento activo todavía no tiene jueces asignados a sus presentaciones.",
+    });
+  }
+
+  if (
+    !picks.modalities.some((modality) =>
+      modality.academies.some((academy) => academy.eligible),
+    )
+  ) {
+    reasons.push({
+      code: "no-eligible-academy",
+      label: "Ninguna academia cumple los requisitos en ninguna modalidad.",
+    });
+  }
+
+  return reasons;
 }
 
 const refusalMessages: Record<

@@ -11,6 +11,7 @@ import {
   user,
 } from "@/db/schema";
 import { grandFinalEligibility } from "@/lib/grand-final/eligibility.server";
+import { readEventJudges } from "@/lib/grand-final/event-judges.server";
 import { judgingDate } from "@/lib/judging/judging-day";
 
 /**
@@ -30,37 +31,46 @@ export type FinalistPickRefusal =
 export type SaveFinalistPickResult =
   { ok: true } | { ok: false; reason: FinalistPickRefusal };
 
-export async function saveFinalistPick(input: {
+/** Which academy a judge picks in which modality. */
+type FinalistPickInput = {
   academyId: string;
   judgeId: string;
   modalityId: string;
-  now?: Date;
-}): Promise<SaveFinalistPickResult> {
+};
+
+export async function saveFinalistPick(
+  input: FinalistPickInput & { now?: Date },
+): Promise<SaveFinalistPickResult> {
   return await writeFinalistPick(input, () =>
     readPickWindowClosure(input.modalityId, input.now),
   );
 }
 
+export type SetFinalistPickResult =
+  { ok: true } | { ok: false; reason: "not-eligible" | "not-found" };
+
 /**
  * Administration's write of any judge's `finalistPick`, from the `Gran final`
  * list. It is the judge's save without the window: the same row, upserted,
  * and the same refusal of an academy not eligible in the modality. The judge
- * must be a judge user, so a pick never lands on another role.
+ * must be a judge user and one of the event's (`readEventJudges`), the ones
+ * the list offers, so a pick never lands on another role or makes a judge
+ * from another event one of this event's.
  */
-export type SetFinalistPickResult =
-  { ok: true } | { ok: false; reason: "not-eligible" | "not-found" };
-
-export async function setFinalistPick(input: {
-  academyId: string;
-  judgeId: string;
-  modalityId: string;
-}): Promise<SetFinalistPickResult> {
+export async function setFinalistPick(
+  input: FinalistPickInput,
+): Promise<SetFinalistPickResult> {
   const [judge] = await db
     .select({ id: user.id })
     .from(user)
     .where(and(eq(user.id, input.judgeId), eq(user.role, "judge")));
+  const [modality] = await db
+    .select({ eventId: modalities.eventId })
+    .from(modalities)
+    .where(eq(modalities.id, input.modalityId));
+  const eventJudges = modality ? await readEventJudges(modality.eventId) : [];
 
-  if (!judge) {
+  if (!judge || !eventJudges.some((entry) => entry.id === input.judgeId)) {
     return { ok: false, reason: "not-found" };
   }
 
@@ -73,7 +83,7 @@ export async function setFinalistPick(input: {
  * per judge per modality.
  */
 async function writeFinalistPick<TClosure extends "closed" | "not-started">(
-  input: { academyId: string; judgeId: string; modalityId: string },
+  input: FinalistPickInput,
   readClosure: () => Promise<TClosure | null>,
 ): Promise<
   { ok: true } | { ok: false; reason: TClosure | "not-eligible" | "not-found" }

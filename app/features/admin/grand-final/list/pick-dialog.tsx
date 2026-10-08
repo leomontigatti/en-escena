@@ -1,14 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
+import {
+  DiscardChangesDialog,
+  useDiscardGuard,
+} from "@/components/shared/discard-guard";
 import { SelectField } from "@/components/shared/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -67,14 +70,24 @@ export function FinalistPickChangeDialog({
   );
   const picked = currentPick(modality, judgeId);
 
-  // A new modality or judge is a new pick to look at: start from theirs.
+  // A new modality or judge is a new pick to look at: start from theirs, even
+  // when it is the same academy, so a draft never moves to another judge.
   useEffect(() => {
     setValue("academyId", picked);
-  }, [picked, setValue]);
+  }, [judgeId, modalityId, picked, setValue]);
 
   useServerActionToast(fetcher.data);
 
   const isDone = fetcher.data?.status === "success";
+  // The draft is an academy other than the judge's saved one; choosing which
+  // pick to look at is not worth asking about.
+  const isDraft = academyId !== "" && academyId !== picked;
+  const close = useCallback(() => onOpenChange(false), [onOpenChange]);
+  const { discardDialogProps, requestClose } = useDiscardGuard({
+    isAudioDirty: false,
+    isFormDirty: isDraft,
+    onClose: close,
+  });
 
   useEffect(() => {
     if (isDone) {
@@ -83,87 +96,92 @@ export function FinalistPickChangeDialog({
   }, [isDone, onOpenChange]);
 
   return (
-    <Dialog
-      open
-      onOpenChange={(next) => {
-        if (!isSaving) {
-          onOpenChange(next);
-        }
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Cambiar elección de finalista</DialogTitle>
-          <DialogDescription>
-            Elegí la modalidad y el juez para ver su elección y cambiarla por
-            otra academia que cumpla los requisitos.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          method="post"
-          onSubmit={createValidatedReactRouterSubmitHandler(
-            form,
-            fetcher.submit,
-            { method: "post" },
-          )}
-          className="flex flex-col gap-4"
-        >
-          <FieldGroup>
-            <SelectField
-              control={form.control}
-              disabled={isSaving}
-              label="Modalidad"
-              name="modalityId"
-              options={picks.modalities
-                .filter((row) => row.academies.some((entry) => entry.eligible))
-                .map((row) => ({
-                  label: row.modalityName,
-                  value: row.modalityId,
+    <>
+      <Dialog
+        open
+        onOpenChange={(next) => {
+          if (!next && !isSaving) {
+            requestClose();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar elección de finalista</DialogTitle>
+            <DialogDescription>
+              Elegí la modalidad y el juez para ver su elección y cambiarla por
+              otra academia que cumpla los requisitos.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            method="post"
+            onSubmit={createValidatedReactRouterSubmitHandler(
+              form,
+              fetcher.submit,
+              { method: "post" },
+            )}
+            className="flex flex-col gap-4"
+          >
+            <FieldGroup>
+              <SelectField
+                control={form.control}
+                disabled={isSaving}
+                label="Modalidad"
+                name="modalityId"
+                options={picks.modalities
+                  .filter((row) =>
+                    row.academies.some((entry) => entry.eligible),
+                  )
+                  .map((row) => ({
+                    label: row.modalityName,
+                    value: row.modalityId,
+                  }))}
+                placeholder="Elegí una modalidad"
+              />
+              <SelectField
+                control={form.control}
+                disabled={isSaving}
+                label="Juez"
+                name="judgeId"
+                options={picks.judges.map((judge) => ({
+                  label: judge.name,
+                  value: judge.id,
                 }))}
-              placeholder="Elegí una modalidad"
-            />
-            <SelectField
-              control={form.control}
-              disabled={isSaving}
-              label="Juez"
-              name="judgeId"
-              options={picks.judges.map((judge) => ({
-                label: judge.name,
-                value: judge.id,
-              }))}
-              placeholder="Elegí un juez"
-            />
-            <SelectField
-              control={form.control}
-              disabled={isSaving}
-              label="Academia"
-              name="academyId"
-              // The judge's pick stays an option after its academy stopped
-              // being eligible, so it reads as what was picked; saving it
-              // again is the server's to refuse.
-              options={(modality?.academies ?? [])
-                .filter((row) => row.eligible || row.academyId === picked)
-                .map((row) => ({ label: row.name, value: row.academyId }))}
-              placeholder={
-                modality && judgeId !== ""
-                  ? "Sin elección"
-                  : "Elegí una academia"
-              }
-            />
-          </FieldGroup>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isSaving}>
+                placeholder="Elegí un juez"
+              />
+              <SelectField
+                control={form.control}
+                disabled={isSaving}
+                label="Academia"
+                name="academyId"
+                // The judge's pick stays an option after its academy stopped
+                // being eligible, so it reads as what was picked; saving it
+                // again is the server's to refuse.
+                options={(modality?.academies ?? [])
+                  .filter((row) => row.eligible || row.academyId === picked)
+                  .map((row) => ({ label: row.name, value: row.academyId }))}
+                placeholder={
+                  modality && judgeId !== ""
+                    ? "Sin elección"
+                    : "Elegí una academia"
+                }
+              />
+            </FieldGroup>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                onClick={requestClose}
+              >
                 Cancelar
               </Button>
-            </DialogClose>
-            <SubmitButton
-              disabled={academyId === "" || academyId === picked}
-              isPending={isSaving}
-            />
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <SubmitButton disabled={!isDraft} isPending={isSaving} />
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <DiscardChangesDialog {...discardDialogProps} />
+    </>
   );
 }

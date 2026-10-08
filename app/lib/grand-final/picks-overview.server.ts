@@ -1,14 +1,12 @@
 import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  finalistPicks,
-  judgeAssignments,
-  modalities,
-  presentations,
-  user,
-} from "@/db/schema";
+import { finalistPicks, modalities } from "@/db/schema";
 import { grandFinalEligibility } from "@/lib/grand-final/eligibility.server";
+import {
+  readEventJudges,
+  type GrandFinalJudge,
+} from "@/lib/grand-final/event-judges.server";
 import { readAcademyNames } from "@/lib/grand-final/finalist-pick.server";
 
 /**
@@ -18,8 +16,7 @@ import { readAcademyNames } from "@/lib/grand-final/finalist-pick.server";
  * `grandFinalEligibility`; nothing here is stored.
  */
 
-/** One of the event's judges, a column of the list. */
-export type GrandFinalJudge = { id: string; name: string };
+export type { GrandFinalJudge };
 
 export type GrandFinalAcademyRow = {
   academyId: string;
@@ -108,36 +105,4 @@ export async function readGrandFinalPicks(
       };
     }),
   };
-}
-
-/**
- * The event's judges: the ones assigned to one of its presentations, and any
- * who holds a pick in it, so a judge taken off every presentation still shows
- * the pick they made. A judge user with no tie to the event is not one of its
- * columns.
- */
-async function readEventJudges(eventId: string): Promise<GrandFinalJudge[]> {
-  const [assigned, picking] = await Promise.all([
-    db
-      .selectDistinct({ id: user.id, name: user.name })
-      .from(judgeAssignments)
-      .innerJoin(
-        presentations,
-        eq(presentations.id, judgeAssignments.presentationId),
-      )
-      .innerJoin(user, eq(user.id, judgeAssignments.userId))
-      .where(eq(presentations.eventId, eventId)),
-    db
-      .selectDistinct({ id: user.id, name: user.name })
-      .from(finalistPicks)
-      .innerJoin(user, eq(user.id, finalistPicks.judgeId))
-      .where(eq(finalistPicks.eventId, eventId)),
-  ]);
-  const byId = new Map(
-    [...assigned, ...picking].map((judge) => [judge.id, judge]),
-  );
-
-  return [...byId.values()].sort((left, right) =>
-    left.name.localeCompare(right.name, "es"),
-  );
 }
