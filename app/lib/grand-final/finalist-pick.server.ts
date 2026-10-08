@@ -53,9 +53,8 @@ export type SetFinalistPickResult =
  * Administration's write of any judge's `finalistPick`, from the `Gran final`
  * list. It is the judge's save without the window: the same row, upserted,
  * and the same refusal of an academy not eligible in the modality. The judge
- * must be a judge user and one of the event's (`readEventJudges`), the ones
- * the list offers, so a pick never lands on another role or makes a judge
- * from another event one of this event's.
+ * must be a judge user, so a pick never lands on another role, and one of
+ * the event's, which the shared write checks for both saves.
  */
 export async function setFinalistPick(
   input: FinalistPickInput,
@@ -64,13 +63,8 @@ export async function setFinalistPick(
     .select({ id: user.id })
     .from(user)
     .where(and(eq(user.id, input.judgeId), eq(user.role, "judge")));
-  const [modality] = await db
-    .select({ eventId: modalities.eventId })
-    .from(modalities)
-    .where(eq(modalities.id, input.modalityId));
-  const eventJudges = modality ? await readEventJudges(modality.eventId) : [];
 
-  if (!judge || !eventJudges.some((entry) => entry.id === input.judgeId)) {
+  if (!judge) {
     return { ok: false, reason: "not-found" };
   }
 
@@ -78,9 +72,9 @@ export async function setFinalistPick(
 }
 
 /**
- * The write both saves share: the modality in the active event, then the
- * caller's window, then eligibility read again, then the upsert of the one row
- * per judge per modality.
+ * The write both saves share: the modality in the active event, the judge
+ * one of the event's, then the caller's window, then eligibility read again,
+ * then the upsert of the one row per judge per modality.
  */
 async function writeFinalistPick<TClosure extends "closed" | "not-started">(
   input: FinalistPickInput,
@@ -95,6 +89,15 @@ async function writeFinalistPick<TClosure extends "closed" | "not-started">(
     .where(and(eq(modalities.id, input.modalityId), events.active));
 
   if (!modality) {
+    return { ok: false, reason: "not-found" };
+  }
+
+  // Only one of the event's judges (`readEventJudges`) picks in it, from the
+  // judge's list and from administration's alike: a judge user with no
+  // presentation and no pick in the event has no pick to make there.
+  const eventJudges = await readEventJudges(modality.eventId);
+
+  if (!eventJudges.some((judge) => judge.id === input.judgeId)) {
     return { ok: false, reason: "not-found" };
   }
 

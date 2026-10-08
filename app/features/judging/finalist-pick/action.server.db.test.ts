@@ -58,14 +58,18 @@ function pickRequest(
   } as Parameters<typeof action>[0];
 }
 
-/** Jazz dances today, with one academy eligible in it and one that is not. */
-async function seedJazzToday() {
+/**
+ * Jazz dances today, with one academy eligible in it and one that is not. The
+ * judge given is put on one of its presentations, which makes them one of the
+ * event's judges; with none, nobody is.
+ */
+async function seedJazzToday(judgeId?: string) {
   const fixture = await seedEligibilityFixture();
   const jazz = await fixture.addModality("Jazz");
   const eligible = await fixture.addAcademy("Academia Pirueta");
   const ineligible = await fixture.addAcademy("Academia Vecina");
 
-  await fixture.register({
+  const choreographyId = await fixture.register({
     academy: eligible,
     modality: jazz,
     category: "Infantil",
@@ -82,13 +86,17 @@ async function seedJazzToday() {
   });
   await fixture.danceOn(jazz, judgingDate());
 
+  if (judgeId) {
+    await fixture.assignJudge(judgeId, choreographyId);
+  }
+
   return { eligible, ineligible, jazz };
 }
 
 describe("the `/juzgamiento` action, saving a finalist pick", () => {
   test("saves the signed-in judge's pick and stays", async () => {
     const judge = await signIn("judge");
-    const { eligible, jazz } = await seedJazzToday();
+    const { eligible, jazz } = await seedJazzToday(judge.userId);
 
     await expect(
       action(
@@ -109,7 +117,7 @@ describe("the `/juzgamiento` action, saving a finalist pick", () => {
 
   test("answers a refusal with what to fix", async () => {
     const judge = await signIn("judge");
-    const { ineligible, jazz } = await seedJazzToday();
+    const { ineligible, jazz } = await seedJazzToday(judge.userId);
 
     await expect(
       action(
@@ -133,6 +141,18 @@ describe("the `/juzgamiento` action, saving a finalist pick", () => {
           academyId: eligible,
           modalityId: crypto.randomUUID(),
         }),
+      ),
+      404,
+    );
+  });
+
+  test("answers 404 to a judge with no presentation in the event", async () => {
+    const judge = await signIn("judge");
+    const { eligible, jazz } = await seedJazzToday();
+
+    await expectThrownResponse(
+      action(
+        pickRequest(judge.cookie, { academyId: eligible, modalityId: jazz }),
       ),
       404,
     );

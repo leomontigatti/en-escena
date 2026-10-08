@@ -64,8 +64,8 @@ async function readPick(judgeId: string, modalityId: string) {
 
 describe("`saveFinalistPick`", () => {
   test("saves the judge's pick of an eligible academy on the modality's day", async () => {
-    const { fixture, jazz, pirueta } = await seedJazzDay();
-    const judgeId = await fixture.addJudge();
+    const { addEventJudge, jazz, pirueta } = await seedJazzDay();
+    const judgeId = await addEventJudge();
 
     await expect(
       saveFinalistPick({
@@ -79,8 +79,8 @@ describe("`saveFinalistPick`", () => {
   });
 
   test("a second save replaces the pick rather than adding one", async () => {
-    const { fixture, jazz, pirueta, vecina } = await seedJazzDay();
-    const judgeId = await fixture.addJudge();
+    const { addEventJudge, jazz, pirueta, vecina } = await seedJazzDay();
+    const judgeId = await addEventJudge();
 
     for (const academyId of [pirueta, vecina]) {
       await saveFinalistPick({
@@ -96,9 +96,9 @@ describe("`saveFinalistPick`", () => {
   });
 
   test("judges pick independently", async () => {
-    const { fixture, jazz, pirueta, vecina } = await seedJazzDay();
-    const ana = await fixture.addJudge("Ana Juez");
-    const bruno = await fixture.addJudge("Bruno Juez");
+    const { addEventJudge, jazz, pirueta, vecina } = await seedJazzDay();
+    const ana = await addEventJudge();
+    const bruno = await addEventJudge();
 
     await saveFinalistPick({
       academyId: pirueta,
@@ -118,8 +118,8 @@ describe("`saveFinalistPick`", () => {
   });
 
   test("stays open past midnight until 03:00, like a score", async () => {
-    const { fixture, jazz, pirueta } = await seedJazzDay();
-    const judgeId = await fixture.addJudge();
+    const { addEventJudge, jazz, pirueta } = await seedJazzDay();
+    const judgeId = await addEventJudge();
 
     await expect(
       saveFinalistPick({
@@ -135,8 +135,8 @@ describe("`saveFinalistPick`", () => {
     ["after 03:00 the next morning", afterTheClose, "closed"],
     ["before the modality's day", theDayBefore, "not-started"],
   ])("refuses a save %s", async (_when, now, reason) => {
-    const { fixture, jazz, pirueta } = await seedJazzDay();
-    const judgeId = await fixture.addJudge();
+    const { addEventJudge, jazz, pirueta } = await seedJazzDay();
+    const judgeId = await addEventJudge();
 
     await expect(
       saveFinalistPick({ academyId: pirueta, judgeId, modalityId: jazz, now }),
@@ -145,8 +145,8 @@ describe("`saveFinalistPick`", () => {
   });
 
   test("refuses an academy that is not eligible in that modality, even one eligible in another", async () => {
-    const { fixture, jazz, pirueta } = await seedJazzDay();
-    const judgeId = await fixture.addJudge();
+    const { addEventJudge, fixture, jazz, pirueta } = await seedJazzDay();
+    const judgeId = await addEventJudge();
     const tap = await fixture.addModality("Tap");
     const tapOnly = await fixture.addAcademy("Academia Tap");
 
@@ -181,6 +181,31 @@ describe("`saveFinalistPick`", () => {
       }),
     ).resolves.toEqual({ ok: false, reason: "not-eligible" });
     await expect(readPick(judgeId, jazz)).resolves.toBe(pirueta);
+  });
+
+  test("accepts a judge on one of the event's presentations and refuses one with no tie to the event", async () => {
+    const { addEventJudge, fixture, jazz, pirueta } = await seedJazzDay();
+    const assigned = await addEventJudge();
+    const unassigned = await fixture.addJudge("Diego Juez, sin presentaciones");
+
+    await expect(
+      saveFinalistPick({
+        academyId: pirueta,
+        judgeId: unassigned,
+        modalityId: jazz,
+        now: duringTheShow,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "not-found" });
+    await expect(
+      saveFinalistPick({
+        academyId: pirueta,
+        judgeId: assigned,
+        modalityId: jazz,
+        now: duringTheShow,
+      }),
+    ).resolves.toEqual({ ok: true });
+    await expect(readPick(unassigned, jazz)).resolves.toBeNull();
+    await expect(readPick(assigned, jazz)).resolves.toBe(pirueta);
   });
 
   test("refuses a modality outside the active event", async () => {
@@ -279,10 +304,11 @@ describe("`setFinalistPick`", () => {
 
 describe("`readJudgeFinalistPicks`", () => {
   test("lists the modalities that dance on the day, each with the academies eligible in it and the judge's own pick", async () => {
-    const { fixture, jazz, pirueta, vecina } = await seedJazzDay();
+    const { addEventJudge, fixture, jazz, pirueta, vecina } =
+      await seedJazzDay();
     const tap = await fixture.addModality("Tap");
-    const ana = await fixture.addJudge("Ana Juez");
-    const bruno = await fixture.addJudge("Bruno Juez");
+    const ana = await addEventJudge();
+    const bruno = await addEventJudge();
 
     await fixture.register({
       academy: pirueta,
@@ -319,8 +345,9 @@ describe("`readJudgeFinalistPicks`", () => {
   });
 
   test("keeps showing a pick whose academy stopped being eligible", async () => {
-    const { fixture, jazz, pirueta, vecina } = await seedJazzDay();
-    const judgeId = await fixture.addJudge();
+    const { addEventJudge, fixture, jazz, pirueta, vecina } =
+      await seedJazzDay();
+    const judgeId = await addEventJudge();
 
     await saveFinalistPick({
       academyId: vecina,
