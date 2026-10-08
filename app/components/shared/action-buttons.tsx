@@ -1,6 +1,6 @@
 import { Check, ChevronLeft, Trash2 } from "lucide-react";
-import type { ComponentProps } from "react";
-import { Link } from "react-router";
+import type { ComponentProps, MouseEvent } from "react";
+import { Link, useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -65,6 +65,13 @@ export function DestroyButton({
 }
 
 /**
+ * `Volver` does what the browser's back does when the page before this one is
+ * the app's, so a list comes back with the filters, search and page it was
+ * left on. With nothing of the app behind it, a page opened from a link or a
+ * new tab, it goes to `to`. It is a link to `to` all along: that is what the
+ * server renders, what works before hydration, and what a middle or modified
+ * click opens.
+ *
  * On a phone it is its chevron alone, a square like an icon button, so a form
  * footer keeps `Volver`, `Descartar cambios` and `Guardar` on one row. The
  * word stays for screen readers.
@@ -75,6 +82,15 @@ export function BackButton({
   viewTransition,
   ...buttonProps
 }: BackButtonProps) {
+  const navigate = useNavigate();
+
+  function goBack(event: MouseEvent<HTMLAnchorElement>) {
+    if (isPlainClick(event) && hasAppEntryBehind()) {
+      event.preventDefault();
+      void navigate(-1);
+    }
+  }
+
   return (
     <Button
       {...buttonProps}
@@ -85,10 +101,37 @@ export function BackButton({
         className,
       )}
     >
-      <Link to={to} viewTransition={viewTransition}>
+      <Link to={to} viewTransition={viewTransition} onClick={goBack}>
         <ChevronLeft aria-hidden="true" data-icon="inline-start" />
         <span className="max-sm:sr-only">Volver</span>
       </Link>
     </Button>
+  );
+}
+
+/**
+ * React Router's browser history numbers its entries in `history.state.idx`,
+ * from 0 for the one the tab opened the app on, so anything above 0 has one of
+ * the app's pages behind it.
+ */
+function hasAppEntryBehind() {
+  const state: unknown = window.history.state;
+
+  return (
+    typeof state === "object" &&
+    state !== null &&
+    "idx" in state &&
+    typeof state.idx === "number" &&
+    state.idx > 0
+  );
+}
+
+function isPlainClick(event: MouseEvent<HTMLAnchorElement>) {
+  return (
+    event.button === 0 &&
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey
   );
 }

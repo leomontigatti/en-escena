@@ -1,4 +1,4 @@
-import { createCookieSessionStorage, redirect } from "react-router";
+import { createCookieSessionStorage, replace } from "react-router";
 
 import {
   getNotificationToast,
@@ -74,6 +74,11 @@ function getFlashSessionStorage() {
  * Attaches a flash message to a `redirect` response from an `action`. It
  * preserves any `header` from `init` (for example, the session `set-cookie`s the
  * access provider returns).
+ *
+ * The redirect replaces the page it leaves in the browser's history, as React
+ * Router's `replace` does. That page no longer makes sense once the action ran
+ * (a create form, a deleted or merged record), so `Volver` and the browser's
+ * back go to the page before it rather than to it.
  */
 export async function redirectWithFlashNotification(
   url: string,
@@ -90,7 +95,7 @@ export async function redirectWithFlashNotification(
   const headers = new Headers(responseInit.headers);
   headers.append("set-cookie", setCookieHeader);
 
-  return redirect(url, {
+  return replace(url, {
     ...responseInit,
     status: responseInit.status ?? 302,
     headers,

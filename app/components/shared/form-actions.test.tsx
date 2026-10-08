@@ -1,7 +1,12 @@
 /** @vitest-environment jsdom */
 
 import { act, useState } from "react";
-import { createMemoryRouter, Form, RouterProvider } from "react-router";
+import {
+  createBrowserRouter,
+  createMemoryRouter,
+  Form,
+  RouterProvider,
+} from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { FormActions } from "@/components/shared/form-actions";
@@ -12,8 +17,12 @@ import {
 } from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
+const browserRouters: { dispose: () => void }[] = [];
 
-afterEach(renderer.cleanup);
+afterEach(() => {
+  renderer.cleanup();
+  browserRouters.splice(0).forEach((router) => router.dispose());
+});
 
 describe("FormActions", () => {
   test("keeps `Guardar` off and hides `Descartar cambios` while nothing changed", async () => {
@@ -100,6 +109,52 @@ describe("FormActions", () => {
     expect(back?.getAttribute("aria-disabled")).toBeNull();
   });
 
+  test("goes back to the list it came from, with its filters, rather than to a fresh one", async () => {
+    const page = await renderBrowserPage({
+      cameFrom: "/lista?estado=pendiente",
+      hasChanges: false,
+    });
+
+    await clickLink("Volver");
+
+    expect(page.href()).toBe("/lista?estado=pendiente");
+    expect(window.history.state?.idx).toBe(0);
+  });
+
+  test("goes to `backTo` when nothing of the app is behind the page", async () => {
+    const page = await renderBrowserPage({ hasChanges: false });
+
+    await clickLink("Volver");
+
+    expect(page.href()).toBe("/lista");
+    expect(window.history.state?.idx).toBe(1);
+  });
+
+  test("asks before going back with changes", async () => {
+    const page = await renderBrowserPage({
+      cameFrom: "/lista?estado=pendiente",
+      hasChanges: true,
+    });
+
+    await clickLink("Volver");
+
+    expect(findDialog()?.textContent).toContain("¿Descartar los cambios?");
+
+    await clickReactDomButton("Cancelar", {
+      within: document.querySelector('[role="alertdialog"]'),
+    });
+    await settle();
+
+    expect(findDialog()).toBeUndefined();
+    expect(page.href()).toBe("/detalle");
+
+    await clickLink("Volver");
+    await clickReactDomButton("Descartar", { exact: true });
+    await settle();
+
+    expect(page.href()).toBe("/lista?estado=pendiente");
+  });
+
   test("lets its own save through without asking", async () => {
     const page = await renderPage({ hasChanges: true });
 
@@ -177,6 +232,51 @@ async function renderPage(input: {
     discards: () => discards,
     pathname: () => router.state.location.pathname,
     saves: () => saves,
+  };
+}
+
+/**
+ * The page under the browser's own history, which is where `Volver` reads
+ * whether the app has an entry behind the page. `cameFrom`, when given, is that
+ * entry; without it the page is the first the tab opened.
+ */
+async function renderBrowserPage(input: {
+  cameFrom?: string;
+  hasChanges: boolean;
+}) {
+  window.history.replaceState(null, "", input.cameFrom ?? "/detalle");
+
+  function Page() {
+    const [hasChanges, setHasChanges] = useState(input.hasChanges);
+
+    return (
+      <Form method="post">
+        <FormActions
+          backTo="/lista"
+          hasChanges={hasChanges}
+          isPending={false}
+          onDiscard={() => setHasChanges(false)}
+        />
+      </Form>
+    );
+  }
+
+  const router = createBrowserRouter([
+    { element: <p>Lista</p>, path: "/lista" },
+    { action: () => null, element: <Page />, path: "/detalle" },
+  ]);
+
+  browserRouters.push(router);
+  await renderer.renderAsync(<RouterProvider router={router} />);
+
+  if (input.cameFrom) {
+    await act(async () => {
+      await router.navigate("/detalle");
+    });
+  }
+
+  return {
+    href: () => router.state.location.pathname + router.state.location.search,
   };
 }
 
