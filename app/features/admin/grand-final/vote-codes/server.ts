@@ -172,7 +172,12 @@ export async function loadVoteCodeSheet(
     sheet,
   });
 
+  // Each code on the sheet is a live vote worth ten: no browser or proxy
+  // cache keeps a copy past this response.
   return new Response(html, {
-    headers: { "Content-Type": "text/html; charset=utf-8" },
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "text/html; charset=utf-8",
+    },
   });
 }
