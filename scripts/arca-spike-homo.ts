@@ -67,7 +67,7 @@ import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 //                                          fire under either reading. Confirms
 //                                          whether it is NON-EXCLUDING (CAE
 //                                          granted + Observaciones) as the norms
-//                                          say, or excluding (Resultado R).
+//                                          say, or excluding (`Resultado` R).
 //
 // A rejected FECAESolicitar does NOT advance the 10016 ratchet, so probes (a)
 // and (b) cost no correlative and the accepted calls stay contiguous. The
@@ -282,7 +282,7 @@ async function emitAmendment(
       // reaches the detail level answers at the header only.
       resultado: det?.Resultado ?? result.response.FeCabResp?.Resultado ?? null,
       cbteNro: typeof det?.CbteDesde === "number" ? det.CbteDesde : null,
-      // The SDK blanks both to "" unless Resultado is "A"; normalize to null so
+      // The SDK blanks both to "" unless `Resultado` is "A"; normalize to null so
       // the JSON dump does not read as "ARCA returned an empty CAE".
       cae: result.cae || null,
       caeFchVto: result.caeFchVto || null,
