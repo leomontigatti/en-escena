@@ -132,7 +132,11 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       header: "Nombre",
       className: "w-1/2 font-medium",
       headerClassName: "w-1/2",
-      cell: (professor) => <ProfessorDetailLink professor={professor} />,
+      cell: (professor) => (
+        <DataTableLink recordTitle to={`/portal/profesores/${professor.id}`}>
+          {professor.firstName} {professor.lastName}
+        </DataTableLink>
+      ),
       filterValue: (professor) =>
         `${professor.firstName} ${professor.lastName} ${professor.documentNumber ?? ""}`,
       sortValue: (professor) => `${professor.firstName} ${professor.lastName}`,
@@ -179,16 +183,6 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       emptyMessage="No hay profesores que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
     />
-  );
-}
-
-function ProfessorDetailLink({ professor }: { professor: ProfessorRow }) {
-  const href = `/portal/profesores/${professor.id}`;
-
-  return (
-    <DataTableLink recordTitle to={href}>
-      {professor.firstName} {professor.lastName}
-    </DataTableLink>
   );
 }
 

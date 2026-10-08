@@ -140,7 +140,11 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       header: "Nombre",
       className: "w-1/2 font-medium",
       headerClassName: "w-1/2",
-      cell: (dancer) => <DancerDetailLink dancer={dancer} />,
+      cell: (dancer) => (
+        <DataTableLink recordTitle to={`/portal/bailarines/${dancer.id}`}>
+          {dancer.firstName} {dancer.lastName}
+        </DataTableLink>
+      ),
       filterValue: (dancer) =>
         `${dancer.firstName} ${dancer.lastName} ${dancer.documentNumber ?? ""}`,
       sortValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
@@ -187,16 +191,6 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       emptyMessage="No hay bailarines que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
     />
-  );
-}
-
-function DancerDetailLink({ dancer }: { dancer: DancerRow }) {
-  const href = `/portal/bailarines/${dancer.id}`;
-
-  return (
-    <DataTableLink recordTitle to={href}>
-      {dancer.firstName} {dancer.lastName}
-    </DataTableLink>
   );
 }
 
