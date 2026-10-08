@@ -50,6 +50,15 @@ describe("flash notification helper", () => {
     });
   });
 
+  test("takes the place of the page it leaves in the browser's history", async () => {
+    const response = await redirectWithFlashNotification(
+      "/eventos/1",
+      "event-saved",
+    );
+
+    expect(response.headers.get("X-Remix-Replace")).toBe("true");
+  });
+
   test("honours a custom redirect status", async () => {
     const response = await redirectWithFlashNotification(
       "/eventos",

@@ -32,6 +32,8 @@ vi.mock("react-router", async () => {
     useNavigation: reactRouterMocks.useNavigation,
     useSubmit: reactRouterMocks.useSubmit,
     useBlocker: reactRouterMocks.useBlocker,
+    // `Volver` needs a data router, which these renders do not mount.
+    useNavigate: () => () => undefined,
   };
 });
 

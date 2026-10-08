@@ -426,9 +426,11 @@ Rules:
 - A form with unsaved changes asks before it is left, through the shared
   `DiscardChangesDialog`. On a page the guard sits on the router (`useBlocker`
   plus `beforeunload`), not on `Volver`: the sidebar, the breadcrumbs, the
-  browser's back and a closing tab are ways out too. `Volver` stays the same
-  plain link. The save's own submission is never asked about. In a `Dialog`,
-  `Cancelar`, the close button and Esc go through `useDiscardGuard`.
+  browser's back and a closing tab are ways out too. `Volver` is the browser's
+  back when the page before is the app's, so a list returns with its filters,
+  and a link to its fallback list otherwise. The save's own submission is never
+  asked about. In a `Dialog`, `Cancelar`, the close button and Esc go through
+  `useDiscardGuard`.
 - Fields that affect each other stay on one screen, visible together. Do not
   split them across `Tabs`, steps or dialogs: a change in one tab that rewrites a
   field in another is a change the user does not see
