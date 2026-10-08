@@ -3,11 +3,12 @@ import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
+import { isReservedInternalUsername } from "@/lib/auth/internal-username.server";
 import {
-  assertValidInternalUsername,
-  isReservedInternalUsername,
-} from "@/lib/auth/internal-username.server";
-import { internalUsernameRuleMessage } from "@/lib/auth/internal-username.shared";
+  internalUsernameRuleMessage,
+  isValidInternalUsername,
+  normalizeInternalUsername,
+} from "@/lib/auth/internal-username.shared";
 import {
   createInternalCredentialUser,
   deleteInternalCredentialUser,
@@ -63,13 +64,11 @@ export async function createInternalUser(
     return creationError("La contraseña debe tener al menos 8 caracteres.");
   }
 
-  let internalUsername: string;
-
-  try {
-    internalUsername = assertValidInternalUsername(input.internalUsername);
-  } catch {
+  if (!isValidInternalUsername(input.internalUsername)) {
     return creationError(internalUsernameRuleMessage);
   }
+
+  const internalUsername = normalizeInternalUsername(input.internalUsername);
 
   if (isReservedInternalUsername(internalUsername)) {
     return creationError("Ese nombre de usuario interno está reservado.");

@@ -138,7 +138,9 @@ function buildProgramColumns({
           <DataTableTruncatedText
             value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
           >
-            <DataTableLink to={choreographyPath(row)}>{row.name}</DataTableLink>
+            <DataTableLink recordTitle to={choreographyPath(row)}>
+              {row.name}
+            </DataTableLink>
           </DataTableTruncatedText>
         ) : (
           <DataTableTruncatedText value={row.name} />

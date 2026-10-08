@@ -1,5 +1,4 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { PortalPresentationEvaluationView } from "./view";
@@ -7,6 +6,7 @@ import type {
   PortalEvaluationJudge,
   PortalPresentationEvaluationLoaderData,
 } from "./server";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 const criteria = [
   {
@@ -176,8 +176,9 @@ function renderView(
   };
 
   return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/portal/presentaciones/uno"]}>
-      <PortalPresentationEvaluationView loaderData={loaderData} />
-    </MemoryRouter>,
+    renderInDataRouter(
+      "/portal/presentaciones/uno",
+      <PortalPresentationEvaluationView loaderData={loaderData} />,
+    ),
   );
 }

@@ -1,7 +1,7 @@
 import { isRouteErrorResponse, UNSAFE_ErrorResponseImpl } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { getErrorBoundaryCopy } from "./root";
+import { getErrorBoundaryCopy } from "@/components/shared/error-panel";
 
 const genericDescription = "La aplicación no pudo completar la solicitud.";
 

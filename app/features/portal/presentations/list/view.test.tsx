@@ -1,5 +1,4 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { PortalPresentationsListView } from "./view";
@@ -7,6 +6,7 @@ import type {
   PortalPresentationRow,
   PortalPresentationsLoaderData,
 } from "./server";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 describe("PortalPresentationsListView", () => {
   test("shows the empty state when there is no active event", () => {
@@ -156,8 +156,9 @@ function renderView(overrides: Partial<PortalPresentationsLoaderData> = {}) {
   };
 
   return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/portal/presentaciones"]}>
-      <PortalPresentationsListView loaderData={loaderData} />
-    </MemoryRouter>,
+    renderInDataRouter(
+      "/portal/presentaciones",
+      <PortalPresentationsListView loaderData={loaderData} />,
+    ),
   );
 }

@@ -53,6 +53,7 @@ export function SeminarList({
       cell: (seminar) =>
         linksToDetail ? (
           <DataTableLink
+            recordTitle
             to={buildDetailPath(basePath, seminar.id, selectedEventId)}
           >
             {seminar.instructorName}

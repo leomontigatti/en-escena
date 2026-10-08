@@ -41,7 +41,7 @@ const paymentColumns: DataTableColumn<PaymentsListRow>[] = [
     header: "#",
     className: "font-medium tabular-nums",
     cell: (row) => (
-      <DataTableLink to={`/administracion/pagos/${row.id}`}>
+      <DataTableLink recordTitle to={`/administracion/pagos/${row.id}`}>
         {formatEventSequenceNumber(row.paymentNumber)}
       </DataTableLink>
     ),

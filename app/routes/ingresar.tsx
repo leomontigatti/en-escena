@@ -47,6 +47,7 @@ import { getEmptyFieldErrors } from "@/lib/shared/form-validation";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { showToastMessage, useServerActionToast } from "@/lib/shared/toasts";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 import type { Route } from "./+types/ingresar";
 
@@ -165,9 +166,14 @@ async function getPasswordResetRequiredMessage(
     if (await hasCredentialAccount(credentialUser.id)) {
       return null;
     }
-  } catch {
+  } catch (thrown) {
     // If the query fails, it falls back to the generic error: an imprecise message
     // beats a 500 on sign-in.
+    console.error("[auth:credential-check:error]", {
+      userId: credentialUser.id,
+      error: describeServerError(thrown),
+    });
+
     return null;
   }
 

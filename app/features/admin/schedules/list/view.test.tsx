@@ -1,12 +1,12 @@
 /** @vitest-environment jsdom */
 
-import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { EventSchedulesListView } from "@/features/admin/schedules/list/view";
 import type { EventSchedulesListLoaderData } from "@/features/admin/schedules/shared";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 describe("EventSchedulesListView", () => {
   const renderer = createReactDomTestRenderer();
@@ -86,9 +86,10 @@ describe("EventSchedulesListView", () => {
 
   function renderList(overrides: Partial<EventSchedulesListLoaderData> = {}) {
     renderer.render(
-      <MemoryRouter>
-        <EventSchedulesListView loaderData={createLoaderData(overrides)} />
-      </MemoryRouter>,
+      renderInDataRouter(
+        "/",
+        <EventSchedulesListView loaderData={createLoaderData(overrides)} />,
+      ),
     );
   }
 

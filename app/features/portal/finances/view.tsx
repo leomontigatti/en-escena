@@ -89,7 +89,7 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
     // place and doing the same thing: it opens the row and it is the only link
     // to the detail.
     cell: (row) => (
-      <DataTableLink to={`/portal/finanzas/${row.id}`}>
+      <DataTableLink recordTitle to={`/portal/finanzas/${row.id}`}>
         {formatEventSequenceNumber(row.choreographyNumber)}
       </DataTableLink>
     ),
@@ -158,7 +158,7 @@ const seminarFinanceColumns: DataTableColumn<SeminarFinanceRow>[] = [
     header: "Seminario",
     className: "min-w-56 font-medium",
     cell: (row) => (
-      <DataTableLink to={`/portal/finanzas/seminarios/${row.id}`}>
+      <DataTableLink recordTitle to={`/portal/finanzas/seminarios/${row.id}`}>
         {row.instructorName}
       </DataTableLink>
     ),

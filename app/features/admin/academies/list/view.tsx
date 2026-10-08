@@ -34,7 +34,7 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
     header: "Nombre",
     className: "min-w-56 font-medium",
     cell: (academy) => (
-      <DataTableLink to={`/administracion/academias/${academy.id}`}>
+      <DataTableLink recordTitle to={`/administracion/academias/${academy.id}`}>
         {academy.name}
       </DataTableLink>
     ),

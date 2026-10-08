@@ -1,5 +1,4 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 vi.mock("@/lib/admin/dancers/dancers.server", () => ({
@@ -28,6 +27,7 @@ import {
   InscriptionsSection,
   type InscriptionsSectionProps,
 } from "@/routes/administracion.bailarines_.$dancerId";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 describe("InscriptionsSection", () => {
   test("shows an empty state when there is no event active", () => {
@@ -93,8 +93,6 @@ describe("InscriptionsSection", () => {
 
 function renderSection(props: InscriptionsSectionProps) {
   return renderToStaticMarkup(
-    <MemoryRouter>
-      <InscriptionsSection {...props} />
-    </MemoryRouter>,
+    renderInDataRouter("/", <InscriptionsSection {...props} />),
   );
 }
