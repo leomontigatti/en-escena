@@ -132,7 +132,9 @@ Notes on the matrix:
   makes sense: a resource deleted from its own detail no longer exists, and a dedicated
   creation route is not a place to stay (there are no bulk-entry flows, so creating an
   internal user does **not** return to an empty form: it goes to the new record's
-  detail).
+  detail). For the same reason the redirect replaces that view in the browser's
+  history (`redirectWithFlashNotification` sends React Router's `replace`), so
+  `Volver` and the browser's back skip it.
 - **A portal create goes back to its list.** An academy registers its roster one
   person after another, often from a phone: the list shows the new record among the
   others and holds the button for the next one, where the detail would be one more
