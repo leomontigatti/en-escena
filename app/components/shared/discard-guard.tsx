@@ -174,7 +174,16 @@ export function DiscardChangesDialog({
           <AlertDialogCancel onClick={onKeepEditing}>
             {discardChangesCancelLabel}
           </AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={onDiscard}>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={(event) => {
+              // The dialog closes when `open` turns false. Closing it here as
+              // well would report a dismissal, and on a page that resets the
+              // blocker before a back or forward it let through gets to run.
+              event.preventDefault();
+              onDiscard();
+            }}
+          >
             {discardChangesConfirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
