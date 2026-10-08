@@ -1,5 +1,8 @@
 import { loadPortalShell } from "@/features/portal/shell/server";
-import { PortalShellRouteView } from "@/features/portal/shell/view";
+import {
+  PortalShellErrorBoundary,
+  PortalShellRouteView,
+} from "@/features/portal/shell/view";
 
 import type { Route } from "./+types/portal";
 
@@ -10,5 +13,7 @@ export const meta: Route.MetaFunction = () => [
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadPortalShell(request);
 }
+
+export const ErrorBoundary = PortalShellErrorBoundary;
 
 export default PortalShellRouteView;
