@@ -209,7 +209,11 @@ export async function handleSeminarFinanceAction(input: {
     });
   }
 
-  const result = await runSeminarInscriptionMoneyIntent({ eventId, formData });
+  const result = await runSeminarInscriptionMoneyIntent({
+    eventId,
+    expectedScope: { academyId, seminarId },
+    formData,
+  });
 
   if (result.status === "error") {
     return result;

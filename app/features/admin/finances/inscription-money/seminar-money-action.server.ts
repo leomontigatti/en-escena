@@ -40,6 +40,10 @@ const seminarMoneyIntents: readonly string[] = [
  *
  * The gestures differ only in what they read off the form: an amount for two
  * of them and nothing at all for the release, whose figure is computed.
+ * A screen about one `(seminar, academy)` pair passes it as `expectedScope`,
+ * and an inscription outside it is refused as one the screen does not hold;
+ * the event-wide list passes nothing.
+ *
  * Answers a success when the write went through, leaving each screen to decide
  * what follows (the detail redirects to itself, the list stays and toasts it);
  * a refusal otherwise, which keeps the dialog open with what the administrator
@@ -47,6 +51,7 @@ const seminarMoneyIntents: readonly string[] = [
  */
 export async function runSeminarInscriptionMoneyIntent(input: {
   eventId: string;
+  expectedScope?: { academyId: string; seminarId: string };
   formData: FormData;
 }): Promise<SeminarMoneyAnswer> {
   const intent = String(input.formData.get("intent") ?? "");
@@ -71,7 +76,7 @@ export async function runSeminarInscriptionMoneyIntent(input: {
       })
     : null;
 
-  if (target === null) {
+  if (target === null || !isInScope(target, input.expectedScope)) {
     return { status: "error", message: "No encontramos esa inscripción." };
   }
 
@@ -97,6 +102,17 @@ export async function runSeminarInscriptionMoneyIntent(input: {
       : await removeFromSeminarInscription({ ...target, amount });
 
   return answer(intent, result);
+}
+
+function isInScope(
+  target: { academyId: string; seminarId: string },
+  expectedScope: { academyId: string; seminarId: string } | undefined,
+): boolean {
+  return (
+    expectedScope === undefined ||
+    (target.academyId === expectedScope.academyId &&
+      target.seminarId === expectedScope.seminarId)
+  );
 }
 
 function answer(

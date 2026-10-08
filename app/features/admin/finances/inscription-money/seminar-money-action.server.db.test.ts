@@ -152,6 +152,40 @@ describe("the seminar inscription money action", () => {
     );
     expect(await readAllocatedAmount(fixture.anaInscriptionId)).toBe(10000);
   });
+
+  // The detail is about one `(seminar, academy)` pair, so a form naming an
+  // inscription of another pair is refused there even though the handler
+  // could place the money.
+  test("refuses, on the detail, an inscription outside its seminar and academy", async () => {
+    const fixture = await seedEventSeminarFinanceFixture();
+    const detailUrl = seminarFinanceDetailRequestUrl({
+      academyId: fixture.northAcademyId,
+      eventId: fixture.eventId,
+      seminarId: fixture.abrilSeminarId,
+    });
+    const request = await buildSeminarMoneyPostRequest({
+      fields: {
+        amount: "10000",
+        inscriptionId: fixture.nicolasInscriptionId,
+        intent: "allocate-inscription",
+        priceId: fixture.priceId,
+      },
+      url: detailUrl,
+    });
+
+    const result = await seminarFinanceDetailAction(
+      routeArgs(request, {
+        academyId: fixture.northAcademyId,
+        seminarId: fixture.abrilSeminarId,
+      }),
+    );
+
+    expect(result).toEqual({
+      message: "No encontramos esa inscripción.",
+      status: "error",
+    });
+    expect(await readAllocatedAmount(fixture.nicolasInscriptionId)).toBe(0);
+  });
 });
 
 async function postToList(
