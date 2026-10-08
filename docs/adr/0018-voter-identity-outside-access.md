@@ -1,6 +1,6 @@
 # ADR-0018: A voter is not a user, and the `Gran final` is not an award
 
-**Status**: proposed
+**Status**: accepted
 
 Date: 2026-10-07
 
