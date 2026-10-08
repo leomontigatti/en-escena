@@ -39,6 +39,7 @@ describe("private route headers", () => {
             account: judgeAccount,
             day: "2026-08-22",
             dayOptions: [],
+            finalistPicks: [],
             isOpen: true,
             judgingDate: "2026-08-22",
             presentations: [],

@@ -24,6 +24,7 @@ const schemaExportNames = [
   "events",
   "eventSequences",
   "experienceLevel",
+  "finalistPicks",
   "paymentMethod",
   "groupType",
   "judgeAssignments",

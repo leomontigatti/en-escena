@@ -344,6 +344,13 @@
       "when": 1791380435226,
       "tag": "0048_drop_internal_user_invitation",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1791468768876,
+      "tag": "0049_finalist_pick",
+      "breakpoints": true
     }
   ]
 }

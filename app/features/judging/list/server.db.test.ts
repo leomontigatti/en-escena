@@ -192,4 +192,19 @@ describe("the `/juzgamiento` route", () => {
       presentations: [],
     });
   });
+
+  test("carries the judge's finalist pick of each modality that dances on the day shown, open only on the judging day", async () => {
+    const { fixture, judge } = await seedJudgeDays();
+    const modality = {
+      modalityId: fixture.catalog.modality.id,
+      academyId: null,
+    };
+
+    await expect(loadJudgePanelRouteData(judge.request)).resolves.toMatchObject(
+      { finalistPicks: [modality], isOpen: true },
+    );
+    await expect(
+      loadJudgePanelRouteData(judge.requestDay(pastDay)),
+    ).resolves.toMatchObject({ finalistPicks: [modality], isOpen: false });
+  });
 });

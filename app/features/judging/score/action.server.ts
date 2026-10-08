@@ -1,3 +1,8 @@
+import {
+  type FinalistPickActionData,
+  handleFinalistPickAction,
+} from "@/features/judging/finalist-pick/action.server";
+import { saveFinalistPickIntent } from "@/features/judging/finalist-pick/shared";
 import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
 import {
   type FeedbackAudioSubmission,
@@ -29,9 +34,11 @@ import { formatUploadRejection } from "@/lib/storage/asset-kinds";
  * The `Devolución` is posted as multipart with the score, because the judge's
  * one "Guardar" saves both.
  *
- * Saving is the only thing a judge posts: disqualifying is administration's,
- * from the presentation's scores view. The intent still travels on the answer
- * so the pending state can tell this form's save from any other navigation.
+ * A judge posts two things: a score, and their `finalistPick` from the bottom
+ * of the list, which carries its own intent and goes to its own handler.
+ * Disqualifying is administration's, from the presentation's scores view. The
+ * intent travels on the answer so the pending state can tell this form's save
+ * from any other navigation, and the score's feedback leaves the pick's alone.
  */
 
 export type JudgePanelIntent = "save-score";
@@ -59,9 +66,14 @@ const disqualifiedSaveMessage =
 
 export async function handleJudgePanelAction(
   request: Request,
-): Promise<JudgePanelActionData> {
+): Promise<FinalistPickActionData | JudgePanelActionData> {
   const judge = await requireJudgePanelUser(request);
   const formData = await request.formData();
+
+  if (readFormString(formData, "intent") === saveFinalistPickIntent) {
+    return await handleFinalistPickAction(judge.id, formData);
+  }
+
   const presentationId = readFormString(formData, "presentationId");
 
   return await saveScore(judge.id, formData, presentationId);
