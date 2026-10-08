@@ -76,8 +76,9 @@ export function DestroyButton({
  * word stays for screen readers.
  *
  * It always goes as a view transition, so a record's title morphs back into
- * its row in the list (`useRecordTitleAttribute`); a page with no record title
- * changes at once, as `app/app.css` leaves the rest of the page unanimated.
+ * its row in the list (`app/components/shared/record-title.ts`); a page with
+ * no record title changes at once, as `app/app.css` leaves the rest of the
+ * page unanimated.
  */
 export function BackButton({ className, to, ...buttonProps }: BackButtonProps) {
   const navigate = useNavigate();

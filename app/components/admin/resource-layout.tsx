@@ -1,8 +1,8 @@
 import { Inbox, Plus, Settings, type LucideIcon } from "lucide-react";
 import { type ReactNode } from "react";
-import { Link, useLocation } from "react-router";
+import { Link } from "react-router";
 
-import { useRecordTitleAttribute } from "@/components/shared/record-title";
+import { useRecordTitleHeading } from "@/components/shared/record-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -168,7 +168,7 @@ function AdminResourceHeader({
   titleBadge?: ReactNode;
   description: string;
 }) {
-  const recordTitle = useRecordTitleAttribute(useLocation().pathname);
+  const recordTitle = useRecordTitleHeading();
 
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

@@ -17,7 +17,7 @@ import {
 import { Link, useLocation, type UIMatch } from "react-router";
 
 import { AccountMenu } from "@/components/shared/account-menu";
-import { useRecordTitleAttribute } from "@/components/shared/record-title";
+import { useRecordTitleHeading } from "@/components/shared/record-title";
 import { TopBarTools } from "@/components/shared/top-bar-tools";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import {
@@ -111,7 +111,7 @@ export function PortalPageHeader({
   description,
   action,
 }: PortalPageHeaderProps) {
-  const recordTitle = useRecordTitleAttribute(useLocation().pathname);
+  const recordTitle = useRecordTitleHeading();
 
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

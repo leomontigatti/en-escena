@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { Link } from "react-router";
 
-import { useRecordTitleAttribute } from "@/components/shared/record-title";
+import { useRecordTitleLink } from "@/components/shared/record-title";
 import { Button } from "@/components/ui/button";
 
 type DataTableLinkProps = ComponentProps<typeof Link> & {
@@ -30,9 +30,7 @@ function DataTableLink({
 }
 
 function RecordTitleLink(props: ComponentProps<typeof Link>) {
-  return (
-    <Link {...props} {...useRecordTitleAttribute(props.to)} viewTransition />
-  );
+  return <Link {...props} {...useRecordTitleLink(props.to)} />;
 }
 
 export { DataTableLink };

@@ -246,10 +246,9 @@
 /*
  * The record title (`app/components/shared/record-title.ts`): a record's name
  * morphs between its row in a list and its detail page's title. A marked page
- * title gives way to a marked link on the same page, the row it came from or
- * goes back to, so a list's own title never competes with it. The rest of the
- * page swaps at once: no root crossfade, which would otherwise play on every
- * `Volver`.
+ * title gives way to a marked link on the same page, as a detail page can list
+ * rows of other records. The rest of the page swaps at once: no root
+ * crossfade, which would otherwise play on every `Volver`.
  */
 [data-record-title] {
   view-transition-name: record-title;
@@ -269,6 +268,13 @@
 ::view-transition-group(record-title) {
   animation-duration: 160ms;
   animation-timing-function: ease;
+}
+
+/* A title with no partner, as on `Volver` from a page opened in a new tab,
+ * swaps with the rest of the page instead of fading on its own. */
+::view-transition-old(record-title):only-child,
+::view-transition-new(record-title):only-child {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

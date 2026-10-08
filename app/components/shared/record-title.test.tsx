@@ -66,59 +66,69 @@ describe("record title view transition", () => {
     expect(transitions).toEqual([true]);
   });
 
-  test("the admin title carries the record title during a transition touching its page", async () => {
-    await renderAt(
-      "/registros/1",
-      <AdminResourceLayout
-        title="Ana Paz"
-        description="Bailarina"
-        requireSelectedEvent={false}
-      >
-        {null}
-      </AdminResourceLayout>,
-    );
+  // Regression: a page title marked on every transition touching its page
+  // paired with the list's own title when no row's link had opened the page
+  // (`Nuevo`, a page opened in a new tab), and the two titles morphed.
+  test.each([
+    {
+      header: "admin",
+      title: (
+        <AdminResourceLayout
+          title="Detalle"
+          description="Registro"
+          requireSelectedEvent={false}
+        >
+          {null}
+        </AdminResourceLayout>
+      ),
+    },
+    {
+      header: "portal",
+      title: (
+        <PortalPageHeader
+          titleId="titulo"
+          title="Detalle"
+          description="Registro"
+        />
+      ),
+    },
+  ])(
+    "the $header title carries the record title only on a page its row's link opened",
+    async ({ title }) => {
+      transitioningPaths.add("/registros/1");
+      transitioningPaths.add("/registros/nuevo");
+      const router = createMemoryRouter(
+        [
+          {
+            path: "/registros",
+            element: (
+              <>
+                <DataTableLink recordTitle to="/registros/1">
+                  Ana Paz
+                </DataTableLink>
+                <DataTableLink to="/registros/nuevo">Nuevo</DataTableLink>
+              </>
+            ),
+          },
+          { path: "/registros/:id", element: title },
+        ],
+        { initialEntries: ["/registros"] },
+      );
+      await renderer.renderAsync(<RouterProvider router={router} />);
 
-    expect(carriesRecordTitle(findHeading("Ana Paz"))).toBe(false);
+      await click(findLink("Ana Paz"));
 
-    transitioningPaths.add("/registros/1");
-    await renderAt(
-      "/registros/1",
-      <AdminResourceLayout
-        title="Ana Paz"
-        description="Bailarina"
-        requireSelectedEvent={false}
-      >
-        {null}
-      </AdminResourceLayout>,
-    );
+      expect(carriesRecordTitle(findHeading("Detalle"))).toBe(true);
 
-    expect(carriesRecordTitle(findHeading("Ana Paz"))).toBe(true);
-  });
+      await act(async () => {
+        await router.navigate("/registros");
+      });
+      await click(findLink("Nuevo"));
 
-  test("the portal title carries the record title during a transition touching its page", async () => {
-    await renderAt(
-      "/registros/1",
-      <PortalPageHeader
-        titleId="titulo"
-        title="Ana Paz"
-        description="Bailarina"
-      />,
-    );
-
-    expect(carriesRecordTitle(findHeading("Ana Paz"))).toBe(false);
-
-    transitioningPaths.add("/registros/1");
-    await renderAt(
-      "/registros/1",
-      <PortalPageHeader
-        titleId="titulo"
-        title="Ana Paz"
-        description="Bailarina"
-      />,
-    );
-
-    expect(carriesRecordTitle(findHeading("Ana Paz"))).toBe(true);
-  });
+      expect(router.state.location.pathname).toBe("/registros/nuevo");
+      expect(carriesRecordTitle(findHeading("Detalle"))).toBe(false);
+    },
+  );
 
   test("`Volver` starts a view transition back to its list", async () => {
     const router = await renderAt(
