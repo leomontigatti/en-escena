@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const requestPasswordReset = vi.hoisted(() => vi.fn());
 const exchangePasswordRecoveryCode = vi.hoisted(() => vi.fn());
@@ -16,6 +16,7 @@ vi.mock("@/lib/auth/access-auth-provider.server", () => ({
   },
 }));
 
+import { RecoveryLinkRefusedError } from "@/lib/auth/access-auth-provider.shared.server";
 import {
   exchangeAccessRecoveryCode,
   requestAccessRecoveryEmail,
@@ -30,6 +31,10 @@ describe("access recovery", () => {
     verifyPasswordRecoveryOtp.mockReset();
     updatePasswordForRecovery.mockReset();
     signOutCurrentSession.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   test("requests a reset link without exposing whether the email exists", async () => {
@@ -123,7 +128,12 @@ describe("access recovery", () => {
   });
 
   test("returns a Spanish error for invalid recovery links", async () => {
-    exchangePasswordRecoveryCode.mockRejectedValue(new Error("INVALID_TOKEN"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    exchangePasswordRecoveryCode.mockRejectedValue(
+      new RecoveryLinkRefusedError("Invalid recovery code."),
+    );
 
     const result = await exchangeAccessRecoveryCode({
       code: "expired-token",
@@ -136,10 +146,42 @@ describe("access recovery", () => {
       error:
         "El enlace no es válido o expiró. Pedí uno nuevo para recuperar el acceso.",
     });
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  test("logs one tagged line when the provider fails, behind the same message", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    exchangePasswordRecoveryCode.mockRejectedValue(
+      new Error("Connection terminated unexpectedly"),
+    );
+
+    const result = await exchangeAccessRecoveryCode({
+      code: "recovery-code",
+      request: new Request("http://localhost:3000/cambiar-contrasena?code=1"),
+      redirectTo: "/cambiar-contrasena?recuperacion=1",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "El enlace no es válido o expiró. Pedí uno nuevo para recuperar el acceso.",
+    });
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith("[auth:provider:error]", {
+      operation: "exchangePasswordRecoveryCode",
+      error: expect.stringContaining("Connection terminated unexpectedly"),
+    });
   });
 
   test("returns a Spanish error when the recovery session cannot update the password", async () => {
-    updatePasswordForRecovery.mockRejectedValue(new Error("SESSION_MISSING"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    updatePasswordForRecovery.mockRejectedValue(
+      new RecoveryLinkRefusedError("Recovery session missing."),
+    );
 
     const result = await updateAccessRecoveryPassword({
       newPassword: "nuevo1234",
@@ -151,5 +193,6 @@ describe("access recovery", () => {
       error:
         "El enlace no es válido o expiró. Pedí uno nuevo para recuperar el acceso.",
     });
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,3 @@
-import { useNavigation } from "react-router";
 import { z } from "zod";
 
 import type { FeedbackAudioFieldSubmission } from "@/lib/judging/feedback-audio-field";
@@ -8,7 +7,7 @@ import {
   parseScoreValue,
   scoreValueMessage,
 } from "@/lib/judging/score-value";
-import { isRouteFormPending } from "@/lib/shared/forms";
+import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 /**
  * Whether this presentation's own save is in flight. A judge taps in a dark
@@ -21,17 +20,10 @@ import { isRouteFormPending } from "@/lib/shared/forms";
  * the form after every save is not the form working.
  */
 export function useJudgeSavePending(presentationId: string): boolean {
-  try {
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    const navigation = useNavigation();
-
-    return isRouteFormPending(navigation, {
-      fields: { presentationId },
-      intent: "save-score",
-    });
-  } catch {
-    return false;
-  }
+  return isRouteFormPending(useOptionalNavigation(), {
+    fields: { presentationId },
+    intent: "save-score",
+  });
 }
 
 /**

@@ -11,6 +11,8 @@ import {
 import { dirname, join } from "node:path";
 import type { FileHandle } from "node:fs/promises";
 
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
+
 // Storage lives on a Coolify volume co-located with the app in São Paulo. The
 // live byte store is this local volume; B2 is relegated to backups. Keys stay
 // intact (`academies/...`) so a re-seed from the B2 backup is a plain copy.
@@ -312,11 +314,13 @@ export async function serveFilesystemObject(input: {
     return new Response("Forbidden", { status: 403 });
   }
 
-  let target: string;
+  const target = resolveServableObjectPath({
+    baseDir: input.baseDir,
+    bucket,
+    key,
+  });
 
-  try {
-    target = resolveObjectPath({ baseDir: input.baseDir, bucket, key });
-  } catch {
+  if (target === null) {
     return new Response("Forbidden", { status: 403 });
   }
 
@@ -328,6 +332,8 @@ export async function serveFilesystemObject(input: {
     if (isNotFoundError(error)) {
       return new Response("Not Found", { status: 404 });
     }
+
+    logServeFailure({ bucket, key }, error);
 
     return new Response("Forbidden", { status: 403 });
   }
@@ -382,7 +388,9 @@ export async function serveFilesystemObject(input: {
     const data = await handle.readFile();
 
     return new Response(data, { headers, status: 200 });
-  } catch {
+  } catch (error) {
+    logServeFailure({ bucket, key }, error);
+
     return new Response("Forbidden", { status: 403 });
   } finally {
     await handle.close();
@@ -454,6 +462,43 @@ function getContentType(key: string) {
   return CONTENT_TYPE_BY_EXTENSION[extension] ?? "application/octet-stream";
 }
 
+// The browser is answered with a bare 403 for an object it may not read, so a
+// volume that cannot be read must say so here or nowhere.
+function logServeFailure(
+  object: { bucket: string; key: string },
+  error: unknown,
+) {
+  console.error("[storage:serve:error]", {
+    ...object,
+    error: describeServerError(error),
+  });
+}
+
+// A signed URL can still carry a key that escapes its bucket; that is refused,
+// and anything else resolving the path throws is not.
+function resolveServableObjectPath(input: {
+  baseDir: string;
+  bucket: string;
+  key: string;
+}) {
+  try {
+    return resolveObjectPath(input);
+  } catch (error) {
+    if (error instanceof InvalidStorageKeyError) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+class InvalidStorageKeyError extends Error {
+  constructor(segment: string) {
+    super(`Invalid storage key: ${segment}`);
+    this.name = "InvalidStorageKeyError";
+  }
+}
+
 function resolveObjectPath(input: {
   baseDir: string;
   bucket: string;
@@ -467,7 +512,7 @@ function resolveObjectPath(input: {
 
 function assertSafeKey(key: string) {
   if (!key || key.startsWith("/")) {
-    throw new Error(`Invalid storage key: ${key}`);
+    throw new InvalidStorageKeyError(key);
   }
 
   for (const segment of key.split("/")) {
@@ -477,7 +522,7 @@ function assertSafeKey(key: string) {
 
 function assertSafeSegment(segment: string) {
   if (!segment || segment === "." || segment === "..") {
-    throw new Error(`Invalid storage key: ${segment}`);
+    throw new InvalidStorageKeyError(segment);
   }
 }
 
