@@ -186,6 +186,8 @@ function buildDetailLoaderData(): Parameters<
 >[0]["loaderData"] {
   return {
     documents: eventDocumentSummaries(),
+    // PROTOTYPE — throwaway, do not merge
+    grandFinalCategoriesPrototype: [],
     hasChoreographies: false,
     event: {
       id: "evento_1",

@@ -19,6 +19,14 @@ import {
 } from "@/components/admin/resource-layout";
 import { buildCreatePath, buildDetailPath } from "@/lib/shared/navigation";
 import { describeEmptyList } from "@/lib/list-query/list-query";
+// PROTOTYPE — throwaway, do not merge (Gran final marker variants)
+import {
+  GranFinalBadge,
+  GranFinalRowToggle,
+  GranFinalSectionC,
+  GranFinalSwitcher,
+  useGranFinalVariant,
+} from "@/features/admin/categories/gran-final-prototype";
 
 const emptyCategoryList = describeEmptyList("categorías", "search-and-filters");
 
@@ -86,8 +94,31 @@ const categoryFacetedFilters: DataTableFacetedFiltersOf<
   },
 ];
 
+// PROTOTYPE — throwaway, do not merge
+const granFinalColumnA: DataTableColumn<CategoryRow> = {
+  id: "granFinal",
+  header: "Gran final",
+  cell: (category) => <GranFinalBadge category={category} />,
+};
+
+// PROTOTYPE — throwaway, do not merge
+const granFinalColumnB: DataTableColumn<CategoryRow> = {
+  id: "granFinal",
+  header: "Gran final",
+  className: "w-0",
+  cell: (category) => <GranFinalRowToggle category={category} />,
+};
+
 function CategoriesListView({ loaderData }: CategoriesListViewProps) {
   const categories = loaderData.categories;
+  // PROTOTYPE — throwaway, do not merge
+  const variant = useGranFinalVariant();
+  const columns =
+    variant === "A"
+      ? [...categoryColumns, granFinalColumnA]
+      : variant === "B"
+        ? [...categoryColumns, granFinalColumnB]
+        : categoryColumns;
 
   return (
     <AdminResourceLayout
@@ -99,10 +130,13 @@ function CategoriesListView({ loaderData }: CategoriesListViewProps) {
         to: buildCreatePath(basePath, loaderData.selectedEventId, "nueva"),
       }}
     >
+      {variant === "C" && categories.length > 0 ? (
+        <GranFinalSectionC categories={categories} />
+      ) : null}
       {loaderData.categories.length > 0 ? (
         <ClientDataTable
           rows={categories}
-          columns={categoryColumns}
+          columns={columns}
           getRowKey={(category) => category.id}
           searchPlaceholder="Buscar por nombre"
           textFilterColumnId="name"
@@ -116,6 +150,7 @@ function CategoriesListView({ loaderData }: CategoriesListViewProps) {
           description="Creá la primera categoría para definir rangos de edad, tipos de grupo y modalidades del evento activo."
         />
       )}
+      <GranFinalSwitcher />
     </AdminResourceLayout>
   );
 }

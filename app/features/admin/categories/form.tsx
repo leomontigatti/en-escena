@@ -23,6 +23,12 @@ import {
 } from "@/lib/shared/forms";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
+// PROTOTYPE — throwaway, do not merge (Gran final marker variants)
+import {
+  GranFinalFormFieldA,
+  GranFinalSwitcher,
+  useGranFinalVariant,
+} from "./gran-final-prototype";
 import { basePath, type ModalityRow } from "./shared";
 
 const categoryFormSchema = z
@@ -134,6 +140,9 @@ function CategoryForm({
 }) {
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
+  // PROTOTYPE — throwaway, do not merge
+  const granFinalVariant = useGranFinalVariant();
+  const savedAges = form.formState.defaultValues;
 
   return (
     <form
@@ -193,7 +202,21 @@ function CategoryForm({
           className="md:col-span-2"
           placeholder="Seleccioná modalidades"
         />
+        {granFinalVariant === "A" ? (
+          <GranFinalFormFieldA
+            category={
+              id
+                ? {
+                    id,
+                    minAge: Number(savedAges?.minAge),
+                    maxAge: Number(savedAges?.maxAge),
+                  }
+                : undefined
+            }
+          />
+        ) : null}
       </FieldGroup>
+      <GranFinalSwitcher />
     </form>
   );
 }

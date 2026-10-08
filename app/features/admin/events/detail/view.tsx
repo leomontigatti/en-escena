@@ -51,6 +51,8 @@ import {
   useEventDocumentsForm,
 } from "./documents-fields";
 import { EventPaymentInstructionsFields } from "./payment-instructions-fields";
+// PROTOTYPE — throwaway, do not merge
+import { GrandFinalCutoffPrototype } from "./grand-final-cutoff-prototype";
 import {
   eventDocumentDeclarations,
   type EventDocumentKind,
@@ -107,6 +109,9 @@ export function EventDetailView({
         documents={loaderData.documents}
         registrationReadiness={loaderData.registrationReadiness}
         isStructureLocked={loaderData.hasChoreographies}
+        grandFinalCategoriesPrototype={
+          loaderData.grandFinalCategoriesPrototype ?? []
+        }
       />
     </AdminResourceLayout>
   );
@@ -186,6 +191,7 @@ function EditEventPanel({
   documents,
   registrationReadiness,
   isStructureLocked,
+  grandFinalCategoriesPrototype,
 }: {
   event: EventDetailLoaderData["event"];
   actionData?: Extract<EventDetailActionData, { status: "error" }>;
@@ -193,6 +199,10 @@ function EditEventPanel({
   registrationReadiness: EventDetailLoaderData["registrationReadiness"];
   /** Choreographies were inscribed and priced against the dates and deposit. */
   isStructureLocked: boolean;
+  /** PROTOTYPE — throwaway, do not merge. */
+  grandFinalCategoriesPrototype: NonNullable<
+    EventDetailLoaderData["grandFinalCategoriesPrototype"]
+  >;
 }) {
   const savedValues = eventFormValues(event);
   const eventForm = useEventForm({
@@ -258,6 +268,10 @@ function EditEventPanel({
           <EventFormFields
             controller={eventForm}
             lockedValues={isStructureLocked ? savedValues : undefined}
+          />
+          {/* PROTOTYPE — throwaway, do not merge */}
+          <GrandFinalCutoffPrototype
+            categories={grandFinalCategoriesPrototype}
           />
           <EventFormTabs
             controller={eventForm}

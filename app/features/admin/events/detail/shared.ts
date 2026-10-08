@@ -77,6 +77,14 @@ export type EventDetailLoaderData = {
    */
   hasChoreographies: boolean;
   registrationReadiness: EventRegistrationReadiness;
+  /** PROTOTYPE — throwaway, do not merge: the Gran final cutoff preview. */
+  grandFinalCategoriesPrototype?: {
+    id: string;
+    name: string;
+    minAge: number;
+    maxAge: number;
+    modalities: string[];
+  }[];
 };
 
 /**

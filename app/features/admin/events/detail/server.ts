@@ -1,7 +1,12 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events as eventsTable } from "@/db/schema";
+import {
+  categories as categoriesTable,
+  categoryModalities as categoryModalitiesTable,
+  events as eventsTable,
+  modalities as modalitiesTable,
+} from "@/db/schema";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
   getEventFormErrorMessage,
@@ -57,20 +62,28 @@ export async function loadEventDetail(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const [event, registrationReadiness, documents, hasChoreographies] =
-    await Promise.all([
-      loadEvent(eventId),
-      getEventRegistrationReadiness(eventId),
-      loadEventDocumentSummaries({
-        eventId,
-        storage: createDefaultEventDocumentStorage(),
-      }),
-      eventHasOperationalDependencies(eventId),
-    ]);
+  const [
+    event,
+    registrationReadiness,
+    documents,
+    hasChoreographies,
+    grandFinalCategoriesPrototype,
+  ] = await Promise.all([
+    loadEvent(eventId),
+    getEventRegistrationReadiness(eventId),
+    loadEventDocumentSummaries({
+      eventId,
+      storage: createDefaultEventDocumentStorage(),
+    }),
+    eventHasOperationalDependencies(eventId),
+    // PROTOTYPE — throwaway, do not merge (Gran final age cutoff preview).
+    loadGrandFinalCategoriesPrototype(eventId),
+  ]);
 
   return {
     documents,
     event,
+    grandFinalCategoriesPrototype,
     hasChoreographies,
     registrationReadiness,
   } satisfies EventDetailLoaderData;
@@ -276,4 +289,55 @@ async function loadEvent(eventId: string) {
   }
 
   return event;
+}
+
+// PROTOTYPE — throwaway, do not merge. Read-only: the event's `grupal`
+// categories with their modality names, for the Gran final cutoff preview.
+async function loadGrandFinalCategoriesPrototype(eventId: string) {
+  const rows = await db
+    .select({
+      id: categoriesTable.id,
+      name: categoriesTable.name,
+      minAge: categoriesTable.minAge,
+      maxAge: categoriesTable.maxAge,
+      groupTypes: categoriesTable.groupTypes,
+      modalityName: modalitiesTable.name,
+    })
+    .from(categoriesTable)
+    .leftJoin(
+      categoryModalitiesTable,
+      eq(categoryModalitiesTable.categoryId, categoriesTable.id),
+    )
+    .leftJoin(
+      modalitiesTable,
+      eq(modalitiesTable.id, categoryModalitiesTable.modalityId),
+    )
+    .where(eq(categoriesTable.eventId, eventId))
+    .orderBy(asc(categoriesTable.minAge), asc(categoriesTable.maxAge));
+
+  const byId = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      minAge: number;
+      maxAge: number;
+      modalities: string[];
+    }
+  >();
+
+  for (const row of rows) {
+    if (!row.groupTypes.includes("grupal")) continue;
+    const entry = byId.get(row.id) ?? {
+      id: row.id,
+      name: row.name,
+      minAge: row.minAge,
+      maxAge: row.maxAge,
+      modalities: [],
+    };
+    if (row.modalityName) entry.modalities.push(row.modalityName);
+    byId.set(row.id, entry);
+  }
+
+  return Array.from(byId.values());
 }
