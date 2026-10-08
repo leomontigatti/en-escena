@@ -37,6 +37,7 @@ import {
   renderFinanceAccountsRoute,
   paymentCreateRouteArgs,
 } from "./finances.test-support";
+import { seedEventSeminarFinanceFixture } from "./seminar-finances.test-support";
 
 installDatabaseTestHooks();
 
@@ -377,6 +378,38 @@ describe("`/administracion/finanzas`", () => {
       },
     ]);
     expect(markup.match(/Pendiente/g)).toHaveLength(3);
+  });
+
+  // The south academy has no choreography and no payment in the event: a
+  // professor registered in a seminar is its only tie to it, and that is
+  // money it owes.
+  test("lists an academy whose only tie to the event is a seminar inscription", async () => {
+    const fixture = await seedEventSeminarFinanceFixture();
+    const { request } = await createSignedInRequest({
+      email: "admin.seminarios.lista@example.com",
+      role: "admin",
+      requestUrl: financesListUrl(fixture.eventId),
+    });
+
+    const loaderData = await financeAccountsLoader(
+      financesListRouteArgs(request),
+    );
+
+    expect(
+      loaderData.rows.map((row) => ({
+        academyName: row.academyName,
+        owedBalanceAmount: row.owedBalanceAmount,
+      })),
+    ).toEqual([
+      {
+        academyName: "Academia Norte",
+        owedBalanceAmount: { amount: 40000, status: "complete" },
+      },
+      {
+        academyName: "Academia Sur",
+        owedBalanceAmount: { amount: 20000, status: "complete" },
+      },
+    ]);
   });
 
   test("lets admin create a payment from the payments form", async () => {

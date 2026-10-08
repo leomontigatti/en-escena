@@ -1,13 +1,6 @@
 import { redirect } from "react-router";
 
-import {
-  allocateInscriptionIntent,
-  readAllocationTargetKind,
-  readMoneyAmount,
-  readPickedPriceId,
-  releaseInscriptionExcessIntent,
-  removeInscriptionMoneyIntent,
-} from "@/features/admin/finances/inscription-money/intents";
+import { runSeminarInscriptionMoneyIntent } from "@/features/admin/finances/inscription-money/seminar-money-action.server";
 import {
   readFinanceAcademy,
   readFinanceAcademyId,
@@ -33,10 +26,7 @@ import {
 } from "@/lib/comprobantes/emit-factura-c.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import {
-  allocateToSeminarInscription,
   readSeminarInscriptionPriceOptions,
-  releaseSeminarInscriptionExcess,
-  removeFromSeminarInscription,
   type SeminarInscriptionPriceOption,
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
@@ -169,10 +159,11 @@ async function readSeminarInvoicing(
 }
 
 /**
- * The three money gestures of a seminar inscription. They are the choreography
- * action's twin down to the redirect: a write that went through leaves the
- * dialog by revalidating the detail, and a refusal comes back as a message the
- * dialog keeps on screen.
+ * The detail's action: the emission and the three money gestures of a seminar
+ * inscription. The gestures are the shared seminar ones, keyed by the
+ * inscription alone, and they are the choreography action's twin down to the
+ * redirect: a write that went through leaves the dialog by revalidating the
+ * detail, and a refusal comes back as a message the dialog keeps on screen.
  */
 export async function handleSeminarFinanceAction(input: {
   params: { academyId?: string; seminarId?: string };
@@ -218,117 +209,17 @@ export async function handleSeminarFinanceAction(input: {
     });
   }
 
-  const result = await runSeminarMoneyIntent({
-    academyId,
+  const result = await runSeminarInscriptionMoneyIntent({
     eventId,
+    expectedScope: { academyId, seminarId },
     formData,
-    seminarId,
   });
 
-  if (result !== null) {
+  if (result.status === "error") {
     return result;
   }
 
   throw redirectToDetail(academyId, seminarId, eventId);
-}
-
-/**
- * The three money gestures of a seminar inscription, which differ only in what
- * they read off the form: an amount for two of them and nothing at all for the
- * release, whose figure is computed. Returns `null` when the write succeeded, so
- * the caller redirects; an error otherwise, which keeps the dialog open with
- * what the administrator typed.
- */
-async function runSeminarMoneyIntent(input: {
-  academyId: string;
-  eventId: string;
-  formData: FormData;
-  seminarId: string;
-}): Promise<SeminarFinanceActionData | null> {
-  const target = readSeminarMoneyTarget(input);
-
-  if ("status" in target) {
-    return target;
-  }
-
-  if (target.intent === releaseInscriptionExcessIntent) {
-    const released = await releaseSeminarInscriptionExcess(target.target);
-
-    return released.ok ? null : { status: "error", message: released.message };
-  }
-
-  const amount = readMoneyAmount(input.formData);
-
-  if (amount === null) {
-    return { status: "error", message: "Ingresá un monto mayor a 0." };
-  }
-
-  const result =
-    target.intent === allocateInscriptionIntent
-      ? await allocateToSeminarInscription({
-          ...target.target,
-          amount,
-          priceId: readPickedPriceId(input.formData),
-        })
-      : await removeFromSeminarInscription({ ...target.target, amount });
-
-  return result.ok ? null : { status: "error", message: result.message };
-}
-
-type SeminarMoneyTarget =
-  | SeminarFinanceActionData
-  | {
-      intent: string;
-      target: {
-        academyId: string;
-        eventId: string;
-        inscriptionId: string;
-        seminarId: string;
-      };
-    };
-
-/**
- * What the form named, or the refusal that says it named nothing this action
- * owns. The shared dialog carries the kind it is about, and this action owns one
- * of them: a choreography target reaching here is a form pointed at the wrong
- * writer, not an inscription that went missing.
- */
-function readSeminarMoneyTarget(input: {
-  academyId: string;
-  eventId: string;
-  formData: FormData;
-  seminarId: string;
-}): SeminarMoneyTarget {
-  const intent = String(input.formData.get("intent") ?? "");
-  const isMoneyIntent =
-    intent === allocateInscriptionIntent ||
-    intent === removeInscriptionMoneyIntent ||
-    intent === releaseInscriptionExcessIntent;
-
-  if (
-    !isMoneyIntent ||
-    readAllocationTargetKind(input.formData) !== "seminar"
-  ) {
-    return { status: "error", message: "No pudimos procesar esa acción." };
-  }
-
-  const inscriptionId = String(
-    input.formData.get("inscriptionId") ?? "",
-  ).trim();
-
-  if (!inscriptionId) {
-    return { status: "error", message: "No encontramos esa inscripción." };
-  }
-
-  return {
-    intent,
-    target: {
-      academyId: input.academyId,
-      eventId: input.eventId,
-      inscriptionId,
-      seminarId: input.seminarId,
-    },
-  };
 }
 
 function redirectToDetail(

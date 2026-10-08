@@ -1,8 +1,9 @@
 /**
- * The write side of the money dialog on the `(seminar, academy)` financial
- * detail: the seminar twin of `inscription-allocation.server.ts`, gesture for
- * gesture — put an arbitrary amount on one inscription, take an arbitrary
- * amount off it, release exactly what it holds above its `Total`.
+ * The write side of the money dialog on a seminar inscription, wherever it is
+ * mounted (the `(seminar, academy)` financial detail, the event-wide seminar
+ * inscriptions list): the seminar twin of `inscription-allocation.server.ts`,
+ * gesture for gesture — put an arbitrary amount on one inscription, take an
+ * arbitrary amount off it, release exactly what it holds above its `Total`.
  *
  * It is a second module and not a branch inside the choreography one because
  * what differs is everything *around* the pool: which table the inscription
@@ -24,7 +25,7 @@
  * the rest of the academy's roster.
  */
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -76,11 +77,11 @@ const seminarInscriptionNotFoundMessage = "No encontramos esa inscripción.";
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 /**
- * What the money dialog offers each inscription of one seminar: the rows
- * **already filtered** to the seminar's kind (with its `regular` fallback) and
- * to the person's participant cell. Offering a foreign row would be offering to
- * create a state the model forbids, so the rows are filtered rather than
- * labelled.
+ * What the money dialog offers each inscription of one seminar — or of every
+ * seminar of the event when none is named: the rows **already filtered** to
+ * the seminar's kind (with its `regular` fallback) and to the person's
+ * participant cell. Offering a foreign row would be offering to create a state
+ * the model forbids, so the rows are filtered rather than labelled.
  *
  * `paymentDeadline` is deliberately not a filter, exactly as on the choreography
  * side: the deadline decides which row applies when nobody has said, and here
@@ -88,15 +89,30 @@ const seminarNotFoundMessage = "No encontramos ese seminario.";
  */
 export async function readSeminarInscriptionPriceOptions(input: {
   eventId: string;
-  seminarId: string;
+  seminarId?: string;
 }): Promise<Map<string, SeminarInscriptionPriceOption[]>> {
   const options = new Map<string, SeminarInscriptionPriceOption[]>();
-  const seminar = await readSeminarPricingRow(db, input.seminarId);
+  const seminarRows = await db
+    .select({
+      id: seminars.id,
+      kind: seminars.kind,
+      requiredDepositPercentage: seminars.requiredDepositPercentage,
+    })
+    .from(seminars)
+    .where(
+      and(
+        eq(seminars.eventId, input.eventId),
+        input.seminarId === undefined
+          ? undefined
+          : eq(seminars.id, input.seminarId),
+      ),
+    );
 
-  if (!seminar || seminar.eventId !== input.eventId) {
+  if (seminarRows.length === 0) {
     return options;
   }
 
+  const seminarsById = new Map(seminarRows.map((row) => [row.id, row]));
   const [priceRows, inscriptionRows] = await Promise.all([
     db.query.seminarPrices.findMany({
       where: eq(seminarPrices.eventId, input.eventId),
@@ -106,9 +122,10 @@ export async function readSeminarInscriptionPriceOptions(input: {
         dancerId: seminarInscriptions.dancerId,
         id: seminarInscriptions.id,
         professorId: seminarInscriptions.professorId,
+        seminarId: seminarInscriptions.seminarId,
       })
       .from(seminarInscriptions)
-      .where(eq(seminarInscriptions.seminarId, input.seminarId)),
+      .where(inArray(seminarInscriptions.seminarId, [...seminarsById.keys()])),
   ]);
   const participation = await readEventParticipation(db, {
     dancerIds: collectIds(inscriptionRows, "dancerId"),
@@ -117,6 +134,12 @@ export async function readSeminarInscriptionPriceOptions(input: {
   });
 
   for (const inscription of inscriptionRows) {
+    const seminar = seminarsById.get(inscription.seminarId);
+
+    if (!seminar) {
+      continue;
+    }
+
     options.set(
       inscription.id,
       selectSeminarPriceCandidates({
@@ -146,6 +169,50 @@ export type SeminarInscriptionMoneyInput = {
   inscriptionId: string;
   seminarId: string;
 };
+
+/**
+ * The academy and the seminar a seminar inscription belongs to in the event,
+ * read off the inscription itself so a money form only has to name it. The
+ * academy is read **through the person**, as everywhere else on this side.
+ * `null` when the inscription is not one of the event's.
+ *
+ * The writers below check the pair again inside their transaction: this read
+ * says where the money goes, and that check is what keeps it there.
+ */
+export async function readSeminarInscriptionMoneyTarget(input: {
+  eventId: string;
+  inscriptionId: string;
+}): Promise<SeminarInscriptionMoneyInput | null> {
+  const [target] = await db
+    .select({
+      academyId: sql<
+        string | null
+      >`coalesce(${dancers.academyId}, ${professors.academyId})`,
+      seminarId: seminarInscriptions.seminarId,
+    })
+    .from(seminarInscriptions)
+    .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .where(
+      and(
+        eq(seminarInscriptions.id, input.inscriptionId),
+        eq(seminars.eventId, input.eventId),
+      ),
+    )
+    .limit(1);
+
+  if (!target?.academyId) {
+    return null;
+  }
+
+  return {
+    academyId: target.academyId,
+    eventId: input.eventId,
+    inscriptionId: input.inscriptionId,
+    seminarId: target.seminarId,
+  };
+}
 
 /**
  * Puts an arbitrary amount on one seminar inscription, out of the academy's
@@ -520,26 +587,8 @@ async function loadSeminarMoneyContext(
   };
 }
 
-async function readSeminarPricingRow(
-  executor: Executor,
-  seminarId: string,
-): Promise<SeminarPricingRow | null> {
-  const seminar = await executor.query.seminars.findFirst({
-    columns: {
-      eventId: true,
-      id: true,
-      kind: true,
-      quota: true,
-      requiredDepositPercentage: true,
-    },
-    where: eq(seminars.id, seminarId),
-  });
-
-  return seminar ?? null;
-}
-
 /**
- * The same row, taken **`FOR UPDATE`**. Every money gesture on a seminar
+ * The seminar's pricing row, taken **`FOR UPDATE`**. Every money gesture on a seminar
  * inscription starts here, crossing or not: the quota is decided by counting
  * covered rows, and a count that is not taken under a lock on the seminar can be
  * invalidated by a concurrent crossing between the count and the write. Two

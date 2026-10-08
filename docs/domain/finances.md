@@ -1074,8 +1074,19 @@ and no request actions. The restriction is **permanent and role-based**.
 
 Seminar money is read on the same surfaces, split by kind where a unit is named:
 
-- The admin academy list is unchanged and each academy's figures sum both kinds.
-  There is no separate seminars finance list.
+- The admin academy list sums both kinds in each academy's figures, and it
+  lists every academy with a choreography, a payment **or a seminar
+  inscription** in the event: an academy that only registered people in a
+  seminar still owes for them.
+- The admin **seminar inscriptions list** (`Finanzas › Seminarios`) is the
+  event's seminar inscriptions across academies, for seeing who owes what for
+  seminars without opening one `(seminar, academy)` detail after another. Its
+  metrics sum the rows its filters leave. A withdrawn inscription is listed
+  while it still holds money, since that money is still the academy's in the
+  seminar. The person's name opens the same money dialog as the detail, and a
+  write stays on the list. It is a second view of the detail's money, read
+  through the same reader, not a replacement for it; it has no `Saldo
+disponible`, because unallocated money is each academy's pool.
 - The admin academy finances gains `Coreografías` / `Seminarios` tabs.
   `Seña total`, `Seña adeudada`, `Total` and `Saldo adeudado` follow the active
   tab; `Saldo disponible` never moves, because unallocated money belongs to

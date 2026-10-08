@@ -35,7 +35,7 @@ import {
 } from "./figures";
 import { targetKindFieldName } from "./intents";
 
-const inscriptionMoneyRefusalToastId = "inscription-money:refusal";
+const inscriptionMoneyAnswerToastId = "inscription-money:answer";
 
 /**
  * What every shape submits besides its intent: which inscription, and of which
@@ -71,11 +71,10 @@ export function MoneyTargetFields({
  * threw that away (#708).
  *
  * The refusal is read off `data.status`, not off the mere presence of `data`.
- * Today the action redirects once it has written and so brings nothing back,
- * which makes the two tests equivalent — but that is a deviation from the
- * dialog-write row of `docs/agents/form-feedback.md`, which expects the result
- * to come back from `fetcher.data`. Keying off presence would make the dialog
- * silently stop closing the day the action is aligned to the matrix.
+ * The two financial details redirect once they have written and so bring
+ * nothing back, but the seminar inscriptions list stays on its screen, as the
+ * dialog-write row of `docs/agents/form-feedback.md` expects, and answers a
+ * success through `fetcher.data`, which is toasted and closes the dialog.
  *
  * A write is counted when the promise of its `submit` settles, which is once
  * the action and the revalidation after it are done, rather than read off the
@@ -90,7 +89,10 @@ export function MoneyTargetFields({
  * still settle and close the dialog under the second.
  */
 export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
-  const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const fetcher = useFetcher<{
+    status: "error" | "success";
+    message: string;
+  }>();
   const isRefused = fetcher.data?.status === "error";
   const [settledWrites, setSettledWrites] = useState(0);
   const answeredWrites = useRef(0);
@@ -101,8 +103,10 @@ export function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
   const dataBeforeWrite = useRef(fetcher.data);
   const { data, submit: submitFetcher } = fetcher;
 
-  useServerActionToast(isRefused ? fetcher.data : undefined, {
-    toastId: inscriptionMoneyRefusalToastId,
+  // A refusal, or the success of a write that stayed on its screen; a write
+  // that redirects brings no answer to read out.
+  useServerActionToast(fetcher.data?.message ? fetcher.data : undefined, {
+    toastId: inscriptionMoneyAnswerToastId,
   });
 
   useEffect(() => {
