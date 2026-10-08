@@ -1,7 +1,6 @@
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -30,6 +29,7 @@ import {
   createSignedInRequest,
   academyFinancesRouteArgs,
 } from "../../../lib/admin/finances/finances.test-support";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 installDatabaseTestHooks();
 
@@ -252,9 +252,8 @@ describe("loadPortalAcademyFinances", () => {
       }),
     );
     const markup = renderToStaticMarkup(
-      createElement(
-        MemoryRouter,
-        undefined,
+      renderInDataRouter(
+        "/portal/finanzas",
         createElement(PortalAcademyFinancesRouteView, { loaderData }),
       ),
     );
@@ -391,9 +390,8 @@ function renderFinances(
   loaderData: Awaited<ReturnType<typeof loadPortalAcademyFinances>>,
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      { initialEntries: ["/portal/finanzas"] },
+    renderInDataRouter(
+      "/portal/finanzas",
       createElement(PortalAcademyFinancesRouteView, {
         loaderData,
       }),
