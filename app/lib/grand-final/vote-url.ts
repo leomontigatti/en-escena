@@ -5,12 +5,19 @@
  */
 const votePath = "/votar";
 
-const voteCodeParam = "codigo";
+export const voteCodeParam = "codigo";
 
 /** The absolute vote URL a code's QR encodes, on the app's origin. */
 export function buildVoteCodeUrl(origin: string, token: string) {
-  const url = new URL(votePath, origin);
-  url.searchParams.set(voteCodeParam, token);
+  return new URL(buildVoteCodePath(token), origin).href;
+}
 
-  return url.href;
+/** The vote page as the code reaches it, where a vote cast with it lands. */
+export function buildVoteCodePath(token: string) {
+  return `${votePath}?${new URLSearchParams({ [voteCodeParam]: token })}`;
+}
+
+/** The absolute vote URL a finalist academy shares, with no code in it. */
+export function buildVoteUrl(origin: string) {
+  return new URL(votePath, origin).href;
 }

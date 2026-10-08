@@ -124,6 +124,7 @@ describe("administration's `Gran final` list", () => {
                 picks: loaderPicks,
                 selectedEventId: "evento",
                 voteCodeBatches: [],
+                votingRound: null,
               }}
             />
           ),

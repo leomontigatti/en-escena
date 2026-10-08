@@ -56,6 +56,10 @@ const schemaExportNames = [
   "verification",
   "voteCodeBatches",
   "voteCodes",
+  "voteKind",
+  "votes",
+  "votingRoundFinalists",
+  "votingRounds",
 ] as const;
 
 describe("schema export surface", () => {

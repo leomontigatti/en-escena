@@ -15,6 +15,10 @@ import {
   professors,
   scores,
   user,
+  voteCodes,
+  votes,
+  votingRoundFinalists,
+  votingRounds,
 } from "@/db/schema";
 import { signInAccessUser } from "@/lib/auth/access-auth.test-support";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
@@ -22,6 +26,7 @@ import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { readInscriptionAllocatedAmount } from "@/lib/finances/allocation-pool.server";
+import { createVoteCodeBatch } from "@/lib/grand-final/vote-codes.server";
 import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { findScoreLockedSubmodalityIds } from "@/lib/judging/criteria.server";
 import {
@@ -284,6 +289,50 @@ describe("dev seed", () => {
     await expect(
       db.query.events.findFirst({ where: eq(events.id, unrelatedEvent.id) }),
     ).resolves.toMatchObject({ name: "Evento Real", active: false });
+  });
+});
+
+describe("dev seed over a local `Gran final` vote", () => {
+  // A vote is never deleted, so re-seeding empties the local vote table first.
+  test("re-runs after the seeded academy received a vote, and leaves no vote", async () => {
+    await seedDevData({ now });
+    const event = await db.query.events.findFirst({
+      where: eq(events.active, true),
+    });
+    const academy = await db.query.academies.findFirst();
+
+    if (!event || !academy) {
+      throw new Error(
+        "Expected the seed to have created its event and academy.",
+      );
+    }
+
+    const [round] = await db
+      .insert(votingRounds)
+      .values({ eventId: event.id, number: 1 })
+      .returning();
+    await db.insert(votingRoundFinalists).values({
+      academyId: academy.id,
+      firstStorageKey: "first.jpg",
+      roundId: round.id,
+      secondStorageKey: "second.jpg",
+    });
+    const batch = await createVoteCodeBatch({ count: 1, eventId: event.id });
+    const [code] = await db
+      .select({ id: voteCodes.id })
+      .from(voteCodes)
+      .where(eq(voteCodes.batchId, batch.id));
+    await db.insert(votes).values({
+      academyId: academy.id,
+      kind: "code",
+      points: 10,
+      roundId: round.id,
+      voteCodeId: code.id,
+    });
+
+    await seedDevData({ now });
+
+    await expect(db.$count(votes)).resolves.toBe(0);
   });
 });
 

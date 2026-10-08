@@ -82,6 +82,7 @@ describe("the QR code batches of administration's `Gran final` list", () => {
                 picks: { judges: [], modalities: [] },
                 selectedEventId: "evento",
                 voteCodeBatches: batches,
+                votingRound: null,
               }}
             />
           ),

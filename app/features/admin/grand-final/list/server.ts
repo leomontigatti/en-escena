@@ -20,6 +20,14 @@ import {
   createVoteCodeBatchIntent,
   voidVoteCodeBatchIntent,
 } from "../vote-codes/shared";
+import {
+  handleVotingRoundIntent,
+  readVotingRoundListState,
+} from "../voting-round/server";
+import {
+  closeVotingRoundIntent,
+  openVotingRoundIntent,
+} from "../voting-round/shared";
 
 import {
   finalistPickChangeSchema,
@@ -43,18 +51,20 @@ export async function loadGrandFinalListRouteData(
   }
 
   const { selectedEventId } = eventContext;
-  const [picks, voteCodeBatches] = selectedEventId
+  const [picks, voteCodeBatches, votingRound] = selectedEventId
     ? await Promise.all([
         readGrandFinalPicks(selectedEventId),
         listVoteCodeBatchRows(selectedEventId),
+        readVotingRoundListState(selectedEventId),
       ])
-    : [null, []];
+    : [null, [], null];
 
   return {
     pickChangeBlockReasons: picks ? readPickChangeBlockReasons(picks) : [],
     picks,
     selectedEventId,
     voteCodeBatches,
+    votingRound,
   };
 }
 
@@ -100,10 +110,15 @@ const voteCodeBatchIntents: readonly string[] = [
   voidVoteCodeBatchIntent,
 ];
 
+const votingRoundIntents: readonly string[] = [
+  openVotingRoundIntent,
+  closeVotingRoundIntent,
+];
+
 /**
- * The list's writes: the change of a judge's pick from its dialog, and the
- * QR code batches. Each stays: the answer goes back as data for a toast and
- * the list revalidates.
+ * The list's writes: the change of a judge's pick from its dialog, the QR
+ * code batches, and the opening and closing of the voting round. Each stays:
+ * the answer goes back as data for a toast and the list revalidates.
  */
 export async function handleGrandFinalListAction(
   request: Request,
@@ -113,6 +128,10 @@ export async function handleGrandFinalListAction(
 
   if (voteCodeBatchIntents.includes(readFormString(formData, "intent"))) {
     return await handleVoteCodeBatchIntent(request, formData);
+  }
+
+  if (votingRoundIntents.includes(readFormString(formData, "intent"))) {
+    return await handleVotingRoundIntent(request, formData);
   }
   const parsed = finalistPickChangeSchema.safeParse({
     academyId: readFormString(formData, "academyId"),

@@ -7,6 +7,7 @@ import type {
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 import type { VoteCodeBatchListRow } from "../vote-codes/shared";
+import type { VotingRoundListState } from "../voting-round/shared";
 
 /**
  * What administration's `Gran final` list and its server agree on. A module of
@@ -48,6 +49,8 @@ export type GrandFinalListResult = {
   picks: GrandFinalPicks | null;
   selectedEventId: string | null;
   voteCodeBatches: VoteCodeBatchListRow[];
+  /** `null` without an active event. */
+  votingRound: VotingRoundListState | null;
 };
 
 /** The academy the judge picked in the modality, or "" when they have none. */

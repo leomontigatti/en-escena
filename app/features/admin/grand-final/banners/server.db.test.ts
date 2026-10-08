@@ -11,6 +11,10 @@ import {
 import { setFinalistPick } from "@/lib/grand-final/finalist-pick.server";
 import { seedEligibilityFixture } from "@/lib/grand-final/grand-final.test-support";
 import { readGrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
+import {
+  openVotingRound,
+  readCurrentVotingRound,
+} from "@/lib/grand-final/voting-round.server";
 import { createFilesystemObjectStorageAdapter } from "@/lib/storage/filesystem-client.server";
 import {
   createFilesystemGrandFinalBannerStorage,
@@ -189,6 +193,22 @@ describe("the finalist banner form", () => {
       before.secondBannerStorageKey,
     );
     expect(await storedObjects(eventId, vecina)).toHaveLength(2);
+  });
+
+  // The open round copied the keys and the vote page still shows them.
+  test("keeps a replaced picture's object while a voting round names it", async () => {
+    const { eventId, vecina } = await seedFinalist();
+    await save(vecina, { first: wide(), second: wide() });
+    await openVotingRound({ eventId });
+    const opened = await readCurrentVotingRound(eventId);
+
+    await save(vecina, { first: wide("new.png"), second: "" });
+
+    const names = await storedObjects(eventId, vecina);
+    expect(names).toHaveLength(3);
+    for (const key of Object.values(opened?.finalists[0]?.keys ?? {})) {
+      expect(names).toContain(key.split("/").at(-1));
+    }
   });
 
   test("refuses a picture that is not 16:9, naming the rule, and changes nothing", async () => {

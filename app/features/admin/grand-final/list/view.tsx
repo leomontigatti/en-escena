@@ -1,5 +1,5 @@
 import { Check, Crown } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import {
   AdminEmptyState,
@@ -13,7 +13,10 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import type {
   GrandFinalAcademyRow,
   GrandFinalJudge,
@@ -24,6 +27,11 @@ import type {
 import { buildFinalistBannersPath } from "../banners/shared";
 import { VoteCodeBatchesSection } from "../vote-codes/batches";
 import { GenerateVoteCodeBatchDialog } from "../vote-codes/generate-dialog";
+import {
+  VotingRoundDialogs,
+  type VotingRoundAction,
+} from "../voting-round/dialogs";
+import type { VotingRoundListState } from "../voting-round/shared";
 import { FinalistPickChangeDialog } from "./pick-dialog";
 import type {
   FinalistPickChangeBlockReason,
@@ -36,8 +44,8 @@ import type {
  * `finalistPick` reads as a check in the academy's row, and each finalist's
  * banners as a status beside its name, and below them the event's QR code
  * batches. The `Acciones` menu holds the change of any judge's pick, with no
- * window, and the generation of a batch; the later actions of the
- * `grandFinal` join it.
+ * window, the generation of a batch, and the opening and closing of the
+ * `votingRound`, whose state reads beside the title.
  */
 export function GrandFinalListView({
   loaderData,
@@ -46,7 +54,13 @@ export function GrandFinalListView({
 }) {
   const [isPickDialogOpen, setIsPickDialogOpen] = useState(false);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
-  const { picks } = loaderData;
+  const [votingRoundAction, setVotingRoundAction] =
+    useState<VotingRoundAction | null>(null);
+  const closeVotingRoundDialog = useCallback(
+    () => setVotingRoundAction(null),
+    [],
+  );
+  const { picks, votingRound } = loaderData;
 
   return (
     <AdminResourceLayout
@@ -67,8 +81,18 @@ export function GrandFinalListView({
             <DropdownMenuItem onSelect={() => setIsGenerateDialogOpen(true)}>
               Generar códigos QR
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setVotingRoundAction("open")}>
+              Abrir votación
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setVotingRoundAction("close")}>
+              Cerrar votación
+            </DropdownMenuItem>
           </ResourceActionsMenu>
         ) : null
+      }
+      titleBadge={
+        votingRound ? <VotingRoundBadge state={votingRound} /> : undefined
       }
     >
       {picks ? (
@@ -88,8 +112,28 @@ export function GrandFinalListView({
       {isGenerateDialogOpen ? (
         <GenerateVoteCodeBatchDialog onOpenChange={setIsGenerateDialogOpen} />
       ) : null}
+      {picks && votingRound ? (
+        <VotingRoundDialogs
+          action={votingRoundAction}
+          onClose={closeVotingRoundDialog}
+          state={votingRound}
+        />
+      ) : null}
     </AdminResourceLayout>
   );
+}
+
+/** The round's state, in the words of CONTEXT.md `votingRound`. */
+function VotingRoundBadge({ state }: { state: VotingRoundListState }) {
+  if (state.status === "open") {
+    return <Badge variant="success">Votación abierta</Badge>;
+  }
+
+  if (state.status === "closed") {
+    return <Badge variant="secondary">Votación cerrada</Badge>;
+  }
+
+  return null;
 }
 
 function GrandFinalModalities({ picks }: { picks: GrandFinalPicks }) {

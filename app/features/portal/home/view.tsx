@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { AlertStack } from "@/components/shared/alert-stack";
+import { CopyIconButton } from "@/components/shared/copy-icon-button";
 import {
   HomeAccessCard,
   type HomeAccessCardItem,
@@ -36,6 +37,9 @@ export function PortalHomeRouteView({
       </section>
 
       <AlertStack>
+        {grandFinalAlert?.kind === "finalist" ? (
+          <GrandFinalFinalistAlert voteUrl={grandFinalAlert.voteUrl} />
+        ) : null}
         {grandFinalAlert?.kind === "eligible" ? (
           <GrandFinalEligibleAlert />
         ) : null}
@@ -56,7 +60,7 @@ export function PortalHomeRouteView({
   );
 }
 
-/** Neither `Gran final` alert names a modality: eligibility is per modality, the alerts are not. */
+/** No `Gran final` alert names a modality: eligibility is per modality, the alerts are not. */
 function GrandFinalEligibleAlert() {
   return (
     <Alert variant="info">
@@ -66,6 +70,30 @@ function GrandFinalEligibleAlert() {
       </AlertTitle>
       <AlertDescription>
         Los jurados pueden elegirla como finalista durante el evento.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function GrandFinalFinalistAlert({ voteUrl }: { voteUrl: string }) {
+  return (
+    <Alert variant="info">
+      <Info aria-hidden="true" />
+      <AlertTitle>Tu academia es finalista de la Gran final</AlertTitle>
+      <AlertDescription>
+        <p>
+          La votación del público está abierta. Compartí este enlace con tu
+          comunidad para que voten:
+        </p>
+        <div className="flex items-center gap-1">
+          <span
+            className="min-w-0 truncate font-medium text-foreground"
+            title={voteUrl}
+          >
+            {voteUrl}
+          </span>
+          <CopyIconButton label="enlace de votación" value={voteUrl} />
+        </div>
       </AlertDescription>
     </Alert>
   );

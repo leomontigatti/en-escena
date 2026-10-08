@@ -1,10 +1,13 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   foreignKey,
   index,
   integer,
+  pgEnum,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -185,5 +188,131 @@ export const voteCodes = createTable(
     }).onDelete("cascade"),
     uniqueIndex("vote_code_token_unique").on(table.token),
     index("vote_code_batch_idx").on(table.batchId),
+  ],
+).enableRLS();
+
+/**
+ * One run of the public vote of the `Gran final` (`votingRound`). `number` is
+ * 1, or 2 for the `Desempate`; an event holds at most one of each. Open from
+ * `openedAt` while `closedAt` is null. See CONTEXT.md `votingRound`.
+ *
+ * Cascade on the event, as everything of the `Gran final` does.
+ */
+export const votingRounds = createTable(
+  "voting_round",
+  {
+    id: uuidPrimaryKey(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    number: integer("number").notNull(),
+    openedAt: timestamp("opened_at", { mode: "date", withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    closedAt: timestamp("closed_at", { mode: "date", withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "voting_round_event_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("voting_round_event_number_unique").on(
+      table.eventId,
+      table.number,
+    ),
+    check("voting_round_number_check", sql`${table.number} in (1, 2)`),
+  ],
+).enableRLS();
+
+/**
+ * A `finalist` as the round copied it when it opened, with the two banner
+ * keys it had then: later picks and banner changes leave a round in progress
+ * alone. The objects these keys name are kept while a round names them.
+ *
+ * Cascade on the round and on the academy, but a vote for the academy
+ * holds its row in place: neither goes while the round has votes for it.
+ */
+export const votingRoundFinalists = createTable(
+  "voting_round_finalist",
+  {
+    id: uuidPrimaryKey(),
+    roundId: varchar("round_id", { length: 255 }).notNull(),
+    academyId: varchar("academy_id", { length: 255 }).notNull(),
+    firstStorageKey: text("first_storage_key").notNull(),
+    secondStorageKey: text("second_storage_key").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.roundId],
+      foreignColumns: [votingRounds.id],
+      name: "voting_round_finalist_round_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.academyId],
+      foreignColumns: [academies.id],
+      name: "voting_round_finalist_academy_fk",
+    }).onDelete("cascade"),
+    // A constraint, not an index: the votes' composite key references it, and
+    // a constraint is created with its table, ahead of any key that needs it.
+    unique("voting_round_finalist_round_academy_unique").on(
+      table.roundId,
+      table.academyId,
+    ),
+    index("voting_round_finalist_academy_idx").on(table.academyId),
+  ],
+).enableRLS();
+
+/** How a `vote` was cast: with a printed `voteCode`, or by a signed-in `voter`. */
+export const voteKind = pgEnum("en_escena_vote_kind", ["code", "social"]);
+
+/**
+ * One `vote`: a choice of one finalist of one round, cast once and never
+ * changed or deleted. Its keys restrict, so a round, an event, an academy or a
+ * code with votes cannot be deleted either, and a trigger refuses any update
+ * or delete that reaches the row anyway.
+ * Its weight is fixed by its kind, ten for a code and one for a voter.
+ *
+ * A code votes once per round: the unique index is what refuses the second
+ * vote, under any concurrency, and a cast reads its conflict as "already
+ * voted". The academy must be one the round copied, through the composite key.
+ */
+export const votes = createTable(
+  "vote",
+  {
+    id: uuidPrimaryKey(),
+    roundId: varchar("round_id", { length: 255 }).notNull(),
+    academyId: varchar("academy_id", { length: 255 }).notNull(),
+    kind: voteKind("kind").notNull(),
+    points: integer("points").notNull(),
+    voteCodeId: varchar("vote_code_id", { length: 255 }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.roundId],
+      foreignColumns: [votingRounds.id],
+      name: "vote_round_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.roundId, table.academyId],
+      foreignColumns: [
+        votingRoundFinalists.roundId,
+        votingRoundFinalists.academyId,
+      ],
+      name: "vote_round_finalist_fk",
+    }),
+    foreignKey({
+      columns: [table.voteCodeId],
+      foreignColumns: [voteCodes.id],
+      name: "vote_code_fk",
+    }),
+    uniqueIndex("vote_round_code_unique").on(table.roundId, table.voteCodeId),
+    index("vote_round_academy_idx").on(table.roundId, table.academyId),
+    index("vote_code_idx").on(table.voteCodeId),
+    check(
+      "vote_kind_points_check",
+      sql`(${table.kind} = 'code' and ${table.points} = 10 and ${table.voteCodeId} is not null) or (${table.kind} = 'social' and ${table.points} = 1 and ${table.voteCodeId} is null)`,
+    ),
   ],
 ).enableRLS();

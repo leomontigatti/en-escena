@@ -14,6 +14,7 @@ import {
   seminars,
   user,
   choreographyDancers,
+  votes,
 } from "@/db/schema";
 import {
   loadAcademyMergeOptions,
@@ -27,6 +28,8 @@ import {
   createEventChoreographyFixture,
   createSavedEvent,
 } from "@/lib/events/bases-test-fixtures.server.db";
+import { castVote } from "@/lib/grand-final/vote.server";
+import { seedOpenRoundFixture } from "@/lib/grand-final/voting.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -183,6 +186,28 @@ describe("mergeAcademies", () => {
     await expect(academyOf(dancers, dancer.id)).resolves.toBe(
       removed.academyId,
     );
+  });
+
+  // A vote is never moved or deleted, and deleting the academy would do one.
+  test("refuses an academy that holds a `Gran final` vote, and the vote stays", async () => {
+    const round = await seedOpenRoundFixture();
+    const {
+      tokens: [token],
+    } = await round.issueCodes();
+    await castVote({
+      academyId: round.alas,
+      identity: { kind: "code", token },
+      roundId: round.roundId,
+    });
+
+    await expect(
+      mergeAcademies({ removedId: round.alas, survivorId: round.ritmo }),
+    ).resolves.toEqual({
+      ok: false,
+      message:
+        "No se puede fusionar: Alas recibió votos en la Gran final, y un voto no cambia de academia.",
+    });
+    await expect(db.$count(votes)).resolves.toBe(1);
   });
 
   test("refuses when a document number is on both rosters, naming the pairs", async () => {

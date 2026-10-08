@@ -1,7 +1,11 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { finalistBanners, finalistPicks } from "@/db/schema";
+import {
+  finalistBanners,
+  finalistPicks,
+  votingRoundFinalists,
+} from "@/db/schema";
 import {
   grandFinalBannerSlots,
   type BannerRejection,
@@ -82,7 +86,8 @@ export type SaveFinalistBannersResult =
  * row as it stands under a lock, not as the form last saw it, so two saves of
  * the same academy at once cannot leave it pointing at an object the other
  * deleted. Only after the row is written are the objects it no longer names
- * deleted, so a failure at any step leaves the banners in use readable.
+ * deleted, so a failure at any step leaves the banners in use readable, and
+ * never one a voting round still shows.
  */
 export async function saveFinalistBanners(input: {
   academyId: string;
@@ -145,12 +150,14 @@ export async function saveFinalistBanners(input: {
         })
         .where(owner);
 
-      return grandFinalBannerSlots
+      const dropped = grandFinalBannerSlots
         .map((slot) => stored[slot])
         .filter(
           (key): key is string =>
             key !== null && key !== next.first && key !== next.second,
         );
+
+      return await withoutRoundBanners(tx, dropped);
     });
   } catch (thrown) {
     await removeQuietly(input.storage, Object.values(uploads.keys));
@@ -169,6 +176,35 @@ export async function saveFinalistBanners(input: {
   }
 
   return { ok: true };
+}
+
+/**
+ * The keys a `votingRound` did not copy. A round shows the banners it opened
+ * with, so the objects it names outlive any later change to the academy's.
+ */
+async function withoutRoundBanners(
+  executor: Pick<typeof db, "select">,
+  storageKeys: string[],
+) {
+  if (storageKeys.length === 0) {
+    return storageKeys;
+  }
+
+  const named = await executor
+    .select({
+      first: votingRoundFinalists.firstStorageKey,
+      second: votingRoundFinalists.secondStorageKey,
+    })
+    .from(votingRoundFinalists)
+    .where(
+      or(
+        inArray(votingRoundFinalists.firstStorageKey, storageKeys),
+        inArray(votingRoundFinalists.secondStorageKey, storageKeys),
+      ),
+    );
+  const kept = new Set(named.flatMap((row) => [row.first, row.second]));
+
+  return storageKeys.filter((key) => !kept.has(key));
 }
 
 /**

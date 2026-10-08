@@ -25,6 +25,11 @@ type ResetPlan = {
   // Child-before-parent, so deleting any subset of it never trips a foreign key.
   deletionOrder: string[];
   probeQuery: string;
+  /**
+   * Tables a row trigger refuses to delete from, such as the append-only
+   * votes. They are truncated instead, which row triggers do not see.
+   */
+  truncatedTables: Set<string>;
 };
 
 // The schema is fixed for the lifetime of a run, so the plan is resolved once
@@ -82,9 +87,26 @@ async function loadResetPlan(executor: Executor): Promise<ResetPlan> {
   );
   const foreignKeys = readRows<ForeignKey>(foreignKeysResult);
 
+  // `tgtype & 8` is a row-level trigger's DELETE bit; internal triggers are the
+  // foreign keys' own.
+  const guardedResult = await executor.execute(
+    sql.raw(`
+      select distinct pg_class.relname as name
+      from pg_trigger
+      join pg_class on pg_class.oid = pg_trigger.tgrelid
+      join pg_namespace on pg_namespace.oid = pg_class.relnamespace
+      where not pg_trigger.tgisinternal
+        and (pg_trigger.tgtype & 8) <> 0
+        and pg_namespace.nspname = 'public'
+    `),
+  );
+
   return {
     deletionOrder: orderChildrenFirst(tableNames, foreignKeys),
     probeQuery: buildProbeQuery(tableNames),
+    truncatedTables: new Set(
+      readRows<{ name: string }>(guardedResult).map((row) => row.name),
+    ),
   };
 }
 
@@ -214,7 +236,7 @@ export async function resetDatabaseTables(
   executor: Executor,
   planOwner: object,
 ) {
-  const { deletionOrder, probeQuery } = await readResetPlan(
+  const { deletionOrder, probeQuery, truncatedTables } = await readResetPlan(
     executor,
     planOwner,
   );
@@ -227,9 +249,9 @@ export async function resetDatabaseTables(
 
   for (const tableName of deletionOrder) {
     if (dirtyTables.has(tableName)) {
-      await executor.execute(
-        sql.raw(`delete from ${quoteIdentifier(tableName)}`),
-      );
+      const verb = truncatedTables.has(tableName) ? "truncate" : "delete from";
+
+      await executor.execute(sql.raw(`${verb} ${quoteIdentifier(tableName)}`));
     }
   }
 
