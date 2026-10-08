@@ -199,6 +199,27 @@ What a deploy does, for reference:
 - Gates on the healthcheck at `/internal/health`: HTTP `200`, 60s start period,
   5s interval, 10 retries.
 
+### Unexpected errors
+
+An error a loader, action or render throws that is not a deliberate refusal (a
+thrown `Response`, a redirect) writes one `[server:unexpected]` line to the
+container's stderr, from `handleError` in `app/entry.server.tsx`: the tag, then
+one JSON object with the route pattern, method, signed-in user id (or `null`),
+time, release and stack, newlines escaped so a grep on the tag returns all of
+it. Nothing from the request goes in: no param value, query string, form field,
+header or session, and a failed query's bound values become `[redacted]`. The
+pattern is React Router's own, recorded by the `instrumentations` export; an
+error raised before any loader ran says `unknown` when its path holds a param.
+The release is `SOURCE_COMMIT`, which Coolify sets in the running container to
+the deployed commit; it reads `unknown` where unset. Read the lines in Coolify's
+application **Logs** tab, or with
+`ssh rylai 'docker logs x1383fsxfsixpgmvd9quv7tj-<deployment> 2>&1 | grep "server:unexpected"'`.
+Retention is short: `rylai`'s `/etc/docker/daemon.json` caps each container's
+`json-file` log at three 10 MB files, and every deploy replaces the container,
+so its lines go with it. A browser error writes the same line tagged
+`[client:unexpected]`, without user id or method, to that browser's console
+only; nothing is sent to the server yet.
+
 ## Database
 
 - Coolify-managed Postgres, image `postgres:17-alpine`, co-located with the app

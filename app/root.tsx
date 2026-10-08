@@ -15,7 +15,10 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import { AppToaster } from "@/components/shared/app-toaster";
 import { StagingBanner } from "@/components/shared/staging-banner";
-import { isStagingEnvironment } from "@/lib/shared/app-environment.server";
+import {
+  isStagingEnvironment,
+  readRelease,
+} from "@/lib/shared/app-environment.server";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { showToastMessage, type ToastMessage } from "@/lib/shared/toasts";
 
@@ -49,8 +52,8 @@ export const links: Route.LinksFunction = () => [
 export function Layout({ children }: { children: React.ReactNode }) {
   // Read here rather than in `App` so the error pages are marked too; the
   // loader's data is absent only when the root loader itself threw.
-  const isStaging =
-    useRouteLoaderData<typeof loader>("root")?.isStaging ?? false;
+  const rootData = useRouteLoaderData<typeof loader>("root");
+  const isStaging = rootData?.isStaging ?? false;
 
   return (
     <html lang="es">
@@ -59,6 +62,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="apple-mobile-web-app-title" content="En Escena" />
         {isStaging && <meta name="robots" content="noindex, nofollow" />}
+        {/* Read by entry.client.tsx to stamp `[client:unexpected]` lines. */}
+        {rootData && <meta name="release" content={rootData.release} />}
         <Meta />
         <Links />
       </head>
@@ -75,15 +80,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export async function loader({ request }: Route.LoaderArgs) {
   const flash = await readFlashNotification(request);
   const isStaging = isStagingEnvironment();
+  const release = readRelease();
 
   if (!flash) {
-    return data({ flashToast: null, isStaging });
+    return data({ flashToast: null, isStaging, release });
   }
 
   // Consume the flash cookie (one-time): the `Set-Cookie` the reader returns
   // clears it, so the toast appears once and does not come back on a reload.
   return data(
-    { flashToast: flash.toast, isStaging },
+    { flashToast: flash.toast, isStaging, release },
     { headers: { "set-cookie": flash.setCookieHeader } },
   );
 }
