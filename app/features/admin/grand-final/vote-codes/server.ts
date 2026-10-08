@@ -4,10 +4,12 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import {
   createVoteCodeBatch,
+  listVoteCodeBatches,
   readVoteCodeBatch,
   voidVoteCodeBatch,
   type VoidVoteCodeBatchResult,
 } from "@/lib/grand-final/vote-codes.server";
+import { formatBusinessDate } from "@/lib/shared/business-time-zone";
 import { readFormString } from "@/lib/shared/forms";
 
 import type { GrandFinalListActionData } from "../list/shared";
@@ -18,6 +20,7 @@ import {
   parseVoteCodeCount,
   voidVoteCodeBatchSchema,
   voteCodeCountMessage,
+  type VoteCodeBatchListRow,
 } from "./shared";
 
 type VoteCodeActionResult =
@@ -25,6 +28,25 @@ type VoteCodeActionResult =
 
 function refusal(message: string, status: number) {
   return data({ message, status: "error" as const }, { status });
+}
+
+/** The event's batches for the list, each with why it can no longer act. */
+export async function listVoteCodeBatchRows(
+  eventId: string,
+): Promise<VoteCodeBatchListRow[]> {
+  const batches = await listVoteCodeBatches(eventId);
+
+  return batches.map((batch) => ({
+    ...batch,
+    blockReasons: batch.voidedAt
+      ? [
+          {
+            code: "voided",
+            label: `El lote ${batch.number} fue anulado el ${formatBusinessDate(batch.voidedAt)}: sus códigos QR ya no sirven para votar.`,
+          },
+        ]
+      : [],
+  }));
 }
 
 /**
@@ -60,7 +82,10 @@ async function createBatch(formData: FormData, eventId: string) {
   });
 
   if (!parsed.success) {
-    return refusal(voteCodeCountMessage, 400);
+    return refusal(
+      parsed.error.issues[0]?.message ?? voteCodeCountMessage,
+      400,
+    );
   }
 
   const count = parseVoteCodeCount(parsed.data.count);

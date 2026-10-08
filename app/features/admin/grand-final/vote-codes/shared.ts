@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import type { VoteCodeBatchRow } from "@/lib/grand-final/vote-codes.server";
+import { requiredFieldMessage } from "@/lib/shared/forms";
+
 /**
  * What the `Gran final` list's QR code batches and their server agree on: the
  * two intents, their schemas, and where a batch prints. A module of its own
@@ -25,6 +28,7 @@ export const createVoteCodeBatchSchema = z.object({
   count: z
     .string()
     .trim()
+    .min(1, requiredFieldMessage)
     .regex(/^\d+$/, voteCodeCountMessage)
     .refine(
       (digits) => {
@@ -54,3 +58,14 @@ export const voidVoteCodeBatchSchema = z.object({
 export function buildVoteCodeSheetPath(batchId: string) {
   return `/administracion/gran-final/codigos-qr/${encodeURIComponent(batchId)}`;
 }
+
+/**
+ * Why a batch can no longer print or void: it was voided. Built by the server,
+ * which owns the rule; the row's actions stay enabled and open these reasons
+ * (docs/agents/form-feedback.md).
+ */
+export type VoteCodeBatchBlockReason = { code: "voided"; label: string };
+
+export type VoteCodeBatchListRow = VoteCodeBatchRow & {
+  blockReasons: VoteCodeBatchBlockReason[];
+};

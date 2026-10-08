@@ -81,7 +81,7 @@ describe("the QR code batches of the `Gran final` list", () => {
   test("refuses a count outside 1 to 1000 and issues nothing", async () => {
     await createSavedEvent();
 
-    for (const count of ["0", "1001", "2.5", ""]) {
+    for (const count of ["0", "1001", "2.5"]) {
       await expect(
         submit({ count, intent: createVoteCodeBatchIntent }),
       ).resolves.toMatchObject({
@@ -93,6 +93,12 @@ describe("the QR code batches of the `Gran final` list", () => {
       });
     }
 
+    await expect(
+      submit({ count: " ", intent: createVoteCodeBatchIntent }),
+    ).resolves.toMatchObject({
+      data: { message: "Este campo es obligatorio." },
+      init: { status: 400 },
+    });
     await expect(listBatches()).resolves.toEqual([]);
   });
 
@@ -175,5 +181,8 @@ describe("the QR code batches of the `Gran final` list", () => {
     await submit({ batchId: batch.id, intent: voidVoteCodeBatchIntent });
 
     await expectThrownResponse(printSheet(batch.id), 409);
+    expect(
+      (await listBatches())[0].blockReasons.map((reason) => reason.code),
+    ).toEqual(["voided"]);
   });
 });

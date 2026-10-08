@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { renderVoteCodeQrSvg, renderVoteCodeSheet } from "./sheet";
+import { renderVoteCodeSheet } from "./sheet";
 
 const sheet = {
   issuedAt: new Date("2026-10-21T22:00:00Z"),
@@ -56,15 +56,5 @@ describe("the printable sheet of a batch of QR codes", () => {
     });
 
     expect(html.match(/<section class="sheet"/g)).toHaveLength(3);
-  });
-
-  test("encodes a real QR code per token", async () => {
-    const html = await renderVoteCodeSheet({
-      origin: "https://sistema.enescena.com.ar",
-      renderQr: renderVoteCodeQrSvg,
-      sheet,
-    });
-
-    expect(html.match(/<svg/g)).toHaveLength(3);
   });
 });

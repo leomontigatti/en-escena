@@ -4,7 +4,6 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import type { VoteCodeBatchRow } from "@/lib/grand-final/vote-codes.server";
 import { openRadixSelect } from "@/lib/test-support/radix-select";
 import {
   clickReactDomButton,
@@ -17,7 +16,7 @@ import {
 
 import type { GrandFinalListActionData } from "../list/shared";
 import { GrandFinalListView } from "../list/view";
-import { voteCodeCountMessage } from "./shared";
+import { voteCodeCountMessage, type VoteCodeBatchListRow } from "./shared";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -28,8 +27,9 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const batches: VoteCodeBatchRow[] = [
+const batches: VoteCodeBatchListRow[] = [
   {
+    blockReasons: [],
     codeCount: 200,
     id: "lote-2",
     issuedAt: new Date("2026-10-21T22:00:00Z"),
@@ -37,6 +37,13 @@ const batches: VoteCodeBatchRow[] = [
     voidedAt: null,
   },
   {
+    blockReasons: [
+      {
+        code: "voided",
+        label:
+          "El lote 1 fue anulado el 20/10/26: sus códigos QR ya no sirven para votar.",
+      },
+    ],
     codeCount: 50,
     id: "lote-1",
     issuedAt: new Date("2026-10-20T22:00:00Z"),
@@ -188,5 +195,21 @@ describe("the QR code batches of administration's `Gran final` list", () => {
       "Ese lote ya estaba anulado. Sus códigos QR no sirven para votar.",
       expect.anything(),
     );
+  });
+
+  test("opens why a voided batch cannot be voided again, and sends nothing", async () => {
+    await mount();
+
+    const voidedRow = [...document.querySelectorAll("tbody tr")].find((row) =>
+      row.textContent?.includes("Lote 1"),
+    );
+    await clickReactDomButton("Anular", { exact: true, within: voidedRow });
+
+    expect(
+      document.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain(
+      "El lote 1 fue anulado el 20/10/26: sus códigos QR ya no sirven para votar.",
+    );
+    expect(submitted).toHaveLength(0);
   });
 });

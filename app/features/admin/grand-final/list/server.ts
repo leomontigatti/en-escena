@@ -10,10 +10,12 @@ import {
   readGrandFinalPicks,
   type GrandFinalPicks,
 } from "@/lib/grand-final/picks-overview.server";
-import { listVoteCodeBatches } from "@/lib/grand-final/vote-codes.server";
 import { readFormString } from "@/lib/shared/forms";
 
-import { handleVoteCodeBatchIntent } from "../vote-codes/server";
+import {
+  handleVoteCodeBatchIntent,
+  listVoteCodeBatchRows,
+} from "../vote-codes/server";
 import {
   createVoteCodeBatchIntent,
   voidVoteCodeBatchIntent,
@@ -44,7 +46,7 @@ export async function loadGrandFinalListRouteData(
   const [picks, voteCodeBatches] = selectedEventId
     ? await Promise.all([
         readGrandFinalPicks(selectedEventId),
-        listVoteCodeBatches(selectedEventId),
+        listVoteCodeBatchRows(selectedEventId),
       ])
     : [null, []];
 
