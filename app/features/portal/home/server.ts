@@ -1,19 +1,11 @@
+import type { PortalGrandFinalFacts } from "@/features/portal/home/grand-final-alert";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { grandFinalEligibility } from "@/lib/grand-final/eligibility.server";
 import { getPortalShellEventContext } from "@/lib/portal/event-context.server";
 
-/**
- * What the portal home needs to tell an academy about the `Gran final` of the
- * active event: whether it is eligible in some modality (never which one) and
- * whether some schedule still takes inscriptions. `null` without an active
- * event.
- */
+/** `grandFinal` is `null` without an active event. */
 export type PortalHomeLoaderData = {
-  grandFinal: {
-    eventName: string;
-    isEligible: boolean;
-    isRegistrationOpen: boolean;
-  } | null;
+  grandFinal: PortalGrandFinalFacts | null;
 };
 
 export async function loadPortalHome(

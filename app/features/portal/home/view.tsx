@@ -1,5 +1,4 @@
 import {
-  CircleCheck,
   ClipboardList,
   GraduationCap,
   Info,
@@ -14,6 +13,7 @@ import {
 } from "@/components/shared/home-access-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { portalGrandFinalAlert } from "./grand-final-alert";
 import type { PortalHomeLoaderData } from "./server";
 
 export function PortalHomeRouteView({
@@ -21,6 +21,8 @@ export function PortalHomeRouteView({
 }: {
   loaderData: PortalHomeLoaderData;
 }) {
+  const grandFinalAlert = portalGrandFinalAlert(loaderData.grandFinal);
+
   return (
     <>
       <section className="flex flex-col gap-2">
@@ -34,8 +36,11 @@ export function PortalHomeRouteView({
       </section>
 
       <AlertStack>
-        {loaderData.grandFinal ? (
-          <PortalGrandFinalAlert {...loaderData.grandFinal} />
+        {grandFinalAlert?.kind === "eligible" ? (
+          <GrandFinalEligibleAlert />
+        ) : null}
+        {grandFinalAlert?.kind === "invitation" ? (
+          <GrandFinalInvitationAlert eventName={grandFinalAlert.eventName} />
         ) : null}
       </AlertStack>
 
@@ -51,35 +56,22 @@ export function PortalHomeRouteView({
   );
 }
 
-/**
- * At most one `Gran final` alert, by precedence: an eligible academy reads that
- * it meets the requirements; any other one is invited, but only while some
- * schedule takes inscriptions, since that is the only time it can still
- * qualify. Neither names a modality.
- */
-function PortalGrandFinalAlert({
-  eventName,
-  isEligible,
-  isRegistrationOpen,
-}: NonNullable<PortalHomeLoaderData["grandFinal"]>) {
-  if (isEligible) {
-    return (
-      <Alert variant="success">
-        <CircleCheck aria-hidden="true" />
-        <AlertTitle>
-          Tu academia cumple los requisitos de la Gran final
-        </AlertTitle>
-        <AlertDescription>
-          Los jurados pueden elegirla como finalista durante el evento.
-        </AlertDescription>
-      </Alert>
-    );
-  }
+/** Neither `Gran final` alert names a modality: eligibility is per modality, the alerts are not. */
+function GrandFinalEligibleAlert() {
+  return (
+    <Alert variant="info">
+      <Info aria-hidden="true" />
+      <AlertTitle>
+        Tu academia cumple los requisitos de la Gran final
+      </AlertTitle>
+      <AlertDescription>
+        Los jurados pueden elegirla como finalista durante el evento.
+      </AlertDescription>
+    </Alert>
+  );
+}
 
-  if (!isRegistrationOpen) {
-    return null;
-  }
-
+function GrandFinalInvitationAlert({ eventName }: { eventName: string }) {
   return (
     <Alert variant="info">
       <Info aria-hidden="true" />
