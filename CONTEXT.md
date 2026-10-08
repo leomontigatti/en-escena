@@ -398,8 +398,8 @@ How a `presentation` is scored when its `submodality` has `submodalityCriterion`
 _Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
 **`award`** — ui: "Premio"
-The recognition a `presentation` earns, read off its average —the mean of its saved score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same award. A disqualified presentation has no average and no award. It is the single recognition term of the domain, and there is no award rule, no award type and no ranking beside it. It is what is handed out at an `awardCeremony`, never the ceremony itself.
-_Avoid_: `medal` (one of its values is not a medal), position, tie, ranking
+The recognition a `presentation` earns, read off its average —the mean of its saved score values, rounded to two decimals— in bands fixed by the domain: below 60 `Mención especial` (`specialMention`), 60 to below 80 `Medalla de bronce` (`bronze`), 80 to below 90 `Medalla de plata` (`silver`), 90 or more `Medalla de oro` (`gold`). It carries no position, no tie and no competitive grouping: two presentations that average the same take the same award. A disqualified presentation has no average and no award. It is the single recognition term for a presentation, and there is no award rule, no award type and no ranking of presentations beside it. The one ranking of the domain is the `grandFinal`, which ranks academies by public vote and is not an `award`. It is what is handed out at an `awardCeremony`, never the ceremony itself.
+_Avoid_: `medal` (one of its values is not a medal), position, tie, ranking, `grandFinal`
 
 **`judgeScoreStatus`** — ui: "Estado"
 How one judge's own work on a `presentation` stands, shown in that judge's list and to that judge only: `Pendiente` while their score has no value, the judge's own score itself (`87.5`) with a value and a `feedbackAudio`, `Sin devolución` with a value and none —a warning, since the `feedbackAudio` is optional but should not be forgotten while the day is open, so on any other day the score shows in its place— and `Descalificada` whenever the presentation is —`pending`, `complete`, `noFeedback` and `disqualified` in the code, which keeps the Spanish in `judgeScoreStatusBadge`. It is never the presentation's `participationStatus`, which answers for the whole panel. Both say "Pendiente" and mean different things: here it is "this judge has not scored yet", there it is "the panel has not evaluated it yet", and neither is the finances `Pendiente` below. Saying which "Pendiente" a screen means is part of writing it.
@@ -408,6 +408,50 @@ _Avoid_: `participationStatus`, `choreographyOperationalStatus`, score completen
 **`feedbackAudio`** — ui: "Devolución"
 The optional private audio a judge records for the academy, one per `score`, saved by the same save that carries the score and replaced or removed by it. It is allowed on a disqualified presentation, where it is stored with no value, so the academy still hears why. It is `audio/webm` from the browser recorder, capped at three minutes, kept in its own private bucket and served by signed URL (`app/lib/storage/feedback-audio.server.ts`, `app/lib/storage/asset-kinds.ts`). **`Devolución` is reserved for it**: a returned amount of money is a **`refund`** (`Reembolso`), never a `devolución`.
 _Avoid_: numeric score, `presentation`, refund, money returned
+
+**`grandFinal`** — ui: "Gran final"
+The one competitive ranking of the domain: the `event`'s `finalist` academies ranked by public `vote`. It is decided by the audience, not by the judges' scores, and it is the only place where academies are compared to one another. It is not an `award` and carries none of the award bands.
+_Avoid_: `award`, `Premio del público` (retired), people's choice, ranking of presentations
+
+**`grandFinalGroup`** — ui: "Infantiles"
+Which half of the `grandFinal` requirement a `category` counts towards, read off the first word of its name: `Baby` or `Infantil` is `children` (`Infantiles`), `Juvenil`, `Mayores` or `Adulto` (`Adultos` too) is `adults` (`Mayores`), anything else counts for neither. The rule is fixed in code for this event: nothing configures it and no screen shows it. Ages are never read.
+_Avoid_: age cutoff, per-category mark, `none` as a stored value, configurable group
+
+**`grandFinalEligibility`** — ui: "Cumple los requisitos de la Gran final"
+Whether an `academy` may be picked as a `finalist` for one `modality`: it has at least one non-withdrawn `grupal` `choreography` in a `children` category and at least one in an `adults` category of the `activeEvent`, both in that same modality, whatever their `submodality`, money ignored. It is a pair of academy and modality, so an academy can be eligible in one modality and not in another; the portal banner says only that the academy meets the requirements. Derived on read, never stored.
+_Avoid_: qualified, nominated, `finalist` (eligible is not yet picked), event-wide eligibility, submodality
+
+**`finalistPick`** — ui: "Elección de finalista"
+One `judge`'s choice of one academy eligible in one `modality` of the event, made from the judge's own presentations list on a day that modality dances and open under the same window as their scores. Judges pick independently and may disagree; administration can set or change any judge's pick at any time. One pick per judge per modality.
+_Avoid_: nomination, vote, consensus, pick per day
+
+**`finalist`** — ui: "Finalista"
+An `academy` with at least one `finalistPick` across every modality, with no weight for how many judges picked it or how often. A `votingRound` takes its own copy of the finalists when it opens, so a later pick never changes a round in progress.
+_Avoid_: candidate, nominee, winner
+
+**`votingRound`** — ui: "Votación"
+One run of the public vote over a fixed set of `finalist` academies, opened and closed by administration, holding its own votes. An event has one round, or two: a second one, `Desempate`, exists only when the first closes with a tie for first place and holds only the tied academies; a tie in the second round is broken by the greater number of QR votes, and both academies win when that is tied too. Its states read `Votación abierta` and `Votación cerrada`.
+_Avoid_: `votingWindow`, poll, election, third round
+
+**`vote`** — ui: "Voto"
+One person's choice of one `finalist` in one `votingRound`, cast once and never changed. It weighs one when cast by a `voter` and ten when cast with a `voteCode`; the ranking and its percentages are read off those weights, not off head counts.
+_Avoid_: `finalistPick`, like, point, ballot
+
+**`voter`** — ui: "Votante"
+A person identified by an external sign-in (Google, and Meta when available) for the sole purpose of voting, once per `votingRound`. A voter is not a `user`: it has no role, no password and no place in the access domain, and the same email on an `academy` account links nothing.
+_Avoid_: `user`, `academy`, guest account
+
+**`voteCode`** — ui: "Código QR"
+A one-time code the organization prints and hands out with the entry tickets, worth a `vote` of ten. Generated in batches by administration, valid on any day, consumed by the vote it casts and by nothing else, and usable again in a `Desempate` round. A batch can be voided.
+_Avoid_: ticket, token, coupon
+
+**`auditLink`** — ui: "Acceso de auditoría"
+A revocable, one-scan access administration hands to a member of the audience so they can watch a `votingRound`'s live totals: per finalist, split between voters and codes, with codes consumed against codes issued. It dies with the round and opens nothing else.
+_Avoid_: `auditor` (the internal role), results page, public results
+
+**`grandFinalResult`** — ui: "Resultado de la Gran final"
+The ranking of the last `votingRound`, with each finalist's share of the weighted votes, made public by administration after the round closes and never before. Until then the public page says only whether the vote has not opened, is open, or is closed. There is no public live tally.
+_Avoid_: leaderboard, live results, `academyResults`
 
 **`payment`** — ui: "Pago"
 Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations. It is editable after the fact — academy, amount, date, method, reference and note — under exactly two accounting guards: the academy is frozen once the payment carries allocations, and the amount can never be edited below what is already allocated. A payment recorded in error can also be deleted, cascading its allocations.
