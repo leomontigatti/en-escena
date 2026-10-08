@@ -3,7 +3,9 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
+import { RecoveryLinkRefusedError } from "@/lib/auth/access-auth-provider.shared.server";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 const RECOVERY_REQUEST_MESSAGE =
   "Si el correo corresponde a un usuario existente, enviamos un enlace para recuperar el acceso.";
@@ -62,11 +64,8 @@ export async function exchangeAccessRecoveryCode(input: {
       headers: result.headers,
       redirectTo: result.redirectTo,
     };
-  } catch {
-    return {
-      ok: false as const,
-      error: INVALID_RECOVERY_MESSAGE,
-    };
+  } catch (thrown) {
+    return refuseRecoveryLink("exchangePasswordRecoveryCode", thrown);
   }
 }
 
@@ -83,11 +82,8 @@ export async function verifyAccessRecoveryTokenHash(input: {
       headers: result.headers,
       redirectTo: result.redirectTo,
     };
-  } catch {
-    return {
-      ok: false as const,
-      error: INVALID_RECOVERY_MESSAGE,
-    };
+  } catch (thrown) {
+    return refuseRecoveryLink("verifyPasswordRecoveryOtp", thrown);
   }
 }
 
@@ -108,12 +104,32 @@ export async function updateAccessRecoveryPassword(input: {
       ok: true as const,
       headers: mergeHeaders(updateResult.headers, signOutResult.headers),
     };
-  } catch {
-    return {
-      ok: false as const,
-      error: INVALID_RECOVERY_MESSAGE,
-    };
+  } catch (thrown) {
+    return refuseRecoveryLink("updatePasswordForRecovery", thrown);
   }
+}
+
+// An unknown, expired or used link is the academy's to fix by asking for a new
+// one. Anything else is the provider or the database failing, which reads the
+// same to the academy but is logged, or it would leave no trace at all.
+function refuseRecoveryLink(
+  operation:
+    | "exchangePasswordRecoveryCode"
+    | "updatePasswordForRecovery"
+    | "verifyPasswordRecoveryOtp",
+  thrown: unknown,
+) {
+  if (!(thrown instanceof RecoveryLinkRefusedError)) {
+    console.error("[auth:provider:error]", {
+      operation,
+      error: describeServerError(thrown),
+    });
+  }
+
+  return {
+    ok: false as const,
+    error: INVALID_RECOVERY_MESSAGE,
+  };
 }
 
 async function isEligibleAcademyRecoveryEmail(email: string) {

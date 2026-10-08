@@ -75,7 +75,7 @@ async function reportUnexpectedServerError(
     userId,
     at: new Date().toISOString(),
     release: readRelease(),
-    stack: describeStack(error),
+    stack: describeServerError(error),
   };
 
   console.error(`[server:unexpected] ${JSON.stringify(line)}`);
@@ -130,7 +130,12 @@ async function resolveUserIdWithin(
   }
 }
 
-function describeStack(error: unknown) {
+/**
+ * The stack of a server error, with a failed query's bound values redacted.
+ * Also what a tagged `console.error` carries when a catch converts a failure
+ * into user copy, since that failure never reaches `handleError`.
+ */
+function describeServerError(error: unknown) {
   if (error instanceof DrizzleQueryError) {
     return describeFailedQuery(error);
   }
@@ -170,4 +175,8 @@ function constraintOf(cause: unknown) {
   return constraint ? [`constraint ${constraint}`] : [];
 }
 
-export { reportUnexpectedServerError, routePatternInstrumentation };
+export {
+  describeServerError,
+  reportUnexpectedServerError,
+  routePatternInstrumentation,
+};

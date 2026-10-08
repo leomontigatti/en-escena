@@ -5,6 +5,7 @@ import {
   PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
   PUBLIC_REGISTRATION_CONFIRMATION_PATH,
 } from "@/lib/auth/access-paths.shared";
+import { SignUpConfirmationRefusedError } from "@/lib/auth/access-auth-provider.shared.server";
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
 const confirmEmailOtp = vi.hoisted(() => vi.fn());
@@ -20,6 +21,7 @@ import { loader } from "@/routes/registro_.confirmar";
 describe("registration confirm loader", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   // The `token_hash` + `type=signup` shape is inherited and kept so the emails
@@ -54,7 +56,12 @@ describe("registration confirm loader", () => {
   });
 
   test("redirects invalid or expired confirmation links to the access error path", async () => {
-    confirmEmailOtp.mockRejectedValue(new Error("otp_expired"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    confirmEmailOtp.mockRejectedValue(
+      new SignUpConfirmationRefusedError("Email confirmation failed."),
+    );
 
     const response = await expectRedirect(
       loadRegistrationConfirmationRoute("token_hash=hash-vencido&type=signup", {
@@ -68,6 +75,29 @@ describe("registration confirm loader", () => {
     expect(getSetCookieValues(response.headers)).toEqual([
       "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
     ]);
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  test("logs a provider failure before the same access error redirect", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    confirmEmailOtp.mockRejectedValue(
+      new Error("Connection terminated unexpectedly"),
+    );
+
+    const response = await expectRedirect(
+      loadRegistrationConfirmationRoute("token_hash=hash-valido&type=signup"),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
+    );
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith("[auth:provider:error]", {
+      operation: "confirmEmailOtp",
+      error: expect.stringContaining("Connection terminated unexpectedly"),
+    });
   });
 
   test("redirects malformed confirmation links to the access error path", async () => {

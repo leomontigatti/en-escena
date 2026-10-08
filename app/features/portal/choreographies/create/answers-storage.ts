@@ -19,23 +19,47 @@ export function readStoredAnswers(key: string): unknown {
     const stored = window.sessionStorage.getItem(key);
 
     return stored === null ? null : JSON.parse(stored);
-  } catch {
-    return null;
+  } catch (error) {
+    // Unparseable answers are no answers, like unavailable storage.
+    if (isStorageUnavailable(error) || error instanceof SyntaxError) {
+      return null;
+    }
+
+    throw error;
   }
 }
 
 export function writeStoredAnswers(key: string, answers: unknown) {
+  // Serialized outside the `try`: answers that cannot be are a bug, not
+  // unavailable storage.
+  const serialized = JSON.stringify(answers);
+
   try {
-    window.sessionStorage.setItem(key, JSON.stringify(answers));
-  } catch {
+    window.sessionStorage.setItem(key, serialized);
+  } catch (error) {
     // Unavailable storage only costs surviving a reload.
+    if (!isStorageUnavailable(error)) {
+      throw error;
+    }
   }
 }
 
 export function clearStoredAnswers(key: string) {
   try {
     window.sessionStorage.removeItem(key);
-  } catch {
+  } catch (error) {
     // Unavailable storage holds nothing to clear.
+    if (!isStorageUnavailable(error)) {
+      throw error;
+    }
   }
+}
+
+// What a private window (`SecurityError`) and a full quota
+// (`QuotaExceededError`) throw.
+function isStorageUnavailable(error: unknown) {
+  return (
+    error instanceof DOMException &&
+    (error.name === "SecurityError" || error.name === "QuotaExceededError")
+  );
 }

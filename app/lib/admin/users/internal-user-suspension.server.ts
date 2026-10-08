@@ -7,6 +7,7 @@ import {
   setInternalCredentialSuspendedState,
 } from "@/lib/auth/internal-user-auth.server";
 import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 type SetInternalUserSuspendedStateInput = {
   action: "suspend" | "reactivate";
@@ -102,7 +103,13 @@ export async function setInternalUserSuspendedState(
       },
       input.adminHeaders,
     );
-  } catch {
+  } catch (thrown) {
+    console.error("[auth:provider:error]", {
+      operation: nextSuspended ? "banUser" : "unbanUser",
+      userId: existingUser.id,
+      error: describeServerError(thrown),
+    });
+
     return {
       ok: false,
       error: "No pudimos actualizar el acceso de este Usuario.",

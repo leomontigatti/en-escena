@@ -1,11 +1,13 @@
 import { redirect } from "react-router";
 
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
+import { SignUpConfirmationRefusedError } from "@/lib/auth/access-auth-provider.shared.server";
 import {
   PUBLIC_ACADEMY_ONBOARDING_PATH,
   PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
 } from "@/lib/auth/access-paths.shared";
 import { createLegacySessionCookieClearHeaders } from "@/lib/auth/legacy-session-cookies.server";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 import type { Route } from "./+types/registro_.confirmar";
 
@@ -28,7 +30,14 @@ export async function loader({ request }: Route.LoaderArgs) {
       tokenHash,
       type,
     });
-  } catch {
+  } catch (thrown) {
+    if (!(thrown instanceof SignUpConfirmationRefusedError)) {
+      console.error("[auth:provider:error]", {
+        operation: "confirmEmailOtp",
+        error: describeServerError(thrown),
+      });
+    }
+
     throw redirect(PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH, {
       headers: createLegacySessionCookieClearHeaders(request),
     });
