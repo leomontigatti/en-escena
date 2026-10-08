@@ -235,9 +235,6 @@ describe("the judge's list of one day's presentations", () => {
         },
       ]);
 
-      expect(document.querySelector("#gran-final-heading")?.textContent).toBe(
-        "Gran final",
-      );
       expect(
         document.querySelector('[data-slot="select-trigger"]') !== null,
       ).toBe(editable);
@@ -250,6 +247,7 @@ describe("the judge's list of one day's presentations", () => {
   test("leaves the `Gran final` out on a day no modality dances", async () => {
     await mount();
 
-    expect(document.querySelector("#gran-final-heading")).toBeNull();
+    expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
+    expect(document.querySelector("input[disabled]")).toBeNull();
   });
 });

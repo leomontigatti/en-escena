@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { JudgeFinalistPickRow } from "@/lib/grand-final/finalist-pick.server";
+import { discardChangesTitle } from "@/lib/shared/discard-guard";
 import {
   openRadixSelect,
   selectRadixOption,
@@ -79,6 +80,8 @@ describe("the judge's `Gran final` picks", () => {
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
+
+    return router;
   }
 
   function saveButton() {
@@ -138,5 +141,33 @@ describe("the judge's `Gran final` picks", () => {
     expect(
       document.querySelector<HTMLInputElement>("input[disabled]")?.value,
     ).toBe("Academia Vecina");
+  });
+
+  test("keeps showing a saved pick whose academy stopped being eligible", async () => {
+    await mount({
+      isOpen: true,
+      rows: [{ ...jazz, academyId: "ida", academyName: "Academia Ida" }],
+    });
+
+    expect(
+      document.querySelector('[data-slot="select-trigger"]')?.textContent,
+    ).toContain("Academia Ida");
+    expect(saveButton()?.disabled).toBe(true);
+  });
+
+  test("asks before leaving the page with a pick chosen and not saved", async () => {
+    const router = await mount({ isOpen: true, rows: [jazz] });
+
+    await openRadixSelect(
+      document.querySelector('[data-slot="select-trigger"]'),
+    );
+    await selectRadixOption("Academia Vecina");
+    await updateReactDomForm(async () => {
+      await router.navigate("/otra");
+    });
+
+    expect(router.state.location.pathname).toBe("/juzgamiento");
+    expect(document.body.textContent).toContain(discardChangesTitle);
+    expect(submitted).toHaveLength(0);
   });
 });
