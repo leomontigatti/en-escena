@@ -76,9 +76,10 @@ function getFlashSessionStorage() {
  * access provider returns).
  *
  * The redirect replaces the page it leaves in the browser's history, as React
- * Router's `replace` does. That page no longer makes sense once the action ran
- * (a create form, a deleted or merged record), so `Volver` and the browser's
- * back go to the page before it rather than to it.
+ * Router's `replace` does. When it goes elsewhere, that page no longer makes
+ * sense once the action ran (a create form, a deleted or merged record), so
+ * `Volver` and the browser's back go to the page before it rather than to it.
+ * When it comes back to the same page, React Router would replace anyway.
  */
 export async function redirectWithFlashNotification(
   url: string,
