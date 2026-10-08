@@ -315,6 +315,34 @@ describe("the finalist banner form", () => {
     );
   });
 
+  test("still reports the refusal when removing what it uploaded fails", async () => {
+    const { vecina } = await seedFinalist();
+    const adapter = createFilesystemObjectStorageAdapter({
+      baseDir,
+      secret: "volume-signing-secret",
+    });
+    const brokenCleanup = createGrandFinalBannerStorage({
+      ...adapter,
+      remove: async () => {
+        throw new Error("EIO: cleanup failed");
+      },
+    });
+    const body = new FormData();
+    body.set("intent", saveFinalistBannersIntent);
+    body.set(bannerFieldNames.first.file, wide());
+    body.set(bannerFieldNames.second.file, pngFile("square.png", 1600, 1600));
+    const { request } = await createSignedInRequest({
+      body,
+      email: `admin.${crypto.randomUUID()}@example.com`,
+      requestUrl: pageUrl(vecina),
+      role: "admin",
+    });
+
+    await expect(
+      handleFinalistBannersAction(request, vecina, brokenCleanup),
+    ).resolves.toMatchObject({ init: { status: 422 } });
+  });
+
   test("removes what it uploaded when a later upload throws, and keeps the row", async () => {
     const { eventId, vecina } = await seedFinalist();
     const adapter = createFilesystemObjectStorageAdapter({

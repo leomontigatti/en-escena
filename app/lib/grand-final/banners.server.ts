@@ -153,7 +153,7 @@ export async function saveFinalistBanners(input: {
         );
     });
   } catch (thrown) {
-    await input.storage.removeBanners(Object.values(uploads.keys));
+    await removeQuietly(input.storage, Object.values(uploads.keys));
     throw thrown;
   }
 
@@ -202,7 +202,7 @@ async function uploadNewBanners(input: {
       });
 
       if (!result.ok) {
-        await input.storage.removeBanners(Object.values(keys));
+        await removeQuietly(input.storage, Object.values(keys));
 
         return {
           ok: false,
@@ -215,11 +215,29 @@ async function uploadNewBanners(input: {
       keys[slot] = result.storageKey;
     }
   } catch (thrown) {
-    await input.storage.removeBanners(Object.values(keys));
+    await removeQuietly(input.storage, Object.values(keys));
     throw thrown;
   }
 
   return { keys, ok: true };
+}
+
+/**
+ * Cleanup on a failure path: a delete that fails is logged and must not
+ * replace the refusal or the error that made the save back out.
+ */
+async function removeQuietly(
+  storage: GrandFinalBannerStorage,
+  storageKeys: string[],
+) {
+  try {
+    await storage.removeBanners(storageKeys);
+  } catch (thrown) {
+    console.error("[storage:grand-final-banner:orphan]", {
+      storageKeys,
+      error: describeServerError(thrown),
+    });
+  }
 }
 
 async function isFinalist(input: { academyId: string; eventId: string }) {
