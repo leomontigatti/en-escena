@@ -4,7 +4,9 @@ import { db } from "@/db";
 import {
   categories,
   choreographies,
+  judgeAssignments,
   modalities,
+  presentations,
   schedules,
   submodalities,
   user,
@@ -26,6 +28,7 @@ export async function seedEligibilityFixture() {
   const event = await createSavedEvent();
   const categoryIds = new Map<string, string>();
   const scheduleIds = new Map<string, string>();
+  let lastOrderNumber = 0;
 
   const categoryId = async (name: string) => {
     const existing = categoryIds.get(name);
@@ -90,6 +93,32 @@ export async function seedEligibilityFixture() {
 
       return judge.id;
     },
+    /**
+     * Puts the judge on the choreography's presentation, numbering it the
+     * first time: what makes a judge one of the event's.
+     */
+    assignJudge: async (judgeId: string, choreographyId: string) => {
+      const [existing] = await db
+        .select({ id: presentations.id })
+        .from(presentations)
+        .where(eq(presentations.choreographyId, choreographyId));
+      const presentationId =
+        existing?.id ??
+        (
+          await db
+            .insert(presentations)
+            .values({
+              choreographyId,
+              eventId: event.id,
+              orderNumber: ++lastOrderNumber,
+            })
+            .returning()
+        )[0].id;
+
+      await db
+        .insert(judgeAssignments)
+        .values({ presentationId, userId: judgeId });
+    },
     /** Moves the modality's schedule to `scheduledDate`, a `YYYY-MM-DD` date. */
     danceOn: async (modalityId: string, scheduledDate: string) => {
       await db
@@ -146,6 +175,8 @@ export async function seedEligibilityFixture() {
           .set({ withdrawnAt: new Date() })
           .where(eq(choreographies.id, choreography.id));
       }
+
+      return choreography.id;
     },
   };
 }

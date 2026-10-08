@@ -1,10 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { finalistPicks } from "@/db/schema";
+import { finalistPicks, user } from "@/db/schema";
 import {
   readJudgeFinalistPicks,
   saveFinalistPick,
+  setFinalistPick,
 } from "@/lib/grand-final/finalist-pick.server";
 import { seedEligibilityFixture } from "@/lib/grand-final/grand-final.test-support";
 
@@ -182,6 +183,71 @@ describe("`saveFinalistPick`", () => {
         now: duringTheShow,
       }),
     ).resolves.toEqual({ ok: false, reason: "not-found" });
+  });
+});
+
+describe("`setFinalistPick`", () => {
+  test("administration changes a judge's pick on the same row, long after the day closed", async () => {
+    const { fixture, jazz, pirueta, vecina } = await seedJazzDay();
+    const judgeId = await fixture.addJudge();
+
+    await saveFinalistPick({
+      academyId: pirueta,
+      judgeId,
+      modalityId: jazz,
+      now: duringTheShow,
+    });
+
+    await expect(
+      setFinalistPick({ academyId: vecina, judgeId, modalityId: jazz }),
+    ).resolves.toEqual({ ok: true });
+    await expect(readPick(judgeId, jazz)).resolves.toBe(vecina);
+    await expect(db.$count(finalistPicks)).resolves.toBe(1);
+  });
+
+  test("sets a pick for a judge who has none, before the modality's day", async () => {
+    const { fixture, jazz, pirueta } = await seedJazzDay();
+    const judgeId = await fixture.addJudge();
+
+    await expect(
+      setFinalistPick({ academyId: pirueta, judgeId, modalityId: jazz }),
+    ).resolves.toEqual({ ok: true });
+    await expect(readPick(judgeId, jazz)).resolves.toBe(pirueta);
+  });
+
+  test("refuses an academy that is not eligible in that modality", async () => {
+    const { fixture, jazz, pirueta } = await seedJazzDay();
+    const judgeId = await fixture.addJudge();
+    const halfway = await fixture.addAcademy("Academia Infantil");
+
+    await fixture.register({
+      academy: halfway,
+      modality: jazz,
+      category: "Infantil",
+    });
+    await setFinalistPick({ academyId: pirueta, judgeId, modalityId: jazz });
+
+    await expect(
+      setFinalistPick({ academyId: halfway, judgeId, modalityId: jazz }),
+    ).resolves.toEqual({ ok: false, reason: "not-eligible" });
+    await expect(readPick(judgeId, jazz)).resolves.toBe(pirueta);
+  });
+
+  test("refuses a user who is not a judge", async () => {
+    const { jazz, pirueta } = await seedJazzDay();
+    const [admin] = await db
+      .insert(user)
+      .values({ email: "admin@example.com", name: "Admin", role: "admin" })
+      .returning();
+
+    await expect(
+      setFinalistPick({
+        academyId: pirueta,
+        judgeId: admin.id,
+        modalityId: jazz,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "not-found" });
+    await expect(db.$count(finalistPicks)).resolves.toBe(0);
   });
 });
 

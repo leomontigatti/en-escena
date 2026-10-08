@@ -8,6 +8,7 @@ import {
   modalities,
   scheduleModalities,
   schedules,
+  user,
 } from "@/db/schema";
 import { grandFinalEligibility } from "@/lib/grand-final/eligibility.server";
 import { judgingDate } from "@/lib/judging/judging-day";
@@ -35,6 +36,48 @@ export async function saveFinalistPick(input: {
   modalityId: string;
   now?: Date;
 }): Promise<SaveFinalistPickResult> {
+  return await writeFinalistPick(input, () =>
+    readPickWindowClosure(input.modalityId, input.now),
+  );
+}
+
+/**
+ * Administration's write of any judge's `finalistPick`, from the `Gran final`
+ * list. It is the judge's save without the window: the same row, upserted,
+ * and the same refusal of an academy not eligible in the modality. The judge
+ * must be a judge user, so a pick never lands on another role.
+ */
+export type SetFinalistPickResult =
+  { ok: true } | { ok: false; reason: "not-eligible" | "not-found" };
+
+export async function setFinalistPick(input: {
+  academyId: string;
+  judgeId: string;
+  modalityId: string;
+}): Promise<SetFinalistPickResult> {
+  const [judge] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(and(eq(user.id, input.judgeId), eq(user.role, "judge")));
+
+  if (!judge) {
+    return { ok: false, reason: "not-found" };
+  }
+
+  return await writeFinalistPick<never>(input, async () => null);
+}
+
+/**
+ * The write both saves share: the modality in the active event, then the
+ * caller's window, then eligibility read again, then the upsert of the one row
+ * per judge per modality.
+ */
+async function writeFinalistPick<TClosure extends "closed" | "not-started">(
+  input: { academyId: string; judgeId: string; modalityId: string },
+  readClosure: () => Promise<TClosure | null>,
+): Promise<
+  { ok: true } | { ok: false; reason: TClosure | "not-eligible" | "not-found" }
+> {
   const [modality] = await db
     .select({ eventId: modalities.eventId })
     .from(modalities)
@@ -45,7 +88,7 @@ export async function saveFinalistPick(input: {
     return { ok: false, reason: "not-found" };
   }
 
-  const closure = await readPickWindowClosure(input.modalityId, input.now);
+  const closure = await readClosure();
 
   if (closure) {
     return { ok: false, reason: closure };
@@ -199,7 +242,8 @@ export async function readJudgeFinalistPicks(input: {
   });
 }
 
-async function readAcademyNames(
+/** The names of the given academies, by id; a repeated id is read once. */
+export async function readAcademyNames(
   academyIds: string[],
 ): Promise<Map<string, string>> {
   if (academyIds.length === 0) {
@@ -209,7 +253,7 @@ async function readAcademyNames(
   const rows = await db
     .select({ id: academies.id, name: academies.name })
     .from(academies)
-    .where(inArray(academies.id, academyIds));
+    .where(inArray(academies.id, [...new Set(academyIds)]));
 
   return new Map(rows.map((row) => [row.id, row.name]));
 }
