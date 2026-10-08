@@ -35,7 +35,6 @@ import {
   useLatestActionData,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 import {
   PortalProfessorIdentityFields,
   usePortalProfessorForm,
@@ -105,11 +104,6 @@ export function PortalProfessorDetailRouteView({
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateProfessorIntent;
-  const detailHref = `/portal/profesores/${loaderData.professor.id}`;
-  const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
-    detailHref,
-    listHref: "/portal/profesores",
-  });
   const title = `${loaderData.professor.firstName} ${loaderData.professor.lastName}`;
 
   useRosterRefusalToast({
@@ -130,7 +124,6 @@ export function PortalProfessorDetailRouteView({
         <PortalPageHeader
           titleId="professor-detail-title"
           title={title}
-          titleStyle={viewTransitionStyle}
           description="Actualizá los datos de este profesor."
           action={
             <ResourceActionsMenu contentClassName="w-40">
@@ -175,7 +168,6 @@ export function PortalProfessorDetailRouteView({
               hasChanges={form.form.formState.isDirty}
               isPending={isSubmitting}
               onDiscard={form.discard}
-              viewTransition
             />
           </Card>
         </PortalProfessorDetailTabs>

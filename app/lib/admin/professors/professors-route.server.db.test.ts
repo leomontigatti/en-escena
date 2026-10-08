@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -1193,11 +1192,8 @@ function renderRoute(
   loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: [buildListInitialEntry(loaderData)],
-      },
+    renderInDataRouter(
+      buildListInitialEntry(loaderData),
       createElement(ProfessorsListRouteView, { loaderData }),
     ),
   );

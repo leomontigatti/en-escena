@@ -17,7 +17,6 @@ import {
 import { rosterMergeIntents } from "@/lib/roster/roster-merge.shared";
 import { isMergeRefusal } from "@/lib/shared/merge";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
 import { useDancerEditForm } from "./form";
 import {
@@ -102,16 +101,11 @@ export function DancerDetailRouteView({
   });
   const isArchiveBlockedOpen =
     dialogIntent === "archive-dancer" && viewState.statusAction.isBlocked;
-  const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
-    detailHref: `/administracion/bailarines/${dancer.id}`,
-    listHref: "/administracion/bailarines",
-  });
 
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title={`${dancer.firstName} ${dancer.lastName}`}
-      titleStyle={viewTransitionStyle}
       description="Consultá y corregí la información administrativa de este bailarín."
       requireSelectedEvent={false}
       headerAction={

@@ -41,11 +41,14 @@ vi.mock("react-router", async () => {
     useFormAction: reactRouterMocks.useFormAction,
     useNavigation: reactRouterMocks.useNavigation,
     useSubmit: reactRouterMocks.useSubmit,
-    // The form footer's leave guard and `Volver` need a data router, which
-    // these renders do not mount; an idle blocker and a no-op navigate stand
+    // The form footer's leave guard, `Volver` and the page title's record
+    // title transition need a router, which these renders do not mount; an
+    // idle blocker, a no-op navigate and a location with no transition stand
     // in for it.
     useBlocker: () => ({ state: "unblocked" }),
+    useLocation: () => ({ pathname: "/" }),
     useNavigate: () => () => undefined,
+    useViewTransitionState: () => false,
   };
 });
 

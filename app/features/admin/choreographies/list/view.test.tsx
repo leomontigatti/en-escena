@@ -1,10 +1,10 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { buildDataTableFilterHref } from "@/components/shared/data-table";
 import { ChoreographiesListRouteView } from "@/features/admin/choreographies/list/view";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 describe("ChoreographiesListRouteView", () => {
   test("shows the event-required empty state when there is no active event", () => {
@@ -254,9 +254,8 @@ function renderRoute(
   initialEntry = "/administracion/coreografias",
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      { initialEntries: [initialEntry] },
+    renderInDataRouter(
+      initialEntry,
       createElement(ChoreographiesListRouteView, {
         loaderData: {
           canWrite: true,

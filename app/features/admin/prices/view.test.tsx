@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createRoot } from "react-dom/client";
-import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 import type { EventPriceDetailView as EventPriceDetailRouteViewType } from "@/features/admin/prices/detail/view";
@@ -484,9 +484,9 @@ async function renderPricesRoute({
 }) {
   await act(async () => {
     root.render(
-      <MemoryRouter>
+      <DataRouterSlot>
         <EventPricesRouteView loaderData={loaderData} />
-      </MemoryRouter>,
+      </DataRouterSlot>,
     );
   });
 }

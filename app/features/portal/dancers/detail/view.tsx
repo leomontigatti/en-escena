@@ -55,7 +55,6 @@ import {
   useLatestActionData,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
 import {
   PortalDancerBirthDateField,
@@ -121,10 +120,6 @@ export function PortalDancerDetailRouteView({
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
-  const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
-    detailHref: viewModel.detailHref,
-    listHref: "/portal/bailarines",
-  });
 
   const successData = actionData?.status === "success" ? actionData : undefined;
 
@@ -146,7 +141,6 @@ export function PortalDancerDetailRouteView({
         <PortalPageHeader
           titleId="dancer-detail-title"
           title={viewModel.title}
-          titleStyle={viewTransitionStyle}
           description="Actualizá los datos de este bailarín."
           action={
             <ResourceActionsMenu contentClassName="w-40">
@@ -200,7 +194,6 @@ export function PortalDancerDetailRouteView({
                   hasChanges={form.hasChanges}
                   isPending={isSubmitting}
                   onDiscard={form.discard}
-                  viewTransition
                 />
               }
             >

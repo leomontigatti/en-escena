@@ -228,6 +228,7 @@ function buildSeminarFinanceColumns(
       className: "min-w-56 font-medium",
       cell: (row) => (
         <DataTableLink
+          recordTitle
           to={`/administracion/finanzas/${academyId}/seminarios/${row.id}`}
         >
           {row.instructorName}
@@ -296,6 +297,7 @@ function buildChoreographyFinanceColumns(
       // targets, which reads as a choice and is not.
       cell: (row) => (
         <DataTableLink
+          recordTitle
           to={`/administracion/finanzas/${academyId}/coreografias/${row.id}`}
         >
           {row.name}

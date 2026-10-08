@@ -1,11 +1,11 @@
 /** @vitest-environment jsdom */
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { FinancesListRouteView } from "./view";
 import type { FinanceAccountRow } from "./server";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 describe("FinancesListRouteView", () => {
   test("renders one row per academy with the four primary amounts", () => {
@@ -32,11 +32,12 @@ describe("FinancesListRouteView", () => {
 
 function renderList(rows: FinanceAccountRow[]) {
   return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/administracion/finanzas"]}>
+    renderInDataRouter(
+      "/administracion/finanzas",
       <FinancesListRouteView
         loaderData={{ rows, selectedEventId: "event_1" }}
-      />
-    </MemoryRouter>,
+      />,
+    ),
   );
 }
 
