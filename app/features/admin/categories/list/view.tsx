@@ -32,7 +32,10 @@ const categoryColumns: DataTableColumn<CategoryRow>[] = [
     header: "Nombre",
     className: "min-w-56 font-medium",
     cell: (category) => (
-      <DataTableLink to={buildDetailPath(basePath, category.id, null)}>
+      <DataTableLink
+        recordTitle
+        to={buildDetailPath(basePath, category.id, null)}
+      >
         {category.name}
       </DataTableLink>
     ),

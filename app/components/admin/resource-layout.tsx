@@ -1,7 +1,8 @@
 import { Inbox, Plus, Settings, type LucideIcon } from "lucide-react";
-import { type CSSProperties, type ReactNode } from "react";
-import { Link } from "react-router";
+import { type ReactNode } from "react";
+import { Link, useLocation } from "react-router";
 
+import { useRecordTitleAttribute } from "@/components/shared/record-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -37,7 +38,6 @@ type AdminResourceLayoutProps = {
   title: string;
   /** A badge for the record's state, drawn beside the title on a detail page. */
   titleBadge?: ReactNode;
-  titleStyle?: CSSProperties;
 };
 
 type AdminEmptyStateProps = {
@@ -63,7 +63,6 @@ export function AdminResourceLayout({
   selectedEventId = null,
   title,
   titleBadge,
-  titleStyle,
   description,
   children,
   eventRequiredEmptyState,
@@ -78,7 +77,6 @@ export function AdminResourceLayout({
       <AdminResourceHeader
         title={title}
         titleBadge={titleBadge}
-        titleStyle={titleStyle}
         description={description}
         action={action}
         headerAction={headerAction}
@@ -159,7 +157,6 @@ function AdminResourceHeader({
   headerAction,
   title,
   titleBadge,
-  titleStyle,
   description,
 }: {
   action?: {
@@ -169,14 +166,15 @@ function AdminResourceHeader({
   headerAction?: ReactNode;
   title: string;
   titleBadge?: ReactNode;
-  titleStyle?: CSSProperties;
   description: string;
 }) {
+  const recordTitle = useRecordTitleAttribute(useLocation().pathname);
+
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-xl font-semibold" style={titleStyle}>
+          <h2 className="text-xl font-semibold" {...recordTitle}>
             {title}
           </h2>
           {titleBadge}

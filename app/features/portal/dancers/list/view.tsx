@@ -19,7 +19,6 @@ import {
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { type PortalDancersListLoaderData } from "@/features/portal/dancers/list/shared";
 
 type LoaderData = PortalDancersListLoaderData;
@@ -193,10 +192,9 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
 
 function DancerDetailLink({ dancer }: { dancer: DancerRow }) {
   const href = `/portal/bailarines/${dancer.id}`;
-  const viewTransitionStyle = useRecordTitleLinkTransitionStyle(href);
 
   return (
-    <DataTableLink to={href} viewTransition style={viewTransitionStyle}>
+    <DataTableLink recordTitle to={href}>
       {dancer.firstName} {dancer.lastName}
     </DataTableLink>
   );

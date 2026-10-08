@@ -1,11 +1,11 @@
 /** @vitest-environment jsdom */
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { ComprobantesListRouteView } from "./view";
 import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 
 function comprobanteRow(
   overrides: Partial<ComprobantesListRow> = {},
@@ -54,9 +54,10 @@ function loaderData(
 
 function renderView(data: ComprobantesListLoaderData) {
   return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/administracion/comprobantes"]}>
-      <ComprobantesListRouteView loaderData={data} />
-    </MemoryRouter>,
+    renderInDataRouter(
+      "/administracion/comprobantes",
+      <ComprobantesListRouteView loaderData={data} />,
+    ),
   );
 }
 

@@ -19,7 +19,6 @@ import {
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { type PortalProfessorsListLoaderData } from "@/features/portal/professors/list/shared";
 
 type LoaderData = PortalProfessorsListLoaderData;
@@ -185,10 +184,9 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
 
 function ProfessorDetailLink({ professor }: { professor: ProfessorRow }) {
   const href = `/portal/profesores/${professor.id}`;
-  const viewTransitionStyle = useRecordTitleLinkTransitionStyle(href);
 
   return (
-    <DataTableLink to={href} viewTransition style={viewTransitionStyle}>
+    <DataTableLink recordTitle to={href}>
       {professor.firstName} {professor.lastName}
     </DataTableLink>
   );

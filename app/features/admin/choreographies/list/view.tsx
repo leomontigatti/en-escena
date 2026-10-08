@@ -89,7 +89,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     // gave one destination two targets, which reads as a choice and is not.
     cell: (choreography) => (
       <DataTableTruncatedText value={choreography.name}>
-        <DataTableLink to={choreographyDetailPath(choreography.id)}>
+        <DataTableLink recordTitle to={choreographyDetailPath(choreography.id)}>
           {choreography.name}
         </DataTableLink>
       </DataTableTruncatedText>

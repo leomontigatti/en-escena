@@ -53,7 +53,7 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     width: 15,
     className: "font-medium tabular-nums",
     cell: (row) => (
-      <DataTableLink to={`/administracion/comprobantes/${row.id}`}>
+      <DataTableLink recordTitle to={`/administracion/comprobantes/${row.id}`}>
         {formatComprobanteNumber(row)}
       </DataTableLink>
     ),

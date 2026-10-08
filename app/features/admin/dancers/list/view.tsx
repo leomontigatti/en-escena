@@ -29,7 +29,6 @@ import {
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
-import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { dancersExportPath } from "@/features/admin/dancers/export/shared";
 import { PeriodExportMenu } from "@/features/admin/period-export/menu";
 
@@ -284,10 +283,8 @@ function buildDancerStatusSummary(dancer: DancerRow) {
 }
 
 function DancerDetailLink({ href, name }: { href: string; name: string }) {
-  const viewTransitionStyle = useRecordTitleLinkTransitionStyle(href);
-
   return (
-    <DataTableLink to={href} viewTransition style={viewTransitionStyle}>
+    <DataTableLink recordTitle to={href}>
       {name}
     </DataTableLink>
   );

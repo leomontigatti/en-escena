@@ -118,7 +118,6 @@ export type PortalDancerDocumentImageUrls = {
 };
 export type PortalDancerStatusIntent = "archive-dancer" | "reactivate-dancer";
 export type PortalDancerDetailViewModel = {
-  detailHref: string;
   identificationPendingItems: DancerIdentificationPendingItem[];
   identityFieldValues: Pick<
     PortalDancerFormValues,
@@ -319,7 +318,6 @@ export function buildPortalDancerDetailViewModel(input: {
   });
 
   return {
-    detailHref: `/portal/bailarines/${dancer.id}`,
     identificationPendingItems,
     identityFieldValues: isIdentityVerified
       ? {

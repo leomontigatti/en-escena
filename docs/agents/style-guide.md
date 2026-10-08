@@ -288,6 +288,12 @@ Rules:
   Use them only when they communicate real continuity between views or stable
   states — for example list to detail, dialog open/close or a deferred content
   reveal.
+- Between pages there is one view transition, the record title: a record's name
+  morphs from its row into its detail page's title and back. Mark the
+  identifying `DataTableLink` of a row that opens its own record with
+  `recordTitle` (one per row, never on links to other records); the admin and
+  portal page headers and `Volver` take care of the rest, and every other page
+  change swaps without a crossfade.
 - Do not use View Transitions as makeup for slow loaders, broad revalidations or
   persistent shells that do not change visual context.
 

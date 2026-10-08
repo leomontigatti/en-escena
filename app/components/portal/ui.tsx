@@ -1,4 +1,4 @@
-import type { ComponentProps, CSSProperties, ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   AudioLines,
   CircleCheck,
@@ -17,6 +17,7 @@ import {
 import { Link, useLocation, type UIMatch } from "react-router";
 
 import { AccountMenu } from "@/components/shared/account-menu";
+import { useRecordTitleAttribute } from "@/components/shared/record-title";
 import { TopBarTools } from "@/components/shared/top-bar-tools";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import {
@@ -96,7 +97,6 @@ type PortalPageHeaderProps = {
   titleId: string;
   /** A node, not a string: a title can carry a badge beside it. */
   title: ReactNode;
-  titleStyle?: CSSProperties;
   description: ReactNode;
   action?: ReactNode;
 };
@@ -108,14 +108,15 @@ type PortalPageHeaderProps = {
 export function PortalPageHeader({
   titleId,
   title,
-  titleStyle,
   description,
   action,
 }: PortalPageHeaderProps) {
+  const recordTitle = useRecordTitleAttribute(useLocation().pathname);
+
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
-        <h2 id={titleId} className="text-xl font-semibold" style={titleStyle}>
+        <h2 id={titleId} className="text-xl font-semibold" {...recordTitle}>
           {title}
         </h2>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">

@@ -56,6 +56,7 @@ export function PriceListTable({
       className: "min-w-56 font-medium",
       cell: (price) => (
         <DataTableLink
+          recordTitle
           to={buildDetailPath(basePath, price.id, selectedEventId)}
           aria-label={getPriceDisplayName(price)}
         >

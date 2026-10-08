@@ -161,7 +161,10 @@ function ProfessorTable({
       className: "w-1/2 font-medium",
       headerClassName: "w-1/2",
       cell: (professor) => (
-        <DataTableLink to={buildProfessorDetailHref(loaderData, professor.id)}>
+        <DataTableLink
+          recordTitle
+          to={buildProfessorDetailHref(loaderData, professor.id)}
+        >
           {professor.firstName} {professor.lastName}
         </DataTableLink>
       ),

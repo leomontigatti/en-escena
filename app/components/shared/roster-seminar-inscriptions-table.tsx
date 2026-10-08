@@ -39,7 +39,10 @@ export function RosterSeminarInscriptionsTable({
       className: "font-medium",
       cell: (inscription) =>
         buildSeminarHref ? (
-          <DataTableLink to={buildSeminarHref(inscription.seminarId)}>
+          <DataTableLink
+            recordTitle
+            to={buildSeminarHref(inscription.seminarId)}
+          >
             {inscription.instructorName}
           </DataTableLink>
         ) : (

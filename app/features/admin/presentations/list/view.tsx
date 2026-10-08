@@ -148,7 +148,9 @@ function buildPresentationColumns({
             value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
           >
             {rowPath ? (
-              <DataTableLink to={rowPath}>{row.name}</DataTableLink>
+              <DataTableLink recordTitle to={rowPath}>
+                {row.name}
+              </DataTableLink>
             ) : (
               row.name
             )}

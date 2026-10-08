@@ -104,7 +104,7 @@ function buildChoreographyColumns<TRow extends RosterChoreography>(
       header: "Coreografía",
       className: "font-medium",
       cell: (row) => (
-        <DataTableLink to={buildChoreographyHref(row.id)}>
+        <DataTableLink recordTitle to={buildChoreographyHref(row.id)}>
           {row.choreographyName}
         </DataTableLink>
       ),

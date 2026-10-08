@@ -64,6 +64,7 @@ export function SeminarPriceListTable({
       className: "min-w-56 font-medium",
       cell: (seminarPrice) => (
         <DataTableLink
+          recordTitle
           to={buildDetailPath(
             seminarPricesBasePath,
             seminarPrice.id,

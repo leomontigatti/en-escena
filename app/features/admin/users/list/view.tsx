@@ -103,6 +103,7 @@ function UsersTable({
       cell: (savedUser) => (
         <div className="flex flex-col gap-1">
           <DataTableLink
+            recordTitle
             to={buildUserDetailHref(filters, savedUser.id)}
             className="w-fit"
           >

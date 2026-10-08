@@ -243,6 +243,29 @@
   color: var(--info-text);
 }
 
+/*
+ * The record title (`app/components/shared/record-title.ts`): a record's name
+ * morphs between its row in a list and its detail page's title. A marked page
+ * title gives way to a marked link on the same page, the row it came from or
+ * goes back to, so a list's own title never competes with it. The rest of the
+ * page swaps at once: no root crossfade, which would otherwise play on every
+ * `Volver`.
+ */
+[data-record-title] {
+  view-transition-name: record-title;
+}
+
+:root:has(a[data-record-title]) h2[data-record-title] {
+  view-transition-name: none;
+}
+
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 ::view-transition-group(record-title) {
   animation-duration: 160ms;
   animation-timing-function: ease;

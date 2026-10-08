@@ -37,6 +37,7 @@ export function ScheduleList({
       className: "min-w-56 font-medium",
       cell: (schedule) => (
         <DataTableLink
+          recordTitle
           to={buildDetailPath(basePath, schedule.id, selectedEventId)}
         >
           {schedule.name}
