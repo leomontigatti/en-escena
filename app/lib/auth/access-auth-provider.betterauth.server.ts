@@ -7,6 +7,7 @@ import {
   symmetricEncrypt,
   verifyPassword,
 } from "better-auth/crypto";
+import { APIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { desc, eq } from "drizzle-orm";
 import { parse, serialize } from "cookie";
@@ -19,7 +20,11 @@ import {
   sendAccessRecoveryEmail,
   sendAcademySignUpConfirmationEmail,
 } from "@/lib/auth/access-auth-emails.server";
-
+import {
+  RecoveryLinkRefusedError,
+  SignUpConfirmationRefusedError,
+} from "@/lib/auth/access-auth-provider.shared.server";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 import type {
   AccessAuthProvider,
   AccessCredentialUser,
@@ -292,7 +297,7 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       const pendingSignUp = await consumePendingEmailSignUp(input.tokenHash);
 
       if (!pendingSignUp) {
-        throw new Error("Email confirmation failed.");
+        throw new SignUpConfirmationRefusedError("Email confirmation failed.");
       }
 
       const { headers, response } = await createBetterAuthCredentialUser({
@@ -359,14 +364,27 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       const token = readRecoveryTokenCookie(input.request);
 
       if (!token) {
-        throw new Error("Recovery session missing.");
+        throw new RecoveryLinkRefusedError("Recovery session missing.");
       }
 
       const recoveryUserId = await readBetterAuthResetTokenUserId(token);
 
-      await auth.api.resetPassword({
-        body: { newPassword: input.newPassword, token },
-      });
+      try {
+        await auth.api.resetPassword({
+          body: { newPassword: input.newPassword, token },
+        });
+      } catch (thrown) {
+        // Better Auth consumes the token on the first reset, so a link
+        // submitted twice is refused here rather than above.
+        if (
+          thrown instanceof APIError &&
+          thrown.body?.code === "INVALID_TOKEN"
+        ) {
+          throw new RecoveryLinkRefusedError("Recovery link already used.");
+        }
+
+        throw thrown;
+      }
 
       if (recoveryUserId) {
         // The reset invalidates the credential; we revoke every active session
@@ -419,7 +437,17 @@ async function consumePendingEmailSignUp(
     });
 
     return { email: parsed.email, password };
-  } catch {
+  } catch (thrown) {
+    // A parse error quotes the payload, which holds the email, so it is named
+    // and not described.
+    console.error("[auth:provider:error]", {
+      operation: "confirmEmailOtp",
+      error:
+        thrown instanceof SyntaxError
+          ? thrown.name
+          : describeServerError(thrown),
+    });
+
     return null;
   }
 }
@@ -441,7 +469,7 @@ async function beginBetterAuthPasswordRecovery(input: {
   const recoveryUserId = await readBetterAuthResetTokenUserId(input.token);
 
   if (!recoveryUserId) {
-    throw new Error("Invalid recovery code.");
+    throw new RecoveryLinkRefusedError("Invalid recovery code.");
   }
 
   const headers = new Headers();

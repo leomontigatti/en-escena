@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { academies, accessSession, user } from "@/db/schema";
+import { auth } from "@/lib/auth/access-auth-provider.betterauth.server";
 import {
   createAccessUser,
   createSessionRequestCookie,
@@ -205,6 +206,60 @@ describe("access recovery", () => {
       }),
     ).resolves.toMatchObject({
       user: { email: "revocar-sesiones@example.com" },
+    });
+  });
+
+  describe("when Better Auth fails", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    test("logs one tagged line and shows the invalid-link message", async () => {
+      const { recoveryCode } = await createRecoverySessionState(
+        "proveedor-caido@example.com",
+      );
+      const loaderResponse = await expectThrownResponse(
+        changePasswordLoader({
+          url: new URL(
+            `http://localhost/cambiar-contrasena?code=${recoveryCode}`,
+          ),
+          pattern: "/cambiar-contrasena",
+          request: new Request(
+            `http://localhost/cambiar-contrasena?code=${recoveryCode}`,
+          ),
+          params: {},
+          context: {},
+        }),
+      );
+      vi.spyOn(auth.api, "resetPassword").mockRejectedValue(
+        new Error("Connection terminated unexpectedly"),
+      );
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const result = await changePasswordAction({
+        url: new URL("http://localhost/cambiar-contrasena?recuperacion=1"),
+        pattern: "/cambiar-contrasena",
+        request: createChangePasswordRequest({
+          password: NEW_PASSWORD,
+          cookie: createRecoveryCookie(loaderResponse.headers),
+          requestUrl: "http://localhost/cambiar-contrasena?recuperacion=1",
+        }),
+        params: {},
+        context: {},
+      });
+
+      expect(result).toMatchObject({
+        status: "error",
+        message:
+          "El enlace no es válido o expiró. Pedí uno nuevo para recuperar el acceso.",
+      });
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith("[auth:provider:error]", {
+        operation: "updatePasswordForRecovery",
+        error: expect.stringContaining("Connection terminated unexpectedly"),
+      });
     });
   });
 });

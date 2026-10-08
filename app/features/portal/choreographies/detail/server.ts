@@ -14,6 +14,7 @@ import {
 } from "@/lib/storage/choreography-music.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 const choreographySavedMessage =
   notificationToasts["choreography-saved"].message;
@@ -171,10 +172,15 @@ async function executeMusicUpdateAction(
     if (!musicResult.ok) {
       return buildRefusedSave(action, musicResult.message);
     }
-  } catch {
+  } catch (thrown) {
     // Everything the academy can act on now arrives as `ok: false` with its own
     // Spanish copy. What is left here is infrastructure failing, which no
     // rewording of theirs can fix.
+    console.error("[storage:music:error]", {
+      choreographyId: action.choreographyId,
+      error: describeServerError(thrown),
+    });
+
     return buildRefusedSave(action, choreographyMusicUploadErrorMessage);
   }
 

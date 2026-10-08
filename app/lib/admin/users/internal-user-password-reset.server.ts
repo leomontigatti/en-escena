@@ -7,6 +7,7 @@ import {
   setInternalCredentialPassword,
 } from "@/lib/auth/internal-user-auth.server";
 import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 const PASSWORD_MIN_LENGTH = 8;
 
@@ -82,7 +83,13 @@ export async function resetInternalUserPassword(
       },
       input.adminHeaders,
     );
-  } catch {
+  } catch (thrown) {
+    console.error("[auth:provider:error]", {
+      operation: "setUserPassword",
+      userId: existingUser.id,
+      error: describeServerError(thrown),
+    });
+
     return resetPasswordError(
       "No pudimos actualizar la contraseña de este Usuario.",
     );

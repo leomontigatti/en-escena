@@ -289,6 +289,19 @@ calls `CbteTipo` 11 and 13, `Proyecciones Artísticas Asociación Civil` is the
 issuer's legal name, and `Retirada` is a badge: a translated name names nothing.
 Backtick them and move on.
 
+### A `catch` rethrows what it does not expect, or logs before converting
+
+A catch that turns a failure into user copy hides it from everyone else, so it
+does one of two things ([#1514](https://github.com/leomontigatti/en-escena/issues/1514)).
+**It tests the condition it expects** — an error code, `instanceof`, a refusal
+class such as `RecoveryLinkRefusedError` — **and rethrows the rest**, so an
+unrelated failure reaches `handleError` and its `[server:unexpected]` line; or
+**it logs a tagged line before converting**: `console.error("[area:what]", {
+ids, error: describeServerError(thrown) })`, in the family of `[arca:unreachable]`
+and `[auth:provider:error]`, with ids and never a request body, document,
+email, password or token. A bare `catch {}` needs the expected condition in the
+code or a one-line reason above it.
+
 ### Commits and pull requests are English
 
 **Commit subjects and bodies, PR titles and PR descriptions are English.** They

@@ -46,13 +46,9 @@ function isSafeInternalRedirect(value: string | null) {
     return false;
   }
 
-  try {
-    const parsed = new URL(value, "http://localhost");
+  const parsed = URL.parse(value, "http://localhost");
 
-    return parsed.origin === "http://localhost";
-  } catch {
-    return false;
-  }
+  return parsed?.origin === "http://localhost";
 }
 
 function buildLoginRedirectUrl(request: Request, reason: LoginRedirectReason) {
