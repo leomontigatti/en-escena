@@ -123,6 +123,7 @@ describe("administration's `Gran final` list", () => {
                 pickChangeBlockReasons,
                 picks: loaderPicks,
                 selectedEventId: "evento",
+                voteCodeBatches: [],
               }}
             />
           ),

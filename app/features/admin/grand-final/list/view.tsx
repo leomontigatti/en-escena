@@ -22,6 +22,8 @@ import type {
 } from "@/lib/grand-final/picks-overview.server";
 
 import { buildFinalistBannersPath } from "../banners/shared";
+import { VoteCodeBatchesSection } from "../vote-codes/batches";
+import { GenerateVoteCodeBatchDialog } from "../vote-codes/generate-dialog";
 import { FinalistPickChangeDialog } from "./pick-dialog";
 import type {
   FinalistPickChangeBlockReason,
@@ -32,9 +34,10 @@ import type {
  * Administration's `Gran final` list for the active event: one table per
  * modality, an academy per row and a judge per column, so each judge's
  * `finalistPick` reads as a check in the academy's row, and each finalist's
- * banners as a status beside its name. The `Acciones` menu
- * holds the change of any judge's pick, with no window; the later actions of
- * the `grandFinal` join it.
+ * banners as a status beside its name, and below them the event's QR code
+ * batches. The `Acciones` menu holds the change of any judge's pick, with no
+ * window, and the generation of a batch; the later actions of the
+ * `grandFinal` join it.
  */
 export function GrandFinalListView({
   loaderData,
@@ -42,6 +45,7 @@ export function GrandFinalListView({
   loaderData: GrandFinalListResult;
 }) {
   const [isPickDialogOpen, setIsPickDialogOpen] = useState(false);
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const { picks } = loaderData;
 
   return (
@@ -60,11 +64,19 @@ export function GrandFinalListView({
             <DropdownMenuItem onSelect={() => setIsPickDialogOpen(true)}>
               Cambiar elección de finalista
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setIsGenerateDialogOpen(true)}>
+              Generar códigos QR
+            </DropdownMenuItem>
           </ResourceActionsMenu>
         ) : null
       }
     >
-      {picks ? <GrandFinalModalities picks={picks} /> : null}
+      {picks ? (
+        <div className="flex flex-col gap-8">
+          <GrandFinalModalities picks={picks} />
+          <VoteCodeBatchesSection batches={loaderData.voteCodeBatches} />
+        </div>
+      ) : null}
       {picks ? (
         <PickDialog
           blockReasons={loaderData.pickChangeBlockReasons}
@@ -72,6 +84,9 @@ export function GrandFinalListView({
           open={isPickDialogOpen}
           picks={picks}
         />
+      ) : null}
+      {isGenerateDialogOpen ? (
+        <GenerateVoteCodeBatchDialog onOpenChange={setIsGenerateDialogOpen} />
       ) : null}
     </AdminResourceLayout>
   );

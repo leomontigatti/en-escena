@@ -4,6 +4,7 @@ import type {
   GrandFinalModalityRow,
   GrandFinalPicks,
 } from "@/lib/grand-final/picks-overview.server";
+import type { VoteCodeBatchRow } from "@/lib/grand-final/vote-codes.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 /**
@@ -45,6 +46,7 @@ export type GrandFinalListResult = {
   pickChangeBlockReasons: FinalistPickChangeBlockReason[];
   picks: GrandFinalPicks | null;
   selectedEventId: string | null;
+  voteCodeBatches: VoteCodeBatchRow[];
 };
 
 /** The academy the judge picked in the modality, or "" when they have none. */

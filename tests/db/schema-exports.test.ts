@@ -54,6 +54,8 @@ const schemaExportNames = [
   "userRole",
   "uuidPrimaryKey",
   "verification",
+  "voteCodeBatches",
+  "voteCodes",
 ] as const;
 
 describe("schema export surface", () => {

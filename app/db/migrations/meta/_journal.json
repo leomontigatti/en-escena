@@ -358,6 +358,13 @@
       "when": 1791492392263,
       "tag": "0050_finalist_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1791494879280,
+      "tag": "0051_vote_code_batch",
+      "breakpoints": true
     }
   ]
 }

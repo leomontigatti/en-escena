@@ -10,7 +10,14 @@ import {
   readGrandFinalPicks,
   type GrandFinalPicks,
 } from "@/lib/grand-final/picks-overview.server";
+import { listVoteCodeBatches } from "@/lib/grand-final/vote-codes.server";
 import { readFormString } from "@/lib/shared/forms";
+
+import { handleVoteCodeBatchIntent } from "../vote-codes/server";
+import {
+  createVoteCodeBatchIntent,
+  voidVoteCodeBatchIntent,
+} from "../vote-codes/shared";
 
 import {
   finalistPickChangeSchema,
@@ -34,14 +41,18 @@ export async function loadGrandFinalListRouteData(
   }
 
   const { selectedEventId } = eventContext;
-  const picks = selectedEventId
-    ? await readGrandFinalPicks(selectedEventId)
-    : null;
+  const [picks, voteCodeBatches] = selectedEventId
+    ? await Promise.all([
+        readGrandFinalPicks(selectedEventId),
+        listVoteCodeBatches(selectedEventId),
+      ])
+    : [null, []];
 
   return {
     pickChangeBlockReasons: picks ? readPickChangeBlockReasons(picks) : [],
     picks,
     selectedEventId,
+    voteCodeBatches,
   };
 }
 
@@ -82,15 +93,25 @@ const refusalMessages: Record<
     "La modalidad o el juez ya no están en el evento activo. Revisá la lista y volvé a intentarlo.",
 };
 
+const voteCodeBatchIntents: readonly string[] = [
+  createVoteCodeBatchIntent,
+  voidVoteCodeBatchIntent,
+];
+
 /**
- * The change of a judge's pick from the list's dialog. It stays: the answer
- * goes back as data for a toast and the list revalidates.
+ * The list's writes: the change of a judge's pick from its dialog, and the
+ * QR code batches. Each stays: the answer goes back as data for a toast and
+ * the list revalidates.
  */
 export async function handleGrandFinalListAction(
   request: Request,
 ): Promise<GrandFinalListActionData | ReturnType<typeof data>> {
   await requireAdminPanelUser(request);
   const formData = await request.formData();
+
+  if (voteCodeBatchIntents.includes(readFormString(formData, "intent"))) {
+    return await handleVoteCodeBatchIntent(request, formData);
+  }
   const parsed = finalistPickChangeSchema.safeParse({
     academyId: readFormString(formData, "academyId"),
     intent: readFormString(formData, "intent"),

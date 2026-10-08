@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   foreignKey,
   index,
+  integer,
   text,
   timestamp,
   uniqueIndex,
@@ -123,5 +124,66 @@ export const finalistBanners = createTable(
       table.academyId,
     ),
     index("finalist_banner_academy_idx").on(table.academyId),
+  ],
+).enableRLS();
+
+/**
+ * One print run of `voteCode`s administration generates for the event. Its
+ * `number` is what the printout and the list call it (`Lote 3`), counted per
+ * event. `createdAt` is when it was issued. `voidedAt` voids every code in
+ * it at once: a lost or leaked run is voided as a whole, never code by code.
+ *
+ * Cascade on the event: a deleted event's batches mean nothing.
+ */
+export const voteCodeBatches = createTable(
+  "vote_code_batch",
+  {
+    id: uuidPrimaryKey(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    number: integer("number").notNull(),
+    voidedAt: timestamp("voided_at", { mode: "date", withTimezone: true }),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "vote_code_batch_event_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("vote_code_batch_event_number_unique").on(
+      table.eventId,
+      table.number,
+    ),
+  ],
+).enableRLS();
+
+/**
+ * A one-time `voteCode`: a random token the printed QR carries in the vote
+ * URL. Nothing about it depends on a date, so it is valid on any day of the
+ * event; whether it is voided is its batch's. The token is unique across every
+ * event, not only its own, so a code can never be read as another's.
+ *
+ * Cascade on the batch, which cascades on the event.
+ */
+export const voteCodes = createTable(
+  "vote_code",
+  {
+    id: uuidPrimaryKey(),
+    batchId: varchar("batch_id", { length: 255 }).notNull(),
+    token: varchar("token", { length: 64 }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.batchId],
+      foreignColumns: [voteCodeBatches.id],
+      name: "vote_code_batch_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("vote_code_token_unique").on(table.token),
+    index("vote_code_batch_idx").on(table.batchId),
   ],
 ).enableRLS();
