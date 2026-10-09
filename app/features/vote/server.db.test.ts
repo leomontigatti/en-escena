@@ -9,10 +9,22 @@ import {
   type VoterSignIn,
 } from "@/lib/grand-final/voter-sign-in.server";
 import {
+  openTieBreakRound,
+  readActiveEventVotingRound,
+  readCurrentVotingRound,
+} from "@/lib/grand-final/voting-round.server";
+import { readCodeStanding } from "@/lib/grand-final/vote.server";
+import {
+  hideGrandFinalResult,
+  publishGrandFinalResult,
+} from "@/lib/grand-final/result.server";
+import {
+  closeCurrentVotingRound,
   seedFinalistsFixture,
   seedOpenRoundFixture,
+  seedResultFixture,
+  seedTiedRoundFixture,
 } from "@/lib/grand-final/voting.test-support";
-import { closeVotingRound } from "@/lib/grand-final/voting-round.server";
 import { createFilesystemGrandFinalBannerStorage } from "@/lib/storage/grand-final-banners.server";
 
 import { handleVoteAction, loadVotePage } from "./server";
@@ -114,13 +126,21 @@ async function load(
   };
 }
 
+/**
+ * Sends the vote form. It names the round the visitor's page showed: the
+ * current one, unless the test says otherwise.
+ */
 async function vote(
-  input: { academyId: string; codigo: string },
+  input: { academyId: string; codigo: string; roundId?: string },
   visitor?: Visitor,
 ) {
   const body = new FormData();
   body.set("academyId", input.academyId);
   body.set("codigo", input.codigo);
+  body.set(
+    "roundId",
+    input.roundId ?? (await readActiveEventVotingRound())?.id ?? "",
+  );
 
   try {
     const answer = await handleVoteAction(
@@ -163,11 +183,62 @@ describe("the public vote page", () => {
       tokens: [token],
     } = await round.issueCodes();
     await vote({ academyId: round.alas, codigo: token });
-    await closeVotingRound({ eventId: round.eventId });
+    await closeCurrentVotingRound(round.eventId);
 
     await expect(load(`?codigo=${token}`)).resolves.toMatchObject({
       page: { state: "closed" },
     });
+  });
+
+  test("shows the published ranking with each finalist's share and no totals, only while it is published", async () => {
+    const fixture = await seedResultFixture();
+    const [token] = await fixture.issueCodes(1);
+    await fixture.vote(fixture.alas, { tokens: [token] });
+    await fixture.vote(fixture.ritmo, { voters: 3 });
+    await closeCurrentVotingRound(fixture.eventId);
+
+    await expect(load()).resolves.toMatchObject({ page: { state: "closed" } });
+
+    await publishGrandFinalResult({ eventId: fixture.eventId });
+
+    await expect(load(`?codigo=${token}`)).resolves.toEqual({
+      cacheControl: "no-store",
+      page: {
+        ranking: [
+          {
+            academyId: fixture.alas,
+            city: null,
+            name: "Alas",
+            percentage: 76.9,
+            position: 1,
+            winner: true,
+          },
+          {
+            academyId: fixture.ritmo,
+            city: null,
+            name: "Ritmo Sur",
+            percentage: 23.1,
+            position: 2,
+            winner: false,
+          },
+          {
+            academyId: fixture.sol,
+            city: null,
+            name: "Sol",
+            percentage: 0,
+            position: 3,
+            winner: false,
+          },
+        ],
+        roundNumber: 1,
+        state: "published",
+        tieBrokenByCodeVotes: false,
+      },
+    });
+
+    await hideGrandFinalResult({ eventId: fixture.eventId });
+
+    await expect(load()).resolves.toMatchObject({ page: { state: "closed" } });
   });
 
   test("shows the finalists with their two pictures, and keeps the code it arrived with", async () => {
@@ -187,6 +258,7 @@ describe("the public vote page", () => {
         expect.objectContaining({ academyId: round.alas, name: "Alas" }),
         expect.objectContaining({ academyId: round.ritmo, name: "Ritmo Sur" }),
       ],
+      roundId: round.roundId,
       state: "open",
     });
     expect(
@@ -361,6 +433,7 @@ describe("a vote with Google", () => {
     const body = new FormData();
     body.set("academyId", round.alas);
     body.set("codigo", "");
+    body.set("roundId", round.roundId);
 
     const answer = await handleVoteAction(
       request(`/votar?codigo=${token}`, visitor, { body, method: "POST" }),
@@ -461,6 +534,34 @@ describe("a vote cast from the page", () => {
     await expect(db.$count(votes)).resolves.toBe(1);
   });
 
+  test("refuses a form chosen in round 1 and sent once the Desempate opened, casting nothing in round 2", async () => {
+    const fixture = await seedTiedRoundFixture();
+    const roundOne = await readCurrentVotingRound(fixture.eventId);
+    await openTieBreakRound({ eventId: fixture.eventId });
+    const roundTwo = await readCurrentVotingRound(fixture.eventId);
+
+    await expect(
+      vote({
+        academyId: fixture.alas,
+        codigo: fixture.tokens[1],
+        roundId: roundOne?.id ?? "",
+      }),
+    ).resolves.toMatchObject({
+      data: {
+        message:
+          "Se abrió el desempate entre las academias empatadas. Recargá la página para votar de nuevo.",
+        status: "error",
+      },
+      status: 409,
+    });
+    await expect(
+      readCodeStanding({
+        roundId: roundTwo?.id ?? "",
+        token: fixture.tokens[1],
+      }),
+    ).resolves.toEqual({ status: "available" });
+  });
+
   test("is refused with its reason for a voided code, and for a closed round", async () => {
     const round = await seedOpenRoundFixture();
     const { batchId, tokens } = await round.issueCodes(2);
@@ -478,7 +579,7 @@ describe("a vote cast from the page", () => {
       status: 409,
     });
 
-    await closeVotingRound({ eventId: round.eventId });
+    await closeCurrentVotingRound(round.eventId);
 
     await expect(
       vote({ academyId: round.alas, codigo: tokens[1] }),

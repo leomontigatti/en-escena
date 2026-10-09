@@ -11,6 +11,8 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 export const voteFormSchema = z.object({
   academyId: z.string().trim().min(1, requiredFieldMessage),
   codigo: z.string().trim(),
+  /** The round the visitor chose in: a vote never lands in a later one. */
+  roundId: z.string().trim().min(1, requiredFieldMessage),
 });
 
 export type VoteFormValues = z.input<typeof voteFormSchema>;
@@ -42,18 +44,42 @@ export type VoteBlockReason = {
 export type VoteGoogleSignIn = "offered" | "signed-in" | null;
 
 /**
+ * A finalist in the published `grandFinalResult`: its place and its share of
+ * the weighted points, never the points or the votes themselves.
+ */
+export type PublishedFinalist = {
+  academyId: string;
+  city: string | null;
+  name: string;
+  percentage: number;
+  position: number;
+  winner: boolean;
+};
+
+/**
  * `not-open` before the round opens, `closed` once it closed: the page says
- * which, and nothing else, until the result is published.
+ * which, and nothing else, until the result is published, when it shows the
+ * last round's ranking.
  */
 export type VotePageData =
   | { state: "closed" }
   | { state: "not-open" }
+  | {
+      ranking: PublishedFinalist[];
+      /** 2 when the ranking is the `Desempate`'s. */
+      roundNumber: number;
+      state: "published";
+      /** The first place tied on points and the QR votes decided it. */
+      tieBrokenByCodeVotes: boolean;
+    }
   | {
       blockReasons: VoteBlockReason[];
       /** The code the visitor arrived with, when it can still vote. */
       code: string | null;
       finalists: VoteFinalist[];
       googleSignIn: VoteGoogleSignIn;
+      /** The open round, which the vote form names. */
+      roundId: string;
       state: "open";
     }
   | {

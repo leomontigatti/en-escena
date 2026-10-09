@@ -37,6 +37,39 @@ const finalists = [
   },
 ];
 
+/** A Desempate that stayed tied: two winners sharing the first place. */
+const publishedPage: VotePageData = {
+  ranking: [
+    {
+      academyId: "alas",
+      city: "Córdoba",
+      name: "Alas",
+      percentage: 41.2,
+      position: 1,
+      winner: true,
+    },
+    {
+      academyId: "ritmo",
+      city: null,
+      name: "Ritmo Sur",
+      percentage: 41.2,
+      position: 1,
+      winner: true,
+    },
+    {
+      academyId: "sol",
+      city: null,
+      name: "Sol",
+      percentage: 17.6,
+      position: 3,
+      winner: false,
+    },
+  ],
+  roundNumber: 2,
+  state: "published",
+  tieBrokenByCodeVotes: false,
+};
+
 describe("the public vote page", () => {
   const renderer = createReactDomTestRenderer();
   const submitted: FormData[] = [];
@@ -93,6 +126,7 @@ describe("the public vote page", () => {
         state: "registered",
       } as const,
     },
+    { page: publishedPage },
   ])("offers no vote while the page is $page.state", async ({ page }) => {
     await mount(page);
 
@@ -114,6 +148,7 @@ describe("the public vote page", () => {
       code: "codigo-impreso",
       finalists,
       googleSignIn: null,
+      roundId: "ronda-1",
       state: "open",
     });
 
@@ -123,6 +158,7 @@ describe("the public vote page", () => {
     expect(Object.fromEntries(submitted[0])).toEqual({
       academyId: "ritmo",
       codigo: "codigo-impreso",
+      roundId: "ronda-1",
     });
   });
 
@@ -132,6 +168,7 @@ describe("the public vote page", () => {
       code: "codigo-impreso",
       finalists,
       googleSignIn: null,
+      roundId: "ronda-1",
       state: "open",
     });
 
@@ -155,6 +192,7 @@ describe("the public vote page", () => {
       code: null,
       finalists,
       googleSignIn: "signed-in",
+      roundId: "ronda-1",
       state: "open",
     });
 
@@ -169,6 +207,7 @@ describe("the public vote page", () => {
     expect(Object.fromEntries(submitted[0])).toEqual({
       academyId: "alas",
       codigo: "",
+      roundId: "ronda-1",
     });
     expect(toast.error).toHaveBeenCalledWith(answer.message, expect.anything());
   });
@@ -181,6 +220,7 @@ describe("the public vote page", () => {
       code: null,
       finalists,
       googleSignIn: "offered",
+      roundId: "ronda-1",
       state: "open",
     });
 

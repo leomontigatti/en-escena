@@ -208,6 +208,11 @@ export const votingRounds = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
     closedAt: timestamp("closed_at", { mode: "date", withTimezone: true }),
+    /** When administration published this round's `grandFinalResult`. */
+    publishedAt: timestamp("published_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
   },
   (table) => [
     foreignKey({

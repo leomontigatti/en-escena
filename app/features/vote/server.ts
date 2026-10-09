@@ -9,6 +9,7 @@ import {
   type VoteIdentity,
   type VoterStanding,
 } from "@/lib/grand-final/vote.server";
+import { readPublishedRanking } from "@/lib/grand-final/result.server";
 import {
   buildVoteCodePath,
   voteCodeParam,
@@ -18,6 +19,7 @@ import { createDefaultVoterSignIn } from "@/lib/grand-final/voter-identity-provi
 import type { VoterSignIn } from "@/lib/grand-final/voter-sign-in.server";
 import {
   readActiveEventVotingRound,
+  type CurrentVotingRound,
   type VotingRoundFinalist,
 } from "@/lib/grand-final/voting-round.server";
 import { readFormString } from "@/lib/shared/forms";
@@ -85,7 +87,7 @@ async function readVotePage(
   }
 
   if (round.closedAt) {
-    return { state: "closed" };
+    return await readClosedPage(round);
   }
 
   const visitor = await readVisitor(request, round.id, signIn);
@@ -105,7 +107,37 @@ async function readVotePage(
     finalists: await Promise.all(
       round.finalists.map((finalist) => signFinalist(finalist, storage)),
     ),
+    roundId: round.id,
     state: "open",
+  };
+}
+
+/**
+ * A closed round's page: its ranking once administration published it, and
+ * only that it closed until then. The ranking carries each finalist's share,
+ * never its points or votes.
+ */
+async function readClosedPage(
+  round: CurrentVotingRound,
+): Promise<VotePageData> {
+  const ranking = await readPublishedRanking(round);
+
+  if (!ranking) {
+    return { state: "closed" };
+  }
+
+  return {
+    ranking: ranking.entries.map((entry) => ({
+      academyId: entry.academyId,
+      city: entry.city,
+      name: entry.name,
+      percentage: entry.percentage,
+      position: entry.position,
+      winner: entry.winner,
+    })),
+    roundNumber: round.number,
+    state: "published",
+    tieBrokenByCodeVotes: ranking.tieBrokenByCodeVotes,
   };
 }
 
@@ -219,6 +251,31 @@ const refusalMessages: Record<CastVoteRefusal, string> = {
   "voided-code": blockReasonLabels["voided-code"],
 };
 
+const tieBreakOpenedMessage =
+  "Se abrió el desempate entre las academias empatadas. Recargá la página para votar de nuevo.";
+
+/**
+ * The round a vote is cast in: the active event's open round, and only when
+ * it is the round the form was loaded in. A form loaded in round 1 and sent
+ * once the `Desempate` opened chose among round 1's finalists: it is refused,
+ * never cast in round 2.
+ */
+async function findRoundToVoteIn(
+  formRoundId: string,
+): Promise<{ id: string } | { refusal: string }> {
+  const round = await readActiveEventVotingRound();
+
+  if (!round || round.closedAt) {
+    return { refusal: refusalMessages["round-closed"] };
+  }
+
+  if (formRoundId !== round.id) {
+    return { refusal: tieBreakOpenedMessage };
+  }
+
+  return { id: round.id };
+}
+
 function refusal(message: string, status: number) {
   return data<VoteActionData>(
     { message, status: "error" },
@@ -241,6 +298,7 @@ export async function handleVoteAction(
   const parsed = voteFormSchema.safeParse({
     academyId: readFormString(formData, "academyId"),
     codigo: readFormString(formData, "codigo"),
+    roundId: readFormString(formData, "roundId"),
   });
   // A code in the address wins here as on the page: a request that names one
   // never falls back to the voter.
@@ -251,10 +309,10 @@ export async function handleVoteAction(
     return refusal(signIn ? codeOrGoogleLabel : codeOnlyLabel, 400);
   }
 
-  const round = await readActiveEventVotingRound();
+  const round = await findRoundToVoteIn(parsed.data.roundId);
 
-  if (!round || round.closedAt) {
-    return refusal(refusalMessages["round-closed"], 409);
+  if ("refusal" in round) {
+    return refusal(round.refusal, 409);
   }
 
   const identity: VoteIdentity = token

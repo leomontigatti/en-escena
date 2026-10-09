@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import { createAcademyUser } from "@/lib/admin/finances/finances.test-support";
-import { seedFinalistsFixture } from "@/lib/grand-final/voting.test-support";
 import {
-  closeVotingRound,
-  openVotingRound,
-} from "@/lib/grand-final/voting-round.server";
+  closeCurrentVotingRound,
+  seedFinalistsFixture,
+} from "@/lib/grand-final/voting.test-support";
+import { openVotingRound } from "@/lib/grand-final/voting-round.server";
 
 import { loadPortalHome } from "./server";
 
@@ -48,7 +48,7 @@ describe("the portal home's vote URL", () => {
       grandFinal: { voteUrl },
     });
 
-    await closeVotingRound({ eventId: fixture.eventId });
+    await closeCurrentVotingRound(fixture.eventId);
 
     await expect(finalist.loadHome()).resolves.toMatchObject({
       grandFinal: { voteUrl: null },

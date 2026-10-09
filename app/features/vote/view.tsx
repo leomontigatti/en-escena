@@ -1,5 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, CircleAlert, CircleCheck, Info, Vote } from "lucide-react";
+import {
+  Check,
+  CircleAlert,
+  CircleCheck,
+  Crown,
+  Info,
+  Vote,
+} from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
@@ -9,6 +16,7 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,7 +25,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import { formatVoteShare } from "@/lib/grand-final/ranking";
 import { voterSignInPath } from "@/lib/grand-final/vote-url";
 import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -32,25 +42,37 @@ import {
   type VoteFormValues,
   type VoteGoogleSignIn,
   type VotePageData,
+  type PublishedFinalist,
 } from "./shared";
 
 /**
  * The public vote of the `Gran final`, designed for the phone a visitor
  * scanned their ticket's QR code with, or signed in with Google on. It reads
- * in four states: the vote has not opened, the finalists to choose from, the
- * vote already registered, and the vote closed.
+ * in five states: the vote has not opened, the finalists to choose from, the
+ * vote already registered, the vote closed, and the published result.
  */
 export function VotePageView({ page }: { page: VotePageData }) {
   return (
     <PublicVoteShell>
       {page.state === "not-open" ? <NotOpen /> : null}
       {page.state === "closed" ? <Closed /> : null}
+      {page.state === "published" ? (
+        <Published
+          ranking={page.ranking}
+          roundNumber={page.roundNumber}
+          tieBrokenByCodeVotes={page.tieBrokenByCodeVotes}
+        />
+      ) : null}
       {page.state === "open" ? (
+        // Keyed by round: the form's values start over when the
+        // `Desempate` opens on a page already showing round 1.
         <OpenVote
           blockReasons={page.blockReasons}
           code={page.code}
           finalists={page.finalists}
           googleSignIn={page.googleSignIn}
+          key={page.roundId}
+          roundId={page.roundId}
         />
       ) : null}
       {page.state === "registered" ? (
@@ -121,17 +143,19 @@ function OpenVote({
   code,
   finalists,
   googleSignIn,
+  roundId,
 }: {
   blockReasons: VoteBlockReason[];
   code: string | null;
   finalists: VoteFinalist[];
   googleSignIn: VoteGoogleSignIn;
+  roundId: string;
 }) {
   const fetcher = useFetcher<VoteActionData>();
   const isVoting = fetcher.state !== "idle";
   const [isBlockedOpen, setIsBlockedOpen] = useState(false);
   const form = useForm<VoteFormValues>({
-    defaultValues: { academyId: "", codigo: code ?? "" },
+    defaultValues: { academyId: "", codigo: code ?? "", roundId },
     resolver: zodResolver(voteFormSchema),
   });
   const selectedId = form.watch("academyId");
@@ -443,6 +467,83 @@ function Registered({
           Ya podés cerrar esta página.
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * The published `grandFinalResult`: every finalist of the last round in its
+ * place, with its share of the weighted points. Tied finalists share a place,
+ * and when a `Desempate` stayed tied every winner is marked.
+ */
+function Published({
+  ranking,
+  roundNumber,
+  tieBrokenByCodeVotes,
+}: {
+  ranking: PublishedFinalist[];
+  roundNumber: number;
+  tieBrokenByCodeVotes: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-4 px-4 py-5">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-xl font-semibold">Resultado de la Gran final</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          {roundNumber > 1
+            ? "Resultado del desempate entre las academias que empataron en el primer puesto. "
+            : null}
+          El porcentaje es la parte de los puntos de la votación que obtuvo cada
+          academia.
+        </p>
+        {tieBrokenByCodeVotes ? (
+          <p className="text-sm leading-6 text-muted-foreground">
+            Las academias empataron en puntos: ganó la que tuvo más votos con
+            código QR.
+          </p>
+        ) : null}
+      </div>
+      <ol className="flex flex-col gap-3" aria-label="Ranking de la Gran final">
+        {ranking.map((finalist) => (
+          <li key={finalist.academyId}>
+            <Card
+              size="sm"
+              className={cn(finalist.winner && "ring-2 ring-brand")}
+            >
+              <CardContent className="flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg leading-tight font-semibold tabular-nums">
+                    {finalist.position}.º
+                  </span>
+                  <div className="grid min-w-0 flex-1 gap-0.5">
+                    <span className="leading-tight font-medium text-balance">
+                      {finalist.name}
+                    </span>
+                    {finalist.city ? (
+                      <span className="text-sm text-muted-foreground">
+                        {finalist.city}
+                      </span>
+                    ) : null}
+                    {finalist.winner ? (
+                      <Badge variant="success" className="mt-1">
+                        <Crown aria-hidden="true" data-icon="inline-start" />
+                        Ganadora
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <span className="font-semibold tabular-nums">
+                    {formatVoteShare(finalist.percentage)}
+                  </span>
+                </div>
+                <Progress
+                  aria-label={`Porcentaje de ${finalist.name}`}
+                  value={finalist.percentage}
+                />
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

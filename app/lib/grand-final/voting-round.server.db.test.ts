@@ -1,10 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { finalistBanners } from "@/db/schema";
+import { db } from "@/db";
+import { finalistBanners, votes } from "@/db/schema";
+import { castVote } from "@/lib/grand-final/vote.server";
 
 import {
   closeVotingRound,
+  openTieBreakRound,
   openVotingRound,
   readCurrentVotingRound,
   readVotingRoundOpenBlockers,
@@ -15,7 +18,12 @@ import {
   isPgliteTestBackend,
 } from "../../../tests/db/harness";
 import { runBehindAHolder } from "../../../tests/db/lock-contention";
-import { seedFinalistsFixture } from "./voting.test-support";
+import {
+  closeCurrentVotingRound,
+  seedFinalistsFixture,
+  seedResultFixture,
+  seedTiedRoundFixture,
+} from "./voting.test-support";
 
 installDatabaseTestHooks();
 
@@ -55,6 +63,7 @@ describe("`openVotingRound`", () => {
       id: expect.any(String),
       number: 1,
       openedAt: expect.any(Date),
+      publishedAt: null,
     });
   });
 
@@ -94,7 +103,7 @@ describe("`openVotingRound`", () => {
       openVotingRound({ eventId: fixture.eventId }),
     ).resolves.toEqual({ blockers: [{ code: "already-open" }], ok: false });
 
-    await closeVotingRound({ eventId: fixture.eventId });
+    await closeCurrentVotingRound(fixture.eventId);
 
     await expect(
       openVotingRound({ eventId: fixture.eventId }),
@@ -142,9 +151,10 @@ describe("`closeVotingRound`", () => {
     await fixture.addFinalist("Alas");
     await openVotingRound({ eventId: fixture.eventId });
 
-    await expect(
-      closeVotingRound({ eventId: fixture.eventId }),
-    ).resolves.toEqual({ number: 1, ok: true });
+    await expect(closeCurrentVotingRound(fixture.eventId)).resolves.toEqual({
+      number: 1,
+      ok: true,
+    });
 
     const round = await readCurrentVotingRound(fixture.eventId);
     expect(round?.closedAt).toBeInstanceOf(Date);
@@ -154,20 +164,144 @@ describe("`closeVotingRound`", () => {
     const fixture = await seedFinalistsFixture();
     await fixture.addFinalist("Alas");
 
-    await expect(
-      closeVotingRound({ eventId: fixture.eventId }),
-    ).resolves.toEqual({ ok: false, reason: "not-open" });
+    await expect(closeCurrentVotingRound(fixture.eventId)).resolves.toEqual({
+      ok: false,
+      reason: "not-open",
+    });
 
     await openVotingRound({ eventId: fixture.eventId });
-    await closeVotingRound({ eventId: fixture.eventId });
+    await closeCurrentVotingRound(fixture.eventId);
     const closedAt = (await readCurrentVotingRound(fixture.eventId))?.closedAt;
 
-    await expect(
-      closeVotingRound({ eventId: fixture.eventId }),
-    ).resolves.toEqual({ ok: false, reason: "not-open" });
+    await expect(closeCurrentVotingRound(fixture.eventId)).resolves.toEqual({
+      ok: false,
+      reason: "not-open",
+    });
     await expect(
       readCurrentVotingRound(fixture.eventId),
     ).resolves.toMatchObject({ closedAt });
+  });
+
+  test("closes only the round it names: a late close of round 1 leaves the Desempate open", async () => {
+    const fixture = await seedResultFixture();
+    const roundOne = await readCurrentVotingRound(fixture.eventId);
+    await fixture.vote(fixture.alas, { voters: 1 });
+    await fixture.vote(fixture.ritmo, { voters: 1 });
+    await closeVotingRound({
+      eventId: fixture.eventId,
+      roundId: roundOne?.id ?? "",
+    });
+    await openTieBreakRound({ eventId: fixture.eventId });
+
+    await expect(
+      closeVotingRound({
+        eventId: fixture.eventId,
+        roundId: roundOne?.id ?? "",
+      }),
+    ).resolves.toEqual({ ok: false, reason: "not-open" });
+    await expect(
+      readCurrentVotingRound(fixture.eventId),
+    ).resolves.toMatchObject({ closedAt: null, number: 2 });
+  });
+});
+
+describe("`openTieBreakRound`", () => {
+  test("opens round 2 over the academies tied for first place only, with their round 1 banners", async () => {
+    const fixture = await seedTiedRoundFixture();
+    const roundOne = await readCurrentVotingRound(fixture.eventId);
+
+    await expect(
+      openTieBreakRound({ eventId: fixture.eventId }),
+    ).resolves.toEqual({ number: 2, ok: true });
+
+    const roundTwo = await readCurrentVotingRound(fixture.eventId);
+    expect(roundTwo).toMatchObject({ closedAt: null, number: 2 });
+    expect(roundTwo?.id).not.toBe(roundOne?.id);
+    expect(roundTwo?.finalists).toEqual(
+      roundOne?.finalists.filter(
+        (finalist) => finalist.academyId !== fixture.sol,
+      ),
+    );
+  });
+
+  test("keeps round 1's votes and lets its codes vote again", async () => {
+    const fixture = await seedTiedRoundFixture();
+    const roundOne = await readCurrentVotingRound(fixture.eventId);
+    await openTieBreakRound({ eventId: fixture.eventId });
+    const roundTwo = await readCurrentVotingRound(fixture.eventId);
+
+    await expect(
+      castVote({
+        academyId: fixture.ritmo,
+        identity: { kind: "code", token: fixture.tokens[0] },
+        roundId: roundTwo?.id ?? "",
+      }),
+    ).resolves.toEqual({ ok: true });
+    await expect(
+      castVote({
+        academyId: fixture.sol,
+        identity: { kind: "code", token: fixture.tokens[1] },
+        roundId: roundTwo?.id ?? "",
+      }),
+    ).resolves.toEqual({ ok: false, reason: "not-finalist" });
+
+    const roundOneVotes = await db
+      .select({ id: votes.id })
+      .from(votes)
+      .where(eq(votes.roundId, roundOne?.id ?? ""));
+    expect(roundOneVotes).toHaveLength(15);
+  });
+
+  test("is refused before round 1 opens, while it is open, and after it closed with one winner", async () => {
+    const fixture = await seedResultFixture();
+
+    await expect(
+      openTieBreakRound({ eventId: crypto.randomUUID() }),
+    ).resolves.toEqual({ ok: false, reasons: ["no-round"] });
+    await expect(
+      openTieBreakRound({ eventId: fixture.eventId }),
+    ).resolves.toEqual({ ok: false, reasons: ["round-open"] });
+
+    await fixture.vote(fixture.alas, { voters: 1 });
+    await closeCurrentVotingRound(fixture.eventId);
+
+    await expect(
+      openTieBreakRound({ eventId: fixture.eventId }),
+    ).resolves.toEqual({ ok: false, reasons: ["no-tie"] });
+  });
+
+  test("is refused once the Desempate opened, and after it closed tied too", async () => {
+    const fixture = await seedTiedRoundFixture();
+    await openTieBreakRound({ eventId: fixture.eventId });
+
+    await expect(
+      openTieBreakRound({ eventId: fixture.eventId }),
+    ).resolves.toEqual({
+      ok: false,
+      reasons: ["round-open", "already-tie-break"],
+    });
+
+    await closeCurrentVotingRound(fixture.eventId);
+
+    await expect(
+      openTieBreakRound({ eventId: fixture.eventId }),
+    ).resolves.toEqual({ ok: false, reasons: ["already-tie-break"] });
+  });
+
+  test("opens one round when asked twice at once", async () => {
+    const fixture = await seedTiedRoundFixture();
+
+    const results = await Promise.all([
+      openTieBreakRound({ eventId: fixture.eventId }),
+      openTieBreakRound({ eventId: fixture.eventId }),
+    ]);
+
+    expect(results).toEqual(
+      expect.arrayContaining([
+        { number: 2, ok: true },
+        { ok: false, reasons: ["round-open", "already-tie-break"] },
+      ]),
+    );
   });
 });
 

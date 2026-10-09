@@ -26,7 +26,10 @@ import {
 } from "../voting-round/server";
 import {
   closeVotingRoundIntent,
+  hideGrandFinalResultIntent,
+  openTieBreakRoundIntent,
   openVotingRoundIntent,
+  publishGrandFinalResultIntent,
 } from "../voting-round/shared";
 
 import {
@@ -113,11 +116,15 @@ const voteCodeBatchIntents: readonly string[] = [
 const votingRoundIntents: readonly string[] = [
   openVotingRoundIntent,
   closeVotingRoundIntent,
+  openTieBreakRoundIntent,
+  publishGrandFinalResultIntent,
+  hideGrandFinalResultIntent,
 ];
 
 /**
  * The list's writes: the change of a judge's pick from its dialog, the QR
- * code batches, and the opening and closing of the voting round. Each stays:
+ * code batches, and the voting round's: opening and closing it, the
+ * `Desempate`, and publishing or hiding the result. Each stays:
  * the answer goes back as data for a toast and the list revalidates.
  */
 export async function handleGrandFinalListAction(

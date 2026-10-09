@@ -10,6 +10,7 @@ import {
   createAcademyUser,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
+import { castVote } from "@/lib/grand-final/vote.server";
 import {
   createVoteCodeBatch,
   readVoteCode,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/grand-final/vote-codes.server";
 
 import {
+  closeVotingRound,
   openVotingRound,
   readCurrentVotingRound,
 } from "@/lib/grand-final/voting-round.server";
@@ -183,4 +185,92 @@ export async function seedOpenRoundFixture() {
       return { batchId: batch.id, tokens: sheet?.tokens ?? [] };
     },
   };
+}
+
+/**
+ * Three finalists, `Alas`, `Ritmo Sur` and `Sol`, with round 1 open over
+ * them, and a way to cast votes in whichever round is current: each code vote
+ * with a code of its own, each voter vote by a fresh voter.
+ */
+export async function seedResultFixture() {
+  const fixture = await seedFinalistsFixture();
+  const alas = await fixture.addFinalist("Alas");
+  const ritmo = await fixture.addFinalist("Ritmo Sur");
+  const sol = await fixture.addFinalist("Sol");
+  await openVotingRound({ eventId: fixture.eventId });
+
+  return {
+    alas,
+    eventId: fixture.eventId,
+    ritmo,
+    sol,
+    /** Issues a batch of `count` codes of the event and answers their tokens. */
+    issueCodes: async (count: number) => {
+      const batch = await createVoteCodeBatch({
+        count,
+        eventId: fixture.eventId,
+      });
+      const sheet = await readVoteCodeBatch({
+        batchId: batch.id,
+        eventId: fixture.eventId,
+      });
+
+      return sheet?.tokens ?? [];
+    },
+    /**
+     * Casts votes for the academy in the current round: one per token, and
+     * `voters` more by fresh voters. Throws when one does not count.
+     */
+    vote: async (
+      academyId: string,
+      votes: { tokens?: string[]; voters?: number },
+    ) => {
+      const round = await readCurrentVotingRound(fixture.eventId);
+      const identities = [
+        ...(votes.tokens ?? []).map((token) => ({
+          kind: "code" as const,
+          token,
+        })),
+        ...(
+          await Promise.all(
+            Array.from({ length: votes.voters ?? 0 }, () => seedVoter()),
+          )
+        ).map((voterId) => ({ kind: "voter" as const, voterId })),
+      ];
+
+      for (const identity of identities) {
+        const result = await castVote({
+          academyId,
+          identity,
+          roundId: round?.id ?? "",
+        });
+
+        if (!result.ok) {
+          throw new Error(`The vote did not count: ${result.reason}.`);
+        }
+      }
+    },
+  };
+}
+
+/**
+ * Round 1 closed with `Alas` and `Ritmo Sur` tied on 10 points, Alas by the
+ * first of three codes and Ritmo Sur by ten voters, and `Sol` behind on 4.
+ */
+export async function seedTiedRoundFixture() {
+  const fixture = await seedResultFixture();
+  const tokens = await fixture.issueCodes(3);
+  await fixture.vote(fixture.alas, { tokens: [tokens[0]] });
+  await fixture.vote(fixture.ritmo, { voters: 10 });
+  await fixture.vote(fixture.sol, { voters: 4 });
+  await closeCurrentVotingRound(fixture.eventId);
+
+  return { ...fixture, tokens };
+}
+
+/** Closes whichever round of the event is current, as administration would. */
+export async function closeCurrentVotingRound(eventId: string) {
+  const round = await readCurrentVotingRound(eventId);
+
+  return await closeVotingRound({ eventId, roundId: round?.id ?? "" });
 }

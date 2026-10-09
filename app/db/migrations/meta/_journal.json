@@ -379,6 +379,13 @@
       "when": 1791504965673,
       "tag": "0053_voter",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791508037073,
+      "tag": "0054_voting_round_published",
+      "breakpoints": true
     }
   ]
 }

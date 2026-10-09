@@ -7,11 +7,16 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import type { GrandFinalListActionData } from "../list/shared";
 import {
   closeVotingRoundIntent,
+  hideGrandFinalResultIntent,
+  openTieBreakRoundIntent,
   openVotingRoundIntent,
+  publishGrandFinalResultIntent,
+  type VotingRoundBlockReason,
   type VotingRoundListState,
 } from "./shared";
 
-export type VotingRoundAction = "close" | "open";
+export type VotingRoundAction =
+  "close" | "hide" | "open" | "publish" | "tie-break";
 
 const copy: Record<
   VotingRoundAction,
@@ -43,10 +48,59 @@ const copy: Record<
     intent: closeVotingRoundIntent,
     title: "¿Cerrar la votación?",
   },
+  "tie-break": {
+    blockedDescription:
+      "El desempate se abre una sola vez, cuando la votación cierra con empate en el primer puesto.",
+    blockedTitle: "No se puede abrir el desempate",
+    confirmLabel: "Abrir desempate",
+    description:
+      "Se abre una segunda votación solo entre las academias empatadas en el primer puesto. Los códigos QR vigentes vuelven a servir y los votos de la primera votación se conservan.",
+    intent: openTieBreakRoundIntent,
+    title: "¿Abrir el desempate?",
+  },
+  publish: {
+    blockedDescription:
+      "El resultado se publica cuando la votación cerró sin empate en el primer puesto.",
+    blockedTitle: "No se puede publicar el resultado",
+    confirmLabel: "Publicar resultado",
+    description:
+      "El ranking completo, con el porcentaje de cada academia, se muestra en /votar para todo el público.",
+    intent: publishGrandFinalResultIntent,
+    title: "¿Publicar el resultado?",
+  },
+  hide: {
+    blockedDescription: "Solo se oculta un resultado publicado.",
+    blockedTitle: "No se puede ocultar el resultado",
+    confirmLabel: "Ocultar resultado",
+    description:
+      "El ranking deja de verse en /votar. Podés volver a publicarlo cuando quieras.",
+    intent: hideGrandFinalResultIntent,
+    title: "¿Ocultar el resultado?",
+  },
 };
 
+function readBlockReasons(
+  action: VotingRoundAction | null,
+  state: VotingRoundListState,
+): VotingRoundBlockReason[] {
+  if (!action) {
+    return [];
+  }
+
+  const reasonsByAction: Record<VotingRoundAction, VotingRoundBlockReason[]> = {
+    close: state.closeBlockReasons,
+    hide: state.hideBlockReasons,
+    open: state.openBlockReasons,
+    publish: state.publishBlockReasons,
+    "tie-break": state.tieBreakBlockReasons,
+  };
+
+  return reasonsByAction[action];
+}
+
 /**
- * Opening and closing the `votingRound`, from the list's `Acciones` menu.
+ * Opening and closing the `votingRound`, opening its `Desempate`, and
+ * publishing or hiding its result, from the list's `Acciones` menu.
  * The menu item is always there: when the round's state forbids it, it opens
  * every reason instead of the confirmation, which closes on its confirming
  * click. Both stay on the list; the answer is a toast.
@@ -61,12 +115,7 @@ export function VotingRoundDialogs({
   state: VotingRoundListState;
 }) {
   const fetcher = useFetcher<GrandFinalListActionData>();
-  const reasons =
-    action === "open"
-      ? state.openBlockReasons
-      : action === "close"
-        ? state.closeBlockReasons
-        : [];
+  const reasons = readBlockReasons(action, state);
   const text = action ? copy[action] : copy.open;
 
   useServerActionToast(fetcher.data);
@@ -98,9 +147,14 @@ export function VotingRoundDialogs({
     <ConfirmationDialog
       confirmLabel={text.confirmLabel}
       description={text.description}
-      destructive={action === "close"}
+      destructive={action === "close" || action === "hide"}
       onConfirm={() => {
-        void fetcher.submit({ intent: text.intent }, { method: "post" });
+        void fetcher.submit(
+          action === "close"
+            ? { intent: text.intent, roundId: state.roundId ?? "" }
+            : { intent: text.intent },
+          { method: "post" },
+        );
       }}
       onOpenChange={(open) => {
         if (!open) {

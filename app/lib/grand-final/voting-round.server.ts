@@ -10,12 +10,19 @@ import {
   votingRounds,
 } from "@/db/schema";
 import type { FinalistBannerKeys } from "@/lib/grand-final/banners.server";
+import {
+  findTieBreakBlockers,
+  lockEvent,
+  readGrandFinalResult,
+  type TieBreakBlocker,
+} from "@/lib/grand-final/result.server";
 
 /**
  * The `Gran final`'s `votingRound`: administration opens it over the event's
  * `finalist`s, copying each with its two banners so a later pick or banner
- * change leaves the round alone, and closes it. This slice opens round 1
- * only; the `Desempate` is a second round over the tied academies.
+ * change leaves the round alone, and closes it. When round 1 closes with a
+ * tie for first place, the `Desempate` is a second round over the tied
+ * academies only.
  */
 
 type Executor = Pick<typeof db, "select" | "selectDistinct">;
@@ -33,6 +40,7 @@ export type CurrentVotingRound = {
   id: string;
   number: number;
   openedAt: Date;
+  publishedAt: Date | null;
 };
 
 /**
@@ -60,11 +68,7 @@ export async function openVotingRound(input: {
   eventId: string;
 }): Promise<OpenVotingRoundResult> {
   return await db.transaction(async (tx) => {
-    await tx
-      .select({ id: events.id })
-      .from(events)
-      .where(eq(events.id, input.eventId))
-      .for("update");
+    await lockEvent(tx, input.eventId);
     // A banner save holds its row until it commits and only then deletes
     // the objects it replaced: waiting for it means the round copies the
     // keys it wrote, and a save that comes after finds them copied.
@@ -98,6 +102,54 @@ export async function openVotingRound(input: {
   });
 }
 
+export type OpenTieBreakRoundResult =
+  { number: number; ok: true } | { ok: false; reasons: TieBreakBlocker[] };
+
+/**
+ * Opens the `Desempate`, round 2, over the academies tied for first place in
+ * round 1, each with the banners round 1 copied, or answers why it cannot.
+ * Every code is usable again, since a code votes once per round; round 1's
+ * votes stay as they are. The event row is locked first, so two opens, or an
+ * open and a publish, take turns.
+ */
+export async function openTieBreakRound(input: {
+  eventId: string;
+}): Promise<OpenTieBreakRoundResult> {
+  return await db.transaction(async (tx) => {
+    await lockEvent(tx, input.eventId);
+    const result = await readGrandFinalResult(input.eventId, tx);
+    const blockers = findTieBreakBlockers(result);
+
+    if (blockers.length > 0 || result?.status !== "closed") {
+      return { ok: false, reasons: blockers };
+    }
+
+    const tied = await tx
+      .select({
+        academyId: votingRoundFinalists.academyId,
+        firstStorageKey: votingRoundFinalists.firstStorageKey,
+        secondStorageKey: votingRoundFinalists.secondStorageKey,
+      })
+      .from(votingRoundFinalists)
+      .where(
+        and(
+          eq(votingRoundFinalists.roundId, result.roundId),
+          inArray(votingRoundFinalists.academyId, result.outcome.academyIds),
+        ),
+      );
+    const [round] = await tx
+      .insert(votingRounds)
+      .values({ eventId: input.eventId, number: 2 })
+      .returning({ id: votingRounds.id, number: votingRounds.number });
+
+    await tx
+      .insert(votingRoundFinalists)
+      .values(tied.map((finalist) => ({ ...finalist, roundId: round.id })));
+
+    return { number: round.number, ok: true };
+  });
+}
+
 /** What would refuse `openVotingRound` now, for the list to show before. */
 export async function readVotingRoundOpenBlockers(
   eventId: string,
@@ -109,17 +161,21 @@ export type CloseVotingRoundResult =
   { number: number; ok: true } | { ok: false; reason: "not-open" };
 
 /**
- * Closes the open round, stamping `closedAt`. One conditional update, so a
- * round closed twice at once keeps the first time.
+ * Closes the named round while it is open, stamping `closedAt`. The round is
+ * named, not inferred: a close confirmed over round 1 that arrives after the
+ * `Desempate` opened finds round 1 closed and leaves round 2 alone. One
+ * conditional update, so a round closed twice at once keeps the first time.
  */
 export async function closeVotingRound(input: {
   eventId: string;
+  roundId: string;
 }): Promise<CloseVotingRoundResult> {
   const [closed] = await db
     .update(votingRounds)
     .set({ closedAt: sql`CURRENT_TIMESTAMP` })
     .where(
       and(
+        eq(votingRounds.id, input.roundId),
         eq(votingRounds.eventId, input.eventId),
         isNull(votingRounds.closedAt),
       ),
@@ -144,6 +200,7 @@ export async function readCurrentVotingRound(
       id: votingRounds.id,
       number: votingRounds.number,
       openedAt: votingRounds.openedAt,
+      publishedAt: votingRounds.publishedAt,
     })
     .from(votingRounds)
     .where(eq(votingRounds.eventId, eventId))

@@ -9,14 +9,17 @@ import {
   readVoterStanding,
 } from "@/lib/grand-final/vote.server";
 import { voidVoteCodeBatch } from "@/lib/grand-final/vote-codes.server";
-import { closeVotingRound } from "@/lib/grand-final/voting-round.server";
 
 import {
   installDatabaseTestHooks,
   isPgliteTestBackend,
 } from "../../../tests/db/harness";
 import { runBehindAHolder } from "../../../tests/db/lock-contention";
-import { seedOpenRoundFixture, seedVoter } from "./voting.test-support";
+import {
+  closeCurrentVotingRound,
+  seedOpenRoundFixture,
+  seedVoter,
+} from "./voting.test-support";
 
 installDatabaseTestHooks();
 
@@ -161,7 +164,7 @@ describe("`castVote` with a code", () => {
     const {
       tokens: [token],
     } = await round.issueCodes();
-    await closeVotingRound({ eventId: round.eventId });
+    await closeCurrentVotingRound(round.eventId);
 
     await expect(
       castVote({
@@ -309,7 +312,7 @@ describe("`castVote` with a voter", () => {
       reason: "not-finalist",
     });
 
-    await closeVotingRound({ eventId: round.eventId });
+    await closeCurrentVotingRound(round.eventId);
 
     await expect(vote(round.alas)).resolves.toEqual({
       ok: false,

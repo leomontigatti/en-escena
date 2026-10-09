@@ -31,6 +31,7 @@ import {
   VotingRoundDialogs,
   type VotingRoundAction,
 } from "../voting-round/dialogs";
+import { VotingRoundResultSection } from "../voting-round/result-section";
 import type { VotingRoundListState } from "../voting-round/shared";
 import { FinalistPickChangeDialog } from "./pick-dialog";
 import type {
@@ -44,8 +45,9 @@ import type {
  * `finalistPick` reads as a check in the academy's row, and each finalist's
  * banners as a status beside its name, and below them the event's QR code
  * batches. The `Acciones` menu holds the change of any judge's pick, with no
- * window, the generation of a batch, and the opening and closing of the
- * `votingRound`, whose state reads beside the title.
+ * window, the generation of a batch, and the `votingRound`'s actions: open,
+ * `Desempate`, publish and hide the result, and close. The round's state reads
+ * beside the title, and once a round closed its result heads the page.
  */
 export function GrandFinalListView({
   loaderData,
@@ -81,10 +83,22 @@ export function GrandFinalListView({
             <DropdownMenuItem onSelect={() => setIsGenerateDialogOpen(true)}>
               Generar códigos QR
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => setVotingRoundAction("open")}>
               Abrir votación
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => setVotingRoundAction("tie-break")}
+            >
+              Abrir desempate
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setVotingRoundAction("publish")}>
+              Publicar resultado
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setVotingRoundAction("hide")}>
+              Ocultar resultado
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setVotingRoundAction("close")}>
               Cerrar votación
             </DropdownMenuItem>
@@ -97,6 +111,9 @@ export function GrandFinalListView({
     >
       {picks ? (
         <div className="flex flex-col gap-8">
+          {votingRound?.result ? (
+            <VotingRoundResultSection result={votingRound.result} />
+          ) : null}
           <GrandFinalModalities picks={picks} />
           <VoteCodeBatchesSection batches={loaderData.voteCodeBatches} />
         </div>
