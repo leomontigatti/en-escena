@@ -1,14 +1,13 @@
 import type { SheetColumn } from "@/features/admin/day-export/sheet";
 import {
-  programColumns,
+  programExportColumns,
   type ProgramExportRow,
 } from "@/features/admin/presentations/program-export/sheet";
 import { awardLabels, type Award } from "@/lib/judging/award";
 
 /**
- * The results as a spreadsheet: the program's columns, with the dancers
- * counted rather than named, and the presentation's average and award at the
- * end of the row. The professors are named, one per line, before the dancers.
+ * The results as a spreadsheet: the program's columns, with the
+ * presentation's average and award at the end of the row.
  */
 
 export type ResultsExportRow = ProgramExportRow & {
@@ -17,8 +16,7 @@ export type ResultsExportRow = ProgramExportRow & {
 };
 
 export const resultsExportColumns: SheetColumn<ResultsExportRow>[] = [
-  ...programColumns,
-  { header: "Bailarines", width: 11, cell: (row) => row.dancerNames.length },
+  ...programExportColumns,
   {
     header: "Promedio",
     width: 10,
