@@ -24,14 +24,22 @@ export type VoteFinalist = {
 };
 
 /**
- * Why this visitor cannot vote now: no code reached the page, or the one that
- * did is not a code of the event or was voided. Built by the server; the vote
- * button stays and opens them (docs/agents/form-feedback.md).
+ * Why this visitor cannot vote now: nothing identifies them yet (no code, no
+ * sign-in), or the code they brought is not a code of the event or was
+ * voided. Built by the server; the vote button stays and opens them
+ * (docs/agents/form-feedback.md).
  */
 export type VoteBlockReason = {
-  code: "no-code" | "unknown-code" | "voided-code";
+  code: "no-identity" | "unknown-code" | "voided-code";
   label: string;
 };
+
+/**
+ * Where the visitor stands with Google: offered when nothing else lets them
+ * vote here, signed in once they are, and null when the page votes with the
+ * code they brought or the deployment has no Google sign-in.
+ */
+export type VoteGoogleSignIn = "offered" | "signed-in" | null;
 
 /**
  * `not-open` before the round opens, `closed` once it closed: the page says
@@ -45,8 +53,17 @@ export type VotePageData =
       /** The code the visitor arrived with, when it can still vote. */
       code: string | null;
       finalists: VoteFinalist[];
+      googleSignIn: VoteGoogleSignIn;
       state: "open";
     }
-  | { finalist: VoteFinalist; state: "registered" };
+  | {
+      /**
+       * Whether the page offers Google too: a code's vote is registered and
+       * the same person may still vote with their account.
+       */
+      canAlsoSignIn: boolean;
+      finalist: VoteFinalist;
+      state: "registered";
+    };
 
 export type VoteActionData = { message: string; status: "error" };

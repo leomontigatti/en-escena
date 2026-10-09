@@ -4,6 +4,7 @@ import { db } from "@/db";
 import {
   voteCodeBatches,
   voteCodes,
+  voters,
   votes,
   votingRoundFinalists,
   votingRounds,
@@ -16,73 +17,44 @@ import {
  * count once however they interleave. A vote and a close of its round, or a
  * void of its batch, take turns. Nothing here updates or deletes a vote.
  *
- * The identity is a printed `voteCode` (worth ten). A signed-in `voter`
- * (worth one) is the second kind this union takes.
+ * The identity is a printed `voteCode`, worth ten, or a signed-in `voter`,
+ * worth one. They are separate identities: a person holding both casts both.
  */
-export type VoteIdentity = { kind: "code"; token: string };
+export type VoteIdentity =
+  { kind: "code"; token: string } | { kind: "voter"; voterId: string };
 
 export type CastVoteRefusal =
-  "not-finalist" | "round-closed" | "unknown-code" | "voided-code";
+  | "not-finalist"
+  | "round-closed"
+  | "unknown-code"
+  | "unknown-voter"
+  | "voided-code";
 
 export type CastVoteResult =
   | { ok: true }
   | { academyId: string; ok: false; reason: "already-voted" }
   | { ok: false; reason: CastVoteRefusal };
 
-/**
- * Casts the identity's vote for the academy in the round, or answers why it
- * did not count. The insert names its round, its finalist and its code
- * through the rows it selects, so a closed round, an academy the round did
- * not copy, an unknown or voided code and a code of another event all insert
- * nothing; only then is the reason read.
- */
-export async function castVote(input: {
+type CastVoteInput = {
   academyId: string;
   identity: VoteIdentity;
   roundId: string;
-}): Promise<CastVoteResult> {
+};
+
+/**
+ * Casts the identity's vote for the academy in the round, or answers why it
+ * did not count. The insert names its round, its finalist and its identity
+ * through the rows it selects, so a closed round, an academy the round did
+ * not copy, an unknown voter, an unknown or voided code and a code of another
+ * event all insert nothing; only then is the reason read.
+ */
+export async function castVote(input: CastVoteInput): Promise<CastVoteResult> {
   const inserted = await db
     .insert(votes)
     .select(
-      db
-        // Positional: the fields follow the table's columns in order.
-        .select({
-          id: sql<string>`${crypto.randomUUID()}`.as("id"),
-          roundId: votingRounds.id,
-          academyId: votingRoundFinalists.academyId,
-          kind: sql<"code">`'code'`.as("kind"),
-          points: sql<number>`10`.as("points"),
-          voteCodeId: voteCodes.id,
-          createdAt: sql<Date>`CURRENT_TIMESTAMP`.as("created_at"),
-        })
-        .from(voteCodes)
-        .innerJoin(
-          voteCodeBatches,
-          and(
-            eq(voteCodeBatches.id, voteCodes.batchId),
-            isNull(voteCodeBatches.voidedAt),
-          ),
-        )
-        .innerJoin(
-          votingRounds,
-          and(
-            eq(votingRounds.id, input.roundId),
-            eq(votingRounds.eventId, voteCodeBatches.eventId),
-            isNull(votingRounds.closedAt),
-          ),
-        )
-        .innerJoin(
-          votingRoundFinalists,
-          and(
-            eq(votingRoundFinalists.roundId, votingRounds.id),
-            eq(votingRoundFinalists.academyId, input.academyId),
-          ),
-        )
-        .where(eq(voteCodes.token, input.identity.token))
-        // Holds the round and the batch while the vote commits: a close or a
-        // void waits for the votes already counting, and a vote behind one
-        // re-reads the row it committed and counts nothing.
-        .for("share", { of: [votingRounds, voteCodeBatches] }),
+      input.identity.kind === "code"
+        ? selectCodeVote({ ...input, token: input.identity.token })
+        : selectVoterVote({ ...input, voterId: input.identity.voterId }),
     )
     // Untargeted on purpose: any unique conflict is this identity's earlier
     // vote in the round.
@@ -94,6 +66,107 @@ export async function castVote(input: {
   }
 
   return await explainUncastVote(input);
+}
+
+/** A vote's weight, fixed by its kind. */
+const votePoints = { code: 10, social: 1 } as const;
+
+/**
+ * The row a cast selects, in the table's column order: an insert from a
+ * select fills the columns by position. The identity column of the other
+ * kind is null, and the kind sets the weight.
+ */
+function projectVote(
+  identity:
+    | { kind: "code"; voteCodeId: typeof voteCodes.id }
+    | { kind: "social"; voterId: typeof voters.id },
+) {
+  return {
+    id: sql<string>`${crypto.randomUUID()}`.as("id"),
+    roundId: votingRounds.id,
+    academyId: votingRoundFinalists.academyId,
+    // Literals, not parameters: a parameter in a select list reads as text,
+    // which the enum and integer columns refuse.
+    kind: sql<typeof identity.kind>`${sql.raw(`'${identity.kind}'`)}`.as(
+      "kind",
+    ),
+    points: sql<number>`${sql.raw(String(votePoints[identity.kind]))}`.as(
+      "points",
+    ),
+    voteCodeId:
+      identity.kind === "code"
+        ? identity.voteCodeId
+        : sql<null>`null`.as("vote_code_id"),
+    createdAt: sql<Date>`CURRENT_TIMESTAMP`.as("created_at"),
+    voterId:
+      identity.kind === "social"
+        ? identity.voterId
+        : sql<null>`null`.as("voter_id"),
+  };
+}
+
+/** The finalist of the open round, as a vote joins it. */
+function joinOpenRoundFinalist(input: { academyId: string; roundId: string }) {
+  return {
+    finalist: and(
+      eq(votingRoundFinalists.roundId, votingRounds.id),
+      eq(votingRoundFinalists.academyId, input.academyId),
+    ),
+    round: and(
+      eq(votingRounds.id, input.roundId),
+      isNull(votingRounds.closedAt),
+    ),
+  };
+}
+
+function selectCodeVote(input: {
+  academyId: string;
+  roundId: string;
+  token: string;
+}) {
+  const joins = joinOpenRoundFinalist(input);
+
+  return (
+    db
+      .select(projectVote({ kind: "code", voteCodeId: voteCodes.id }))
+      .from(voteCodes)
+      .innerJoin(
+        voteCodeBatches,
+        and(
+          eq(voteCodeBatches.id, voteCodes.batchId),
+          isNull(voteCodeBatches.voidedAt),
+        ),
+      )
+      .innerJoin(
+        votingRounds,
+        and(joins.round, eq(votingRounds.eventId, voteCodeBatches.eventId)),
+      )
+      .innerJoin(votingRoundFinalists, joins.finalist)
+      .where(eq(voteCodes.token, input.token))
+      // Holds the round and the batch while the vote commits: a close or a
+      // void waits for the votes already counting, and a vote behind one
+      // re-reads the row it committed and counts nothing.
+      .for("share", { of: [votingRounds, voteCodeBatches] })
+  );
+}
+
+function selectVoterVote(input: {
+  academyId: string;
+  roundId: string;
+  voterId: string;
+}) {
+  const joins = joinOpenRoundFinalist(input);
+
+  return (
+    db
+      .select(projectVote({ kind: "social", voterId: voters.id }))
+      .from(voters)
+      .innerJoin(votingRounds, joins.round)
+      .innerJoin(votingRoundFinalists, joins.finalist)
+      .where(eq(voters.id, input.voterId))
+      // Holds the round while the vote commits, as a code's vote does.
+      .for("share", { of: [votingRounds] })
+  );
 }
 
 export type CodeStanding =
@@ -144,15 +217,33 @@ export async function readCodeStanding(input: {
   return { status: code.voidedAt ? "voided" : "available" };
 }
 
+export type VoterStanding =
+  { academyId: string; status: "voted" } | { status: "available" };
+
+/** Whether the voter already voted in the round, and for whom. */
+export async function readVoterStanding(input: {
+  roundId: string;
+  voterId: string;
+}): Promise<VoterStanding> {
+  const [vote] = await db
+    .select({ academyId: votes.academyId })
+    .from(votes)
+    .where(
+      and(eq(votes.roundId, input.roundId), eq(votes.voterId, input.voterId)),
+    );
+
+  return vote
+    ? { academyId: vote.academyId, status: "voted" }
+    : { status: "available" };
+}
+
 /**
  * Why an insert counted nothing, in the order a voter can act on: a closed
- * round first, then the code, then the academy.
+ * round first, then the identity, then the academy.
  */
-async function explainUncastVote(input: {
-  academyId: string;
-  identity: VoteIdentity;
-  roundId: string;
-}): Promise<Exclude<CastVoteResult, { ok: true }>> {
+async function explainUncastVote(
+  input: CastVoteInput,
+): Promise<Exclude<CastVoteResult, { ok: true }>> {
   const [round] = await db
     .select({ closedAt: votingRounds.closedAt })
     .from(votingRounds)
@@ -162,26 +253,47 @@ async function explainUncastVote(input: {
     return { ok: false, reason: "round-closed" };
   }
 
-  const standing = await readCodeStanding({
-    roundId: input.roundId,
-    token: input.identity.token,
-  });
+  const refusal =
+    input.identity.kind === "code"
+      ? await explainUncastCodeVote(input.roundId, input.identity.token)
+      : await explainUncastVoterVote(input.roundId, input.identity.voterId);
+
+  return refusal ?? { ok: false, reason: "not-finalist" };
+}
+
+async function explainUncastCodeVote(roundId: string, token: string) {
+  const standing = await readCodeStanding({ roundId, token });
 
   if (standing.status === "voted") {
-    return {
-      academyId: standing.academyId,
-      ok: false,
-      reason: "already-voted",
-    };
+    return alreadyVoted(standing.academyId);
   }
 
   if (standing.status === "unknown") {
-    return { ok: false, reason: "unknown-code" };
+    return { ok: false as const, reason: "unknown-code" as const };
   }
 
   if (standing.status === "voided") {
-    return { ok: false, reason: "voided-code" };
+    return { ok: false as const, reason: "voided-code" as const };
   }
 
-  return { ok: false, reason: "not-finalist" };
+  return null;
+}
+
+async function explainUncastVoterVote(roundId: string, voterId: string) {
+  const [voter] = await db
+    .select({ id: voters.id })
+    .from(voters)
+    .where(eq(voters.id, voterId));
+
+  if (!voter) {
+    return { ok: false as const, reason: "unknown-voter" as const };
+  }
+
+  const standing = await readVoterStanding({ roundId, voterId });
+
+  return standing.status === "voted" ? alreadyVoted(standing.academyId) : null;
+}
+
+function alreadyVoted(academyId: string) {
+  return { academyId, ok: false as const, reason: "already-voted" as const };
 }

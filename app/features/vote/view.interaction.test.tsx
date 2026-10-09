@@ -86,7 +86,13 @@ describe("the public vote page", () => {
   test.each([
     { page: { state: "not-open" } as const },
     { page: { state: "closed" } as const },
-    { page: { finalist: finalists[0], state: "registered" } as const },
+    {
+      page: {
+        canAlsoSignIn: false,
+        finalist: finalists[0],
+        state: "registered",
+      } as const,
+    },
   ])("offers no vote while the page is $page.state", async ({ page }) => {
     await mount(page);
 
@@ -107,6 +113,7 @@ describe("the public vote page", () => {
       blockReasons: [],
       code: "codigo-impreso",
       finalists,
+      googleSignIn: null,
       state: "open",
     });
 
@@ -124,6 +131,7 @@ describe("the public vote page", () => {
       blockReasons: [],
       code: "codigo-impreso",
       finalists,
+      googleSignIn: null,
       state: "open",
     });
 
@@ -136,6 +144,35 @@ describe("the public vote page", () => {
     );
   });
 
+  test("sends a signed-in voter's choice with no code, and tells a refusal in a toast", async () => {
+    answer = {
+      message:
+        "Tu ingreso con Google ya no es válido. Ingresá de nuevo para votar.",
+      status: "error",
+    };
+    await mount({
+      blockReasons: [],
+      code: null,
+      finalists,
+      googleSignIn: "signed-in",
+      state: "open",
+    });
+
+    await voteFor("Alas");
+
+    // Waits for its own toast: an earlier test's may still land first.
+    await waitFor(() =>
+      vi
+        .mocked(toast.error)
+        .mock.calls.some(([message]) => message === answer.message),
+    );
+    expect(Object.fromEntries(submitted[0])).toEqual({
+      academyId: "alas",
+      codigo: "",
+    });
+    expect(toast.error).toHaveBeenCalledWith(answer.message, expect.anything());
+  });
+
   test("opens why a visitor without a valid code cannot vote, and sends nothing", async () => {
     const label =
       "Este código QR fue anulado por la organización y ya no sirve para votar.";
@@ -143,6 +180,7 @@ describe("the public vote page", () => {
       blockReasons: [{ code: "voided-code", label }],
       code: null,
       finalists,
+      googleSignIn: "offered",
       state: "open",
     });
 

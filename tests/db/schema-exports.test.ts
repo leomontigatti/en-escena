@@ -57,6 +57,8 @@ const schemaExportNames = [
   "voteCodeBatches",
   "voteCodes",
   "voteKind",
+  "voterProvider",
+  "voters",
   "votes",
   "votingRoundFinalists",
   "votingRounds",

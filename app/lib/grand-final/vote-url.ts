@@ -3,7 +3,7 @@
  * reaches it: the QR encodes the vote page with the token in `codigo`, so the
  * page that reads the parameter and the sheet that prints it share one shape.
  */
-const votePath = "/votar";
+export const votePath = "/votar";
 
 export const voteCodeParam = "codigo";
 
@@ -15,6 +15,14 @@ export function buildVoteCodeUrl(origin: string, token: string) {
 /** The vote page as the code reaches it, where a vote cast with it lands. */
 export function buildVoteCodePath(token: string) {
   return `${votePath}?${new URLSearchParams({ [voteCodeParam]: token })}`;
+}
+
+/** Where a sign-in with Google starts, from a form on the vote page. */
+export const voterSignInPath = `${votePath}/google`;
+
+/** Where Google returns the visitor: the redirect URI registered with it. */
+export function buildVoterCallbackUrl(origin: string) {
+  return new URL(`${voterSignInPath}/retorno`, origin).href;
 }
 
 /** The absolute vote URL a finalist academy shares, with no code in it. */

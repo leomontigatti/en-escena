@@ -1,8 +1,13 @@
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { votes } from "@/db/schema";
+import { voters, votes } from "@/db/schema";
 import { voidVoteCodeBatch } from "@/lib/grand-final/vote-codes.server";
+import { createLocalVoterIdentityProvider } from "@/lib/grand-final/voter-identity-providers.server";
+import {
+  createVoterSignIn,
+  type VoterSignIn,
+} from "@/lib/grand-final/voter-sign-in.server";
 import {
   seedFinalistsFixture,
   seedOpenRoundFixture,
@@ -11,6 +16,10 @@ import { closeVotingRound } from "@/lib/grand-final/voting-round.server";
 import { createFilesystemGrandFinalBannerStorage } from "@/lib/storage/grand-final-banners.server";
 
 import { handleVoteAction, loadVotePage } from "./server";
+import {
+  handleVoterSignInFinish,
+  handleVoterSignInStart,
+} from "./sign-in.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -23,10 +32,80 @@ const storage = createFilesystemGrandFinalBannerStorage({
   secret: "volume-signing-secret",
 });
 
-async function load(query = "") {
+const signIn = createVoterSignIn({
+  provider: createLocalVoterIdentityProvider(),
+  secret: "secreto-de-prueba",
+  secure: false,
+});
+
+/** A visitor's browser: the cookies the server set so far. */
+type Visitor = { cookie: string };
+
+const newVisitor = (): Visitor => ({ cookie: "" });
+
+function keepCookies(visitor: Visitor, response: Response) {
+  const jar = new Map(
+    visitor.cookie
+      .split("; ")
+      .filter(Boolean)
+      .map((pair) => [pair.split("=")[0], pair] as const),
+  );
+
+  for (const cookie of response.headers.getSetCookie()) {
+    const pair = cookie.split(";")[0];
+    jar.set(pair.split("=")[0], pair);
+  }
+
+  visitor.cookie = [...jar.values()].join("; ");
+}
+
+function request(path: string, visitor?: Visitor, init: RequestInit = {}) {
+  return new Request(`http://localhost${path}`, {
+    ...init,
+    headers: visitor?.cookie ? { Cookie: visitor.cookie } : {},
+  });
+}
+
+async function answerOf(run: () => Promise<Response>) {
+  try {
+    return await run();
+  } catch (thrown) {
+    if (thrown instanceof Response) {
+      return thrown;
+    }
+
+    throw thrown;
+  }
+}
+
+/** Signs the visitor in with the local stand-in for Google, start to finish. */
+async function signInWithGoogle(visitor: Visitor, voterSignIn = signIn) {
+  const started = await handleVoterSignInStart(
+    request("/votar/google", visitor, { method: "POST" }),
+    voterSignIn,
+  );
+  keepCookies(visitor, started);
+  const callback = new URL(started.headers.get("Location") ?? "");
+  const finished = await answerOf(() =>
+    handleVoterSignInFinish(
+      request(`${callback.pathname}${callback.search}`, visitor),
+      voterSignIn,
+    ),
+  );
+  keepCookies(visitor, finished);
+
+  return { finished, started };
+}
+
+async function load(
+  query = "",
+  visitor?: Visitor,
+  voterSignIn: VoterSignIn | null = signIn,
+) {
   const answer = await loadVotePage(
-    new Request(`http://localhost/votar${query}`),
+    request(`/votar${query}`, visitor),
     storage,
+    voterSignIn,
   );
 
   return {
@@ -35,14 +114,18 @@ async function load(query = "") {
   };
 }
 
-async function vote(input: { academyId: string; codigo: string }) {
+async function vote(
+  input: { academyId: string; codigo: string },
+  visitor?: Visitor,
+) {
   const body = new FormData();
   body.set("academyId", input.academyId);
   body.set("codigo", input.codigo);
 
   try {
     const answer = await handleVoteAction(
-      new Request("http://localhost/votar", { body, method: "POST" }),
+      request("/votar", visitor, { body, method: "POST" }),
+      signIn,
     );
 
     return {
@@ -99,6 +182,7 @@ describe("the public vote page", () => {
     expect(page).toEqual({
       blockReasons: [],
       code: token,
+      googleSignIn: null,
       finalists: [
         expect.objectContaining({ academyId: round.alas, name: "Alas" }),
         expect.objectContaining({ academyId: round.ritmo, name: "Ritmo Sur" }),
@@ -111,14 +195,38 @@ describe("the public vote page", () => {
     ).toBe(true);
   });
 
-  test("shows the finalists without a code, and says a code is what votes", async () => {
+  test("shows the finalists without a code, and offers Google or a code to vote", async () => {
     await seedOpenRoundFixture();
 
     await expect(load()).resolves.toMatchObject({
       page: {
-        blockReasons: [{ code: "no-code" }],
+        blockReasons: [
+          {
+            code: "no-identity",
+            label:
+              "Para votar, ingresá con tu cuenta de Google o escaneá el código QR que viene con tu entrada.",
+          },
+        ],
         code: null,
+        googleSignIn: "offered",
         state: "open",
+      },
+    });
+  });
+
+  test("says only a code votes where Google is not configured", async () => {
+    await seedOpenRoundFixture();
+
+    await expect(load("", undefined, null)).resolves.toMatchObject({
+      page: {
+        blockReasons: [
+          {
+            code: "no-identity",
+            label:
+              "Para votar hace falta el código QR que viene con tu entrada. Escanealo con la cámara del celular.",
+          },
+        ],
+        googleSignIn: null,
       },
     });
   });
@@ -154,6 +262,164 @@ describe("the public vote page", () => {
       ],
       code: null,
     });
+  });
+});
+
+describe("a vote with Google", () => {
+  test("signs in and returns to the page, which then lets the voter vote, never cached", async () => {
+    await seedOpenRoundFixture();
+    const visitor = newVisitor();
+
+    const { finished, started } = await signInWithGoogle(visitor);
+
+    expect(started.headers.get("Cache-Control")).toBe("no-store");
+    expect(finished.status).toBe(302);
+    expect(finished.headers.get("Location")).toBe("/votar");
+    expect(finished.headers.get("Cache-Control")).toBe("no-store");
+    await expect(load("", visitor)).resolves.toMatchObject({
+      cacheControl: "no-store",
+      page: {
+        blockReasons: [],
+        code: null,
+        googleSignIn: "signed-in",
+        state: "open",
+      },
+    });
+  });
+
+  test("counts one point, and lands on the page, which reads it as registered", async () => {
+    const round = await seedOpenRoundFixture();
+    const visitor = newVisitor();
+    await signInWithGoogle(visitor);
+
+    await expect(
+      vote({ academyId: round.alas, codigo: "" }, visitor),
+    ).resolves.toEqual({
+      cacheControl: "no-store",
+      location: "/votar",
+      status: 303,
+    });
+    await expect(
+      db.select({ points: votes.points }).from(votes),
+    ).resolves.toEqual([{ points: 1 }]);
+    await expect(load("", visitor)).resolves.toMatchObject({
+      page: {
+        canAlsoSignIn: false,
+        finalist: { academyId: round.alas },
+        state: "registered",
+      },
+    });
+  });
+
+  test("lands a second vote of the same voter, signed in again, on the registered page, counting one", async () => {
+    const round = await seedOpenRoundFixture();
+    const visitor = newVisitor();
+    await signInWithGoogle(visitor);
+    await vote({ academyId: round.alas, codigo: "" }, visitor);
+
+    const again = newVisitor();
+    await signInWithGoogle(again);
+
+    await expect(load("", again)).resolves.toMatchObject({
+      page: { finalist: { academyId: round.alas }, state: "registered" },
+    });
+    await expect(
+      vote({ academyId: round.ritmo, codigo: "" }, again),
+    ).resolves.toMatchObject({ location: "/votar", status: 303 });
+    await expect(db.$count(votes)).resolves.toBe(1);
+    await expect(db.$count(voters)).resolves.toBe(1);
+  });
+
+  test("counts a ticket's code and the same person's Google sign-in both", async () => {
+    const round = await seedOpenRoundFixture();
+    const {
+      tokens: [token],
+    } = await round.issueCodes();
+    const visitor = newVisitor();
+
+    await vote({ academyId: round.alas, codigo: token }, visitor);
+    await expect(load(`?codigo=${token}`, visitor)).resolves.toMatchObject({
+      page: { canAlsoSignIn: true, state: "registered" },
+    });
+    await signInWithGoogle(visitor);
+    await vote({ academyId: round.alas, codigo: "" }, visitor);
+
+    await expect(
+      db.select({ points: votes.points }).from(votes),
+    ).resolves.toEqual(expect.arrayContaining([{ points: 10 }, { points: 1 }]));
+  });
+
+  test("votes with the code in the address, never the voter, when the form names none", async () => {
+    const round = await seedOpenRoundFixture();
+    const {
+      batchId,
+      tokens: [token],
+    } = await round.issueCodes();
+    await voidVoteCodeBatch({ batchId, eventId: round.eventId });
+    const visitor = newVisitor();
+    await signInWithGoogle(visitor);
+    const body = new FormData();
+    body.set("academyId", round.alas);
+    body.set("codigo", "");
+
+    const answer = await handleVoteAction(
+      request(`/votar?codigo=${token}`, visitor, { body, method: "POST" }),
+      signIn,
+    );
+
+    expect(answer.data).toMatchObject({
+      message:
+        "Este código QR fue anulado por la organización y ya no sirve para votar.",
+    });
+    await expect(db.$count(votes)).resolves.toBe(0);
+  });
+
+  // The cookie is read before the database: with no round at all, a request
+  // with no valid sign-in is refused as such, not as a closed round.
+  test("turns away a vote with no code and no valid sign-in before reading the round", async () => {
+    const forged = {
+      cookie: "en_escena_voter=eyJ2b3RlcklkIjoieCJ9.firma-falsa",
+    };
+
+    await expect(
+      vote({ academyId: "cualquiera", codigo: "" }, forged),
+    ).resolves.toEqual({
+      cacheControl: "no-store",
+      data: {
+        message:
+          "Para votar, ingresá con tu cuenta de Google o escaneá el código QR que viene con tu entrada.",
+        status: "error",
+      },
+      status: 400,
+    });
+  });
+
+  test("returns to the page with a toast when the sign-in failed, signing nobody in", async () => {
+    await seedOpenRoundFixture();
+    const visitor = newVisitor();
+
+    const finished = await answerOf(() =>
+      handleVoterSignInFinish(
+        request("/votar/google/retorno?error=access_denied", visitor),
+        signIn,
+      ),
+    );
+
+    expect(finished.headers.get("Location")).toBe("/votar");
+    expect(finished.headers.get("Cache-Control")).toBe("no-store");
+    expect(finished.headers.getSetCookie().join()).toContain("ee-flash=");
+    await expect(db.$count(voters)).resolves.toBe(0);
+  });
+
+  test("has no sign-in to start where Google is not configured", async () => {
+    const answer = await answerOf(() =>
+      handleVoterSignInStart(
+        request("/votar/google", undefined, { method: "POST" }),
+        null,
+      ),
+    );
+
+    expect(answer.status).toBe(404);
   });
 });
 

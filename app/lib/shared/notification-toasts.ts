@@ -57,6 +57,7 @@ export const notificationToastIds = {
   "internal-user-reset": "route-notification:internal-user-reset",
   "internal-user-suspended": "route-notification:internal-user-suspended",
   "internal-user-reactivated": "route-notification:internal-user-reactivated",
+  "voter-sign-in-failed": "route-notification:voter-sign-in-failed",
 } as const;
 
 type NotificationToastKey = Exclude<
@@ -314,6 +315,11 @@ export const notificationToasts = {
     id: notificationToastIds["internal-user-reactivated"],
     message: "Usuario reactivado.",
     variant: "success",
+  },
+  "voter-sign-in-failed": {
+    id: notificationToastIds["voter-sign-in-failed"],
+    message: "No se pudo ingresar con Google. Probá de nuevo.",
+    variant: "error",
   },
 } as const satisfies Record<NotificationToastKey, NotificationToast>;
 

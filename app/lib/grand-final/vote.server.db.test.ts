@@ -3,7 +3,11 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { voteCodeBatches, votes, votingRounds } from "@/db/schema";
-import { castVote, readCodeStanding } from "@/lib/grand-final/vote.server";
+import {
+  castVote,
+  readCodeStanding,
+  readVoterStanding,
+} from "@/lib/grand-final/vote.server";
 import { voidVoteCodeBatch } from "@/lib/grand-final/vote-codes.server";
 import { closeVotingRound } from "@/lib/grand-final/voting-round.server";
 
@@ -12,7 +16,7 @@ import {
   isPgliteTestBackend,
 } from "../../../tests/db/harness";
 import { runBehindAHolder } from "../../../tests/db/lock-contention";
-import { seedOpenRoundFixture } from "./voting.test-support";
+import { seedOpenRoundFixture, seedVoter } from "./voting.test-support";
 
 installDatabaseTestHooks();
 
@@ -186,6 +190,176 @@ describe("`castVote` with a code", () => {
   });
 });
 
+describe("`castVote` with a voter", () => {
+  test("casts one vote worth one for the academy, in the round", async () => {
+    const round = await seedOpenRoundFixture();
+    const voterId = await seedVoter();
+
+    await expect(
+      castVote({
+        academyId: round.ritmo,
+        identity: { kind: "voter", voterId },
+        roundId: round.roundId,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    await expect(readVotes()).resolves.toEqual([
+      {
+        academyId: round.ritmo,
+        kind: "social",
+        points: 1,
+        roundId: round.roundId,
+      },
+    ]);
+  });
+
+  test("reads a second vote of the same voter as already cast, for the first academy, and counts one", async () => {
+    const round = await seedOpenRoundFixture();
+    const voterId = await seedVoter();
+    const vote = (academyId: string) =>
+      castVote({
+        academyId,
+        identity: { kind: "voter", voterId },
+        roundId: round.roundId,
+      });
+
+    await vote(round.alas);
+
+    await expect(vote(round.ritmo)).resolves.toEqual({
+      academyId: round.alas,
+      ok: false,
+      reason: "already-voted",
+    });
+    await expect(db.$count(votes)).resolves.toBe(1);
+  });
+
+  // Fails without the unique index on (round, voter): both inserts land.
+  test("counts one vote when the same voter votes twice at once", async () => {
+    const round = await seedOpenRoundFixture();
+    const voterId = await seedVoter();
+
+    const results = await Promise.all(
+      [round.alas, round.ritmo].map((academyId) =>
+        castVote({
+          academyId,
+          identity: { kind: "voter", voterId },
+          roundId: round.roundId,
+        }),
+      ),
+    );
+
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(results).toContainEqual(
+      expect.objectContaining({ ok: false, reason: "already-voted" }),
+    );
+    await expect(db.$count(votes)).resolves.toBe(1);
+  });
+
+  test("counts a person's code and their voter both, eleven points in all", async () => {
+    const round = await seedOpenRoundFixture();
+    const {
+      tokens: [token],
+    } = await round.issueCodes();
+    const voterId = await seedVoter();
+
+    await castVote({
+      academyId: round.alas,
+      identity: { kind: "code", token },
+      roundId: round.roundId,
+    });
+    await expect(
+      castVote({
+        academyId: round.alas,
+        identity: { kind: "voter", voterId },
+        roundId: round.roundId,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    const cast = await readVotes();
+    expect(cast.map((vote) => vote.kind).sort()).toEqual(["code", "social"]);
+    expect(cast.reduce((total, vote) => total + vote.points, 0)).toBe(11);
+  });
+
+  test("lets two voters vote once each", async () => {
+    const round = await seedOpenRoundFixture();
+
+    for (const voterId of [await seedVoter(), await seedVoter()]) {
+      await castVote({
+        academyId: round.ritmo,
+        identity: { kind: "voter", voterId },
+        roundId: round.roundId,
+      });
+    }
+
+    await expect(db.$count(votes)).resolves.toBe(2);
+  });
+
+  test("refuses a vote once the round closed, and an academy the round did not copy", async () => {
+    const round = await seedOpenRoundFixture();
+    const voterId = await seedVoter();
+    const vote = (academyId: string) =>
+      castVote({
+        academyId,
+        identity: { kind: "voter", voterId },
+        roundId: round.roundId,
+      });
+
+    await expect(vote(round.outsider)).resolves.toEqual({
+      ok: false,
+      reason: "not-finalist",
+    });
+
+    await closeVotingRound({ eventId: round.eventId });
+
+    await expect(vote(round.alas)).resolves.toEqual({
+      ok: false,
+      reason: "round-closed",
+    });
+    await expect(db.$count(votes)).resolves.toBe(0);
+  });
+
+  test("refuses a voter no sign-in created", async () => {
+    const round = await seedOpenRoundFixture();
+
+    await expect(
+      castVote({
+        academyId: round.alas,
+        identity: { kind: "voter", voterId: crypto.randomUUID() },
+        roundId: round.roundId,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "unknown-voter" });
+    await expect(db.$count(votes)).resolves.toBe(0);
+  });
+});
+
+describe("`readVoterStanding`", () => {
+  test("reads a voter as available, then as voted for its academy, in that round only", async () => {
+    const round = await seedOpenRoundFixture();
+    const other = await seedOpenRoundFixture();
+    const voterId = await seedVoter();
+    const standing = (roundId: string) =>
+      readVoterStanding({ roundId, voterId });
+
+    await expect(standing(round.roundId)).resolves.toEqual({
+      status: "available",
+    });
+
+    await castVote({
+      academyId: round.ritmo,
+      identity: { kind: "voter", voterId },
+      roundId: round.roundId,
+    });
+
+    await expect(standing(round.roundId)).resolves.toEqual({
+      academyId: round.ritmo,
+      status: "voted",
+    });
+    await expect(standing(other.roundId)).resolves.toEqual({
+      status: "available",
+    });
+  });
+});
+
 describe("`readCodeStanding`", () => {
   test("reads a code as available, then as voted for its academy", async () => {
     const round = await seedOpenRoundFixture();
@@ -254,6 +428,29 @@ describe.skipIf(isPgliteTestBackend())(
           castVote({
             academyId: round.alas,
             identity: { kind: "code", token },
+            roundId: round.roundId,
+          }),
+      });
+
+      expect(cast).toEqual({ ok: false, reason: "round-closed" });
+      await expect(db.$count(votes)).resolves.toBe(0);
+    });
+
+    test("counts nothing for a voter behind a close of the round", async () => {
+      const round = await seedOpenRoundFixture();
+      const voterId = await seedVoter();
+
+      const cast = await runBehindAHolder({
+        waitingOn: "round row",
+        hold: (tx) =>
+          tx
+            .update(votingRounds)
+            .set({ closedAt: sql`CURRENT_TIMESTAMP` })
+            .where(eq(votingRounds.id, round.roundId)),
+        contender: () =>
+          castVote({
+            academyId: round.alas,
+            identity: { kind: "voter", voterId },
             roundId: round.roundId,
           }),
       });

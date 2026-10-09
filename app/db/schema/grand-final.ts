@@ -261,6 +261,36 @@ export const votingRoundFinalists = createTable(
   ],
 ).enableRLS();
 
+/** Where a `voter` signed in. Meta is a second value when its review clears. */
+export const voterProvider = pgEnum("en_escena_voter_provider", ["google"]);
+
+/**
+ * A `voter` (ADR-0018): a person the provider vouched for, kept only to cast
+ * one vote per round. It is not a `user` and reaches nothing of the access
+ * domain. The provider's subject is the identity; the email is kept as a keyed
+ * hash, or not at all when the provider shares none, and links nothing.
+ *
+ * Never deleted while it holds a vote: the vote's key restricts.
+ */
+export const voters = createTable(
+  "voter",
+  {
+    id: uuidPrimaryKey(),
+    provider: voterProvider("provider").notNull(),
+    subject: varchar("subject", { length: 255 }).notNull(),
+    emailHash: varchar("email_hash", { length: 64 }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("voter_provider_subject_unique").on(
+      table.provider,
+      table.subject,
+    ),
+  ],
+).enableRLS();
+
 /** How a `vote` was cast: with a printed `voteCode`, or by a signed-in `voter`. */
 export const voteKind = pgEnum("en_escena_vote_kind", ["code", "social"]);
 
@@ -271,9 +301,9 @@ export const voteKind = pgEnum("en_escena_vote_kind", ["code", "social"]);
  * or delete that reaches the row anyway.
  * Its weight is fixed by its kind, ten for a code and one for a voter.
  *
- * A code votes once per round: the unique index is what refuses the second
- * vote, under any concurrency, and a cast reads its conflict as "already
- * voted". The academy must be one the round copied, through the composite key.
+ * A code, and a voter, votes once per round: the unique indexes are what
+ * refuse the second vote, under any concurrency, and a cast reads its conflict
+ * as "already voted". A vote names exactly one of the two, by its kind. The academy must be one the round copied, through the composite key.
  */
 export const votes = createTable(
   "vote",
@@ -287,6 +317,9 @@ export const votes = createTable(
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
+    // Last, as the column was added after the table: an insert from a select
+    // names the columns in this order.
+    voterId: varchar("voter_id", { length: 255 }),
   },
   (table) => [
     foreignKey({
@@ -307,12 +340,23 @@ export const votes = createTable(
       foreignColumns: [voteCodes.id],
       name: "vote_code_fk",
     }),
+    foreignKey({
+      columns: [table.voterId],
+      foreignColumns: [voters.id],
+      name: "vote_voter_fk",
+    }).onDelete("restrict"),
     uniqueIndex("vote_round_code_unique").on(table.roundId, table.voteCodeId),
+    uniqueIndex("vote_round_voter_unique").on(table.roundId, table.voterId),
     index("vote_round_academy_idx").on(table.roundId, table.academyId),
     index("vote_code_idx").on(table.voteCodeId),
+    index("vote_voter_idx").on(table.voterId),
     check(
       "vote_kind_points_check",
       sql`(${table.kind} = 'code' and ${table.points} = 10 and ${table.voteCodeId} is not null) or (${table.kind} = 'social' and ${table.points} = 1 and ${table.voteCodeId} is null)`,
+    ),
+    check(
+      "vote_kind_voter_check",
+      sql`(${table.kind} = 'code' and ${table.voterId} is null) or (${table.kind} = 'social' and ${table.voterId} is not null)`,
     ),
   ],
 ).enableRLS();

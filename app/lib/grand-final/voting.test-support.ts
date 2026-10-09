@@ -2,6 +2,7 @@ import { db } from "@/db";
 import {
   finalistBanners,
   finalistPicks,
+  voters,
   votingRoundFinalists,
   votingRounds,
 } from "@/db/schema";
@@ -23,8 +24,9 @@ import {
 import { seedEligibilityFixture } from "./grand-final.test-support";
 
 /**
- * A round of a fresh event with one academy copied into it, and one code of
- * that event: the rows a vote points at, written straight to the tables.
+ * A round of a fresh event with one academy copied into it, one code of that
+ * event and one voter: the rows a vote points at, written straight to the
+ * tables.
  */
 export async function seedVotingRoundRows(number = 1) {
   const event = await createSavedEvent();
@@ -59,6 +61,7 @@ export async function seedVotingRoundRows(number = 1) {
     eventId: event.id,
     outsiderId: outsider.id,
     roundId: round.id,
+    voterId: await seedVoter(),
   };
 }
 
@@ -73,6 +76,30 @@ export function codeVote(input: {
     points: 10,
     roundId: input.roundId,
     voteCodeId: input.codeId,
+  };
+}
+
+/** A Google `voter`, written straight to its table. */
+export async function seedVoter(subject = crypto.randomUUID()) {
+  const [voter] = await db
+    .insert(voters)
+    .values({ provider: "google", subject })
+    .returning();
+
+  return voter.id;
+}
+
+export function voterVote(input: {
+  academyId: string;
+  roundId: string;
+  voterId: string;
+}) {
+  return {
+    academyId: input.academyId,
+    kind: "social" as const,
+    points: 1,
+    roundId: input.roundId,
+    voterId: input.voterId,
   };
 }
 

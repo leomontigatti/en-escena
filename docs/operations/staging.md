@@ -37,6 +37,10 @@ What it holds, against production:
 
 - **Own secrets**: `BETTER_AUTH_SECRET` and `STORAGE_URL_SIGNING_SECRET` are its
   own, so no session or signed link crosses between the two.
+- **Same Google sign-in for the vote**: `GOOGLE_CLIENT_ID` and
+  `GOOGLE_CLIENT_SECRET` are production's OAuth client, whose redirect URIs list
+  `https://pruebas.enescena.com.ar/votar/google/retorno` beside production's.
+  Without them `/votar` offers the QR code alone (#1516).
 - **Same ARCA configuration**, test service included (`ARCA_PRODUCTION=false`).
   Check that production still says `false` before relying on it; if it has gone
   live, staging must keep `false` and get the homologation certificate.
