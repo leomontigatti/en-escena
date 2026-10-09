@@ -41,7 +41,7 @@ type AdminResourceLayoutProps = {
 };
 
 type AdminEmptyStateProps = {
-  description: string;
+  description: ReactNode;
   icon?: LucideIcon;
   title: string;
 };

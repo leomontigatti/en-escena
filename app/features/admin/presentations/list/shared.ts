@@ -277,15 +277,15 @@ export function formatProgramVisibilityMessage(visibleDays: readonly string[]) {
 }
 
 /**
- * Where the row's name leads, if anywhere. A presentation the panel has
- * already judged is read through its scores, which link on to the
- * choreography; one still waiting for the panel has nothing of its own to
- * open, so its name is plain text.
+ * Where the row's name leads, if anywhere. A presentation opens on its panel —
+ * who judges it and, once they have, what they gave — which links on to the
+ * choreography; a choreography without a number has no presentation yet, so
+ * its name is plain text.
  */
 export function presentationRowPath(row: PresentationListItem) {
-  if (row.evaluationStatus !== "pending" && row.presentationId !== null) {
-    return `/administracion/presentaciones/${row.presentationId}/puntajes`;
+  if (row.presentationId === null) {
+    return null;
   }
 
-  return null;
+  return `/administracion/presentaciones/${row.presentationId}/puntajes`;
 }

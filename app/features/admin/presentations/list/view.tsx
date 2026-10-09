@@ -67,6 +67,7 @@ const warningTriage: {
   kind: PresentationWarningKind;
   label: string;
 }[] = [
+  { kind: "missingJudges", label: "Sin jueces" },
   { kind: "belowDeposit", label: "Seña pendiente" },
   { kind: "evaluatedSchedule", label: "Cronograma evaluado" },
   { kind: "dancerSpacing", label: "Separación" },
@@ -569,7 +570,7 @@ function PresentationStatusBadge({ row }: { row: PresentationListItem }) {
     const badge = evaluationBadges[row.evaluationStatus];
 
     // No count and no tooltip: the badge is the whole answer, and what the
-    // panel gave is read in the scores view the row's name now leads to.
+    // panel gave is read in the scores view the row's name leads to.
     return <Badge variant={badge.variant}>{badge.label}</Badge>;
   }
 

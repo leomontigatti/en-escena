@@ -141,12 +141,9 @@ async function loadPresentationList(input: {
 
   const rows = await readParticipationRows(input.selectedEventId);
   const frozenChoreographyIds = await readFrozenChoreographyIds(rows);
-  const warnings = derivePresentationWarnings(rows, frozenChoreographyIds);
   // The assignments of every row of the event, not only of the page: the
-  // removal dialog offers the judges of the selection, and a selection is made
-  // on one page at a time, so the page's rows are all it can ever need — but
-  // the read is one query either way, and scoping it to the page would have to
-  // wait for the page to be resolved.
+  // removal dialog offers the judges of the selection, and the `Sin jueces`
+  // warning compares each presentation with the rest of its schedule.
   const [
     assignableJudges,
     assigned,
@@ -160,6 +157,15 @@ async function loadPresentationList(input: {
     readMusicDownloadDays(input.selectedEventId),
     readVisibleProgramDays(input.selectedEventId),
   ]);
+  const warnings = derivePresentationWarnings(rows, {
+    assignedChoreographyIds: new Set(assigned.byChoreography.keys()),
+    disqualifiedChoreographyIds: new Set(
+      [...evaluationStatuses]
+        .filter(([, status]) => status === "disqualified")
+        .map(([choreographyId]) => choreographyId),
+    ),
+    frozenChoreographyIds,
+  });
   const items = rows.map((row) =>
     buildPresentationListItem(row, {
       assignedJudgeIds: assigned.byChoreography,

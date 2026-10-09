@@ -17,6 +17,7 @@ export type PresentationWarningKind =
   | "belowDeposit"
   | "dancerSpacing"
   | "evaluatedSchedule"
+  | "missingJudges"
   | "missingLevel"
   | "outOfBlock";
 
@@ -41,6 +42,7 @@ export type PresentationWarningRow = PresentationBlock & {
  * relevant first. The same order drives the row's badge.
  */
 const warningKindPrecedence: readonly PresentationWarningKind[] = [
+  "missingJudges",
   "belowDeposit",
   "evaluatedSchedule",
   "dancerSpacing",
@@ -49,21 +51,41 @@ const warningKindPrecedence: readonly PresentationWarningKind[] = [
 ];
 
 /**
+ * What the rows alone do not say, each set naming choreographies.
+ *
+ * `frozenChoreographyIds` is what `findFrozenChoreographyIds` answers: it
+ * names the schedules that already ran, and an unnumbered row of one of them is
+ * flagged, since no ordering can put it among the presentations that were
+ * announced.
+ *
+ * `assignedChoreographyIds` are the presentations with at least one judge
+ * assigned. A numbered one without any is flagged only when another of its
+ * schedule has a judge: judges are assigned a schedule at a time, so a
+ * schedule nobody has assigned yet is work not started, while one gap among
+ * assigned presentations is the one left behind — typically numbered after
+ * the panel was assigned. A disqualified presentation is left out: it needs
+ * no panel.
+ */
+export type PresentationWarningContext = {
+  assignedChoreographyIds?: Set<string>;
+  disqualifiedChoreographyIds?: Set<string>;
+  frozenChoreographyIds?: Set<string>;
+};
+
+/**
  * Every warning of every row, keyed by choreography; rows with none are
- * absent. `frozenChoreographyIds` is what `findFrozenChoreographyIds` answers:
- * it names the schedules that already ran, and an unnumbered row of one of
- * them is flagged, since no ordering can put it among the presentations that
- * were announced.
+ * absent.
  */
 export function derivePresentationWarnings(
   rows: PresentationWarningRow[],
-  frozenChoreographyIds: Set<string> = new Set(),
+  {
+    assignedChoreographyIds = new Set(),
+    disqualifiedChoreographyIds = new Set(),
+    frozenChoreographyIds = new Set(),
+  }: PresentationWarningContext = {},
 ) {
-  const frozenScheduleIds = new Set(
-    rows
-      .filter((row) => frozenChoreographyIds.has(row.choreographyId))
-      .map((row) => row.schedule.id),
-  );
+  const frozenScheduleIds = scheduleIdsOf(rows, frozenChoreographyIds);
+  const assignedScheduleIds = scheduleIdsOf(rows, assignedChoreographyIds);
   const warnings = new Map<string, PresentationWarning[]>();
 
   const add = (choreographyId: string, warning: PresentationWarning) => {
@@ -80,8 +102,21 @@ export function derivePresentationWarnings(
         compareText(left.choreographyId, right.choreographyId),
     );
 
-  // The two per-row kinds, which hold numbered and unnumbered rows alike.
+  // The per-row kinds.
   for (const row of rows) {
+    if (
+      row.orderNumber !== null &&
+      assignedScheduleIds.has(row.schedule.id) &&
+      !assignedChoreographyIds.has(row.choreographyId) &&
+      !disqualifiedChoreographyIds.has(row.choreographyId)
+    ) {
+      add(row.choreographyId, {
+        kind: "missingJudges",
+        message:
+          "Sin jueces: otras presentaciones de su cronograma ya los tienen",
+      });
+    }
+
     if (row.financialStatus === "depositPending") {
       add(row.choreographyId, {
         kind: "belowDeposit",
@@ -266,6 +301,18 @@ function rankBlocks(ordered: PresentationWarningRow[]) {
   }
 
   return ranks;
+}
+
+/** The schedules of the rows `choreographyIds` names. */
+function scheduleIdsOf(
+  rows: PresentationWarningRow[],
+  choreographyIds: Set<string>,
+) {
+  return new Set(
+    rows
+      .filter((row) => choreographyIds.has(row.choreographyId))
+      .map((row) => row.schedule.id),
+  );
 }
 
 function sortByPrecedence(rowWarnings: PresentationWarning[]) {

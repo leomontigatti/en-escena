@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Info, Undo2 } from "lucide-react";
+import { Info, Undo2, UsersRound } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useForm, useFormState } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
 
 import {
+  AdminEmptyState,
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
@@ -116,15 +117,7 @@ export function PresentationScoresView({
         <MetricCard title="Promedio" value={averageText(presentation)} />
         <MetricCard title="Premio" value={awardText(presentation)} />
       </div>
-      {presentation.criteria.length === 0 ? (
-        <SingleScoresTable canEdit={canEdit} judges={presentation.judges} />
-      ) : (
-        <JudgeSheets
-          canEdit={canEdit}
-          criteria={presentation.criteria}
-          judges={presentation.judges}
-        />
-      )}
+      <PanelScores canEdit={canEdit} presentation={presentation} />
     </AdminResourceLayout>
   );
 }
@@ -226,6 +219,49 @@ function awardText(presentation: Presentation) {
     : awardLabels[presentation.award];
 }
 
+/**
+ * The panel's work: one table when the submodality scores with a single
+ * number, a sheet per judge when it has criteria, and an empty state while
+ * nobody is assigned.
+ */
+function PanelScores({
+  canEdit,
+  presentation,
+}: {
+  canEdit: boolean;
+  presentation: Presentation;
+}) {
+  if (presentation.judges.length === 0) {
+    return (
+      <AdminEmptyState
+        description={
+          <>
+            Se asignan desde la{" "}
+            <Link to="/administracion/presentaciones">
+              lista de presentaciones
+            </Link>
+            .
+          </>
+        }
+        icon={UsersRound}
+        title="Sin jueces asignados"
+      />
+    );
+  }
+
+  if (presentation.criteria.length === 0) {
+    return <SingleScoresTable canEdit={canEdit} judges={presentation.judges} />;
+  }
+
+  return (
+    <JudgeSheets
+      canEdit={canEdit}
+      criteria={presentation.criteria}
+      judges={presentation.judges}
+    />
+  );
+}
+
 function SingleScoresTable({
   canEdit,
   judges,
@@ -254,7 +290,7 @@ function SingleScoresTable({
               )}
             </TableCell>
             <TableCell>
-              <FeedbackCell audioUrl={judge.feedbackAudioUrl} />
+              <FeedbackCell judge={judge} />
             </TableCell>
           </TableRow>
         ))}
@@ -365,7 +401,7 @@ function JudgeSheets({
                   </TableRow>
                 </TableBody>
               </ScoresTable>
-              <FeedbackCell audioUrl={judge.feedbackAudioUrl} />
+              <FeedbackCell judge={judge} />
             </>
           )}
         </TabsContent>
@@ -516,7 +552,7 @@ function SheetForm({
         <FieldGroup>
           <FieldSet className="gap-2">
             <FieldLegend>Devolución</FieldLegend>
-            <FeedbackCell audioUrl={judge.feedbackAudioUrl} />
+            <FeedbackCell judge={judge} />
           </FieldSet>
           <SheetParts
             control={form.control}
@@ -537,11 +573,20 @@ function ScoreValue({ value }: { value: string | null }) {
   );
 }
 
-function FeedbackCell({ audioUrl }: { audioUrl: string | null }) {
-  return audioUrl === null ? (
+/**
+ * A judge who has not saved anything yet has no feedback to miss: the page
+ * opens before the panel judges, and `Sin devolución` there would read as
+ * something forgotten.
+ */
+function FeedbackCell({ judge }: { judge: PresentationJudgeScore }) {
+  if (judge.scoreId === null) {
+    return null;
+  }
+
+  return judge.feedbackAudioUrl === null ? (
     <Badge variant="secondary">{noFeedbackText}</Badge>
   ) : (
-    <FeedbackPlayback audioUrl={audioUrl} />
+    <FeedbackPlayback audioUrl={judge.feedbackAudioUrl} />
   );
 }
 
