@@ -182,11 +182,21 @@ function selectEmptyState(loaderData: PortalResultsLoaderData) {
     };
   }
 
-  if (loaderData.rows.length === 0) {
+  if (!loaderData.areResultsPublished) {
     return {
       title: "Los resultados todavía no se publicaron",
       description:
         "Cuando la organización publique los resultados vas a ver acá el premio y el promedio de cada coreografía.",
+    };
+  }
+
+  // Results are out, but none of this academy's presentations was evaluated
+  // when they went out.
+  if (loaderData.rows.length === 0) {
+    return {
+      title: "Tu academia no tiene resultados publicados",
+      description:
+        "Cuando la organización publique el resultado de una coreografía de tu academia, va a aparecer acá.",
     };
   }
 

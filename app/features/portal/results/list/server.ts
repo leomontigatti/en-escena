@@ -1,7 +1,10 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import type { Award } from "@/lib/judging/award";
 import { readPresentationResults } from "@/lib/judging/presentation-results.server";
-import { readPublishedResultChoreographyIds } from "@/lib/judging/results.server";
+import {
+  readPublishedResultChoreographyIds,
+  readResultsPublication,
+} from "@/lib/judging/results.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 import { readAcademyPresentations } from "@/lib/presentations/academy-program.server";
 import { readVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
@@ -23,6 +26,11 @@ export type PortalResultRow = ProgramListRow & {
 };
 
 export type PortalResultsLoaderData = {
+  /**
+   * Whether the event's results are out, apart from the rows: once they are,
+   * an empty list means none of this academy's presentations made it in.
+   */
+  areResultsPublished: boolean;
   hasActiveEvent: boolean;
   rows: PortalResultRow[];
 };
@@ -34,17 +42,20 @@ export async function loadPortalResultsList(
   const { activeEvent } = await getPortalActiveEventSummaryContext(request);
 
   if (!activeEvent) {
-    return { hasActiveEvent: false, rows: [] };
+    return { areResultsPublished: false, hasActiveEvent: false, rows: [] };
   }
 
   // The same rows as the presentations page, so a number of a day whose
   // program is not published stays withheld here too.
   const visibleDays = await readVisibleProgramDays(activeEvent.id);
-  const rows = await readAcademyPresentations({
-    academyId: academy.id,
-    eventId: activeEvent.id,
-    visibleDays,
-  });
+  const [rows, publication] = await Promise.all([
+    readAcademyPresentations({
+      academyId: academy.id,
+      eventId: activeEvent.id,
+      visibleDays,
+    }),
+    readResultsPublication(activeEvent.id),
+  ]);
   const publishedIds = await readPublishedResultChoreographyIds(
     rows.map((row) => row.choreographyId),
   );
@@ -56,6 +67,7 @@ export async function loadPortalResultsList(
   );
 
   return {
+    areResultsPublished: publication.publishedAt !== null,
     hasActiveEvent: true,
     rows: publishedRows.map((row) => {
       const result = results.get(row.choreographyId);

@@ -165,6 +165,29 @@ describe("loadPortalResultsList", () => {
     expect((await loadTheList(fixture.academy.cookie)).rows).toEqual([]);
   });
 
+  test("tells results not published yet apart from published with none of the academy's", async () => {
+    const fixture = await seedActiveFixture();
+    // Placed but never evaluated, so publishing leaves it out of the snapshot.
+    await fixture.addPresentation({
+      name: "Sin evaluar",
+      orderNumber: 1,
+      scheduledDate: presentationDay,
+    });
+
+    const beforePublishing = await loadTheList(fixture.academy.cookie);
+    await publishResults(fixture.event.id);
+    const afterPublishing = await loadTheList(fixture.academy.cookie);
+
+    expect(beforePublishing).toMatchObject({
+      areResultsPublished: false,
+      rows: [],
+    });
+    expect(afterPublishing).toMatchObject({
+      areResultsPublished: true,
+      rows: [],
+    });
+  });
+
   test("answers with no event when none is active", async () => {
     const session = await createAcademySession({
       academyName: "Academia Sin Evento",
@@ -173,6 +196,10 @@ describe("loadPortalResultsList", () => {
 
     const loaderData = await loadTheList(session.cookie);
 
-    expect(loaderData).toEqual({ hasActiveEvent: false, rows: [] });
+    expect(loaderData).toEqual({
+      areResultsPublished: false,
+      hasActiveEvent: false,
+      rows: [],
+    });
   });
 });
