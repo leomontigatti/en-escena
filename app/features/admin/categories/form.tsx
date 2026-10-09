@@ -149,6 +149,7 @@ function CategoryForm({
           control={form.control}
           label="Nombre"
           name="name"
+          className="md:col-span-2"
           placeholder="Ingresá el nombre de la categoría"
         />
         <IntegerInputField
