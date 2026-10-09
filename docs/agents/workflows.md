@@ -70,7 +70,8 @@ tool call returns the tool result instead of its report.
 
 Reading outside the repo goes to the `research` agent (`.agents/agents/research.md`). It
 fetches plain-text sources with `curl`, and searches and reads rendered pages with Codex's
-built-in `web_search` tool, which `scripts/agents/sol.sh` runs in live mode. Nothing is
+built-in `web_search` tool, in live mode both through `scripts/agents/sol.sh` and when a
+Codex thread spawns it (`.codex/agents/research.toml`). Nothing is
 installed per machine beyond the logged-in `codex` CLI the agent already needs.
 
 ## Investigate before recommending
