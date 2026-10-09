@@ -120,6 +120,8 @@ describe("administration's `Gran final` list", () => {
           element: (
             <GrandFinalListView
               loaderData={{
+                auditLinkCreateBlockReasons: [],
+                auditLinks: [],
                 pickChangeBlockReasons,
                 picks: loaderPicks,
                 selectedEventId: "evento",

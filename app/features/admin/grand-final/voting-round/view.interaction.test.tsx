@@ -122,6 +122,8 @@ describe("the voting round actions of administration's `Gran final` list", () =>
           element: (
             <GrandFinalListView
               loaderData={{
+                auditLinkCreateBlockReasons: [],
+                auditLinks: [],
                 pickChangeBlockReasons: [],
                 picks: { judges: [], modalities: [] },
                 selectedEventId: "evento",

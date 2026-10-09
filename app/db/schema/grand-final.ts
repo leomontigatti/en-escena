@@ -365,3 +365,39 @@ export const votes = createTable(
     ),
   ],
 ).enableRLS();
+
+/**
+ * An `auditLink`: the access administration hands to one of the audience's
+ * auditors to watch the event's open `votingRound`. Only hashes are kept: the
+ * token the link carries is shown once, when it is created, and the session
+ * secret is the cookie of the first browser that opened it, which is the only
+ * one it serves from then on. `revokedAt` closes it for good.
+ *
+ * Cascade on the event: a link reads nothing of any other.
+ */
+export const auditLinks = createTable(
+  "audit_link",
+  {
+    id: uuidPrimaryKey(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    /** Who administration handed it to, as they named them. */
+    label: varchar("label", { length: 80 }).notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    sessionHash: varchar("session_hash", { length: 64 }),
+    boundAt: timestamp("bound_at", { mode: "date", withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { mode: "date", withTimezone: true }),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "audit_link_event_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("audit_link_token_hash_unique").on(table.tokenHash),
+    uniqueIndex("audit_link_session_hash_unique").on(table.sessionHash),
+    index("audit_link_event_idx").on(table.eventId),
+  ],
+).enableRLS();

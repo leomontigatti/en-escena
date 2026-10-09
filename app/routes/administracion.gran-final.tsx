@@ -16,6 +16,12 @@ export const handle = {
   adminBreadcrumbs: [{ label: "Gran final" }],
 } satisfies AdminRouteHandle;
 
+// A created audit link's answer carries its address once: its `no-store`
+// reaches the response, as the loader's headers do otherwise.
+export function headers({ actionHeaders, loaderHeaders }: Route.HeadersArgs) {
+  return actionHeaders.has("Cache-Control") ? actionHeaders : loaderHeaders;
+}
+
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadGrandFinalListRouteData(request);
 }

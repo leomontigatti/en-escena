@@ -78,6 +78,8 @@ describe("the QR code batches of administration's `Gran final` list", () => {
           element: (
             <GrandFinalListView
               loaderData={{
+                auditLinkCreateBlockReasons: [],
+                auditLinks: [],
                 pickChangeBlockReasons: [],
                 picks: { judges: [], modalities: [] },
                 selectedEventId: "evento",

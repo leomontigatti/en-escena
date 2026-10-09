@@ -109,8 +109,11 @@ export async function readPublishedRanking(
   return await readClosedRoundResult(round, db);
 }
 
-/** Every finalist the round copied, with its votes in that round only. */
-async function readRoundTally(
+/**
+ * Every finalist the round copied, with its votes in that round only: what
+ * the result ranks once the round closed, and the audit page while it is open.
+ */
+export async function readRoundTally(
   roundId: string,
   executor: Executor,
 ): Promise<FinalistTally[]> {

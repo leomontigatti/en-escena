@@ -13,6 +13,15 @@ import {
 import { readFormString } from "@/lib/shared/forms";
 
 import {
+  handleAuditLinkIntent,
+  listAuditLinkRows,
+  readAuditLinkCreateBlockReasons,
+} from "../audit-links/server";
+import {
+  createAuditLinkIntent,
+  revokeAuditLinkIntent,
+} from "../audit-links/shared";
+import {
   handleVoteCodeBatchIntent,
   listVoteCodeBatchRows,
 } from "../vote-codes/server";
@@ -54,15 +63,18 @@ export async function loadGrandFinalListRouteData(
   }
 
   const { selectedEventId } = eventContext;
-  const [picks, voteCodeBatches, votingRound] = selectedEventId
+  const [picks, voteCodeBatches, votingRound, auditLinks] = selectedEventId
     ? await Promise.all([
         readGrandFinalPicks(selectedEventId),
         listVoteCodeBatchRows(selectedEventId),
         readVotingRoundListState(selectedEventId),
+        listAuditLinkRows(selectedEventId),
       ])
-    : [null, [], null];
+    : [null, [], null, []];
 
   return {
+    auditLinkCreateBlockReasons: readAuditLinkCreateBlockReasons(auditLinks),
+    auditLinks,
     pickChangeBlockReasons: picks ? readPickChangeBlockReasons(picks) : [],
     picks,
     selectedEventId,
@@ -113,6 +125,11 @@ const voteCodeBatchIntents: readonly string[] = [
   voidVoteCodeBatchIntent,
 ];
 
+const auditLinkIntents: readonly string[] = [
+  createAuditLinkIntent,
+  revokeAuditLinkIntent,
+];
+
 const votingRoundIntents: readonly string[] = [
   openVotingRoundIntent,
   closeVotingRoundIntent,
@@ -123,7 +140,7 @@ const votingRoundIntents: readonly string[] = [
 
 /**
  * The list's writes: the change of a judge's pick from its dialog, the QR
- * code batches, and the voting round's: opening and closing it, the
+ * code batches, the audit links, and the voting round's: opening and closing it, the
  * `Desempate`, and publishing or hiding the result. Each stays:
  * the answer goes back as data for a toast and the list revalidates.
  */
@@ -135,6 +152,10 @@ export async function handleGrandFinalListAction(
 
   if (voteCodeBatchIntents.includes(readFormString(formData, "intent"))) {
     return await handleVoteCodeBatchIntent(request, formData);
+  }
+
+  if (auditLinkIntents.includes(readFormString(formData, "intent"))) {
+    return await handleAuditLinkIntent(request, formData);
   }
 
   if (votingRoundIntents.includes(readFormString(formData, "intent"))) {

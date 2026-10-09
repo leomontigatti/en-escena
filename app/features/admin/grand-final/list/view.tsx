@@ -24,6 +24,9 @@ import type {
   GrandFinalPicks,
 } from "@/lib/grand-final/picks-overview.server";
 
+import { AuditLinksSection } from "../audit-links/section";
+import { CreateAuditLinkDialog } from "../audit-links/create-dialog";
+import type { AuditLinkCreateBlockReason } from "../audit-links/shared";
 import { buildFinalistBannersPath } from "../banners/shared";
 import { VoteCodeBatchesSection } from "../vote-codes/batches";
 import { GenerateVoteCodeBatchDialog } from "../vote-codes/generate-dialog";
@@ -46,7 +49,8 @@ import type {
  * banners as a status beside its name, and below them the event's QR code
  * batches. The `Acciones` menu holds the change of any judge's pick, with no
  * window, the generation of a batch, and the `votingRound`'s actions: open,
- * `Desempate`, publish and hide the result, and close. The round's state reads
+ * `Desempate`, publish and hide the result, and close, and the creation of
+ * an `auditLink`, listed below the batches with its revoke. The round's state reads
  * beside the title, and once a round closed its result heads the page.
  */
 export function GrandFinalListView({
@@ -56,6 +60,12 @@ export function GrandFinalListView({
 }) {
   const [isPickDialogOpen, setIsPickDialogOpen] = useState(false);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+  // Which dialog opens is decided when the item is chosen: the list
+  // revalidates after a link is created, and the third one must not swap its
+  // only handover for the limit's refusal.
+  const [auditLinkDialog, setAuditLinkDialog] =
+    useState<AuditLinkDialogKind | null>(null);
+  const closeAuditLinkDialog = useCallback(() => setAuditLinkDialog(null), []);
   const [votingRoundAction, setVotingRoundAction] =
     useState<VotingRoundAction | null>(null);
   const closeVotingRoundDialog = useCallback(
@@ -82,6 +92,17 @@ export function GrandFinalListView({
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setIsGenerateDialogOpen(true)}>
               Generar códigos QR
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() =>
+                setAuditLinkDialog(
+                  loaderData.auditLinkCreateBlockReasons.length > 0
+                    ? "blocked"
+                    : "create",
+                )
+              }
+            >
+              Crear acceso de auditoría
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => setVotingRoundAction("open")}>
@@ -116,6 +137,7 @@ export function GrandFinalListView({
           ) : null}
           <GrandFinalModalities picks={picks} />
           <VoteCodeBatchesSection batches={loaderData.voteCodeBatches} />
+          <AuditLinksSection links={loaderData.auditLinks} />
         </div>
       ) : null}
       {picks ? (
@@ -129,6 +151,11 @@ export function GrandFinalListView({
       {isGenerateDialogOpen ? (
         <GenerateVoteCodeBatchDialog onOpenChange={setIsGenerateDialogOpen} />
       ) : null}
+      <AuditLinkDialog
+        blockReasons={loaderData.auditLinkCreateBlockReasons}
+        kind={auditLinkDialog}
+        onClose={closeAuditLinkDialog}
+      />
       {picks && votingRound ? (
         <VotingRoundDialogs
           action={votingRoundAction}
@@ -310,4 +337,47 @@ function PickDialog({
   return open ? (
     <FinalistPickChangeDialog onOpenChange={onOpenChange} picks={picks} />
   ) : null;
+}
+
+type AuditLinkDialogKind = "blocked" | "create";
+
+/**
+ * The creation of an audit link, or, when the live links were at the limit
+ * as the item was chosen, the acknowledgment that says so.
+ */
+function AuditLinkDialog({
+  blockReasons,
+  kind,
+  onClose,
+}: {
+  blockReasons: AuditLinkCreateBlockReason[];
+  kind: AuditLinkDialogKind | null;
+  onClose: () => void;
+}) {
+  if (kind === "create") {
+    return (
+      <CreateAuditLinkDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <BlockedActionDialog
+      description="Cada auditor del público tiene un acceso vigente a la vez."
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      open={kind === "blocked"}
+      reasons={blockReasons.map((reason) => reason.label).join(" ")}
+      reasonsTitle="Motivo"
+      title="No se puede crear otro acceso de auditoría"
+    />
+  );
 }

@@ -6,6 +6,7 @@ const schemaExportNames = [
   "account",
   "accessSession",
   "academies",
+  "auditLinks",
   "categories",
   "categoryModalities",
   "categoryCalculationMode",

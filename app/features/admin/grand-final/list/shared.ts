@@ -6,6 +6,11 @@ import type {
 } from "@/lib/grand-final/picks-overview.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
+import type {
+  AuditLinkCreateBlockReason,
+  AuditLinkListRow,
+  CreatedAuditLink,
+} from "../audit-links/shared";
 import type { VoteCodeBatchListRow } from "../vote-codes/shared";
 import type { VotingRoundListState } from "../voting-round/shared";
 
@@ -30,6 +35,8 @@ export type FinalistPickChangeFormValues = z.input<
 >;
 
 export type GrandFinalListActionData = {
+  /** The `auditLink` just created, handed over once by its dialog. */
+  auditLink?: CreatedAuditLink;
   message: string;
   status: "error" | "success";
 };
@@ -45,6 +52,8 @@ export type FinalistPickChangeBlockReason = {
 };
 
 export type GrandFinalListResult = {
+  auditLinkCreateBlockReasons: AuditLinkCreateBlockReason[];
+  auditLinks: AuditLinkListRow[];
   pickChangeBlockReasons: FinalistPickChangeBlockReason[];
   picks: GrandFinalPicks | null;
   selectedEventId: string | null;

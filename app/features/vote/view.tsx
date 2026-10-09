@@ -7,14 +7,13 @@ import {
   Info,
   Vote,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
-import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,7 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import { cn } from "@/lib/shared/utils";
 
 import { FinalistCarousel } from "./finalist-carousel";
+import { PublicVoteShell } from "./public-shell";
 import {
   voteFormSchema,
   type VoteActionData,
@@ -53,7 +53,7 @@ import {
  */
 export function VotePageView({ page }: { page: VotePageData }) {
   return (
-    <PublicVoteShell>
+    <PublicVoteShell subtitle="Votación del público">
       {page.state === "not-open" ? <NotOpen /> : null}
       {page.state === "closed" ? <Closed /> : null}
       {page.state === "published" ? (
@@ -82,30 +82,6 @@ export function VotePageView({ page }: { page: VotePageData }) {
         />
       ) : null}
     </PublicVoteShell>
-  );
-}
-
-function PublicVoteShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex min-h-14 max-w-2xl items-center gap-2 px-4 py-2">
-          <EnEscenaAvatar />
-          <div className="grid text-sm leading-tight">
-            <span className="font-medium">En Escena</span>
-            <span className="text-xs text-muted-foreground">
-              Votación del público
-            </span>
-          </div>
-        </div>
-      </header>
-      <main
-        id="contenido-principal"
-        className="mx-auto flex w-full max-w-2xl flex-1 flex-col"
-      >
-        {children}
-      </main>
-    </div>
   );
 }
 
