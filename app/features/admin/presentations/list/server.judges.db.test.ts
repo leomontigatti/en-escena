@@ -5,7 +5,10 @@ import { scores } from "@/db/schema";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 
-import { handlePresentationListAction } from "./server";
+import {
+  handlePresentationListAction,
+  loadPresentationListRouteData,
+} from "./server";
 import {
   judgeIdFieldName,
   presentationChoreographyIdFieldName,
@@ -98,5 +101,34 @@ describe("removing judges from the participation list", () => {
         "Se quitó 1 juez de 1 presentación. Se mantuvo 1 asignación que ya tiene puntaje.",
       status: "success",
     });
+  });
+});
+
+describe("the participation list's missing judges warning", () => {
+  test("flags the presentation left out of its schedule's panel", async () => {
+    const fixture = await seedJudgingFixture();
+    const judged = await fixture.addPresentation({
+      name: "Con jurado",
+      orderNumber: 1,
+    });
+    const forgotten = await fixture.addPresentation({
+      name: "Olvidada",
+      orderNumber: 2,
+    });
+    await fixture.assignJudge(judged.presentationId);
+    const { request } = await createSignedInAdminRequest({
+      email: `presentacion.jurado.${crypto.randomUUID()}@example.com`,
+      requestUrl: listUrl,
+      role: "admin",
+    });
+
+    const result = await loadPresentationListRouteData(request);
+    const kindsOf = (choreographyId: string) =>
+      result.presentations
+        .find((row) => row.id === choreographyId)
+        ?.warnings.map((warning) => warning.kind);
+
+    expect(kindsOf(forgotten.choreographyId)).toContain("missingJudges");
+    expect(kindsOf(judged.choreographyId)).not.toContain("missingJudges");
   });
 });

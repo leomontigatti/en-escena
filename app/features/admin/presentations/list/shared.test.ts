@@ -170,10 +170,18 @@ describe("formatJudgeAssignmentMessage with kept assignments", () => {
 });
 
 describe("presentationRowPath", () => {
-  test("leaves a pending row without a link", () => {
+  test("sends a pending row to its panel, so its judges can be read", () => {
     expect(
       presentationRowPath(
         buildItem({ evaluationStatus: "pending", presentationId: "p-1" }),
+      ),
+    ).toBe("/administracion/presentaciones/p-1/puntajes");
+  });
+
+  test("leaves a row without a presentation without a link", () => {
+    expect(
+      presentationRowPath(
+        buildItem({ evaluationStatus: "pending", presentationId: null }),
       ),
     ).toBeNull();
   });
