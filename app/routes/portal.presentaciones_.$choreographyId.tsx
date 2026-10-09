@@ -11,8 +11,10 @@ export const meta = () => [
 ];
 
 export const handle = {
+  // The evaluation is a result, so it sits under the results list even when
+  // the presentations list opened it.
   portalBreadcrumbs: [
-    { label: "Presentaciones", to: "/portal/presentaciones" },
+    { label: "Resultados", to: "/portal/resultados" },
     (match) => {
       const data = match.data as
         PortalPresentationEvaluationRouteProps["loaderData"] | undefined;

@@ -11,6 +11,7 @@ import {
   ListOrdered,
   Presentation,
   TriangleAlert,
+  Trophy,
   User,
   Users,
 } from "lucide-react";
@@ -228,6 +229,11 @@ const primaryNavigationItems = [
     label: "Presentaciones",
     to: "/portal/presentaciones",
     icon: ListOrdered,
+  },
+  {
+    label: "Resultados",
+    to: "/portal/resultados",
+    icon: Trophy,
   },
   {
     label: "Seminarios",

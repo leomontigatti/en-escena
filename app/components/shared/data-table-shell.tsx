@@ -1,6 +1,5 @@
 import {
   type ColumnDefTemplate,
-  type Column,
   type Header,
   type Row,
   type Table as TanStackTable,
@@ -27,6 +26,7 @@ import { GripVertical } from "lucide-react";
 import { createContext, useContext, useId, type ReactNode } from "react";
 import { Link } from "react-router";
 
+import { DataTableColumnGroup } from "@/components/shared/data-table-column-group";
 import { Button } from "@/components/ui/button";
 import {
   DataTablePagination,
@@ -43,11 +43,7 @@ import type {
   DataTableReorder,
   DataTableSortDirection,
 } from "@/components/shared/data-table.shared";
-import {
-  dataTableFacetedFilterColumnId,
-  dataTableSelectionColumnId,
-  dataTableSelectionColumnWeight,
-} from "@/components/shared/data-table.shared";
+import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
 import {
   Table,
   TableBody,
@@ -283,74 +279,6 @@ export function DataTableShell<TData>({
 }
 
 /**
- * The row's widths, as a `colgroup` rather than a class on every cell.
- *
- * This is where a `fit` table's arithmetic lives, and it lives here because
- * this is the only place that can see all of it. A view declares what share of
- * the row each of its columns is worth; it cannot account for the selection
- * checkbox, because the table is what adds that column, and it should not have
- * to — so the fixed part comes out of the row first and the views' weights
- * divide what is left. That is also why the weights are relative: there is no
- * total to keep them adding up to, so no way to leave the row over-committed.
- *
- * A column with no weight is left to the browser, which under a fixed layout
- * means it shares whatever the weighted columns did not claim.
- */
-function DataTableColumnGroup<TData>({
-  table,
-}: {
-  table: TanStackTable<TData>;
-}) {
-  const columns = table.getVisibleLeafColumns();
-  const totalWeight = columns.reduce(
-    (total, column) => total + resolveDataTableColumnWeight(column),
-    0,
-  );
-
-  return (
-    <colgroup>
-      {columns.map((column) => (
-        <col
-          key={column.id}
-          style={{
-            width: resolveDataTableColumnWidth({ column, totalWeight }),
-          }}
-        />
-      ))}
-    </colgroup>
-  );
-}
-
-/**
- * The selection column's weight is the table's own; every other column's is
- * what the view declared. Sharing the row by weight alone is what keeps each
- * width a plain percentage — see `dataTableSelectionColumnWeight`.
- */
-function resolveDataTableColumnWeight<TData>(column: Column<TData, unknown>) {
-  return column.id === dataTableSelectionColumnId
-    ? dataTableSelectionColumnWeight
-    : (column.columnDef.meta?.width ?? 0);
-}
-
-function resolveDataTableColumnWidth<TData>({
-  column,
-  totalWeight,
-}: {
-  column: Column<TData, unknown>;
-  totalWeight: number;
-}) {
-  const weight = resolveDataTableColumnWeight(column);
-
-  if (!weight || totalWeight <= 0) {
-    return undefined;
-  }
-
-  // Kept as a division rather than a percentage worked out here: the browser
-  // divides exactly, and a weight stays the number the view wrote.
-  return `calc(100% * ${weight} / ${totalWeight})`;
-}
-
-/**
  * The search box and the faceted filters. It draws nothing at all when the
  * table has neither: a list with one page and no facets has no controls to
  * offer, and an empty bar above it would read as a broken one.
@@ -433,6 +361,7 @@ function DataTableHead<TData>({
               key={header.id}
               className={cn(
                 "px-3",
+                header.column.columnDef.meta?.hiddenBelowSm && "max-sm:hidden",
                 header.column.columnDef.meta?.headerClassName,
               )}
             >
@@ -637,6 +566,7 @@ function DataTableBodyRowCells<TData>({
             // control still grows its row, so a list that needs one trims that
             // cell's padding to fit.
             "h-10 px-3",
+            cell.column.columnDef.meta?.hiddenBelowSm && "max-sm:hidden",
             cell.column.columnDef.meta?.className,
             cell.column.columnDef.meta?.cellClassName?.(row.original),
           )}

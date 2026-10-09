@@ -44,6 +44,12 @@ export type DataTableColumn<TData> = {
   cell: (row: TData) => ReactNode;
   hidden?: boolean;
   /**
+   * Whether a phone leaves the column out: below `sm` its header, its cells and
+   * its share of a `fit` row are not drawn. For the portal's lists, which keep
+   * their table on a phone by dropping what a narrow row cannot hold.
+   */
+  hiddenBelowSm?: boolean;
+  /**
    * Whether the column is drawn before the selection checkbox rather than
    * after it. The checkbox is the table's own column and the view cannot place
    * it, so this is how a view puts something to its left — a drag handle, a
@@ -65,6 +71,13 @@ export type DataTableColumn<TData> = {
    * total, and a budget that had to total 100% would leave it no room.
    */
   width?: number;
+  /**
+   * The column's weight below `sm`, for a `fit` table that drops columns on a
+   * phone: the columns left there share the row by these, and a column without
+   * one keeps its `width`. Unread unless some column of the table is
+   * `hiddenBelowSm` or declares this.
+   */
+  widthBelowSm?: number;
   filterValue?: (row: TData) => string;
   filterValues?: (row: TData) => string[];
   sortValue?: (row: TData) => DataTableSortValue;
