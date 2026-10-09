@@ -141,7 +141,7 @@ function competedIn(row: PortalResultRow) {
     .join(" · ");
 }
 
-/** B: one card per result; the name leads, the award and average sit on one line under it. */
+/** B: one card per result; the name leads, what it competed in under it, the award and average last. */
 function CompactCards({ rows }: { rows: PortalResultRow[] }) {
   return (
     <div className="flex flex-col gap-2">
@@ -158,15 +158,15 @@ function CompactCards({ rows }: { rows: PortalResultRow[] }) {
               N.º {row.orderNumber ?? "—"}
             </span>
           </div>
+          <p className="truncate text-xs text-muted-foreground">
+            {competedIn(row)}
+          </p>
           <div className="flex items-center justify-between gap-3">
             <AwardBadge award={row.award} disqualified={row.disqualified} />
             <span className="text-sm font-medium tabular-nums">
               {formatAverage(row)}
             </span>
           </div>
-          <p className="truncate text-xs text-muted-foreground">
-            {competedIn(row)}
-          </p>
         </Card>
       ))}
     </div>
