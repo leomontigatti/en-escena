@@ -19,9 +19,10 @@
 #   1   failed: stderr carries the tail of the Codex log
 #   127 the `codex` CLI is missing
 #
-# Research gets a workspace-write sandbox with network access (it fetches with
-# curl and firecrawl, and may write the `docs/research/` file its caller names);
-# reviewer is read-only.
+# Research gets a workspace-write sandbox with network access and live web
+# search (it fetches with curl and searches with Codex's own `web_search` tool,
+# and may write the `docs/research/` file its caller names); reviewer is
+# read-only.
 
 set -euo pipefail
 
@@ -58,7 +59,7 @@ start() {
   local role=$1 prompt_file=$2 root dir
   local -a sandbox
   case $role in
-    research) sandbox=(-s workspace-write -c sandbox_workspace_write.network_access=true) ;;
+    research) sandbox=(-s workspace-write -c sandbox_workspace_write.network_access=true -c 'web_search="live"') ;;
     reviewer) sandbox=(-s read-only) ;;
     *) usage ;;
   esac

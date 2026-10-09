@@ -69,12 +69,9 @@ summary, artifacts touched, next step, risks. A subagent whose last action is a
 tool call returns the tool result instead of its report.
 
 Reading outside the repo goes to the `research` agent (`.agents/agents/research.md`). It
-fetches with `curl` and with the `firecrawl` CLI through the `firecrawl-search` and
-`firecrawl-scrape` skills, and those two are **installed per machine**
-(`~/.claude/skills` for Claude Code, `~/.agents/skills` for Codex, `npm i -g firecrawl-cli`, then `firecrawl login`), not vendored here:
-the built-in web tools are denied in the user settings, so firecrawl is the only way an agent
-can search. On a machine without it the agent degrades to `curl` on plain-text sources and
-says so.
+fetches plain-text sources with `curl`, and searches and reads rendered pages with Codex's
+built-in `web_search` tool, which `scripts/agents/sol.sh` runs in live mode. Nothing is
+installed per machine beyond the logged-in `codex` CLI the agent already needs.
 
 ## Investigate before recommending
 
