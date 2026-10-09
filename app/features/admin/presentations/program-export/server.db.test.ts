@@ -80,8 +80,23 @@ async function addPresentation(
 
 /** Every text the workbook holds: a spreadsheet keeps them in one table. */
 async function readWorkbookStrings(response: Response) {
+  const xml = await readWorkbookEntry(response, "xl/sharedStrings.xml");
+
+  return [...xml.matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map((match) => match[1]);
+}
+
+/** The number in a cell, which a spreadsheet keeps in the sheet itself. */
+async function readNumberCell(response: Response, reference: string) {
+  const xml = await readWorkbookEntry(response, "xl/worksheets/sheet1.xml");
+  const cell = new RegExp(`<c r="${reference}"[^>]*><v>([^<]*)</v>`).exec(xml);
+
+  return cell ? Number(cell[1]) : null;
+}
+
+async function readWorkbookEntry(response: Response, fileName: string) {
   const bytes = Buffer.from(await response.arrayBuffer());
-  const xml = await new Promise<string>((resolve, reject) => {
+
+  return await new Promise<string>((resolve, reject) => {
     yauzl.fromBuffer(bytes, { lazyEntries: true }, (error, zip) => {
       if (error) {
         reject(error);
@@ -89,7 +104,7 @@ async function readWorkbookStrings(response: Response) {
       }
 
       zip.on("entry", (entry: yauzl.Entry) => {
-        if (entry.fileName !== "xl/sharedStrings.xml") {
+        if (entry.fileName !== fileName) {
           zip.readEntry();
           return;
         }
@@ -106,13 +121,11 @@ async function readWorkbookStrings(response: Response) {
           stream.on("end", () => resolve(Buffer.concat(chunks).toString()));
         });
       });
-      zip.on("end", () => reject(new Error("No shared strings")));
+      zip.on("end", () => reject(new Error(`No ${fileName}`)));
       zip.on("error", reject);
       zip.readEntry();
     });
   });
-
-  return [...xml.matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map((match) => match[1]);
 }
 
 describe("the program export", () => {
@@ -178,7 +191,7 @@ describe("the program export", () => {
     expect(strings).not.toContain("Otro día");
   });
 
-  test("names the dancers up to a trio, and the academy's province", async () => {
+  test("names the dancers up to a trio, counts a larger group's, and names the academy's province", async () => {
     const fixture = await seedJudgingFixture();
     const trio = await addPresentation(fixture, {
       dancerName: "Carla Díaz",
@@ -203,12 +216,16 @@ describe("the program export", () => {
       .set({ province: "entre_rios" })
       .where(eq(academies.id, academyId));
 
-    const strings = await readWorkbookStrings(
-      await loadProgramExport(await signedInRequest(exportAllDays)),
+    const response = await loadProgramExport(
+      await signedInRequest(exportAllDays),
     );
+    const strings = await readWorkbookStrings(response.clone());
 
     expect(strings).toContain("Carla Díaz");
     expect(strings).not.toContain("Dario Ruiz");
+    // Column L is the dancers', row 3 the group's; the fixture gives each
+    // presentation one dancer.
+    expect(await readNumberCell(response, "L3")).toBe(1);
     // The province by its label, never by its stored value.
     expect(strings).toContain("Entre Ríos");
     expect(strings).not.toContain("entre_rios");

@@ -16,10 +16,7 @@ import { resultsExportColumns, type ResultsExportRow } from "./sheet";
  * disqualified ones are left out.
  */
 export async function loadResultsExport(request: Request): Promise<Response> {
-  // Every dancer is read, since the sheet counts them in every group.
-  const { day, eventName, rows } = await readProgramExport(request, {
-    namesDancersOf: () => true,
-  });
+  const { day, eventName, rows } = await readProgramExport(request);
   const results = await readPresentationResults(
     rows.map((row) => row.choreographyId),
   );
