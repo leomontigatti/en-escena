@@ -84,17 +84,28 @@ describe("the program export sheet", () => {
         row({
           academyProvince: null,
           dancerNames: [],
-          groupType: "grupal",
           professorNames: [],
           submodalityName: null,
         }),
       ]),
     );
 
-    expect(cells[4]).toBe("Grupal");
     expect(cells[6]).toBeNull();
     expect(cells[8]).toBeNull();
     expect(cells[10]).toBeNull();
     expect(cells[11]).toBeNull();
+  });
+
+  test("counts a larger group's dancers rather than naming them", () => {
+    const [, cells] = values(
+      buildProgramSheet([
+        row({
+          dancerNames: ["Ana Pérez", "Bruno Gómez", "Carla Díaz", "Dario Ruiz"],
+          groupType: "grupal",
+        }),
+      ]),
+    );
+
+    expect(cells[11]).toBe(4);
   });
 });

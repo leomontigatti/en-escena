@@ -10,7 +10,6 @@ import {
 } from "@/features/admin/day-export/shared";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { readEventProgram } from "@/lib/presentations/event-program.server";
 
 import { programExportColumns, type ProgramExportRow } from "./sheet";
@@ -21,20 +20,12 @@ import { programExportColumns, type ProgramExportRow } from "./sheet";
  * the program the public reads, so a disqualified presentation stays in it.
  */
 
-/** A row has room for a trio's names; a larger group's would bury it. */
-function namesDancersOnExport(groupType: ChoreographyGroupType) {
-  return groupType !== "grupal";
-}
-
 /**
  * What every export of the program reads: the administrator, the active event
  * and the day asked for, and the program's rows on that day. Not found when
  * any of them is missing, since a download has no page to say so on.
  */
-export async function readProgramExport(
-  request: Request,
-  options: { namesDancersOf: (groupType: ChoreographyGroupType) => boolean },
-): Promise<{
+export async function readProgramExport(request: Request): Promise<{
   day: string;
   eventName: string;
   /** With the choreography, which a richer export reads more about. */
@@ -53,7 +44,8 @@ export async function readProgramExport(
       .select({ name: events.name })
       .from(events)
       .where(eq(events.id, selectedEventId)),
-    readEventProgram(selectedEventId, db, options),
+    // Every dancer is read, since the sheet counts a larger group's.
+    readEventProgram(selectedEventId, db, { namesDancersOf: () => true }),
   ]);
   const schedulesById = new Map(
     program.schedules.map((schedule) => [schedule.id, schedule]),
@@ -127,9 +119,7 @@ async function readProfessorNames(
 }
 
 export async function loadProgramExport(request: Request): Promise<Response> {
-  const { day, eventName, rows } = await readProgramExport(request, {
-    namesDancersOf: namesDancersOnExport,
-  });
+  const { day, eventName, rows } = await readProgramExport(request);
 
   return await spreadsheetResponse({
     columns: programExportColumns,
