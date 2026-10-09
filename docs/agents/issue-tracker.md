@@ -183,7 +183,7 @@ The skill says a research ticket is "resolved by a subagent that calls the Skill
 `research`". Here that subagent is the **`research` agent** (`.agents/agents/research.md`): spawn
 it with `subagent_type: "research"` and the ticket's question, one per research ticket, in
 parallel. Its definition carries the rules (primary sources with a URL beside every claim,
-firecrawl or `curl` for fetching, a tool-call budget, a fixed report shape), and the `research`
+`curl` and Codex's web search for fetching, a tool-call budget, a fixed report shape), and the `research`
 skill is not vendored.
 
 The agent reports back as text and leaves git and the tracker alone, so the session that spawned
