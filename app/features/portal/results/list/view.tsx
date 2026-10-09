@@ -25,7 +25,7 @@ import type { PortalResultRow, PortalResultsLoaderData } from "./server";
 /**
  * The administration's results list as the academy reads it: only its own
  * rows, only the published ones, and no academy column. On a phone each row is
- * a card (`ResultCard`).
+ * a card (`PortalResultCard`).
  */
 const resultsColumns: DataTableColumn<PortalResultRow>[] = [
   {
@@ -42,7 +42,7 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     header: "Nombre",
     width: 20,
     className: "font-medium",
-    cell: (row) => <ResultName row={row} />,
+    cell: (row) => <PortalResultName row={row} />,
   },
   {
     id: "award",
@@ -112,13 +112,13 @@ export function PortalResultsListView({
       {emptyState ? (
         <PortalEmptyState {...emptyState} />
       ) : (
-        <ResultsList rows={loaderData.rows} />
+        <PortalResultsList rows={loaderData.rows} />
       )}
     </PortalListPage>
   );
 }
 
-function ResultsList({ rows }: { rows: PortalResultRow[] }) {
+function PortalResultsList({ rows }: { rows: PortalResultRow[] }) {
   // As on the presentations page: the day narrows what is on screen, and is in
   // the URL so a reload or a shared link lands on it.
   const days = listProgramDays(rows);
@@ -144,7 +144,7 @@ function ResultsList({ rows }: { rows: PortalResultRow[] }) {
             orderNumber: row.orderNumber,
           })
         }
-        renderCard={(row) => <ResultCard row={row} />}
+        renderCard={(row) => <PortalResultCard row={row} />}
         searchPlaceholder="Buscar por número o nombre"
         initialSort={{ columnId: "orden", direction: "asc" }}
         emptyMessage="No hay resultados que coincidan con la búsqueda."
@@ -157,7 +157,7 @@ function ResultsList({ rows }: { rows: PortalResultRow[] }) {
  * The name links to the evaluation; the choreography number, which no column
  * shows, travels in the truncation title.
  */
-function ResultName({ row }: { row: PortalResultRow }) {
+function PortalResultName({ row }: { row: PortalResultRow }) {
   return (
     <DataTableTruncatedText
       value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
@@ -176,12 +176,12 @@ function ResultName({ row }: { row: PortalResultRow }) {
  * A row on a phone: the name and its number, what it competed in, and the
  * result last, so a scan down the cards ends each one on the award.
  */
-function ResultCard({ row }: { row: PortalResultRow }) {
+function PortalResultCard({ row }: { row: PortalResultRow }) {
   return (
     <>
       <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0 font-medium">
-          <ResultName row={row} />
+          <PortalResultName row={row} />
         </div>
         <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
           N.º {formatProgramOrderNumber(row) || "—"}

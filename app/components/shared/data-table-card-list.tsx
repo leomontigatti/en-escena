@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Table as TanStackTable } from "@tanstack/react-table";
 
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 /**
  * A list's rows as compact cards, which is how a portal list reads on a phone:
@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
  * competed in or owes. It draws the rows the table would — searched, filtered,
  * sorted and paged — so the toolbar and the footer around it stay the
  * table's own. The view writes what goes inside a card; the frame is here, so
- * every list's cards are one design.
+ * every list's cards are one design. There is no header here, so no sort
+ * control, no selection and no reordering: the cards keep the table's order.
  */
 export function DataTableCardList<TData>({
   emptyMessage,
@@ -34,7 +35,11 @@ export function DataTableCardList<TData>({
     <ul className="flex flex-col gap-2 sm:hidden">
       {rows.map((row) => (
         <li key={row.id}>
-          <Card className="gap-2 px-4 py-3">{renderCard(row.original)}</Card>
+          <Card size="sm">
+            <CardContent className="flex flex-col gap-2">
+              {renderCard(row.original)}
+            </CardContent>
+          </Card>
         </li>
       ))}
     </ul>

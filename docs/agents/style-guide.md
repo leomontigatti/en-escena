@@ -751,7 +751,9 @@ rows become compact cards, searched, filtered and paged like the table, which
 stays as it is above `sm`. Do not hide columns to fit a phone. A card reads top
 to bottom: the linked name with its number on the right, then what the row is
 (a muted line, `·`-joined), then its outcome — a badge on the left and a figure
-on the right. The portal `Resultados` list is the reference (#1440).
+on the right. The portal `Resultados` list is the reference (#1440). Cards
+have no sort header, selection or reordering; a list that needs one of them on
+a phone needs its own design first.
 
 Rules:
 
