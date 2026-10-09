@@ -20,6 +20,16 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
+import { useSearchParams } from "react-router";
+
+import { PrototypeSwitcher } from "@/components/shared/prototype-switcher";
+
+import {
+  PrototypeMobileList,
+  prototypeVariants,
+  withSampleRows,
+  type PrototypeVariantKey,
+} from "./prototype-mobile-variants";
 import type { PortalResultRow, PortalResultsLoaderData } from "./server";
 
 /**
@@ -123,6 +133,10 @@ export function PortalResultsListView({
   loaderData: PortalResultsLoaderData;
 }) {
   const emptyState = selectEmptyState(loaderData);
+  // PROTOTYPE: `?variant=` picks the phone layout; sample rows pad the list.
+  const [searchParams] = useSearchParams();
+  const variant = (searchParams.get("variant") ?? "A") as PrototypeVariantKey;
+  const rows = withSampleRows(loaderData.rows);
 
   return (
     <PortalListPage
@@ -133,7 +147,21 @@ export function PortalResultsListView({
       {emptyState ? (
         <PortalEmptyState {...emptyState} />
       ) : (
-        <ResultsList rows={loaderData.rows} />
+        <>
+          {variant === "A" ? (
+            <ResultsList rows={rows} />
+          ) : (
+            <>
+              <div className="sm:hidden">
+                <PrototypeMobileList rows={rows} variant={variant} />
+              </div>
+              <div className="hidden sm:block">
+                <ResultsList rows={rows} />
+              </div>
+            </>
+          )}
+          <PrototypeSwitcher variants={prototypeVariants} />
+        </>
       )}
     </PortalListPage>
   );
