@@ -293,7 +293,7 @@ describe("derivePresentationWarnings", () => {
           schedule: dayTwo,
         }),
       ],
-      new Set(["scored", "tail"]),
+      { frozenChoreographyIds: new Set(["scored", "tail"]) },
     );
 
     expect(messagesOf(warnings, "late-day-one")).toEqual([
@@ -301,5 +301,55 @@ describe("derivePresentationWarnings", () => {
     ]);
     expect(warnings.has("late-day-two")).toBe(false);
     expect(warnings.has("tail")).toBe(false);
+  });
+
+  test("marks a presentation without judges when another of its schedule has them", () => {
+    const dayTwo = {
+      id: "day-2",
+      name: "Sala B",
+      scheduledDate: "2026-05-02",
+      startTime: "10:00",
+    };
+    const warnings = derivePresentationWarnings(
+      [
+        row({ choreographyId: "assigned", orderNumber: 1 }),
+        row({ choreographyId: "forgotten", orderNumber: 2 }),
+        row({ choreographyId: "unnumbered", orderNumber: null }),
+        row({ choreographyId: "disqualified", orderNumber: 3 }),
+        row({
+          choreographyId: "other-schedule",
+          orderNumber: 4,
+          schedule: dayTwo,
+        }),
+      ],
+      {
+        assignedChoreographyIds: new Set(["assigned"]),
+        disqualifiedChoreographyIds: new Set(["disqualified"]),
+      },
+    );
+
+    expect(messagesOf(warnings, "forgotten")).toEqual([
+      "Sin jueces: otras presentaciones de su cronograma ya los tienen",
+    ]);
+    expect(warnings.size).toBe(1);
+  });
+
+  test("leads a row's warnings with a missing panel", () => {
+    const warnings = derivePresentationWarnings(
+      [
+        row({ choreographyId: "assigned", orderNumber: 1 }),
+        row({
+          choreographyId: "forgotten",
+          financialStatus: "depositPending",
+          orderNumber: 2,
+        }),
+      ],
+      { assignedChoreographyIds: new Set(["assigned"]) },
+    );
+
+    expect(warnings.get("forgotten")?.map((warning) => warning.kind)).toEqual([
+      "missingJudges",
+      "belowDeposit",
+    ]);
   });
 });

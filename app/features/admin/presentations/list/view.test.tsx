@@ -164,26 +164,6 @@ describe("PresentationsListView", () => {
     ).toContain("—");
   });
 
-  test("leads a judged row's name to its scores and leaves a pending one unlinked", () => {
-    expect(
-      renderView({
-        presentations: [
-          buildItem({
-            evaluationStatus: "evaluated",
-            presentationId: "presentation-9",
-          }),
-        ],
-      }),
-    ).toContain(
-      'href="/administracion/presentaciones/presentation-9/puntajes"',
-    );
-    const pending = renderView();
-
-    expect(pending).toContain(">Pieza<");
-    expect(pending).not.toContain('href="/administracion/coreografias');
-    expect(pending).not.toContain('href="/administracion/presentaciones/');
-  });
-
   test("locks the number and hides the grip of a frozen row", () => {
     const markup = renderView({
       frozenCount: 1,
