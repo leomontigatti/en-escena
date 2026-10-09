@@ -24,17 +24,14 @@ import type { PortalResultRow, PortalResultsLoaderData } from "./server";
 
 /**
  * The administration's results list as the academy reads it: only its own
- * rows, only the published ones, and no academy column. On a phone a row keeps
- * the number, the name, the award and the average; what it competed in waits
- * for a wider screen or the evaluation detail, and the four left share the
- * row so the award badge fits whole.
+ * rows, only the published ones, and no academy column. On a phone each row is
+ * a card (`ResultCard`).
  */
 const resultsColumns: DataTableColumn<PortalResultRow>[] = [
   {
     id: "orden",
     header: "N.º",
     width: 8,
-    widthBelowSm: 21,
     className: "font-medium tabular-nums",
     cell: formatProgramOrderNumber,
     // The only sortable column: results are not a ranking.
@@ -44,26 +41,13 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     id: "name",
     header: "Nombre",
     width: 20,
-    widthBelowSm: 25,
     className: "font-medium",
-    cell: (row) => (
-      <DataTableTruncatedText
-        value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
-      >
-        <DataTableLink
-          recordTitle
-          to={`/portal/presentaciones/${row.choreographyId}`}
-        >
-          {row.name}
-        </DataTableLink>
-      </DataTableTruncatedText>
-    ),
+    cell: (row) => <ResultName row={row} />,
   },
   {
     id: "award",
     header: "Premio",
     width: 15,
-    widthBelowSm: 36,
     cell: (row) => (
       <AwardBadge award={row.award} disqualified={row.disqualified} />
     ),
@@ -72,17 +56,14 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     id: "average",
     header: "Promedio",
     width: 10,
-    widthBelowSm: 18,
     className: "tabular-nums",
-    // The average reads the way scores do everywhere: with a point, as stored.
-    cell: (row) => (row.average === null ? "—" : String(row.average)),
+    cell: formatAverage,
   },
   {
     id: "modality",
     header: "Modalidad / Submodalidad",
     width: 18,
     className: "text-muted-foreground",
-    hiddenBelowSm: true,
     cell: (row) => (
       <DataTableTruncatedText
         value={formatPrimaryAndSecondaryValue(
@@ -97,7 +78,6 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     header: "Categoría / Tipo de grupo",
     width: 18,
     className: "text-muted-foreground",
-    hiddenBelowSm: true,
     cell: (row) => (
       <DataTableTruncatedText
         value={formatPrimaryAndSecondaryValue(
@@ -112,7 +92,6 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     header: "Nivel",
     width: 11,
     className: "text-muted-foreground",
-    hiddenBelowSm: true,
     cell: (row) => <DataTableTruncatedText value={row.levelLabel ?? "—"} />,
   },
 ];
@@ -165,12 +144,75 @@ function ResultsList({ rows }: { rows: PortalResultRow[] }) {
             orderNumber: row.orderNumber,
           })
         }
+        renderCard={(row) => <ResultCard row={row} />}
         searchPlaceholder="Buscar por número o nombre"
         initialSort={{ columnId: "orden", direction: "asc" }}
         emptyMessage="No hay resultados que coincidan con la búsqueda."
       />
     </div>
   );
+}
+
+/**
+ * The name links to the evaluation; the choreography number, which no column
+ * shows, travels in the truncation title.
+ */
+function ResultName({ row }: { row: PortalResultRow }) {
+  return (
+    <DataTableTruncatedText
+      value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
+    >
+      <DataTableLink
+        recordTitle
+        to={`/portal/presentaciones/${row.choreographyId}`}
+      >
+        {row.name}
+      </DataTableLink>
+    </DataTableTruncatedText>
+  );
+}
+
+/**
+ * A row on a phone: the name and its number, what it competed in, and the
+ * result last, so a scan down the cards ends each one on the award.
+ */
+function ResultCard({ row }: { row: PortalResultRow }) {
+  return (
+    <>
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="min-w-0 font-medium">
+          <ResultName row={row} />
+        </div>
+        <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
+          N.º {formatProgramOrderNumber(row) || "—"}
+        </span>
+      </div>
+      <DataTableTruncatedText
+        className="text-xs text-muted-foreground"
+        value={[
+          formatPrimaryAndSecondaryValue(row.modalityName, row.submodalityName),
+          formatPrimaryAndSecondaryValue(
+            row.categoryName,
+            formatGroupTypeLabel(row.groupType),
+          ),
+          row.levelLabel,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      />
+      <div className="flex items-center justify-between gap-3">
+        <AwardBadge award={row.award} disqualified={row.disqualified} />
+        <span className="text-sm font-medium tabular-nums">
+          {formatAverage(row)}
+        </span>
+      </div>
+    </>
+  );
+}
+
+/** The average reads the way scores do everywhere: with a point, as stored. */
+function formatAverage(row: PortalResultRow) {
+  return row.average === null ? "—" : String(row.average);
 }
 
 function selectEmptyState(loaderData: PortalResultsLoaderData) {

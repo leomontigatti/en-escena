@@ -35,9 +35,7 @@ declare module "@tanstack/react-table" {
     className?: string;
     headerClassName?: string;
     cellClassName?: (row: TData) => string | undefined;
-    hiddenBelowSm?: boolean;
     width?: number;
-    widthBelowSm?: number;
   }
 }
 
@@ -181,9 +179,7 @@ export function createDataTableColumns<TData>(
       className: column.className,
       headerClassName: column.headerClassName,
       cellClassName: column.cellClassName,
-      hiddenBelowSm: column.hiddenBelowSm,
       width: column.width,
-      widthBelowSm: column.widthBelowSm,
     },
   }));
 

@@ -746,6 +746,13 @@ instead.
 Use tables as the default pattern for operational lists, especially in
 administration. On a mobile surface, adapt to compact cards or stacked lists.
 
+A portal list does this with `ClientDataTable`'s `renderCard`: below `sm` the
+rows become compact cards, searched, filtered and paged like the table, which
+stays as it is above `sm`. Do not hide columns to fit a phone. A card reads top
+to bottom: the linked name with its number on the right, then what the row is
+(a muted line, `·`-joined), then its outcome — a badge on the left and a figure
+on the right. The portal `Resultados` list is the reference (#1440).
+
 Rules:
 
 - Use `Table` or derived components such as `DataTable` before creating custom
