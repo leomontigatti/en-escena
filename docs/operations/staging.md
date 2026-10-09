@@ -40,7 +40,10 @@ What it holds, against production:
 - **Same Google sign-in for the vote**: `GOOGLE_CLIENT_ID` and
   `GOOGLE_CLIENT_SECRET` are production's OAuth client, whose redirect URIs list
   `https://pruebas.enescena.com.ar/votar/google/retorno` beside production's.
-  Without them `/votar` offers the QR code alone (#1516).
+  Staging's `APP_URL` must be `https://pruebas.enescena.com.ar`, or unset: the
+  redirect URI is built on `APP_URL`, falling back to the request's origin, so
+  production's value there would send Google back to production. Without the
+  two keys `/votar` offers the QR code alone (#1516).
 - **Same ARCA configuration**, test service included (`ARCA_PRODUCTION=false`).
   Check that production still says `false` before relying on it; if it has gone
   live, staging must keep `false` and get the homologation certificate.
