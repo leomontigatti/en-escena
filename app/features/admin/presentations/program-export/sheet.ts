@@ -19,7 +19,7 @@ export type ProgramExportRow = {
   academyName: string;
   academyProvince: Province | null;
   categoryName: string;
-  /** Whoever the reading asked to name: the program export, up to a trio. */
+  /** Every dancer: named up to a trio, counted in a larger group. */
   dancerNames: string[];
   groupType: ChoreographyGroupType;
   modalityName: string;
@@ -33,11 +33,7 @@ export type ProgramExportRow = {
   submodalityName: string | null;
 };
 
-/**
- * Every column but the dancers, which each export fills its own way. The
- * professors close it, so they sit right before the dancers in both.
- */
-export const programColumns: SheetColumn<ProgramExportRow>[] = [
+export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
   { header: "N.º", width: 6, cell: (row) => row.orderNumber },
   {
     header: "Día",
@@ -73,14 +69,14 @@ export const programColumns: SheetColumn<ProgramExportRow>[] = [
     width: 28,
     cell: (row) => linePerName(row.professorNames),
   },
-];
-
-export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
-  ...programColumns,
   {
     header: "Bailarines",
     width: 28,
-    cell: (row) => linePerName(row.dancerNames),
+    // A row has room for a trio's names; a larger group's would bury it.
+    cell: (row) =>
+      row.groupType === "grupal"
+        ? row.dancerNames.length
+        : linePerName(row.dancerNames),
   },
 ];
 
