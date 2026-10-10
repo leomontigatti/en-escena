@@ -94,12 +94,15 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   });
   const { sorting, setSorting } = useDataTableSortingState(props.initialSort);
   const serverSort = sorting[0];
+  const paging = props.hidePagination
+    ? { currentPage: 1, totalPages: 1, totalRows: props.rows.length }
+    : props;
 
   const table = useServerReactTable({
     canSelectRow: props.canSelectRow,
     columnVisibility,
     columns: props.columns,
-    currentPage: props.currentPage,
+    currentPage: paging.currentPage,
     getRowKey: props.getRowKey,
     rows: props.rows,
     rowSelection,
@@ -108,7 +111,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     setSorting,
     sorting,
     tableColumns,
-    totalPages: props.totalPages,
+    totalPages: paging.totalPages,
   });
   const isLoading = getServerTableLoading({
     loading: props.loading,
@@ -140,18 +143,19 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
       reorder={props.reorder}
       pagination={{
         basePath: resolvedBasePath,
-        canNextPage: props.currentPage < props.totalPages,
-        canPreviousPage: props.currentPage > 1,
-        currentPage: props.currentPage,
+        canNextPage: paging.currentPage < paging.totalPages,
+        canPreviousPage: paging.currentPage > 1,
+        currentPage: paging.currentPage,
         // The page the loader sent, against the whole set it was drawn from:
         // there is no client-side filtering to narrow either number.
         filteredRowCount: props.rows.length,
+        hidden: props.hidePagination ?? false,
         hrefBuilder: createServerPageHrefBuilder({
           currentSearch: location.search,
           resolvedBasePath,
         }),
-        pageCount: props.totalPages,
-        totalRows: props.totalRows,
+        pageCount: paging.totalPages,
+        totalRows: paging.totalRows,
       }}
       search={{
         onChange: setSearchQuery,

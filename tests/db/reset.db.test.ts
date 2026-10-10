@@ -3,7 +3,11 @@ import type { SQL } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { user } from "@/db/schema";
+import { user, votes } from "@/db/schema";
+import {
+  codeVote,
+  seedVotingRoundRows,
+} from "@/lib/grand-final/voting.test-support";
 
 import { installDatabaseTestHooks } from "./harness";
 import { readRows, resetDatabaseTables } from "./reset";
@@ -60,6 +64,16 @@ describe("the per-test database reset", () => {
       name: "Academia Test",
       email: "academia@example.com",
     });
+
+    await resetDatabaseTables(db, db);
+
+    expect(await countRowsInEnEscenaTables()).toEqual([]);
+  });
+
+  // The votes refuse a `delete from` by trigger, so the reset truncates them.
+  test("empties a table whose trigger refuses a delete", async () => {
+    const seeded = await seedVotingRoundRows();
+    await db.insert(votes).values(codeVote(seeded));
 
     await resetDatabaseTables(db, db);
 

@@ -289,7 +289,6 @@ function buildLoaderData(): PresentationListResult {
       day: null,
       evaluation: null,
       order: { columnId: "orden", direction: "asc" },
-      page: 1,
       query: "",
       warnings: null,
     },
@@ -310,8 +309,6 @@ function buildLoaderData(): PresentationListResult {
     programExportDays: [],
     programVisibleDays: [],
     selectedEventId: "event-1",
-    totalCount: 2,
-    totalPages: 1,
     unorderedCount: 1,
     warnedCount: 0,
   };

@@ -82,6 +82,7 @@ export function createPublicProgramLoader({ cacheMs }: { cacheMs: number }) {
           rows: program.rows,
           schedules: program.schedules,
         }),
+        loadedAt: now.toISOString(),
         loadedOn: judgingDate(now),
       },
       rows: program.rows,

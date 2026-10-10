@@ -18,6 +18,7 @@ const assetKinds: AssetKind[] = [
   "dancerDocumentImage",
   "eventDocument",
   "feedbackAudio",
+  "grandFinalBanner",
   "seminarInstructorPicture",
 ];
 
@@ -45,6 +46,9 @@ describe("asset kind policy", () => {
     );
     expect(assetKindPolicies.feedbackAudio.bucket).toBe(
       "en-escena-feedback-audio",
+    );
+    expect(assetKindPolicies.grandFinalBanner.bucket).toBe(
+      "en-escena-grand-final-banners",
     );
     expect(assetKindPolicies.seminarInstructorPicture.bucket).toBe(
       "enescena-seminar-pictures",

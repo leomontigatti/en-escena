@@ -16,6 +16,7 @@ import {
   ReceiptText,
   Presentation,
   Trophy,
+  Crown,
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
@@ -140,6 +141,11 @@ const operationNavigationItems = [
     label: "Resultados",
     to: "/administracion/resultados",
     icon: Trophy,
+  },
+  {
+    label: "Gran final",
+    to: "/administracion/gran-final",
+    icon: Crown,
   },
   {
     label: "Profesores",
