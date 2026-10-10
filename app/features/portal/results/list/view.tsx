@@ -5,7 +5,6 @@ import {
   DataTableTruncatedText,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { DataTableLink } from "@/components/shared/data-table-link";
 import {
   allDaysTabValue,
   ScheduleDayTabs,
@@ -15,7 +14,7 @@ import {
   formatProgramOrderNumber,
   listProgramDays,
 } from "@/features/program/shared";
-import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { ProgramRowCard, ProgramRowName } from "@/features/program/row-card";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
@@ -42,7 +41,7 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     header: "Nombre",
     width: 20,
     className: "font-medium",
-    cell: (row) => <PortalResultName row={row} />,
+    cell: (row) => <ProgramRowName row={row} to={evaluationPath(row)} />,
   },
   {
     id: "award",
@@ -153,60 +152,25 @@ function PortalResultsList({ rows }: { rows: PortalResultRow[] }) {
   );
 }
 
-/**
- * The name links to the evaluation; the choreography number, which no column
- * shows, travels in the truncation title.
- */
-function PortalResultName({ row }: { row: PortalResultRow }) {
-  return (
-    <DataTableTruncatedText
-      value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
-    >
-      <DataTableLink
-        recordTitle
-        to={`/portal/presentaciones/${row.choreographyId}`}
-      >
-        {row.name}
-      </DataTableLink>
-    </DataTableTruncatedText>
-  );
+/** A row's name opens what the judges said about it. */
+function evaluationPath(row: PortalResultRow) {
+  return `/portal/presentaciones/${row.choreographyId}`;
 }
 
 /**
- * A row on a phone: the name and its number, what it competed in, and the
- * result last, so a scan down the cards ends each one on the award.
+ * A row on a phone ends on the result, so a scan down the cards ends each one
+ * on the award.
  */
 function PortalResultCard({ row }: { row: PortalResultRow }) {
   return (
-    <>
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="min-w-0 font-medium">
-          <PortalResultName row={row} />
-        </div>
-        <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
-          N.º {formatProgramOrderNumber(row) || "—"}
-        </span>
-      </div>
-      <DataTableTruncatedText
-        className="text-xs text-muted-foreground"
-        value={[
-          formatPrimaryAndSecondaryValue(row.modalityName, row.submodalityName),
-          formatPrimaryAndSecondaryValue(
-            row.categoryName,
-            formatGroupTypeLabel(row.groupType),
-          ),
-          row.levelLabel,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-      />
+    <ProgramRowCard row={row} showLevel to={evaluationPath(row)}>
       <div className="flex items-center justify-between gap-3">
         <AwardBadge award={row.award} disqualified={row.disqualified} />
         <span className="text-sm font-medium tabular-nums">
           {formatAverage(row)}
         </span>
       </div>
-    </>
+    </ProgramRowCard>
   );
 }
 
