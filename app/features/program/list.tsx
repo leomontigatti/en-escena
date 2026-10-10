@@ -5,8 +5,6 @@ import {
   DataTableTruncatedText,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { DataTableLink } from "@/components/shared/data-table-link";
-import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
@@ -16,6 +14,7 @@ import {
   ScheduleDayTabs,
   useScheduleDayTab,
 } from "./day-tabs";
+import { ProgramRowCard, ProgramRowName } from "./row-card";
 import {
   formatProgramOrderNumber,
   listProgramDays,
@@ -91,6 +90,15 @@ export function ProgramList({
             orderNumber: row.orderNumber,
           })
         }
+        renderCard={(row) => (
+          <ProgramRowCard
+            row={row}
+            showLevel={showLevel}
+            to={choreographyPath?.(row) ?? null}
+          >
+            <ProgramCardWho row={row} showAcademy={showAcademy} />
+          </ProgramRowCard>
+        )}
         searchPlaceholder={
           showAcademy
             ? "Buscar por número, nombre o academia"
@@ -131,20 +139,9 @@ function buildProgramColumns({
       header: "Nombre",
       width: selectNameWidth({ showAcademy, showLevel }),
       className: "font-medium",
-      cell: (row) =>
-        choreographyPath ? (
-          // The same shape as the participation list: the cut wraps the link,
-          // and the title carries the choreography number no column shows.
-          <DataTableTruncatedText
-            value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
-          >
-            <DataTableLink recordTitle to={choreographyPath(row)}>
-              {row.name}
-            </DataTableLink>
-          </DataTableTruncatedText>
-        ) : (
-          <DataTableTruncatedText value={row.name} />
-        ),
+      cell: (row) => (
+        <ProgramRowName row={row} to={choreographyPath?.(row) ?? null} />
+      ),
     },
     showAcademy
       ? {
@@ -235,4 +232,28 @@ function selectNameWidth({
  */
 function formatProgramDancer(row: ProgramListRow) {
   return row.groupType === "solo" ? (row.dancerNames[0] ?? "—") : "—";
+}
+
+/**
+ * The card's last line is who dances, where the table has the `Academia` and
+ * `Bailarines` columns. A group's names are not there either, so a portal card
+ * of a group ends on what the row is.
+ */
+function ProgramCardWho({
+  row,
+  showAcademy,
+}: {
+  row: ProgramListRow;
+  showAcademy: boolean;
+}) {
+  const who = [
+    showAcademy ? row.academyName : null,
+    row.groupType === "solo" ? row.dancerNames[0] : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return who ? (
+    <DataTableTruncatedText className="text-sm" value={who} />
+  ) : null;
 }
