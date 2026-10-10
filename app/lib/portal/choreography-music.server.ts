@@ -10,6 +10,9 @@ import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.se
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import type { ChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
+const unexpectedStorageKeyMessage =
+  "No pudimos guardar la música. Recargá la página e intentá nuevamente.";
+
 export type UpdateChoreographyMusicResult =
   { ok: true } | { ok: false; message: string };
 
@@ -60,13 +63,16 @@ export async function updateChoreographyMusic(input: {
     return { ok: true };
   }
 
-  const lockMessage = await findMusicEditingLock({
+  const refusal = await findMusicSaveRefusal({
     choreographyId: input.choreographyId,
+    currentStorageKey,
+    file: input.file,
+    submittedStorageKey: input.submittedStorageKey,
     withdrawnAt: choreography.withdrawnAt,
   });
 
-  if (lockMessage) {
-    return { ok: false, message: lockMessage };
+  if (refusal) {
+    return { ok: false, message: refusal };
   }
 
   let nextStorageKey = input.submittedStorageKey;
@@ -96,26 +102,63 @@ export async function updateChoreographyMusic(input: {
     })
     .where(eq(choreographies.id, input.choreographyId));
 
-  const shouldRemovePrevious =
-    currentStorageKey.length > 0 && currentStorageKey !== nextStorageKey;
-
-  if (shouldRemovePrevious) {
-    try {
-      await input.storage.removeMusic(currentStorageKey);
-    } catch (thrown) {
-      // The row already points at the new object, so failing here cannot undo
-      // the replacement: propagating, as `dancer-documents.server.ts` does,
-      // would tell the academy the music was not saved when it was. The cost is
-      // that the previous object stays orphaned on the volume — no sweep
-      // reclaims it — and this line is the only thing that makes it locatable
-      // without walking the volume by hand.
-      console.error("[storage:music:orphan]", {
-        choreographyId: input.choreographyId,
-        detail: thrown instanceof Error ? thrown.message : String(thrown),
-        storageKey: currentStorageKey,
-      });
-    }
+  if (currentStorageKey.length > 0 && currentStorageKey !== nextStorageKey) {
+    await removePreviousMusic({
+      choreographyId: input.choreographyId,
+      storage: input.storage,
+      storageKey: currentStorageKey,
+    });
   }
 
   return { ok: true };
+}
+
+/**
+ * Why a save that changes something cannot go through, or `null` when it can.
+ *
+ * Without a file the form can only keep the stored key or post an empty one to
+ * delete it. Any other key comes from a page gone stale, or from a hand-built
+ * request, and storing it would hand the academy another academy's song to
+ * read, and to delete on the next save. With a file the key goes unused: the
+ * upload names its own.
+ */
+async function findMusicSaveRefusal(input: {
+  choreographyId: string;
+  currentStorageKey: string;
+  file: File | null;
+  submittedStorageKey: string;
+  withdrawnAt: Date | null;
+}): Promise<string | null> {
+  const postsForeignKey =
+    input.file === null &&
+    input.submittedStorageKey !== "" &&
+    input.submittedStorageKey !== input.currentStorageKey;
+
+  if (postsForeignKey) {
+    return unexpectedStorageKeyMessage;
+  }
+
+  return await findMusicEditingLock(input);
+}
+
+async function removePreviousMusic(input: {
+  choreographyId: string;
+  storage: ChoreographyMusicStorage;
+  storageKey: string;
+}) {
+  try {
+    await input.storage.removeMusic(input.storageKey);
+  } catch (thrown) {
+    // The row already points at the new object, so failing here cannot undo
+    // the replacement: propagating, as `dancer-documents.server.ts` does,
+    // would tell the academy the music was not saved when it was. The cost is
+    // that the previous object stays orphaned on the volume — no sweep
+    // reclaims it — and this line is the only thing that makes it locatable
+    // without walking the volume by hand.
+    console.error("[storage:music:orphan]", {
+      choreographyId: input.choreographyId,
+      detail: thrown instanceof Error ? thrown.message : String(thrown),
+      storageKey: input.storageKey,
+    });
+  }
 }
