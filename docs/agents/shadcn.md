@@ -69,7 +69,7 @@ overwrite is unsafe.
 | `sidebar`                                    | wraps its tree in `TooltipProvider`                                                                              |
 | `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content; unprefixed default width — see below                     |
 | `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger |
-| `dialog`                                     | `useLayerAbovePress` — see below; the overlay blurs (`backdrop-blur-sm`), as `alert-dialog`'s does               |
+| `dialog`                                     | `useLayerAbovePress` — see below; the overlay dims and blurs exactly as `alert-dialog`'s does                    |
 | `slider`                                     | `aria-label` is forwarded to each thumb, which is what carries `role="slider"`                                   |
 | all                                          | `font-heading` instead of upstream's `cn-font-heading`                                                           |
 
