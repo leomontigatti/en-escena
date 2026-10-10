@@ -5,7 +5,12 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
-import { bindAuditLink } from "@/lib/grand-final/audit-link.server";
+import { openAuditLink } from "@/lib/grand-final/audit-link.server";
+import {
+  closeCurrentVotingRound,
+  seedFinalistsFixture,
+} from "@/lib/grand-final/voting.test-support";
+import { openVotingRound } from "@/lib/grand-final/voting-round.server";
 import { readAuditLinkToken } from "@/lib/grand-final/audit-url";
 
 import {
@@ -13,7 +18,11 @@ import {
   loadGrandFinalListRouteData,
 } from "../list/server";
 import type { GrandFinalListActionData } from "../list/shared";
-import { createAuditLinkIntent, revokeAuditLinkIntent } from "./shared";
+import {
+  createAuditLinkIntent,
+  revokeAuditLinkIntent,
+  showAuditLinkIntent,
+} from "./shared";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -87,9 +96,7 @@ describe("the audit links of the `Gran final` list", () => {
     const token = readAuditLinkToken(
       new URL(created.data.auditLink?.url ?? "").hash,
     );
-    await expect(
-      bindAuditLink({ sessionSecret: null, token: token ?? "" }),
-    ).resolves.toMatchObject({ ok: true });
+    await expect(openAuditLink(token ?? "")).resolves.toEqual({ ok: true });
     await expect(list()).resolves.toMatchObject({
       auditLinkCreateBlockReasons: [],
       auditLinks: [{ blockReasons: [], label: "Marta", revokedAt: null }],
@@ -104,6 +111,54 @@ describe("the audit links of the `Gran final` list", () => {
     );
 
     expect(JSON.stringify(await list())).not.toContain(token);
+  });
+
+  test("shows a live link again with the address it was created with, never cached", async () => {
+    await createSavedEvent();
+    const created = await createLink("Marta");
+    const [link] = (await list()).auditLinks;
+
+    const shown = await submit({
+      intent: showAuditLinkIntent,
+      linkId: link.id,
+    });
+
+    expect(shown.data).toMatchObject({
+      auditLink: { label: "Marta", url: created.data.auditLink?.url },
+      status: "success",
+    });
+    expect(shown.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  test("refuses to show a revoked link again", async () => {
+    await createSavedEvent();
+    await createLink("Marta");
+    const [link] = (await list()).auditLinks;
+    await submit({ intent: revokeAuditLinkIntent, linkId: link.id });
+
+    await expect(
+      submit({ intent: showAuditLinkIntent, linkId: link.id }),
+    ).resolves.toMatchObject({ data: { status: "error" }, status: 410 });
+  });
+
+  test("marks a link spent once its vote closed, and shows it no more", async () => {
+    const fixture = await seedFinalistsFixture();
+    await fixture.addFinalist("Alas");
+    await openVotingRound({ eventId: fixture.eventId });
+    await createLink("Marta");
+    await closeCurrentVotingRound(fixture.eventId);
+    const [link] = (await list()).auditLinks;
+
+    expect(link.blockReasons).toEqual([
+      {
+        code: "expired",
+        label:
+          "El acceso de Marta dejó de funcionar: la votación que mostraba se cerró.",
+      },
+    ]);
+    await expect(
+      submit({ intent: showAuditLinkIntent, linkId: link.id }),
+    ).resolves.toMatchObject({ data: { status: "error" }, status: 410 });
   });
 
   test("refuses an empty name", async () => {

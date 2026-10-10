@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { grandFinalEligibility } from "@/lib/grand-final/eligibility.server";
 import { readEventJudges } from "@/lib/grand-final/event-judges.server";
+import { lockEvent } from "@/lib/grand-final/result.server";
 import { judgingDate } from "@/lib/judging/judging-day";
 
 /**
@@ -46,35 +47,265 @@ export async function saveFinalistPick(
   );
 }
 
-export type SetFinalistPickResult =
+export type SetAcademyFinalistPicksResult =
   { ok: true } | { ok: false; reason: "not-eligible" | "not-found" };
 
-/**
- * Administration's write of any judge's `finalistPick`, from the `Gran final`
- * list. It is the judge's save without the window: the same row, upserted,
- * and the same refusal of an academy not eligible in the modality. The judge
- * must be a judge user, so a pick never lands on another role, and one of
- * the event's, which the shared write checks for both saves.
- */
-export async function setFinalistPick(
-  input: FinalistPickInput,
-): Promise<SetFinalistPickResult> {
-  const [judge] = await db
-    .select({ id: user.id })
-    .from(user)
-    .where(and(eq(user.id, input.judgeId), eq(user.role, "judge")));
+/** The judges who are to pick the academy in one modality, none included. */
+export type AcademyModalityPicks = {
+  judgeIds: readonly string[];
+  modalityId: string;
+};
 
-  if (!judge) {
-    return { ok: false, reason: "not-found" };
+type AcademyFinalistPicksInput = {
+  academyId: string;
+  picks: readonly AcademyModalityPicks[];
+};
+
+/**
+ * Administration's write of the `finalistPick`s that land on one academy,
+ * from the academy's `Gran final` page, with no window: in each modality
+ * given, the judges named become exactly the ones who pick it there. A judge
+ * added moves their pick from whichever academy they had, on the same row; a
+ * judge left out loses theirs. Adding needs the academy eligible in the
+ * modality, as the judge's own save does; letting a judge go never does, so a
+ * pick on an academy that stopped qualifying can still be undone. Every judge
+ * must be a judge user and one of the event's.
+ *
+ * One transaction under the event's lock: every modality is checked against
+ * the picks as they stand, then all are written or none is, and two saves of
+ * the same academy at once take turns rather than mixing.
+ */
+export async function setAcademyFinalistPicks(
+  input: AcademyFinalistPicksInput,
+): Promise<SetAcademyFinalistPicksResult> {
+  const context = await readAcademyPicksContext(input);
+
+  if (!context.ok) {
+    return context;
   }
 
-  return await writeFinalistPick<never>(input, async () => null);
+  return await db.transaction(async (tx) => {
+    await lockEvent(tx, context.eventId);
+    const plan = planAdditions(
+      input,
+      context,
+      await readCurrentPicks(tx, input, context.eventId),
+    );
+
+    if (!plan.ok) {
+      return plan;
+    }
+
+    for (const modality of plan.modalities) {
+      const onAcademy = and(
+        eq(finalistPicks.eventId, context.eventId),
+        eq(finalistPicks.modalityId, modality.modalityId),
+        eq(finalistPicks.academyId, input.academyId),
+      );
+
+      await tx
+        .delete(finalistPicks)
+        .where(
+          modality.judgeIds.length > 0
+            ? and(
+                onAcademy,
+                notInArray(finalistPicks.judgeId, [...modality.judgeIds]),
+              )
+            : onAcademy,
+        );
+
+      if (modality.added.length > 0) {
+        await tx
+          .insert(finalistPicks)
+          .values(
+            modality.added.map((judgeId) => ({
+              academyId: input.academyId,
+              eventId: context.eventId,
+              judgeId,
+              modalityId: modality.modalityId,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [
+              finalistPicks.eventId,
+              finalistPicks.judgeId,
+              finalistPicks.modalityId,
+            ],
+            set: {
+              academyId: input.academyId,
+              updatedAt: sql`CURRENT_TIMESTAMP`,
+            },
+          });
+      }
+    }
+
+    return { ok: true };
+  });
 }
 
 /**
- * The write both saves share: the modality in the active event, the judge
- * one of the event's, then the caller's window, then eligibility read again,
- * then the upsert of the one row per judge per modality.
+ * Whether `setAcademyFinalistPicks` would take this save, read without
+ * writing: for a caller with other writes of its own to make first, which
+ * should not run for a save that will be refused. The write checks again.
+ */
+export async function checkAcademyFinalistPicks(
+  input: AcademyFinalistPicksInput,
+): Promise<SetAcademyFinalistPicksResult> {
+  const context = await readAcademyPicksContext(input);
+
+  if (!context.ok) {
+    return context;
+  }
+
+  const plan = planAdditions(
+    input,
+    context,
+    await readCurrentPicks(db, input, context.eventId),
+  );
+
+  return plan.ok ? { ok: true } : plan;
+}
+
+type Executor = Pick<typeof db, "select">;
+
+type AcademyPicksContext = {
+  eligibleModalityIds: Set<string>;
+  eventId: string;
+  ok: true;
+};
+
+/**
+ * What a save is checked against, read before its transaction: every
+ * modality in the active event and all of one event, each judge a judge user
+ * and one of the event's, and the modalities the academy is eligible in.
+ */
+async function readAcademyPicksContext(
+  input: AcademyFinalistPicksInput,
+): Promise<
+  AcademyPicksContext | { ok: false; reason: "not-eligible" | "not-found" }
+> {
+  const modalityIds = [...new Set(input.picks.map((pick) => pick.modalityId))];
+  const found =
+    modalityIds.length > 0
+      ? await db
+          .select({ eventId: modalities.eventId })
+          .from(modalities)
+          .innerJoin(events, eq(events.id, modalities.eventId))
+          .where(and(inArray(modalities.id, modalityIds), events.active))
+      : [];
+  const eventId = found[0]?.eventId;
+
+  if (
+    !eventId ||
+    found.length !== modalityIds.length ||
+    found.some((row) => row.eventId !== eventId)
+  ) {
+    return modalityIds.length === 0
+      ? { eligibleModalityIds: new Set(), eventId: "", ok: true }
+      : { ok: false, reason: "not-found" };
+  }
+
+  const judgeIds = [...new Set(input.picks.flatMap((pick) => pick.judgeIds))];
+
+  if (!(await areEventJudges(db, eventId, judgeIds))) {
+    return { ok: false, reason: "not-found" };
+  }
+
+  const eligible = await grandFinalEligibility(eventId);
+
+  return {
+    eligibleModalityIds: new Set(
+      eligible
+        .filter((pair) => pair.academyId === input.academyId)
+        .map((pair) => pair.modalityId),
+    ),
+    eventId,
+    ok: true,
+  };
+}
+
+async function readCurrentPicks(
+  executor: Executor,
+  input: AcademyFinalistPicksInput,
+  eventId: string,
+) {
+  const modalityIds = input.picks.map((pick) => pick.modalityId);
+
+  return modalityIds.length > 0
+    ? await executor
+        .select({
+          judgeId: finalistPicks.judgeId,
+          modalityId: finalistPicks.modalityId,
+        })
+        .from(finalistPicks)
+        .where(
+          and(
+            eq(finalistPicks.eventId, eventId),
+            eq(finalistPicks.academyId, input.academyId),
+            inArray(finalistPicks.modalityId, modalityIds),
+          ),
+        )
+    : [];
+}
+
+/**
+ * Each modality with the judges it adds against the picks as they stand,
+ * refused when it adds one where the academy is not eligible.
+ */
+function planAdditions(
+  input: AcademyFinalistPicksInput,
+  context: AcademyPicksContext,
+  current: { judgeId: string; modalityId: string }[],
+):
+  | { modalities: (AcademyModalityPicks & { added: string[] })[]; ok: true }
+  | { ok: false; reason: "not-eligible" } {
+  const planned = input.picks.map((pick) => ({
+    ...pick,
+    added: pick.judgeIds.filter(
+      (judgeId) =>
+        !current.some(
+          (row) =>
+            row.modalityId === pick.modalityId && row.judgeId === judgeId,
+        ),
+    ),
+  }));
+
+  return planned.some(
+    (pick) =>
+      pick.added.length > 0 &&
+      !context.eligibleModalityIds.has(pick.modalityId),
+  )
+    ? { ok: false, reason: "not-eligible" }
+    : { modalities: planned, ok: true };
+}
+
+/** Whether every id is a judge user and one of the event's judges. */
+async function areEventJudges(
+  executor: Executor,
+  eventId: string,
+  judgeIds: string[],
+) {
+  if (judgeIds.length === 0) {
+    return true;
+  }
+
+  const judgeUsers = await executor
+    .select({ id: user.id })
+    .from(user)
+    .where(and(inArray(user.id, judgeIds), eq(user.role, "judge")));
+  const eventJudges = await readEventJudges(eventId);
+
+  return judgeIds.every(
+    (judgeId) =>
+      judgeUsers.some((row) => row.id === judgeId) &&
+      eventJudges.some((judge) => judge.id === judgeId),
+  );
+}
+
+/**
+ * The judge's save: the modality in the active event, the judge one of the
+ * event's, then the caller's window, then eligibility read again, then the
+ * upsert of the one row per judge per modality.
  */
 async function writeFinalistPick<TClosure extends "closed" | "not-started">(
   input: FinalistPickInput,

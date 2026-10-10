@@ -41,26 +41,36 @@ vi.mock("sonner", () => ({
 const links: AuditLinkListRow[] = [
   {
     blockReasons: [],
-    boundAt: new Date("2026-10-21T22:30:00Z"),
     createdAt: new Date("2026-10-21T22:00:00Z"),
     id: "acceso-marta",
     label: "Marta",
+    openedAt: new Date("2026-10-21T22:30:00Z"),
     revokedAt: null,
   },
   {
     blockReasons: [
       {
         code: "revoked",
-        label: "El acceso de Jorge ya fue revocado el 21/10/26.",
+        label: "El acceso de Jorge ya fue revocado el 21 de octubre de 2026.",
       },
     ],
-    boundAt: null,
     createdAt: new Date("2026-10-21T22:00:00Z"),
     id: "acceso-jorge",
     label: "Jorge",
+    openedAt: null,
     revokedAt: new Date("2026-10-21T23:00:00Z"),
   },
 ];
+
+const shownAnswer: GrandFinalListActionData = {
+  auditLink: {
+    label: "Marta",
+    qrDataUri: "data:image/svg+xml;charset=utf-8,%3Csvg%2F%3E",
+    url: "https://sistema.enescena.com.ar/auditoria#token-de-marta",
+  },
+  message: "",
+  status: "success",
+};
 
 const createdAnswer: GrandFinalListActionData = {
   auditLink: {
@@ -76,10 +86,12 @@ describe("the audit links of administration's `Gran final` list", () => {
   const renderer = createReactDomTestRenderer();
   const submitted: FormData[] = [];
   let answer: GrandFinalListActionData;
+  let showAnswer: GrandFinalListActionData;
 
   beforeEach(() => {
     submitted.length = 0;
     answer = createdAnswer;
+    showAnswer = shownAnswer;
     blockReasonsAfterAction = null;
     vi.mocked(toast.error).mockClear();
   });
@@ -104,16 +116,18 @@ describe("the audit links of administration's `Gran final` list", () => {
         {
           path: "/administracion/gran-final",
           action: async ({ request }) => {
-            submitted.push(await request.formData());
+            const formData = await request.formData();
+            submitted.push(formData);
             blockReasons = blockReasonsAfterAction ?? blockReasons;
 
-            return answer;
+            return formData.get("intent") === "show-audit-link"
+              ? showAnswer
+              : answer;
           },
           Component: ListRoute,
           loader: (): GrandFinalListResult => ({
             auditLinkCreateBlockReasons: blockReasons,
             auditLinks: links,
-            pickChangeBlockReasons: [],
             picks: { judges: [], modalities: [] },
             selectedEventId: "evento",
             voteCodeBatches: [],
@@ -121,11 +135,11 @@ describe("the audit links of administration's `Gran final` list", () => {
           }),
         },
       ],
-      { initialEntries: ["/administracion/gran-final"] },
+      { initialEntries: ["/administracion/gran-final?lista=auditoria"] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
-    await waitFor(() => Boolean(document.querySelector("h3")));
+    await waitFor(() => Boolean(document.querySelector('[role="tab"]')));
   }
 
   async function chooseCreate() {
@@ -244,14 +258,73 @@ describe("the audit links of administration's `Gran final` list", () => {
     expect(submitted).toHaveLength(0);
   });
 
-  test("revokes a link once its confirmation names the auditor", async () => {
-    answer = { message: "Revocaste el acceso.", status: "success" };
-    await mount();
+  async function openLinkOf(label: string) {
     const row = [...document.querySelectorAll("tbody tr")].find((item) =>
-      item.textContent?.includes("Marta"),
+      item.textContent?.includes(label),
     );
 
-    await clickReactDomButton("Revocar", { exact: true, within: row });
+    await clickReactDomButton(label, { exact: true, within: row });
+  }
+
+  test("shows a live link again from its auditor's name", async () => {
+    await mount();
+
+    await openLinkOf("Marta");
+
+    await waitFor(() => submitted.length === 1);
+    expect(Object.fromEntries(submitted[0])).toEqual({
+      intent: "show-audit-link",
+      linkId: "acceso-marta",
+    });
+    await waitFor(() =>
+      Boolean(
+        document.querySelector<HTMLInputElement>(
+          '[role="dialog"] input[aria-label="Enlace del acceso de auditoría"]',
+        )?.value,
+      ),
+    );
+    expect(
+      document.querySelector<HTMLInputElement>(
+        '[role="dialog"] input[aria-label="Enlace del acceso de auditoría"]',
+      )?.value,
+    ).toBe("https://sistema.enescena.com.ar/auditoria#token-de-marta");
+  });
+
+  test("closes the dialog over a link refused since the list loaded, and says why", async () => {
+    showAnswer = {
+      message:
+        "Ese acceso de auditoría fue revocado y ya no se puede abrir. Creá uno nuevo.",
+      status: "error",
+    };
+    await mount();
+
+    await openLinkOf("Marta");
+
+    await waitFor(() => vi.mocked(toast.error).mock.calls.length > 0);
+    expect(toast.error).toHaveBeenCalledWith(
+      "Ese acceso de auditoría fue revocado y ya no se puede abrir. Creá uno nuevo.",
+      expect.anything(),
+    );
+    await waitFor(() => document.querySelector('[role="dialog"]') === null);
+  });
+
+  test("revokes a link from its dialog once the confirmation names the auditor", async () => {
+    answer = { message: "Revocaste el acceso.", status: "success" };
+    await mount();
+
+    await openLinkOf("Marta");
+    await waitFor(() =>
+      Boolean(
+        findButton("Revocar", {
+          exact: true,
+          within: document.querySelector('[role="dialog"]'),
+        }),
+      ),
+    );
+    await clickReactDomButton("Revocar", {
+      exact: true,
+      within: document.querySelector('[role="dialog"]'),
+    });
 
     expect(
       document.querySelector('[role="alertdialog"]')?.textContent,
@@ -262,8 +335,8 @@ describe("the audit links of administration's `Gran final` list", () => {
       within: document.querySelector('[role="alertdialog"]'),
     });
 
-    await waitFor(() => submitted.length === 1);
-    expect(Object.fromEntries(submitted[0])).toEqual({
+    await waitFor(() => submitted.length === 2);
+    expect(Object.fromEntries(submitted[1])).toEqual({
       intent: "revoke-audit-link",
       linkId: "acceso-marta",
     });
@@ -275,11 +348,20 @@ describe("the audit links of administration's `Gran final` list", () => {
       status: "error",
     };
     await mount();
-    const row = [...document.querySelectorAll("tbody tr")].find((item) =>
-      item.textContent?.includes("Marta"),
-    );
 
-    await clickReactDomButton("Revocar", { exact: true, within: row });
+    await openLinkOf("Marta");
+    await waitFor(() =>
+      Boolean(
+        findButton("Revocar", {
+          exact: true,
+          within: document.querySelector('[role="dialog"]'),
+        }),
+      ),
+    );
+    await clickReactDomButton("Revocar", {
+      exact: true,
+      within: document.querySelector('[role="dialog"]'),
+    });
     await clickReactDomButton("Revocar", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
@@ -292,17 +374,14 @@ describe("the audit links of administration's `Gran final` list", () => {
     );
   });
 
-  test("opens why a revoked link cannot be revoked again, and sends nothing", async () => {
+  test("opens why a revoked link cannot be shown again, and sends nothing", async () => {
     await mount();
-    const row = [...document.querySelectorAll("tbody tr")].find((item) =>
-      item.textContent?.includes("Jorge"),
-    );
 
-    await clickReactDomButton("Revocar", { exact: true, within: row });
+    await openLinkOf("Jorge");
 
     expect(
       document.querySelector('[role="alertdialog"]')?.textContent,
-    ).toContain("El acceso de Jorge ya fue revocado el 21/10/26.");
+    ).toContain("El acceso de Jorge ya fue revocado el 21 de octubre de 2026.");
     expect(submitted).toHaveLength(0);
   });
 });

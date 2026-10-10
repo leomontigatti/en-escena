@@ -31,17 +31,25 @@ describe("the printable sheet of a batch of QR codes", () => {
     ]);
   });
 
-  test("names the batch on every code, so a lost print run can be told apart", async () => {
+  test("prints on every code only what the public reads, no batch or number", async () => {
     const html = await renderVoteCodeSheet({
       origin: "https://sistema.enescena.com.ar",
       renderQr: fakeQr,
       sheet,
     });
+    const printed = html.slice(html.indexOf('<section class="sheet"'));
 
-    expect(html.match(/Lote 3 · \d+\/3/g)).toEqual([
-      "Lote 3 · 1/3",
-      "Lote 3 · 2/3",
-      "Lote 3 · 3/3",
+    expect(
+      [...printed.matchAll(/<p class="[^"]+">([^<]*)<\/p>/g)].map(
+        (match) => match[1],
+      ),
+    ).toEqual([
+      "Gran final",
+      "Escaneá y votá",
+      "Gran final",
+      "Escaneá y votá",
+      "Gran final",
+      "Escaneá y votá",
     ]);
   });
 

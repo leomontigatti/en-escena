@@ -9,7 +9,7 @@ import {
   voidVoteCodeBatch,
   type VoidVoteCodeBatchResult,
 } from "@/lib/grand-final/vote-codes.server";
-import { formatBusinessDate } from "@/lib/shared/business-time-zone";
+import { formatLongBusinessDate } from "@/lib/shared/business-time-zone";
 import { readFormString } from "@/lib/shared/forms";
 
 import type { GrandFinalListActionData } from "../list/shared";
@@ -42,7 +42,7 @@ export async function listVoteCodeBatchRows(
       ? [
           {
             code: "voided",
-            label: `El lote ${batch.number} fue anulado el ${formatBusinessDate(batch.voidedAt)}: sus códigos QR ya no sirven para votar.`,
+            label: `El lote ${batch.number} fue anulado el ${formatLongBusinessDate(batch.voidedAt)}: sus códigos QR ya no sirven para votar.`,
           },
         ]
       : [],
@@ -172,7 +172,7 @@ export async function loadVoteCodeSheet(
     sheet,
   });
 
-  // Each code on the sheet is a live vote worth ten: no browser or proxy
+  // Each code on the sheet is a live vote worth thirty: no browser or proxy
   // cache keeps a copy past this response.
   return new Response(html, {
     headers: {

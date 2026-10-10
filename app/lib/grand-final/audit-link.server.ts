@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 
 import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 
@@ -9,21 +9,21 @@ import { lockEvent } from "@/lib/grand-final/result.server";
 /**
  * The `Gran final`'s `auditLink`s: what administration hands to the
  * audience's auditors so they can watch the open round's totals. A link is a
- * bearer secret, so only hashes are stored: the token is shown once, when it
- * is created, and the first browser that opens it gets a session secret of
- * its own in a cookie. From then on the link serves that browser alone, until
- * it is revoked. A link reads totals and nothing else: it casts no vote and
- * opens no other page.
+ * bearer secret, so only its hash is stored: the token is derived from the
+ * link's id with a key of the server's (`secret`), which lets administration
+ * show it again whenever an auditor needs it, on whatever device, until it is
+ * revoked or its round closes. A link reads totals and nothing else: it casts
+ * no vote and opens no other page.
  */
 
 /** The audience's auditors: three people on stage, never more at once. */
 export const maxActiveAuditLinks = 3;
 
 export type AuditLinkRow = {
-  boundAt: Date | null;
   createdAt: Date;
   id: string;
   label: string;
+  openedAt: Date | null;
   revokedAt: Date | null;
 };
 
@@ -39,6 +39,7 @@ export type CreateAuditLinkResult =
 export async function createAuditLink(input: {
   eventId: string;
   label: string;
+  secret: string;
 }): Promise<CreateAuditLinkResult> {
   return await db.transaction(async (tx) => {
     await lockEvent(tx, input.eventId);
@@ -56,17 +57,16 @@ export async function createAuditLink(input: {
       return { ok: false, reason: "limit-reached" };
     }
 
-    const token = generateSecret();
-    const [link] = await tx
-      .insert(auditLinks)
-      .values({
-        eventId: input.eventId,
-        label: input.label,
-        tokenHash: hashSecret(token),
-      })
-      .returning({ id: auditLinks.id });
+    const id = crypto.randomUUID();
+    const token = deriveAuditLinkToken(input.secret, id);
+    await tx.insert(auditLinks).values({
+      eventId: input.eventId,
+      id,
+      label: input.label,
+      tokenHash: hashSecret(token),
+    });
 
-    return { id: link.id, ok: true, token };
+    return { id, ok: true, token };
   });
 }
 
@@ -74,10 +74,10 @@ export async function createAuditLink(input: {
 export async function listAuditLinks(eventId: string): Promise<AuditLinkRow[]> {
   return await db
     .select({
-      boundAt: auditLinks.boundAt,
       createdAt: auditLinks.createdAt,
       id: auditLinks.id,
       label: auditLinks.label,
+      openedAt: auditLinks.openedAt,
       revokedAt: auditLinks.revokedAt,
     })
     .from(auditLinks)
@@ -120,48 +120,68 @@ export async function revokeAuditLink(input: {
   return { ok: false, reason: existing ? "already-revoked" : "not-found" };
 }
 
-export type AuditLinkRefusal = "already-bound" | "revoked" | "unknown";
-
-export type BindAuditLinkResult =
-  { ok: false; reason: AuditLinkRefusal } | { ok: true; sessionSecret: string };
+export type ReadAuditLinkHandoverResult =
+  | { issuedAt: Date; label: string; ok: true; token: string }
+  | { ok: false; reason: "key-changed" | "not-found" | "revoked" };
 
 /**
- * Opens the link the token names in the browser holding `sessionSecret`, if
- * any. The first open binds it: one conditional update, so two devices
- * opening it at once leave one bound and refuse the other. The bound browser
- * opens it again with the secret it already holds; any other is refused, as
- * is everyone once the link is revoked.
+ * The token of one of the event's live links, derived again, for
+ * administration to hand the link over once more. A token that no longer
+ * matches the stored hash, because the server's key changed since the link
+ * was created, is never handed over: it would open nothing.
  */
-export async function bindAuditLink(input: {
-  sessionSecret: string | null;
-  token: string;
-}): Promise<BindAuditLinkResult> {
-  const tokenHash = hashSecret(input.token);
-  const sessionSecret = generateSecret();
-  const [bound] = await db
-    .update(auditLinks)
-    .set({
-      boundAt: sql`CURRENT_TIMESTAMP`,
-      sessionHash: hashSecret(sessionSecret),
-    })
-    .where(
-      and(
-        eq(auditLinks.tokenHash, tokenHash),
-        isNull(auditLinks.revokedAt),
-        isNull(auditLinks.sessionHash),
-      ),
-    )
-    .returning({ id: auditLinks.id });
-
-  if (bound) {
-    return { ok: true, sessionSecret };
-  }
-
+export async function readAuditLinkHandover(input: {
+  eventId: string;
+  linkId: string;
+  secret: string;
+}): Promise<ReadAuditLinkHandoverResult> {
   const [link] = await db
     .select({
+      issuedAt: auditLinks.createdAt,
+      label: auditLinks.label,
       revokedAt: auditLinks.revokedAt,
-      sessionHash: auditLinks.sessionHash,
+      tokenHash: auditLinks.tokenHash,
     })
+    .from(auditLinks)
+    .where(
+      and(
+        eq(auditLinks.id, input.linkId),
+        eq(auditLinks.eventId, input.eventId),
+      ),
+    );
+
+  if (!link) {
+    return { ok: false, reason: "not-found" };
+  }
+
+  if (link.revokedAt) {
+    return { ok: false, reason: "revoked" };
+  }
+
+  const token = deriveAuditLinkToken(input.secret, input.linkId);
+
+  if (hashSecret(token) !== link.tokenHash) {
+    return { ok: false, reason: "key-changed" };
+  }
+
+  return { issuedAt: link.issuedAt, label: link.label, ok: true, token };
+}
+
+export type AuditLinkRefusal = "revoked" | "unknown";
+
+export type OpenAuditLinkResult =
+  { ok: false; reason: AuditLinkRefusal } | { ok: true };
+
+/**
+ * Opens the link the token names, on any device and as often as asked, while
+ * it is not revoked. The first open notes when, for the list.
+ */
+export async function openAuditLink(
+  token: string,
+): Promise<OpenAuditLinkResult> {
+  const tokenHash = hashSecret(token);
+  const [link] = await db
+    .select({ revokedAt: auditLinks.revokedAt })
     .from(auditLinks)
     .where(eq(auditLinks.tokenHash, tokenHash));
 
@@ -173,14 +193,14 @@ export async function bindAuditLink(input: {
     return { ok: false, reason: "revoked" };
   }
 
-  if (
-    input.sessionSecret &&
-    link.sessionHash === hashSecret(input.sessionSecret)
-  ) {
-    return { ok: true, sessionSecret: input.sessionSecret };
-  }
+  await db
+    .update(auditLinks)
+    .set({ openedAt: sql`CURRENT_TIMESTAMP` })
+    .where(
+      and(eq(auditLinks.tokenHash, tokenHash), isNull(auditLinks.openedAt)),
+    );
 
-  return { ok: false, reason: "already-bound" };
+  return { ok: true };
 }
 
 /**
@@ -190,16 +210,13 @@ export async function bindAuditLink(input: {
 export type AuditedLink = { eventId: string; issuedAt: Date };
 
 export type AuditSession =
-  | ({ ok: true } & AuditedLink)
-  | { ok: false; reason: Exclude<AuditLinkRefusal, "already-bound"> };
+  ({ ok: true } & AuditedLink) | { ok: false; reason: AuditLinkRefusal };
 
 /**
- * The link a browser's session secret audits, read on every request so a
- * revocation takes effect on the next reload.
+ * The link a browser's token audits, read on every request so a revocation
+ * takes effect on the next reload.
  */
-export async function readAuditSession(
-  sessionSecret: string,
-): Promise<AuditSession> {
+export async function readAuditSession(token: string): Promise<AuditSession> {
   const [link] = await db
     .select({
       eventId: auditLinks.eventId,
@@ -207,7 +224,7 @@ export async function readAuditSession(
       revokedAt: auditLinks.revokedAt,
     })
     .from(auditLinks)
-    .where(eq(auditLinks.sessionHash, hashSecret(sessionSecret)));
+    .where(eq(auditLinks.tokenHash, hashSecret(token)));
 
   if (!link) {
     return { ok: false, reason: "unknown" };
@@ -219,16 +236,26 @@ export async function readAuditSession(
 }
 
 /**
- * 128 random bits, base64url, as a `voteCode`'s: nobody guesses one or walks
- * from one link to the next.
+ * 128 bits of an HMAC of the link's id, base64url: without the server's key
+ * nobody derives one, guesses one or walks from one link to the next. The key
+ * is the server secret's own for this use.
  */
-function generateSecret() {
-  return randomBytes(16).toString("base64url");
+function deriveAuditLinkToken(secret: string, linkId: string) {
+  const key = createHmac("sha256", secret)
+    .update("en-escena:audit-link")
+    .digest();
+
+  return createHmac("sha256", key)
+    .update(linkId)
+    .digest()
+    .subarray(0, 16)
+    .toString("base64url");
 }
 
 /**
- * A plain SHA-256: the secrets are 128 random bits, so there is nothing for a
- * salt or a slow hash to protect, and the lookup stays one indexed equality.
+ * A plain SHA-256: the tokens are 128 bits no one can derive without the key,
+ * so there is nothing for a salt or a slow hash to protect, and the lookup
+ * stays one indexed equality.
  */
 function hashSecret(secret: string) {
   return createHash("sha256").update(secret).digest("hex");

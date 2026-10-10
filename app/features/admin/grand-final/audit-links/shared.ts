@@ -4,7 +4,7 @@ import type { AuditLinkRow } from "@/lib/grand-final/audit-link.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 /**
- * What the `Gran final` list's `auditLink`s and their server agree on: the two
+ * What the `Gran final` list's `auditLink`s and their server agree on: the
  * intents, their schemas, and the reasons an action cannot run. A module of
  * its own because the view imports it and the server module cannot reach the
  * browser.
@@ -12,6 +12,7 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const createAuditLinkIntent = "create-audit-link";
 export const revokeAuditLinkIntent = "revoke-audit-link";
+export const showAuditLinkIntent = "show-audit-link";
 
 const auditLinkLabelMaxLength = 80;
 
@@ -34,9 +35,15 @@ export const revokeAuditLinkSchema = z.object({
   linkId: z.string().trim().min(1),
 });
 
+export const showAuditLinkSchema = z.object({
+  intent: z.literal(showAuditLinkIntent),
+  linkId: z.string().trim().min(1),
+});
+
 /**
- * The link just created, as its dialog hands it over: the only time its
- * address exists outside the auditor's browser, since only its hash is kept.
+ * A live link as its dialog hands it over, just created or shown again. Only
+ * its hash is kept: the server derives the address again for each answer,
+ * which no cache keeps, and the list never carries it.
  */
 export type CreatedAuditLink = {
   label: string;
@@ -59,8 +66,14 @@ export type AuditLinkCreateBlockReason = {
 export const auditLinkLimitMessage =
   "Ya hay 3 accesos de auditoría vigentes. Revocá uno para crear otro.";
 
-/** Why a link can no longer be revoked: it already was. */
-export type AuditLinkBlockReason = { code: "revoked"; label: string };
+/**
+ * Why a link can no longer be shown or revoked: it already was revoked, or
+ * the round it shows has closed and it opens nothing any more.
+ */
+export type AuditLinkBlockReason = {
+  code: "expired" | "revoked";
+  label: string;
+};
 
 export type AuditLinkListRow = AuditLinkRow & {
   blockReasons: AuditLinkBlockReason[];

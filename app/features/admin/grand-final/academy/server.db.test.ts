@@ -8,7 +8,7 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
-import { setFinalistPick } from "@/lib/grand-final/finalist-pick.server";
+import { setAcademyFinalistPicks } from "@/lib/grand-final/finalist-pick.server";
 import { seedEligibilityFixture } from "@/lib/grand-final/grand-final.test-support";
 import { readGrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
 import {
@@ -24,10 +24,15 @@ import {
 import { pngFile } from "@/lib/test-support/images";
 
 import {
-  handleFinalistBannersAction,
-  loadFinalistBannersRouteData,
+  handleAcademyGrandFinalAction,
+  loadAcademyGrandFinalRouteData,
 } from "./server";
-import { bannerFieldNames, saveFinalistBannersIntent } from "./shared";
+import {
+  bannerFieldNames,
+  judgeIdsFieldName,
+  judgeIdsPostedFieldName,
+  saveAcademyGrandFinalIntent,
+} from "./shared";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -52,7 +57,10 @@ afterEach(async () => {
   await rm(baseDir, { force: true, recursive: true });
 });
 
-/** "Academia Vecina" eligible in Jazz and picked by a judge: a finalist. */
+/**
+ * "Academia Vecina" eligible in Jazz and picked by a judge: a finalist. Each
+ * academy comes as its page in Jazz.
+ */
 async function seedFinalist() {
   const fixture = await seedEligibilityFixture();
   const jazz = await fixture.addModality("Jazz");
@@ -72,24 +80,52 @@ async function seedFinalist() {
 
   const judgeId = await fixture.addJudge();
   await fixture.assignJudge(judgeId, firstChoreographyId);
-  await setFinalistPick({ academyId: vecina, judgeId, modalityId: jazz });
+  await setAcademyFinalistPicks({
+    academyId: vecina,
+    picks: [{ judgeIds: [judgeId], modalityId: jazz }],
+  });
 
-  return { eventId: fixture.eventId, pirueta, vecina };
+  const outsider = await fixture.addAcademy("Academia Ajena");
+  const tap = await fixture.addModality("Tap");
+  const inJazz = (academyId: string) => ({ academyId, modalityId: jazz });
+
+  return {
+    eventId: fixture.eventId,
+    fixture,
+    jazz,
+    judgeId,
+    outsider: inJazz(outsider),
+    pirueta: inJazz(pirueta),
+    tap,
+    vecina: inJazz(vecina),
+  };
 }
 
-const pageUrl = (academyId: string) =>
-  `http://localhost/administracion/gran-final/${academyId}`;
+type Page = { academyId: string; modalityId: string };
+
+const pageUrl = ({ academyId, modalityId }: Page) =>
+  `http://localhost/administracion/gran-final/${academyId}/${modalityId}`;
 
 /** What the form posts for each banner: a new file, its stored key, or "". */
 type BannerField = File | string;
 
+/** A save with no `judgeIds` posts no judges field, and leaves the picks alone. */
 async function save(
-  academyId: string,
+  page: Page,
   banners: { first?: BannerField; second?: BannerField },
   role: "admin" | "auditor" = "admin",
+  judgeIds?: string[],
 ) {
   const body = new FormData();
-  body.set("intent", saveFinalistBannersIntent);
+  body.set("intent", saveAcademyGrandFinalIntent);
+
+  if (judgeIds) {
+    body.set(judgeIdsPostedFieldName, "1");
+
+    for (const judgeId of judgeIds) {
+      body.append(judgeIdsFieldName, judgeId);
+    }
+  }
 
   for (const slot of ["first", "second"] as const) {
     const value = banners[slot];
@@ -104,21 +140,21 @@ async function save(
   const { request } = await createSignedInRequest({
     body,
     email: `${role}.${crypto.randomUUID()}@example.com`,
-    requestUrl: pageUrl(academyId),
+    requestUrl: pageUrl(page),
     role,
   });
 
-  return await handleFinalistBannersAction(request, academyId, storage);
+  return await handleAcademyGrandFinalAction(request, page, storage);
 }
 
-async function load(academyId: string, role: "admin" | "auditor" = "admin") {
+async function load(page: Page, role: "admin" | "auditor" = "admin") {
   const { request } = await createSignedInRequest({
     email: `${role}.${crypto.randomUUID()}@example.com`,
-    requestUrl: pageUrl(academyId),
+    requestUrl: pageUrl(page),
     role,
   });
 
-  return await loadFinalistBannersRouteData(request, academyId, storage);
+  return await loadAcademyGrandFinalRouteData(request, page, storage);
 }
 
 async function storedObjects(eventId: string, academyId: string) {
@@ -149,7 +185,7 @@ describe("the finalist banner form", () => {
     await expect(
       save(vecina, { first: wide(), second: wide() }),
     ).resolves.toEqual({
-      message: "Guardaste los banners.",
+      message: "Guardaste los cambios.",
       status: "success",
     });
 
@@ -162,7 +198,7 @@ describe("the finalist banner form", () => {
     expect(page.bannerUrls.second).toMatch(
       /^\/almacenamiento\?bucket=en-escena-grand-final-banners&/,
     );
-    expect(await storedObjects(eventId, vecina)).toEqual(
+    expect(await storedObjects(eventId, vecina.academyId)).toEqual(
       [page.values.firstBannerStorageKey, page.values.secondBannerStorageKey]
         .map((key) => key.split("/").at(-1))
         .sort(),
@@ -171,7 +207,7 @@ describe("the finalist banner form", () => {
     const { modalities } = await readGrandFinalPicks(eventId);
 
     expect(
-      modalities[0].academies.find((row) => row.academyId === vecina)
+      modalities[0].academies.find((row) => row.academyId === vecina.academyId)
         ?.bannerCount,
     ).toBe(2);
   });
@@ -192,7 +228,7 @@ describe("the finalist banner form", () => {
     expect(after.secondBannerStorageKey).not.toBe(
       before.secondBannerStorageKey,
     );
-    expect(await storedObjects(eventId, vecina)).toHaveLength(2);
+    expect(await storedObjects(eventId, vecina.academyId)).toHaveLength(2);
   });
 
   // The open round copied the keys and the vote page still shows them.
@@ -204,7 +240,7 @@ describe("the finalist banner form", () => {
 
     await save(vecina, { first: wide("new.png"), second: "" });
 
-    const names = await storedObjects(eventId, vecina);
+    const names = await storedObjects(eventId, vecina.academyId);
     expect(names).toHaveLength(3);
     for (const key of Object.values(opened?.finalists[0]?.keys ?? {})) {
       expect(names).toContain(key.split("/").at(-1));
@@ -232,7 +268,7 @@ describe("the finalist banner form", () => {
     // The first picture was accepted and uploaded before the second was
     // refused; the save as a whole is refused, so it goes too.
     expect((await load(vecina)).values).toEqual(before);
-    expect(await storedObjects(eventId, vecina)).toHaveLength(1);
+    expect(await storedObjects(eventId, vecina.academyId)).toHaveLength(1);
   });
 
   test("refuses a 16:9 picture narrower than the minimum, naming the width", async () => {
@@ -255,19 +291,147 @@ describe("the finalist banner form", () => {
 
     await save(vecina, { first: "", second: before.secondBannerStorageKey });
 
-    expect((await load(vecina)).values).toEqual({
+    expect((await load(vecina)).values).toMatchObject({
       firstBannerStorageKey: "",
       secondBannerStorageKey: before.secondBannerStorageKey,
     });
-    expect(await storedObjects(eventId, vecina)).toHaveLength(1);
+    expect(await storedObjects(eventId, vecina.academyId)).toHaveLength(1);
   });
 
-  test("has no form for an academy no judge picked", async () => {
+  test("opens the page of an eligible academy no judge picked, with the event's judges", async () => {
+    const { jazz, judgeId, pirueta } = await seedFinalist();
+
+    await expect(load(pirueta)).resolves.toMatchObject({
+      academyName: "Academia Pirueta",
+      eligible: true,
+      finalist: false,
+      judges: [{ id: judgeId }],
+      modalityId: jazz,
+      modalityName: "Jazz",
+      values: { judgeIds: [] },
+    });
+  });
+
+  test("picks the academy for the judges chosen, moving a judge's pick off another academy", async () => {
+    const { judgeId, pirueta, vecina } = await seedFinalist();
+
+    await expect(save(pirueta, {}, "admin", [judgeId])).resolves.toEqual({
+      message: "Guardaste los cambios.",
+      status: "success",
+    });
+
+    await expect(load(pirueta)).resolves.toMatchObject({
+      finalist: true,
+      values: { judgeIds: [judgeId] },
+    });
+    await expect(load(vecina)).resolves.toMatchObject({
+      finalist: false,
+      values: { judgeIds: [] },
+    });
+  });
+
+  test("stores no picture when a pick in the same save is refused", async () => {
+    const { eventId, judgeId, vecina } = await seedFinalist();
+
+    await expect(
+      save(vecina, { first: wide() }, "admin", [judgeId, crypto.randomUUID()]),
+    ).resolves.toMatchObject({ init: { status: 404 } });
+
+    expect(await storedObjects(eventId, vecina.academyId)).toEqual([]);
+    await expect(load(vecina)).resolves.toMatchObject({
+      values: { firstBannerStorageKey: "", judgeIds: [judgeId] },
+    });
+  });
+
+  test("names the academy a judge's pick would leave", async () => {
+    const { judgeId, pirueta } = await seedFinalist();
+
+    await expect(load(pirueta)).resolves.toMatchObject({
+      otherPicks: { [judgeId]: "Academia Vecina" },
+    });
+  });
+
+  test("refuses a picture for an academy no judge picked", async () => {
     const { pirueta } = await seedFinalist();
 
-    await expectThrownResponse(load(pirueta), 404);
     await expect(save(pirueta, { first: wide() })).resolves.toMatchObject({
       init: { status: 404 },
+    });
+  });
+
+  test("has no page for an academy that qualifies nowhere and was picked nowhere", async () => {
+    const { outsider } = await seedFinalist();
+
+    await expectThrownResponse(load(outsider), 404);
+  });
+
+  test("has no page in a modality whose list does not hold the academy", async () => {
+    const { tap, vecina } = await seedFinalist();
+
+    await expectThrownResponse(load({ ...vecina, modalityId: tap }), 404);
+  });
+
+  test("leaves the picks alone when the save posts no judges field", async () => {
+    const { judgeId, vecina } = await seedFinalist();
+
+    await save(vecina, { first: wide() });
+
+    await expect(load(vecina)).resolves.toMatchObject({
+      values: { judgeIds: [judgeId] },
+    });
+  });
+
+  test("saves an academy's first pick with the empty banner keys the form posts", async () => {
+    const { judgeId, pirueta } = await seedFinalist();
+
+    await expect(
+      save(pirueta, { first: "", second: "" }, "admin", [judgeId]),
+    ).resolves.toEqual({
+      message: "Guardaste los cambios.",
+      status: "success",
+    });
+
+    await expect(load(pirueta)).resolves.toMatchObject({
+      finalist: true,
+      values: { judgeIds: [judgeId] },
+    });
+  });
+
+  test("refuses a save to a modality whose list does not hold the academy, writing nothing", async () => {
+    const { eventId, tap, vecina } = await seedFinalist();
+    await save(vecina, { first: wide() });
+
+    await expectThrownResponse(
+      save({ ...vecina, modalityId: tap }, { first: "" }),
+      404,
+    );
+
+    expect(await storedObjects(eventId, vecina.academyId)).toHaveLength(1);
+  });
+
+  test("goes back to the list when the save takes the academy off the modality's list", async () => {
+    const { fixture, vecina } = await seedFinalist();
+    await fixture.withdrawAll(vecina.academyId);
+
+    const response = await save(vecina, {}, "admin", []).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).headers.get("location")).toBe(
+      "/administracion/gran-final",
+    );
+  });
+
+  test("takes every judge away when the judges field comes back empty", async () => {
+    const { vecina } = await seedFinalist();
+
+    await save(vecina, {}, "admin", []);
+
+    await expect(load(vecina)).resolves.toMatchObject({
+      finalist: false,
+      values: { judgeIds: [] },
     });
   });
 
@@ -305,7 +469,7 @@ describe("the finalist banner form", () => {
       },
     });
     const bodyY = new FormData();
-    bodyY.set("intent", saveFinalistBannersIntent);
+    bodyY.set("intent", saveAcademyGrandFinalIntent);
     bodyY.set(bannerFieldNames.first.storageKey, before.firstBannerStorageKey);
     bodyY.set(bannerFieldNames.second.file, wide("y.png"));
     const { request: requestY } = await createSignedInRequest({
@@ -315,7 +479,7 @@ describe("the finalist banner form", () => {
       role: "admin",
     });
 
-    const saveY = handleFinalistBannersAction(requestY, vecina, slowVolume);
+    const saveY = handleAcademyGrandFinalAction(requestY, vecina, slowVolume);
     await yUploadStarted;
     await save(vecina, {
       first: wide("x.png"),
@@ -328,7 +492,7 @@ describe("the finalist banner form", () => {
     const final = (await load(vecina)).values;
 
     expect(final.firstBannerStorageKey).toBe(afterX.firstBannerStorageKey);
-    expect(await storedObjects(eventId, vecina)).toEqual(
+    expect(await storedObjects(eventId, vecina.academyId)).toEqual(
       [final.firstBannerStorageKey, final.secondBannerStorageKey]
         .map((key) => key.split("/").at(-1))
         .sort(),
@@ -348,7 +512,7 @@ describe("the finalist banner form", () => {
       },
     });
     const body = new FormData();
-    body.set("intent", saveFinalistBannersIntent);
+    body.set("intent", saveAcademyGrandFinalIntent);
     body.set(bannerFieldNames.first.file, wide());
     body.set(bannerFieldNames.second.file, pngFile("square.png", 1600, 1600));
     const { request } = await createSignedInRequest({
@@ -359,7 +523,7 @@ describe("the finalist banner form", () => {
     });
 
     await expect(
-      handleFinalistBannersAction(request, vecina, brokenCleanup),
+      handleAcademyGrandFinalAction(request, vecina, brokenCleanup),
     ).resolves.toMatchObject({ init: { status: 422 } });
   });
 
@@ -380,7 +544,7 @@ describe("the finalist banner form", () => {
       },
     });
     const body = new FormData();
-    body.set("intent", saveFinalistBannersIntent);
+    body.set("intent", saveAcademyGrandFinalIntent);
     body.set(bannerFieldNames.first.file, wide());
     body.set(bannerFieldNames.second.file, wide());
     const { request } = await createSignedInRequest({
@@ -391,10 +555,10 @@ describe("the finalist banner form", () => {
     });
 
     await expect(
-      handleFinalistBannersAction(request, vecina, fullVolume),
+      handleAcademyGrandFinalAction(request, vecina, fullVolume),
     ).rejects.toThrow("ENOSPC");
-    expect(await storedObjects(eventId, vecina)).toEqual([]);
-    expect((await load(vecina)).values).toEqual({
+    expect(await storedObjects(eventId, vecina.academyId)).toEqual([]);
+    expect((await load(vecina)).values).toMatchObject({
       firstBannerStorageKey: "",
       secondBannerStorageKey: "",
     });

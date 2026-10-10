@@ -209,7 +209,7 @@ describe("the public vote page", () => {
             academyId: fixture.alas,
             city: null,
             name: "Alas",
-            percentage: 76.9,
+            percentage: 90.9,
             position: 1,
             winner: true,
           },
@@ -217,7 +217,7 @@ describe("the public vote page", () => {
             academyId: fixture.ritmo,
             city: null,
             name: "Ritmo Sur",
-            percentage: 23.1,
+            percentage: 9.1,
             position: 2,
             winner: false,
           },
@@ -251,9 +251,7 @@ describe("the public vote page", () => {
 
     expect(cacheControl).toBe("no-store");
     expect(page).toEqual({
-      blockReasons: [],
       code: token,
-      googleSignIn: null,
       finalists: [
         expect.objectContaining({ academyId: round.alas, name: "Alas" }),
         expect.objectContaining({ academyId: round.ritmo, name: "Ritmo Sur" }),
@@ -267,43 +265,24 @@ describe("the public vote page", () => {
     ).toBe(true);
   });
 
-  test("shows the finalists without a code, and offers Google or a code to vote", async () => {
+  test("asks a visitor with no code and no sign-in to sign in with Google, showing no finalist", async () => {
     await seedOpenRoundFixture();
 
-    await expect(load()).resolves.toMatchObject({
-      page: {
-        blockReasons: [
-          {
-            code: "no-identity",
-            label:
-              "Para votar, ingresá con tu cuenta de Google o escaneá el código QR que viene con tu entrada.",
-          },
-        ],
-        code: null,
-        googleSignIn: "offered",
-        state: "open",
-      },
+    await expect(load()).resolves.toEqual({
+      cacheControl: "no-store",
+      page: { google: true, state: "sign-in" },
     });
   });
 
-  test("says only a code votes where Google is not configured", async () => {
+  test("asks for the ticket's code where Google is not configured", async () => {
     await seedOpenRoundFixture();
 
     await expect(load("", undefined, null)).resolves.toMatchObject({
-      page: {
-        blockReasons: [
-          {
-            code: "no-identity",
-            label:
-              "Para votar hace falta el código QR que viene con tu entrada. Escanealo con la cámara del celular.",
-          },
-        ],
-        googleSignIn: null,
-      },
+      page: { google: false, state: "sign-in" },
     });
   });
 
-  test("tells an unknown code and a voided one apart", async () => {
+  test("tells an unknown code and a voided one apart, showing no finalist", async () => {
     const round = await seedOpenRoundFixture();
     const {
       batchId,
@@ -314,25 +293,39 @@ describe("the public vote page", () => {
     const unknown = await load("?codigo=AAAAAAAAAAAAAAAAAAAAAA");
     const voided = await load(`?codigo=${token}`);
 
-    expect(unknown.page).toMatchObject({
-      blockReasons: [
-        {
-          code: "unknown-code",
-          label:
-            "Este código QR no es de esta votación. Revisá que sea el que viene con tu entrada.",
-        },
-      ],
-      code: null,
+    expect(unknown.page).toEqual({
+      reason: "unknown-code",
+      state: "code-refused",
     });
-    expect(voided.page).toMatchObject({
-      blockReasons: [
-        {
-          code: "voided-code",
-          label:
-            "Este código QR fue anulado por la organización y ya no sirve para votar.",
-        },
-      ],
-      code: null,
+    expect(voided.page).toEqual({
+      reason: "voided-code",
+      state: "code-refused",
+    });
+  });
+
+  test("asks for a sign-in again when the voter's cookie outlived its voter", async () => {
+    await seedOpenRoundFixture();
+    const visitor = newVisitor();
+    await signInWithGoogle(visitor);
+    await db.delete(voters);
+
+    await expect(load("", visitor)).resolves.toMatchObject({
+      page: { google: true, state: "sign-in" },
+    });
+  });
+
+  test("tells a signed-in voter whose address names a voided code that the code cannot vote", async () => {
+    const round = await seedOpenRoundFixture();
+    const {
+      batchId,
+      tokens: [token],
+    } = await round.issueCodes();
+    await voidVoteCodeBatch({ batchId, eventId: round.eventId });
+    const visitor = newVisitor();
+    await signInWithGoogle(visitor);
+
+    await expect(load(`?codigo=${token}`, visitor)).resolves.toMatchObject({
+      page: { reason: "voided-code", state: "code-refused" },
     });
   });
 });
@@ -350,12 +343,7 @@ describe("a vote with Google", () => {
     expect(finished.headers.get("Cache-Control")).toBe("no-store");
     await expect(load("", visitor)).resolves.toMatchObject({
       cacheControl: "no-store",
-      page: {
-        blockReasons: [],
-        code: null,
-        googleSignIn: "signed-in",
-        state: "open",
-      },
+      page: { code: null, state: "open" },
     });
   });
 
@@ -375,11 +363,7 @@ describe("a vote with Google", () => {
       db.select({ points: votes.points }).from(votes),
     ).resolves.toEqual([{ points: 1 }]);
     await expect(load("", visitor)).resolves.toMatchObject({
-      page: {
-        canAlsoSignIn: false,
-        finalist: { academyId: round.alas },
-        state: "registered",
-      },
+      page: { finalist: { academyId: round.alas }, state: "registered" },
     });
   });
 
@@ -411,14 +395,14 @@ describe("a vote with Google", () => {
 
     await vote({ academyId: round.alas, codigo: token }, visitor);
     await expect(load(`?codigo=${token}`, visitor)).resolves.toMatchObject({
-      page: { canAlsoSignIn: true, state: "registered" },
+      page: { state: "registered" },
     });
     await signInWithGoogle(visitor);
     await vote({ academyId: round.alas, codigo: "" }, visitor);
 
     await expect(
       db.select({ points: votes.points }).from(votes),
-    ).resolves.toEqual(expect.arrayContaining([{ points: 10 }, { points: 1 }]));
+    ).resolves.toEqual(expect.arrayContaining([{ points: 30 }, { points: 1 }]));
   });
 
   test("votes with the code in the address, never the voter, when the form names none", async () => {
@@ -435,15 +419,15 @@ describe("a vote with Google", () => {
     body.set("codigo", "");
     body.set("roundId", round.roundId);
 
-    const answer = await handleVoteAction(
+    const answer: unknown = await handleVoteAction(
       request(`/votar?codigo=${token}`, visitor, { body, method: "POST" }),
       signIn,
-    );
+    ).catch((thrown: unknown) => thrown);
 
-    expect(answer.data).toMatchObject({
-      message:
-        "Este código QR fue anulado por la organización y ya no sirve para votar.",
-    });
+    expect(answer).toBeInstanceOf(Response);
+    expect((answer as Response).headers.get("Location")).toBe(
+      `/votar?codigo=${token}`,
+    );
     await expect(db.$count(votes)).resolves.toBe(0);
   });
 
@@ -458,12 +442,8 @@ describe("a vote with Google", () => {
       vote({ academyId: "cualquiera", codigo: "" }, forged),
     ).resolves.toEqual({
       cacheControl: "no-store",
-      data: {
-        message:
-          "Para votar, ingresá con tu cuenta de Google o escaneá el código QR que viene con tu entrada.",
-        status: "error",
-      },
-      status: 400,
+      location: "/votar",
+      status: 303,
     });
   });
 
@@ -562,7 +542,7 @@ describe("a vote cast from the page", () => {
     ).resolves.toEqual({ status: "available" });
   });
 
-  test("is refused with its reason for a voided code, and for a closed round", async () => {
+  test("goes back to the code's page for a voided code, and is refused for a closed round", async () => {
     const round = await seedOpenRoundFixture();
     const { batchId, tokens } = await round.issueCodes(2);
     await voidVoteCodeBatch({ batchId, eventId: round.eventId });
@@ -571,12 +551,11 @@ describe("a vote cast from the page", () => {
       vote({ academyId: round.alas, codigo: tokens[0] }),
     ).resolves.toEqual({
       cacheControl: "no-store",
-      data: {
-        message:
-          "Este código QR fue anulado por la organización y ya no sirve para votar.",
-        status: "error",
-      },
-      status: 409,
+      location: `/votar?codigo=${tokens[0]}`,
+      status: 303,
+    });
+    await expect(load(`?codigo=${tokens[0]}`)).resolves.toMatchObject({
+      page: { reason: "voided-code", state: "code-refused" },
     });
 
     await closeCurrentVotingRound(round.eventId);
@@ -590,12 +569,12 @@ describe("a vote cast from the page", () => {
     await expect(db.$count(votes)).resolves.toBe(0);
   });
 
-  test("is refused without a code", async () => {
+  test("goes back to the page, which asks for a sign-in, without a code", async () => {
     const round = await seedOpenRoundFixture();
 
     await expect(
       vote({ academyId: round.alas, codigo: "" }),
-    ).resolves.toMatchObject({ status: 400 });
+    ).resolves.toMatchObject({ location: "/votar", status: 303 });
     await expect(db.$count(votes)).resolves.toBe(0);
   });
 });

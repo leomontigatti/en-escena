@@ -65,7 +65,8 @@ describe("the vote table", () => {
 
   test.each([
     { label: "a code vote worth one", points: 1 },
-    { label: "a code vote worth anything but ten", points: 5 },
+    { label: "a code vote worth anything but thirty", points: 5 },
+    { label: "a code vote worth the old ten", points: 10 },
   ])("refuses $label", async ({ points }) => {
     const seeded = await seedVotingRoundRows();
 
@@ -117,7 +118,7 @@ describe("the vote table", () => {
     const seeded = await seedVotingRoundRows();
 
     await expect(
-      db.insert(votes).values({ ...voterVote(seeded), points: 10 }),
+      db.insert(votes).values({ ...voterVote(seeded), points: 30 }),
     ).rejects.toThrow();
     await expect(
       db.insert(votes).values({ ...codeVote(seeded), voterId: seeded.voterId }),

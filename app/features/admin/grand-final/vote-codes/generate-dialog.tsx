@@ -79,7 +79,7 @@ export function GenerateVoteCodeBatchDialog({
           <DialogHeader>
             <DialogTitle>Generar códigos QR</DialogTitle>
             <DialogDescription>
-              Cada código QR vale un voto de 10 puntos en la Gran final y se usa
+              Cada código QR vale un voto de 30 puntos en la Gran final y se usa
               una sola vez por votación. El lote se imprime desde la lista.
             </DialogDescription>
           </DialogHeader>
@@ -110,7 +110,7 @@ export function GenerateVoteCodeBatchDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving || count.trim() === ""}>
                 {isSaving ? (
                   <Spinner aria-hidden="true" data-icon="inline-start" />
                 ) : null}

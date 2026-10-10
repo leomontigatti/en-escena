@@ -1,7 +1,7 @@
 import { createCookie, data, redirect } from "react-router";
 
 import {
-  bindAuditLink,
+  openAuditLink,
   readAuditSession,
 } from "@/lib/grand-final/audit-link.server";
 import type { AuditedLink } from "@/lib/grand-final/audit-link.server";
@@ -20,9 +20,9 @@ import {
 
 /**
  * The audit page of the `Gran final`, `/auditoria`: public, with no access
- * session, reached only through an `auditLink`. Opening the link binds it to
- * this browser, which keeps a session secret in a cookie of its own; every
- * load reads that secret, so a revocation shuts the page on the next reload.
+ * session, reached only through an `auditLink`, on any device. Opening the
+ * link keeps its token in a cookie of the browser's; every load reads the
+ * link again, so a revocation shuts the page on the next reload.
  * The page reads totals and has no other write: nothing here casts a vote.
  *
  * Every answer is kept by no cache and sends no `Referer` onward: the page
@@ -34,8 +34,8 @@ const pageHeaders = {
 };
 
 /**
- * A voting night and its `Desempate`: the browser that opened the link keeps
- * it that long, and a link revoked earlier stops serving it anyway.
+ * A voting night and its `Desempate`: a browser that opened the link keeps it
+ * that long, and a link revoked earlier stops serving it anyway.
  */
 const sessionMaxAgeSeconds = 24 * 60 * 60;
 
@@ -64,7 +64,7 @@ function createSessionCookie(secure: boolean) {
   });
 }
 
-async function readSessionSecret(
+async function readSessionToken(
   cookie: ReturnType<typeof createSessionCookie>,
   request: Request,
 ) {
@@ -78,19 +78,19 @@ export async function loadAuditPage(
   deps: AuditPageDeps = createDefaultAuditPageDeps(),
 ) {
   const cookie = createSessionCookie(deps.secure);
-  const sessionSecret = await readSessionSecret(cookie, request);
+  const token = await readSessionToken(cookie, request);
 
-  if (!sessionSecret) {
+  if (!token) {
     return data<AuditPageData>(
       { state: "open-link" },
       { headers: pageHeaders },
     );
   }
 
-  const session = await readAuditSession(sessionSecret);
+  const session = await readAuditSession(token);
 
   if (!session.ok) {
-    // The secret serves nothing any more: the browser drops it.
+    // The token serves nothing any more: the browser drops it.
     return data<AuditPageData>(
       { reason: session.reason, state: "refused" },
       {
@@ -115,15 +115,13 @@ export async function loadAuditPage(
 }
 
 const refusalStatuses: Record<AuditActionData["reason"], number> = {
-  "already-bound": 409,
   revoked: 410,
   unknown: 404,
 };
 
 /**
- * Opens the link the form's token names in this browser: the first browser
- * binds it and lands on the totals; any other, and every browser once the
- * link is revoked, gets the refusal.
+ * Opens the link the form's token names in this browser, which lands on the
+ * totals; once the link is revoked, every browser gets the refusal.
  */
 export async function handleAuditAction(
   request: Request,
@@ -142,10 +140,7 @@ export async function handleAuditAction(
   }
 
   const cookie = createSessionCookie(deps.secure);
-  const result = await bindAuditLink({
-    sessionSecret: await readSessionSecret(cookie, request),
-    token: parsed.data.token,
-  });
+  const result = await openAuditLink(parsed.data.token);
 
   if (!result.ok) {
     return data<AuditActionData>(
@@ -157,7 +152,7 @@ export async function handleAuditAction(
   return redirect(auditPath, {
     headers: {
       ...pageHeaders,
-      "Set-Cookie": await cookie.serialize(result.sessionSecret),
+      "Set-Cookie": await cookie.serialize(parsed.data.token),
     },
   });
 }

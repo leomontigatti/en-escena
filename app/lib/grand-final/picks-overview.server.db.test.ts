@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { saveFinalistBanners } from "@/lib/grand-final/banners.server";
-import { setFinalistPick } from "@/lib/grand-final/finalist-pick.server";
+import { setAcademyFinalistPicks } from "@/lib/grand-final/finalist-pick.server";
 import { readGrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
 import { seedEligibilityFixture } from "@/lib/grand-final/grand-final.test-support";
 import { createGrandFinalBannerStorage } from "@/lib/storage/grand-final-banners.server";
@@ -54,20 +54,13 @@ describe("`readGrandFinalPicks`", () => {
     const seed = await seedTwoModalities();
     await seed.fixture.addJudge("Diego Juez, de otro evento");
 
-    await setFinalistPick({
+    await setAcademyFinalistPicks({
       academyId: seed.vecina,
-      judgeId: seed.ana,
-      modalityId: seed.jazz,
+      picks: [{ judgeIds: [seed.ana, seed.bruno], modalityId: seed.jazz }],
     });
-    await setFinalistPick({
-      academyId: seed.vecina,
-      judgeId: seed.bruno,
-      modalityId: seed.jazz,
-    });
-    await setFinalistPick({
+    await setAcademyFinalistPicks({
       academyId: seed.pirueta,
-      judgeId: seed.ana,
-      modalityId: seed.tap,
+      picks: [{ judgeIds: [seed.ana], modalityId: seed.tap }],
     });
 
     await expect(readGrandFinalPicks(seed.fixture.eventId)).resolves.toEqual({
@@ -128,10 +121,9 @@ describe("`readGrandFinalPicks`", () => {
   test("keeps a pick whose academy stopped being eligible, marked as such", async () => {
     const seed = await seedTwoModalities();
 
-    await setFinalistPick({
+    await setAcademyFinalistPicks({
       academyId: seed.vecina,
-      judgeId: seed.carla,
-      modalityId: seed.jazz,
+      picks: [{ judgeIds: [seed.carla], modalityId: seed.jazz }],
     });
     await seed.fixture.withdrawAll(seed.vecina);
 
@@ -176,10 +168,9 @@ describe("`readGrandFinalPicks`", () => {
       upload: async () => {},
     });
 
-    await setFinalistPick({
+    await setAcademyFinalistPicks({
       academyId: seed.vecina,
-      judgeId: seed.ana,
-      modalityId: seed.jazz,
+      picks: [{ judgeIds: [seed.ana], modalityId: seed.jazz }],
     });
     await expect(
       saveFinalistBanners({
@@ -192,15 +183,13 @@ describe("`readGrandFinalPicks`", () => {
         storage,
       }),
     ).resolves.toEqual({ ok: true });
-    await setFinalistPick({
+    await setAcademyFinalistPicks({
       academyId: seed.pirueta,
-      judgeId: seed.ana,
-      modalityId: seed.jazz,
+      picks: [{ judgeIds: [seed.ana], modalityId: seed.jazz }],
     });
-    await setFinalistPick({
+    await setAcademyFinalistPicks({
       academyId: seed.vecina,
-      judgeId: seed.ana,
-      modalityId: seed.jazz,
+      picks: [{ judgeIds: [seed.ana], modalityId: seed.jazz }],
     });
 
     const { modalities } = await readGrandFinalPicks(seed.fixture.eventId);

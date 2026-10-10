@@ -58,6 +58,8 @@ export const notificationToastIds = {
   "internal-user-suspended": "route-notification:internal-user-suspended",
   "internal-user-reactivated": "route-notification:internal-user-reactivated",
   "voter-sign-in-failed": "route-notification:voter-sign-in-failed",
+  "grand-final-academy-left-modality":
+    "route-notification:grand-final-academy-left-modality",
 } as const;
 
 type NotificationToastKey = Exclude<
@@ -320,6 +322,12 @@ export const notificationToasts = {
     id: notificationToastIds["voter-sign-in-failed"],
     message: "No se pudo ingresar con Google. Probá de nuevo.",
     variant: "error",
+  },
+  "grand-final-academy-left-modality": {
+    id: notificationToastIds["grand-final-academy-left-modality"],
+    message:
+      "Guardaste los cambios. La academia ya no cumple los requisitos en esa modalidad y ningún juez la elige, así que salió de la lista.",
+    variant: "success",
   },
 } as const satisfies Record<NotificationToastKey, NotificationToast>;
 

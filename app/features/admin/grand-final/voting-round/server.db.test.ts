@@ -186,7 +186,7 @@ describe("the result on the `Gran final` list", () => {
     const fixture = await seedResultFixture();
     const tokens = await fixture.issueCodes(1);
     await fixture.vote(fixture.alas, { tokens });
-    await fixture.vote(fixture.ritmo, { voters: 10 });
+    await fixture.vote(fixture.ritmo, { voters: 30 });
     await closeTheShownRound();
 
     await expect(loadTheList()).resolves.toMatchObject({

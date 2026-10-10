@@ -114,19 +114,16 @@ describe("the public vote page", () => {
     await clickReactDomButton("Confirmar voto", { exact: true });
   }
 
-  // Before the round, after it, and once the code voted, the page offers no
-  // way to vote at all.
+  // Before the round, after it, once the code voted, and to a code that
+  // cannot vote, the page offers no way to vote at all.
   test.each([
     { page: { state: "not-open" } as const },
     { page: { state: "closed" } as const },
     {
-      page: {
-        canAlsoSignIn: false,
-        finalist: finalists[0],
-        state: "registered",
-      } as const,
+      page: { finalist: finalists[0], state: "registered" } as const,
     },
     { page: publishedPage },
+    { page: { reason: "voided-code", state: "code-refused" } as const },
   ])("offers no vote while the page is $page.state", async ({ page }) => {
     await mount(page);
 
@@ -144,10 +141,8 @@ describe("the public vote page", () => {
 
   test("sends the academy chosen with the code the visitor arrived with", async () => {
     await mount({
-      blockReasons: [],
       code: "codigo-impreso",
       finalists,
-      googleSignIn: null,
       roundId: "ronda-1",
       state: "open",
     });
@@ -164,10 +159,8 @@ describe("the public vote page", () => {
 
   test("tells a refused vote in a toast", async () => {
     await mount({
-      blockReasons: [],
       code: "codigo-impreso",
       finalists,
-      googleSignIn: null,
       roundId: "ronda-1",
       state: "open",
     });
@@ -188,10 +181,8 @@ describe("the public vote page", () => {
       status: "error",
     };
     await mount({
-      blockReasons: [],
       code: null,
       finalists,
-      googleSignIn: "signed-in",
       roundId: "ronda-1",
       state: "open",
     });
@@ -212,23 +203,32 @@ describe("the public vote page", () => {
     expect(toast.error).toHaveBeenCalledWith(answer.message, expect.anything());
   });
 
-  test("opens why a visitor without a valid code cannot vote, and sends nothing", async () => {
-    const label =
-      "Este código QR fue anulado por la organización y ya no sirve para votar.";
-    await mount({
-      blockReasons: [{ code: "voided-code", label }],
-      code: null,
-      finalists,
-      googleSignIn: "offered",
-      roundId: "ronda-1",
-      state: "open",
-    });
+  test("asks for the sign-in with Google, with no finalist to choose", async () => {
+    await mount({ google: true, state: "sign-in" });
 
-    await voteFor("Alas");
-
+    expect(document.querySelector("li")).toBeNull();
     expect(
-      document.querySelector('[role="alertdialog"]')?.textContent,
-    ).toContain(label);
-    expect(submitted).toHaveLength(0);
+      document.querySelector<HTMLFormElement>('form[action="/votar/google"]')
+        ?.textContent,
+    ).toBe("Ingresar con Google");
+  });
+
+  test("asks for the ticket's code, and offers no sign-in, where Google is not configured", async () => {
+    await mount({ google: false, state: "sign-in" });
+
+    expect(document.body.textContent).toContain(
+      "Para votar hace falta el código QR que viene con tu entrada.",
+    );
+    expect(document.querySelector("form")).toBeNull();
+  });
+
+  test("says a voided code was voided, and lists no finalist", async () => {
+    await mount({ reason: "voided-code", state: "code-refused" });
+
+    expect(document.body.textContent).toContain("Código QR anulado");
+    expect(document.body.textContent).toContain(
+      "Este código QR fue anulado por la organización y ya no sirve para votar.",
+    );
+    expect(document.querySelector("li")).toBeNull();
   });
 });

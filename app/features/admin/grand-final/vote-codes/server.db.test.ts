@@ -173,7 +173,6 @@ describe("the QR code batches of the `Gran final` list", () => {
     // The sheet carries live tokens: no browser or proxy keeps a copy.
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(html.match(/<svg/g)).toHaveLength(3);
-    expect(html).toContain("Lote 1 · 3/3");
   });
 
   test("does not print a voided batch", async () => {

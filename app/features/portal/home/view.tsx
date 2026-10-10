@@ -86,10 +86,7 @@ function GrandFinalFinalistAlert({ voteUrl }: { voteUrl: string }) {
           comunidad para que voten:
         </p>
         <div className="flex items-center gap-1">
-          <span
-            className="min-w-0 truncate font-medium text-foreground"
-            title={voteUrl}
-          >
+          <span className="min-w-0 truncate font-medium" title={voteUrl}>
             {voteUrl}
           </span>
           <CopyIconButton label="enlace de votación" value={voteUrl} />

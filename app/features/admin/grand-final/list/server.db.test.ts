@@ -4,13 +4,13 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import { setAcademyFinalistPicks } from "@/lib/grand-final/finalist-pick.server";
 import { seedEligibilityFixture } from "@/lib/grand-final/grand-final.test-support";
 
 import {
   handleGrandFinalListAction,
   loadGrandFinalListRouteData,
 } from "./server";
-import { setFinalistPickIntent } from "./shared";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -49,7 +49,6 @@ async function submit(
   role: "admin" | "auditor" = "admin",
 ) {
   const body = new FormData();
-  body.set("intent", setFinalistPickIntent);
 
   for (const [name, value] of Object.entries(values)) {
     body.set(name, value);
@@ -76,14 +75,11 @@ async function loadTheList(role: "admin" | "auditor" = "admin") {
 }
 
 describe("the `Gran final` list route", () => {
-  test("sets a judge's pick and shows it on the list", async () => {
+  test("lists each eligible academy in its modality, with the judges who picked it", async () => {
     const { jazz, judgeId, pirueta } = await seedJazz();
-
-    await expect(
-      submit({ academyId: pirueta, judgeId, modalityId: jazz }),
-    ).resolves.toEqual({
-      message: "Guardaste la elección de finalista.",
-      status: "success",
+    await setAcademyFinalistPicks({
+      academyId: pirueta,
+      picks: [{ judgeIds: [judgeId], modalityId: jazz }],
     });
 
     const { picks } = await loadTheList();
@@ -91,56 +87,33 @@ describe("the `Gran final` list route", () => {
     expect(picks?.modalities[0].academies).toEqual([
       expect.objectContaining({
         academyId: pirueta,
+        finalist: true,
         pickedByJudgeIds: [judgeId],
       }),
     ]);
   });
 
-  test("refuses an academy that is not eligible in the modality, saying so", async () => {
-    const { halfway, jazz, judgeId } = await seedJazz();
-
-    await expect(
-      submit({ academyId: halfway, judgeId, modalityId: jazz }),
-    ).resolves.toMatchObject({
-      data: {
-        message:
-          "Esa academia no cumple los requisitos de la Gran final en esta modalidad. Elegí otra.",
-        status: "error",
-      },
-      init: { status: 409 },
-    });
-  });
-
-  test("turns the auditor away from the list and from the write", async () => {
-    const { jazz, judgeId, pirueta } = await seedJazz();
+  test("turns the auditor away from the list and from its writes", async () => {
+    await seedJazz();
 
     await expectThrownResponse(loadTheList("auditor"), 403);
     await expectThrownResponse(
-      submit({ academyId: pirueta, judgeId, modalityId: jazz }, "auditor"),
+      submit({ intent: "open-voting-round" }, "auditor"),
       403,
     );
-
-    const { picks } = await loadTheList();
-
-    expect(picks?.modalities[0].academies[0].pickedByJudgeIds).toEqual([]);
   });
 
-  test("tells the dialog why a pick cannot change while the event has no judge and no eligible academy", async () => {
-    await seedEligibilityFixture();
+  test("refuses an intent it does not know, the old change of a pick among them", async () => {
+    const { jazz, judgeId, pirueta } = await seedJazz();
 
-    const { pickChangeBlockReasons } = await loadTheList();
-
-    expect(pickChangeBlockReasons.map((reason) => reason.code)).toEqual([
-      "no-event-judge",
-      "no-eligible-academy",
-    ]);
-  });
-
-  test("leaves the change open with a judge of the event and an eligible academy", async () => {
-    await seedJazz();
-
-    await expect(loadTheList()).resolves.toMatchObject({
-      pickChangeBlockReasons: [],
-    });
+    await expectThrownResponse(
+      submit({
+        academyId: pirueta,
+        intent: "set-finalist-pick",
+        judgeId,
+        modalityId: jazz,
+      }),
+      400,
+    );
   });
 });

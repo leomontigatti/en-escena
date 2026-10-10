@@ -1,20 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Check,
-  CircleAlert,
-  CircleCheck,
-  Crown,
-  Info,
-  Vote,
-} from "lucide-react";
+import { Check, CircleAlert, CircleCheck, Crown, Vote } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
-import { AlertStack } from "@/components/shared/alert-stack";
-import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,14 +23,14 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import { cn } from "@/lib/shared/utils";
 
 import { FinalistCarousel } from "./finalist-carousel";
+import { GoogleIcon } from "./google-icon";
 import { PublicVoteShell } from "./public-shell";
 import {
   voteFormSchema,
   type VoteActionData,
-  type VoteBlockReason,
+  type VoteCodeRefusal,
   type VoteFinalist,
   type VoteFormValues,
-  type VoteGoogleSignIn,
   type VotePageData,
   type PublishedFinalist,
 } from "./shared";
@@ -48,8 +38,9 @@ import {
 /**
  * The public vote of the `Gran final`, designed for the phone a visitor
  * scanned their ticket's QR code with, or signed in with Google on. It reads
- * in five states: the vote has not opened, the finalists to choose from, the
- * vote already registered, the vote closed, and the published result.
+ * in seven states: the vote has not opened, the sign-in it asks for first, a
+ * code that cannot vote, the finalists to choose from, the vote already
+ * registered, the vote closed, and the published result.
  */
 export function VotePageView({ page }: { page: VotePageData }) {
   return (
@@ -63,23 +54,22 @@ export function VotePageView({ page }: { page: VotePageData }) {
           tieBrokenByCodeVotes={page.tieBrokenByCodeVotes}
         />
       ) : null}
+      {page.state === "sign-in" ? <SignIn google={page.google} /> : null}
+      {page.state === "code-refused" ? (
+        <CodeRefused reason={page.reason} />
+      ) : null}
       {page.state === "open" ? (
         // Keyed by round: the form's values start over when the
         // `Desempate` opens on a page already showing round 1.
         <OpenVote
-          blockReasons={page.blockReasons}
           code={page.code}
           finalists={page.finalists}
-          googleSignIn={page.googleSignIn}
           key={page.roundId}
           roundId={page.roundId}
         />
       ) : null}
       {page.state === "registered" ? (
-        <Registered
-          canAlsoSignIn={page.canAlsoSignIn}
-          finalist={page.finalist}
-        />
+        <Registered finalist={page.finalist} />
       ) : null}
     </PublicVoteShell>
   );
@@ -109,27 +99,72 @@ function Closed() {
 }
 
 /**
+ * A visitor with nothing that votes: no code in the address and no sign-in.
+ * The finalists wait for the sign-in with Google; where the deployment has
+ * none, only the ticket's QR code votes.
+ */
+function SignIn({ google }: { google: boolean }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-10 text-center">
+      <Vote aria-hidden="true" className="size-12 text-brand" />
+      <div className="flex flex-col gap-1">
+        <h1 className="text-xl font-semibold">Votá en la Gran final</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          {google
+            ? "Para votar, primero ingresá con tu cuenta de Google. Cada cuenta vota una sola vez."
+            : "Para votar hace falta el código QR que viene con tu entrada. Escanealo con la cámara del celular."}
+        </p>
+      </div>
+      {google ? (
+        <div className="w-full max-w-sm">
+          <GoogleSignInForm />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const codeRefusalLabels: Record<VoteCodeRefusal, string> = {
+  "unknown-code":
+    "Este código QR no es de esta votación. Revisá que sea el que viene con tu entrada.",
+  "voided-code":
+    "Este código QR fue anulado por la organización y ya no sirve para votar.",
+};
+
+const codeRefusalTitles: Record<VoteCodeRefusal, string> = {
+  "unknown-code": "Código QR no válido",
+  "voided-code": "Código QR anulado",
+};
+
+/** A code that cannot vote: what happened to it, and no finalist. */
+function CodeRefused({ reason }: { reason: VoteCodeRefusal }) {
+  return (
+    <div className="p-4">
+      <PortalEmptyState
+        description={codeRefusalLabels[reason]}
+        icon={<CircleAlert aria-hidden="true" />}
+        title={codeRefusalTitles[reason]}
+      />
+    </div>
+  );
+}
+
+/**
  * The finalists, each with its pictures and a button that chooses it; the
- * choice is confirmed from a bar fixed at the bottom. Without a code or a
- * sign-in that can vote, everything stays the same, Google is offered beside
- * the reason, and the confirmation says why it cannot.
+ * choice is confirmed from a bar fixed at the bottom. Only a visitor who can
+ * vote reaches it: a live code, or a signed-in voter.
  */
 function OpenVote({
-  blockReasons,
   code,
   finalists,
-  googleSignIn,
   roundId,
 }: {
-  blockReasons: VoteBlockReason[];
   code: string | null;
   finalists: VoteFinalist[];
-  googleSignIn: VoteGoogleSignIn;
   roundId: string;
 }) {
   const fetcher = useFetcher<VoteActionData>();
   const isVoting = fetcher.state !== "idle";
-  const [isBlockedOpen, setIsBlockedOpen] = useState(false);
   const form = useForm<VoteFormValues>({
     defaultValues: { academyId: "", codigo: code ?? "", roundId },
     resolver: zodResolver(voteFormSchema),
@@ -143,7 +178,12 @@ function OpenVote({
 
   return (
     <div className="flex flex-col">
-      <OpenVoteIntro blockReasons={blockReasons} googleSignIn={googleSignIn} />
+      <div className="flex flex-col gap-1 px-4 pt-5 pb-3">
+        <h1 className="text-xl font-semibold">Gran final</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Elegí la academia que más te gustó. Podés votar una sola vez.
+        </p>
+      </div>
 
       <form
         method="post"
@@ -202,83 +242,19 @@ function OpenVote({
         </ul>
 
         {selected ? (
-          <ConfirmVoteBar
-            isBlocked={blockReasons.length > 0}
-            isVoting={isVoting}
-            onBlocked={() => setIsBlockedOpen(true)}
-            selected={selected}
-          />
+          <ConfirmVoteBar isVoting={isVoting} selected={selected} />
         ) : null}
       </form>
-
-      <BlockedActionDialog
-        description={
-          googleSignIn === "offered"
-            ? "Hace falta ingresar con Google o un código QR vigente de esta votación. Cada uno vota una sola vez."
-            : "Hace falta un código QR vigente de esta votación, que vota una sola vez."
-        }
-        onOpenChange={setIsBlockedOpen}
-        open={isBlockedOpen}
-        reasons={blockReasons.map((reason) => reason.label).join(" ")}
-        reasonsTitle="Motivo"
-        title="No se puede votar"
-      />
     </div>
-  );
-}
-
-/** The page's heading, and what keeps this visitor from voting, if anything. */
-function OpenVoteIntro({
-  blockReasons,
-  googleSignIn,
-}: {
-  blockReasons: VoteBlockReason[];
-  googleSignIn: VoteGoogleSignIn;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1 px-4 pt-5 pb-3">
-        <h1 className="text-xl font-semibold">Gran final</h1>
-        <p className="text-sm leading-6 text-muted-foreground">
-          Elegí la academia que más te gustó. Podés votar una sola vez.
-        </p>
-        {googleSignIn === "signed-in" ? (
-          <p className="text-sm leading-6 text-muted-foreground">
-            Ingresaste con tu cuenta de Google.
-          </p>
-        ) : null}
-      </div>
-
-      {blockReasons.length > 0 ? (
-        <div className="flex flex-col gap-3 px-4">
-          <AlertStack>
-            {blockReasons.map((reason) => (
-              <BlockReasonAlert
-                googleOffered={googleSignIn === "offered"}
-                key={reason.code}
-                reason={reason}
-              />
-            ))}
-          </AlertStack>
-          {googleSignIn === "offered" ? (
-            <GoogleSignInForm label="Votar con Google" />
-          ) : null}
-        </div>
-      ) : null}
-    </>
   );
 }
 
 /** The chosen finalist and the confirmation, in a bar fixed at the bottom. */
 function ConfirmVoteBar({
-  isBlocked,
   isVoting,
-  onBlocked,
   selected,
 }: {
-  isBlocked: boolean;
   isVoting: boolean;
-  onBlocked: () => void;
   selected: VoteFinalist;
 }) {
   return (
@@ -290,21 +266,14 @@ function ConfirmVoteBar({
             {selected.name}
           </span>
         </div>
-        {isBlocked ? (
-          <Button onClick={onBlocked} type="button">
+        <Button disabled={isVoting} type="submit">
+          {isVoting ? (
+            <Spinner aria-hidden="true" data-icon="inline-start" />
+          ) : (
             <Vote aria-hidden="true" data-icon="inline-start" />
-            Confirmar voto
-          </Button>
-        ) : (
-          <Button disabled={isVoting} type="submit">
-            {isVoting ? (
-              <Spinner aria-hidden="true" data-icon="inline-start" />
-            ) : (
-              <Vote aria-hidden="true" data-icon="inline-start" />
-            )}
-            Confirmar voto
-          </Button>
-        )}
+          )}
+          Confirmar voto
+        </Button>
       </div>
     </div>
   );
@@ -314,7 +283,7 @@ function ConfirmVoteBar({
  * Starts the sign-in with Google: a plain form, so the browser follows the
  * redirect to Google as a page, and nothing prefetches it.
  */
-function GoogleSignInForm({ label }: { label: string }) {
+function GoogleSignInForm() {
   const [isStarting, setIsStarting] = useState(false);
 
   // Back from Google with the browser's back button, the page may come from
@@ -340,54 +309,12 @@ function GoogleSignInForm({ label }: { label: string }) {
       >
         {isStarting ? (
           <Spinner aria-hidden="true" data-icon="inline-start" />
-        ) : null}
-        {label}
+        ) : (
+          <GoogleIcon aria-hidden="true" data-icon="inline-start" />
+        )}
+        Ingresar con Google
       </Button>
     </form>
-  );
-}
-
-const blockReasonTitles: Record<
-  Exclude<VoteBlockReason["code"], "no-identity">,
-  string
-> = {
-  "unknown-code": "Código QR no válido",
-  "voided-code": "Código QR anulado",
-};
-
-function readBlockReasonTitle(
-  code: VoteBlockReason["code"],
-  googleOffered: boolean,
-) {
-  if (code !== "no-identity") {
-    return blockReasonTitles[code];
-  }
-
-  return googleOffered
-    ? "Votá con Google o con tu código QR"
-    : "Votá con tu código QR";
-}
-
-function BlockReasonAlert({
-  googleOffered,
-  reason,
-}: {
-  googleOffered: boolean;
-  reason: VoteBlockReason;
-}) {
-  const isError = reason.code !== "no-identity";
-  const title = readBlockReasonTitle(reason.code, googleOffered);
-
-  return (
-    <Alert variant={isError ? "destructive" : "info"}>
-      {isError ? (
-        <CircleAlert aria-hidden="true" />
-      ) : (
-        <Info aria-hidden="true" />
-      )}
-      <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>{reason.label}</AlertDescription>
-    </Alert>
   );
 }
 
@@ -404,13 +331,7 @@ function FinalistCaption({ finalist }: { finalist: VoteFinalist }) {
   );
 }
 
-function Registered({
-  canAlsoSignIn,
-  finalist,
-}: {
-  canAlsoSignIn: boolean;
-  finalist: VoteFinalist;
-}) {
+function Registered({ finalist }: { finalist: VoteFinalist }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-10 text-center">
       <CircleCheck aria-hidden="true" className="size-12 text-brand" />
@@ -431,18 +352,9 @@ function Registered({
           ) : null}
         </CardHeader>
       </Card>
-      {canAlsoSignIn ? (
-        <div className="flex w-full max-w-sm flex-col gap-2">
-          <p className="text-sm leading-6 text-muted-foreground">
-            ¿Tenés cuenta de Google? También podés votar con ella.
-          </p>
-          <GoogleSignInForm label="Votar también con Google" />
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Ya podés cerrar esta página.
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground">
+        Ya podés cerrar esta página.
+      </p>
     </div>
   );
 }

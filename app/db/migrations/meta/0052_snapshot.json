@@ -4995,7 +4995,7 @@
       "checkConstraints": {
         "vote_kind_points_check": {
           "name": "vote_kind_points_check",
-          "value": "(\"en_escena_vote\".\"kind\" = 'code' and \"en_escena_vote\".\"points\" = 10 and \"en_escena_vote\".\"vote_code_id\" is not null) or (\"en_escena_vote\".\"kind\" = 'social' and \"en_escena_vote\".\"points\" = 1 and \"en_escena_vote\".\"vote_code_id\" is null)"
+          "value": "(\"en_escena_vote\".\"kind\" = 'code' and \"en_escena_vote\".\"points\" = 30 and \"en_escena_vote\".\"vote_code_id\" is not null) or (\"en_escena_vote\".\"kind\" = 'social' and \"en_escena_vote\".\"points\" = 1 and \"en_escena_vote\".\"vote_code_id\" is null)"
         }
       },
       "isRLSEnabled": true

@@ -1,9 +1,13 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import {
   handleGrandFinalListAction,
   loadGrandFinalListRouteData,
 } from "@/features/admin/grand-final/list/server";
-import { GrandFinalListView } from "@/features/admin/grand-final/list/view";
+import {
+  grandFinalAcademyFacetedFilterIds,
+  GrandFinalListView,
+} from "@/features/admin/grand-final/list/view";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.gran-final";
@@ -25,6 +29,10 @@ export function headers({ actionHeaders, loaderHeaders }: Route.HeadersArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadGrandFinalListRouteData(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: [...grandFinalAcademyFacetedFilterIds],
+});
 
 export async function action({ request }: Route.ActionArgs) {
   return await handleGrandFinalListAction(request);

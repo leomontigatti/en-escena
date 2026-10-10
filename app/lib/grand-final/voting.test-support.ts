@@ -75,7 +75,7 @@ export function codeVote(input: {
   return {
     academyId: input.academyId,
     kind: "code" as const,
-    points: 10,
+    points: 30,
     roundId: input.roundId,
     voteCodeId: input.codeId,
   };
@@ -254,14 +254,14 @@ export async function seedResultFixture() {
 }
 
 /**
- * Round 1 closed with `Alas` and `Ritmo Sur` tied on 10 points, Alas by the
- * first of three codes and Ritmo Sur by ten voters, and `Sol` behind on 4.
+ * Round 1 closed with `Alas` and `Ritmo Sur` tied on 30 points, Alas by the
+ * first of three codes and Ritmo Sur by thirty voters, and `Sol` behind on 4.
  */
 export async function seedTiedRoundFixture() {
   const fixture = await seedResultFixture();
   const tokens = await fixture.issueCodes(3);
   await fixture.vote(fixture.alas, { tokens: [tokens[0]] });
-  await fixture.vote(fixture.ritmo, { voters: 10 });
+  await fixture.vote(fixture.ritmo, { voters: 30 });
   await fixture.vote(fixture.sol, { voters: 4 });
   await closeCurrentVotingRound(fixture.eventId);
 

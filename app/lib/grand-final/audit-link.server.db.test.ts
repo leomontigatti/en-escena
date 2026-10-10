@@ -5,10 +5,11 @@ import { db } from "@/db";
 import { auditLinks } from "@/db/schema";
 import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import {
-  bindAuditLink,
   createAuditLink,
   listAuditLinks,
   maxActiveAuditLinks,
+  openAuditLink,
+  readAuditLinkHandover,
   readAuditSession,
   revokeAuditLink,
 } from "@/lib/grand-final/audit-link.server";
@@ -17,18 +18,16 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+const secret = "secreto-de-prueba";
+
 async function createLink(eventId: string, label = "Auditora 1") {
-  const created = await createAuditLink({ eventId, label });
+  const created = await createAuditLink({ eventId, label, secret });
 
   if (!created.ok) {
     throw new Error(`The link was not created: ${created.reason}.`);
   }
 
   return created;
-}
-
-async function bind(token: string, sessionSecret: string | null = null) {
-  return await bindAuditLink({ sessionSecret, token });
 }
 
 describe("`createAuditLink`", () => {
@@ -40,10 +39,10 @@ describe("`createAuditLink`", () => {
     expect(created.token).toMatch(/^[\w-]{22,}$/);
     await expect(listAuditLinks(event.id)).resolves.toEqual([
       {
-        boundAt: null,
         createdAt: expect.any(Date),
         id: created.id,
         label: "Marta",
+        openedAt: null,
         revokedAt: null,
       },
     ]);
@@ -63,13 +62,13 @@ describe("`createAuditLink`", () => {
     }
 
     await expect(
-      createAuditLink({ eventId: event.id, label: "Una más" }),
+      createAuditLink({ eventId: event.id, label: "Una más", secret }),
     ).resolves.toEqual({ ok: false, reason: "limit-reached" });
 
     await revokeAuditLink({ eventId: event.id, linkId: links[0].id });
 
     await expect(
-      createAuditLink({ eventId: event.id, label: "Reemplazo" }),
+      createAuditLink({ eventId: event.id, label: "Reemplazo", secret }),
     ).resolves.toMatchObject({ ok: true });
   });
 
@@ -82,89 +81,96 @@ describe("`createAuditLink`", () => {
     }
 
     await expect(
-      createAuditLink({ eventId: event.id, label: "Marta" }),
+      createAuditLink({ eventId: event.id, label: "Marta", secret }),
     ).resolves.toMatchObject({ ok: true });
   });
 });
 
-describe("`bindAuditLink`", () => {
-  test("binds the link to the first session that opens it", async () => {
+describe("`readAuditLinkHandover`", () => {
+  test("hands the same link over again, as many times as asked", async () => {
     const event = await createSavedEvent();
-    const link = await createLink(event.id);
+    const link = await createLink(event.id, "Marta");
 
-    const bound = await bind(link.token);
-
-    expect(bound).toEqual({ ok: true, sessionSecret: expect.any(String) });
-    await expect(listAuditLinks(event.id)).resolves.toEqual([
-      expect.objectContaining({ boundAt: expect.any(Date) }),
-    ]);
     await expect(
-      readAuditSession(bound.ok ? bound.sessionSecret : ""),
+      readAuditLinkHandover({ eventId: event.id, linkId: link.id, secret }),
     ).resolves.toEqual({
-      eventId: event.id,
       issuedAt: expect.any(Date),
+      label: "Marta",
       ok: true,
-    });
-  });
-
-  test("refuses a second device, with or without a session of its own", async () => {
-    const event = await createSavedEvent();
-    const link = await createLink(event.id);
-    const other = await createLink(event.id, "Auditor 2");
-    const otherSession = await bind(other.token);
-    await bind(link.token);
-
-    await expect(bind(link.token)).resolves.toEqual({
-      ok: false,
-      reason: "already-bound",
+      token: link.token,
     });
     await expect(
-      bind(link.token, otherSession.ok ? otherSession.sessionSecret : ""),
-    ).resolves.toEqual({ ok: false, reason: "already-bound" });
+      readAuditLinkHandover({ eventId: event.id, linkId: link.id, secret }),
+    ).resolves.toEqual({
+      issuedAt: expect.any(Date),
+      label: "Marta",
+      ok: true,
+      token: link.token,
+    });
   });
 
-  test("lets the bound session open its own link again", async () => {
+  test("hands over no link whose token the server's key no longer derives", async () => {
     const event = await createSavedEvent();
     const link = await createLink(event.id);
-    const first = await bind(link.token);
-    const sessionSecret = first.ok ? first.sessionSecret : "";
 
-    await expect(bind(link.token, sessionSecret)).resolves.toEqual({
-      ok: true,
-      sessionSecret,
-    });
+    await expect(
+      readAuditLinkHandover({
+        eventId: event.id,
+        linkId: link.id,
+        secret: "otro-secreto",
+      }),
+    ).resolves.toEqual({ ok: false, reason: "key-changed" });
+  });
+
+  test("hands over no revoked link", async () => {
+    const event = await createSavedEvent();
+    const link = await createLink(event.id);
+    await revokeAuditLink({ eventId: event.id, linkId: link.id });
+
+    await expect(
+      readAuditLinkHandover({ eventId: event.id, linkId: link.id, secret }),
+    ).resolves.toEqual({ ok: false, reason: "revoked" });
+  });
+
+  test("does not reach another event's link", async () => {
+    const event = await createSavedEvent();
+    const other = await createSavedEvent();
+    const link = await createLink(other.id);
+
+    await expect(
+      readAuditLinkHandover({ eventId: event.id, linkId: link.id, secret }),
+    ).resolves.toEqual({ ok: false, reason: "not-found" });
+  });
+});
+
+describe("`openAuditLink`", () => {
+  test("opens on any device, noting when it was first opened", async () => {
+    const event = await createSavedEvent();
+    const link = await createLink(event.id);
+
+    await expect(openAuditLink(link.token)).resolves.toEqual({ ok: true });
+    const [{ openedAt }] = await listAuditLinks(event.id);
+    await expect(openAuditLink(link.token)).resolves.toEqual({ ok: true });
+
+    expect(openedAt).toBeInstanceOf(Date);
+    await expect(listAuditLinks(event.id)).resolves.toEqual([
+      expect.objectContaining({ openedAt }),
+    ]);
   });
 
   test("refuses an unknown token", async () => {
-    await expect(bind("no-es-un-acceso")).resolves.toEqual({
+    await expect(openAuditLink("no-es-un-acceso")).resolves.toEqual({
       ok: false,
       reason: "unknown",
     });
   });
 
-  test("refuses a revoked link before it is opened", async () => {
+  test("refuses a revoked link", async () => {
     const event = await createSavedEvent();
     const link = await createLink(event.id);
     await revokeAuditLink({ eventId: event.id, linkId: link.id });
 
-    await expect(bind(link.token)).resolves.toEqual({
-      ok: false,
-      reason: "revoked",
-    });
-  });
-
-  test("refuses a revoked link to the session it was bound to", async () => {
-    const event = await createSavedEvent();
-    const link = await createLink(event.id);
-    const bound = await bind(link.token);
-    const sessionSecret = bound.ok ? bound.sessionSecret : "";
-    await revokeAuditLink({ eventId: event.id, linkId: link.id });
-
-    await expect(bind(link.token, sessionSecret)).resolves.toEqual({
-      ok: false,
-      reason: "revoked",
-    });
-    await expect(readAuditSession(sessionSecret)).resolves.toEqual({
+    await expect(openAuditLink(link.token)).resolves.toEqual({
       ok: false,
       reason: "revoked",
     });
@@ -172,8 +178,26 @@ describe("`bindAuditLink`", () => {
 });
 
 describe("`readAuditSession`", () => {
-  test("refuses a session no link was bound to", async () => {
-    await expect(readAuditSession("no-es-una-sesion")).resolves.toEqual({
+  test("reads the link its token names, until it is revoked", async () => {
+    const event = await createSavedEvent();
+    const link = await createLink(event.id);
+
+    await expect(readAuditSession(link.token)).resolves.toEqual({
+      eventId: event.id,
+      issuedAt: expect.any(Date),
+      ok: true,
+    });
+
+    await revokeAuditLink({ eventId: event.id, linkId: link.id });
+
+    await expect(readAuditSession(link.token)).resolves.toEqual({
+      ok: false,
+      reason: "revoked",
+    });
+  });
+
+  test("refuses a token no link has", async () => {
+    await expect(readAuditSession("no-es-un-acceso")).resolves.toEqual({
       ok: false,
       reason: "unknown",
     });

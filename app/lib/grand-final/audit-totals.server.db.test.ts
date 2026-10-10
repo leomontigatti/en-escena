@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { readAuditTotals } from "@/lib/grand-final/audit-totals.server";
+import {
+  isAuditLinkExpired,
+  readAuditTotals,
+} from "@/lib/grand-final/audit-totals.server";
 import {
   listVoteCodeBatches,
   voidVoteCodeBatch,
@@ -57,14 +60,14 @@ describe("`readAuditTotals`", () => {
       {
         codeVotes: 1,
         name: "Alas",
-        percentage: 78.6,
-        points: 11,
+        percentage: 91.2,
+        points: 31,
         voterVotes: 1,
       },
       {
         codeVotes: 0,
         name: "Ritmo Sur",
-        percentage: 21.4,
+        percentage: 8.8,
         points: 3,
         voterVotes: 3,
       },
@@ -120,10 +123,12 @@ describe("`readAuditTotals`", () => {
     const fixture = await seedResultFixture();
     const tokens = await fixture.issueCodes(1);
     await fixture.vote(fixture.alas, { tokens });
-    await fixture.vote(fixture.ritmo, { voters: 10 });
+    await fixture.vote(fixture.ritmo, { voters: 30 });
     const link = linkOf(fixture.eventId, new Date(Date.now() - 1000));
     await closeCurrentVotingRound(fixture.eventId);
-    await openTieBreakRound({ eventId: fixture.eventId });
+    await expect(
+      openTieBreakRound({ eventId: fixture.eventId }),
+    ).resolves.toEqual({ number: 2, ok: true });
 
     await expect(readAuditTotals(link)).resolves.toEqual({
       roundNumber: 1,
@@ -175,8 +180,24 @@ describe("`readAuditTotals`", () => {
         ? totals.finalists.map((finalist) => [finalist.name, finalist.points])
         : null,
     ).toEqual([
-      ["Ritmo Sur", 10],
+      ["Ritmo Sur", 30],
       ["Alas", 0],
     ]);
+  });
+});
+
+describe("`isAuditLinkExpired`", () => {
+  test("keeps a link alive before its round opens and while it is open, and not after it closes", async () => {
+    const fixture = await seedFinalistsFixture();
+    await fixture.addFinalist("Alas");
+    const link = linkOf(fixture.eventId);
+
+    await expect(isAuditLinkExpired(link)).resolves.toBe(false);
+
+    await openVotingRound({ eventId: fixture.eventId });
+    await expect(isAuditLinkExpired(link)).resolves.toBe(false);
+
+    await closeCurrentVotingRound(fixture.eventId);
+    await expect(isAuditLinkExpired(link)).resolves.toBe(true);
   });
 });

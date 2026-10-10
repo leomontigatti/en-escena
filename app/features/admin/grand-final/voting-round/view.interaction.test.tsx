@@ -124,7 +124,6 @@ describe("the voting round actions of administration's `Gran final` list", () =>
               loaderData={{
                 auditLinkCreateBlockReasons: [],
                 auditLinks: [],
-                pickChangeBlockReasons: [],
                 picks: { judges: [], modalities: [] },
                 selectedEventId: "evento",
                 voteCodeBatches: [],
@@ -149,16 +148,50 @@ describe("the voting round actions of administration's `Gran final` list", () =>
     });
   }
 
+  async function readActions() {
+    await openRadixSelect(findButton("Acciones", { exact: true }));
+
+    return [...document.querySelectorAll('[role="menuitem"]')].map(
+      (item) => item.textContent,
+    );
+  }
+
   function alertDialogText() {
     return document.querySelector('[role="alertdialog"]')?.textContent ?? "";
   }
+
+  test("offers to open the vote and publish the result before the round opens", async () => {
+    await mount(readyToOpen);
+
+    const actions = await readActions();
+    expect(actions).toContain("Abrir votación");
+    expect(actions).not.toContain("Cerrar votación");
+    expect(actions).toContain("Publicar resultado");
+    expect(actions).not.toContain("Ocultar resultado");
+  });
+
+  test("offers to close the vote, not to open it, while it is open", async () => {
+    await mount({ ...readyToOpen, roundId: "ronda-1", status: "open" });
+
+    const actions = await readActions();
+    expect(actions).toContain("Cerrar votación");
+    expect(actions).not.toContain("Abrir votación");
+  });
+
+  test("offers to hide the result, not to publish it, while it is published", async () => {
+    await mount(publishedResult);
+
+    const actions = await readActions();
+    expect(actions).toContain("Ocultar resultado");
+    expect(actions).not.toContain("Publicar resultado");
+  });
 
   test("opens the round once its confirmation is accepted", async () => {
     await mount(readyToOpen);
 
     await chooseFromActions("Abrir votación");
     expect(alertDialogText()).toContain("¿Abrir la votación?");
-    await clickReactDomButton("Abrir votación", {
+    await clickReactDomButton("Abrir", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
     });
@@ -178,7 +211,7 @@ describe("the voting round actions of administration's `Gran final` list", () =>
     await mount(readyToOpen);
 
     await chooseFromActions("Abrir votación");
-    await clickReactDomButton("Abrir votación", {
+    await clickReactDomButton("Abrir", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
     });
@@ -223,7 +256,7 @@ describe("the voting round actions of administration's `Gran final` list", () =>
     });
 
     await chooseFromActions("Cerrar votación");
-    await clickReactDomButton("Cerrar votación", {
+    await clickReactDomButton("Cerrar", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
     });
@@ -243,7 +276,7 @@ describe("the voting round actions of administration's `Gran final` list", () =>
     await mount({ ...readyToOpen, closeBlockReasons: [], status: "open" });
 
     await chooseFromActions("Cerrar votación");
-    await clickReactDomButton("Cerrar votación", {
+    await clickReactDomButton("Cerrar", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
     });
@@ -260,7 +293,7 @@ describe("the voting round actions of administration's `Gran final` list", () =>
 
     await chooseFromActions("Abrir desempate");
     expect(alertDialogText()).toContain("¿Abrir el desempate?");
-    await clickReactDomButton("Abrir desempate", {
+    await clickReactDomButton("Abrir", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
     });
@@ -297,7 +330,7 @@ describe("the voting round actions of administration's `Gran final` list", () =>
     });
 
     await chooseFromActions("Publicar resultado");
-    await clickReactDomButton("Publicar resultado", {
+    await clickReactDomButton("Publicar", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
     });
@@ -316,7 +349,7 @@ describe("the voting round actions of administration's `Gran final` list", () =>
     await mount(publishedResult);
 
     await chooseFromActions("Ocultar resultado");
-    await clickReactDomButton("Ocultar resultado", {
+    await clickReactDomButton("Ocultar", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
     });

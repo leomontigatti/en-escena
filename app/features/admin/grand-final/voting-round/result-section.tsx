@@ -88,7 +88,7 @@ export function VotingRoundResultSection({
         searchPlaceholder="Buscar academia"
       />
       <p className="text-sm text-muted-foreground">
-        Cada voto con código QR suma 10 puntos y cada voto con Google, 1. El
+        Cada voto con código QR suma 30 puntos y cada voto con Google, 1. El
         porcentaje es la parte de los puntos de la votación.
       </p>
     </section>

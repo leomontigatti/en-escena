@@ -1,25 +1,12 @@
 /** @vitest-environment jsdom */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { GrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
-import { discardChangesTitle } from "@/lib/shared/discard-guard";
-import {
-  openRadixSelect,
-  selectRadixOption,
-} from "@/lib/test-support/radix-select";
-import {
-  createReactDomTestRenderer,
-  findButton,
-  updateReactDomForm,
-  waitFor,
-} from "@/lib/test-support/react-dom";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-import type {
-  FinalistPickChangeBlockReason,
-  GrandFinalListActionData,
-} from "./shared";
+import type { GrandFinalListResult } from "./shared";
 import { GrandFinalListView } from "./view";
 
 vi.mock("sonner", () => ({
@@ -33,9 +20,9 @@ vi.mock("sonner", () => ({
 
 /**
  * Three judges, two modalities: Ana and Bruno agree on Vecina in Jazz, Carla
- * has no pick there, and only Carla picked in Tap. Pirueta is a finalist
+ * picked Brisa there, and only Carla picked in Tap. Pirueta is a finalist
  * through Tap, so it is marked in Jazz too, where nobody picked it. Pirueta
- * has both banners, Vecina one.
+ * has both banners, Vecina one, and Brisa none.
  */
 const picks: GrandFinalPicks = {
   judges: [
@@ -63,6 +50,14 @@ const picks: GrandFinalPicks = {
           finalist: true,
           name: "Academia Vecina",
           pickedByJudgeIds: ["ana", "bruno"],
+        },
+        {
+          academyId: "brisa",
+          bannerCount: 0,
+          eligible: true,
+          finalist: true,
+          name: "Academia Brisa",
+          pickedByJudgeIds: ["carla"],
         },
       ],
     },
@@ -93,191 +88,150 @@ const picks: GrandFinalPicks = {
 
 describe("administration's `Gran final` list", () => {
   const renderer = createReactDomTestRenderer();
-  const submitted: FormData[] = [];
-
-  beforeEach(() => {
-    submitted.length = 0;
-  });
 
   afterEach(renderer.cleanup);
 
   async function mount(
     loaderPicks: GrandFinalPicks = picks,
-    pickChangeBlockReasons: FinalistPickChangeBlockReason[] = [],
+    lists: Pick<GrandFinalListResult, "auditLinks" | "voteCodeBatches"> = {
+      auditLinks: [],
+      voteCodeBatches: [],
+    },
+    entry = "/administracion/gran-final",
   ) {
     const router = createMemoryRouter(
       [
         {
           path: "/administracion/gran-final",
-          action: async ({ request }): Promise<GrandFinalListActionData> => {
-            submitted.push(await request.formData());
-
-            return {
-              message: "Guardaste la elección de finalista.",
-              status: "success",
-            };
-          },
           element: (
             <GrandFinalListView
               loaderData={{
                 auditLinkCreateBlockReasons: [],
-                auditLinks: [],
-                pickChangeBlockReasons,
+                auditLinks: lists.auditLinks,
                 picks: loaderPicks,
                 selectedEventId: "evento",
-                voteCodeBatches: [],
+                voteCodeBatches: lists.voteCodeBatches,
                 votingRound: null,
               }}
             />
           ),
         },
       ],
-      { initialEntries: ["/administracion/gran-final"] },
+      { initialEntries: [entry] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  /** Each row of the modality's table as its academy, its marks and a cell per judge. */
-  function readTable(modalityName: string) {
-    const section = [...document.querySelectorAll("section")].find(
-      (element) => element.querySelector("h3")?.textContent === modalityName,
+  const noLists = { auditLinks: [], voteCodeBatches: [] };
+
+  /**
+   * Each row of the table under the active tab, as its cells' text, with a
+   * finalist's name marked as the link it is.
+   */
+  function readTable() {
+    const panel = document.querySelector(
+      '[role="tabpanel"][data-state="active"]',
     );
-    const headers = [...(section?.querySelectorAll("thead th") ?? [])].map(
+    const headers = [...(panel?.querySelectorAll("thead th") ?? [])].map(
       (cell) => cell.textContent,
     );
-    const rows = [...(section?.querySelectorAll("tbody tr") ?? [])].map((row) =>
-      [...row.querySelectorAll("td")].map(
-        (cell) =>
-          cell.querySelector("[aria-label]")?.getAttribute("aria-label") ??
-          cell.textContent,
+    const rows = [...(panel?.querySelectorAll("tbody tr") ?? [])].map((row) =>
+      [...row.querySelectorAll("td")].map((cell) =>
+        cell.querySelector("a") ? `link:${cell.textContent}` : cell.textContent,
       ),
     );
 
     return { headers, rows };
   }
 
-  test("shows, per modality, which academy each judge picked and marks the finalists", async () => {
+  function readTabs() {
+    return [...document.querySelectorAll('[role="tab"]')].map(
+      (tab) => tab.textContent,
+    );
+  }
+
+  test("lists each academy in each modality it qualifies in, its name opening its page", async () => {
     await mount();
 
-    expect(readTable("Danza Jazz")).toEqual({
-      headers: ["Academia", "Banners", "Ana Juez", "Bruno Juez", "Carla Juez"],
+    expect(readTabs()).toEqual(["Academias"]);
+    expect(readTable()).toEqual({
+      headers: ["Academia", "Modalidad", "Estado"],
       rows: [
-        ["Academia PiruetaFinalista", "Cargados", "—", "—", "—"],
-        ["Academia VecinaFinalista", "Falta 1", "Elegida", "Elegida", "—"],
+        ["link:Academia Pirueta", "Danza Jazz", "Completo"],
+        ["link:Academia Vecina", "Danza Jazz", "Incompleto"],
+        ["link:Academia Brisa", "Danza Jazz", "Sin imágenes"],
+        ["link:Academia Pirueta", "Tap", "Completo"],
+        ["link:Academia Zapateo", "Tap", "—"],
       ],
     });
-    expect(readTable("Tap").rows).toEqual([
-      ["Academia PiruetaFinalista", "Cargados", "—", "—", "Elegida"],
-      ["Academia Zapateo", "—", "—", "—", "—"],
-    ]);
-  });
-
-  test("changes a judge's pick from the judge's current one", async () => {
-    await mount();
-
-    await openRadixSelect(findButton("Acciones", { exact: true }));
-    await updateReactDomForm(() => {
-      document.querySelector<HTMLElement>('[role="menuitem"]')?.click();
-    });
-
-    const [modality, judge, academy] = document.querySelectorAll(
-      '[role="dialog"] [data-slot="select-trigger"]',
-    );
-
-    await openRadixSelect(modality);
-    await selectRadixOption("Danza Jazz");
-    await openRadixSelect(judge);
-    await selectRadixOption("Bruno Juez");
-
-    expect(academy.textContent).toContain("Academia Vecina");
-    expect(findButton("Guardar", { exact: true })?.disabled).toBe(true);
-
-    await openRadixSelect(academy);
-    await selectRadixOption("Academia Pirueta");
-    await updateReactDomForm(() => {
-      findButton("Guardar", { exact: true })?.click();
-    });
-
-    await waitFor(() => submitted.length === 1);
-    expect(Object.fromEntries(submitted[0])).toEqual({
-      academyId: "pirueta",
-      intent: "set-finalist-pick",
-      judgeId: "bruno",
-      modalityId: "jazz",
-    });
-  });
-
-  // Regression: Ana and Bruno share a pick, so moving from one to the other
-  // left the academy unchanged and Ana's unsaved choice went to Bruno.
-  test("drops an unsaved choice when the dialog moves to another judge with the same pick", async () => {
-    await mount();
-
-    await openRadixSelect(findButton("Acciones", { exact: true }));
-    await updateReactDomForm(() => {
-      document.querySelector<HTMLElement>('[role="menuitem"]')?.click();
-    });
-
-    const [modality, judge, academy] = document.querySelectorAll(
-      '[role="dialog"] [data-slot="select-trigger"]',
-    );
-
-    await openRadixSelect(modality);
-    await selectRadixOption("Danza Jazz");
-    await openRadixSelect(judge);
-    await selectRadixOption("Ana Juez");
-    await openRadixSelect(academy);
-    await selectRadixOption("Academia Pirueta");
-    await openRadixSelect(judge);
-    await selectRadixOption("Bruno Juez");
-
-    expect(academy.textContent).toContain("Academia Vecina");
-    expect(findButton("Guardar", { exact: true })?.disabled).toBe(true);
-  });
-
-  test("asks before closing the dialog over an academy chosen and not saved", async () => {
-    await mount();
-
-    await openRadixSelect(findButton("Acciones", { exact: true }));
-    await updateReactDomForm(() => {
-      document.querySelector<HTMLElement>('[role="menuitem"]')?.click();
-    });
-
-    const [modality, judge, academy] = document.querySelectorAll(
-      '[role="dialog"] [data-slot="select-trigger"]',
-    );
-
-    await openRadixSelect(modality);
-    await selectRadixOption("Tap");
-    await openRadixSelect(judge);
-    await selectRadixOption("Ana Juez");
-    await openRadixSelect(academy);
-    await selectRadixOption("Academia Zapateo");
-    await updateReactDomForm(() => {
-      findButton("Cancelar", { exact: true })?.click();
-    });
-
-    expect(document.body.textContent).toContain(discardChangesTitle);
-    expect(submitted).toHaveLength(0);
-  });
-
-  test("opens the reasons instead of the form when the change is blocked", async () => {
-    await mount({ ...picks, judges: [] }, [
-      {
-        code: "no-event-judge",
-        label:
-          "El evento activo todavía no tiene jueces asignados a sus presentaciones.",
-      },
-    ]);
-
-    await openRadixSelect(findButton("Acciones", { exact: true }));
-    await updateReactDomForm(() => {
-      document.querySelector<HTMLElement>('[role="menuitem"]')?.click();
-    });
-
     expect(
-      document.querySelector('[role="alertdialog"]')?.textContent,
-    ).toContain("No se puede cambiar la elección de finalista");
-    expect(findButton("Guardar", { exact: true })).toBeUndefined();
+      [...document.querySelectorAll("tbody a")].map((link) =>
+        link.getAttribute("href"),
+      ),
+    ).toEqual([
+      "/administracion/gran-final/pirueta/jazz",
+      "/administracion/gran-final/vecina/jazz",
+      "/administracion/gran-final/brisa/jazz",
+      "/administracion/gran-final/pirueta/tap",
+      "/administracion/gran-final/zapateo/tap",
+    ]);
+  });
+
+  test("finds an academy by the name of a judge who picked it", async () => {
+    await mount(picks, noLists, "/administracion/gran-final?busqueda=bruno");
+
+    expect(readTable().rows).toEqual([
+      ["link:Academia Vecina", "Danza Jazz", "Incompleto"],
+    ]);
+  });
+
+  test("finds an academy by its own name, in every modality", async () => {
+    await mount(picks, noLists, "/administracion/gran-final?busqueda=pirueta");
+
+    expect(readTable().rows.map((row) => row[1])).toEqual([
+      "Danza Jazz",
+      "Tap",
+    ]);
+  });
+
+  test("filters the academies by modality", async () => {
+    await mount(picks, noLists, "/administracion/gran-final?modalidad=tap");
+
+    expect(readTable().rows).toEqual([
+      ["link:Academia Pirueta", "Tap", "Completo"],
+      ["link:Academia Zapateo", "Tap", "—"],
+    ]);
+  });
+
+  test("adds the QR codes and the audit links as tabs once there is one of each", async () => {
+    await mount(picks, {
+      auditLinks: [
+        {
+          blockReasons: [],
+          createdAt: new Date("2026-12-08T15:00:00Z"),
+          id: "acceso",
+          label: "Lucía",
+          openedAt: null,
+          revokedAt: null,
+        },
+      ],
+      voteCodeBatches: [
+        {
+          blockReasons: [],
+          codeCount: 24,
+          id: "lote",
+          issuedAt: new Date("2026-12-08T15:00:00Z"),
+          number: 1,
+          voidedAt: null,
+        },
+      ],
+    });
+
+    expect(readTabs()).toEqual([
+      "Academias",
+      "Códigos QR",
+      "Accesos de auditoría",
+    ]);
   });
 });

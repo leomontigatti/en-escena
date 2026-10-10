@@ -102,11 +102,6 @@ const refusals: Record<
   AuditLinkRefusal,
   { description: string; title: string }
 > = {
-  "already-bound": {
-    description:
-      "Cada acceso de auditoría se abre en un solo dispositivo, y este ya se abrió en otro. Pedile a la organización un acceso nuevo.",
-    title: "Este acceso ya se abrió en otro dispositivo",
-  },
   revoked: {
     description:
       "La organización revocó este acceso de auditoría. Si todavía lo necesitás, pedile uno nuevo.",
@@ -140,7 +135,7 @@ function NoLink() {
 
 /**
  * The token is in the fragment, which only the browser reads, and is sent
- * once in the form's body. The link binds only when the auditor presses the
+ * once in the form's body. The link opens only when the auditor presses the
  * button, so a chat app that previews it opens nothing. Until the page
  * hydrates there is no token yet, and the button waits for it.
  */
@@ -163,9 +158,8 @@ function OpenLink({
         <CardHeader>
           <CardTitle>Acceso de auditoría</CardTitle>
           <CardDescription>
-            Este acceso se abre en un solo dispositivo: el primero que lo abra
-            es el único que va a poder ver los totales. Abrilo en el celular con
-            el que vas a seguir la votación.
+            Abrilo en el celular con el que vas a seguir la votación. Si lo
+            perdés, pedile a la organización que te lo muestre de nuevo.
           </CardDescription>
         </CardHeader>
         <CardContent>

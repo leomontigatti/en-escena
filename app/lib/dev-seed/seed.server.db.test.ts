@@ -325,7 +325,7 @@ describe("dev seed over a local `Gran final` vote", () => {
     await db.insert(votes).values({
       academyId: academy.id,
       kind: "code",
-      points: 10,
+      points: 30,
       roundId: round.id,
       voteCodeId: code.id,
     });

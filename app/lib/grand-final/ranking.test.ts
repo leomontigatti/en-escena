@@ -14,7 +14,7 @@ function tally(
     city: null,
     codeVotes,
     name,
-    points: codeVotes * 10 + voterVotes,
+    points: codeVotes * 30 + voterVotes,
     voterVotes,
   };
 }
@@ -31,22 +31,22 @@ function summarize(result: ReturnType<typeof rankGrandFinal>) {
 describe("`rankGrandFinal`", () => {
   test("ranks by weighted points, not by how many votes each finalist got", () => {
     const result = rankGrandFinal(1, [
-      tally("Ritmo", { voters: 9 }),
+      tally("Ritmo", { voters: 29 }),
       tally("Alas", { codes: 1 }),
     ]);
 
     expect(summarize(result)).toEqual([
-      ["Alas", 1, 52.6, true],
-      ["Ritmo", 2, 47.4, false],
+      ["Alas", 1, 50.8, true],
+      ["Ritmo", 2, 49.2, false],
     ]);
     expect(result.outcome).toEqual({ academyIds: ["alas"], kind: "winner" });
   });
 
   test("gives each finalist its share of the round's weighted points, to one decimal", () => {
     const result = rankGrandFinal(1, [
-      tally("Alas", { codes: 1, voters: 10 }),
-      tally("Ritmo", { voters: 5 }),
-      tally("Sur", { voters: 5 }),
+      tally("Alas", { codes: 1, voters: 30 }),
+      tally("Ritmo", { voters: 15 }),
+      tally("Sur", { voters: 15 }),
     ]);
 
     expect(summarize(result)).toEqual([
@@ -71,7 +71,7 @@ describe("`rankGrandFinal`", () => {
 
   test("calls a round 1 tie for first place a tie, whoever has more QR votes, and crowns nobody", () => {
     const result = rankGrandFinal(1, [
-      tally("Ritmo", { voters: 20 }),
+      tally("Ritmo", { voters: 60 }),
       tally("Alas", { codes: 2 }),
       tally("Sur", { codes: 1 }),
     ]);
@@ -91,7 +91,7 @@ describe("`rankGrandFinal`", () => {
     const result = rankGrandFinal(1, [
       tally("Ritmo", { codes: 2 }),
       tally("Alas", { codes: 3 }),
-      tally("Sur", { voters: 20 }),
+      tally("Sur", { voters: 60 }),
     ]);
 
     expect(result.outcome).toEqual({ academyIds: ["alas"], kind: "winner" });
@@ -106,7 +106,7 @@ describe("`rankGrandFinal`", () => {
 
   test("breaks a round 2 tie for first place by the greater number of QR votes", () => {
     const result = rankGrandFinal(2, [
-      tally("Alas", { codes: 1, voters: 10 }),
+      tally("Alas", { codes: 1, voters: 30 }),
       tally("Ritmo", { codes: 2 }),
     ]);
 
@@ -121,7 +121,7 @@ describe("`rankGrandFinal`", () => {
   test("lets QR votes decide nothing in round 2 when the points are not tied", () => {
     const result = rankGrandFinal(2, [
       tally("Ritmo", { codes: 2 }),
-      tally("Alas", { codes: 1, voters: 11 }),
+      tally("Alas", { codes: 1, voters: 31 }),
     ]);
 
     expect(result.outcome).toEqual({ academyIds: ["alas"], kind: "winner" });

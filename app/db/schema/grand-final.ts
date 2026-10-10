@@ -304,7 +304,7 @@ export const voteKind = pgEnum("en_escena_vote_kind", ["code", "social"]);
  * changed or deleted. Its keys restrict, so a round, an event, an academy or a
  * code with votes cannot be deleted either, and a trigger refuses any update
  * or delete that reaches the row anyway.
- * Its weight is fixed by its kind, ten for a code and one for a voter.
+ * Its weight is fixed by its kind, thirty for a code and one for a voter.
  *
  * A code, and a voter, votes once per round: the unique indexes are what
  * refuse the second vote, under any concurrency, and a cast reads its conflict
@@ -357,7 +357,7 @@ export const votes = createTable(
     index("vote_voter_idx").on(table.voterId),
     check(
       "vote_kind_points_check",
-      sql`(${table.kind} = 'code' and ${table.points} = 10 and ${table.voteCodeId} is not null) or (${table.kind} = 'social' and ${table.points} = 1 and ${table.voteCodeId} is null)`,
+      sql`(${table.kind} = 'code' and ${table.points} = 30 and ${table.voteCodeId} is not null) or (${table.kind} = 'social' and ${table.points} = 1 and ${table.voteCodeId} is null)`,
     ),
     check(
       "vote_kind_voter_check",
@@ -368,10 +368,10 @@ export const votes = createTable(
 
 /**
  * An `auditLink`: the access administration hands to one of the audience's
- * auditors to watch the event's open `votingRound`. Only hashes are kept: the
- * token the link carries is shown once, when it is created, and the session
- * secret is the cookie of the first browser that opened it, which is the only
- * one it serves from then on. `revokedAt` closes it for good.
+ * auditors to watch the event's open `votingRound`. Only the token's hash is
+ * kept: the token is derived from the link's id with a server key, so
+ * administration can show it again without the table holding it, and it
+ * opens on any device. `revokedAt` closes it for good.
  *
  * Cascade on the event: a link reads nothing of any other.
  */
@@ -383,8 +383,8 @@ export const auditLinks = createTable(
     /** Who administration handed it to, as they named them. */
     label: varchar("label", { length: 80 }).notNull(),
     tokenHash: varchar("token_hash", { length: 64 }).notNull(),
-    sessionHash: varchar("session_hash", { length: 64 }),
-    boundAt: timestamp("bound_at", { mode: "date", withTimezone: true }),
+    /** When a device first opened it; any device may, any number of times. */
+    openedAt: timestamp("opened_at", { mode: "date", withTimezone: true }),
     revokedAt: timestamp("revoked_at", { mode: "date", withTimezone: true }),
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
       .notNull()
@@ -397,7 +397,6 @@ export const auditLinks = createTable(
       name: "audit_link_event_fk",
     }).onDelete("cascade"),
     uniqueIndex("audit_link_token_hash_unique").on(table.tokenHash),
-    uniqueIndex("audit_link_session_hash_unique").on(table.sessionHash),
     index("audit_link_event_idx").on(table.eventId),
   ],
 ).enableRLS();

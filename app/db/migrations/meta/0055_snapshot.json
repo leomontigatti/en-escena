@@ -1,5 +1,5 @@
 {
-  "id": "8a6fa755-270c-47fc-be40-1b22f53f8066",
+  "id": "07d1ed1c-5a27-4c2a-916a-280da38556b7",
   "prevId": "13008a83-6140-466a-bffa-4efe9276be67",
   "version": "7",
   "dialect": "postgresql",
@@ -4482,14 +4482,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "session_hash": {
-          "name": "session_hash",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bound_at": {
-          "name": "bound_at",
+        "opened_at": {
+          "name": "opened_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
@@ -4514,21 +4508,6 @@
           "columns": [
             {
               "expression": "token_hash",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "audit_link_session_hash_unique": {
-          "name": "audit_link_session_hash_unique",
-          "columns": [
-            {
-              "expression": "session_hash",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5231,7 +5210,7 @@
       "checkConstraints": {
         "vote_kind_points_check": {
           "name": "vote_kind_points_check",
-          "value": "(\"en_escena_vote\".\"kind\" = 'code' and \"en_escena_vote\".\"points\" = 10 and \"en_escena_vote\".\"vote_code_id\" is not null) or (\"en_escena_vote\".\"kind\" = 'social' and \"en_escena_vote\".\"points\" = 1 and \"en_escena_vote\".\"vote_code_id\" is null)"
+          "value": "(\"en_escena_vote\".\"kind\" = 'code' and \"en_escena_vote\".\"points\" = 30 and \"en_escena_vote\".\"vote_code_id\" is not null) or (\"en_escena_vote\".\"kind\" = 'social' and \"en_escena_vote\".\"points\" = 1 and \"en_escena_vote\".\"vote_code_id\" is null)"
         },
         "vote_kind_voter_check": {
           "name": "vote_kind_voter_check",

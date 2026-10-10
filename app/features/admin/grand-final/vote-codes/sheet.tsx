@@ -83,13 +83,11 @@ const printStyles = `
 
 const printScript = `document.getElementById('print-button')?.addEventListener('click',function(){window.print();});`;
 
-type VoteCodeCell = { label: string; qrSvg: string };
-
 /**
  * The printable sheet of a batch's `voteCode`s: self-contained HTML in A4
- * sheets of twenty, each code its QR, `Gran final` and the batch it belongs
- * to with its place in it, so a box office can tell which print run a loose
- * code came from. `renderQr` turns a vote URL into the QR's SVG.
+ * sheets of twenty, each code its QR, `Gran final` and `Escaneá y votá`, and
+ * nothing the public has no use for. Only the toolbar, which does not print,
+ * names the batch. `renderQr` turns a vote URL into the QR's SVG.
  */
 export async function renderVoteCodeSheet(input: {
   origin: string;
@@ -98,9 +96,9 @@ export async function renderVoteCodeSheet(input: {
 }): Promise<string> {
   const { sheet } = input;
   const cells = await Promise.all(
-    sheet.tokens.map(async (token, index): Promise<VoteCodeCell> => ({
-      label: `Lote ${sheet.number} · ${index + 1}/${sheet.tokens.length}`,
+    sheet.tokens.map(async (token) => ({
       qrSvg: await input.renderQr(buildVoteCodeUrl(input.origin, token)),
+      token,
     })),
   );
   const sheets = Array.from(
@@ -128,11 +126,10 @@ export async function renderVoteCodeSheet(input: {
         {sheets.map((sheetCells, sheetIndex) => (
           <section className="sheet" key={sheetIndex}>
             {sheetCells.map((cell) => (
-              <div className="code" key={cell.label}>
+              <div className="code" key={cell.token}>
                 <div dangerouslySetInnerHTML={{ __html: cell.qrSvg }} />
                 <p className="title">Gran final</p>
                 <p className="label">Escaneá y votá</p>
-                <p className="label">{cell.label}</p>
               </div>
             ))}
           </section>

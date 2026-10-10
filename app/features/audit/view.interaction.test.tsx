@@ -43,8 +43,8 @@ function openTotals(
           city: "Córdoba",
           codeVotes: 3,
           name: "Alas",
-          percentage: 88.2,
-          points: 30,
+          percentage: 95.7,
+          points: 90,
           position: 1,
           voterVotes: 0,
         },
@@ -65,7 +65,7 @@ describe("the audit page", () => {
 
   beforeEach(() => {
     submitted.length = 0;
-    answer = { reason: "already-bound" };
+    answer = { reason: "revoked" };
     vi.mocked(toast.error).mockClear();
   });
 
@@ -139,14 +139,12 @@ describe("the audit page", () => {
     expect(Object.fromEntries(submitted[0])).toEqual({ token: "token-nuevo" });
   });
 
-  test("shows the refusal of a link another device opened first", async () => {
+  test("shows the refusal of a revoked link", async () => {
     await mount({ state: "open-link" }, linkEntry);
 
     await openLink();
 
-    await waitFor(() =>
-      pageText().includes("Este acceso ya se abrió en otro dispositivo"),
-    );
+    await waitFor(() => pageText().includes("Este acceso fue revocado"));
     expect(document.querySelector("form")).toBeNull();
   });
 

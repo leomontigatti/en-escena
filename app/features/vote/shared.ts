@@ -25,23 +25,8 @@ export type VoteFinalist = {
   pictureUrls: string[];
 };
 
-/**
- * Why this visitor cannot vote now: nothing identifies them yet (no code, no
- * sign-in), or the code they brought is not a code of the event or was
- * voided. Built by the server; the vote button stays and opens them
- * (docs/agents/form-feedback.md).
- */
-export type VoteBlockReason = {
-  code: "no-identity" | "unknown-code" | "voided-code";
-  label: string;
-};
-
-/**
- * Where the visitor stands with Google: offered when nothing else lets them
- * vote here, signed in once they are, and null when the page votes with the
- * code they brought or the deployment has no Google sign-in.
- */
-export type VoteGoogleSignIn = "offered" | "signed-in" | null;
+/** Why the code the visitor arrived with cannot vote. */
+export type VoteCodeRefusal = "unknown-code" | "voided-code";
 
 /**
  * A finalist in the published `grandFinalResult`: its place and its share of
@@ -59,7 +44,10 @@ export type PublishedFinalist = {
 /**
  * `not-open` before the round opens, `closed` once it closed: the page says
  * which, and nothing else, until the result is published, when it shows the
- * last round's ranking.
+ * last round's ranking. While the round is open, only a visitor who can vote
+ * sees the finalists: one with nothing that votes is asked to sign in, one
+ * whose code cannot vote is told why, and one who voted reads that it was
+ * registered.
  */
 export type VotePageData =
   | { state: "closed" }
@@ -73,23 +61,19 @@ export type VotePageData =
       tieBrokenByCodeVotes: boolean;
     }
   | {
-      blockReasons: VoteBlockReason[];
-      /** The code the visitor arrived with, when it can still vote. */
+      /** Whether the deployment has Google sign-in, or only codes vote. */
+      google: boolean;
+      state: "sign-in";
+    }
+  | { reason: VoteCodeRefusal; state: "code-refused" }
+  | {
+      /** The code the visitor arrived with, or null for a signed-in voter. */
       code: string | null;
       finalists: VoteFinalist[];
-      googleSignIn: VoteGoogleSignIn;
       /** The open round, which the vote form names. */
       roundId: string;
       state: "open";
     }
-  | {
-      /**
-       * Whether the page offers Google too: a code's vote is registered and
-       * the same person may still vote with their account.
-       */
-      canAlsoSignIn: boolean;
-      finalist: VoteFinalist;
-      state: "registered";
-    };
+  | { finalist: VoteFinalist; state: "registered" };
 
 export type VoteActionData = { message: string; status: "error" };

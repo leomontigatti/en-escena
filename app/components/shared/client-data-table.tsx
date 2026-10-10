@@ -121,7 +121,9 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
     pagination,
     rows: props.rows,
     rowSelection,
-    searchQuery,
+    // A table with no search box answers to no search: the address bar's is
+    // another table's on the same page, and this one could not show or clear it.
+    searchQuery: props.hideSearch ? "" : searchQuery,
     selectableRows,
     setPage,
     setRowSelection,

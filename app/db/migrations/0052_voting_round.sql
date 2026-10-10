@@ -10,7 +10,7 @@ CREATE TABLE "en_escena_vote" (
 	"points" integer NOT NULL,
 	"vote_code_id" varchar(255),
 	"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	CONSTRAINT "vote_kind_points_check" CHECK (("en_escena_vote"."kind" = 'code' and "en_escena_vote"."points" = 10 and "en_escena_vote"."vote_code_id" is not null) or ("en_escena_vote"."kind" = 'social' and "en_escena_vote"."points" = 1 and "en_escena_vote"."vote_code_id" is null))
+	CONSTRAINT "vote_kind_points_check" CHECK (("en_escena_vote"."kind" = 'code' and "en_escena_vote"."points" = 30 and "en_escena_vote"."vote_code_id" is not null) or ("en_escena_vote"."kind" = 'social' and "en_escena_vote"."points" = 1 and "en_escena_vote"."vote_code_id" is null))
 );
 --> statement-breakpoint
 ALTER TABLE "en_escena_vote" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint

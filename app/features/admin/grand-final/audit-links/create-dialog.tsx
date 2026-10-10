@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCallback } from "react";
+import { useCallback, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
@@ -35,8 +35,8 @@ import {
 /**
  * Creates an `auditLink` for the auditor administration names, then hands it
  * over in the same dialog: its QR to scan from this screen and its address to
- * copy. Only its hash is kept, so closing the dialog is the last time it is
- * shown. A refusal is a toast and the form stays (docs/agents/form-feedback.md).
+ * copy. The auditor's name on the list shows it again later. A refusal is a
+ * toast and the form stays (docs/agents/form-feedback.md).
  */
 export function CreateAuditLinkDialog({
   onOpenChange,
@@ -73,7 +73,7 @@ export function CreateAuditLinkDialog({
       >
         <DialogContent>
           {created ? (
-            <CreatedLink link={created} onDone={close} />
+            <AuditLinkHandover link={created} onDone={close} />
           ) : (
             <>
               <DialogHeader>
@@ -130,10 +130,17 @@ export function CreateAuditLinkDialog({
   );
 }
 
-function CreatedLink({
+/**
+ * A live link as its dialog hands it over: its QR to scan from this screen and
+ * its address to copy. `action` sits before `Listo`, for a dialog that offers
+ * something more than reading the link.
+ */
+export function AuditLinkHandover({
+  action,
   link,
   onDone,
 }: {
+  action?: ReactNode;
   link: CreatedAuditLink;
   onDone: () => void;
 }) {
@@ -143,8 +150,8 @@ function CreatedLink({
         <DialogTitle>Acceso de auditoría de {link.label}</DialogTitle>
         <DialogDescription>
           Que lo escanee o lo abra en el celular con el que va a seguir la
-          votación. Este enlace no se vuelve a mostrar: si se pierde, revocalo y
-          creá otro.
+          votación. Se puede abrir en más de un dispositivo y deja de funcionar
+          cuando cierra la votación o lo revocás.
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col items-center gap-4">
@@ -163,6 +170,7 @@ function CreatedLink({
         </div>
       </div>
       <DialogFooter>
+        {action}
         <Button type="button" onClick={onDone}>
           Listo
         </Button>

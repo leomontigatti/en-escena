@@ -61,8 +61,8 @@ describe("`readGrandFinalResult`", () => {
       {
         codeVotes: 1,
         name: "Alas",
-        percentage: 76.9,
-        points: 10,
+        percentage: 90.9,
+        points: 30,
         position: 1,
         voterVotes: 0,
         winner: true,
@@ -70,7 +70,7 @@ describe("`readGrandFinalResult`", () => {
       {
         codeVotes: 0,
         name: "Ritmo Sur",
-        percentage: 23.1,
+        percentage: 9.1,
         points: 3,
         position: 2,
         voterVotes: 3,
@@ -97,7 +97,7 @@ describe("`readGrandFinalResult`", () => {
     const fixture = await seedResultFixture();
     const [first, second] = await fixture.issueCodes(2);
     await fixture.vote(fixture.alas, { tokens: [first] });
-    await fixture.vote(fixture.ritmo, { voters: 10 });
+    await fixture.vote(fixture.ritmo, { voters: 30 });
     await fixture.vote(fixture.sol, { tokens: [second] });
     await fixture.vote(fixture.sol, { voters: 1 });
     await closeCurrentVotingRound(fixture.eventId);
@@ -178,10 +178,10 @@ describe("the Desempate's result", () => {
   test("breaks a tie on points by the greater number of QR votes, codes of round 1 included", async () => {
     const fixture = await seedTiedRoundFixture();
     await openTieBreakRound({ eventId: fixture.eventId });
-    // Alas: one code and ten voters, 20 points. Ritmo Sur: two codes, 20
+    // Alas: one code and thirty voters, 60 points. Ritmo Sur: two codes, 60
     // points, one of them the code that voted for Alas in round 1.
     await fixture.vote(fixture.alas, { tokens: [fixture.tokens[2]] });
-    await fixture.vote(fixture.alas, { voters: 10 });
+    await fixture.vote(fixture.alas, { voters: 30 });
     await fixture.vote(fixture.ritmo, {
       tokens: [fixture.tokens[0], fixture.tokens[1]],
     });

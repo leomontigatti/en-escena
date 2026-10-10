@@ -72,7 +72,11 @@ async function load(browser: Browser) {
 
 async function seedLink() {
   const event = await createSavedEvent();
-  const created = await createAuditLink({ eventId: event.id, label: "Marta" });
+  const created = await createAuditLink({
+    eventId: event.id,
+    label: "Marta",
+    secret: "secreto-de-prueba",
+  });
 
   if (!created.ok) {
     throw new Error("The link was not created.");
@@ -90,7 +94,7 @@ describe("the audit page", () => {
     expect(answer.headers.get("Referrer-Policy")).toBe("no-referrer");
   });
 
-  test("binds the link to the first browser and shows it the totals", async () => {
+  test("opens the link in the browser and shows it the totals", async () => {
     const link = await seedLink();
     const browser = newBrowser();
 
@@ -106,14 +110,17 @@ describe("the audit page", () => {
     });
   });
 
-  test("refuses a second browser", async () => {
+  test("opens the same link in a second browser too", async () => {
     const link = await seedLink();
     await open(newBrowser(), link.token);
+    const second = newBrowser();
 
-    const second = await open(newBrowser(), link.token);
-
-    expect(second.refusal).toEqual({ reason: "already-bound", status: 409 });
-    expect(second.headers.get("Cache-Control")).toBe("no-store");
+    await expect(open(second, link.token)).resolves.toMatchObject({
+      location: "/auditoria",
+    });
+    await expect(load(second)).resolves.toMatchObject({
+      page: { state: "totals", totals },
+    });
   });
 
   test("refuses an unknown token", async () => {
@@ -137,7 +144,7 @@ describe("the audit page", () => {
     });
   });
 
-  test("shuts the bound browser out on its next load once revoked", async () => {
+  test("shuts an opened browser out on its next load once revoked", async () => {
     const link = await seedLink();
     const browser = newBrowser();
     await open(browser, link.token);
@@ -149,7 +156,7 @@ describe("the audit page", () => {
     expect(browser.cookie).toBe("en_escena_audit=");
   });
 
-  test("refuses a session cookie no link was bound to", async () => {
+  test("refuses a cookie that names no link", async () => {
     const browser = { cookie: "en_escena_audit=ImZhbHNvIg%3D%3D" };
 
     await expect(load(browser)).resolves.toMatchObject({

@@ -249,7 +249,7 @@ describe("`openTieBreakRound`", () => {
       .select({ id: votes.id })
       .from(votes)
       .where(eq(votes.roundId, roundOne?.id ?? ""));
-    expect(roundOneVotes).toHaveLength(15);
+    expect(roundOneVotes).toHaveLength(35);
   });
 
   test("is refused before round 1 opens, while it is open, and after it closed with one winner", async () => {

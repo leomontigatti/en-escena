@@ -35,7 +35,7 @@ async function readVotes() {
 }
 
 describe("`castVote` with a code", () => {
-  test("casts one vote worth ten for the academy, in the round", async () => {
+  test("casts one vote worth thirty for the academy, in the round", async () => {
     const round = await seedOpenRoundFixture();
     const {
       tokens: [token],
@@ -53,7 +53,7 @@ describe("`castVote` with a code", () => {
       {
         academyId: round.alas,
         kind: "code",
-        points: 10,
+        points: 30,
         roundId: round.roundId,
       },
     ]);
@@ -258,7 +258,7 @@ describe("`castVote` with a voter", () => {
     await expect(db.$count(votes)).resolves.toBe(1);
   });
 
-  test("counts a person's code and their voter both, eleven points in all", async () => {
+  test("counts a person's code and their voter both, thirty-one points in all", async () => {
     const round = await seedOpenRoundFixture();
     const {
       tokens: [token],
@@ -280,7 +280,7 @@ describe("`castVote` with a voter", () => {
 
     const cast = await readVotes();
     expect(cast.map((vote) => vote.kind).sort()).toEqual(["code", "social"]);
-    expect(cast.reduce((total, vote) => total + vote.points, 0)).toBe(11);
+    expect(cast.reduce((total, vote) => total + vote.points, 0)).toBe(31);
   });
 
   test("lets two voters vote once each", async () => {

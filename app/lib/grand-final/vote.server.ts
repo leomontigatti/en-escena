@@ -17,7 +17,7 @@ import {
  * count once however they interleave. A vote and a close of its round, or a
  * void of its batch, take turns. Nothing here updates or deletes a vote.
  *
- * The identity is a printed `voteCode`, worth ten, or a signed-in `voter`,
+ * The identity is a printed `voteCode`, worth thirty, or a signed-in `voter`,
  * worth one. They are separate identities: a person holding both casts both.
  */
 export type VoteIdentity =
@@ -69,7 +69,7 @@ export async function castVote(input: CastVoteInput): Promise<CastVoteResult> {
 }
 
 /** A vote's weight, fixed by its kind. */
-const votePoints = { code: 10, social: 1 } as const;
+const votePoints = { code: 30, social: 1 } as const;
 
 /**
  * The row a cast selects, in the table's column order: an insert from a
@@ -218,13 +218,25 @@ export async function readCodeStanding(input: {
 }
 
 export type VoterStanding =
-  { academyId: string; status: "voted" } | { status: "available" };
+  { academyId: string; status: "voted" } | { status: "available" | "unknown" };
 
-/** Whether the voter already voted in the round, and for whom. */
+/**
+ * Whether the voter already voted in the round, and for whom; unknown when
+ * no voter has the id, as a signed cookie can outlive its voter.
+ */
 export async function readVoterStanding(input: {
   roundId: string;
   voterId: string;
 }): Promise<VoterStanding> {
+  const [voter] = await db
+    .select({ id: voters.id })
+    .from(voters)
+    .where(eq(voters.id, input.voterId));
+
+  if (!voter) {
+    return { status: "unknown" };
+  }
+
   const [vote] = await db
     .select({ academyId: votes.academyId })
     .from(votes)
@@ -280,16 +292,11 @@ async function explainUncastCodeVote(roundId: string, token: string) {
 }
 
 async function explainUncastVoterVote(roundId: string, voterId: string) {
-  const [voter] = await db
-    .select({ id: voters.id })
-    .from(voters)
-    .where(eq(voters.id, voterId));
+  const standing = await readVoterStanding({ roundId, voterId });
 
-  if (!voter) {
+  if (standing.status === "unknown") {
     return { ok: false as const, reason: "unknown-voter" as const };
   }
-
-  const standing = await readVoterStanding({ roundId, voterId });
 
   return standing.status === "voted" ? alreadyVoted(standing.academyId) : null;
 }

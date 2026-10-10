@@ -9,7 +9,15 @@ import {
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatBusinessDate } from "@/lib/shared/business-time-zone";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { formatLongBusinessDate } from "@/lib/shared/business-time-zone";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { GrandFinalListActionData } from "../list/shared";
@@ -19,16 +27,12 @@ import {
   type VoteCodeBatchListRow,
 } from "./shared";
 
-type BlockedBatchAction = {
-  action: "print" | "void";
-  batch: VoteCodeBatchListRow;
-};
-
 /**
- * The event's `voteCode` batches, the latest first: each prints in a new tab
- * while it is valid, and voids with a confirmation. A voided batch keeps both
- * actions, which open why they cannot run. Voiding stays on the list, which
- * revalidates; its answer is a toast.
+ * The event's `voteCode` batches, the latest first, under their own tab of the
+ * list, which shows it only once there is one. A batch's name opens it, with
+ * its print sheet, which opens in a new tab, and its void, which asks first;
+ * a voided batch's name opens why it can do neither. Voiding stays on the
+ * list, which revalidates; its answer is a toast.
  */
 export function VoteCodeBatchesSection({
   batches,
@@ -36,31 +40,38 @@ export function VoteCodeBatchesSection({
   batches: VoteCodeBatchListRow[];
 }) {
   const fetcher = useFetcher<GrandFinalListActionData>();
+  const [openBatch, setOpenBatch] = useState<VoteCodeBatchListRow | null>(null);
   const [batchToVoid, setBatchToVoid] = useState<VoteCodeBatchListRow | null>(
     null,
   );
-  const [blocked, setBlocked] = useState<BlockedBatchAction | null>(null);
-  const isVoiding = fetcher.state !== "idle";
+  const [blocked, setBlocked] = useState<VoteCodeBatchListRow | null>(null);
 
   useServerActionToast(fetcher.data);
-
-  const blockedVerb = blocked?.action === "print" ? "imprimir" : "anular";
-  const blockedTitle = blocked
-    ? `No se puede ${blockedVerb} el lote ${blocked.batch.number}`
-    : "";
 
   const columns: DataTableColumn<VoteCodeBatchListRow>[] = [
     {
       id: "number",
       header: "Lote",
       className: "font-medium",
-      cell: (row) => `Lote ${row.number}`,
+      cell: (row) => (
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto p-0 font-medium"
+          onClick={() =>
+            row.blockReasons.length > 0 ? setBlocked(row) : setOpenBatch(row)
+          }
+        >
+          {`Lote ${row.number}`}
+        </Button>
+      ),
     },
     { id: "codes", header: "Códigos", cell: (row) => row.codeCount },
     {
       id: "issuedAt",
       header: "Emitido",
-      cell: (row) => formatBusinessDate(row.issuedAt),
+      className: "text-muted-foreground",
+      cell: (row) => formatLongBusinessDate(row.issuedAt),
     },
     {
       id: "status",
@@ -72,75 +83,61 @@ export function VoteCodeBatchesSection({
           <Badge variant="success">Vigente</Badge>
         ),
     },
-    {
-      id: "actions",
-      header: "",
-      cell: (row) => {
-        const isBlocked = row.blockReasons.length > 0;
+  ];
 
-        return (
-          <div className="flex justify-end gap-2">
-            {isBlocked ? (
-              <Button
-                onClick={() => setBlocked({ action: "print", batch: row })}
-                size="sm"
-                variant="outline"
-              >
-                Imprimir
-              </Button>
-            ) : (
-              <Button asChild size="sm" variant="outline">
+  return (
+    <>
+      <ClientDataTable<VoteCodeBatchListRow>
+        columns={columns}
+        emptyMessage="Todavía no generaste códigos QR."
+        getRowKey={(row) => row.id}
+        hidePagination
+        hideSearch
+        rows={batches}
+        searchPlaceholder="Buscar lote"
+      />
+      <Dialog
+        open={openBatch !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setOpenBatch(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{`Lote ${openBatch?.number ?? ""}`}</DialogTitle>
+            <DialogDescription>
+              {openBatch
+                ? `${openBatch.codeCount} códigos QR, emitidos el ${formatLongBusinessDate(openBatch.issuedAt)}. La hoja se abre en una pestaña nueva, lista para imprimir.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setBatchToVoid(openBatch);
+                setOpenBatch(null);
+              }}
+            >
+              Anular
+            </Button>
+            {openBatch ? (
+              <Button asChild>
                 <a
-                  href={buildVoteCodeSheetPath(row.id)}
+                  href={buildVoteCodeSheetPath(openBatch.id)}
                   rel="noreferrer"
                   target="_blank"
                 >
                   Imprimir
                 </a>
               </Button>
-            )}
-            <Button
-              disabled={isVoiding}
-              onClick={() =>
-                isBlocked
-                  ? setBlocked({ action: "void", batch: row })
-                  : setBatchToVoid(row)
-              }
-              size="sm"
-              variant="outline"
-            >
-              Anular
-            </Button>
-          </div>
-        );
-      },
-    },
-  ];
-
-  return (
-    <section
-      aria-labelledby="gran-final-codigos-qr"
-      className="flex flex-col gap-3"
-    >
-      <h3 id="gran-final-codigos-qr" className="text-base font-semibold">
-        Códigos QR
-      </h3>
-      {batches.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Todavía no generaste códigos QR. Generá un lote desde Acciones para
-          imprimirlo.
-        </p>
-      ) : (
-        <ClientDataTable<VoteCodeBatchListRow>
-          columns={columns}
-          emptyMessage="Todavía no generaste códigos QR."
-          getRowKey={(row) => row.id}
-          hidePagination
-          hideSearch
-          rows={batches}
-          searchPlaceholder="Buscar lote"
-        />
-      )}
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <ConfirmationDialog
         confirmLabel="Anular"
         description={
@@ -168,11 +165,7 @@ export function VoteCodeBatchesSection({
         }
       />
       <BlockedActionDialog
-        description={
-          blocked?.action === "print"
-            ? "Solo se imprime un lote vigente. Generá un lote nuevo para imprimir códigos QR."
-            : "Solo se anula un lote vigente."
-        }
+        description="Solo se imprime o se anula un lote vigente. Generá un lote nuevo para imprimir códigos QR."
         onOpenChange={(open) => {
           if (!open) {
             setBlocked(null);
@@ -181,14 +174,18 @@ export function VoteCodeBatchesSection({
         open={blocked !== null}
         reasons={
           <ul className="list-disc pl-5">
-            {blocked?.batch.blockReasons.map((reason) => (
+            {blocked?.blockReasons.map((reason) => (
               <li key={reason.code}>{reason.label}</li>
             ))}
           </ul>
         }
         reasonsTitle="Motivo"
-        title={blockedTitle}
+        title={
+          blocked
+            ? `No se puede imprimir ni anular el lote ${blocked.number}`
+            : ""
+        }
       />
-    </section>
+    </>
   );
 }

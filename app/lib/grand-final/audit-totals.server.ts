@@ -89,6 +89,16 @@ export async function readAuditTotals(link: AuditedLink): Promise<AuditTotals> {
 }
 
 /**
+ * Whether the link is spent: the round it shows has closed. A link whose
+ * round has not opened yet, or is open, still lives.
+ */
+export async function isAuditLinkExpired(link: AuditedLink) {
+  const round = await readLinkRound(link);
+
+  return round?.closedAt != null;
+}
+
+/**
  * The round open when the link was issued, or the first to open after it;
  * failing both, the event's last round, closed before the link existed.
  */

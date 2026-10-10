@@ -32,7 +32,7 @@ import {
 import {
   voteFormSchema,
   type VoteActionData,
-  type VoteBlockReason,
+  type VoteCodeRefusal,
   type VoteFinalist,
   type VotePageData,
 } from "./shared";
@@ -45,25 +45,10 @@ import {
  * a voter's sign-in, so none is kept by a browser or a proxy.
  *
  * A code in the address wins: the page votes with it and says nothing of a
- * sign-in. Without one, the voter's cookie is what votes.
+ * sign-in. Without one, the voter's cookie is what votes, and without that
+ * the page asks for a sign-in and shows no finalist.
  */
 const noStore = { "Cache-Control": "no-store" };
-
-const codeOnlyLabel =
-  "Para votar hace falta el código QR que viene con tu entrada. Escanealo con la cámara del celular.";
-
-const codeOrGoogleLabel =
-  "Para votar, ingresá con tu cuenta de Google o escaneá el código QR que viene con tu entrada.";
-
-const blockReasonLabels: Record<
-  Exclude<VoteBlockReason["code"], "no-identity">,
-  string
-> = {
-  "unknown-code":
-    "Este código QR no es de esta votación. Revisá que sea el que viene con tu entrada.",
-  "voided-code":
-    "Este código QR fue anulado por la organización y ya no sirve para votar.",
-};
 
 export async function loadVotePage(
   request: Request,
@@ -95,15 +80,26 @@ async function readVotePage(
 
   if (voted) {
     return {
-      // A code's vote leaves the person's account free to vote too.
-      canAlsoSignIn: Boolean(visitor.token && signIn),
       finalist: await signFinalist(voted, storage),
       state: "registered",
     };
   }
 
+  if (!visitor.token && !visitor.voterId) {
+    return { google: signIn !== null, state: "sign-in" };
+  }
+
+  const codeRefusal =
+    visitor.token && visitor.standing
+      ? codeRefusalByStanding[visitor.standing.status]
+      : undefined;
+
+  if (codeRefusal) {
+    return { reason: codeRefusal, state: "code-refused" };
+  }
+
   return {
-    ...describeOpenVisitor(visitor, signIn !== null),
+    code: visitor.token,
     finalists: await Promise.all(
       round.finalists.map((finalist) => signFinalist(finalist, storage)),
     ),
@@ -167,47 +163,17 @@ async function readVisitor(
   }
 
   const voterId = (await signIn?.readVoterId(request)) ?? null;
+  const standing = voterId
+    ? await readVoterStanding({ roundId, voterId })
+    : null;
 
-  return {
-    standing: voterId ? await readVoterStanding({ roundId, voterId }) : null,
-    token: null,
-    voterId,
-  };
-}
-
-/** What the open page says to a visitor who has not voted yet. */
-function describeOpenVisitor(
-  visitor: Visitor,
-  canSignIn: boolean,
-): Pick<
-  Extract<VotePageData, { state: "open" }>,
-  "blockReasons" | "code" | "googleSignIn"
-> {
-  if (visitor.voterId) {
-    return { blockReasons: [], code: null, googleSignIn: "signed-in" };
+  // A cookie that outlived its voter identifies nobody: the page asks for a
+  // sign-in, as it does with no cookie.
+  if (standing?.status === "unknown") {
+    return { standing: null, token: null, voterId: null };
   }
 
-  const blockReason = readBlockReason(visitor.standing);
-
-  if (!blockReason) {
-    return { blockReasons: [], code: visitor.token, googleSignIn: null };
-  }
-
-  return {
-    blockReasons: [
-      { code: blockReason, label: labelBlockReason(blockReason, canSignIn) },
-    ],
-    code: null,
-    googleSignIn: canSignIn ? "offered" : null,
-  };
-}
-
-function labelBlockReason(reason: VoteBlockReason["code"], canSignIn: boolean) {
-  if (reason !== "no-identity") {
-    return blockReasonLabels[reason];
-  }
-
-  return canSignIn ? codeOrGoogleLabel : codeOnlyLabel;
+  return { standing, token: null, voterId };
 }
 
 function readVoteCodeToken(request: Request) {
@@ -228,27 +194,17 @@ function findVotedFinalist(
   );
 }
 
-const blockReasonByStanding: Partial<
-  Record<CodeStanding["status"], VoteBlockReason["code"]>
+const codeRefusalByStanding: Partial<
+  Record<CodeStanding["status"], VoteCodeRefusal>
 > = { unknown: "unknown-code", voided: "voided-code" };
 
-/** Why the visitor cannot vote: nothing identifies them, or their code. */
-function readBlockReason(
-  standing: Visitor["standing"],
-): VoteBlockReason["code"] | null {
-  return standing
-    ? (blockReasonByStanding[standing.status] ?? null)
-    : "no-identity";
-}
-
-const refusalMessages: Record<CastVoteRefusal, string> = {
+const refusalMessages: Record<
+  Exclude<CastVoteRefusal, IdentityRefusal>,
+  string
+> = {
   "not-finalist":
     "Esa academia no está en esta votación. Elegí una de la lista.",
   "round-closed": "La votación ya no está abierta.",
-  "unknown-code": blockReasonLabels["unknown-code"],
-  "unknown-voter":
-    "Tu ingreso con Google ya no es válido. Ingresá de nuevo para votar.",
-  "voided-code": blockReasonLabels["voided-code"],
 };
 
 const tieBreakOpenedMessage =
@@ -286,8 +242,9 @@ function refusal(message: string, status: number) {
 /**
  * Casts the vote of the code in the form, or else of the signed-in voter. A
  * vote that counted, and an identity that had already voted, both land on the
- * page that reads "Tu voto fue registrado"; every other answer stays on the
- * page as a toast. The voter's cookie is checked before the database is
+ * page that reads "Tu voto fue registrado"; an identity that cannot vote goes
+ * back to the page, which says why; every other answer stays on the page as
+ * a toast. The voter's cookie is checked before the database is
  * touched: a request with nothing that votes costs no query.
  */
 export async function handleVoteAction(
@@ -305,8 +262,12 @@ export async function handleVoteAction(
   const token = parsed.data?.codigo || readVoteCodeToken(request);
   const voterId = token ? null : await signIn?.readVoterId(request);
 
-  if (!parsed.success || (!token && !voterId)) {
-    return refusal(signIn ? codeOrGoogleLabel : codeOnlyLabel, 400);
+  if (!token && !voterId) {
+    throw backToThePage(null);
+  }
+
+  if (!parsed.success) {
+    return refusal(refusalMessages["not-finalist"], 400);
   }
 
   const round = await findRoundToVoteIn(parsed.data.roundId);
@@ -324,14 +285,40 @@ export async function handleVoteAction(
     roundId: round.id,
   });
 
-  if (result.ok || result.reason === "already-voted") {
-    throw redirect(token ? buildVoteCodePath(token) : votePath, {
-      headers: noStore,
-      status: 303,
-    });
+  if (
+    result.ok ||
+    result.reason === "already-voted" ||
+    isIdentityRefusal(result.reason)
+  ) {
+    throw backToThePage(token);
   }
 
   return refusal(refusalMessages[result.reason], 409);
+}
+
+const identityRefusals = [
+  "unknown-code",
+  "unknown-voter",
+  "voided-code",
+] as const;
+
+type IdentityRefusal = (typeof identityRefusals)[number];
+
+function isIdentityRefusal(reason: string): reason is IdentityRefusal {
+  return (identityRefusals as readonly string[]).includes(reason);
+}
+
+/**
+ * Back to the page the vote came from, which reads the visitor again: the
+ * vote registered, or what keeps them from voting now (a sign-in that
+ * expired or outlived its voter, a code voided since the page loaded), in
+ * place of a list they can no longer vote from.
+ */
+function backToThePage(token: string | null) {
+  return redirect(token ? buildVoteCodePath(token) : votePath, {
+    headers: noStore,
+    status: 303,
+  });
 }
 
 async function signFinalist(

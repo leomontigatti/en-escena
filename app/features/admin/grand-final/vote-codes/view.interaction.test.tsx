@@ -41,7 +41,7 @@ const batches: VoteCodeBatchListRow[] = [
       {
         code: "voided",
         label:
-          "El lote 1 fue anulado el 20/10/26: sus códigos QR ya no sirven para votar.",
+          "El lote 1 fue anulado el 20 de octubre de 2026: sus códigos QR ya no sirven para votar.",
       },
     ],
     codeCount: 50,
@@ -80,7 +80,6 @@ describe("the QR code batches of administration's `Gran final` list", () => {
               loaderData={{
                 auditLinkCreateBlockReasons: [],
                 auditLinks: [],
-                pickChangeBlockReasons: [],
                 picks: { judges: [], modalities: [] },
                 selectedEventId: "evento",
                 voteCodeBatches: batches,
@@ -90,7 +89,7 @@ describe("the QR code batches of administration's `Gran final` list", () => {
           ),
         },
       ],
-      { initialEntries: ["/administracion/gran-final"] },
+      { initialEntries: ["/administracion/gran-final?lista=codigos-qr"] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
@@ -118,6 +117,14 @@ describe("the QR code batches of administration's `Gran final` list", () => {
     });
     await clickReactDomButton("Generar", { exact: true });
   }
+
+  test("waits for a count before it generates", async () => {
+    await mount();
+
+    await openGenerateDialog();
+
+    expect(findButton("Generar", { exact: true })?.disabled).toBe(true);
+  });
 
   test("generates a batch of the count typed", async () => {
     await mount();
@@ -158,10 +165,36 @@ describe("the QR code batches of administration's `Gran final` list", () => {
     );
   });
 
-  test("voids a batch once its confirmation names it", async () => {
+  async function openBatch(name: string) {
+    const row = [...document.querySelectorAll("tbody tr")].find((item) =>
+      item.textContent?.includes(name),
+    );
+
+    await clickReactDomButton(name, { exact: true, within: row });
+  }
+
+  test("opens a batch from its name, with its print sheet", async () => {
     await mount();
 
-    await clickReactDomButton("Anular", { exact: true });
+    await openBatch("Lote 2");
+
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog?.textContent).toContain("200 códigos QR");
+    expect(
+      [...(dialog?.querySelectorAll("a") ?? [])]
+        .find((link) => link.textContent === "Imprimir")
+        ?.getAttribute("href"),
+    ).toBe("/administracion/gran-final/codigos-qr/lote-2");
+  });
+
+  test("voids a batch from its dialog once the confirmation names it", async () => {
+    await mount();
+
+    await openBatch("Lote 2");
+    await clickReactDomButton("Anular", {
+      exact: true,
+      within: document.querySelector('[role="dialog"]'),
+    });
 
     expect(
       document.querySelector('[role="alertdialog"]')?.textContent,
@@ -187,7 +220,11 @@ describe("the QR code batches of administration's `Gran final` list", () => {
     };
     await mount();
 
-    await clickReactDomButton("Anular", { exact: true });
+    await openBatch("Lote 2");
+    await clickReactDomButton("Anular", {
+      exact: true,
+      within: document.querySelector('[role="dialog"]'),
+    });
     await clickReactDomButton("Anular", {
       exact: true,
       within: document.querySelector('[role="alertdialog"]'),
@@ -200,18 +237,15 @@ describe("the QR code batches of administration's `Gran final` list", () => {
     );
   });
 
-  test("opens why a voided batch cannot be voided again, and sends nothing", async () => {
+  test("opens why a voided batch can be neither printed nor voided, and sends nothing", async () => {
     await mount();
 
-    const voidedRow = [...document.querySelectorAll("tbody tr")].find((row) =>
-      row.textContent?.includes("Lote 1"),
-    );
-    await clickReactDomButton("Anular", { exact: true, within: voidedRow });
+    await openBatch("Lote 1");
 
     expect(
       document.querySelector('[role="alertdialog"]')?.textContent,
     ).toContain(
-      "El lote 1 fue anulado el 20/10/26: sus códigos QR ya no sirven para votar.",
+      "El lote 1 fue anulado el 20 de octubre de 2026: sus códigos QR ya no sirven para votar.",
     );
     expect(submitted).toHaveLength(0);
   });
