@@ -133,7 +133,6 @@ export type PresentationListFilters = {
   /** The one value of the `evaluacion` facet; `null` shows every row. */
   evaluation: "profesional" | null;
   order: PresentationOrder;
-  page: number;
   query: string;
   warnings: "con" | null;
 };
@@ -171,8 +170,6 @@ export type PresentationListResult = {
   /** The days the program export offers: the ones with a numbered row. */
   programExportDays: string[];
   selectedEventId: string | null;
-  totalCount: number;
-  totalPages: number;
   unorderedCount: number;
   warnedCount: number;
 };

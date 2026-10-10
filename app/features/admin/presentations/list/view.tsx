@@ -276,8 +276,8 @@ function usePresentationMoving(loaderData: PresentationListResult) {
 
 /**
  * The number, always an input once the event has been ordered: typing one is
- * the way to place a row that dragging cannot reach, on another page or under
- * another sort. Before the first ordering there is no order to type into, and
+ * the way to place a row that dragging cannot reach, under another sort or a
+ * search. Before the first ordering there is no order to type into, and
  * a frozen row's number is not the administrator's to change, so both are
  * locked.
  */
@@ -293,8 +293,8 @@ function PresentationOrderCell({
   const [lastKnown, setLastKnown] = useState(current);
   const [error, setError] = useState<string | null>(null);
 
-  // The loader is the source of truth: a move, a re-ordering or another page
-  // arriving resets what the cell shows.
+  // The loader is the source of truth: a move or a re-ordering arriving
+  // resets what the cell shows.
   if (current !== lastKnown) {
     setLastKnown(current);
     setValue(current);
@@ -402,8 +402,8 @@ export function PresentationsListView({
   const { isSortedByNumberAscending, moving, rows } =
     usePresentationMoving(loaderData);
   const columns = buildPresentationColumns({ moving });
-  // The selection lives on the page it was made on, so the rows it names are
-  // read out of the page rather than out of the whole event.
+  // The selection lives on the rows the search and the filters leave, so the
+  // rows it names are read out of them rather than out of the whole event.
   const selectedRows = rows.filter((row) => selectedRowIds.includes(row.id));
 
   return (
@@ -476,9 +476,9 @@ export function PresentationsListView({
                 }}
                 initialSort={loaderData.filters.order}
                 emptyMessage={emptyPresentationList.nothingMatched}
-                currentPage={loaderData.filters.page}
-                totalPages={loaderData.totalPages}
-                totalRows={loaderData.totalCount}
+                // The whole order on one screen: a row is dragged to any
+                // place in it, and a selection reaches every row.
+                hidePagination
               />
             </div>
           </div>

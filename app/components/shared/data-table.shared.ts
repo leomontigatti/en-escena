@@ -205,6 +205,24 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
   };
 
 /**
+ * The page the loader sent, or none: a list read as a whole, whose loader
+ * sends every row and which draws no page controls.
+ */
+type ServerDataTablePaging =
+  | {
+      currentPage: number;
+      hidePagination?: false;
+      totalPages: number;
+      totalRows: number;
+    }
+  | {
+      currentPage?: never;
+      hidePagination: true;
+      totalPages?: never;
+      totalRows?: never;
+    };
+
+/**
  * Drag-and-drop reordering of the rows on screen. The table moves nothing on
  * its own: it reports the row that was dragged and the one it was dropped on,
  * and the view decides what that means for the order it owns.
@@ -215,11 +233,9 @@ export type DataTableReorder = {
 };
 
 export type ServerDataTableProps<TData> = DataTableBaseProps<TData> &
-  DataTableRowSelectionProps<TData> & {
+  DataTableRowSelectionProps<TData> &
+  ServerDataTablePaging & {
     reorder?: DataTableReorder;
-    currentPage: number;
-    totalPages: number;
-    totalRows: number;
     basePath?: string;
     initialSort?: DataTableSort;
     loading?: boolean;

@@ -4,9 +4,7 @@ import { data, redirect } from "react-router";
 import { db } from "@/db";
 import { schedules } from "@/db/schema";
 
-import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
-  paginateList,
   readListFacet,
   readListQuery,
   type ListQuerySpec,
@@ -104,7 +102,8 @@ export async function loadPresentationListRouteData(request: Request) {
     },
     query: {
       order: result.filters.order,
-      page: result.filters.page,
+      // Never paged: a page from a link made while it was is dropped.
+      page: 1,
       search: result.filters.query,
     },
     spec: presentationListSpec,
@@ -134,8 +133,6 @@ async function loadPresentationList(input: {
       programExportDays: [],
       programVisibleDays: [],
       selectedEventId: null,
-      totalCount: 0,
-      totalPages: 1,
       unorderedCount: 0,
       warnedCount: 0,
     };
@@ -143,9 +140,10 @@ async function loadPresentationList(input: {
 
   const rows = await readParticipationRows(input.selectedEventId);
   const frozenChoreographyIds = await readFrozenChoreographyIds(rows);
-  // The assignments of every row of the event, not only of the page: the
-  // removal dialog offers the judges of the selection, and the `Sin jueces`
-  // warning compares each presentation with the rest of its schedule.
+  // The assignments of every row of the event, not only of the ones the
+  // filters leave: the removal dialog offers the judges of the selection, and
+  // the `Sin jueces` warning compares each presentation with the rest of its
+  // schedule.
   const [
     assignableJudges,
     assigned,
@@ -185,18 +183,12 @@ async function loadPresentationList(input: {
     items.filter((item) => matchesPresentationFilters(item, filters)),
     filters.order,
   );
-  const { limit, offset, page, totalPages } = paginateList({
-    page: filters.page,
-    pageSize: adminListPageSize,
-    totalCount: filteredItems.length,
-  });
-
   return {
     assignableJudges,
     assignedJudges: assigned.judges,
     canOrder: input.canOrder,
     days,
-    filters: { ...filters, page },
+    filters,
     frozenDays: [
       ...new Set(
         items.filter((item) => item.frozen).map((item) => item.scheduledDate),
@@ -209,7 +201,7 @@ async function loadPresentationList(input: {
       ...items.map((item) => item.orderNumber ?? 0),
     ),
     musicDownloadDays,
-    presentations: filteredItems.slice(offset, offset + limit),
+    presentations: filteredItems,
     programExportDays: [
       ...new Set(
         items
@@ -219,8 +211,6 @@ async function loadPresentationList(input: {
     ].sort(),
     programVisibleDays,
     selectedEventId: input.selectedEventId,
-    totalCount: filteredItems.length,
-    totalPages,
     unorderedCount: items.filter((item) => item.orderNumber === null).length,
     warnedCount: items.filter((item) => item.warnings.length > 0).length,
   };
@@ -506,7 +496,6 @@ function readPresentationFilters(
         ? "profesional"
         : null,
     order: listQuery.order,
-    page: listQuery.page,
     query: listQuery.search,
     warnings: searchParams.get("advertencias") === "con" ? "con" : null,
   };

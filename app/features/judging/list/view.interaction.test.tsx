@@ -1,9 +1,15 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+  findButton,
+  waitFor,
+} from "@/lib/test-support/react-dom";
 import {
   addTableFilter,
   removeTableFilter,
@@ -38,6 +44,16 @@ function buildRow(
     presentationId: overrides.presentationId,
   };
 }
+
+const criteria: JudgePresentationRow["criteria"] = [
+  {
+    experienceLevel: null,
+    id: "tecnica",
+    kind: "adds",
+    maximum: 100,
+    name: "Técnica",
+  },
+];
 
 const presentations = [
   buildRow({
@@ -87,12 +103,16 @@ describe("the judge's list of one day's presentations", () => {
     window.sessionStorage.clear();
   });
 
-  afterEach(renderer.cleanup);
+  afterEach(() => {
+    vi.restoreAllMocks();
+    renderer.cleanup();
+  });
 
   async function mount(
     day: Pick<JudgePanelRouteData, "day" | "dayOptions" | "isOpen"> = openDay,
     url = "/juzgamiento",
     rows = presentations,
+    finalistPicks: JudgePanelRouteData["finalistPicks"] = [],
   ) {
     const router = createMemoryRouter(
       [
@@ -106,6 +126,7 @@ describe("the judge's list of one day's presentations", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                finalistPicks,
                 judgingDate,
                 presentations: rows,
                 ...day,
@@ -120,6 +141,42 @@ describe("the judge's list of one day's presentations", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     return router;
+  }
+
+  function markedRowName() {
+    return document
+      .querySelector("[data-resume-marker]")
+      ?.getAttribute("data-presentation-name");
+  }
+
+  /** The names of the rows scrolled into view, in order. */
+  function spyOnScrolls() {
+    const scrolledTo: (string | null)[] = [];
+
+    vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(function (
+      this: Element,
+    ) {
+      scrolledTo.push(this.getAttribute("data-presentation-name"));
+    });
+
+    return scrolledTo;
+  }
+
+  async function openPresentationLink(name: string) {
+    const link = [...document.querySelectorAll("tbody a")].find(
+      (candidate) => candidate.textContent === name,
+    );
+
+    if (!link) {
+      throw new Error(`Expected a link to "${name}".`);
+    }
+
+    await act(async () => {
+      link.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
   }
 
   function rowNames() {
@@ -183,6 +240,37 @@ describe("the judge's list of one day's presentations", () => {
     ).toBe("Tercera");
   });
 
+  test.each([
+    ["the dialog", [], "Cancelar"],
+    ["the sheet", criteria, "Volver"],
+  ])(
+    "marks and scrolls to the next pending presentation on leaving %s",
+    async (_form, rowCriteria, closeLabel) => {
+      await mount(
+        openDay,
+        "/juzgamiento",
+        presentations.map((row) => ({ ...row, criteria: rowCriteria })),
+      );
+      const scrolledTo = spyOnScrolls();
+
+      await openPresentationLink("Segunda");
+      await waitFor(() => findButton(closeLabel) !== undefined);
+      await clickReactDomButton(closeLabel);
+      await waitFor(() => findButton(closeLabel) === undefined);
+
+      expect(markedRowName()).toBe("Tercera");
+      expect(scrolledTo.at(-1)).toBe("Tercera");
+    },
+  );
+
+  test("resumes after a presentation opened through its URL", async () => {
+    await mount(openDay, "/juzgamiento?presentacion=b");
+    await clickReactDomButton("Cancelar");
+    await waitFor(() => findButton("Cancelar") === undefined);
+
+    expect(markedRowName()).toBe("Tercera");
+  });
+
   test("switches to another of the judge's days through the URL", async () => {
     const router = await mount();
 
@@ -213,4 +301,39 @@ describe("the judge's list of one day's presentations", () => {
       expect(document.querySelector('[role="dialog"]') !== null).toBe(opens);
     },
   );
+
+  test.each([
+    [openDay, true],
+    [closedDay, false],
+  ])(
+    "offers the `Gran final` pick of each modality that dances on the day, to change only on the open day (%#)",
+    async (day, editable) => {
+      await mount(day, "/juzgamiento", presentations, [
+        {
+          academyId: "pirueta",
+          academyName: "Academia Pirueta",
+          modalityId: "jazz",
+          modalityName: "Jazz",
+          options: [
+            { academyId: "pirueta", name: "Academia Pirueta" },
+            { academyId: "vecina", name: "Academia Vecina" },
+          ],
+        },
+      ]);
+
+      expect(
+        document.querySelector('[data-slot="select-trigger"]') !== null,
+      ).toBe(editable);
+      expect(
+        document.querySelector<HTMLInputElement>("input[disabled]")?.value,
+      ).toBe(editable ? undefined : "Academia Pirueta");
+    },
+  );
+
+  test("leaves the `Gran final` out on a day no modality dances", async () => {
+    await mount();
+
+    expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
+    expect(document.querySelector("input[disabled]")).toBeNull();
+  });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
   createSignedInAdminRequest,
   expectThrownResponse,
@@ -12,7 +13,10 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-/** What the participation list reads from its URL: search, order and page. */
+/**
+ * What the participation list reads from its URL: search and order. It is
+ * never paged, so ordering a day sees every row at once.
+ */
 describe("the participation list's query", () => {
   test("finds a presentation whatever accents the search is typed with", async () => {
     const fixture = await seedJudgingFixture();
@@ -85,12 +89,38 @@ describe("the participation list's query", () => {
     ]);
   });
 
-  test("redirects a page past the last one, a day the event does not hold, and stale parameters, to the canonical URL", async () => {
+  test("lists every presentation, past what a page of an admin list holds", async () => {
+    const fixture = await seedJudgingFixture();
+
+    for (
+      let orderNumber = 1;
+      orderNumber <= adminListPageSize + 1;
+      orderNumber++
+    ) {
+      await fixture.addPresentation({
+        name: `Pieza ${orderNumber}`,
+        orderNumber,
+      });
+    }
+
+    const result = await loadTheList("");
+
+    expect(result.presentations).toHaveLength(adminListPageSize + 1);
+
+    // A link made while the list was paged names a page that is no more.
+    const response = await expectThrownResponse(loadTheList("?pagina=2"), 302);
+
+    expect(response.headers.get("Location")).toBe(
+      "/administracion/presentaciones",
+    );
+  });
+
+  test("redirects a page, a day the event does not hold, and stale parameters, to the canonical URL", async () => {
     const fixture = await seedJudgingFixture();
     await fixture.addPresentation({ name: "Única", orderNumber: 1 });
 
     const response = await expectThrownResponse(
-      loadTheList("?pagina=5&dia=2099-01-01&evento=abc&advertencias=con"),
+      loadTheList("?pagina=2&dia=2099-01-01&evento=abc&advertencias=con"),
       302,
     );
 

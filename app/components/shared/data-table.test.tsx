@@ -216,6 +216,39 @@ describe("DataTable", () => {
     expect(markup).toContain("2 de 2 registros");
   });
 
+  test("leaves a table with no search box unfiltered by a search in the address bar", () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter
+        initialEntries={["/administracion/gran-final?busqueda=Norte"]}
+      >
+        <ClientDataTable
+          rows={[
+            {
+              id: "professor_1",
+              academy: "Academia Norte",
+              name: "Ana Participa",
+              status: "active",
+            },
+            {
+              id: "professor_2",
+              academy: "Academia Sur",
+              name: "Beto Consulta",
+              status: "active",
+            },
+          ]}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          hidePagination
+          hideSearch
+          searchPlaceholder="Buscar"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain("Ana Participa");
+    expect(markup).toContain("Beto Consulta");
+  });
+
   test("applies client-side base faceted filters without showing them as applied filters", () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter initialEntries={["/portal/profesores"]}>
@@ -751,6 +784,25 @@ describe("ClientDataTable without page controls", () => {
     await renderTable(true);
 
     expect(getRenderedRowNames()).toHaveLength(25);
+  });
+
+  // The loader sent every row, so there is no page to name or to move to.
+  test("draws no page controls on a server table read as a whole", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter>
+        <ServerDataTable
+          rows={rows}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          hidePagination
+          searchPlaceholder="Buscar coreografía"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(getRenderedRowNames()).toHaveLength(25);
+    expect(document.body.textContent).not.toContain("registros");
+    expect(document.body.textContent).not.toContain("Siguiente");
   });
 });
 
