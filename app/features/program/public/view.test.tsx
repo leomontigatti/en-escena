@@ -312,6 +312,7 @@ function renderView(
       startsOn: "2026-05-01",
     },
     hasAcademySession: false,
+    live: null,
     rows: [buildRow()],
     schedules: [
       {

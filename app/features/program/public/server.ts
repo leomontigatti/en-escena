@@ -2,13 +2,20 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import {
+  readProgramLiveDay,
+  type ProgramLive,
+} from "@/features/program/live-day";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
+import { readPresentationEvaluationStatuses } from "@/lib/judging/evaluation-status.server";
+import { judgingDate } from "@/lib/judging/judging-day";
 import {
   findPublishedProgramEvent,
   readEventProgram,
   type EventProgramRow,
   type EventProgramCeremonySchedule,
 } from "@/lib/presentations/event-program.server";
+import { cacheFor } from "@/lib/shared/short-lived-cache";
 
 /**
  * The public program's loader. It is the product's first unauthenticated
@@ -25,20 +32,73 @@ export type PublicProgramLoaderData = {
   } | null;
   /** Whether the reader is signed in as an academy, which the top bar follows. */
   hasAcademySession: boolean;
+  /** The day being danced, `null` with no program to dance. */
+  live: ProgramLive | null;
   rows: EventProgramRow[];
   schedules: EventProgramCeremonySchedule[];
 };
 
-export async function loadPublicProgram(
-  request: Request,
-): Promise<PublicProgramLoaderData> {
-  const [event, hasAcademySession] = await Promise.all([
-    findPublishedProgramEvent(),
-    hasAcademySessionForRequest(request),
-  ]);
+/**
+ * How long the program read is kept in memory, and how long a browser may keep
+ * the page. During the show the audience reloads and the live tab polls, and
+ * this is what keeps that to a few database reads a minute.
+ */
+export const publicProgramCacheSeconds = 20;
+
+/**
+ * Builds the loader around its own cache. The route's answers from memory for
+ * `cacheMs`; a test passes 0 so each reads the database.
+ */
+export function createPublicProgramLoader({ cacheMs }: { cacheMs: number }) {
+  const readCachedProgram = cacheFor(cacheMs, readPublishedProgram);
+
+  return async function loadPublicProgram(
+    request: Request,
+    now: Date = new Date(),
+  ): Promise<PublicProgramLoaderData> {
+    // The session is the reader's own, so it is never part of the cache.
+    const [program, hasAcademySession] = await Promise.all([
+      readCachedProgram(),
+      hasAcademySessionForRequest(request),
+    ]);
+
+    if (!program) {
+      return {
+        event: null,
+        hasAcademySession,
+        live: null,
+        rows: [],
+        schedules: [],
+      };
+    }
+
+    return {
+      event: program.event,
+      hasAcademySession,
+      live: {
+        day: readProgramLiveDay({
+          now,
+          evaluatedChoreographyIds: program.evaluatedChoreographyIds,
+          rows: program.rows,
+          schedules: program.schedules,
+        }),
+        loadedOn: judgingDate(now),
+      },
+      rows: program.rows,
+      schedules: program.schedules,
+    };
+  };
+}
+
+export const loadPublicProgram = createPublicProgramLoader({
+  cacheMs: publicProgramCacheSeconds * 1000,
+});
+
+async function readPublishedProgram() {
+  const event = await findPublishedProgramEvent();
 
   if (!event) {
-    return { event: null, hasAcademySession, rows: [], schedules: [] };
+    return null;
   }
 
   // Only the published days: a day still hidden may be reordered, so neither
@@ -46,10 +106,14 @@ export async function loadPublicProgram(
   const program = await readEventProgram(event.id, undefined, {
     days: event.visibleDays,
   });
+  const statuses = await readPresentationEvaluationStatuses(
+    program.rows.map((row) => row.choreographyId),
+  );
 
   return {
     event: { endsOn: event.endsOn, name: event.name, startsOn: event.startsOn },
-    hasAcademySession,
+    // Scored and disqualified alike: the program never says which.
+    evaluatedChoreographyIds: new Set(statuses.keys()),
     rows: program.rows,
     schedules: program.schedules,
   };

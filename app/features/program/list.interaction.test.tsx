@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { MemoryRouter, useLocation } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { defaultClientDataTablePageSize } from "@/components/shared/data-table.shared";
 import {
@@ -12,12 +12,17 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import { ProgramList } from "./list";
+import type { ProgramLive, ProgramLiveDay } from "./live-day";
 import type { ProgramListRow } from "./shared";
 
 describe("the program list everyone outside the administration reads", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
+  // Two tests fake the clock; this undoes it even when one of them fails.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   let urlSearch = "";
 
@@ -29,16 +34,25 @@ describe("the program list everyone outside the administration reads", () => {
 
   async function mount({
     entry = "/programa",
+    live,
+    onLivePoll,
     rows,
     showAcademy = true,
   }: {
     entry?: string;
+    live?: ProgramLive;
+    onLivePoll?: () => void;
     rows: ProgramListRow[];
     showAcademy?: boolean;
   }) {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={[entry]}>
-        <ProgramList rows={rows} showAcademy={showAcademy} />
+        <ProgramList
+          live={live}
+          onLivePoll={onLivePoll}
+          rows={rows}
+          showAcademy={showAcademy}
+        />
         <SearchProbe />
       </MemoryRouter>,
     );
@@ -219,6 +233,133 @@ describe("the program list everyone outside the administration reads", () => {
     );
 
     expect(dancerCells).toEqual(["Ana Paz", "—"]);
+  });
+
+  describe("on the day being danced", () => {
+    const liveDay: ProgramLiveDay = {
+      date: "2026-05-01",
+      isOver: false,
+      evaluatedChoreographyIds: ["one"],
+      startTime: "18:00",
+    };
+    const liveDayRows = [
+      ...twoDays,
+      buildRow({
+        choreographyId: "three",
+        name: "Tercera",
+        orderNumber: 3,
+        scheduledDate: "2026-05-01",
+      }),
+    ];
+
+    // Business time is UTC-3 all year.
+    function setBusinessNow(text: string) {
+      vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+      vi.setSystemTime(new Date(`${text}-03:00`));
+    }
+
+    function tabLabels() {
+      return [...document.querySelectorAll('[role="tab"]')].map(
+        (tab) => tab.textContent,
+      );
+    }
+
+    function evaluatedMarks() {
+      return (
+        (document.body.textContent ?? "").split("Ya se presentó").length - 1
+      );
+    }
+
+    test("badges the day's tab and marks its evaluated rows, on that tab only", async () => {
+      setBusinessNow("2026-05-01T19:00:00");
+      await mount({
+        entry: "/programa?dia=2026-05-01",
+        live: { day: liveDay, loadedOn: liveDay.date },
+        rows: liveDayRows,
+      });
+
+      expect(tabLabels()).toEqual([
+        "Todos",
+        "Viernes 1/5En vivo",
+        "Sábado 2/5",
+      ]);
+      // The card's badge and the table's check, for the one evaluated row.
+      expect(evaluatedMarks()).toBe(2);
+
+      await selectTab(0);
+      expect(evaluatedMarks()).toBe(0);
+      await selectTab(2);
+      expect(evaluatedMarks()).toBe(0);
+    });
+
+    test("marks the rows before the show starts, with no badge yet", async () => {
+      setBusinessNow("2026-05-01T10:00:00");
+      await mount({
+        entry: "/programa?dia=2026-05-01",
+        live: { day: liveDay, loadedOn: liveDay.date },
+        rows: liveDayRows,
+      });
+
+      expect(tabLabels()).toEqual(["Todos", "Viernes 1/5", "Sábado 2/5"]);
+      expect(evaluatedMarks()).toBe(2);
+    });
+
+    test("polls every minute while live on its tab, and stops on another", async () => {
+      setBusinessNow("2026-05-01T19:00:00");
+      const onLivePoll = vi.fn();
+      await mount({
+        entry: "/programa?dia=2026-05-01",
+        live: { day: liveDay, loadedOn: liveDay.date },
+        onLivePoll,
+        rows: liveDayRows,
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(onLivePoll).toHaveBeenCalledTimes(1);
+
+      await selectTab(0);
+      await act(async () => {
+        vi.advanceTimersByTime(180_000);
+      });
+      expect(onLivePoll).toHaveBeenCalledTimes(1);
+    });
+
+    test("never polls once the day's last presentation is evaluated", async () => {
+      setBusinessNow("2026-05-01T19:00:00");
+      const onLivePoll = vi.fn();
+      await mount({
+        entry: "/programa?dia=2026-05-01",
+        live: { day: { ...liveDay, isOver: true }, loadedOn: liveDay.date },
+        onLivePoll,
+        rows: liveDayRows,
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(180_000);
+      });
+      expect(onLivePoll).not.toHaveBeenCalled();
+      expect(tabLabels()).not.toContain("Viernes 1/5En vivo");
+    });
+  });
+
+  // Only the loader knows a day's evaluated rows, so a page left open across
+  // 03:00 asks for them, or it would wait for a reload that never comes.
+  test("asks for the new day's data once its judging day begins", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(new Date("2026-05-01T02:59:30-03:00"));
+    const onLivePoll = vi.fn();
+    await mount({
+      live: { day: null, loadedOn: "2026-04-30" },
+      onLivePoll,
+      rows: twoDays,
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(onLivePoll).toHaveBeenCalledTimes(1);
   });
 
   test("carries no state column on either surface", async () => {
