@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router";
  */
 export const kindTabParam = "tipo";
 export const dayTabParam = "dia";
+export const listTabParam = "lista";
 
 /**
  * The active tab of a set that switches what a whole page lists, kept in the

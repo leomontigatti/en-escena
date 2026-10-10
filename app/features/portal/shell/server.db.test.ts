@@ -115,7 +115,8 @@ describe("portal loader event active", () => {
       pattern: "/portal",
     });
 
-    expect(loaderData).toBeNull();
+    // Without an active event there is no `Gran final` to tell it about.
+    expect(loaderData).toEqual({ grandFinal: null });
   });
 });
 

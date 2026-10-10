@@ -132,6 +132,7 @@ describe("recording a `Devolución` with the score", () => {
                 },
                 day: "2026-08-22",
                 dayOptions: [],
+                finalistPicks: [],
                 isOpen: true,
                 judgingDate: "2026-08-22",
                 presentations: [buildRow(feedbackAudioUrl)],

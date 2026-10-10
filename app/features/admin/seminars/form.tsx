@@ -293,7 +293,7 @@ function InstructorPictureField({
         downloadLabel="Abrir foto"
         downloadUrl={downloadUrl}
         uploadedLabel="Foto cargada"
-        label="Elegí la foto o arrastrala acá"
+        label="Arrastrá o hacé click"
         // The compact variant renders no helper text, so the accepted formats
         // and the ceiling stand in for the empty value instead.
         placeholder={getAssetKindHelperText("seminarInstructorPicture")}

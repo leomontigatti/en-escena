@@ -372,6 +372,30 @@ own "Guardar".
   documents today. Cleaning storage orphans on event deletion is a separate
   issue that has to cover both.
 
+### `Gran final` banner contract
+
+Bucket, formats, size limit and expiry are declared in
+`app/lib/storage/asset-kinds.ts` and enforced by
+`app/lib/storage/grand-final-banners.server.ts`; the shape rule lives in
+`app/lib/grand-final/banner-shape.ts`, and the row that points at the objects
+is written by `app/lib/grand-final/banners.server.ts`, from the finalist's
+banner form under the `Gran final` list.
+
+- Bucket directory: `en-escena-grand-final-banners`, private.
+- Accepted formats: JPG, PNG and WEBP, up to **10 MB**, and only a picture
+  16:9 within 2% and at least **1280 px** wide, read from the file's own header
+  (`image-size`, EXIF orientation honoured). Downloads go through a signed URL
+  that expires after **300** seconds.
+- Two objects per finalist academy within the event, at
+  `events/{eventId}/grand-final/{academyId}/{first|second}-{uuid}.{ext}`. Each
+  upload is a new key, never written over the one in use.
+- A save uploads every new picture first, then writes the row, then deletes the
+  replaced or removed objects. A refused picture deletes what that save already
+  uploaded and leaves the row alone; a failed delete after the write orphans an
+  object nothing points at and logs `[storage:grand-final-banner:orphan]`.
+- Deleting the event or the academy (a merge too) cascades the row and orphans
+  the objects, as event documents are orphaned today.
+
 ### `Devolución` audio contract
 
 Bucket, format, size limit and expiry are declared in

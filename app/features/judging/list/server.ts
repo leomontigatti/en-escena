@@ -2,6 +2,10 @@ import { buildInternalAccount } from "@/lib/auth/internal-account";
 import type { InternalAccount } from "@/lib/auth/internal-account";
 import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
 import {
+  readJudgeFinalistPicks,
+  type JudgeFinalistPickRow,
+} from "@/lib/grand-final/finalist-pick.server";
+import {
   readJudgeAssignedDays,
   readJudgePresentations,
   type JudgePresentationRow,
@@ -31,6 +35,11 @@ export type JudgePanelRouteData = {
    * judge has presentations on it.
    */
   dayOptions: string[];
+  /**
+   * The judge's `finalistPick` in each modality that dances on `day`, open
+   * for saving under the same `isOpen` as the scores.
+   */
+  finalistPicks: JudgeFinalistPickRow[];
   /** Whether `day` is the judging day, the only one a judge can score on. */
   isOpen: boolean;
   /** The judging day, as a `YYYY-MM-DD` date. */
@@ -53,17 +62,20 @@ export async function loadJudgePanelRouteData(
       ? requestedDay
       : today;
 
+  const [presentations, finalistPicks] = await Promise.all([
+    readJudgePresentations({ judgeId: user.id, scheduledDate: day }),
+    readJudgeFinalistPicks({ judgeId: user.id, scheduledDate: day }),
+  ]);
+
   return {
     account: buildInternalAccount(user),
     day,
     dayOptions: assignedDays.some((assignedDay) => assignedDay !== today)
       ? assignedDays
       : [],
+    finalistPicks,
     isOpen: isOpenForJudges(day, now),
     judgingDate: today,
-    presentations: await readJudgePresentations({
-      judgeId: user.id,
-      scheduledDate: day,
-    }),
+    presentations,
   };
 }

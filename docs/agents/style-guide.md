@@ -250,6 +250,12 @@ header.
   written inside the menu's own JSX.
 - Put a `DropdownMenuSeparator` before the destructive items, so they sit last
   and apart.
+- Two actions that undo each other show as one item: the one the record's
+  state calls for (`Abrir votación` or `Cerrar votación`, `Publicar resultado`
+  or `Ocultar resultado`, `Suspender` or `Reactivar`). The other is not a
+  blocked action to explain, it is the opposite of the current state. An item
+  the menu does show and the state still forbids stays and opens
+  `BlockedActionDialog` ([Detail pages](#detail-pages)).
 
 ## Pending, loading and transitions
 
@@ -724,6 +730,8 @@ instead.
   never disabled either, on a detail page or a list page alike (the portal's
   `Nueva coreografía` too): the `Acciones` menu item or button stays enabled, and
   the click opens an acknowledgment instead of the action, `BlockedActionDialog`.
+  The one exception is a pair of actions that undo each other, which the menu
+  shows as the one item the state calls for ([Actions menu](#actions-menu)).
   Its title says what cannot be done (`No se puede bonificar la coreografía`),
   its description says what it takes, its `info` `Alert` lists every reason, and
   `Cerrar` is its only button. A disabled control cannot say why — a tooltip
@@ -766,7 +774,11 @@ Rules:
 - Keep header, hover, cell and state styles inside the shared component when the
   pattern repeats.
 - Use badges for states.
-- Use a per-row actions menu when there are more than two actions.
+- A table has no actions column. A row's actions are reached from its name:
+  the link to its detail page, or, for a record with no page, a
+  `Button variant="link"` that opens a `Dialog` holding them (an audit link,
+  a QR code batch). When the row's state forbids all of them, the name opens
+  `BlockedActionDialog` instead.
 - Show bulk actions only when there is an active selection.
 - Keep the search box and the faceted filters in one toolbar above the table.
   Each applied filter is a button group: the field as muted text (with its
