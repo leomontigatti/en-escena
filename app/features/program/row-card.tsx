@@ -17,11 +17,13 @@ import { formatProgramOrderNumber, type ProgramListRow } from "./shared";
  */
 export function ProgramRowCard({
   children,
+  numberSlot,
   row,
   showLevel,
   to,
 }: {
   children?: ReactNode;
+  numberSlot?: ReactNode;
   row: ProgramListRow;
   /** As the list's `Nivel` column: only where the table carries it. */
   showLevel: boolean;
@@ -40,7 +42,7 @@ export function ProgramRowCard({
           )}
         </div>
         <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
-          N.º {formatProgramOrderNumber(row) || "—"}
+          {numberSlot ?? <>N.º {formatProgramOrderNumber(row) || "—"}</>}
         </span>
       </div>
       <p className="text-xs wrap-break-word text-muted-foreground">

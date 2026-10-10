@@ -1,3 +1,4 @@
+import { LiveBadge } from "./presented-mark.prototype";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
 import { listQueryParamNames } from "@/lib/list-query/list-query";
@@ -26,9 +27,11 @@ export function useScheduleDayTab(days: readonly string[]) {
 
 export function ScheduleDayTabs({
   days,
+  liveDay,
   tab,
 }: {
   days: readonly string[];
+  liveDay?: string;
   tab: ReturnType<typeof useScheduleDayTab>;
 }) {
   return (
@@ -45,6 +48,7 @@ export function ScheduleDayTabs({
         {days.map((day) => (
           <TabsTrigger key={day} value={day}>
             {formatScheduleDayTabLabel(day)}
+            {day === liveDay ? <LiveBadge /> : null}
           </TabsTrigger>
         ))}
       </TabsList>

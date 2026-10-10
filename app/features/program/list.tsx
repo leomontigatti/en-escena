@@ -14,6 +14,12 @@ import {
   ScheduleDayTabs,
   useScheduleDayTab,
 } from "./day-tabs";
+import {
+  fakePresentedIds,
+  PresentedCardFrame,
+  PrototypeSwitcher,
+  usePrototypeVariant,
+} from "./presented-mark.prototype";
 import { ProgramRowCard, ProgramRowName } from "./row-card";
 import {
   formatProgramOrderNumber,
@@ -63,12 +69,21 @@ export function ProgramList({
     tab.value === allDaysTabValue
       ? rows
       : rows.filter((row) => row.scheduledDate === tab.value);
+  const variant = usePrototypeVariant();
+  const presentedIds =
+    showAcademy && tab.value !== allDaysTabValue
+      ? fakePresentedIds(visibleRows)
+      : new Set<string>();
 
   return (
     // `gap-3` and the tab row's `pb-1` add up to the 16px every list keeps
     // between its tabs and its search.
     <div className="flex flex-col gap-3">
-      <ScheduleDayTabs days={days} tab={tab} />
+      <ScheduleDayTabs
+        days={days}
+        liveDay={showAcademy ? days[0] : undefined}
+        tab={tab}
+      />
       {tab.value === allDaysTabValue ? null : renderDayNotice?.(tab.value)}
 
       <ClientDataTable
@@ -91,13 +106,22 @@ export function ProgramList({
           })
         }
         renderCard={(row) => (
-          <ProgramRowCard
-            row={row}
-            showLevel={showLevel}
-            to={choreographyPath?.(row) ?? null}
+          <PresentedCardFrame
+            number={formatProgramOrderNumber(row)}
+            presented={presentedIds.has(row.choreographyId)}
+            variant={variant}
           >
-            <ProgramCardWho row={row} showAcademy={showAcademy} />
-          </ProgramRowCard>
+            {({ numberSlot }) => (
+              <ProgramRowCard
+                numberSlot={numberSlot}
+                row={row}
+                showLevel={showLevel}
+                to={choreographyPath?.(row) ?? null}
+              >
+                <ProgramCardWho row={row} showAcademy={showAcademy} />
+              </ProgramRowCard>
+            )}
+          </PresentedCardFrame>
         )}
         searchPlaceholder={
           showAcademy
@@ -107,6 +131,7 @@ export function ProgramList({
         initialSort={{ columnId: "orden", direction: "asc" }}
         emptyMessage="No hay presentaciones que coincidan con la búsqueda."
       />
+      {showAcademy ? <PrototypeSwitcher current={variant} /> : null}
     </div>
   );
 }
