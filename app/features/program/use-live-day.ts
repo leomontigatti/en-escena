@@ -32,7 +32,11 @@ export function useProgramLiveDay({
   live: ProgramLive | null;
   onPoll?: () => void;
 }) {
-  const [now, setNow] = useState(() => new Date());
+  // The first render reads the loader's clock, as the server did, and the
+  // browser's own takes over once hydrated.
+  const [now, setNow] = useState(() =>
+    live ? new Date(live.loadedAt) : new Date(),
+  );
   const [openingDay] = useState(() =>
     live?.day && isProgramDayLive(live.day, now)
       ? live.day.date
@@ -49,6 +53,10 @@ export function useProgramLiveDay({
     onPollRef.current = onPoll;
     daysRef.current = days;
   });
+
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
   useEffect(() => {
     if (!live) {

@@ -274,7 +274,11 @@ describe("the program list everyone outside the administration reads", () => {
       setBusinessNow("2026-05-01T19:00:00");
       await mount({
         entry: "/programa?dia=2026-05-01",
-        live: { day: liveDay, loadedOn: liveDay.date },
+        live: {
+          day: liveDay,
+          loadedAt: new Date().toISOString(),
+          loadedOn: liveDay.date,
+        },
         rows: liveDayRows,
       });
 
@@ -302,7 +306,11 @@ describe("the program list everyone outside the administration reads", () => {
     test("opens on the live day's tab, and names every tab chosen after it in the URL", async () => {
       setBusinessNow("2026-05-01T19:00:00");
       await mount({
-        live: { day: liveDay, loadedOn: liveDay.date },
+        live: {
+          day: liveDay,
+          loadedAt: new Date().toISOString(),
+          loadedOn: liveDay.date,
+        },
         rows: liveDayRows,
       });
 
@@ -321,7 +329,11 @@ describe("the program list everyone outside the administration reads", () => {
     test("opens on Todos before the show starts and once the day is over", async () => {
       setBusinessNow("2026-05-01T10:00:00");
       await mount({
-        live: { day: liveDay, loadedOn: liveDay.date },
+        live: {
+          day: liveDay,
+          loadedAt: new Date().toISOString(),
+          loadedOn: liveDay.date,
+        },
         rows: liveDayRows,
       });
       expect(selectedTab()).toBe("Todos");
@@ -329,10 +341,30 @@ describe("the program list everyone outside the administration reads", () => {
       renderer.cleanup();
       setBusinessNow("2026-05-01T19:00:00");
       await mount({
-        live: { day: { ...liveDay, isOver: true }, loadedOn: liveDay.date },
+        live: {
+          day: { ...liveDay, isOver: true },
+          loadedAt: new Date().toISOString(),
+          loadedOn: liveDay.date,
+        },
         rows: liveDayRows,
       });
       expect(selectedTab()).toBe("Todos");
+    });
+
+    // The server renders the opening tab with its own clock, so the browser
+    // must open on the same one whatever its clock says, or hydration splits.
+    test("opens on the tab the loader's clock reads as live, not the browser's", async () => {
+      setBusinessNow("2026-05-01T17:59:00");
+      await mount({
+        live: {
+          day: liveDay,
+          loadedAt: new Date("2026-05-01T18:00:30-03:00").toISOString(),
+          loadedOn: liveDay.date,
+        },
+        rows: liveDayRows,
+      });
+
+      expect(selectedTab()).toBe("Viernes 1/5");
     });
 
     // Opened while live, the page stays on the tab it was read on when the
@@ -340,7 +372,11 @@ describe("the program list everyone outside the administration reads", () => {
     test("keeps the tab it opened on when the badge goes off", async () => {
       setBusinessNow("2026-05-01T19:00:00");
       const onLivePoll = vi.fn();
-      const live = { day: liveDay, loadedOn: liveDay.date };
+      const live = {
+        day: liveDay,
+        loadedAt: new Date().toISOString(),
+        loadedOn: liveDay.date,
+      };
       await mount({ live, onLivePoll, rows: liveDayRows });
 
       await mount({
@@ -356,7 +392,11 @@ describe("the program list everyone outside the administration reads", () => {
       setBusinessNow("2026-05-01T10:00:00");
       await mount({
         entry: "/programa?dia=2026-05-01",
-        live: { day: liveDay, loadedOn: liveDay.date },
+        live: {
+          day: liveDay,
+          loadedAt: new Date().toISOString(),
+          loadedOn: liveDay.date,
+        },
         rows: liveDayRows,
       });
 
@@ -369,7 +409,11 @@ describe("the program list everyone outside the administration reads", () => {
       const onLivePoll = vi.fn();
       await mount({
         entry: "/programa?dia=2026-05-01",
-        live: { day: liveDay, loadedOn: liveDay.date },
+        live: {
+          day: liveDay,
+          loadedAt: new Date().toISOString(),
+          loadedOn: liveDay.date,
+        },
         onLivePoll,
         rows: liveDayRows,
       });
@@ -391,7 +435,11 @@ describe("the program list everyone outside the administration reads", () => {
       const onLivePoll = vi.fn();
       await mount({
         entry: "/programa?dia=2026-05-01",
-        live: { day: { ...liveDay, isOver: true }, loadedOn: liveDay.date },
+        live: {
+          day: { ...liveDay, isOver: true },
+          loadedAt: new Date().toISOString(),
+          loadedOn: liveDay.date,
+        },
         onLivePoll,
         rows: liveDayRows,
       });
@@ -411,7 +459,11 @@ describe("the program list everyone outside the administration reads", () => {
     vi.setSystemTime(new Date("2026-05-01T02:59:30-03:00"));
     const onLivePoll = vi.fn();
     await mount({
-      live: { day: null, loadedOn: "2026-04-30" },
+      live: {
+        day: null,
+        loadedAt: new Date().toISOString(),
+        loadedOn: "2026-04-30",
+      },
       onLivePoll,
       rows: twoDays,
     });

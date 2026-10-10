@@ -32,6 +32,12 @@ export type ProgramLiveDay = {
  */
 export type ProgramLive = {
   day: ProgramLiveDay | null;
+  /**
+   * The instant the loader read it, ISO. The first render reads the clock
+   * from here, so the server and the browser render the same opening tab and
+   * badge, whatever the browser's clock says.
+   */
+  loadedAt: string;
   loadedOn: string;
 };
 
