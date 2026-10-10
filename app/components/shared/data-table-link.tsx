@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { useRecordTitleLink } from "@/components/shared/record-title";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/shared/utils";
 
 type DataTableLinkProps = ComponentProps<typeof Link> & {
   /**
@@ -15,11 +16,16 @@ type DataTableLinkProps = ComponentProps<typeof Link> & {
 
 function DataTableLink({
   children,
+  className,
   recordTitle,
   ...props
 }: DataTableLinkProps) {
   return (
-    <Button asChild variant="link" className="h-auto p-0 text-left">
+    <Button
+      asChild
+      variant="link"
+      className={cn("h-auto p-0 text-left", className)}
+    >
       {recordTitle ? (
         <RecordTitleLink {...props}>{children}</RecordTitleLink>
       ) : (

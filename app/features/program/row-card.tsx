@@ -10,9 +10,10 @@ import { formatProgramOrderNumber, type ProgramListRow } from "./shared";
 
 /**
  * A row of the order as a card on a phone, for every list built on
- * `ProgramListRow`: the name and its number, then what the row is in one muted
+ * `ProgramListRow`: the name and its number, then what the row is in a muted
  * line. What comes last is each list's own — the result's award and average,
- * or who dances.
+ * or who dances. Nothing in a card is cut: a phone has no hover for the
+ * `title` a cut cell keeps, so long values wrap instead.
  */
 export function ProgramRowCard({
   children,
@@ -29,16 +30,21 @@ export function ProgramRowCard({
   return (
     <>
       <div className="flex items-baseline justify-between gap-3">
-        <div className="min-w-0 font-medium">
-          <ProgramRowName row={row} to={to} />
+        <div className="min-w-0 font-medium wrap-break-word">
+          {to === null ? (
+            row.name
+          ) : (
+            <DataTableLink className="whitespace-normal" recordTitle to={to}>
+              {row.name}
+            </DataTableLink>
+          )}
         </div>
         <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
           N.º {formatProgramOrderNumber(row) || "—"}
         </span>
       </div>
-      <DataTableTruncatedText
-        className="text-xs text-muted-foreground"
-        value={[
+      <p className="text-xs wrap-break-word text-muted-foreground">
+        {[
           formatPrimaryAndSecondaryValue(row.modalityName, row.submodalityName),
           formatPrimaryAndSecondaryValue(
             row.categoryName,
@@ -48,7 +54,7 @@ export function ProgramRowCard({
         ]
           .filter(Boolean)
           .join(" · ")}
-      />
+      </p>
       {children}
     </>
   );

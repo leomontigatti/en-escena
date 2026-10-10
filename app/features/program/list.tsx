@@ -253,7 +253,5 @@ function ProgramCardWho({
     .filter(Boolean)
     .join(" · ");
 
-  return who ? (
-    <DataTableTruncatedText className="text-sm" value={who} />
-  ) : null;
+  return who ? <p className="text-sm wrap-break-word">{who}</p> : null;
 }

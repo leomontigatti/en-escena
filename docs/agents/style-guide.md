@@ -753,7 +753,8 @@ Do not hide columns to fit a phone: a card holds every column the table has,
 leaving out only the empty ones. A card reads top to bottom: the linked name
 with its number on the right, then what the row is (a muted line, `·`-joined),
 then what the list is about — a result's badge on the left and its figure on
-the right, or who dances. The portal `Resultados` list is the reference
+the right, or who dances. Nothing in a card is cut: a phone has no hover
+for a truncated cell's `title`, so long values wrap. The portal `Resultados` list is the reference
 (#1440), and every list of `ProgramListRow` builds on `ProgramRowCard`. Cards
 have no sort header, selection or reordering; a list that needs one of them on
 a phone needs its own design first.
