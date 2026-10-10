@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { JudgePanelView } from "@/features/judging/list/view";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { discardChangesTitle } from "@/lib/shared/discard-guard";
+import { installRecorderStubs } from "@/lib/test-support/media-recorder";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -19,51 +20,6 @@ import {
   playbackErrorMessage,
 } from "./feedback-playback";
 import { microphoneErrorMessage } from "./feedback-recorder";
-
-/**
- * The browser APIs one take needs, none of which jsdom has. `stop` finishes the
- * take synchronously, which is all the recorder's own state machine asks for.
- */
-function installRecorderStubs() {
-  class FakeMediaRecorder {
-    static isTypeSupported = () => true;
-    mimeType = "audio/webm";
-    ondataavailable: ((event: { data: Blob }) => void) | null = null;
-    onstop: (() => void) | null = null;
-    state = "inactive";
-
-    start() {
-      this.state = "recording";
-    }
-
-    stop() {
-      this.state = "inactive";
-      this.ondataavailable?.({ data: new Blob(["take"]) });
-      this.onstop?.();
-    }
-  }
-
-  const stubs = {
-    AudioContext: class {
-      close = () => Promise.resolve();
-      createAnalyser = () => ({
-        fftSize: 1024,
-        getByteTimeDomainData: () => {},
-      });
-      createMediaStreamSource = () => ({ connect: () => {} });
-    },
-    MediaRecorder: FakeMediaRecorder,
-  };
-
-  for (const [name, value] of Object.entries(stubs)) {
-    vi.stubGlobal(name, value);
-  }
-
-  Object.defineProperty(navigator, "mediaDevices", {
-    configurable: true,
-    value: { getUserMedia: () => Promise.resolve({ getTracks: () => [] }) },
-  });
-}
 
 function buildRow(feedbackAudioUrl: string | null): JudgePresentationRow {
   return {
@@ -234,6 +190,67 @@ describe("recording a `Devolución` with the score", () => {
     await clickReactDomButton("Empezar a grabar");
     await clickReactDomButton("Terminar grabación");
   }
+
+  test("saves a take still being recorded with the score, without asking to finish it", async () => {
+    installRecorderStubs();
+    await mount();
+
+    await clickReactDomButton("Empezar a grabar");
+    await saveScore();
+
+    expect(submitted.map((body) => body.get("audioIntent"))).toEqual([
+      "replace",
+    ]);
+    expect(submitted[0]?.get("audio")).toMatchObject({ type: "audio/webm" });
+  });
+
+  test("counts a take still being recorded as a change to save", async () => {
+    installRecorderStubs();
+    await mount();
+
+    const saveButton = () =>
+      document.querySelector<HTMLButtonElement>(
+        "button[form='judge-score-form']",
+      );
+
+    expect(saveButton()?.disabled).toBe(true);
+
+    await clickReactDomButton("Empezar a grabar");
+
+    expect(saveButton()?.disabled).toBe(false);
+  });
+
+  test("waits for a take still being handed over, and posts it once", async () => {
+    const recorder = installRecorderStubs({ handOverOnDemand: true });
+    await mount();
+
+    await recordATake();
+    await saveScore();
+    await updateReactDomForm(() => {
+      document
+        .querySelector<HTMLButtonElement>("button[form='judge-score-form']")
+        ?.click();
+    });
+
+    expect(submitted).toEqual([]);
+
+    await updateReactDomForm(() => recorder.handOver());
+
+    expect(submitted.map((body) => body.get("audioIntent"))).toEqual([
+      "replace",
+    ]);
+  });
+
+  test("throws away a take still being recorded with `Descartar cambios`", async () => {
+    installRecorderStubs();
+    await mount();
+
+    await clickReactDomButton("Empezar a grabar");
+    await clickReactDomButton("Descartar cambios");
+    await saveScore();
+
+    expect(submitted.map((body) => body.get("audioIntent"))).toEqual(["keep"]);
+  });
 
   test("frees the take it recorded when the judge deletes it", async () => {
     installRecorderStubs();

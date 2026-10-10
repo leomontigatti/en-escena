@@ -5,12 +5,13 @@ import {
   RouterProvider,
   useActionData,
 } from "react-router";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { JudgePanelView } from "@/features/judging/list/view";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
 import { discardChangesTitle } from "@/lib/shared/discard-guard";
+import { installRecorderStubs } from "@/lib/test-support/media-recorder";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -84,7 +85,11 @@ describe("scoring a submodality with criteria", () => {
     submitted.length = 0;
   });
 
-  afterEach(renderer.cleanup);
+  afterEach(() => {
+    renderer.cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   async function mount(options: {
     actionData?: JudgePanelActionData;
@@ -331,6 +336,24 @@ describe("scoring a submodality with criteria", () => {
         intent: "save-score",
         presentationId: "a",
       },
+    ]);
+  });
+
+  test("saves a take still being recorded with the sheet", async () => {
+    installRecorderStubs();
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:take");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    await mount({ presentationId: "a" });
+
+    await type("tecnica", "50");
+    await type("interpretacion", "30");
+    await clickReactDomButton("Empezar a grabar");
+    await updateReactDomForm(() => {
+      saveButton()?.click();
+    });
+
+    expect(submitted.map((body) => body.get("audioIntent"))).toEqual([
+      "replace",
     ]);
   });
 

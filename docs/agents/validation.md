@@ -106,8 +106,9 @@ carry information, and this repo treats exactly two cases as settled:
   those promises reject only on a framework invariant.
 - A react-hook-form `handleSubmit(onValid)(event)` call — including a hook's
   `save()` wrapper around one. It rethrows whatever `onValid` threw, and in this
-  repo every `onValid` is synchronous and only builds a `FormData` and submits it,
-  so a rejection there is a programming error, not a runtime outcome to handle.
+  repo every `onValid` only builds a `FormData` and submits it — the judge's score
+  forms first wait for the `Devolución` take, which only resolves — so a
+  rejection there is a programming error, not a runtime outcome to handle.
 
 `void` on **any other** promise needs a reason in the code, and a reviewer should
 ask for one — `await` it, or handle the rejection.

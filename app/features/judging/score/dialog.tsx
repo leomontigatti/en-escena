@@ -1,5 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
 import { Undo2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
@@ -17,14 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  feedbackAudioFieldSubmission,
-  feedbackAudioFieldUrl,
-  initialFeedbackAudioField,
-  isFeedbackAudioFieldDirty,
-  reduceFeedbackAudioField,
-  type FeedbackAudioFieldEvent,
-} from "@/lib/judging/feedback-audio-field";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import {
   formatScoreFieldValue,
@@ -39,7 +30,7 @@ import {
   formatPresentationTitle,
 } from "./presentation-heading";
 import { DisqualifiedNotice } from "./disqualification";
-import { FeedbackRecorder } from "./feedback-recorder";
+import { FeedbackRecorder, useFeedbackAudioField } from "./feedback-recorder";
 import {
   buildJudgeScoreSubmission,
   judgeScoreFormSchema,
@@ -72,12 +63,10 @@ export function JudgeScoreDialog({
     defaultValues: { value: formatScoreFieldValue(presentation.value) },
     resolver: zodResolver(judgeScoreFormSchema),
   });
-  const [audio, setAudio] = useState(() =>
-    initialFeedbackAudioField(presentation.feedbackAudioUrl),
-  );
+  const audio = useFeedbackAudioField(presentation.feedbackAudioUrl);
   // A take recorded or deleted over an untouched score is a change the form
   // state knows nothing about, and is exactly what the judge would lose.
-  const isAudioDirty = isFeedbackAudioFieldDirty(audio);
+  const isAudioDirty = audio.isDirty;
   const isDirty = form.formState.isDirty || isAudioDirty;
   const { discardDialogProps, requestClose } = useDiscardGuard({
     isAudioDirty,
@@ -89,21 +78,25 @@ export function JudgeScoreDialog({
   const disqualified = presentation.status === "disqualified";
   // A judge taps in the dark with the stage in front of them, so the button has
   // to say it took the tap: without it the same score posts twice.
-  const isSaving = useJudgeSavePending(presentation.presentationId);
-
-  function applyAudioEvent(event: FeedbackAudioFieldEvent) {
-    setAudio((current) => reduceFeedbackAudioField(current, event));
-  }
+  const isSaving =
+    useJudgeSavePending(presentation.presentationId) || audio.isFinishing;
 
   function discard() {
     form.reset();
-    setAudio(initialFeedbackAudioField(presentation.feedbackAudioUrl));
+    audio.reset();
   }
 
-  function save(values: JudgeScoreFormValues) {
-    void submit(
+  // Never rejects: the take's hand-over only resolves, and `submit` rejects
+  // only on a framework invariant (docs/agents/validation.md, the `void` policy).
+  async function save(values: JudgeScoreFormValues) {
+    const audioSubmission = await audio.readSubmission();
+    if (!audioSubmission) {
+      return;
+    }
+
+    await submit(
       buildJudgeScoreSubmission({
-        audio: feedbackAudioFieldSubmission(audio),
+        audio: audioSubmission,
         presentationId: presentation.presentationId,
         values,
       }),
@@ -150,16 +143,13 @@ export function JudgeScoreDialog({
               disqualified
                 ? (event) => {
                     event.preventDefault();
-                    save({ value: "" });
+                    // `save` never rejects, as it says.
+                    void save({ value: "" });
                   }
                 : form.handleSubmit(save)
             }
           >
-            <FeedbackRecorder
-              audioUrl={feedbackAudioFieldUrl(audio)}
-              onDelete={() => applyAudioEvent({ type: "deleted" })}
-              onRecorded={(take) => applyAudioEvent({ take, type: "recorded" })}
-            />
+            <FeedbackRecorder {...audio.recorderProps} />
             {disqualified ? null : (
               <ScoreInputField
                 autoFocus
