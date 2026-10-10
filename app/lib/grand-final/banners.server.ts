@@ -69,7 +69,7 @@ export async function readBannerCounts(eventId: string) {
 export type BannerChange =
   { kind: "keep" } | { kind: "remove" } | { file: Blob; kind: "upload" };
 
-export type SaveFinalistBannersResult =
+export type SaveFinalistBannersResult<TRefusal = never> =
   | { ok: true }
   | { ok: false; reason: "not-finalist" }
   | {
@@ -77,7 +77,10 @@ export type SaveFinalistBannersResult =
       reason: "rejected";
       rejection: BannerRejection;
       slot: GrandFinalBannerSlot;
-    };
+    }
+  | { ok: false; reason: "refused-alongside"; refusal: TRefusal };
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Applies both changes or neither. Every new picture is uploaded first, each
@@ -88,13 +91,18 @@ export type SaveFinalistBannersResult =
  * deleted. Only after the row is written are the objects it no longer names
  * deleted, so a failure at any step leaves the banners in use readable, and
  * never one a voting round still shows.
+ *
+ * `alongside` is another write of the same save, made first in the banners'
+ * transaction: when it refuses, the banners stay as they were and what this
+ * save uploaded is removed.
  */
-export async function saveFinalistBanners(input: {
+export async function saveFinalistBanners<TRefusal = never>(input: {
   academyId: string;
+  alongside?: (tx: Transaction) => Promise<TRefusal | null>;
   changes: Record<GrandFinalBannerSlot, BannerChange>;
   eventId: string;
   storage: GrandFinalBannerStorage;
-}): Promise<SaveFinalistBannersResult> {
+}): Promise<SaveFinalistBannersResult<TRefusal>> {
   if (!(await isFinalist(input))) {
     return { ok: false, reason: "not-finalist" };
   }
@@ -105,10 +113,16 @@ export async function saveFinalistBanners(input: {
     return uploads;
   }
 
-  let replaced: string[];
+  let written: { refusal: TRefusal } | { replaced: string[] };
 
   try {
-    replaced = await db.transaction(async (tx) => {
+    written = await db.transaction(async (tx) => {
+      const refusal = (await input.alongside?.(tx)) ?? null;
+
+      if (refusal !== null) {
+        return { refusal };
+      }
+
       const owner = and(
         eq(finalistBanners.eventId, input.eventId),
         eq(finalistBanners.academyId, input.academyId),
@@ -157,20 +171,26 @@ export async function saveFinalistBanners(input: {
             key !== null && key !== next.first && key !== next.second,
         );
 
-      return await withoutRoundBanners(tx, dropped);
+      return { replaced: await withoutRoundBanners(tx, dropped) };
     });
   } catch (thrown) {
     await removeQuietly(input.storage, Object.values(uploads.keys));
     throw thrown;
   }
 
+  if ("refusal" in written) {
+    await removeQuietly(input.storage, Object.values(uploads.keys));
+
+    return { ok: false, reason: "refused-alongside", refusal: written.refusal };
+  }
+
   // After the row moved on, a failed delete orphans an object nothing points
   // at; the save itself already succeeded, so it is logged, not reported.
   try {
-    await input.storage.removeBanners(replaced);
+    await input.storage.removeBanners(written.replaced);
   } catch (thrown) {
     console.error("[storage:grand-final-banner:orphan]", {
-      storageKeys: replaced,
+      storageKeys: written.replaced,
       error: describeServerError(thrown),
     });
   }

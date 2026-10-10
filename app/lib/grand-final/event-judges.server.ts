@@ -19,9 +19,10 @@ export type GrandFinalJudge = { id: string; name: string };
  */
 export async function readEventJudges(
   eventId: string,
+  executor: Pick<typeof db, "selectDistinct"> = db,
 ): Promise<GrandFinalJudge[]> {
   const [assigned, picking] = await Promise.all([
-    db
+    executor
       .selectDistinct({ id: user.id, name: user.name })
       .from(judgeAssignments)
       .innerJoin(
@@ -30,7 +31,7 @@ export async function readEventJudges(
       )
       .innerJoin(user, eq(user.id, judgeAssignments.userId))
       .where(eq(presentations.eventId, eventId)),
-    db
+    executor
       .selectDistinct({ id: user.id, name: user.name })
       .from(finalistPicks)
       .innerJoin(user, eq(user.id, finalistPicks.judgeId))

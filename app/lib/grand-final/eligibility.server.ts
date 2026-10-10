@@ -20,8 +20,9 @@ export type GrandFinalEligiblePair = {
  */
 export async function grandFinalEligibility(
   eventId: string,
+  executor: Pick<typeof db, "selectDistinct"> = db,
 ): Promise<GrandFinalEligiblePair[]> {
-  const rows = await db
+  const rows = await executor
     .selectDistinct({
       academyId: choreographies.academyId,
       modalityId: choreographies.modalityId,

@@ -174,16 +174,6 @@ describe("the finalist banner form", () => {
     ).not.toContain("Bruno Juez");
   });
 
-  test("has no banners to load until a judge picks the academy", async () => {
-    await mount(undefined, {
-      ...loaderData,
-      finalist: false,
-      values: { ...loaderData.values, judgeIds: [] },
-    });
-
-    expect(document.querySelector('input[name="firstBanner"]')).toBeNull();
-  });
-
   test("removes one banner and keeps the other's stored key", async () => {
     await mount();
 

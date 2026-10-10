@@ -1,9 +1,19 @@
 import { createHash, createHmac } from "node:crypto";
 
-import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  gt,
+  isNull,
+  notExists,
+  sql,
+  type AnyColumn,
+} from "drizzle-orm";
 
 import { db } from "@/db";
-import { auditLinks } from "@/db/schema";
+import { auditLinks, votingRounds } from "@/db/schema";
 import { lockEvent } from "@/lib/grand-final/result.server";
 
 /**
@@ -32,7 +42,28 @@ export type CreateAuditLinkResult =
   | { ok: false; reason: "limit-reached" };
 
 /**
- * Issues a link for the named auditor, or refuses one past the live limit.
+ * The rounds that spend a link issued at `issuedAt`: a link dies with the
+ * round open when it was issued, or else the next one to open, so any round
+ * of its event closed after that moment is its own.
+ */
+export function roundsClosedSince(
+  eventId: AnyColumn | string,
+  issuedAt: AnyColumn | Date,
+) {
+  return db
+    .select({ id: votingRounds.id })
+    .from(votingRounds)
+    .where(
+      and(
+        eq(votingRounds.eventId, eventId),
+        gt(votingRounds.closedAt, issuedAt),
+      ),
+    );
+}
+
+/**
+ * Issues a link for the named auditor, or refuses one past the live limit:
+ * links neither revoked nor spent by their round's close.
  * The event row is locked for the count, so two links created at once never
  * both take the last place.
  */
@@ -50,6 +81,9 @@ export async function createAuditLink(input: {
         and(
           eq(auditLinks.eventId, input.eventId),
           isNull(auditLinks.revokedAt),
+          notExists(
+            roundsClosedSince(auditLinks.eventId, auditLinks.createdAt),
+          ),
         ),
       );
 

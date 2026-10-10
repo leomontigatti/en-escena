@@ -28,7 +28,7 @@ import type { GrandFinalListActionData } from "../list/shared";
 import {
   createAuditLinkIntent,
   createAuditLinkSchema,
-  type CreatedAuditLink,
+  type AuditLinkHandoverData,
   type CreateAuditLinkFormValues,
 } from "./shared";
 
@@ -141,7 +141,7 @@ export function AuditLinkHandover({
   onDone,
 }: {
   action?: ReactNode;
-  link: CreatedAuditLink;
+  link: AuditLinkHandoverData;
   onDone: () => void;
 }) {
   return (

@@ -90,6 +90,7 @@ async function seedFinalist() {
   const inJazz = (academyId: string) => ({ academyId, modalityId: jazz });
 
   return {
+    choreographyId: firstChoreographyId,
     eventId: fixture.eventId,
     fixture,
     jazz,
@@ -494,6 +495,107 @@ describe("the finalist banner form", () => {
     expect(final.firstBannerStorageKey).toBe(afterX.firstBannerStorageKey);
     expect(await storedObjects(eventId, vecina.academyId)).toEqual(
       [final.firstBannerStorageKey, final.secondBannerStorageKey]
+        .map((key) => key.split("/").at(-1))
+        .sort(),
+    );
+  });
+
+  test("keeps the banners it began with when a judge it keeps moves to another academy while its picture uploads", async () => {
+    const { eventId, fixture, jazz, judgeId, pirueta, vecina } =
+      await seedFinalist();
+    await save(vecina, { first: wide(), second: wide() });
+    const before = (await load(vecina)).values;
+    // Vecina stops qualifying, so the judge who still picks it can only be
+    // kept, never added back.
+    await fixture.withdrawAll(vecina.academyId);
+    const adapter = createFilesystemObjectStorageAdapter({
+      baseDir,
+      secret: "volume-signing-secret",
+    });
+    const volumeWhileJudgeMoves = createGrandFinalBannerStorage({
+      ...adapter,
+      upload: async (upload) => {
+        await setAcademyFinalistPicks({
+          academyId: pirueta.academyId,
+          picks: [{ judgeIds: [judgeId], modalityId: jazz }],
+        });
+        await adapter.upload(upload);
+      },
+    });
+    const body = new FormData();
+    body.set("intent", saveAcademyGrandFinalIntent);
+    body.set(judgeIdsPostedFieldName, "1");
+    body.append(judgeIdsFieldName, judgeId);
+    body.set(bannerFieldNames.first.file, wide("new.png"));
+    body.set(bannerFieldNames.second.storageKey, before.secondBannerStorageKey);
+    const { request } = await createSignedInRequest({
+      body,
+      email: `admin.${crypto.randomUUID()}@example.com`,
+      requestUrl: pageUrl(vecina),
+      role: "admin",
+    });
+
+    await expect(
+      handleAcademyGrandFinalAction(request, vecina, volumeWhileJudgeMoves),
+    ).resolves.toMatchObject({
+      data: { status: "error" },
+      init: { status: 409 },
+    });
+
+    expect(await storedObjects(eventId, vecina.academyId)).toEqual(
+      [before.firstBannerStorageKey, before.secondBannerStorageKey]
+        .map((key) => key.split("/").at(-1))
+        .sort(),
+    );
+  });
+
+  test("adds no judge, and keeps its banners, when the academy stops qualifying while its picture uploads", async () => {
+    const { choreographyId, eventId, fixture, judgeId, vecina } =
+      await seedFinalist();
+    await save(vecina, { first: wide(), second: wide() });
+    const before = (await load(vecina)).values;
+    const addedJudgeId = await fixture.addJudge("Otro Juez");
+    await fixture.assignJudge(addedJudgeId, choreographyId);
+    const adapter = createFilesystemObjectStorageAdapter({
+      baseDir,
+      secret: "volume-signing-secret",
+    });
+    const volumeWhileWithdrawn = createGrandFinalBannerStorage({
+      ...adapter,
+      upload: async (upload) => {
+        await fixture.withdrawAll(vecina.academyId);
+        await adapter.upload(upload);
+      },
+    });
+    const body = new FormData();
+    body.set("intent", saveAcademyGrandFinalIntent);
+    body.set(judgeIdsPostedFieldName, "1");
+    body.append(judgeIdsFieldName, judgeId);
+    body.append(judgeIdsFieldName, addedJudgeId);
+    body.set(bannerFieldNames.first.file, wide("new.png"));
+    body.set(bannerFieldNames.second.storageKey, before.secondBannerStorageKey);
+    const { request } = await createSignedInRequest({
+      body,
+      email: `admin.${crypto.randomUUID()}@example.com`,
+      requestUrl: pageUrl(vecina),
+      role: "admin",
+    });
+
+    await expect(
+      handleAcademyGrandFinalAction(request, vecina, volumeWhileWithdrawn),
+    ).resolves.toMatchObject({
+      data: { status: "error" },
+      init: { status: 409 },
+    });
+
+    await expect(load(vecina)).resolves.toMatchObject({
+      values: {
+        firstBannerStorageKey: before.firstBannerStorageKey,
+        judgeIds: [judgeId],
+      },
+    });
+    expect(await storedObjects(eventId, vecina.academyId)).toEqual(
+      [before.firstBannerStorageKey, before.secondBannerStorageKey]
         .map((key) => key.split("/").at(-1))
         .sort(),
     );

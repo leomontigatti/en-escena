@@ -12,7 +12,10 @@ import {
 
 import { db } from "@/db";
 import { voteCodeBatches, voteCodes, votes, votingRounds } from "@/db/schema";
-import type { AuditedLink } from "@/lib/grand-final/audit-link.server";
+import {
+  roundsClosedSince,
+  type AuditedLink,
+} from "@/lib/grand-final/audit-link.server";
 import { createAuditTotalsCache } from "@/lib/grand-final/audit-totals-cache";
 import { rankGrandFinal, type RankedFinalist } from "@/lib/grand-final/ranking";
 import { readRoundTally } from "@/lib/grand-final/result.server";
@@ -89,13 +92,16 @@ export async function readAuditTotals(link: AuditedLink): Promise<AuditTotals> {
 }
 
 /**
- * Whether the link is spent: the round it shows has closed. A link whose
- * round has not opened yet, or is open, still lives.
+ * Whether the link is spent: a round of its event closed after it was
+ * issued. A link issued before its round opens, or between round 1's close
+ * and the `Desempate`, still lives.
  */
 export async function isAuditLinkExpired(link: AuditedLink) {
-  const round = await readLinkRound(link);
+  const [closed] = await roundsClosedSince(link.eventId, link.issuedAt).limit(
+    1,
+  );
 
-  return round?.closedAt != null;
+  return closed !== undefined;
 }
 
 /**

@@ -70,27 +70,56 @@ type AcademyFinalistPicksInput = {
  * modality, as the judge's own save does; letting a judge go never does, so a
  * pick on an academy that stopped qualifying can still be undone. Every judge
  * must be a judge user and one of the event's.
- *
- * One transaction under the event's lock: every modality is checked against
- * the picks as they stand, then all are written or none is, and two saves of
- * the same academy at once take turns rather than mixing.
  */
 export async function setAcademyFinalistPicks(
   input: AcademyFinalistPicksInput,
 ): Promise<SetAcademyFinalistPicksResult> {
-  const context = await readAcademyPicksContext(input);
+  const prepared = await prepareAcademyFinalistPicks(input);
 
-  if (!context.ok) {
-    return context;
+  return prepared.ok ? await prepared.write() : prepared;
+}
+
+/**
+ * `setAcademyFinalistPicks` in two steps, for a caller with other writes of
+ * the same save: the check against the event as it stands now, so a save it
+ * refuses goes no further, and the write, which checks everything again
+ * under the event's lock. The write runs in one transaction: the caller's
+ * when given, so its other writes stand or fall with the picks, or its own.
+ * Every modality is checked, then all are written or none is, and two saves
+ * of the same academy at once take turns rather than mixing.
+ */
+export async function prepareAcademyFinalistPicks(
+  input: AcademyFinalistPicksInput,
+): Promise<
+  | { ok: false; reason: "not-eligible" | "not-found" }
+  | {
+      ok: true;
+      write: (
+        executor?: Pick<typeof db, "transaction">,
+      ) => Promise<SetAcademyFinalistPicksResult>;
+    }
+> {
+  const checked = await planAcademyFinalistPicks(db, input);
+
+  if (!checked.ok) {
+    return checked;
   }
 
-  return await db.transaction(async (tx) => {
-    await lockEvent(tx, context.eventId);
-    const plan = planAdditions(
-      input,
-      context,
-      await readCurrentPicks(tx, input, context.eventId),
-    );
+  return {
+    ok: true,
+    write: async (executor = db) =>
+      await writeAcademyFinalistPicks(executor, input, checked.eventId),
+  };
+}
+
+async function writeAcademyFinalistPicks(
+  executor: Pick<typeof db, "transaction">,
+  input: AcademyFinalistPicksInput,
+  eventId: string,
+): Promise<SetAcademyFinalistPicksResult> {
+  return await executor.transaction(async (tx) => {
+    await lockEvent(tx, eventId);
+    const plan = await planAcademyFinalistPicks(tx, input);
 
     if (!plan.ok) {
       return plan;
@@ -98,7 +127,7 @@ export async function setAcademyFinalistPicks(
 
     for (const modality of plan.modalities) {
       const onAcademy = and(
-        eq(finalistPicks.eventId, context.eventId),
+        eq(finalistPicks.eventId, plan.eventId),
         eq(finalistPicks.modalityId, modality.modalityId),
         eq(finalistPicks.academyId, input.academyId),
       );
@@ -114,59 +143,22 @@ export async function setAcademyFinalistPicks(
             : onAcademy,
         );
 
-      if (modality.added.length > 0) {
-        await tx
-          .insert(finalistPicks)
-          .values(
-            modality.added.map((judgeId) => ({
-              academyId: input.academyId,
-              eventId: context.eventId,
-              judgeId,
-              modalityId: modality.modalityId,
-            })),
-          )
-          .onConflictDoUpdate({
-            target: [
-              finalistPicks.eventId,
-              finalistPicks.judgeId,
-              finalistPicks.modalityId,
-            ],
-            set: {
-              academyId: input.academyId,
-              updatedAt: sql`CURRENT_TIMESTAMP`,
-            },
-          });
-      }
+      await upsertFinalistPicks(
+        tx,
+        modality.added.map((judgeId) => ({
+          academyId: input.academyId,
+          eventId: plan.eventId,
+          judgeId,
+          modalityId: modality.modalityId,
+        })),
+      );
     }
 
     return { ok: true };
   });
 }
 
-/**
- * Whether `setAcademyFinalistPicks` would take this save, read without
- * writing: for a caller with other writes of its own to make first, which
- * should not run for a save that will be refused. The write checks again.
- */
-export async function checkAcademyFinalistPicks(
-  input: AcademyFinalistPicksInput,
-): Promise<SetAcademyFinalistPicksResult> {
-  const context = await readAcademyPicksContext(input);
-
-  if (!context.ok) {
-    return context;
-  }
-
-  const plan = planAdditions(
-    input,
-    context,
-    await readCurrentPicks(db, input, context.eventId),
-  );
-
-  return plan.ok ? { ok: true } : plan;
-}
-
-type Executor = Pick<typeof db, "select">;
+type Executor = Pick<typeof db, "select" | "selectDistinct">;
 
 type AcademyPicksContext = {
   eligibleModalityIds: Set<string>;
@@ -175,11 +167,36 @@ type AcademyPicksContext = {
 };
 
 /**
- * What a save is checked against, read before its transaction: every
- * modality in the active event and all of one event, each judge a judge user
- * and one of the event's, and the modalities the academy is eligible in.
+ * The save checked against the event as the executor reads it, and what it
+ * writes: each modality with the judges it adds against the picks as they
+ * stand.
+ */
+async function planAcademyFinalistPicks(
+  executor: Executor,
+  input: AcademyFinalistPicksInput,
+) {
+  const context = await readAcademyPicksContext(executor, input);
+
+  if (!context.ok) {
+    return context;
+  }
+
+  const plan = planAdditions(
+    input,
+    context,
+    await readCurrentPicks(executor, input, context.eventId),
+  );
+
+  return plan.ok ? { ...plan, eventId: context.eventId } : plan;
+}
+
+/**
+ * What a save is checked against: every modality in the active event and all
+ * of one event, each judge a judge user and one of the event's, and the
+ * modalities the academy is eligible in.
  */
 async function readAcademyPicksContext(
+  executor: Executor,
   input: AcademyFinalistPicksInput,
 ): Promise<
   AcademyPicksContext | { ok: false; reason: "not-eligible" | "not-found" }
@@ -187,7 +204,7 @@ async function readAcademyPicksContext(
   const modalityIds = [...new Set(input.picks.map((pick) => pick.modalityId))];
   const found =
     modalityIds.length > 0
-      ? await db
+      ? await executor
           .select({ eventId: modalities.eventId })
           .from(modalities)
           .innerJoin(events, eq(events.id, modalities.eventId))
@@ -207,11 +224,11 @@ async function readAcademyPicksContext(
 
   const judgeIds = [...new Set(input.picks.flatMap((pick) => pick.judgeIds))];
 
-  if (!(await areEventJudges(db, eventId, judgeIds))) {
+  if (!(await areEventJudges(executor, eventId, judgeIds))) {
     return { ok: false, reason: "not-found" };
   }
 
-  const eligible = await grandFinalEligibility(eventId);
+  const eligible = await grandFinalEligibility(eventId, executor);
 
   return {
     eligibleModalityIds: new Set(
@@ -293,7 +310,7 @@ async function areEventJudges(
     .select({ id: user.id })
     .from(user)
     .where(and(inArray(user.id, judgeIds), eq(user.role, "judge")));
-  const eventJudges = await readEventJudges(eventId);
+  const eventJudges = await readEventJudges(eventId, executor);
 
   return judgeIds.every(
     (judgeId) =>
@@ -350,24 +367,44 @@ async function writeFinalistPick<TClosure extends "closed" | "not-started">(
     return { ok: false, reason: "not-eligible" };
   }
 
-  await db
-    .insert(finalistPicks)
-    .values({
+  await upsertFinalistPicks(db, [
+    {
       academyId: input.academyId,
       eventId: modality.eventId,
       judgeId: input.judgeId,
       modalityId: input.modalityId,
-    })
+    },
+  ]);
+
+  return { ok: true };
+}
+
+/**
+ * Writes each judge's one pick per modality, moving it off whichever academy
+ * it was on. The judge's save and administration's share it.
+ */
+async function upsertFinalistPicks(
+  executor: Pick<typeof db, "insert">,
+  picks: (FinalistPickInput & { eventId: string })[],
+) {
+  if (picks.length === 0) {
+    return;
+  }
+
+  await executor
+    .insert(finalistPicks)
+    .values(picks)
     .onConflictDoUpdate({
       target: [
         finalistPicks.eventId,
         finalistPicks.judgeId,
         finalistPicks.modalityId,
       ],
-      set: { academyId: input.academyId, updatedAt: sql`CURRENT_TIMESTAMP` },
+      set: {
+        academyId: sql`excluded.academy_id`,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      },
     });
-
-  return { ok: true };
 }
 
 /**

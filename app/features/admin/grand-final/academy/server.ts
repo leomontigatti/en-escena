@@ -13,8 +13,7 @@ import {
   type BannerChange,
 } from "@/lib/grand-final/banners.server";
 import {
-  checkAcademyFinalistPicks,
-  setAcademyFinalistPicks,
+  prepareAcademyFinalistPicks,
   type AcademyModalityPicks,
   type SetAcademyFinalistPicksResult,
 } from "@/lib/grand-final/finalist-pick.server";
@@ -154,8 +153,9 @@ const pickRefusalMessages: Record<
 
 /**
  * `Guardar` on the academy's page. The judges the form posted are checked
- * first, then the banners stored, only when they change, then the judges
- * written: a refused picture or pick leaves the picks as they were. It stays:
+ * first, so a save they would refuse uploads nothing; then the judges and the
+ * banners, when they change, are written in one transaction, so a refused
+ * picture or pick leaves both as they were. It stays:
  * the answer goes back as data for a toast and the page revalidates. A save
  * that takes the last judge off a modality the academy no longer qualifies
  * in takes it off that list, and its page with it: that one goes back to the
@@ -180,12 +180,18 @@ export async function handleAcademyGrandFinalAction(
   });
 
   const picks = { academyId, picks: readPickChanges(formData, modalityId) };
-  // The picks are checked before the banners are stored, so a save the picks
-  // would refuse writes nothing; the write checks them again, under its lock.
-  const refusal =
-    pickRefusal(await checkAcademyFinalistPicks(picks)) ??
-    (await saveBannerChanges(formData, { academyId, eventId, storage })) ??
-    pickRefusal(await setAcademyFinalistPicks(picks));
+  const prepared = await prepareAcademyFinalistPicks(picks);
+
+  if (!prepared.ok) {
+    return pickRefusal(prepared);
+  }
+
+  const refusal = await saveChanges(formData, {
+    academyId,
+    eventId,
+    storage,
+    writePicks: prepared.write,
+  });
 
   if (refusal) {
     return refusal;
@@ -207,16 +213,21 @@ export async function handleAcademyGrandFinalAction(
 }
 
 /**
- * The banners the form changed, if any; a body that changes neither leaves
- * them alone, so the page of an academy no judge picked saves its picks.
- * Answers with the refusal, or nothing once they are stored.
+ * The picks, and the banners the form changed, if any: a body that changes
+ * neither banner writes the picks alone, so the page of an academy no judge
+ * picked saves them. The picks are checked again under the write's lock, in
+ * the banners' transaction when there are banners to store. Answers with the refusal, or nothing once saved.
  */
-async function saveBannerChanges(
+async function saveChanges(
   formData: FormData,
   input: {
     academyId: string;
     eventId: string;
     storage: GrandFinalBannerStorage;
+    writePicks: Extract<
+      Awaited<ReturnType<typeof prepareAcademyFinalistPicks>>,
+      { ok: true }
+    >["write"];
   },
 ) {
   const stored = await readFinalistBanners({
@@ -229,13 +240,29 @@ async function saveBannerChanges(
   };
 
   if (changes.first.kind === "keep" && changes.second.kind === "keep") {
-    return null;
+    const written = await input.writePicks();
+
+    return written.ok ? null : pickRefusal(written);
   }
 
-  const result = await saveFinalistBanners({ ...input, changes });
+  const result = await saveFinalistBanners({
+    academyId: input.academyId,
+    alongside: async (tx) => {
+      const written = await input.writePicks(tx);
+
+      return written.ok ? null : written;
+    },
+    changes,
+    eventId: input.eventId,
+    storage: input.storage,
+  });
 
   if (result.ok) {
     return null;
+  }
+
+  if (result.reason === "refused-alongside") {
+    return pickRefusal(result.refusal);
   }
 
   return result.reason === "not-finalist"
@@ -271,16 +298,16 @@ function readPickChanges(
   ];
 }
 
-function pickRefusal(result: SetAcademyFinalistPicksResult) {
-  return result.ok
-    ? null
-    : data(
-        {
-          message: pickRefusalMessages[result.reason],
-          status: "error" as const,
-        },
-        { status: result.reason === "not-found" ? 404 : 409 },
-      );
+function pickRefusal(
+  refusal: Extract<SetAcademyFinalistPicksResult, { ok: false }>,
+) {
+  return data(
+    {
+      message: pickRefusalMessages[refusal.reason],
+      status: "error" as const,
+    },
+    { status: refusal.reason === "not-found" ? 404 : 409 },
+  );
 }
 
 async function requireSelectedEventId(request: Request) {

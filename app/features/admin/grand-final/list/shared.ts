@@ -3,7 +3,7 @@ import type { GrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
 import type {
   AuditLinkCreateBlockReason,
   AuditLinkListRow,
-  CreatedAuditLink,
+  AuditLinkHandoverData,
 } from "../audit-links/shared";
 import type { VoteCodeBatchListRow } from "../vote-codes/shared";
 import type { VotingRoundListState } from "../voting-round/shared";
@@ -16,7 +16,7 @@ import type { VotingRoundListState } from "../voting-round/shared";
 
 export type GrandFinalListActionData = {
   /** The live `auditLink` its dialog hands over, just created or shown again. */
-  auditLink?: CreatedAuditLink;
+  auditLink?: AuditLinkHandoverData;
   message: string;
   status: "error" | "success";
 };

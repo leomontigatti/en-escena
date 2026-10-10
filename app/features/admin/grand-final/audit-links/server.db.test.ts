@@ -189,6 +189,23 @@ describe("the audit links of the `Gran final` list", () => {
     });
   });
 
+  test("leaves room on the list once the links' vote closed", async () => {
+    const fixture = await seedFinalistsFixture();
+    await fixture.addFinalist("Alas");
+    await openVotingRound({ eventId: fixture.eventId });
+    await createLink("Marta");
+    await createLink("Jorge");
+    await createLink("Ana");
+    await closeCurrentVotingRound(fixture.eventId);
+
+    await expect(list()).resolves.toMatchObject({
+      auditLinkCreateBlockReasons: [],
+    });
+    await expect(createLink("Luis")).resolves.toMatchObject({
+      data: { status: "success" },
+    });
+  });
+
   test("revokes a link and reports why it cannot be revoked again", async () => {
     await createSavedEvent();
     await createLink("Marta");

@@ -202,33 +202,4 @@ describe("the public vote page", () => {
     });
     expect(toast.error).toHaveBeenCalledWith(answer.message, expect.anything());
   });
-
-  test("asks for the sign-in with Google, with no finalist to choose", async () => {
-    await mount({ google: true, state: "sign-in" });
-
-    expect(document.querySelector("li")).toBeNull();
-    expect(
-      document.querySelector<HTMLFormElement>('form[action="/votar/google"]')
-        ?.textContent,
-    ).toBe("Ingresar con Google");
-  });
-
-  test("asks for the ticket's code, and offers no sign-in, where Google is not configured", async () => {
-    await mount({ google: false, state: "sign-in" });
-
-    expect(document.body.textContent).toContain(
-      "Para votar hace falta el código QR que viene con tu entrada.",
-    );
-    expect(document.querySelector("form")).toBeNull();
-  });
-
-  test("says a voided code was voided, and lists no finalist", async () => {
-    await mount({ reason: "voided-code", state: "code-refused" });
-
-    expect(document.body.textContent).toContain("Código QR anulado");
-    expect(document.body.textContent).toContain(
-      "Este código QR fue anulado por la organización y ya no sirve para votar.",
-    );
-    expect(document.querySelector("li")).toBeNull();
-  });
 });

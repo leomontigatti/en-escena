@@ -45,7 +45,7 @@ export const showAuditLinkSchema = z.object({
  * its hash is kept: the server derives the address again for each answer,
  * which no cache keeps, and the list never carries it.
  */
-export type CreatedAuditLink = {
+export type AuditLinkHandoverData = {
   label: string;
   /** The link's QR, an SVG as a data URI, for the auditor to scan. */
   qrDataUri: string;

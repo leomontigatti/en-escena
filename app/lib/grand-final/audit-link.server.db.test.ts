@@ -15,6 +15,11 @@ import {
 } from "@/lib/grand-final/audit-link.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import {
+  closeCurrentVotingRound,
+  seedFinalistsFixture,
+} from "./voting.test-support";
+import { openVotingRound } from "./voting-round.server";
 
 installDatabaseTestHooks();
 
@@ -69,6 +74,22 @@ describe("`createAuditLink`", () => {
 
     await expect(
       createAuditLink({ eventId: event.id, label: "Reemplazo", secret }),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  test("frees the places of links spent once their round closed", async () => {
+    const fixture = await seedFinalistsFixture();
+    await fixture.addFinalist("Alas");
+    await openVotingRound({ eventId: fixture.eventId });
+
+    for (let index = 0; index < maxActiveAuditLinks; index += 1) {
+      await createLink(fixture.eventId, `Auditor ${index + 1}`);
+    }
+
+    await closeCurrentVotingRound(fixture.eventId);
+
+    await expect(
+      createAuditLink({ eventId: fixture.eventId, label: "Desempate", secret }),
     ).resolves.toMatchObject({ ok: true });
   });
 

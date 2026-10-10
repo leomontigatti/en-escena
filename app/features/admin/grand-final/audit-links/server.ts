@@ -77,11 +77,14 @@ async function readAuditLinkBlockReasons(
     : [];
 }
 
-/** Why no other link can be created now, read off the list's rows. */
+/**
+ * Why no other link can be created now, read off the list's rows: a link
+ * neither revoked nor spent holds a place.
+ */
 export function readAuditLinkCreateBlockReasons(
   links: AuditLinkListRow[],
 ): AuditLinkCreateBlockReason[] {
-  const live = links.filter((link) => !link.revokedAt).length;
+  const live = links.filter((link) => link.blockReasons.length === 0).length;
 
   return live >= maxActiveAuditLinks
     ? [

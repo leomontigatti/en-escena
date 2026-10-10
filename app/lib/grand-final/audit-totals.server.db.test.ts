@@ -200,4 +200,17 @@ describe("`isAuditLinkExpired`", () => {
     await closeCurrentVotingRound(fixture.eventId);
     await expect(isAuditLinkExpired(link)).resolves.toBe(true);
   });
+
+  test("keeps a link issued between round 1 and the `Desempate` alive until the `Desempate` closes", async () => {
+    const fixture = await seedTiedRoundFixture();
+    const link = linkOf(fixture.eventId);
+
+    await expect(isAuditLinkExpired(link)).resolves.toBe(false);
+
+    await openTieBreakRound({ eventId: fixture.eventId });
+    await expect(isAuditLinkExpired(link)).resolves.toBe(false);
+
+    await closeCurrentVotingRound(fixture.eventId);
+    await expect(isAuditLinkExpired(link)).resolves.toBe(true);
+  });
 });

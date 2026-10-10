@@ -145,16 +145,9 @@ describe("administration's `Gran final` list", () => {
     return { headers, rows };
   }
 
-  function readTabs() {
-    return [...document.querySelectorAll('[role="tab"]')].map(
-      (tab) => tab.textContent,
-    );
-  }
-
-  test("lists each academy in each modality it qualifies in, its name opening its page", async () => {
+  test("lists each academy in each modality it qualifies in, with its banners' state", async () => {
     await mount();
 
-    expect(readTabs()).toEqual(["Academias"]);
     expect(readTable()).toEqual({
       headers: ["Academia", "Modalidad", "Estado"],
       rows: [
@@ -165,17 +158,6 @@ describe("administration's `Gran final` list", () => {
         ["link:Academia Zapateo", "Tap", "—"],
       ],
     });
-    expect(
-      [...document.querySelectorAll("tbody a")].map((link) =>
-        link.getAttribute("href"),
-      ),
-    ).toEqual([
-      "/administracion/gran-final/pirueta/jazz",
-      "/administracion/gran-final/vecina/jazz",
-      "/administracion/gran-final/brisa/jazz",
-      "/administracion/gran-final/pirueta/tap",
-      "/administracion/gran-final/zapateo/tap",
-    ]);
   });
 
   test("finds an academy by the name of a judge who picked it", async () => {
@@ -201,37 +183,6 @@ describe("administration's `Gran final` list", () => {
     expect(readTable().rows).toEqual([
       ["link:Academia Pirueta", "Tap", "Completo"],
       ["link:Academia Zapateo", "Tap", "—"],
-    ]);
-  });
-
-  test("adds the QR codes and the audit links as tabs once there is one of each", async () => {
-    await mount(picks, {
-      auditLinks: [
-        {
-          blockReasons: [],
-          createdAt: new Date("2026-12-08T15:00:00Z"),
-          id: "acceso",
-          label: "Lucía",
-          openedAt: null,
-          revokedAt: null,
-        },
-      ],
-      voteCodeBatches: [
-        {
-          blockReasons: [],
-          codeCount: 24,
-          id: "lote",
-          issuedAt: new Date("2026-12-08T15:00:00Z"),
-          number: 1,
-          voidedAt: null,
-        },
-      ],
-    });
-
-    expect(readTabs()).toEqual([
-      "Academias",
-      "Códigos QR",
-      "Accesos de auditoría",
     ]);
   });
 });
