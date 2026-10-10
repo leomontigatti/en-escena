@@ -752,6 +752,25 @@ describe("ClientDataTable without page controls", () => {
 
     expect(getRenderedRowNames()).toHaveLength(25);
   });
+
+  // The loader sent every row, so there is no page to name or to move to.
+  test("draws no page controls on a server table read as a whole", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter>
+        <ServerDataTable
+          rows={rows}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          hidePagination
+          searchPlaceholder="Buscar coreografía"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(getRenderedRowNames()).toHaveLength(25);
+    expect(document.body.textContent).not.toContain("registros");
+    expect(document.body.textContent).not.toContain("Siguiente");
+  });
 });
 
 describe("ClientDataTable filtered summary", () => {
