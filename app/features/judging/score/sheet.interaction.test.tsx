@@ -156,6 +156,12 @@ describe("scoring a submodality with criteria", () => {
     );
   }
 
+  function backButton() {
+    return [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent?.trim() === "Volver",
+    );
+  }
+
   async function type(criterionId: string, value: string) {
     const input = criterionInput(criterionId);
 
@@ -356,6 +362,26 @@ describe("scoring a submodality with criteria", () => {
     expect(submitted.map((body) => body.get("audioIntent"))).toEqual([
       "replace",
     ]);
+  });
+
+  test("holds `Volver` while the save waits on a take being handed over", async () => {
+    const recorder = installRecorderStubs({ handOverOnDemand: true });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:take");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    await mount({ presentationId: "a" });
+
+    await type("tecnica", "50");
+    await type("interpretacion", "30");
+    await clickReactDomButton("Empezar a grabar");
+    await updateReactDomForm(() => {
+      saveButton()?.click();
+    });
+
+    expect(backButton()?.disabled).toBe(true);
+
+    await updateReactDomForm(() => recorder.handOver());
+
+    expect(submitted).toHaveLength(1);
   });
 
   test("lets the save's own navigation through to the next presentation", async () => {

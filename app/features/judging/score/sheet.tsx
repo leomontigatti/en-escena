@@ -177,7 +177,12 @@ export function JudgeScoreSheet({
           </form>
         </CardContent>
         <PinnedActions>
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button
+            disabled={isSavePending}
+            onClick={onClose}
+            type="button"
+            variant="outline"
+          >
             <ChevronLeft aria-hidden="true" data-icon="inline-start" />
             Volver
           </Button>
