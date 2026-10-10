@@ -9,6 +9,7 @@ function row(overrides: Partial<ProgramExportRow> = {}): ProgramExportRow {
     categoryName: "Juvenil",
     dancerNames: ["Ana Pérez"],
     groupType: "solo",
+    levelLabel: "Amateur",
     modalityName: "Danza clásica",
     name: "Lago",
     orderNumber: 7,
@@ -39,6 +40,7 @@ describe("the program export sheet", () => {
         "Día",
         "Horario",
         "Categoría",
+        "Nivel",
         "Tipo de grupo",
         "Modalidad",
         "Submodalidad",
@@ -67,6 +69,7 @@ describe("the program export sheet", () => {
       new Date("2026-10-17T00:00:00Z"),
       "10:00 hs · Sábado mañana",
       "Juvenil",
+      "Amateur",
       "Trío",
       "Danza clásica",
       "Repertorio",
@@ -78,22 +81,24 @@ describe("the program export sheet", () => {
     ]);
   });
 
-  test("leaves a missing submodality, province, professor or dancer list empty", () => {
+  test("leaves a missing level, submodality, province, professor or dancer list empty", () => {
     const [, cells] = values(
       buildProgramSheet([
         row({
           academyProvince: null,
           dancerNames: [],
+          levelLabel: null,
           professorNames: [],
           submodalityName: null,
         }),
       ]),
     );
 
-    expect(cells[6]).toBeNull();
-    expect(cells[8]).toBeNull();
-    expect(cells[10]).toBeNull();
+    expect(cells[4]).toBeNull();
+    expect(cells[7]).toBeNull();
+    expect(cells[9]).toBeNull();
     expect(cells[11]).toBeNull();
+    expect(cells[12]).toBeNull();
   });
 
   test("counts a larger group's dancers rather than naming them", () => {
@@ -106,6 +111,6 @@ describe("the program export sheet", () => {
       ]),
     );
 
-    expect(cells[11]).toBe(4);
+    expect(cells[12]).toBe(4);
   });
 });
