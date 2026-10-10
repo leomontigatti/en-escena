@@ -11,9 +11,10 @@ import { useUrlTab } from "./url-tab";
 
 const kinds = ["coreografias", "seminarios"] as const;
 
-function KindTabs() {
+function KindTabs({ openingValue }: { openingValue?: (typeof kinds)[number] }) {
   const tab = useUrlTab({
     defaultValue: "coreografias",
+    openingValue,
     param: "tipo",
     resets: ["pagina"],
     values: kinds,
@@ -34,9 +35,17 @@ describe("useUrlTab", () => {
 
   afterEach(renderer.cleanup);
 
-  async function mount(initialEntries: string[]) {
+  async function mount(
+    initialEntries: string[],
+    openingValue?: (typeof kinds)[number],
+  ) {
     const router = createMemoryRouter(
-      [{ path: "/precios", element: <KindTabs /> }],
+      [
+        {
+          path: "/precios",
+          element: <KindTabs openingValue={openingValue} />,
+        },
+      ],
       { initialEntries },
     );
 
@@ -59,6 +68,19 @@ describe("useUrlTab", () => {
 
     await mount(["/precios?tipo=talleres"]);
     expect(activeTab()).toBe("Coreografías");
+  });
+
+  // The plain link opens elsewhere, so it can no longer stand for the
+  // default: a reload must land on the tab chosen, whichever it is.
+  test("names every tab chosen once the page opens on another than the default", async () => {
+    const router = await mount(["/precios"], "seminarios");
+    expect(activeTab()).toBe("Seminarios");
+
+    await selectTab("Coreografías");
+    expect(router.state.location.search).toBe("?tipo=coreografias");
+
+    await selectTab("Seminarios");
+    expect(router.state.location.search).toBe("?tipo=seminarios");
   });
 
   test("names the tab in the URL and keeps the rest of the query", async () => {

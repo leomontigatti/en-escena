@@ -292,6 +292,66 @@ describe("the program list everyone outside the administration reads", () => {
       expect(evaluatedMarks()).toBe(0);
     });
 
+    function selectedTab() {
+      return document.querySelector('[role="tab"][aria-selected="true"]')
+        ?.textContent;
+    }
+
+    // The checks and the minute's poll live on that tab, so a reader who
+    // never taps it would see neither.
+    test("opens on the live day's tab, and names every tab chosen after it in the URL", async () => {
+      setBusinessNow("2026-05-01T19:00:00");
+      await mount({
+        live: { day: liveDay, loadedOn: liveDay.date },
+        rows: liveDayRows,
+      });
+
+      expect(selectedTab()).toBe("Viernes 1/5En vivo");
+      expect(evaluatedMarks()).toBe(2);
+
+      await selectTab(0);
+      expect(urlSearch).toBe("?dia=todos");
+      expect(selectedTab()).toBe("Todos");
+
+      // Named too, or the link would open on `Todos` once the show is over.
+      await selectTab(1);
+      expect(urlSearch).toBe("?dia=2026-05-01");
+    });
+
+    test("opens on Todos before the show starts and once the day is over", async () => {
+      setBusinessNow("2026-05-01T10:00:00");
+      await mount({
+        live: { day: liveDay, loadedOn: liveDay.date },
+        rows: liveDayRows,
+      });
+      expect(selectedTab()).toBe("Todos");
+
+      renderer.cleanup();
+      setBusinessNow("2026-05-01T19:00:00");
+      await mount({
+        live: { day: { ...liveDay, isOver: true }, loadedOn: liveDay.date },
+        rows: liveDayRows,
+      });
+      expect(selectedTab()).toBe("Todos");
+    });
+
+    // Opened while live, the page stays on the tab it was read on when the
+    // day's last presentation is evaluated.
+    test("keeps the tab it opened on when the badge goes off", async () => {
+      setBusinessNow("2026-05-01T19:00:00");
+      const onLivePoll = vi.fn();
+      const live = { day: liveDay, loadedOn: liveDay.date };
+      await mount({ live, onLivePoll, rows: liveDayRows });
+
+      await mount({
+        live: { ...live, day: { ...liveDay, isOver: true } },
+        onLivePoll,
+        rows: liveDayRows,
+      });
+
+      expect(selectedTab()).toBe("Viernes 1/5");
+    });
+
     test("marks the rows before the show starts, with no badge yet", async () => {
       setBusinessNow("2026-05-01T10:00:00");
       await mount({
