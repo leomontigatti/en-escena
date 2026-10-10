@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
+import type { InAppBrowser } from "./in-app-browser";
+
 /**
  * What the public vote page of the `Gran final` and its server agree on. A
  * module of its own because the view imports the schema, and the server
@@ -63,6 +65,8 @@ export type VotePageData =
   | {
       /** Whether the deployment has Google sign-in, or only codes vote. */
       google: boolean;
+      /** The app's built-in browser the page opened in, where Google refuses. */
+      inAppBrowser: InAppBrowser | null;
       state: "sign-in";
     }
   | { reason: VoteCodeRefusal; state: "code-refused" }
