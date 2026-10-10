@@ -388,6 +388,69 @@ describe("the program list everyone outside the administration reads", () => {
       expect(selectedTab()).toBe("Viernes 1/5");
     });
 
+    describe("on a day longer than a page", () => {
+      const longDayRows = Array.from(
+        { length: defaultClientDataTablePageSize * 2 + 3 },
+        (_, index) =>
+          buildRow({
+            choreographyId: `row-${index + 1}`,
+            name: `Pieza ${index + 1}`,
+            orderNumber: index + 1,
+          }),
+      );
+
+      function liveUpTo(orderNumber: number): ProgramLive {
+        return {
+          day: {
+            ...liveDay,
+            evaluatedChoreographyIds: longDayRows
+              .slice(0, orderNumber)
+              .map((row) => row.choreographyId),
+          },
+          loadedAt: new Date().toISOString(),
+          loadedOn: liveDay.date,
+        };
+      }
+
+      // The page names it, so a reload stays on it after the show.
+      test("opens on the last evaluated presentation's page", async () => {
+        setBusinessNow("2026-05-01T19:00:00");
+        const lastEvaluated = defaultClientDataTablePageSize + 2;
+        await mount({ live: liveUpTo(lastEvaluated), rows: longDayRows });
+
+        expect(urlSearch).toBe("?dia=2026-05-01&pagina=2");
+        expect(document.body.textContent).toContain(`Pieza ${lastEvaluated}`);
+      });
+
+      test("stays on the first page while its last row is not evaluated", async () => {
+        setBusinessNow("2026-05-01T19:00:00");
+        await mount({
+          live: liveUpTo(defaultClientDataTablePageSize - 1),
+          rows: longDayRows,
+        });
+
+        expect(urlSearch).toBe("");
+      });
+
+      test("leaves a link that names a day or a search where it points", async () => {
+        setBusinessNow("2026-05-01T19:00:00");
+        await mount({
+          entry: "/programa?busqueda=Pieza",
+          live: liveUpTo(defaultClientDataTablePageSize + 2),
+          rows: longDayRows,
+        });
+        expect(urlSearch).toBe("?busqueda=Pieza");
+
+        renderer.cleanup();
+        await mount({
+          entry: "/programa?dia=2026-05-01",
+          live: liveUpTo(defaultClientDataTablePageSize + 2),
+          rows: longDayRows,
+        });
+        expect(urlSearch).toBe("?dia=2026-05-01");
+      });
+    });
+
     test("marks the rows before the show starts, with no badge yet", async () => {
       setBusinessNow("2026-05-01T10:00:00");
       await mount({

@@ -6,6 +6,7 @@ import {
   DataTableTruncatedText,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { defaultClientDataTablePageSize } from "@/components/shared/data-table.shared";
 import {
   Tooltip,
   TooltipContent,
@@ -72,7 +73,13 @@ export function ProgramList({
   // already here. It is in the URL all the same, so a reload or a link shared
   // from a phone lands on the day it was read on.
   const days = listProgramDays(rows);
-  const liveView = useProgramLiveDay({ days, live, onPoll: onLivePoll });
+  const liveView = useProgramLiveDay({
+    days,
+    live,
+    onPoll: onLivePoll,
+    pageSize: defaultClientDataTablePageSize,
+    rows,
+  });
   const { tab } = liveView;
   const visibleRows =
     tab.value === allDaysTabValue
