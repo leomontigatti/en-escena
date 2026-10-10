@@ -1,5 +1,12 @@
 import { Check, CircleAlert, Pause } from "lucide-react";
-import { useEffect, useRef, useState, type ComponentProps } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ComponentProps,
+  type Ref,
+} from "react";
 
 import { MediaRow, MediaTime } from "@/components/shared/audio-playback";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,7 +18,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { RecordedTake } from "@/lib/judging/feedback-audio-field";
+import {
+  feedbackAudioFieldSubmission,
+  feedbackAudioFieldUrl,
+  initialFeedbackAudioField,
+  isFeedbackAudioFieldDirty,
+  reduceFeedbackAudioField,
+  type FeedbackAudioFieldEvent,
+  type FeedbackAudioFieldSubmission,
+  type RecordedTake,
+} from "@/lib/judging/feedback-audio-field";
 import {
   hasFilledTake,
   idleTakeState,
@@ -19,6 +35,7 @@ import {
   reduceTake,
   takeElapsedMs,
   type TakeEvent,
+  type TakePhase,
   type TakeState,
 } from "@/lib/judging/feedback-take";
 import { emptyLevels, micLevel } from "@/lib/judging/feedback-waveform";
@@ -47,7 +64,13 @@ type Session = {
  * recorder enforces itself. The finished audio goes to `onRecorded`; the
  * phases and the elapsed time are app/lib/judging/feedback-take.ts.
  */
-function useFeedbackTake(onRecorded: (take: RecordedTake) => void) {
+function useFeedbackTake({
+  onLiveChange,
+  onRecorded,
+}: {
+  onLiveChange?: (isLive: boolean) => void;
+  onRecorded: (take: RecordedTake) => void;
+}) {
   const [take, setTake] = useState<TakeState>(idleTakeState);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [levels, setLevels] = useState(emptyLevels);
@@ -56,13 +79,20 @@ function useFeedbackTake(onRecorded: (take: RecordedTake) => void) {
   // The ticking interval reads the take outside a render, so it needs the
   // current one rather than the one its closure was created with.
   const takeRef = useRef<TakeState>(idleTakeState);
+  // The take from its start until its audio is handed over. A real
+  // `MediaRecorder` hands it over a moment after it is stopped, after the
+  // session is gone, and a save tapped in that moment has to wait for it.
+  const pendingRef = useRef<PendingTake | null>(null);
 
   useEffect(
     () => () => {
+      // Unmounting mid-take drops it: nothing is left to hand the audio to.
+      const pending = pendingRef.current;
+      if (pending) {
+        pending.recorder.onstop = null;
+      }
       const session = sessionRef.current;
       if (session) {
-        // Unmounting mid-take drops it: nothing is left to hand the audio to.
-        session.recorder.onstop = null;
         endSession(session);
       }
     },
@@ -70,8 +100,13 @@ function useFeedbackTake(onRecorded: (take: RecordedTake) => void) {
   );
 
   function applyTakeEvent(event: TakeEvent) {
+    const wasLive = isLivePhase(takeRef.current.phase);
     takeRef.current = reduceTake(takeRef.current, event);
     setTake(takeRef.current);
+    const isLive = isLivePhase(takeRef.current.phase);
+    if (isLive !== wasLive) {
+      onLiveChange?.(isLive);
+    }
   }
 
   function endSession(session: Session) {
@@ -114,14 +149,24 @@ function useFeedbackTake(onRecorded: (take: RecordedTake) => void) {
     }
 
     const chunks: Blob[] = [];
+    let handOver: (take: RecordedTake) => void = () => {};
+    pendingRef.current = {
+      recorded: new Promise((resolve) => {
+        handOver = resolve;
+      }),
+      recorder,
+    };
 
     recorder.ondataavailable = (event) => {
       chunks.push(event.data);
     };
     recorder.onstop = () => {
       const blob = new Blob(chunks, { type: recorder.mimeType });
-      onRecorded({ blob, url: URL.createObjectURL(blob) });
+      const recorded = { blob, url: URL.createObjectURL(blob) };
+      onRecorded(recorded);
       applyTakeEvent({ type: "finished" });
+      pendingRef.current = null;
+      handOver(recorded);
     };
 
     const session: Session = {
@@ -171,9 +216,40 @@ function useFeedbackTake(onRecorded: (take: RecordedTake) => void) {
     }
   }
 
+  /**
+   * Stops a take still running, as `Terminar grabación` would, and resolves
+   * with its audio once the recorder hands it over; null when there is no
+   * take to finish.
+   */
+  function finishTake(): Promise<RecordedTake | null> {
+    const pending = pendingRef.current;
+    if (!pending) {
+      return Promise.resolve(null);
+    }
+
+    stopRecording();
+
+    return pending.recorded;
+  }
+
+  /** Throws away a take still running, or still being handed over, unheard. */
+  function dropTake() {
+    const pending = pendingRef.current;
+    if (!pending) {
+      return;
+    }
+
+    pending.recorder.onstop = null;
+    pendingRef.current = null;
+    stopRecording();
+    applyTakeEvent({ type: "finished" });
+  }
+
   return {
     elapsedMs,
+    dropTake,
     error,
+    finishTake,
     levels,
     phase: take.phase,
     startRecording,
@@ -182,12 +258,90 @@ function useFeedbackTake(onRecorded: (take: RecordedTake) => void) {
   };
 }
 
+/** A take whose audio the recorder has not handed over yet. */
+type PendingTake = {
+  recorded: Promise<RecordedTake>;
+  recorder: MediaRecorder;
+};
+
+function isLivePhase(phase: TakePhase) {
+  return phase === "recording" || phase === "paused";
+}
+
 /** The mic's loudness right now, read off the analyser's waveform. */
 function readMicLevel(analyser: AnalyserNode) {
   const samples = new Uint8Array(analyser.fftSize);
   analyser.getByteTimeDomainData(samples);
 
   return micLevel(samples);
+}
+
+/** What the score form can ask of its recorder. */
+type FeedbackRecorderHandle = {
+  dropTake: () => void;
+  finishTake: () => Promise<RecordedTake | null>;
+};
+
+/**
+ * The `Devolución` field of a score form, for {@link FeedbackRecorder}: the
+ * take it holds, and whether there is one to save. A take still being recorded
+ * counts — judges talk until the end and tap `Guardar` without stopping, and
+ * the take is what they would otherwise lose without noticing — so the form's
+ * submission finishes it first and posts it with the score.
+ *
+ * `readSubmission` resolves to null for a save tapped while another one is
+ * still waiting on the take, so the score is posted once.
+ */
+export function useFeedbackAudioField(storedUrl: string | null) {
+  const [audio, setAudio] = useState(() =>
+    initialFeedbackAudioField(storedUrl),
+  );
+  const [isTakeLive, setIsTakeLive] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
+  const isFinishingRef = useRef(false);
+  const recorderRef = useRef<FeedbackRecorderHandle>(null);
+
+  function applyAudioEvent(event: FeedbackAudioFieldEvent) {
+    setAudio((current) => reduceFeedbackAudioField(current, event));
+  }
+
+  async function readSubmission(): Promise<FeedbackAudioFieldSubmission | null> {
+    if (isFinishingRef.current) {
+      return null;
+    }
+
+    isFinishingRef.current = true;
+    setIsFinishing(true);
+    try {
+      const finished = await recorderRef.current?.finishTake();
+
+      return finished
+        ? { blob: finished.blob, intent: "replace" }
+        : feedbackAudioFieldSubmission(audio);
+    } finally {
+      isFinishingRef.current = false;
+      setIsFinishing(false);
+    }
+  }
+
+  return {
+    isDirty: isTakeLive || isFeedbackAudioFieldDirty(audio),
+    /** Whether a save is waiting on the take, before it posts anything. */
+    isFinishing,
+    readSubmission,
+    recorderProps: {
+      audioUrl: feedbackAudioFieldUrl(audio),
+      onDelete: () => applyAudioEvent({ type: "deleted" }),
+      onLiveChange: setIsTakeLive,
+      onRecorded: (take: RecordedTake) =>
+        applyAudioEvent({ take, type: "recorded" }),
+      ref: recorderRef,
+    },
+    reset: () => {
+      recorderRef.current?.dropTake();
+      setAudio(initialFeedbackAudioField(storedUrl));
+    },
+  };
 }
 
 /**
@@ -200,14 +354,19 @@ export function FeedbackRecorder({
   disabled = false,
   legendVariant = "label",
   onDelete,
+  onLiveChange,
   onRecorded,
+  ref,
 }: {
   audioUrl: string | null;
   disabled?: boolean;
   /** `legend` on a sheet, where it heads a part like the criteria's. */
   legendVariant?: "label" | "legend";
   onDelete: () => void;
+  /** Whether a take is running, recording or paused. */
+  onLiveChange?: (isLive: boolean) => void;
   onRecorded: (take: RecordedTake) => void;
+  ref?: Ref<FeedbackRecorderHandle>;
 }) {
   // Every take this component records is an object URL it owns, and nothing
   // else can free it: the field state is pure, and the stored URL it may hold
@@ -231,11 +390,18 @@ export function FeedbackRecorder({
     [],
   );
 
-  const take = useFeedbackTake((recorded) => {
-    revokeCreatedUrl();
-    createdUrlRef.current = recorded.url;
-    onRecorded(recorded);
+  const take = useFeedbackTake({
+    onLiveChange,
+    onRecorded: (recorded) => {
+      revokeCreatedUrl();
+      createdUrlRef.current = recorded.url;
+      onRecorded(recorded);
+    },
   });
+  useImperativeHandle(ref, () => ({
+    dropTake: take.dropTake,
+    finishTake: take.finishTake,
+  }));
   function handleDelete() {
     revokeCreatedUrl();
     onDelete();
@@ -280,7 +446,7 @@ function TakeBar({
   take: ReturnType<typeof useFeedbackTake>;
 }) {
   const { phase, stopRecording } = take;
-  const isLive = phase === "recording" || phase === "paused";
+  const isLive = isLivePhase(phase);
 
   return (
     <MediaRow>
