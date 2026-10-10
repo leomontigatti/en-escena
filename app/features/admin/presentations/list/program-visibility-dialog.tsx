@@ -1,16 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId } from "react";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
-import { ChoiceCard } from "@/components/shared/choice-card";
 import {
   DiscardChangesDialog,
   useDiscardGuard,
 } from "@/components/shared/discard-guard";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -20,10 +18,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldError, FieldLegend, FieldSet } from "@/components/ui/field";
-import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
 import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
+import { DayChoices } from "./day-choices";
 import {
   programEventIdFieldName,
   programVisibilitySchema,
@@ -43,9 +41,7 @@ import {
  * It is a dialog over a list, like the judge dialogs: the save goes through a
  * fetcher, its answer is announced with a toast, and only a success closes the
  * dialog, so a refusal leaves the picks in place to try again. Leaving with
- * unsaved picks asks first. The days are few — one per day of the event — so
- * they are drawn in place rather than through `ChecklistField`, whose search
- * and `Seleccionados` tab are for long lists.
+ * unsaved picks asks first.
  */
 export function ProgramVisibilityDialog({
   days,
@@ -57,7 +53,6 @@ export function ProgramVisibilityDialog({
   eventId: string;
   onClose: () => void;
 }) {
-  const id = useId();
   const fetcher = useFetcher<PresentationListActionData>();
   const isSaving = fetcher.state !== "idle";
   const form = useForm<ProgramVisibilityFormValues>({
@@ -137,29 +132,12 @@ export function ProgramVisibilityDialog({
               render={({ field, fieldState }) => (
                 <FieldSet>
                   <FieldLegend variant="label">Días visibles</FieldLegend>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {days.map(({ day }) => (
-                      <ChoiceCard
-                        key={day}
-                        disabled={isSaving}
-                        htmlFor={`${id}-${day}`}
-                        label={formatScheduleDayTabLabel(day)}
-                      >
-                        <Checkbox
-                          id={`${id}-${day}`}
-                          checked={field.value.includes(day)}
-                          disabled={isSaving}
-                          onCheckedChange={(checked) =>
-                            field.onChange(
-                              checked === true
-                                ? [...field.value, day].sort()
-                                : field.value.filter((value) => value !== day),
-                            )
-                          }
-                        />
-                      </ChoiceCard>
-                    ))}
-                  </div>
+                  <DayChoices
+                    days={days.map((entry) => entry.day)}
+                    disabled={isSaving}
+                    onChange={field.onChange}
+                    value={field.value}
+                  />
                   <FieldError>{fieldState.error?.message}</FieldError>
                 </FieldSet>
               )}

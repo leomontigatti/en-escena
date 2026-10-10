@@ -1,46 +1,26 @@
 import { Info, ListOrdered, TriangleAlert } from "lucide-react";
-import { Form, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import { AlertStack } from "@/components/shared/alert-stack";
-import { IrreversibleActionAlert } from "@/components/shared/irreversible-action-alert";
 import {
   Alert,
   AlertAction,
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  isRouteFormPending,
-  useCloseOnceSettled,
-  useOptionalNavigation,
-} from "@/lib/shared/forms";
 import { listQueryParamNames } from "@/lib/list-query/list-query";
 import {
   ScheduleDayTabs,
   useScheduleDayTab,
 } from "@/features/program/day-tabs";
 
-import {
-  orderAutomaticallyIntent,
-  type PresentationListResult,
-} from "./shared";
+import type { PresentationListResult } from "./shared";
 
 /**
  * Everything the participation list says around its table: the notices above
- * it, the day tabs that narrow it and the confirmation the one destructive
- * action opens. None of them touches a row, which is why they live apart from
- * the columns and the moving seam.
+ * it and the day tabs that narrow it. Neither touches a row, which is why they
+ * live apart from the columns and the moving seam.
  */
 
 export function PresentationNotices({
@@ -155,77 +135,4 @@ export function PresentationDayTabs({
   const tab = useScheduleDayTab(loaderData.days);
 
   return <ScheduleDayTabs days={loaderData.days} tab={tab} />;
-}
-
-/**
- * On the `delete-dialog.tsx` shape: the description, one always-shown
- * destructive alert and the confirmation. The action is never disabled by the
- * data — what cannot be ordered is answered by the server, not by the menu.
- */
-export function OrderingConfirmationDialog({
-  frozenCount,
-  onOpenChange,
-  open,
-}: {
-  /** The presentations the ordering will leave in place, named up front. */
-  frozenCount: number;
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-}) {
-  const navigation = useOptionalNavigation();
-  const isPending = isRouteFormPending(navigation, {
-    intent: orderAutomaticallyIntent,
-  });
-  // The ordering stays on the list, so nothing navigates the dialog away: a
-  // second `Confirmar` would throw away the manual moves the first one just made.
-  useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
-
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
-        className="max-h-[calc(100dvh-2rem)] sm:max-w-lg"
-        onEscapeKeyDown={(event) => {
-          event.preventDefault();
-        }}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>Ordenar automáticamente</AlertDialogTitle>
-          <AlertDialogDescription>
-            Las coreografías elegibles se ordenan por defecto y se les asigna un
-            número de presentación nuevo.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {frozenCount > 0 ? (
-          <Alert variant="info">
-            <Info aria-hidden="true" />
-            <AlertTitle>Presentaciones fijas</AlertTitle>
-            <AlertDescription>
-              Las presentaciones de un cronograma ya evaluado no cambian de
-              número.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        <IrreversibleActionAlert>
-          Esta acción es irreversible y modifica cualquier orden manual
-          realizado.
-        </IrreversibleActionAlert>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <Form method="post">
-            <input
-              type="hidden"
-              name="intent"
-              value={orderAutomaticallyIntent}
-            />
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <Spinner aria-hidden="true" data-icon="inline-start" />
-              ) : null}
-              Confirmar
-            </Button>
-          </Form>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
 }
