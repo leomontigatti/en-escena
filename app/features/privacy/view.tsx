@@ -33,8 +33,8 @@ export function PrivacyPolicyView() {
               Para votar en la Gran final podés ingresar con tu cuenta de
               Google. Solo pedimos el identificador de tu cuenta y tu email, y
               los usamos únicamente para asegurar que cada persona vote una sola
-              vez. Del email guardamos solo una versión cifrada (hash), nunca la
-              dirección.
+              vez en cada ronda. Del email guardamos solo un resumen
+              irreversible (hash), nunca la dirección.
             </p>
           </Section>
 
