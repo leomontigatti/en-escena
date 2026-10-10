@@ -60,10 +60,12 @@ export function JudgePanelView({
   const { openPresentation, openPresentationId, setOpenPresentationId } =
     useOpenPresentation(loaderData.presentations, isOpen);
   const tableRef = useRef<HTMLDivElement>(null);
-  const resumePresentationId = useResumePresentationId(
-    loaderData.presentations,
+  const { arrival, resumePresentationId } = useResumePresentationId({
+    day: loaderData.day,
+    isOnList: openPresentation === null,
     isOpen,
-  );
+    presentations: loaderData.presentations,
+  });
   const columns = useMemo(
     () => buildJudgePresentationColumns(isOpen),
     [isOpen],
@@ -83,7 +85,7 @@ export function JudgePanelView({
     tableRef.current
       ?.querySelector("[data-resume-marker]")
       ?.scrollIntoView({ block: "center" });
-  }, [resumePresentationId, onlyPending]);
+  }, [arrival, onlyPending]);
 
   // A sheet takes the whole page rather than sitting over the list: it is
   // longer than a dialog can hold, and the judge filling it has no use for the
@@ -271,15 +273,21 @@ function useOpenPresentation(
     [setSearchParams],
   );
 
-  return {
-    openPresentation: isOpen
-      ? (presentations.find(
-          (row) => row.presentationId === openPresentationId,
-        ) ?? null)
-      : null,
-    openPresentationId,
-    setOpenPresentationId,
-  };
+  const openPresentation = isOpen
+    ? (presentations.find((row) => row.presentationId === openPresentationId) ??
+      null)
+    : null;
+  const openedPresentationId = openPresentation?.presentationId ?? null;
+
+  // However it was opened — a row, the save moving on, a URL — it is where the
+  // judge is, and so where the list resumes from.
+  useEffect(() => {
+    if (openedPresentationId !== null) {
+      rememberOpenedPresentation(openedPresentationId);
+    }
+  }, [openedPresentationId]);
+
+  return { openPresentation, openPresentationId, setOpenPresentationId };
 }
 
 const allPresentationsScoredMessage =
@@ -340,7 +348,6 @@ function useJudgeScoreFeedback({
       return;
     }
 
-    rememberOpenedPresentation(nextPresentationId);
     setOpenPresentationId(nextPresentationId);
     showToastMessage({
       id: judgeScoreToastId,
@@ -353,28 +360,60 @@ function useJudgeScoreFeedback({
 const judgeScoreToastId = "juzgamiento-puntaje";
 
 /**
- * The marker is read once, on mount: it says where the judge left off when they
- * came back, and it would be unsettling for it to jump to another row while
- * they are looking at the list. It belongs to the show running now, so another
- * day has none.
+ * The marker is placed each time the judge arrives at the list — on mount, on
+ * switching days, and whenever the score form closes — so it says where they
+ * left off, and the list scrolls to it. In between it stays put, a save's
+ * revalidation included: it would be unsettling for it to jump to another row
+ * while they are looking at the list. It belongs to the show running now, so
+ * another day has none.
+ *
+ * `arrival` counts those arrivals, so the scroll follows each one even when the
+ * marker lands on the row it was already on. The first waits for hydration: the
+ * last opened presentation lives in the browser, and the server rendered no
+ * marker.
  */
-function useResumePresentationId(
-  presentations: JudgePresentationRow[],
-  isOpen: boolean,
-) {
-  const [lastOpenedPresentationId] = useState(() =>
-    typeof window === "undefined" ? null : readLastOpenedPresentationId(),
-  );
+function useResumePresentationId({
+  day,
+  isOnList,
+  isOpen,
+  presentations,
+}: {
+  day: string;
+  isOnList: boolean;
+  isOpen: boolean;
+  presentations: JudgePresentationRow[];
+}) {
+  const placeMarker = () =>
+    findResumeMarkerPresentationId(
+      presentations,
+      readLastOpenedPresentationId(),
+      isOpen,
+    );
+  const [isHydrated, setIsHydrated] = useState(false);
+  const arrivalKey = isHydrated && isOnList ? day : null;
+  const [arrival, setArrival] = useState<{
+    count: number;
+    key: string | null;
+    resumePresentationId: string | null;
+  }>({ count: 0, key: null, resumePresentationId: null });
 
-  return useMemo(
-    () =>
-      findResumeMarkerPresentationId(
-        presentations,
-        lastOpenedPresentationId,
-        isOpen,
-      ),
-    [isOpen, lastOpenedPresentationId, presentations],
-  );
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  if (arrival.key !== arrivalKey) {
+    setArrival({
+      count: arrivalKey === null ? arrival.count : arrival.count + 1,
+      key: arrivalKey,
+      resumePresentationId:
+        arrivalKey === null ? arrival.resumePresentationId : placeMarker(),
+    });
+  }
+
+  return {
+    arrival: arrival.count,
+    resumePresentationId: arrival.resumePresentationId,
+  };
 }
 
 function formatExperienceLevel(row: JudgePresentationRow) {
@@ -413,10 +452,7 @@ function buildJudgePresentationColumns(
       cell: (row) =>
         isOpen ? (
           <DataTableTruncatedText value={row.name}>
-            <DataTableLink
-              to={`?presentacion=${row.presentationId}`}
-              onClick={() => rememberOpenedPresentation(row.presentationId)}
-            >
+            <DataTableLink to={`?presentacion=${row.presentationId}`}>
               {row.name}
             </DataTableLink>
           </DataTableTruncatedText>
