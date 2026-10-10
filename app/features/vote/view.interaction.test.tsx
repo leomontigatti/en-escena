@@ -139,6 +139,51 @@ describe("the public vote page", () => {
     );
   });
 
+  test("offers the sign-in with Google in a phone's own browser", async () => {
+    await mount({ google: true, inAppBrowser: null, state: "sign-in" });
+
+    expect(document.body.textContent).toContain("Ingresar con Google");
+  });
+
+  // Google refuses the sign-in there, so the button would only lead to an
+  // error page: the page sends the visitor to the phone's browser instead.
+  test("in Instagram's browser on an iPhone, says how to open the page in the phone's browser instead of offering Google", async () => {
+    await mount({
+      google: true,
+      inAppBrowser: { androidIntentUrl: null, app: "Instagram" },
+      state: "sign-in",
+    });
+
+    expect(document.body.textContent).not.toContain("Ingresar con Google");
+    expect(document.body.textContent).toContain(
+      "Instagram no permite ingresar con Google desde su navegador.",
+    );
+    expect(document.body.textContent).toContain(
+      "Tocá el menú ⋯ de arriba a la derecha",
+    );
+    expect(document.querySelector("a[href^='intent:']")).toBeNull();
+  });
+
+  test("in Instagram's browser on Android, links to the page in the phone's browser", async () => {
+    await mount({
+      google: true,
+      inAppBrowser: {
+        androidIntentUrl:
+          "intent://sistema.enescena.com.ar/votar#Intent;scheme=https;end",
+        app: "Instagram",
+      },
+      state: "sign-in",
+    });
+
+    expect(document.body.textContent).not.toContain("Ingresar con Google");
+    const link = [...document.querySelectorAll("a")].find((anchor) =>
+      anchor.textContent?.includes("Abrir en el navegador"),
+    );
+    expect(link?.getAttribute("href")).toBe(
+      "intent://sistema.enescena.com.ar/votar#Intent;scheme=https;end",
+    );
+  });
+
   test("sends the academy chosen with the code the visitor arrived with", async () => {
     await mount({
       code: "codigo-impreso",

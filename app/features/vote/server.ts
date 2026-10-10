@@ -12,6 +12,7 @@ import {
 import { readPublishedRanking } from "@/lib/grand-final/result.server";
 import {
   buildVoteCodePath,
+  buildVoteUrl,
   voteCodeParam,
   votePath,
 } from "@/lib/grand-final/vote-url";
@@ -29,6 +30,7 @@ import {
   type GrandFinalBannerStorage,
 } from "@/lib/storage/grand-final-banners.server";
 
+import { readInAppBrowser } from "./in-app-browser";
 import {
   voteFormSchema,
   type VoteActionData,
@@ -86,7 +88,7 @@ async function readVotePage(
   }
 
   if (!visitor.token && !visitor.voterId) {
-    return { google: signIn !== null, state: "sign-in" };
+    return readSignInPage(request, signIn);
   }
 
   const codeRefusal =
@@ -105,6 +107,27 @@ async function readVotePage(
     ),
     roundId: round.id,
     state: "open",
+  };
+}
+
+/**
+ * The page asks for a sign-in. Only a sign-in with Google is refused inside
+ * an app's built-in browser: with no Google, the ticket's QR opens in the
+ * camera's browser anyway.
+ */
+function readSignInPage(
+  request: Request,
+  signIn: VoterSignIn | null,
+): VotePageData {
+  return {
+    google: signIn !== null,
+    inAppBrowser: signIn
+      ? readInAppBrowser(
+          request.headers.get("User-Agent"),
+          buildVoteUrl(process.env.APP_URL || new URL(request.url).origin),
+        )
+      : null,
+    state: "sign-in",
   };
 }
 

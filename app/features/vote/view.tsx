@@ -1,5 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, CircleAlert, CircleCheck, Crown, Vote } from "lucide-react";
+import {
+  Check,
+  CircleAlert,
+  CircleCheck,
+  Crown,
+  ExternalLink,
+  Vote,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
@@ -24,6 +31,7 @@ import { cn } from "@/lib/shared/utils";
 
 import { FinalistCarousel } from "./finalist-carousel";
 import { GoogleIcon } from "./google-icon";
+import type { InAppBrowser } from "./in-app-browser";
 import { PublicVoteShell } from "./public-shell";
 import {
   voteFormSchema,
@@ -54,7 +62,9 @@ export function VotePageView({ page }: { page: VotePageData }) {
           tieBrokenByCodeVotes={page.tieBrokenByCodeVotes}
         />
       ) : null}
-      {page.state === "sign-in" ? <SignIn google={page.google} /> : null}
+      {page.state === "sign-in" ? (
+        <SignIn google={page.google} inAppBrowser={page.inAppBrowser} />
+      ) : null}
       {page.state === "code-refused" ? (
         <CodeRefused reason={page.reason} />
       ) : null}
@@ -101,24 +111,76 @@ function Closed() {
 /**
  * A visitor with nothing that votes: no code in the address and no sign-in.
  * The finalists wait for the sign-in with Google; where the deployment has
- * none, only the ticket's QR code votes.
+ * none, only the ticket's QR code votes. Inside an app's built-in browser,
+ * where Google refuses the sign-in, the page sends the visitor to the phone's
+ * own browser first.
  */
-function SignIn({ google }: { google: boolean }) {
+function SignIn({
+  google,
+  inAppBrowser,
+}: {
+  google: boolean;
+  inAppBrowser: InAppBrowser | null;
+}) {
+  if (google && inAppBrowser) {
+    return <LeaveInAppBrowser inAppBrowser={inAppBrowser} />;
+  }
+
+  return (
+    <SignInLayout
+      description={
+        google
+          ? "Para votar, primero ingresá con tu cuenta de Google. Cada cuenta vota una sola vez."
+          : "Para votar hace falta el código QR que viene con tu entrada. Escanealo con la cámara del celular."
+      }
+    >
+      {google ? <GoogleSignInForm /> : null}
+    </SignInLayout>
+  );
+}
+
+/**
+ * Android opens the intent in the phone's browser; an iPhone has no such
+ * address, so the app's own menu is the way out, and on Android it is the
+ * fallback when the app ignores the link.
+ */
+function LeaveInAppBrowser({ inAppBrowser }: { inAppBrowser: InAppBrowser }) {
+  return (
+    <SignInLayout
+      description={`${inAppBrowser.app} no permite ingresar con Google desde su navegador. Para votar, abrí esta página en el navegador del celular.`}
+    >
+      {inAppBrowser.androidIntentUrl ? (
+        <Button asChild className="w-full">
+          <a href={inAppBrowser.androidIntentUrl}>
+            <ExternalLink aria-hidden="true" data-icon="inline-start" />
+            Abrir en el navegador
+          </a>
+        </Button>
+      ) : null}
+      <p className="text-sm leading-6 text-muted-foreground">
+        {inAppBrowser.androidIntentUrl ? "Si no se abre, tocá" : "Tocá"} el menú
+        ⋯ de arriba a la derecha y elegí la opción para abrir en el navegador.
+      </p>
+    </SignInLayout>
+  );
+}
+
+function SignInLayout({
+  children,
+  description,
+}: {
+  children?: React.ReactNode;
+  description: string;
+}) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-10 text-center">
       <Vote aria-hidden="true" className="size-12 text-brand" />
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Votá en la Gran final</h1>
-        <p className="text-sm leading-6 text-muted-foreground">
-          {google
-            ? "Para votar, primero ingresá con tu cuenta de Google. Cada cuenta vota una sola vez."
-            : "Para votar hace falta el código QR que viene con tu entrada. Escanealo con la cámara del celular."}
-        </p>
+        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
-      {google ? (
-        <div className="w-full max-w-sm">
-          <GoogleSignInForm />
-        </div>
+      {children ? (
+        <div className="flex w-full max-w-sm flex-col gap-3">{children}</div>
       ) : null}
     </div>
   );
