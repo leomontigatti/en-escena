@@ -195,6 +195,13 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
      * follow each filter without the view re-deriving it.
      */
     renderFilteredSummary?: (filteredRows: TData[]) => ReactNode;
+    /**
+     * What a row's card holds below `sm`, where a list that passes it draws
+     * compact cards instead of the table: the portal's phone layout. Above
+     * `sm` the table is unchanged. The cards have no sort header, selection or
+     * reordering, so a list that needs any of them on a phone cannot use it.
+     */
+    renderCard?: (row: TData) => ReactNode;
   };
 
 /**

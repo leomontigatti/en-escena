@@ -185,6 +185,7 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
           pageCount,
           totalRows: table.getCoreRowModel().rows.length,
         }}
+        renderCard={props.renderCard}
         search={{
           hidden: props.hideSearch ?? false,
           onChange: setSearchQuery,
