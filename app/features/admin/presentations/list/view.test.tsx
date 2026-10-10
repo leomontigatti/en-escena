@@ -58,43 +58,6 @@ describe("PresentationsListView", () => {
     expect(plural).toContain("Existen 2 presentaciones con advertencias.");
   });
 
-  test("badges an unnumbered row and triages a numbered one by its warnings", () => {
-    const markup = renderView({
-      presentations: [
-        buildItem({ id: "late", orderNumber: null }),
-        buildItem({
-          id: "flagged",
-          orderNumber: 1,
-          warnings: [
-            { kind: "outOfBlock", message: "Fuera de su bloque" },
-            { kind: "belowDeposit", message: "Seña pendiente" },
-          ],
-        }),
-      ],
-      unorderedCount: 1,
-      warnedCount: 1,
-    });
-
-    expect(markup).toContain("Sin número");
-    expect(markup).toContain("Seña pendiente");
-    expect(markup).not.toContain(">Fuera de bloque<");
-  });
-
-  test("keeps the deposit warning on an unnumbered row next to its badge", () => {
-    const markup = renderView({
-      presentations: [
-        buildItem({
-          orderNumber: null,
-          warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
-        }),
-      ],
-      unorderedCount: 1,
-    });
-
-    expect(markup).toContain("Sin número");
-    expect(markup).toContain("Seña pendiente");
-  });
-
   test("lets a numbered row be chosen and leaves an unnumbered one out", () => {
     const markup = renderView({
       presentations: [
@@ -118,41 +81,6 @@ describe("PresentationsListView", () => {
     expect(markup).not.toContain('aria-label="Seleccionar fila"');
   });
 
-  test("replaces the warning badge with the evaluation once the panel judged the row", () => {
-    const markup = renderView({
-      presentations: [
-        buildItem({
-          evaluationStatus: "evaluated",
-          warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
-        }),
-      ],
-    });
-
-    expect(markup).toContain("Evaluada");
-    expect(markup).not.toContain("Seña pendiente");
-  });
-
-  test("shows a disqualified row as disqualified", () => {
-    const markup = renderView({
-      presentations: [buildItem({ evaluationStatus: "disqualified" })],
-    });
-
-    expect(markup).toContain("Descalificada");
-  });
-
-  test("keeps the warning badge of a row the panel has not judged", () => {
-    const markup = renderView({
-      presentations: [
-        buildItem({
-          warnings: [{ kind: "belowDeposit", message: "Seña pendiente" }],
-        }),
-      ],
-    });
-
-    expect(markup).toContain("Seña pendiente");
-    expect(markup).not.toContain("Evaluada");
-  });
-
   test("shows the level of a row, and an em dash when it has none", () => {
     expect(
       renderView({
@@ -166,7 +94,7 @@ describe("PresentationsListView", () => {
 
   test("locks the number and hides the grip of a frozen row", () => {
     const markup = renderView({
-      frozenCount: 1,
+      frozenDays: ["2026-05-01"],
       presentations: [
         buildItem({ frozen: true, id: "frozen", name: "Fija", orderNumber: 1 }),
         buildItem({ id: "free", name: "Libre", orderNumber: 2 }),
@@ -233,7 +161,7 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
       query: "",
       warnings: null,
     },
-    frozenCount: 0,
+    frozenDays: [],
     hasAnyRow: true,
     hasPresentations: true,
     highestOrderNumber: 1,

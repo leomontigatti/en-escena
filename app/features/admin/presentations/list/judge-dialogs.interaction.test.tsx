@@ -293,7 +293,7 @@ function buildLoaderData(): PresentationListResult {
       query: "",
       warnings: null,
     },
-    frozenCount: 0,
+    frozenDays: [],
     hasAnyRow: true,
     hasPresentations: true,
     presentations: [
