@@ -223,12 +223,34 @@ describe("the program export", () => {
 
     expect(strings).toContain("Carla Díaz");
     expect(strings).not.toContain("Dario Ruiz");
-    // Column L is the dancers', row 3 the group's; the fixture gives each
+    // Column M is the dancers', row 3 the group's; the fixture gives each
     // presentation one dancer.
-    expect(await readNumberCell(response, "L3")).toBe(1);
+    expect(await readNumberCell(response, "M3")).toBe(1);
     // The province by its label, never by its stored value.
     expect(strings).toContain("Entre Ríos");
     expect(strings).not.toContain("entre_rios");
+  });
+
+  test("names each presentation's level by its label", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await addPresentation(fixture, {
+      dancerName: "Carla Díaz",
+      name: "Lago",
+      orderNumber: 1,
+      scheduledDate: "2026-05-01",
+    });
+    await db
+      .update(choreographies)
+      .set({ experienceLevelId: "pre_elite" })
+      .where(eq(choreographies.id, presentation.choreographyId));
+
+    const strings = await readWorkbookStrings(
+      await loadProgramExport(await signedInRequest(exportAllDays)),
+    );
+
+    expect(strings).toContain("Nivel");
+    expect(strings).toContain("Pre Elite");
+    expect(strings).not.toContain("pre_elite");
   });
 
   test("names every professor, in a group too, sorted by surname", async () => {

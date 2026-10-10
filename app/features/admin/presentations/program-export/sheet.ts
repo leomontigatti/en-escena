@@ -22,6 +22,8 @@ export type ProgramExportRow = {
   /** Every dancer: named up to a trio, counted in a larger group. */
   dancerNames: string[];
   groupType: ChoreographyGroupType;
+  /** `null` for a category that declares no level. */
+  levelLabel: string | null;
   modalityName: string;
   name: string;
   orderNumber: number;
@@ -50,6 +52,7 @@ export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
     cell: (row) => `${row.startTime} hs · ${row.scheduleName}`,
   },
   { header: "Categoría", width: 16, cell: (row) => row.categoryName },
+  { header: "Nivel", width: 12, cell: (row) => row.levelLabel },
   {
     header: "Tipo de grupo",
     width: 13,
