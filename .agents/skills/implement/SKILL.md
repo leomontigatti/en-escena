@@ -64,6 +64,8 @@ Tier the review by risk:
   with "code-review" on the changes since the branch point, and add the third axis in
   [CORRECTNESS.md](CORRECTNESS.md): one sub-agent that assumes the diff has a bug and traces the
   path that triggers it.
+  The `reviewer` sandbox has no network, so paste the spec's body and comments into the Spec
+  axis's prompt, never a `gh` command for it to run.
 - **Readback** for everything else: follow [READBACK.md](READBACK.md). One sub-agent restates
   what the diff does and flags anything surprising, in under 200 words.
 

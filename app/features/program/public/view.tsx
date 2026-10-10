@@ -23,8 +23,11 @@ import type { PublicProgramLoaderData } from "./server";
  */
 export function PublicProgramView({
   loaderData,
+  onLivePoll,
 }: {
   loaderData: PublicProgramLoaderData;
+  /** Reloads the route's data; the live day's tab asks every minute. */
+  onLivePoll?: () => void;
 }) {
   const { event } = loaderData;
 
@@ -44,6 +47,8 @@ export function PublicProgramView({
               <AlertDescription>{programScheduleNotice}</AlertDescription>
             </Alert>
             <ProgramList
+              live={loaderData.live}
+              onLivePoll={onLivePoll}
               renderDayNotice={(day) => (
                 <DayAwardCeremonies
                   day={day}

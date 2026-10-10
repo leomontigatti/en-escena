@@ -1,3 +1,4 @@
+import { CircleCheck } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -5,6 +6,12 @@ import {
   DataTableTruncatedText,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
@@ -14,12 +21,14 @@ import {
   ScheduleDayTabs,
   useScheduleDayTab,
 } from "./day-tabs";
+import type { ProgramLive } from "./live-day";
 import { ProgramRowCard, ProgramRowName } from "./row-card";
 import {
   formatProgramOrderNumber,
   listProgramDays,
   type ProgramListRow,
 } from "./shared";
+import { useProgramLiveDay } from "./use-live-day";
 
 /**
  * The list of an event's order as everyone outside the administration reads it:
@@ -31,6 +40,13 @@ import {
 export type ProgramListProps = {
   /** Where a row's name links, or `null` to render it as plain text. */
   choreographyPath?: ((row: ProgramListRow) => string) | null;
+  /**
+   * The day being danced, which only the public program follows: its tab's
+   * `En vivo` badge and its evaluated rows. See `live-day.ts`.
+   */
+  live?: ProgramLive | null;
+  /** Asks the route for fresh data, every minute while the day is live. */
+  onLivePoll?: () => void;
   rows: ProgramListRow[];
   /** The public page names who dances; an academy already knows. */
   showAcademy: boolean;
@@ -49,6 +65,8 @@ export type ProgramListProps = {
 
 export function ProgramList({
   choreographyPath = null,
+  live = null,
+  onLivePoll,
   renderDayNotice,
   rows,
   showAcademy,
@@ -63,18 +81,25 @@ export function ProgramList({
     tab.value === allDaysTabValue
       ? rows
       : rows.filter((row) => row.scheduledDate === tab.value);
+  const liveView = useProgramLiveDay({
+    days,
+    live,
+    onPoll: onLivePoll,
+    selectedDay: tab.value,
+  });
 
   return (
     // `gap-3` and the tab row's `pb-1` add up to the 16px every list keeps
     // between its tabs and its search.
     <div className="flex flex-col gap-3">
-      <ScheduleDayTabs days={days} tab={tab} />
+      <ScheduleDayTabs days={days} liveDay={liveView.liveBadgeDay} tab={tab} />
       {tab.value === allDaysTabValue ? null : renderDayNotice?.(tab.value)}
 
       <ClientDataTable
         rows={visibleRows}
         columns={buildProgramColumns({
           choreographyPath,
+          evaluatedChoreographyIds: liveView.evaluatedChoreographyIds,
           showAcademy,
           showLevel,
         })}
@@ -92,6 +117,9 @@ export function ProgramList({
         }
         renderCard={(row) => (
           <ProgramRowCard
+            evaluated={liveView.evaluatedChoreographyIds.has(
+              row.choreographyId,
+            )}
             row={row}
             showLevel={showLevel}
             to={choreographyPath?.(row) ?? null}
@@ -117,10 +145,12 @@ export function ProgramList({
  */
 function buildProgramColumns({
   choreographyPath,
+  evaluatedChoreographyIds,
   showAcademy,
   showLevel,
 }: {
   choreographyPath: ((row: ProgramListRow) => string) | null;
+  evaluatedChoreographyIds: ReadonlySet<string>;
   showAcademy: boolean;
   showLevel: boolean;
 }): DataTableColumn<ProgramListRow>[] {
@@ -200,10 +230,39 @@ function buildProgramColumns({
           ),
         }
       : null,
+    // Header-less and only while some row of the chosen day is evaluated:
+    // the check needs no title, and no other day carries the column.
+    evaluatedChoreographyIds.size > 0
+      ? {
+          id: "evaluated",
+          header: "",
+          width: 4,
+          cell: (row) =>
+            evaluatedChoreographyIds.has(row.choreographyId) ? (
+              <EvaluatedCheck />
+            ) : null,
+        }
+      : null,
   ];
 
   return columns.filter(
     (column): column is DataTableColumn<ProgramListRow> => column !== null,
+  );
+}
+
+function EvaluatedCheck() {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            <CircleCheck aria-hidden="true" className="size-4 text-success" />
+            <span className="sr-only">Ya se presentó</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Ya se presentó</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

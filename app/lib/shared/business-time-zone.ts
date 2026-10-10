@@ -38,3 +38,13 @@ export function getBusinessDateOnly(now: Date = new Date()) {
 
   return `${partMap.get("year")}-${partMap.get("month")}-${partMap.get("day")}`;
 }
+
+/** The time of day in business time, `HH:MM` on a 24-hour clock. */
+export function getBusinessTimeOnly(now: Date = new Date()) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(now);
+}
