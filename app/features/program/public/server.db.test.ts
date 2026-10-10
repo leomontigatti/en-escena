@@ -159,7 +159,7 @@ describe("loadPublicProgram", () => {
     );
   });
 
-  test("marks the judging day's scored and disqualified rows presented, and only those", async () => {
+  test("marks the judging day's scored and disqualified rows evaluated, and only those", async () => {
     const { academy, catalog, choreography, event } =
       await seedPublishedProgram();
     const [scoredPresentation] = await db
@@ -214,7 +214,7 @@ describe("loadPublicProgram", () => {
     expect(onTheDay.live?.day).toEqual({
       date,
       isOver: false,
-      presentedChoreographyIds: [choreography.id, disqualified!.id],
+      evaluatedChoreographyIds: [choreography.id, disqualified!.id],
       startTime: catalog.schedule.startTime,
     });
 

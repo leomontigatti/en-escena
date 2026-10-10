@@ -42,7 +42,7 @@ export type ProgramListProps = {
   choreographyPath?: ((row: ProgramListRow) => string) | null;
   /**
    * The day being danced, which only the public program follows: its tab's
-   * `En vivo` badge and its presented rows. See `live-day.ts`.
+   * `En vivo` badge and its evaluated rows. See `live-day.ts`.
    */
   live?: ProgramLive | null;
   /** Asks the route for fresh data, every minute while the day is live. */
@@ -99,7 +99,7 @@ export function ProgramList({
         rows={visibleRows}
         columns={buildProgramColumns({
           choreographyPath,
-          presentedChoreographyIds: liveView.presentedChoreographyIds,
+          evaluatedChoreographyIds: liveView.evaluatedChoreographyIds,
           showAcademy,
           showLevel,
         })}
@@ -117,7 +117,7 @@ export function ProgramList({
         }
         renderCard={(row) => (
           <ProgramRowCard
-            presented={liveView.presentedChoreographyIds.has(
+            evaluated={liveView.evaluatedChoreographyIds.has(
               row.choreographyId,
             )}
             row={row}
@@ -145,12 +145,12 @@ export function ProgramList({
  */
 function buildProgramColumns({
   choreographyPath,
-  presentedChoreographyIds,
+  evaluatedChoreographyIds,
   showAcademy,
   showLevel,
 }: {
   choreographyPath: ((row: ProgramListRow) => string) | null;
-  presentedChoreographyIds: ReadonlySet<string>;
+  evaluatedChoreographyIds: ReadonlySet<string>;
   showAcademy: boolean;
   showLevel: boolean;
 }): DataTableColumn<ProgramListRow>[] {
@@ -230,16 +230,16 @@ function buildProgramColumns({
           ),
         }
       : null,
-    // Header-less and only while some row of the chosen day is presented:
+    // Header-less and only while some row of the chosen day is evaluated:
     // the check needs no title, and no other day carries the column.
-    presentedChoreographyIds.size > 0
+    evaluatedChoreographyIds.size > 0
       ? {
-          id: "presented",
+          id: "evaluated",
           header: "",
           width: 4,
           cell: (row) =>
-            presentedChoreographyIds.has(row.choreographyId) ? (
-              <PresentedCheck />
+            evaluatedChoreographyIds.has(row.choreographyId) ? (
+              <EvaluatedCheck />
             ) : null,
         }
       : null,
@@ -250,7 +250,7 @@ function buildProgramColumns({
   );
 }
 
-function PresentedCheck() {
+function EvaluatedCheck() {
   return (
     <TooltipProvider>
       <Tooltip>

@@ -78,7 +78,7 @@ export function createPublicProgramLoader({ cacheMs }: { cacheMs: number }) {
       live: {
         day: readProgramLiveDay({
           now,
-          presentedChoreographyIds: program.presentedChoreographyIds,
+          evaluatedChoreographyIds: program.evaluatedChoreographyIds,
           rows: program.rows,
           schedules: program.schedules,
         }),
@@ -113,7 +113,7 @@ async function readPublishedProgram() {
   return {
     event: { endsOn: event.endsOn, name: event.name, startsOn: event.startsOn },
     // Scored and disqualified alike: the program never says which.
-    presentedChoreographyIds: new Set(statuses.keys()),
+    evaluatedChoreographyIds: new Set(statuses.keys()),
     rows: program.rows,
     schedules: program.schedules,
   };

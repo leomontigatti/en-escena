@@ -4,7 +4,7 @@ import { judgingDate } from "@/lib/judging/judging-day";
 
 import {
   isProgramDayLive,
-  showsPresentedMarks,
+  showsEvaluatedMarks,
   type ProgramLive,
 } from "./live-day";
 
@@ -12,7 +12,7 @@ const minuteMs = 60_000;
 
 /**
  * What the program shows of the day being danced, as the clock moves: the
- * `En vivo` badge, and the rows marked presented on the chosen tab. The clock
+ * `En vivo` badge, and the rows marked evaluated on the chosen tab. The clock
  * is read once a minute, so the badge turns on at the start time without a
  * reload. The same tick asks for fresh data, which is the only thing that
  * moves the marks — React does not fetch on its own — while the badge is on
@@ -66,14 +66,14 @@ export function useProgramLiveDay({
   const day = live?.day ?? null;
 
   if (!day) {
-    return { liveBadgeDay: null, presentedChoreographyIds: noIds };
+    return { liveBadgeDay: null, evaluatedChoreographyIds: noIds };
   }
 
   return {
     liveBadgeDay: isProgramDayLive(day, now) ? day.date : null,
-    presentedChoreographyIds:
-      selectedDay === day.date && showsPresentedMarks(day, now)
-        ? new Set(day.presentedChoreographyIds)
+    evaluatedChoreographyIds:
+      selectedDay === day.date && showsEvaluatedMarks(day, now)
+        ? new Set(day.evaluatedChoreographyIds)
         : noIds,
   };
 }

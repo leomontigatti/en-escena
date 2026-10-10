@@ -7,19 +7,20 @@ import {
 /**
  * The public program's day that is being danced: the judging day, so it runs
  * past midnight and closes at 03:00 like the judges' window. The page marks
- * its presented rows for the whole day, and calls it `En vivo` from its first
- * schedule's start until its last presentation is presented — or 03:00, when
+ * its evaluated rows for the whole day, and calls it `En vivo` from its first
+ * schedule's start until its last presentation is evaluated — or 03:00, when
  * that one is never scored. It is per day and not per schedule, so the badge
  * stays on through the breaks between blocks and their award ceremonies.
  *
- * `presented` is the fact `evaluation-status.server.ts` calls evaluated: any
- * score, or a disqualification. The program says it happened, never why.
+ * Evaluated is the fact `evaluation-lock.server.ts` locks on: any score, or a
+ * disqualification. The program reads it as `Ya se presentó` and never says
+ * which of the two it was.
  */
 export type ProgramLiveDay = {
   date: string;
-  /** The day's last presentation, by order, is presented. */
+  /** The day's last presentation, by order, is evaluated. */
   isOver: boolean;
-  presentedChoreographyIds: string[];
+  evaluatedChoreographyIds: string[];
   /** `HH:MM`, the start of the day's first schedule. */
   startTime: string;
 };
@@ -36,12 +37,12 @@ export type ProgramLive = {
 
 export function readProgramLiveDay({
   now,
-  presentedChoreographyIds,
+  evaluatedChoreographyIds,
   rows,
   schedules,
 }: {
   now: Date;
-  presentedChoreographyIds: ReadonlySet<string>;
+  evaluatedChoreographyIds: ReadonlySet<string>;
   rows: ReadonlyArray<{
     choreographyId: string;
     orderNumber: number | null;
@@ -66,20 +67,20 @@ export function readProgramLiveDay({
 
   return {
     date,
-    isOver: presentedChoreographyIds.has(lastRow.choreographyId),
-    presentedChoreographyIds: dayRows
+    isOver: evaluatedChoreographyIds.has(lastRow.choreographyId),
+    evaluatedChoreographyIds: dayRows
       .map((row) => row.choreographyId)
-      .filter((id) => presentedChoreographyIds.has(id)),
+      .filter((id) => evaluatedChoreographyIds.has(id)),
     startTime,
   };
 }
 
-export function showsPresentedMarks(day: ProgramLiveDay, now: Date) {
+export function showsEvaluatedMarks(day: ProgramLiveDay, now: Date) {
   return judgingDate(now) === day.date;
 }
 
 export function isProgramDayLive(day: ProgramLiveDay, now: Date) {
-  if (day.isOver || !showsPresentedMarks(day, now)) {
+  if (day.isOver || !showsEvaluatedMarks(day, now)) {
     return false;
   }
 

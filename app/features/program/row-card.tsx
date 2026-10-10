@@ -19,26 +19,26 @@ import { formatProgramOrderNumber, type ProgramListRow } from "./shared";
  * or who dances. Nothing in a card is cut: a phone has no hover for the
  * `title` a cut cell keeps, so long values wrap instead.
  *
- * A presented card, on the public program's day being danced, fades all but
+ * An evaluated card, on the public program's day being danced, fades all but
  * its number, which turns into a green badge: the faded run is what the show
  * has left behind, and the badge says so where the eye lands first.
  */
 export function ProgramRowCard({
   children,
-  presented = false,
+  evaluated = false,
   row,
   showLevel,
   to,
 }: {
   children?: ReactNode;
-  presented?: boolean;
+  evaluated?: boolean;
   row: ProgramListRow;
   /** As the list's `Nivel` column: only where the table carries it. */
   showLevel: boolean;
   to: string | null;
 }) {
   const number = `N.º ${formatProgramOrderNumber(row) || "—"}`;
-  const faded = presented ? "opacity-55" : undefined;
+  const faded = evaluated ? "opacity-55" : undefined;
 
   return (
     <>
@@ -52,7 +52,7 @@ export function ProgramRowCard({
             </DataTableLink>
           )}
         </div>
-        {presented ? (
+        {evaluated ? (
           <Badge variant="success" className="shrink-0 tabular-nums">
             <Check aria-hidden="true" />
             <span className="sr-only">Ya se presentó, </span>
@@ -76,7 +76,7 @@ export function ProgramRowCard({
           .filter(Boolean)
           .join(" · ")}
       </p>
-      {presented ? <div className={faded}>{children}</div> : children}
+      {evaluated ? <div className={faded}>{children}</div> : children}
     </>
   );
 }

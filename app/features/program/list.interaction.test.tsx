@@ -235,7 +235,7 @@ describe("the program list everyone outside the administration reads", () => {
     const liveDay: ProgramLiveDay = {
       date: "2026-05-01",
       isOver: false,
-      presentedChoreographyIds: ["one"],
+      evaluatedChoreographyIds: ["one"],
       startTime: "18:00",
     };
     const liveDayRows = [
@@ -264,13 +264,13 @@ describe("the program list everyone outside the administration reads", () => {
       );
     }
 
-    function presentedMarks() {
+    function evaluatedMarks() {
       return (
         (document.body.textContent ?? "").split("Ya se presentó").length - 1
       );
     }
 
-    test("badges the day's tab and marks its presented rows, on that tab only", async () => {
+    test("badges the day's tab and marks its evaluated rows, on that tab only", async () => {
       setBusinessNow("2026-05-01T19:00:00");
       await mount({
         entry: "/programa?dia=2026-05-01",
@@ -283,13 +283,13 @@ describe("the program list everyone outside the administration reads", () => {
         "Viernes 1/5En vivo",
         "Sábado 2/5",
       ]);
-      // The card's badge and the table's check, for the one presented row.
-      expect(presentedMarks()).toBe(2);
+      // The card's badge and the table's check, for the one evaluated row.
+      expect(evaluatedMarks()).toBe(2);
 
       await selectTab(0);
-      expect(presentedMarks()).toBe(0);
+      expect(evaluatedMarks()).toBe(0);
       await selectTab(2);
-      expect(presentedMarks()).toBe(0);
+      expect(evaluatedMarks()).toBe(0);
     });
 
     test("marks the rows before the show starts, with no badge yet", async () => {
@@ -301,7 +301,7 @@ describe("the program list everyone outside the administration reads", () => {
       });
 
       expect(tabLabels()).toEqual(["Todos", "Viernes 1/5", "Sábado 2/5"]);
-      expect(presentedMarks()).toBe(2);
+      expect(evaluatedMarks()).toBe(2);
     });
 
     test("polls every minute while live on its tab, and stops on another", async () => {
@@ -326,7 +326,7 @@ describe("the program list everyone outside the administration reads", () => {
       expect(onLivePoll).toHaveBeenCalledTimes(1);
     });
 
-    test("never polls once the day's last presentation is presented", async () => {
+    test("never polls once the day's last presentation is evaluated", async () => {
       setBusinessNow("2026-05-01T19:00:00");
       const onLivePoll = vi.fn();
       await mount({
@@ -344,7 +344,7 @@ describe("the program list everyone outside the administration reads", () => {
     });
   });
 
-  // Only the loader knows a day's presented rows, so a page left open across
+  // Only the loader knows a day's evaluated rows, so a page left open across
   // 03:00 asks for them, or it would wait for a reload that never comes.
   test("asks for the new day's data once its judging day begins", async () => {
     vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });

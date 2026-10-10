@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   isProgramDayLive,
   readProgramLiveDay,
-  showsPresentedMarks,
+  showsEvaluatedMarks,
   type ProgramLiveDay,
 } from "./live-day";
 
@@ -18,7 +18,7 @@ function businessInstant(text: string) {
 const day: ProgramLiveDay = {
   date: "2026-12-09",
   isOver: false,
-  presentedChoreographyIds: [],
+  evaluatedChoreographyIds: [],
   startTime: "18:00",
 };
 
@@ -35,27 +35,27 @@ describe("readProgramLiveDay", () => {
   ];
   const at = businessInstant("2026-12-09T12:00:00");
 
-  test("is the judging day: its first start time and only its presented rows", () => {
+  test("is the judging day: its first start time and only its evaluated rows", () => {
     expect(
       readProgramLiveDay({
         now: at,
-        presentedChoreographyIds: new Set(["a", "c"]),
+        evaluatedChoreographyIds: new Set(["a", "c"]),
         rows,
         schedules,
       }),
     ).toEqual({
       date: "2026-12-09",
       isOver: false,
-      presentedChoreographyIds: ["a"],
+      evaluatedChoreographyIds: ["a"],
       startTime: "18:00",
     });
   });
 
-  test("is over once the day's last presentation is presented", () => {
+  test("is over once the day's last presentation is evaluated", () => {
     expect(
       readProgramLiveDay({
         now: at,
-        presentedChoreographyIds: new Set(["b"]),
+        evaluatedChoreographyIds: new Set(["b"]),
         rows,
         schedules,
       })?.isOver,
@@ -66,7 +66,7 @@ describe("readProgramLiveDay", () => {
     expect(
       readProgramLiveDay({
         now: businessInstant("2026-12-11T20:00:00"),
-        presentedChoreographyIds: new Set(),
+        evaluatedChoreographyIds: new Set(),
         rows,
         schedules,
       }),
@@ -93,7 +93,7 @@ describe("isProgramDayLive", () => {
     );
   });
 
-  test("ends when the day's last presentation is presented", () => {
+  test("ends when the day's last presentation is evaluated", () => {
     expect(
       isProgramDayLive(
         { ...day, isOver: true },
@@ -103,18 +103,18 @@ describe("isProgramDayLive", () => {
   });
 });
 
-describe("showsPresentedMarks", () => {
+describe("showsEvaluatedMarks", () => {
   test("holds the whole judging day, before the show and after it ends", () => {
     const over = { ...day, isOver: true };
 
     expect(
-      showsPresentedMarks(over, businessInstant("2026-12-09T09:00:00")),
+      showsEvaluatedMarks(over, businessInstant("2026-12-09T09:00:00")),
     ).toBe(true);
     expect(
-      showsPresentedMarks(over, businessInstant("2026-12-10T02:59:00")),
+      showsEvaluatedMarks(over, businessInstant("2026-12-10T02:59:00")),
     ).toBe(true);
     expect(
-      showsPresentedMarks(over, businessInstant("2026-12-10T03:00:00")),
+      showsEvaluatedMarks(over, businessInstant("2026-12-10T03:00:00")),
     ).toBe(false);
   });
 });
