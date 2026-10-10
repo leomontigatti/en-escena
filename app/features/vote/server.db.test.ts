@@ -270,7 +270,34 @@ describe("the public vote page", () => {
 
     await expect(load()).resolves.toEqual({
       cacheControl: "no-store",
-      page: { google: true, state: "sign-in" },
+      page: { google: true, inAppBrowser: null, state: "sign-in" },
+    });
+  });
+
+  // Google refuses to sign in from Instagram's built-in browser, where a
+  // link shared on Instagram opens: the page says so before the visitor tries.
+  test("tells a visitor in Instagram's browser on Android how to leave it before signing in", async () => {
+    await seedOpenRoundFixture();
+
+    const answer = await loadVotePage(
+      new Request("http://localhost/votar", {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Linux; Android 14; Pixel 8; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.0.0 Mobile Safari/537.36 Instagram 350.0.0.0 Android",
+        },
+      }),
+      storage,
+      signIn,
+    );
+
+    expect(answer.data).toEqual({
+      google: true,
+      inAppBrowser: {
+        androidIntentUrl:
+          "intent://localhost:5173/votar#Intent;scheme=http;end",
+        app: "Instagram",
+      },
+      state: "sign-in",
     });
   });
 
@@ -310,7 +337,7 @@ describe("the public vote page", () => {
     await db.delete(voters);
 
     await expect(load("", visitor)).resolves.toMatchObject({
-      page: { google: true, state: "sign-in" },
+      page: { google: true, inAppBrowser: null, state: "sign-in" },
     });
   });
 
