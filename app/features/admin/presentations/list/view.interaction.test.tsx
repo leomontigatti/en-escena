@@ -368,6 +368,50 @@ describe("the participation list's program visibility", () => {
   });
 });
 
+describe("the participation list's automatic ordering", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("opens on the event's days from the actions menu", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/presentaciones",
+          element: (
+            <PresentationsListView
+              loaderData={buildLoaderData({
+                days: ["2026-12-04", "2026-12-05"],
+              })}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/administracion/presentaciones"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await openRadixSelect(findButton("Acciones", { exact: true }));
+
+    const orderItem = [...document.querySelectorAll('[role="menuitem"]')].find(
+      (item) => item.textContent === "Ordenar automáticamente",
+    );
+
+    await act(async () => {
+      (orderItem as HTMLElement).click();
+    });
+
+    expect(document.querySelector('[role="dialog"] h2')?.textContent).toBe(
+      "Ordenar automáticamente",
+    );
+    expect(
+      [...document.querySelectorAll('[data-slot="choice-card"]')].map(
+        (card) => card.textContent,
+      ),
+    ).toEqual(["Viernes 4/12", "Sábado 5/12"]);
+  });
+});
+
 function stubRowRects() {
   const rows = [...document.querySelectorAll("tbody tr")];
 
@@ -431,7 +475,7 @@ function buildLoaderData(
       query: "",
       warnings: null,
     },
-    frozenCount: 0,
+    frozenDays: [],
     hasAnyRow: true,
     hasPresentations: true,
     presentations: [

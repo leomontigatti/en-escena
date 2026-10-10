@@ -48,7 +48,15 @@ export type PresentationPlacement = {
 };
 
 export type AutomaticOrderResult =
-  | { ok: true; frozenCount: number; placements: PresentationPlacement[] }
+  | {
+      ok: true;
+      /** The frozen rows of the ordered days, left where they were. */
+      frozenCount: number;
+      /** The rows of the ordered days given a number. */
+      orderedCount: number;
+      /** Every number written, the shifted rows of the other days included. */
+      placements: PresentationPlacement[];
+    }
   | { ok: false; reason: "nothingToOrder" };
 
 /**
@@ -134,63 +142,101 @@ export function comparePresentationBlocks(
  * late row of a schedule that already ran lands right after that schedule
  * when the next position is free, and after the next frozen schedule when it
  * is not. Frozen numbers are never shifted to make room.
+ *
+ * `days` narrows the ordering to those days; none orders every day. A day left
+ * out keeps its numbered rows in the order they have now, manual moves
+ * included, and only shifts with the days before it; its late rows wait for
+ * the day to be ordered. The numbers stay one sequence across the event, so a
+ * day is laid out whole after the one before it.
  */
 export function computeAutomaticOrder(
   rows: PresentationOrderingRow[],
   frozenChoreographyIds: Set<string> = new Set(),
+  days: readonly string[] = [],
 ): AutomaticOrderResult {
+  const isChosen = (row: PresentationOrderingRow) =>
+    days.length === 0 || days.includes(row.schedule.scheduledDate);
   const frozen = rows.filter((row) =>
     frozenChoreographyIds.has(row.choreographyId),
   );
   const unfrozen = rows.filter(
     (row) => !frozenChoreographyIds.has(row.choreographyId),
   );
+  const chosen = unfrozen.filter(isChosen);
 
-  if (unfrozen.length === 0) {
+  if (chosen.length === 0) {
     return { ok: false, reason: "nothingToOrder" };
   }
 
-  const sorted = [...unfrozen].sort(
-    (left, right) =>
-      comparePresentationBlocks(left, right) ||
-      compare(left.choreographyNumber, right.choreographyNumber) ||
-      compare(left.choreographyId, right.choreographyId),
+  const kept = unfrozen.filter(
+    (row) => !isChosen(row) && row.orderNumber !== null,
   );
-
   const byPosition = new Map<number, PresentationOrderingRow>(
     frozen.map((row) => [row.orderNumber!, row]),
   );
   const freePositions = listFreePositions(
     rows,
     frozenChoreographyIds,
-    unfrozen.length,
+    chosen.length + kept.length,
   );
   const placements: PresentationPlacement[] = [];
   let next = 0;
+  const place = (chosenRow: PresentationOrderingRow, position: number) => {
+    byPosition.set(position, chosenRow);
+    placements.push({
+      choreographyId: chosenRow.choreographyId,
+      orderNumber: position,
+    });
+  };
+  const placedDays = [
+    ...new Set([...chosen, ...kept].map((row) => row.schedule.scheduledDate)),
+  ].sort();
 
-  for (const block of splitIntoBlocks(sorted)) {
-    const remaining = [...block];
+  for (const day of placedDays) {
+    const keptOfDay = kept
+      .filter((row) => row.schedule.scheduledDate === day)
+      .sort((left, right) => left.orderNumber! - right.orderNumber!);
 
-    while (remaining.length > 0) {
-      const position = freePositions[next];
+    for (const keptRow of keptOfDay) {
+      place(keptRow, freePositions[next]);
       next += 1;
-      const index = remaining.findIndex(
-        (row) => !conflictsWithRecentPlacements(row, position, byPosition),
+    }
+
+    const chosenOfDay = chosen
+      .filter((row) => row.schedule.scheduledDate === day)
+      .sort(
+        (left, right) =>
+          comparePresentationBlocks(left, right) ||
+          compare(left.choreographyNumber, right.choreographyNumber) ||
+          compare(left.choreographyId, right.choreographyId),
       );
 
-      // Every remaining row clashes: the lowest number goes in and the clash is
-      // left to `derivePresentationWarnings` to flag. The block sequence is
-      // never broken to satisfy the gap.
-      const [chosen] = remaining.splice(index === -1 ? 0 : index, 1);
-      byPosition.set(position, chosen);
-      placements.push({
-        choreographyId: chosen.choreographyId,
-        orderNumber: position,
-      });
+    for (const block of splitIntoBlocks(chosenOfDay)) {
+      const remaining = [...block];
+
+      while (remaining.length > 0) {
+        const position = freePositions[next];
+        next += 1;
+        const index = remaining.findIndex(
+          (candidate) =>
+            !conflictsWithRecentPlacements(candidate, position, byPosition),
+        );
+
+        // Every remaining row clashes: the lowest number goes in and the clash
+        // is left to `derivePresentationWarnings` to flag. The block sequence
+        // is never broken to satisfy the gap.
+        const [chosenRow] = remaining.splice(index === -1 ? 0 : index, 1);
+        place(chosenRow, position);
+      }
     }
   }
 
-  return { ok: true, frozenCount: frozen.length, placements };
+  return {
+    ok: true,
+    frozenCount: frozen.filter(isChosen).length,
+    orderedCount: chosen.length,
+    placements,
+  };
 }
 
 /**
