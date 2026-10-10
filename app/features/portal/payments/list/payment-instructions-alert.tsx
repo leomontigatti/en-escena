@@ -1,8 +1,8 @@
-import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { Check, Copy, Info } from "lucide-react";
+import { Info } from "lucide-react";
+import { Fragment, type ReactNode } from "react";
 
+import { CopyIconButton } from "@/components/shared/copy-icon-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { PaymentInstructions } from "@/lib/finances/payment-instructions";
 import { cn } from "@/lib/shared/utils";
@@ -11,9 +11,6 @@ import {
   formatPaymentHolderLine,
   hasPaymentIdentifiers,
 } from "./payment-instructions-format";
-
-/** How long the copy button shows its confirmation before reverting. */
-const COPIED_FEEDBACK_MS = 2000;
 
 /**
  * The event's `Instrucciones de pago` on `/portal/pagos`: the info note the
@@ -122,49 +119,6 @@ function CopyableCell({ label, value }: { label: string; value: string }) {
         <CopyIconButton label={label} value={value} />
       </dd>
     </div>
-  );
-}
-
-/**
- * Inline feedback, never a toast: copying never reaches the server, and toasts
- * are reserved for server-confirmed results. The clipboard receives the stored
- * value exactly, and the confirmation waits for the write to land: on a
- * non-secure context the API is present but rejects, and announcing `copiado`
- * over 22 digits that never reached the clipboard is the failure that matters.
- * A silent no-op is the better one.
- */
-function CopyIconButton({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) {
-      return;
-    }
-
-    const timeout = window.setTimeout(
-      () => setCopied(false),
-      COPIED_FEEDBACK_MS,
-    );
-
-    return () => window.clearTimeout(timeout);
-  }, [copied]);
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      aria-label={copied ? `${label} copiado` : `Copiar ${label}`}
-      onClick={() => {
-        navigator.clipboard
-          ?.writeText(value)
-          .then(() => setCopied(true))
-          // A refused write leaves the icon unchanged, and the user can press again.
-          .catch(() => {});
-      }}
-    >
-      {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-    </Button>
   );
 }
 

@@ -15,6 +15,9 @@ import type { DataTableFacetedFilter } from "@/components/shared/data-table.shar
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
 import { Badge } from "@/components/ui/badge";
+import type { FinalistPickActionData } from "@/features/judging/finalist-pick/action.server";
+import { FinalistPicks } from "@/features/judging/finalist-pick/form";
+import { saveFinalistPickIntent } from "@/features/judging/finalist-pick/shared";
 import type { JudgePanelActionData } from "@/features/judging/score/action.server";
 import { JudgeScoreDialog } from "@/features/judging/score/dialog";
 import { JudgeScoreSheet } from "@/features/judging/score/sheet";
@@ -36,7 +39,7 @@ import {
 import type { JudgePanelRouteData } from "./server";
 
 export type JudgePanelViewProps = {
-  actionData?: JudgePanelActionData;
+  actionData?: FinalistPickActionData | JudgePanelActionData;
   loaderData: JudgePanelRouteData;
 };
 
@@ -52,9 +55,10 @@ export type JudgePanelViewProps = {
  * form, a `?presentacion=` URL included.
  */
 export function JudgePanelView({
-  actionData,
+  actionData: routeActionData,
   loaderData,
 }: JudgePanelViewProps) {
+  const actionData = scoreActionData(routeActionData);
   const [onlyPending, setOnlyPending] = useState(false);
   const { isOpen } = loaderData;
   const { openPresentation, openPresentationId, setOpenPresentationId } =
@@ -141,6 +145,8 @@ export function JudgePanelView({
         />
       </div>
 
+      <FinalistPicks isOpen={isOpen} rows={loaderData.finalistPicks} />
+
       {openPresentation && openPresentation.criteria.length === 0 ? (
         <JudgeScoreDialog
           key={openPresentation.presentationId}
@@ -150,6 +156,16 @@ export function JudgePanelView({
       ) : null}
     </AccessPage>
   );
+}
+
+/**
+ * A pick answers through its own fetcher; only a score's answer is the
+ * route's to act on.
+ */
+function scoreActionData(
+  actionData: JudgePanelViewProps["actionData"],
+): JudgePanelActionData | undefined {
+  return actionData?.intent === saveFinalistPickIntent ? undefined : actionData;
 }
 
 function describeDay({
