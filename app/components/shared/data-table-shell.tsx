@@ -32,6 +32,7 @@ import {
   DataTablePagination,
   SortIcon,
 } from "@/components/shared/data-table-controls";
+import { DataTableCardList } from "@/components/shared/data-table-card-list";
 import { DataTableFilters } from "@/components/shared/data-table-filters";
 import { toSortDirection } from "@/components/shared/data-table-helpers";
 import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
@@ -122,6 +123,7 @@ type DataTableShellProps<TData> = {
   isLoading: boolean;
   layout: DataTableLayout;
   pagination: DataTablePaginationProps;
+  renderCard?: (row: TData) => ReactNode;
   reorder?: DataTableReorder;
   search: DataTableSearchProps;
   serverSort?: DataTableServerSortProps;
@@ -229,6 +231,7 @@ export function DataTableShell<TData>({
   isLoading,
   layout,
   pagination,
+  renderCard,
   reorder,
   search,
   serverSort,
@@ -262,6 +265,8 @@ export function DataTableShell<TData>({
         aria-busy={isLoading}
         className={cn(
           "rounded-lg border bg-background transition-opacity",
+          // A list with cards shows them on a phone instead of the table.
+          renderCard && "max-sm:hidden",
           // The rows stay put and fade after a beat, so a fast reload never
           // flickers; the way back is immediate. The spinner is in the search
           // box, where the reader acted, rather than in a footer that is off
@@ -277,6 +282,13 @@ export function DataTableShell<TData>({
           tableElement
         )}
       </div>
+      {renderCard ? (
+        <DataTableCardList
+          emptyMessage={emptyMessage}
+          renderCard={renderCard}
+          table={table}
+        />
+      ) : null}
       {!pagination.hidden ? <DataTableFooter pagination={pagination} /> : null}
     </div>
   );

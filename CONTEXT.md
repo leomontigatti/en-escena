@@ -338,7 +338,7 @@ A numbered `presentation` of a schedule that already has an evaluated presentati
 _Avoid_: locked presentation, evaluated presentation (a frozen row need not be evaluated itself), closed schedule (`registrationOpen` is about inscriptions)
 
 **`presentationWarning`** — ui: "Advertencia"
-Derived, informational flag on a row of the `choreographyParticipationList`: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `evaluatedSchedule` (`Cronograma evaluado`: a row without a number whose schedule already has a `frozenPresentation`, so no ordering can place it among the presentations already announced), `dancerSpacing` (`Separación`) and `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in). Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
+Derived, informational flag on a row of the `choreographyParticipationList`: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `evaluatedSchedule` (`Cronograma evaluado`: a row without a number whose schedule already has a `frozenPresentation`, so no ordering can place it among the presentations already announced), `dancerSpacing` (`Separación`), `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in) and `missingJudges` (`Sin jueces`: a numbered, non-disqualified presentation with no `judgeAssignment` while another of its schedule has one — the one left behind when the panel was assigned before it was numbered). Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
 _Avoid_: error, validation, lock
 
 **`participationStatus`** — ui: "Estado de participación"
