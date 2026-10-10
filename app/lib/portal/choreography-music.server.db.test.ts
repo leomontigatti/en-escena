@@ -149,6 +149,96 @@ describe("portal choreography music", () => {
     expect(removedKeys).toEqual(["academies/music/current.mp3"]);
   });
 
+  // The form only ever posts the stored key or an empty one. Any other key is
+  // a hand-built request, and accepting it would let the academy point the
+  // choreography at another academy's song, read it, and delete it next save.
+  test("refuses a storage key that is neither the stored one nor empty", async () => {
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Ajena",
+        email: "music.foreign.key@example.com",
+        musicStorageKey: "academies/music/current.mp3",
+        name: "Con clave ajena",
+      },
+    );
+    const storage = {
+      createMusicSignedUrl: async (storageKey: string) =>
+        `signed:${storageKey}`,
+      removeMusic: async () => {
+        throw new Error("Unexpected remove");
+      },
+      uploadMusic: async () => {
+        throw new Error("Unexpected upload");
+      },
+    };
+
+    await expect(
+      updateChoreographyMusic({
+        academyId: owner.academyId,
+        choreographyId: choreography.id,
+        eventId: event.id,
+        file: null,
+        submittedStorageKey: "academies/other/choreographies/other/music.mp3",
+        storage,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      message:
+        "No pudimos guardar la música. Recargá la página e intentá nuevamente.",
+    });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { musicStorageKey: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ musicStorageKey: "academies/music/current.mp3" });
+  });
+
+  // With a file the posted key goes unused, so a page that went stale while
+  // the music changed elsewhere still saves its replacement.
+  test("uploads a new file whatever key the page posted beside it", async () => {
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Desactualizada",
+        email: "music.stale.key@example.com",
+        musicStorageKey: "academies/music/current.mp3",
+        name: "Con página vieja",
+      },
+    );
+    const storage = {
+      createMusicSignedUrl: async (storageKey: string) =>
+        `signed:${storageKey}`,
+      removeMusic: async () => {},
+      uploadMusic: async (input: {
+        academyId: string;
+        choreographyId: string;
+        file: Blob;
+      }) => ({
+        ok: true as const,
+        storageKey: `academies/${input.academyId}/choreographies/${input.choreographyId}/music.ogg`,
+      }),
+    };
+
+    await expect(
+      updateChoreographyMusic({
+        academyId: owner.academyId,
+        choreographyId: choreography.id,
+        eventId: event.id,
+        file: new File(["music"], "musica.ogg", { type: "audio/ogg" }),
+        submittedStorageKey: "academies/music/previous.mp3",
+        storage,
+      }),
+    ).resolves.toEqual({ ok: true });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { musicStorageKey: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({
+      musicStorageKey: `academies/${owner.academyId}/choreographies/${choreography.id}/music.ogg`,
+    });
+  });
+
   // Removing the previous object fails after the row already points at the new
   // one, so the replacement cannot be undone: the old byte stays orphaned on
   // the volume, and this log line is the only thing that makes it recoverable.
