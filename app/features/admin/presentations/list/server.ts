@@ -46,6 +46,7 @@ import { readMusicDownloadDays } from "../music-download/server";
 
 import {
   assignJudgesIntent,
+  automaticOrderingSchema,
   formatAutomaticOrderingMessage,
   formatJudgeAssignmentMessage,
   formatProgramVisibilityMessage,
@@ -53,6 +54,7 @@ import {
   judgeIdFieldName,
   movePresentationIntent,
   orderAutomaticallyIntent,
+  orderDayFieldName,
   presentationChoreographyIdFieldName,
   programEventIdFieldName,
   programVisibilitySchema,
@@ -123,7 +125,7 @@ async function loadPresentationList(input: {
       canOrder: input.canOrder,
       days: [],
       filters: input.filters,
-      frozenCount: 0,
+      frozenDays: [],
       hasAnyRow: false,
       hasPresentations: false,
       highestOrderNumber: 0,
@@ -195,7 +197,11 @@ async function loadPresentationList(input: {
     canOrder: input.canOrder,
     days,
     filters: { ...filters, page },
-    frozenCount: frozenChoreographyIds.size,
+    frozenDays: [
+      ...new Set(
+        items.filter((item) => item.frozen).map((item) => item.scheduledDate),
+      ),
+    ].sort(),
     hasAnyRow: items.length > 0,
     hasPresentations: items.some((item) => item.orderNumber !== null),
     highestOrderNumber: Math.max(
@@ -265,7 +271,31 @@ export async function handlePresentationListAction(
     );
   }
 
-  const result = await runAutomaticOrdering(eventContext.selectedEventId);
+  return await runOrdering(eventContext.selectedEventId, formData);
+}
+
+/**
+ * Orders the chosen days, or the whole event when the submission names none.
+ * The dialog lists the event's own days, so a date outside them is a request
+ * the form never made, refused like the visibility dialog refuses it.
+ */
+async function runOrdering(eventId: string, formData: FormData) {
+  const parsed = automaticOrderingSchema.safeParse({
+    [orderDayFieldName]: formData.getAll(orderDayFieldName),
+  });
+  const days = parsed.success ? parsed.data[orderDayFieldName] : null;
+
+  if (days === null || !(await areEventDays(eventId, days))) {
+    return data(
+      {
+        message: "No se reconocieron los días elegidos.",
+        status: "error" as const,
+      },
+      { status: 400 },
+    );
+  }
+
+  const result = await runAutomaticOrdering(eventId, days);
 
   if (!result.ok) {
     return data(
@@ -321,13 +351,7 @@ async function runProgramVisibility(eventId: string, formData: FormData) {
 
   // The dialog lists the event's own days, so a date outside them is a
   // request the form never made, and would publish nothing a schedule holds.
-  const eventDays = await db
-    .selectDistinct({ scheduledDate: schedules.scheduledDate })
-    .from(schedules)
-    .where(eq(schedules.eventId, eventId));
-  const knownDays = new Set(eventDays.map((row) => row.scheduledDate));
-
-  if (days.some((day) => !knownDays.has(day))) {
+  if (!(await areEventDays(eventId, days))) {
     return data(
       {
         message: "No se reconocieron los días elegidos.",
@@ -343,6 +367,17 @@ async function runProgramVisibility(eventId: string, formData: FormData) {
     message: formatProgramVisibilityMessage(days),
     status: "success" as const,
   };
+}
+
+/** Whether every one of `days` is the date of one of the event's schedules. */
+async function areEventDays(eventId: string, days: readonly string[]) {
+  const eventDays = await db
+    .selectDistinct({ scheduledDate: schedules.scheduledDate })
+    .from(schedules)
+    .where(eq(schedules.eventId, eventId));
+  const knownDays = new Set(eventDays.map((row) => row.scheduledDate));
+
+  return days.every((day) => knownDays.has(day));
 }
 
 /**

@@ -263,9 +263,13 @@ What the dialog announced is advisory.
   administrator runs `Ordenar automáticamente`, moves presentations and assigns
   judges; the rules are in `docs/domain/judging.md`.
 - Its rows are grouped by event day through tabs, not by a schedule column. Its
-  `Estado` column shows one badge per row, the most relevant of `Sin número`,
-  `Seña pendiente`, `Separación` and `Fuera de bloque`, with every `Advertencia`
-  of the row in the tooltip. It carries no operational, financial or
+  `Estado` column shows at most one badge per row. An evaluated row shows
+  `Evaluada` or `Descalificada`, which replaces any `Advertencia`. A pending row
+  shows its most relevant `Advertencia` (`Sin jueces` first, drawn as
+  destructive, then `Seña pendiente`, `Separación`, `Fuera de bloque` and the
+  rest), with every `Advertencia` of the row in the tooltip, and no badge when
+  it has none. A row without a number has no badge of its own: its empty
+  number and its place at the end say it. It carries no operational, financial or
   `Estado de participación` badge, and no judges column: assignments are read
   and changed through the assign and remove dialogs.
 - Only numbered rows can be selected, because a judge is assigned to a
