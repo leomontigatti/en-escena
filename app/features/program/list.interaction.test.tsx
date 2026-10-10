@@ -19,6 +19,10 @@ describe("the program list everyone outside the administration reads", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
+  // Two tests fake the clock; this undoes it even when one of them fails.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   let urlSearch = "";
 
@@ -254,10 +258,6 @@ describe("the program list everyone outside the administration reads", () => {
       vi.setSystemTime(new Date(`${text}-03:00`));
     }
 
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
     function tabLabels() {
       return [...document.querySelectorAll('[role="tab"]')].map(
         (tab) => tab.textContent,
@@ -360,7 +360,6 @@ describe("the program list everyone outside the administration reads", () => {
       vi.advanceTimersByTime(60_000);
     });
     expect(onLivePoll).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
   });
 
   test("carries no state column on either surface", async () => {

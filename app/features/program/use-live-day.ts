@@ -34,9 +34,12 @@ export function useProgramLiveDay({
   // Both are rebuilt on every render; reading them through refs keeps a
   // keystroke in the search from restarting the minute.
   const onPollRef = useRef(onPoll);
-  onPollRef.current = onPoll;
   const daysRef = useRef(days);
-  daysRef.current = days;
+
+  useEffect(() => {
+    onPollRef.current = onPoll;
+    daysRef.current = days;
+  });
 
   useEffect(() => {
     if (!live) {
