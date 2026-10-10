@@ -2,7 +2,14 @@ import { eq, sql } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { events, presentations, schedules } from "@/db/schema";
+import {
+  events,
+  judgeAssignments,
+  presentations,
+  schedules,
+  scores,
+  user,
+} from "@/db/schema";
 import {
   createChoreographyRecord,
   createEventCatalog,
@@ -16,9 +23,13 @@ import { setVisibleProgramDays } from "@/lib/presentations/program-visibility.se
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
-import { loadPublicProgram } from "./server";
+import { createPublicProgramLoader } from "./server";
 
 installDatabaseTestHooks();
+
+// Every test reads the database: the route's cache would answer the next test
+// with the previous one's program.
+const loadPublicProgram = createPublicProgramLoader({ cacheMs: 0 });
 
 const programUrl = "http://localhost/programa";
 
@@ -146,6 +157,73 @@ describe("loadPublicProgram", () => {
     expect((await loadPublicProgram(internal.request)).hasAcademySession).toBe(
       false,
     );
+  });
+
+  test("marks the judging day's scored and disqualified rows presented, and only those", async () => {
+    const { academy, catalog, choreography, event } =
+      await seedPublishedProgram();
+    const [scoredPresentation] = await db
+      .select({ id: presentations.id })
+      .from(presentations)
+      .where(eq(presentations.choreographyId, choreography.id));
+    const [judge] = await db
+      .insert(user)
+      .values({
+        email: `${crypto.randomUUID()}@example.com`,
+        name: "Ana Juez",
+        role: "judge",
+      })
+      .returning();
+    const [assignment] = await db
+      .insert(judgeAssignments)
+      .values({ presentationId: scoredPresentation!.id, userId: judge!.id })
+      .returning();
+    await db
+      .insert(scores)
+      .values({ judgeAssignmentId: assignment!.id, value: "70.0" });
+
+    const [disqualified, pending] = await Promise.all(
+      ["Descalificada", "Pendiente"].map((name) =>
+        createChoreographyRecord({
+          academyId: academy.id,
+          categoryId: catalog.categoryWithLevel.id,
+          eventId: event.id,
+          experienceLevelId: catalog.level.id,
+          modalityId: catalog.modality.id,
+          name,
+          scheduleCapacityId: catalog.scheduleCapacity.id,
+        }),
+      ),
+    );
+    await db.insert(presentations).values([
+      {
+        choreographyId: disqualified!.id,
+        disqualifiedAt: new Date(),
+        eventId: event.id,
+        orderNumber: 2,
+      },
+      { choreographyId: pending!.id, eventId: event.id, orderNumber: 3 },
+    ]);
+
+    const date = catalog.schedule.scheduledDate;
+    const onTheDay = await loadPublicProgram(
+      new Request(programUrl),
+      new Date(`${date}T12:00:00-03:00`),
+    );
+
+    expect(onTheDay.live?.day).toEqual({
+      date,
+      isOver: false,
+      presentedChoreographyIds: [choreography.id, disqualified!.id],
+      startTime: catalog.schedule.startTime,
+    });
+
+    const dayAfter = await loadPublicProgram(
+      new Request(programUrl),
+      new Date(new Date(`${date}T12:00:00-03:00`).getTime() + 86_400_000),
+    );
+
+    expect(dayAfter.live?.day).toBeNull();
   });
 
   // The product's first unauthenticated content route: reading the program is
