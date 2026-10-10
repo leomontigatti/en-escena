@@ -14,11 +14,16 @@ export const allDaysTabValue = "todos";
 
 /**
  * The chosen day, kept in the URL. Another day is another list, so the page
- * read on the day being left is dropped with it.
+ * read on the day being left is dropped with it. The page opens on `Todos`
+ * unless it names another tab: the public program's day being danced.
  */
-export function useScheduleDayTab(days: readonly string[]) {
+export function useScheduleDayTab(
+  days: readonly string[],
+  openingValue: string = allDaysTabValue,
+) {
   return useUrlTab({
     defaultValue: allDaysTabValue,
+    openingValue,
     param: dayTabParam,
     resets: [listQueryParamNames.page],
     values: [allDaysTabValue, ...days],
@@ -59,8 +64,8 @@ export function ScheduleDayTabs({
 
 /**
  * Red and pulsing like a broadcast's, so it reads from a tab that is not
- * chosen: the page opens on `Todos`, and the badge is what sends the audience
- * to the day being danced. `destructive` is borrowed for its red, not for a
+ * chosen: a reader on `Todos` or on another day is sent back to the day being
+ * danced. `destructive` is borrowed for its red, not for a
  * negative state — a design decision of #1421, not the style guide's rule.
  */
 function LiveBadge() {

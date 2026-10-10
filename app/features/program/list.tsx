@@ -6,6 +6,7 @@ import {
   DataTableTruncatedText,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { defaultClientDataTablePageSize } from "@/components/shared/data-table.shared";
 import {
   Tooltip,
   TooltipContent,
@@ -16,11 +17,7 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
-import {
-  allDaysTabValue,
-  ScheduleDayTabs,
-  useScheduleDayTab,
-} from "./day-tabs";
+import { allDaysTabValue, ScheduleDayTabs } from "./day-tabs";
 import type { ProgramLive } from "./live-day";
 import { ProgramRowCard, ProgramRowName } from "./row-card";
 import {
@@ -76,17 +73,18 @@ export function ProgramList({
   // already here. It is in the URL all the same, so a reload or a link shared
   // from a phone lands on the day it was read on.
   const days = listProgramDays(rows);
-  const tab = useScheduleDayTab(days);
-  const visibleRows =
-    tab.value === allDaysTabValue
-      ? rows
-      : rows.filter((row) => row.scheduledDate === tab.value);
   const liveView = useProgramLiveDay({
     days,
     live,
     onPoll: onLivePoll,
-    selectedDay: tab.value,
+    pageSize: defaultClientDataTablePageSize,
+    rows,
   });
+  const { tab } = liveView;
+  const visibleRows =
+    tab.value === allDaysTabValue
+      ? rows
+      : rows.filter((row) => row.scheduledDate === tab.value);
 
   return (
     // `gap-3` and the tab row's `pb-1` add up to the 16px every list keeps

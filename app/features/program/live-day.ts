@@ -32,6 +32,12 @@ export type ProgramLiveDay = {
  */
 export type ProgramLive = {
   day: ProgramLiveDay | null;
+  /**
+   * The instant the loader read it, ISO. The first render reads the clock
+   * from here, so the server and the browser render the same opening tab and
+   * badge, whatever the browser's clock says.
+   */
+  loadedAt: string;
   loadedOn: string;
 };
 
@@ -90,4 +96,38 @@ export function isProgramDayLive(day: ProgramLiveDay, now: Date) {
     getBusinessDateOnly(now) > day.date ||
     getBusinessTimeOnly(now) >= day.startTime
   );
+}
+
+/**
+ * The page of the day's list, in order, that holds its last evaluated
+ * presentation: where the show is. Page one while none is evaluated.
+ */
+export function lastEvaluatedPage({
+  day,
+  pageSize,
+  rows,
+}: {
+  day: ProgramLiveDay;
+  pageSize: number;
+  rows: ReadonlyArray<{
+    choreographyId: string;
+    orderNumber: number | null;
+    scheduledDate: string;
+  }>;
+}) {
+  const evaluated = new Set(day.evaluatedChoreographyIds);
+  const dayOrderNumbers = rows
+    .filter((row) => row.scheduledDate === day.date)
+    .flatMap((row) => (row.orderNumber === null ? [] : [row.orderNumber]));
+  const lastEvaluated = Math.max(
+    0,
+    ...rows
+      .filter((row) => evaluated.has(row.choreographyId))
+      .flatMap((row) => (row.orderNumber === null ? [] : [row.orderNumber])),
+  );
+  const position = dayOrderNumbers.filter(
+    (orderNumber) => orderNumber <= lastEvaluated,
+  ).length;
+
+  return Math.max(1, Math.ceil(position / pageSize));
 }
