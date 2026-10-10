@@ -1,4 +1,4 @@
-import { inArray, or } from "drizzle-orm";
+import { inArray, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -19,6 +19,7 @@ import {
   seminars,
   submodalities,
   user,
+  votes,
 } from "@/db/schema";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -39,6 +40,13 @@ export async function deleteSeededRows(input: {
   eventNames: string[];
 }) {
   await db.transaction(async (tx) => {
+    // A `Gran final` vote is never deleted: its keys restrict and a trigger
+    // refuses the row, so a seeded academy or event that holds one cannot go.
+    // The seed only runs against a local database (`local-database-url.ts`),
+    // where every vote is test data: the whole table is emptied, by TRUNCATE,
+    // which the row trigger does not see. Never do this anywhere else.
+    await tx.execute(sql`truncate table ${votes}`);
+
     const ids = await collectSeededIds(tx, input);
 
     await deleteRegistrationsAndJudging(tx, ids);

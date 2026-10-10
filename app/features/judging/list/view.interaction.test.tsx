@@ -93,6 +93,7 @@ describe("the judge's list of one day's presentations", () => {
     day: Pick<JudgePanelRouteData, "day" | "dayOptions" | "isOpen"> = openDay,
     url = "/juzgamiento",
     rows = presentations,
+    finalistPicks: JudgePanelRouteData["finalistPicks"] = [],
   ) {
     const router = createMemoryRouter(
       [
@@ -106,6 +107,7 @@ describe("the judge's list of one day's presentations", () => {
                   roleLabel: "Jurado",
                   username: "ana.juez",
                 },
+                finalistPicks,
                 judgingDate,
                 presentations: rows,
                 ...day,
@@ -213,4 +215,39 @@ describe("the judge's list of one day's presentations", () => {
       expect(document.querySelector('[role="dialog"]') !== null).toBe(opens);
     },
   );
+
+  test.each([
+    [openDay, true],
+    [closedDay, false],
+  ])(
+    "offers the `Gran final` pick of each modality that dances on the day, to change only on the open day (%#)",
+    async (day, editable) => {
+      await mount(day, "/juzgamiento", presentations, [
+        {
+          academyId: "pirueta",
+          academyName: "Academia Pirueta",
+          modalityId: "jazz",
+          modalityName: "Jazz",
+          options: [
+            { academyId: "pirueta", name: "Academia Pirueta" },
+            { academyId: "vecina", name: "Academia Vecina" },
+          ],
+        },
+      ]);
+
+      expect(
+        document.querySelector('[data-slot="select-trigger"]') !== null,
+      ).toBe(editable);
+      expect(
+        document.querySelector<HTMLInputElement>("input[disabled]")?.value,
+      ).toBe(editable ? undefined : "Academia Pirueta");
+    },
+  );
+
+  test("leaves the `Gran final` out on a day no modality dances", async () => {
+    await mount();
+
+    expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
+    expect(document.querySelector("input[disabled]")).toBeNull();
+  });
 });

@@ -6,6 +6,7 @@ const schemaExportNames = [
   "account",
   "accessSession",
   "academies",
+  "auditLinks",
   "categories",
   "categoryModalities",
   "categoryCalculationMode",
@@ -24,6 +25,8 @@ const schemaExportNames = [
   "events",
   "eventSequences",
   "experienceLevel",
+  "finalistBanners",
+  "finalistPicks",
   "paymentMethod",
   "groupType",
   "judgeAssignments",
@@ -52,6 +55,14 @@ const schemaExportNames = [
   "userRole",
   "uuidPrimaryKey",
   "verification",
+  "voteCodeBatches",
+  "voteCodes",
+  "voteKind",
+  "voterProvider",
+  "voters",
+  "votes",
+  "votingRoundFinalists",
+  "votingRounds",
 ] as const;
 
 describe("schema export surface", () => {

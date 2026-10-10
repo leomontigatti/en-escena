@@ -48,4 +48,17 @@ if (typeof window !== "undefined") {
   }
 
   globalThis.ResizeObserver ??= ResizeObserverMock as typeof ResizeObserver;
+
+  // Embla, under the vote page's carousel, watches which slide is in view.
+  class IntersectionObserverMock {
+    disconnect() {}
+    observe() {}
+    takeRecords() {
+      return [];
+    }
+    unobserve() {}
+  }
+
+  globalThis.IntersectionObserver ??=
+    IntersectionObserverMock as unknown as typeof IntersectionObserver;
 }

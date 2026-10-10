@@ -422,7 +422,7 @@ Whether an `academy` may be picked as a `finalist` for one `modality`: it has at
 _Avoid_: qualified, nominated, `finalist` (eligible is not yet picked), event-wide eligibility, submodality
 
 **`finalistPick`** — ui: "Elección de finalista"
-One `judge`'s choice of one academy eligible in one `modality` of the event, made from the judge's own presentations list on a day that modality dances and open under the same window as their scores. Judges pick independently and may disagree; administration can set or change any judge's pick at any time. One pick per judge per modality.
+One `judge`'s choice of one academy eligible in one `modality` of the event, made from the judge's own presentations list on a day that modality dances and open under the same window as their scores. Judges pick independently and may disagree; administration can set, change or remove any judge's pick at any time. One pick per judge per modality.
 _Avoid_: nomination, vote, consensus, pick per day
 
 **`finalist`** — ui: "Finalista"
@@ -434,7 +434,7 @@ One run of the public vote over a fixed set of `finalist` academies, opened and 
 _Avoid_: `votingWindow`, poll, election, third round
 
 **`vote`** — ui: "Voto"
-One person's choice of one `finalist` in one `votingRound`, cast once and never changed. It weighs one when cast by a `voter` and ten when cast with a `voteCode`; the ranking and its percentages are read off those weights, not off head counts.
+One person's choice of one `finalist` in one `votingRound`, cast once and never changed. It weighs one when cast by a `voter` and thirty when cast with a `voteCode`; the ranking and its percentages are read off those weights, not off head counts.
 _Avoid_: `finalistPick`, like, point, ballot
 
 **`voter`** — ui: "Votante"
@@ -442,11 +442,11 @@ A person identified by an external sign-in (Google, and Meta when available) for
 _Avoid_: `user`, `academy`, guest account
 
 **`voteCode`** — ui: "Código QR"
-A one-time code the organization prints and hands out with the entry tickets, worth a `vote` of ten. Generated in batches by administration, valid on any day, consumed by the vote it casts and by nothing else, and usable again in a `Desempate` round. A batch can be voided.
+A one-time code the organization prints and hands out with the entry tickets, worth a `vote` of thirty. Generated in batches by administration, valid on any day, consumed by the vote it casts and by nothing else, and usable again in a `Desempate` round. A batch can be voided.
 _Avoid_: ticket, token, coupon
 
 **`auditLink`** — ui: "Acceso de auditoría"
-A revocable, one-scan access administration hands to a member of the audience so they can watch a `votingRound`'s live totals: per finalist, split between voters and codes, with codes consumed against codes issued. It dies with the round and opens nothing else.
+A revocable access administration hands to a member of the audience so they can watch a `votingRound`'s live totals: per finalist, split between voters and codes, with codes consumed against codes issued. It opens on any device, and administration can hand it over again while it lives. It dies with the round and opens nothing else.
 _Avoid_: `auditor` (the internal role), results page, public results
 
 **`grandFinalResult`** — ui: "Resultado de la Gran final"

@@ -71,6 +71,7 @@ overwrite is unsafe.
 | `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger |
 | `dialog`                                     | `useLayerAbovePress` — see below; the overlay blurs (`backdrop-blur-sm`), as `alert-dialog`'s does               |
 | `slider`                                     | `aria-label` is forwarded to each thumb, which is what carries `role="slider"`                                   |
+| `carousel`                                   | `aria-roledescription` reads `carrusel` and `diapositiva`: screen readers say it aloud, so it is Spanish         |
 | all                                          | `font-heading` instead of upstream's `cn-font-heading`                                                           |
 
 Most of those rows are cosmetic. Two are load-bearing and will break behaviour
@@ -127,7 +128,12 @@ Prefer the composed form over the raw cva export where one exists: `Badge`
 supports `asChild`, so `<Badge asChild><Link/></Badge>` covers what
 `badgeVariants({ variant })` used to, without exporting the variant function.
 
-Only `popover.tsx` is genuinely missing code: upstream also ships
+`carousel.tsx` also lacks upstream's `CarouselPrevious` and `CarouselNext`: the
+one carousel, on the public vote page, moves by swipe and autoplay. They are
+buttons positioned outside the carousel around `scrollPrev` and `scrollNext`,
+which the context still exposes.
+
+Besides that, only `popover.tsx` is genuinely missing code: upstream also ships
 `PopoverAnchor`, `PopoverHeader`, `PopoverTitle` and `PopoverDescription`.
 `PopoverAnchor` re-exports the Radix primitive that lets a popover position
 against something other than its trigger; the other three are styled `div`/`p`

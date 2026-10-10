@@ -247,7 +247,7 @@ AWS_SECRET_ACCESS_KEY="your-b2-application-key"
 AWS_DEFAULT_REGION="us-east-005"
 
 STORAGE_VOLUME_DIR="/var/lib/en-escena/storage"
-STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents,en-escena-feedback-audio,enescena-seminar-pictures"
+STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents,en-escena-feedback-audio,enescena-seminar-pictures,en-escena-grand-final-banners"
 BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
@@ -302,6 +302,10 @@ Not done by the repo, and not done yet:
 3. Run `pnpm restore:storage:drill` once real audio exists, to prove the new
    bucket restores. Before any judge has recorded, the bucket has no directory
    and the drill has nothing to prove about it.
+4. Add `en-escena-grand-final-banners` to `STORAGE_BACKUP_BUCKETS` in Coolify
+   the same way, before the first banner is uploaded: the `Gran final` banners
+   (see [Infrastructure](./infrastructure.md#gran-final-banner-contract)) are
+   what the vote page shows on voting night.
 
 ## Runtime Requirements
 

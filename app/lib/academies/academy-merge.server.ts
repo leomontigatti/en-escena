@@ -11,6 +11,7 @@ import {
   payments,
   professors,
   user,
+  votes,
 } from "@/db/schema";
 import { formatSpanishList } from "@/lib/shared/text-normalization";
 
@@ -34,8 +35,9 @@ export type MergeAcademiesResult =
  * which cascades the now-empty academy, so the second login stops working and
  * cannot fork again.
  *
- * Two refusals, both read inside the transaction. A comprobante names its
- * academy and is immutable, so an academy with any cannot go. A document number
+ * Three refusals, all read inside the transaction. A comprobante names its
+ * academy and is immutable, so an academy with any cannot go; nor can one
+ * that holds a `Gran final` vote, which is never moved or deleted. A document number
  * on both rosters would break the roster's document rule the moment the people
  * met in one academy; the operator clears one document of each pair first.
  */
@@ -82,6 +84,15 @@ export async function mergeAcademies(input: {
       return {
         ok: false,
         message: `No se puede fusionar: ${removed.name} tiene comprobantes emitidos, y un comprobante no cambia de academia.`,
+      };
+    }
+
+    const voteCount = await tx.$count(votes, eq(votes.academyId, removed.id));
+
+    if (voteCount > 0) {
+      return {
+        ok: false,
+        message: `No se puede fusionar: ${removed.name} recibió votos en la Gran final, y un voto no cambia de academia.`,
       };
     }
 

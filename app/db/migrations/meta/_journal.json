@@ -344,6 +344,55 @@
       "when": 1791380435226,
       "tag": "0048_drop_internal_user_invitation",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1791468768876,
+      "tag": "0049_finalist_pick",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791492392263,
+      "tag": "0050_finalist_banner",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1791494879280,
+      "tag": "0051_vote_code_batch",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1791502870153,
+      "tag": "0052_voting_round",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791504965673,
+      "tag": "0053_voter",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791508037073,
+      "tag": "0054_voting_round_published",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791589456149,
+      "tag": "0055_audit_link",
+      "breakpoints": true
     }
   ]
 }
