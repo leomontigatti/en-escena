@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import {
   isAuditLinkExpired,
@@ -23,7 +23,13 @@ import {
 
 installDatabaseTestHooks();
 
-/** A link of the event issued now, as its session reads it. */
+/**
+ * A link of the event as its session reads it, issued now unless the test
+ * says when. A round's `closedAt` is the database's clock to the microsecond
+ * and `issuedAt` is JavaScript's to the millisecond, so a link issued right
+ * after a close can share its millisecond and read as issued before it: a
+ * link meant to follow a close is issued past it by hand.
+ */
 function linkOf(eventId: string, issuedAt = new Date()) {
   return { eventId, issuedAt };
 }
@@ -167,7 +173,9 @@ describe("`readAuditTotals`", () => {
     await openTieBreakRound({ eventId: fixture.eventId });
     await fixture.vote(fixture.ritmo, { tokens: [fixture.tokens[0]] });
 
-    const totals = await readAuditTotals(linkOf(fixture.eventId));
+    const totals = await readAuditTotals(
+      linkOf(fixture.eventId, new Date(Date.now() + 1000)),
+    );
 
     expect(totals).toMatchObject({
       codes: { consumed: 1, issued: 3, voided: 0 },
@@ -203,13 +211,17 @@ describe("`isAuditLinkExpired`", () => {
 
   test("keeps a link issued between round 1 and the `Desempate` alive until the `Desempate` closes", async () => {
     const fixture = await seedTiedRoundFixture();
-    const link = linkOf(fixture.eventId);
+    // A millisecond past now, so past round 1's close however close it was,
+    // and the `Desempate` closes only once the clock has passed the link: each
+    // close falls on its side of it.
+    const link = linkOf(fixture.eventId, new Date(Date.now() + 1));
 
     await expect(isAuditLinkExpired(link)).resolves.toBe(false);
 
     await openTieBreakRound({ eventId: fixture.eventId });
     await expect(isAuditLinkExpired(link)).resolves.toBe(false);
 
+    await vi.waitUntil(() => Date.now() > link.issuedAt.getTime());
     await closeCurrentVotingRound(fixture.eventId);
     await expect(isAuditLinkExpired(link)).resolves.toBe(true);
   });
