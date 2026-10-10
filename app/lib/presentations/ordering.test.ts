@@ -672,6 +672,7 @@ describe("computeAutomaticOrder with frozen rows", () => {
     expect(result).toEqual({
       ok: true,
       frozenCount: 2,
+      orderedCount: 3,
       placements: expect.arrayContaining([
         { choreographyId: "d2-late", orderNumber: 3 },
         { choreographyId: "d2-a", orderNumber: 4 },
@@ -836,6 +837,201 @@ describe("computeAutomaticOrder with frozen rows", () => {
       ok: false,
       reason: "nothingToOrder",
     });
+  });
+});
+
+describe("computeAutomaticOrder for chosen days", () => {
+  function placementsFor(
+    rows: PresentationOrderingRow[],
+    days: string[],
+    frozenChoreographyIds = new Set<string>(),
+  ) {
+    const result = computeAutomaticOrder(rows, frozenChoreographyIds, days);
+
+    if (!result.ok) {
+      throw new Error(`Unexpected refusal: ${result.reason}`);
+    }
+
+    return [...result.placements]
+      .sort((left, right) => left.orderNumber - right.orderNumber)
+      .map((placement) => [placement.choreographyId, placement.orderNumber]);
+  }
+
+  test("orders the chosen day and keeps the manual order of the others", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 2,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d1-b",
+        choreographyNumber: 2,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 3,
+        orderNumber: 4,
+        schedule: dayTwo,
+      }),
+      row({
+        choreographyId: "d2-b",
+        choreographyNumber: 4,
+        orderNumber: 3,
+        schedule: dayTwo,
+      }),
+    ];
+
+    expect(placementsFor(rows, [dayTwo.scheduledDate])).toEqual([
+      ["d1-b", 1],
+      ["d1-a", 2],
+      ["d2-a", 3],
+      ["d2-b", 4],
+    ]);
+  });
+
+  test("numbers a late row of the chosen day and shifts the days after it", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d1-late",
+        choreographyNumber: 5,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayTwo,
+      }),
+    ];
+
+    expect(placementsFor(rows, [dayOne.scheduledDate])).toEqual([
+      ["d1-a", 1],
+      ["d1-late", 2],
+      ["d2-a", 3],
+    ]);
+  });
+
+  test("leaves a late row of a day not chosen without a number", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayTwo,
+      }),
+      row({
+        choreographyId: "d2-late",
+        choreographyNumber: 5,
+        schedule: dayTwo,
+      }),
+    ];
+
+    expect(placementsFor(rows, [dayOne.scheduledDate])).toEqual([
+      ["d1-a", 1],
+      ["d2-a", 2],
+    ]);
+  });
+
+  test("puts a row moved into another day back among its own day", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayTwo,
+      }),
+      row({
+        choreographyId: "d1-b",
+        choreographyNumber: 3,
+        orderNumber: 3,
+        schedule: dayOne,
+      }),
+    ];
+
+    expect(placementsFor(rows, [dayTwo.scheduledDate])).toEqual([
+      ["d1-a", 1],
+      ["d1-b", 2],
+      ["d2-a", 3],
+    ]);
+  });
+
+  test("counts only the rows of the chosen days", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayTwo,
+      }),
+      row({
+        choreographyId: "d3-a",
+        choreographyNumber: 3,
+        orderNumber: 3,
+        schedule: dayThree,
+      }),
+      row({
+        choreographyId: "d3-b",
+        choreographyNumber: 4,
+        orderNumber: 4,
+        schedule: dayThree,
+      }),
+    ];
+
+    expect(
+      computeAutomaticOrder(rows, new Set(["d1-a", "d3-a"]), [
+        dayTwo.scheduledDate,
+        dayThree.scheduledDate,
+      ]),
+    ).toMatchObject({ ok: true, frozenCount: 1, orderedCount: 2 });
+  });
+
+  test("refuses when the chosen days hold only frozen rows", () => {
+    const rows = [
+      row({
+        choreographyId: "d1-a",
+        choreographyNumber: 1,
+        orderNumber: 1,
+        schedule: dayOne,
+      }),
+      row({
+        choreographyId: "d2-a",
+        choreographyNumber: 2,
+        orderNumber: 2,
+        schedule: dayTwo,
+      }),
+    ];
+
+    expect(
+      computeAutomaticOrder(rows, new Set(["d1-a"]), [dayOne.scheduledDate]),
+    ).toEqual({ ok: false, reason: "nothingToOrder" });
   });
 });
 

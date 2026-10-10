@@ -27,8 +27,6 @@ import {
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
-import type { PresentationWarningKind } from "@/lib/presentations/warnings";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import { showToastMessage } from "@/lib/shared/toasts";
@@ -36,16 +34,14 @@ import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { PresentationListActions } from "./actions-menu";
 import { JudgeAssignmentDialog } from "./judge-dialogs";
+import { AutomaticOrderingDialogs } from "./ordering-dialogs";
+import { readPresentationStatusBadge } from "./status-badge";
 import {
   PresentationOutputDialog,
   readProgramVisibilityDays,
   type OutputDialog,
 } from "./output-dialogs";
-import {
-  OrderingConfirmationDialog,
-  PresentationDayTabs,
-  PresentationNotices,
-} from "./notices";
+import { PresentationDayTabs, PresentationNotices } from "./notices";
 import {
   movePresentationIntent,
   presentationRowPath,
@@ -56,36 +52,6 @@ import {
 
 export type PresentationsListViewProps = {
   loaderData: PresentationListResult;
-};
-
-/**
- * The row's one badge, most relevant first. `Sin número` is a state and not a
- * warning, and it leads because a row without a number is not yet in the order
- * the rest of the triage talks about.
- */
-const warningTriage: {
-  kind: PresentationWarningKind;
-  label: string;
-}[] = [
-  { kind: "missingJudges", label: "Sin jueces" },
-  { kind: "belowDeposit", label: "Seña pendiente" },
-  { kind: "evaluatedSchedule", label: "Cronograma evaluado" },
-  { kind: "dancerSpacing", label: "Separación" },
-  { kind: "outOfBlock", label: "Fuera de bloque" },
-  { kind: "missingLevel", label: "Sin nivel" },
-];
-
-/**
- * What an evaluated row's badge says. It replaces the warning badge rather
- * than joining it: the warnings exist to be fixed before the presentation is
- * judged, so once it has been they have nothing left to ask for.
- */
-const evaluationBadges: Record<
-  Exclude<PresentationEvaluationStatus, "pending">,
-  { label: string; variant: "destructive" | "success" }
-> = {
-  disqualified: { label: "Descalificada", variant: "destructive" },
-  evaluated: { label: "Evaluada", variant: "success" },
 };
 
 /**
@@ -524,11 +490,11 @@ export function PresentationsListView({
           description="Una coreografía entra en esta lista cuando se inscribe en el evento activo. Cuando haya alguna, vas a poder ordenarlas acá."
         />
       )}
-      {loaderData.canOrder ? (
-        <OrderingConfirmationDialog
-          frozenCount={loaderData.frozenCount}
-          open={isOrderingDialogOpen}
-          onOpenChange={setIsOrderingDialogOpen}
+      {loaderData.canOrder && isOrderingDialogOpen ? (
+        <AutomaticOrderingDialogs
+          days={loaderData.days}
+          frozenDays={loaderData.frozenDays}
+          onClose={() => setIsOrderingDialogOpen(false)}
         />
       ) : null}
       <PresentationOutputDialog
@@ -555,62 +521,32 @@ export function PresentationsListView({
 }
 
 function PresentationStatusBadge({ row }: { row: PresentationListItem }) {
-  if (row.orderNumber === null) {
-    // The deposit warning is informational and applies to unnumbered rows
-    // too, so it sits next to the badge that says the row has no number yet.
-    return (
-      <div className="flex flex-wrap items-center gap-1">
-        <Badge variant="info">Sin número</Badge>
-        <PresentationWarningBadge warnings={row.warnings} />
-      </div>
-    );
-  }
+  const badge = readPresentationStatusBadge(row);
 
-  if (row.evaluationStatus !== "pending") {
-    const badge = evaluationBadges[row.evaluationStatus];
-
-    // No count and no tooltip: the badge is the whole answer, and what the
-    // panel gave is read in the scores view the row's name leads to.
-    return <Badge variant={badge.variant}>{badge.label}</Badge>;
-  }
-
-  return <PresentationWarningBadge warnings={row.warnings} />;
-}
-
-function PresentationWarningBadge({
-  warnings,
-}: {
-  warnings: PresentationListItem["warnings"];
-}) {
-  const sorted = [...warnings].sort(
-    (left, right) => triageRank(left.kind) - triageRank(right.kind),
-  );
-  const top = warningTriage.find((entry) => entry.kind === sorted[0]?.kind);
-
-  if (!top) {
+  if (!badge) {
     return null;
+  }
+
+  if (badge.messages.length === 0) {
+    return <Badge variant={badge.variant}>{badge.label}</Badge>;
   }
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge variant="warning" tabIndex={0}>
-          {top.label}
+        <Badge variant={badge.variant} tabIndex={0}>
+          {badge.label}
         </Badge>
       </TooltipTrigger>
       <TooltipContent className="max-w-80">
         <ul className="flex flex-col gap-1">
-          {sorted.map((warning, index) => (
-            <li key={`${warning.kind}-${index}`}>{warning.message}</li>
+          {badge.messages.map((message, index) => (
+            <li key={`${message}-${index}`}>{message}</li>
           ))}
         </ul>
       </TooltipContent>
     </Tooltip>
   );
-}
-
-function triageRank(kind: PresentationWarningKind) {
-  return warningTriage.findIndex((entry) => entry.kind === kind);
 }
 
 /**

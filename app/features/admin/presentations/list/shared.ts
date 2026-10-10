@@ -30,6 +30,11 @@ export const setProgramVisibilityIntent = "set-program-visibility";
  * submission leaves out are hidden, so an empty one hides the whole program.
  */
 export const programVisibleDayFieldName = "dia";
+/**
+ * One value per day the automatic ordering covers, repeated; none orders the
+ * whole event.
+ */
+export const orderDayFieldName = "dia";
 /** The event the dialog was opened for, so a switch in between is refused. */
 export const programEventIdFieldName = "evento";
 export const judgeIdFieldName = "juez";
@@ -64,6 +69,17 @@ export const programVisibilitySchema = z.object({
     z.string().refine(isDateOnly, "Elegí un día válido."),
   ),
 });
+
+/** What the automatic ordering submits besides its intent: the days, if any. */
+export const automaticOrderingSchema = z.object({
+  [orderDayFieldName]: z.array(
+    z.string().refine(isDateOnly, "Elegí un día válido."),
+  ),
+});
+
+export type AutomaticOrderingFormValues = z.infer<
+  typeof automaticOrderingSchema
+>;
 
 export type ProgramVisibilityFormValues = z.infer<
   typeof programVisibilitySchema
@@ -135,8 +151,11 @@ export type PresentationListResult = {
   canOrder: boolean;
   days: string[];
   filters: PresentationListFilters;
-  /** How many presentations the next automatic ordering will leave in place. */
-  frozenCount: number;
+  /**
+   * The days with a presentation the automatic ordering leaves in place, in
+   * date order.
+   */
+  frozenDays: string[];
   hasAnyRow: boolean;
   hasPresentations: boolean;
   /** The days the music download offers, in date order. */

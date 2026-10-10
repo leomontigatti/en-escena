@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers, presentations } from "@/db/schema";
+import { choreographyDancers, presentations, schedules } from "@/db/schema";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import {
   createChoreographyRecord,
@@ -73,6 +73,8 @@ async function seedEvent() {
     experienceLevelId?: ExperienceLevel | null;
     name: string;
     orderNumber?: number;
+    /** Another schedule of the event; the catalog's own when absent. */
+    scheduleId?: string;
     waived?: boolean;
   }) => {
     const choreography = await createChoreographyRecord({
@@ -85,7 +87,8 @@ async function seedEvent() {
           : input.experienceLevelId,
       modalityId: catalog.modality.id,
       name: input.name,
-      scheduleCapacityId: catalog.scheduleCapacity.id,
+      scheduleCapacityId: input.scheduleId ? null : catalog.scheduleCapacity.id,
+      scheduleId: input.scheduleId,
     });
     const dancer = await createDancer(academy.academy.id);
 
@@ -113,7 +116,23 @@ async function seedEvent() {
     return choreography;
   };
 
-  return { academy, addChoreography, catalog, event };
+  /** A schedule of the event on the day after the catalog's. */
+  const addNextDaySchedule = async () => {
+    const [schedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Día siguiente",
+        scheduledDate: "2026-05-02",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+
+    return schedule;
+  };
+
+  return { academy, addChoreography, addNextDaySchedule, catalog, event };
 }
 
 async function setWaived(choreographyId: string, waived: boolean) {
@@ -346,6 +365,43 @@ describe("runAutomaticOrdering", () => {
     });
     expect(await readOrder(event.id)).toEqual([
       expect.objectContaining({ choreographyId: unpaid.id, orderNumber: 1 }),
+    ]);
+  });
+
+  test("orders only the chosen day and shifts the days after it", async () => {
+    const { addChoreography, addNextDaySchedule, catalog, event } =
+      await seedEvent();
+    const nextDay = await addNextDaySchedule();
+    const second = await addChoreography({ name: "Segunda", orderNumber: 1 });
+    const first = await addChoreography({ name: "Primera", orderNumber: 2 });
+    const late = await addChoreography({ name: "Tardía" });
+    const movedByHand = await addChoreography({
+      name: "Movida a mano",
+      orderNumber: 3,
+      scheduleId: nextDay.id,
+    });
+    const nextDayFirst = await addChoreography({
+      name: "Primera del día siguiente",
+      orderNumber: 4,
+      scheduleId: nextDay.id,
+    });
+
+    const result = await runAutomaticOrdering(event.id, [
+      catalog.schedule.scheduledDate,
+    ]);
+
+    expect(result).toEqual({ ok: true, frozenCount: 0, orderedCount: 3 });
+    expect(
+      (await readOrder(event.id)).map((row) => [
+        row.choreographyId,
+        row.orderNumber,
+      ]),
+    ).toEqual([
+      [second.id, 1],
+      [first.id, 2],
+      [late.id, 3],
+      [movedByHand.id, 4],
+      [nextDayFirst.id, 5],
     ]);
   });
 

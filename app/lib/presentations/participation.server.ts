@@ -61,7 +61,10 @@ export type MovePresentationResult =
         "frozenPosition" | "frozenRow" | "notFound" | "notOrdered" | "stale";
     };
 
-/** `frozenCount`: the presentations the ordering left where they were. */
+/**
+ * `frozenCount`: the presentations of the ordered days the ordering left where
+ * they were; `orderedCount`: the ones of those days it numbered.
+ */
 export type AutomaticOrderingResult =
   | { ok: true; frozenCount: number; orderedCount: number }
   | { ok: false; reason: "nothingToOrder" };
@@ -180,9 +183,14 @@ export async function readParticipationRows(
  * everything hanging off it; the late ones are inserted; nothing is
  * deleted. A number is not taken away from a choreography that fell below its
  * deposit after being numbered.
+ *
+ * `days` narrows it to those days, none being the whole event; the other days
+ * keep their order and only shift with the days before them
+ * (`computeAutomaticOrder`).
  */
 export async function runAutomaticOrdering(
   eventId: string,
+  days: readonly string[] = [],
 ): Promise<AutomaticOrderingResult> {
   return await db.transaction(async (tx) => {
     const [lockedEvent] = await tx
@@ -197,7 +205,7 @@ export async function runAutomaticOrdering(
 
     const rows = await readParticipationRows(eventId, tx);
     const frozenChoreographyIds = await readFrozenChoreographyIds(rows, tx);
-    const order = computeAutomaticOrder(rows, frozenChoreographyIds);
+    const order = computeAutomaticOrder(rows, frozenChoreographyIds, days);
 
     if (!order.ok) {
       return { ok: false, reason: order.reason };
@@ -208,7 +216,7 @@ export async function runAutomaticOrdering(
     return {
       ok: true,
       frozenCount: order.frozenCount,
-      orderedCount: order.placements.length,
+      orderedCount: order.orderedCount,
     };
   });
 }
