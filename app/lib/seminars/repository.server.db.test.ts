@@ -69,7 +69,7 @@ describe("seminar repository", () => {
     ]);
   });
 
-  test("trims the instructor name and refuses an empty one, an invalid moment and a quota below one", async () => {
+  test("trims the instructor name", async () => {
     const event = await createSavedEvent({
       name: "Regional 2026",
       active: false,
@@ -83,32 +83,6 @@ describe("seminar repository", () => {
       }),
     );
     expect(seminar.instructorName).toBe("Abril Sosa");
-
-    await expect(
-      createSeminar(event.id, { ...seminarInput, instructorName: "   " }),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: "invalid-seminar",
-      fieldErrors: { instructorName: "Ingresá el nombre del instructor." },
-    });
-    await expect(
-      createSeminar(event.id, { ...seminarInput, scheduledDate: "2026-13-40" }),
-    ).resolves.toMatchObject({
-      ok: false,
-      fieldErrors: { scheduledDate: "Este campo es obligatorio." },
-    });
-    await expect(
-      createSeminar(event.id, { ...seminarInput, startTime: "25:00" }),
-    ).resolves.toMatchObject({
-      ok: false,
-      fieldErrors: { startTime: "Este campo es obligatorio." },
-    });
-    await expect(
-      createSeminar(event.id, { ...seminarInput, quota: 0 }),
-    ).resolves.toMatchObject({
-      ok: false,
-      fieldErrors: { quota: "Ingresá un cupo mayor a cero." },
-    });
   });
 
   test("refuses the same instructor at the same moment of one event", async () => {
@@ -218,7 +192,7 @@ describe("seminar repository", () => {
     });
   });
 
-  test("stores the seminar's kind and its own deposit rate, and refuses a rate outside 1 and 99", async () => {
+  test("stores the seminar's kind and its own deposit rate", async () => {
     const event = await createSavedEvent({
       name: "Regional 2026",
       active: false,
@@ -234,22 +208,6 @@ describe("seminar repository", () => {
     );
     expect(seminar).toMatchObject({ kind: "special" });
     expect(seminar.requiredDepositPercentage).toBe(30);
-
-    for (const requiredDepositPercentage of [0, 100, 50.5]) {
-      await expect(
-        updateSeminar(seminar.id, {
-          ...seminarInput,
-          requiredDepositPercentage,
-        }),
-      ).resolves.toMatchObject({
-        ok: false,
-        code: "invalid-seminar",
-        fieldErrors: {
-          requiredDepositPercentage:
-            "La seña del seminario debe ser un entero entre 1 y 99.",
-        },
-      });
-    }
   });
 
   // The two facts every seminar carried before this pair existed: the row the

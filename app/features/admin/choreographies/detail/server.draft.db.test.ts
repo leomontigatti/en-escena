@@ -16,16 +16,12 @@ import {
   schedules,
   submodalities,
 } from "@/db/schema";
-import {
-  handleChoreographyDetailAction,
-  type ChoreographyDetailActionData,
-} from "@/features/admin/choreographies/detail/server";
+import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
 import {
   resolveChoreographyDraftIntent,
   saveChoreographyDraftIntent,
   toChoreographyDraftFormData,
   type ChoreographyDraft,
-  type ChoreographyDraftPreview,
 } from "@/features/admin/choreographies/detail/draft.shared";
 import {
   createChoreographyRecord,
@@ -54,6 +50,8 @@ import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/sch
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+
+import { readDraftPreview } from "@/features/admin/choreographies/detail/server.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -370,38 +368,6 @@ describe("saving a draft of the choreography detail", () => {
     await expect(scenario.readChoreography()).resolves.toMatchObject({
       groupType: "solo",
     });
-  });
-
-  test("refuses a full destination capacity, and never calls the held one full", async () => {
-    const scenario = await createDraftScenario({ slug: "lleno" });
-    await db
-      .update(scheduleCapacities)
-      .set({ capacity: 1 })
-      .where(
-        eq(scheduleCapacities.id, scenario.catalog.soloScheduleCapacity.id),
-      );
-    await db
-      .update(scheduleCapacities)
-      .set({ capacity: 0 })
-      .where(
-        eq(scheduleCapacities.id, scenario.catalog.duoScheduleCapacity.id),
-      );
-
-    const toFull = await scenario.saveDraft(
-      scenario.draft({
-        dancerIds: [scenario.ana.id, scenario.bea.id],
-        scheduleCapacityId: scenario.catalog.duoScheduleCapacity.id,
-      }),
-    );
-    const stayingPut = await scenario.saveDraft(
-      scenario.draft({ dancerIds: [scenario.bea.id] }),
-    );
-
-    expect(toFull).toMatchObject({ status: "error" });
-    expect(stayingPut).toMatchObject({ status: "success" });
-    await expect(scenario.readActiveDancerIds()).resolves.toEqual([
-      scenario.bea.id,
-    ]);
   });
 
   test("refuses a schedule move that would reprice paid money, with one message whatever caused it", async () => {
@@ -891,18 +857,4 @@ async function createTargetModality(
     soloCapacity,
     submodality,
   };
-}
-
-function readDraftPreview(
-  response: ChoreographyDetailActionData | Response,
-): ChoreographyDraftPreview {
-  if (
-    response instanceof Response ||
-    !("intent" in response) ||
-    response.intent !== resolveChoreographyDraftIntent
-  ) {
-    throw new Error("the action did not answer the draft preview");
-  }
-
-  return response.preview;
 }

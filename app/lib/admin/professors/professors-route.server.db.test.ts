@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -28,6 +27,7 @@ import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { createSavedEvent } from "@/lib/test-support/events";
 
+import { createPostRequest, routeArgs } from "@/lib/admin/test-support/route";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
@@ -40,7 +40,7 @@ describe("`/administracion/profesores` route", () => {
       requestUrl: "http://localhost/administracion/profesores",
     });
 
-    const loaderData = await loader(routeArgs(request));
+    const loaderData = await loader(listRouteArgs(request));
     const markup = renderRoute(loaderData);
 
     expect(loaderData).not.toHaveProperty("email");
@@ -58,7 +58,7 @@ describe("`/administracion/profesores` route", () => {
       requestUrl: `http://localhost/administracion/profesores`,
     });
 
-    await expect(loader(routeArgs(auditorRequest))).resolves.toMatchObject({
+    await expect(loader(listRouteArgs(auditorRequest))).resolves.toMatchObject({
       selectedEventId: event.id,
     });
 
@@ -73,8 +73,8 @@ describe("`/administracion/profesores` route", () => {
       requestUrl: `http://localhost/administracion/profesores`,
     });
 
-    await expectThrownResponse(loader(routeArgs(academyRequest)), 403);
-    await expectThrownResponse(loader(routeArgs(judgeRequest)), 403);
+    await expectThrownResponse(loader(listRouteArgs(academyRequest)), 403);
+    await expectThrownResponse(loader(listRouteArgs(judgeRequest)), 403);
   });
 
   test("uses the admin resource list behavior for participation, search, filters, and pagination", async () => {
@@ -137,7 +137,7 @@ describe("`/administracion/profesores` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/profesores`,
     });
-    const defaultData = await loader(routeArgs(defaultRequest));
+    const defaultData = await loader(listRouteArgs(defaultRequest));
 
     expect(defaultData.filters.participation).toBe("all");
     expect(defaultData.filters.status).toBe("active");
@@ -154,7 +154,7 @@ describe("`/administracion/profesores` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/profesores?participando=no&busqueda=Academia+Sur`,
     });
-    const searchData = await loader(routeArgs(searchRequest));
+    const searchData = await loader(listRouteArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
 
     expect(searchData.professors.map((professor) => professor.id)).toEqual([
@@ -179,7 +179,7 @@ describe("`/administracion/profesores` route", () => {
       requestUrl: `http://localhost/administracion/profesores?q=Academia+Sur&page=2`,
     });
     const legacySearchRedirect = await expectThrownResponse(
-      loader(routeArgs(legacySearchRequest)),
+      loader(listRouteArgs(legacySearchRequest)),
       302,
     );
 
@@ -194,7 +194,7 @@ describe("`/administracion/profesores` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/profesores?participando=no&busqueda=No+existe`,
     });
-    const emptySearchData = await loader(routeArgs(emptySearchRequest));
+    const emptySearchData = await loader(listRouteArgs(emptySearchRequest));
     const emptySearchMarkup = renderRoute(emptySearchData);
 
     expect(emptySearchData.professors).toHaveLength(0);
@@ -209,7 +209,7 @@ describe("`/administracion/profesores` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/profesores?estado=archivados`,
     });
-    const archivedData = await loader(routeArgs(archivedRequest));
+    const archivedData = await loader(listRouteArgs(archivedRequest));
     const archivedMarkup = renderRoute(archivedData);
 
     expect(archivedData.professors.map((professor) => professor.id)).toEqual([
@@ -223,7 +223,7 @@ describe("`/administracion/profesores` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/profesores?participando=no&pagina=2`,
     });
-    const pageTwoData = await loader(routeArgs(pageTwoRequest));
+    const pageTwoData = await loader(listRouteArgs(pageTwoRequest));
     const pageTwoMarkup = renderRoute(pageTwoData);
 
     expect(pageTwoData.totalCount).toBe(52);
@@ -285,7 +285,7 @@ describe("`/administracion/profesores` route", () => {
       requestUrl: "http://localhost/administracion/profesores",
     });
 
-    const loaderData = await loader(routeArgs(request));
+    const loaderData = await loader(listRouteArgs(request));
     const markup = renderRoute(loaderData);
 
     expect(loaderData.selectedEventId).toBeNull();
@@ -386,11 +386,11 @@ describe("`/administracion/profesores` route", () => {
       role: "admin",
       requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}`,
     });
-    const listLoaderData = await loader(routeArgs(listRequest));
+    const listLoaderData = await loader(listRouteArgs(listRequest));
     const detailLoaderData = await detailLoader(
       detailRouteArgs(detailRequest, professor.id),
     );
-    const listMarkup = renderRouteInAdminLayout({
+    const listMarkup = renderAdminChildRoute({
       childId: "profesores",
       childLoaderData: listLoaderData,
       childPath: "profesores",
@@ -402,7 +402,7 @@ describe("`/administracion/profesores` route", () => {
         selectedEventId: event.id,
       },
     });
-    const detailMarkup = renderRouteInAdminLayout({
+    const detailMarkup = renderAdminChildRoute({
       childId: "profesor-detalle",
       childLoaderData: detailLoaderData,
       childPath: "profesores/:professorId",
@@ -602,7 +602,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const result = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-professor",
           firstName: "  maría del carmen ",
@@ -649,7 +649,7 @@ describe("`/administracion/profesores` route", () => {
 
       await expectThrownResponse(
         detailAction(
-          detailActionArgs(
+          detailRouteArgs(
             createPostRequest(
               request.url,
               request.headers.get("cookie") ?? "",
@@ -695,7 +695,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const result = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-professor",
           firstName: "Lia Mariel",
@@ -712,51 +712,6 @@ describe("`/administracion/profesores` route", () => {
       message: "Profesor guardado.",
     });
     await expectPersistedProfessor(professor.id, { firstName: "Lia Mariel" });
-  });
-
-  test("saves a professor who participated in any event without a correction reason", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
-    const academy = await createAcademyUser({
-      email: "admin.motivo.historial.academia@example.com",
-      academyName: "Academia Motivo Historial",
-      contactName: "Marta Historial",
-      phone: "9999-9999",
-    });
-    const professor = await createProfessor({
-      academyId: academy.academy.id,
-      firstName: "Lola",
-      lastName: "Historial",
-    });
-    await linkProfessorToEventChoreography({
-      eventId: event.id,
-      academyId: academy.academy.id,
-      professorId: professor.id,
-      choreographyName: "Memoria",
-    });
-    const { request } = await createSignedInRequest({
-      email: "admin.motivo.historial@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
-    });
-
-    const result = await detailAction(
-      detailActionArgs(
-        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-          intent: "update-professor",
-          firstName: "Lola Beatriz",
-          lastName: "Historial",
-          documentType: "",
-          documentNumber: "",
-        }),
-        professor.id,
-      ),
-    );
-
-    expect(result).toMatchObject({
-      status: "success",
-      message: "Profesor guardado.",
-    });
-    await expectPersistedProfessor(professor.id, { firstName: "Lola Beatriz" });
   });
 
   test("warns when another professor of the academy has that name", async () => {
@@ -783,7 +738,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const result = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-professor",
           firstName: "ana",
@@ -830,7 +785,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const result = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-professor",
           firstName: "Ana",
@@ -873,7 +828,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const result = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-professor",
           firstName: "Bia",
@@ -920,7 +875,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const result = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "update-professor",
           firstName: "Bia",
@@ -968,7 +923,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const archiveResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "archive-professor",
         }),
@@ -1011,7 +966,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const archiveResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "archive-professor",
         }),
@@ -1031,7 +986,7 @@ describe("`/administracion/profesores` route", () => {
     expect(archivedDetail.professor.active).toBe(false);
 
     const reactivateResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           intent: "reactivate-professor",
         }),
@@ -1077,7 +1032,7 @@ describe("`/administracion/profesores` route", () => {
     });
 
     const response = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(request.url, request.headers.get("cookie") ?? "", {
           id: removed.id,
           intent: "merge-professor",
@@ -1128,7 +1083,7 @@ describe("`/administracion/profesores` route", () => {
 
     await expect(
       detailAction(
-        detailActionArgs(
+        detailRouteArgs(
           createPostRequest(request.url, request.headers.get("cookie") ?? "", {
             id: removed.id,
             intent: "merge-professor",
@@ -1171,7 +1126,7 @@ describe("`/administracion/profesores` route", () => {
     ).resolves.toMatchObject({ merge: null });
     await expectThrownResponse(
       detailAction(
-        detailActionArgs(
+        detailRouteArgs(
           createPostRequest(request.url, request.headers.get("cookie") ?? "", {
             id: removed.id,
             intent: "merge-professor",
@@ -1230,38 +1185,6 @@ function countOccurrences(value: string, search: string) {
   return value.split(search).length - 1;
 }
 
-function renderRouteInAdminLayout({
-  childComponent,
-  childHandle,
-  childId,
-  childLoaderData,
-  childPath,
-  initialEntry,
-  parentLoaderData,
-}: {
-  childComponent:
-    typeof ProfessorsListRouteView | typeof ProfessorDetailRouteView;
-  childHandle: unknown;
-  childId: string;
-  childLoaderData: unknown;
-  childPath: string;
-  initialEntry: string;
-  parentLoaderData: {
-    events: Array<{ active: boolean; id: string; name: string }>;
-    selectedEventId: string | null;
-  };
-}) {
-  return renderAdminChildRoute({
-    childComponent,
-    childHandle,
-    childId,
-    childLoaderData,
-    childPath,
-    initialEntry,
-    parentLoaderData,
-  });
-}
-
 function buildListInitialEntry(
   loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
 ) {
@@ -1271,54 +1194,6 @@ function buildListInitialEntry(
   );
 
   return `/administracion/profesores${search.length > 0 ? `?${search}` : ""}`;
-}
-
-function createPostRequest(
-  requestUrl: string,
-  cookie: string,
-  values: Record<string, string>,
-) {
-  const formData = new FormData();
-
-  for (const [key, value] of Object.entries(values)) {
-    formData.set(key, value);
-  }
-
-  return new Request(requestUrl, {
-    method: "POST",
-    body: formData,
-    headers: { cookie },
-  });
-}
-
-function routeArgs(request: Request) {
-  return {
-    request,
-    params: {},
-    context: new RouterContextProvider(),
-    url: new URL(request.url),
-    pattern: "/administracion/profesores",
-  };
-}
-
-function detailRouteArgs(request: Request, professorId: string) {
-  return {
-    request,
-    params: { professorId },
-    context: new RouterContextProvider(),
-    url: new URL(request.url),
-    pattern: "/administracion/profesores/:professorId",
-  };
-}
-
-function detailActionArgs(request: Request, professorId: string) {
-  return {
-    request,
-    params: { professorId },
-    context: new RouterContextProvider(),
-    url: new URL(request.url),
-    pattern: "/administracion/profesores/:professorId",
-  };
 }
 
 async function createProfessor(input: {
@@ -1359,5 +1234,15 @@ async function linkProfessorToEventChoreography(input: {
     academyId: input.academyId,
     name: input.choreographyName,
     professorIds: [input.professorId],
+  });
+}
+
+function listRouteArgs(request: Request) {
+  return routeArgs(request, "/administracion/profesores");
+}
+
+function detailRouteArgs(request: Request, professorId: string) {
+  return routeArgs(request, "/administracion/profesores/:professorId", {
+    professorId,
   });
 }

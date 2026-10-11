@@ -1,6 +1,10 @@
+import { sql } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
+import {
+  listSearchCondition,
+  redirectToCanonicalListUrl,
+} from "@/lib/list-query/list-query.server";
 
 const spec = {
   orderColumnIds: ["nombre"],
@@ -79,6 +83,14 @@ describe("redirectToCanonicalListUrl", () => {
     expect(thrown).toBeInstanceOf(Response);
     expect((thrown as Response).headers.get("Location")).toBe(
       "/lista?busqueda=Ana&estado=archivados&tipo=duo&pagina=2",
+    );
+  });
+});
+
+describe("listSearchCondition", () => {
+  test("asks nothing of an empty search", () => {
+    expect(listSearchCondition("   ", [sql`${"Rosario"}::text`])).toBe(
+      undefined,
     );
   });
 });
