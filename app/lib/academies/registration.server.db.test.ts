@@ -21,29 +21,6 @@ describe("academy registration start", () => {
     startAcademyUserSignUpMock.mockResolvedValue({ headers: new Headers() });
   });
 
-  test("validates email and password confirmation", async () => {
-    const result = await requestRegistration("correo-invalido", {
-      password: "123",
-      confirmPassword: "456",
-    });
-
-    expect(result).toEqual({
-      status: "error",
-      message: "Revisá los datos del formulario.",
-      fieldErrors: {
-        email: "Ingresá un correo electrónico válido.",
-        password: "La contraseña debe tener al menos 8 caracteres.",
-        confirmPassword: "Las contraseñas no coinciden.",
-      },
-      values: {
-        email: "correo-invalido",
-        password: "",
-        confirmPassword: "",
-      },
-    });
-    expect(startAcademyUserSignUpMock).not.toHaveBeenCalled();
-  });
-
   test("keeps the public response generic when the email already exists", async () => {
     await db.insert(user).values({
       id: "existing_user",

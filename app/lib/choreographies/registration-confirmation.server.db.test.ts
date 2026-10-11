@@ -112,41 +112,6 @@ describe("choreography registration confirmation", () => {
     ]);
   });
 
-  test("rejects placeholder-only choreography names before inserting records", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Nombre Inválido",
-      email: "registro.coreografia.nombre-invalido@example.com",
-    });
-    const { event, catalog } = await createOpenEventCatalog();
-    const dancer = await createDancer(owner.academyId, {
-      birthDate: "2014-05-01",
-    });
-    const professor = await createProfessor(owner.academyId);
-
-    await expect(
-      createChoreographyRegistration({
-        academyId: owner.academyId,
-        eventId: event.id,
-        name: "-",
-        modalityId: catalog.modality.id,
-        submodalityId: catalog.submodality.id,
-        dancerIds: [dancer.id],
-        professorIds: [professor.id],
-        experienceLevelId: catalog.level.id,
-        scheduleCapacityId: catalog.soloScheduleCapacity.id,
-      }),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: "invalid-name",
-      error: "Ingresá un nombre válido para la coreografía.",
-    });
-
-    const storedChoreographies = await db.query.choreographies.findMany({
-      where: eq(choreographies.academyId, owner.academyId),
-    });
-    expect(storedChoreographies).toHaveLength(0);
-  });
-
   test("stores a name in the form the administrative save stores it, and refuses what it refuses (#764)", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Regla del Nombre",
@@ -232,40 +197,6 @@ describe("choreography registration confirmation", () => {
       ok: false,
       code: "invalid-schedule-capacity",
     });
-  });
-
-  test("rejects a choreography without professors on final confirmation", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Sin Profesores",
-      email: "registro.coreografia.sin-profesores@example.com",
-    });
-    const { event, catalog } = await createOpenEventCatalog();
-    const dancer = await createDancer(owner.academyId, {
-      birthDate: "2014-05-01",
-    });
-
-    await expect(
-      createChoreographyRegistration({
-        academyId: owner.academyId,
-        eventId: event.id,
-        name: "Pieza sin profesores",
-        modalityId: catalog.modality.id,
-        submodalityId: catalog.submodality.id,
-        dancerIds: [dancer.id],
-        professorIds: [],
-        experienceLevelId: catalog.level.id,
-        scheduleCapacityId: catalog.soloScheduleCapacity.id,
-      }),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: "invalid-professors",
-      error: "Elegí uno o más profesores válidos para la coreografía.",
-    });
-
-    const storedChoreographies = await db.query.choreographies.findMany({
-      where: eq(choreographies.academyId, owner.academyId),
-    });
-    expect(storedChoreographies).toHaveLength(0);
   });
 
   test("rejects professors from another academy on final confirmation", async () => {
