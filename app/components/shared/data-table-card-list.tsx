@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import type { Table as TanStackTable } from "@tanstack/react-table";
+import type { RowData, Table as TanStackTable } from "@tanstack/react-table";
 
 import { Card, CardContent } from "@/components/ui/card";
+import type { DataTableFeatures } from "@/components/shared/data-table-core";
 
 /**
  * A list's rows as compact cards, which is how a portal list reads on a phone:
@@ -12,14 +13,14 @@ import { Card, CardContent } from "@/components/ui/card";
  * every list's cards are one design. There is no header here, so no sort
  * control, no selection and no reordering: the cards keep the table's order.
  */
-export function DataTableCardList<TData>({
+export function DataTableCardList<TData extends RowData>({
   emptyMessage,
   renderCard,
   table,
 }: {
   emptyMessage: string;
   renderCard: (row: TData) => ReactNode;
-  table: TanStackTable<TData>;
+  table: TanStackTable<DataTableFeatures, TData>;
 }) {
   const rows = table.getRowModel().rows;
 

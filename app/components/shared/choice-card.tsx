@@ -25,7 +25,7 @@ export function ChoiceCard({
       data-slot="choice-card"
       htmlFor={htmlFor}
       className={cn(
-        "flex h-8 items-center justify-between gap-2 rounded-lg border border-input px-2.5 text-sm transition-colors has-data-checked:border-primary/30 has-data-checked:bg-primary/5 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10",
+        "flex h-8 items-center justify-between gap-2 rounded-lg border border-input px-2.5 text-sm transition-colors has-data-checked:border-primary/30 has-data-checked:bg-primary/5",
         disabled
           ? "cursor-not-allowed opacity-50"
           : "cursor-pointer hover:bg-muted/50",

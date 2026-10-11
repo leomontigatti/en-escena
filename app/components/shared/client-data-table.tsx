@@ -1,17 +1,13 @@
 import {
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   type ColumnDef,
   type ColumnFiltersState,
   type OnChangeFn,
   type PaginationState,
+  type RowData,
   type RowSelectionState,
   type SortingState,
-  type Table,
   type Updater,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
 import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router";
@@ -26,9 +22,11 @@ import {
   createColumnVisibility,
   createDataTableColumns,
   createGlobalFilterFn,
+  dataTableFeatures,
   emptyFacetedFilters,
   emptyFacetedFilterValues,
   useDataTableRowSelection,
+  type DataTableFeatures,
 } from "@/components/shared/data-table-core";
 import { DataTableShell } from "@/components/shared/data-table-shell";
 import type {
@@ -48,7 +46,9 @@ import {
 /** The fallback for a view that declares no initial faceted selection. */
 const noFacetedFilterValue: DataTableFacetedFilterValue = {};
 
-export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
+export function ClientDataTable<TData extends RowData>(
+  props: ClientDataTableProps<TData>,
+) {
   const location = useLocation();
   const {
     baseFacetedFilterValues,
@@ -178,7 +178,7 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
           basePath: location.pathname,
           canNextPage: table.getCanNextPage(),
           canPreviousPage: table.getCanPreviousPage(),
-          currentPage: table.getState().pagination.pageIndex + 1,
+          currentPage: table.state.pagination.pageIndex + 1,
           filteredRowCount: table.getFilteredRowModel().rows.length,
           hidden: props.hidePagination ?? false,
           onNextPage: () => table.nextPage(),
@@ -205,7 +205,7 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
  * sit outside the component: read together they say what the table falls back
  * to, and read inside they were only noise between the hooks.
  */
-function resolveClientDataTableDefaults<TData>(
+function resolveClientDataTableDefaults<TData extends RowData>(
   props: ClientDataTableProps<TData>,
 ) {
   return {
@@ -221,7 +221,7 @@ function resolveClientDataTableDefaults<TData>(
   };
 }
 
-function useClientDataTableColumns<TData>(
+function useClientDataTableColumns<TData extends RowData>(
   columns: ClientDataTableProps<TData>["columns"],
   selectableRows: boolean,
 ) {
@@ -237,7 +237,7 @@ function useClientDataTableColumns<TData>(
   return { columnVisibility, tableColumns };
 }
 
-function useClientReactTable<TData>({
+function useClientReactTable<TData extends RowData>({
   canSelectRow,
   columnFilters,
   columnVisibility,
@@ -275,9 +275,9 @@ function useClientReactTable<TData>({
   setSearchQuery: (searchValue: string) => void;
   setSort: (sort: DataTableSort) => void;
   sorting: SortingState;
-  tableColumns: ColumnDef<TData>[];
+  tableColumns: ColumnDef<DataTableFeatures, TData>[];
   textFilterColumnId?: string;
-}): Table<TData> {
+}) {
   // The text filter narrows one named column, so the global filter stays out of
   // the way; without one, the search box is the global filter. Either way it is
   // derived from the search rather than stored beside it, so a search arriving
@@ -293,7 +293,8 @@ function useClientReactTable<TData>({
       ]
     : columnFilters;
 
-  return useReactTable({
+  return useTable({
+    features: dataTableFeatures,
     data: rows,
     columns: tableColumns,
     state: {
@@ -330,14 +331,10 @@ function useClientReactTable<TData>({
     // the page whenever the search, the filters or the sort change. Left on,
     // the engine would also reset the page on its own and overwrite it.
     autoResetPageIndex: false,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     // A table with no page controls has no way to reach a second page, so it
     // is not paged at all: every row is on screen. The engine caches its page
     // model, so this switch is what turns it off on a table already mounted.
     manualPagination: !paginated,
-    getSortedRowModel: getSortedRowModel(),
     getRowId: getRowKey,
     globalFilterFn: matchesSearch
       ? (row, _columnId, filterValue) =>

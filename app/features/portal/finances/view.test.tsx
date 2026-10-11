@@ -214,6 +214,28 @@ describe("PortalAcademyFinancesRouteView", () => {
     expect(metricCardText("Saldo adeudado")).toBe(owedAfterSelection);
   });
 
+  // Each tab is its own list: the same table component at the same place
+  // must not hand one tab's search to the other.
+  test("opens the other tab with an empty search", async () => {
+    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
+
+    await updateReactDomForm(() => {
+      setInputValue(
+        document.querySelector<HTMLInputElement>(
+          'input[placeholder="Buscar por número o nombre"]',
+        )!,
+        "2",
+      );
+    });
+    await clickTab("Seminarios");
+
+    expect(
+      document.querySelector<HTMLInputElement>(
+        'input[placeholder="Buscar por instructor"]',
+      )?.value,
+    ).toBe("");
+  });
+
   // The academy's own money: a withdrawn choreography still holds the deposit it
   // was withdrawn with, so the list shows it from the start and the badge says
   // why the figures are frozen.
