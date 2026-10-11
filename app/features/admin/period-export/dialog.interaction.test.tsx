@@ -61,6 +61,12 @@ describe("the period export dialog", () => {
     await act(async () => {
       dayButton.click();
     });
+    // The closing popover hands focus back from a timer of its own; opening
+    // the next one before it runs lets that focus move dismiss it. A timer
+    // queued now runs after Radix's, so this waits for exactly that one.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
   }
 
   test("downloads the whole event when both dates are left empty", async () => {
