@@ -15,8 +15,9 @@ that the in-session review missed fell in the areas the brief now names.
    readback.
 2. Spawn **one** `reviewer-opus` sub-agent, in the same message as the other review spawns, with
    the diff command, the commit list, one paragraph stating what the change is meant to do, and
-   the brief below. It runs on Opus while the other axes run on Sol, so the axis that hunts for
-   bugs brings a second model family. Codex has no Opus agent: under Codex, spawn `reviewer`.
+   the brief below. It runs on Opus while the other axes run on Codex models, so the axis that
+   hunts for bugs brings a second model family. Codex has no Opus agent: under Codex, spawn
+   `reviewer`.
 
    > Assume this diff has a bug its author's tests miss, and hunt for it. The stated intent is
    > correct; challenge the execution. Read the callers and callees of every changed function,

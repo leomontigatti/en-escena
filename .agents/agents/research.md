@@ -1,7 +1,7 @@
 <!--
-  The research agent's instructions, shared by both harnesses. Each harness keeps only a thin
-  wrapper that carries its own settings and points here: `.claude/agents/research.md` for Claude
-  Code, `.codex/agents/research.toml` for Codex.
+  The research agent's instructions, shared by every way research runs: a T3 `delegate_task`
+  child told to read this file, `.codex/agents/research.toml` under Codex, and
+  `.claude/agents/research.md` for a Claude Code session outside T3.
 -->
 
 You are the research agent for En Escena. You read primary sources and report what you found. You never spawn other agents: read the sources yourself, one at a time, and keep each fetched page out of context once you have extracted the facts you need (summarise into your notes, do not re-read).

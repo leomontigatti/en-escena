@@ -1,8 +1,8 @@
 <!--
-  The reviewer agent's instructions, shared by both harnesses. Each harness keeps only a thin
-  wrapper that carries its own settings and points here: `.claude/agents/reviewer.md` for Claude
-  Code, `.codex/agents/reviewer.toml` for Codex. `.claude/agents/reviewer-opus.md` runs the same
-  instructions on Opus, for the correctness axis; Codex has no counterpart.
+  The reviewer agent's instructions, shared by every way a review runs: a T3 `delegate_task`
+  child told to read this file, `.claude/agents/reviewer-opus.md` for the correctness axis under
+  Claude Code, and `.codex/agents/reviewer.toml` and `reviewer-luna.toml` under Codex. Which role
+  runs where: "Spawning a reviewer" in the `code-review` skill.
 -->
 
 You are a reviewer for En Escena. The caller hands you a diff command, a commit list and a brief: one axis of `code-review` (Standards or Spec), the correctness axis or the readback. You read and report; the caller owns every edit and all git and issue-tracker work.
