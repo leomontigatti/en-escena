@@ -586,7 +586,12 @@ they live in one module.
   `La academia no tiene saldo disponible suficiente.` Funding and unfunding take
   it after the seminar and inscription locks their callers hold, never before
   one, so it adds no lock order to deadlock on; the lock is re-entrant, so a
-  preset that spreads many times waits once. Registering a payment takes no
+  preset that spreads many times waits once. The payment edit and deletion
+  lock the pool the payment is in and read it again; one that moved academy
+  while they waited is refused with
+  `El pago cambió mientras se guardaba. Volvé a intentarlo.` rather than
+  locking a second pool, since holding two taken in move order would deadlock
+  against the merge, which takes them sorted. Registering a payment takes no
   lock: it only grows the pool. Deleting an academy takes none either, since an
   academy with payments cannot be deleted.
 

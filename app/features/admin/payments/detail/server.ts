@@ -44,6 +44,15 @@ type UpdatePaymentSuccessActionData = {
   status: "success";
 };
 
+/**
+ * The payment moved academy while the edit or deletion waited on its pool lock
+ * (`lockPaymentPool`): the write is refused rather than locking a second pool,
+ * and the administrator retries on the state the loader revalidates.
+ */
+const paymentMoved = "payment-moved";
+const paymentMovedMessage =
+  "El pago cambió mientras se guardaba. Volvé a intentarlo.";
+
 export type PaymentDetailActionData =
   | DeletePaymentActionData
   | UpdatePaymentActionData
@@ -150,12 +159,22 @@ async function updatePayment(input: {
   // Under the pool lock, so a spread allocating to this payment right now is
   // either counted here or waits until the edit has saved.
   const refusal = await db.transaction(
-    async (tx): Promise<UpdatePaymentActionData["fieldErrors"] | null> => {
-      const payment = await lockPaymentPool(tx, input.paymentId);
+    async (
+      tx,
+    ): Promise<
+      UpdatePaymentActionData["fieldErrors"] | typeof paymentMoved | null
+    > => {
+      const locked = await lockPaymentPool(tx, input.paymentId);
 
-      if (!payment) {
+      if (locked.status === "missing") {
         throw new Response("No encontramos ese pago.", { status: 404 });
       }
+
+      if (locked.status === "moved") {
+        return paymentMoved;
+      }
+
+      const payment = locked.pool;
 
       const academy = await tx.query.academies.findFirst({
         columns: { id: true },
@@ -193,6 +212,16 @@ async function updatePayment(input: {
       return null;
     },
   );
+
+  if (refusal === paymentMoved) {
+    return {
+      status: "error",
+      intent: updatePaymentIntent,
+      message: paymentMovedMessage,
+      fieldErrors: {},
+      values,
+    };
+  }
 
   if (refusal) {
     return {
@@ -235,13 +264,30 @@ async function deletePayment(input: {
   // figure an inscription shows is derived from what is allocated to it right
   // now. There is no blocking case: the deletion always proceeds, under the
   // pool lock so that no spread is allocating to the payment as it goes.
-  await db.transaction(async (tx) => {
-    if (!(await lockPaymentPool(tx, input.paymentId))) {
+  const outcome = await db.transaction(async (tx) => {
+    const locked = await lockPaymentPool(tx, input.paymentId);
+
+    if (locked.status === "missing") {
       throw new Response("No encontramos ese pago.", { status: 404 });
     }
 
+    if (locked.status === "moved") {
+      return paymentMoved;
+    }
+
     await tx.delete(payments).where(eq(payments.id, input.paymentId));
+
+    return null;
   });
+
+  if (outcome === paymentMoved) {
+    return {
+      status: "error",
+      intent: deletePaymentIntent,
+      message: paymentMovedMessage,
+      fieldErrors: {},
+    };
+  }
 
   throw redirect("/administracion/pagos");
 }

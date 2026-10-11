@@ -333,39 +333,55 @@ export async function lockAcademyPools(
 }
 
 /**
- * Takes the lock on the pool a payment belongs to and answers that pool, or
- * `null` when the payment does not exist. For the payment edit and deletion,
- * which check that a payment still covers what is allocated to it.
+ * Takes the lock on the pool a payment belongs to and answers that pool. For
+ * the payment edit and deletion, which check that a payment still covers what
+ * is allocated to it.
  *
- * The pool is read again once the lock is held: a concurrent edit may have
- * moved the payment to another academy while this one waited, and the lock
- * that matters is the one on the pool it belongs to now.
+ * The payment is read again once the lock is held, because a concurrent edit
+ * may have moved it to another academy while this one waited. That answers
+ * `moved`, and the caller refuses: locking the new pool too would hold two pool
+ * locks taken in move order, which deadlocks against a writer that takes them
+ * sorted (`lockAcademyPools`, the academy merge). The lock is
+ * transaction-scoped and cannot be released early, so there is no retrying
+ * inside the transaction either.
  */
 export async function lockPaymentPool(
   tx: Executor,
   paymentId: string,
-): Promise<AcademyPool | null> {
-  let lockedKey: string | null = null;
+): Promise<
+  | { status: "locked"; pool: AcademyPool }
+  | { status: "missing" }
+  | { status: "moved" }
+> {
+  const read = await readPaymentPool(tx, paymentId);
 
-  for (;;) {
-    const [payment] = await tx
-      .select({ academyId: payments.academyId, eventId: payments.eventId })
-      .from(payments)
-      .where(eq(payments.id, paymentId));
-
-    if (!payment) {
-      return null;
-    }
-
-    const key = academyPoolLockKey(payment);
-
-    if (key === lockedKey) {
-      return payment;
-    }
-
-    await lockAcademyPool(tx, payment);
-    lockedKey = key;
+  if (!read) {
+    return { status: "missing" };
   }
+
+  await lockAcademyPool(tx, read);
+
+  const locked = await readPaymentPool(tx, paymentId);
+
+  if (!locked) {
+    return { status: "missing" };
+  }
+
+  return academyPoolLockKey(locked) === academyPoolLockKey(read)
+    ? { status: "locked", pool: locked }
+    : { status: "moved" };
+}
+
+async function readPaymentPool(
+  tx: Executor,
+  paymentId: string,
+): Promise<AcademyPool | undefined> {
+  const [payment] = await tx
+    .select({ academyId: payments.academyId, eventId: payments.eventId })
+    .from(payments)
+    .where(eq(payments.id, paymentId));
+
+  return payment;
 }
 
 function academyPoolLockKey(pool: AcademyPool): string {
