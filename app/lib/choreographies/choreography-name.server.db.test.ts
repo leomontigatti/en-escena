@@ -11,7 +11,7 @@ import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.
 import {
   createAcademySession,
   createEventCatalog,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

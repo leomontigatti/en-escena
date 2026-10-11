@@ -22,7 +22,7 @@ import {
   eventDocumentKinds,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
-import { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

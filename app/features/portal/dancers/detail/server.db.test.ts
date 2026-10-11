@@ -15,11 +15,11 @@ import {
   createEventChoreographyFixture,
   createSavedEvent as createActiveEventFixture,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate as date,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/saved-event.test-support";
 import { handlePortalDancerDetailAction } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancerDetail } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancersList } from "@/features/portal/dancers/list/server";
@@ -34,7 +34,7 @@ import { createFormData } from "@/lib/test-support/form-data";
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { mergeAcademies } from "@/lib/academies/academy-merge.server";
 import { mergeRosterPeople } from "@/lib/roster/roster-merge.server";

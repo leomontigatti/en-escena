@@ -10,7 +10,7 @@ import {
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { publishResults } from "@/lib/judging/results.server";
 import { activateEvent, deactivateEvent } from "@/lib/events/management.server";
-import { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
 
 import { handleResultsListAction, loadResultsListRouteData } from "./server";
 import {

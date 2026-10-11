@@ -3,7 +3,7 @@ import {
   type EventFormValues,
 } from "@/lib/admin/events/form-values";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
-import type { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import type { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
 
 export type EventRow = Awaited<ReturnType<typeof createAdminSavedEvent>>;
 

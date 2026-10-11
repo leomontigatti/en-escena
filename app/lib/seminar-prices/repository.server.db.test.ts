@@ -3,8 +3,8 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, seminarInscriptions } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent } from "@/lib/events/bases.test-support";
 import {
   uncoveredPriceDeleteError,
   uncoveredPriceUpdateError,

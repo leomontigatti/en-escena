@@ -13,7 +13,7 @@ import {
   createEventChoreographyFixture,
   createEventFixtureDates,
   createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

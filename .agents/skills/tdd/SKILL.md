@@ -42,5 +42,5 @@ When the shape of that interface is itself in question (how deep the module is, 
 
 ## Keeping the suite lean
 
-- **Extend a fixture before adding one.** Before creating a test-support file, look for the one that already builds those rows or requests (`app/lib/test-support/`, the `*-test-fixtures.server.db.ts` beside the domain) and extend it. A new support file needs a reason no existing one fits.
+- **Extend a fixture before adding one.** Before creating a test-support file, look for the one that already builds those rows or requests (`app/lib/test-support/`, the `*.test-support.ts` beside the domain; where each goes is "Test support files" in `docs/agents/coding-standards.md`) and extend it. A new support file needs a reason no existing one fits.
 - **Delete what a better test made redundant.** When a test at a seam covers behaviour that older, shallower tests also cover, delete the older ones in the same change, and list them with the reason in the PR.

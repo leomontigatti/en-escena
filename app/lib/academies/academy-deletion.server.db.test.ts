@@ -14,7 +14,7 @@ import { deleteEmptyAcademy } from "@/lib/academies/academy-deletion.server";
 import {
   createEventChoreographyFixture,
   createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";

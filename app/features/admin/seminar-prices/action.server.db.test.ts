@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { createSavedEvent } from "@/lib/events/bases.test-support";
 import { listSeminarPrices } from "@/lib/seminar-prices/repository.server";
 import { expectThrownResponse } from "@/lib/test-support/http";
 

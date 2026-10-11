@@ -13,7 +13,7 @@ import {
 import {
   createAdminSavedEvent as createSavedEvent,
   testEventDate as date,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/saved-event.test-support";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
   AdminShellRouteView,
