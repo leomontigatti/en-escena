@@ -103,6 +103,11 @@ Use `pnpm typecheck` for type validation.
 
 Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app. A PreToolUse hook (`.agents/hooks/block-npx-tsc.sh`, wired in `.claude/settings.json` and `.codex/hooks.json`) enforces this: it blocks `npx tsc` / `pnpm exec tsc` / `pnpm dlx tsc` and points back here.
 
+Do not run `pkill -f`: the pattern is also in the command line of the shell that runs it, so it
+kills the agent's own Bash call (exit 144). Stop the dev server with `pnpm dev:stop`; for anything
+else, find the pid with `lsof` or `pgrep` and `kill` it. A second PreToolUse hook
+(`.agents/hooks/block-pkill-f.sh`) blocks `pkill -f` and `pkill --full`.
+
 When reading React Router flat-route files with shell commands, quote paths that
 contain `$` segments so the shell does not expand route params. For example, use
 `sed -n '1,220p' 'app/routes/administracion.eventos_.$eventId.tsx'`.
@@ -142,9 +147,11 @@ T3 thread gets its own git worktree and branch: `t3.json` at the repo root sets
 `.env` from the main checkout, installs and generates route types before the
 agent starts. The worktree's own database and dev port come later, on its first
 `pnpm dev`, `db:seed` or `db:migrate` ([local-auth.md](../local-auth.md#one-database-per-worktree)). T3 runs that script only once it is imported (project settings →
-Actions → Import from t3.json), once per T3 install. A worktree with no `.env`
-means it was never imported; one with `.env` but no `node_modules` means the
-install step failed. The main checkout stays on
+Actions → Import from t3.json), once per T3 install. `pnpm dev:info` reports
+that state without opening `.env`, which agents are denied: no `.env` means the
+script was never imported; `.env` but no `node_modules` means the install step
+failed. It also prints the dev port, the database with a ready `psql` line, and
+which tools the shell reaches. The main checkout stays on
 `master` and is nobody's working directory.
 
 Rules for a session:
@@ -160,7 +167,8 @@ Rules for a session:
   tracks the branch and pull request of the worktree it created, so a private
   worktree loses the PR badge and the automatic settling of the thread.
 - **Branch prefixes.** T3 names the worktree's branch when it creates the
-  thread; when a session renames it or creates one, human-driven work uses
+  thread and renames it once the thread starts, so read it with
+  `git branch --show-current`, never from the `t3code/<id>` worktree name; when a session renames it or creates one, human-driven work uses
   `feat/`, `fix/`, `docs/`, `chore/`, `refactor/`, `research/` or
   `prototype/`. The `agent/` prefix belonged to the retired AFK implement
   runners (ADR-0016); a session never creates one.
@@ -931,8 +939,9 @@ creates.
 
 The loop:
 
-1. Start the dev server in the background: `pnpm dev`. It serves on the `PORT` in `.env.local`,
-   which the first run creates with the worktree's database. The examples below say 5173; use yours. A
+1. Start the dev server in the background: `pnpm dev`. It serves on the worktree's own port,
+   which the first run picks along with its database; `pnpm dev:info` prints both. The examples
+   below say 5173; use yours. A
    "Port … is already in use" error usually means your own earlier server is still up:
    `pnpm dev:stop`. It stops only listeners running from this worktree; one from another directory
    is left alone and reported, with exit 1.
