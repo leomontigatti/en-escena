@@ -415,7 +415,7 @@ describe("AcademyFinancesRouteView", () => {
     expect(dialogText()).not.toContain("Elegí un precio");
 
     await act(async () => {
-      findButton("Guardar")?.click();
+      findButton("Asignar")?.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
@@ -497,10 +497,10 @@ describe("AcademyFinancesRouteView", () => {
     expect(sections[1]).toContain("Lugares libres: 20 · Ocupa: 1");
     // The owed figure is the people's amounts summed.
     expect(dialogText()).toContain("$ 70.000");
-    expect(findButton("Guardar")?.disabled).toBe(false);
+    expect(findButton("Asignar")?.disabled).toBe(false);
   });
 
-  test("disables `Guardar` and names the seminar and the shortfall when places fall short", async () => {
+  test("disables `Asignar` and names the seminar and the shortfall when places fall short", async () => {
     await renderListIntoDocument({
       initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
       initialPresetStage: "deposit",
@@ -521,14 +521,14 @@ describe("AcademyFinancesRouteView", () => {
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
 
-    expect(findButton("Guardar")?.disabled).toBe(true);
+    expect(findButton("Asignar")?.disabled).toBe(true);
     expect(dialogText()).toContain("No alcanzan los lugares");
     expect(dialogText()).toContain(
       "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2026: falta 1.",
     );
   });
 
-  test("disables `Guardar` with its reason when the owed figure exceeds `Saldo disponible`", async () => {
+  test("disables `Asignar` with its reason when the owed figure exceeds `Saldo disponible`", async () => {
     await renderListIntoDocument({
       initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
       initialPresetStage: "deposit",
@@ -546,7 +546,7 @@ describe("AcademyFinancesRouteView", () => {
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
 
-    expect(findButton("Guardar")?.disabled).toBe(true);
+    expect(findButton("Asignar")?.disabled).toBe(true);
     expect(dialogText()).toContain("No alcanza el saldo disponible");
     expect(dialogText()).toContain(
       "La academia adeuda $ 5.000 y tiene $ 3.000 disponibles.",
@@ -569,7 +569,7 @@ describe("AcademyFinancesRouteView", () => {
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
     await act(async () => {
-      findButton("Guardar")?.click();
+      findButton("Asignar")?.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     await act(async () => {
@@ -596,7 +596,7 @@ describe("AcademyFinancesRouteView", () => {
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
     await act(async () => {
-      findButton("Guardar")?.click();
+      findButton("Asignar")?.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     await act(async () => {

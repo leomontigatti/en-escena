@@ -789,7 +789,7 @@ nothing the second time.
   places left against the places the charge takes; the owed figure is those
   amounts summed. The loader reads it from the same plan the write runs
   (`readSeminarCobroPreviews`), so preview and write cannot disagree on who,
-  at which price or how many places. `Guardar` is disabled, with the reason
+  at which price or how many places. `Asignar` is disabled, with the reason
   stated, when a seminar is short of places (named, with the shortfall) or
   the owed figure exceeds `Saldo disponible`; the server's checks stay the
   last word for a state that moved after the dialog opened.

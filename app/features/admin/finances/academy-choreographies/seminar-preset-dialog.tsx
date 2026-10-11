@@ -49,7 +49,7 @@ import type { AcademyFinancesActionData } from "./server";
  * seminar, the people the charge reaches with the price they will hold and the
  * amount, and the places it takes against the places left. When it can already
  * see the charge failing — a seminar short of places, or more owed than
- * `Saldo disponible` — `Guardar` is disabled and the reason is stated. The
+ * `Saldo disponible` — `Asignar` is disabled and the reason is stated. The
  * server makes the same checks as the last word, for a state that moved after
  * the dialog opened.
  *
@@ -181,7 +181,7 @@ export function SeminarPresetDialog({
               ) : (
                 <Check aria-hidden="true" data-icon="inline-start" />
               )}
-              Guardar
+              Asignar
             </Button>
           </DialogFooter>
         </fetcher.Form>
