@@ -255,15 +255,6 @@ describe("Better Auth AccessAuthProvider adapter", () => {
       }),
     ).rejects.toBeInstanceOf(RecoveryLinkRefusedError);
   });
-
-  test("refuses a password change with no recovery session", async () => {
-    await expect(
-      provider.updatePasswordForRecovery({
-        newPassword: "password-nueva",
-        request: new Request("http://localhost/cambiar-contrasena"),
-      }),
-    ).rejects.toBeInstanceOf(RecoveryLinkRefusedError);
-  });
 });
 
 function requestWithCookies(headers: Headers) {

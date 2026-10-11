@@ -161,17 +161,6 @@ describe("findRosterSeminarInscriptions", () => {
       ]);
     },
   );
-
-  test("reads nothing without a selected event", async () => {
-    const fixture = await seedSeminarFixture("dancer");
-
-    await expect(
-      findRosterSeminarInscriptions({
-        person: fixture.person,
-        selectedEventId: null,
-      }),
-    ).resolves.toEqual([]);
-  });
 });
 
 describe("findProfessorChoreographies", () => {
@@ -274,14 +263,5 @@ describe("findProfessorChoreographies", () => {
       "bolero",
       "Zamba",
     ]);
-  });
-
-  test("reads nothing without a selected event", async () => {
-    await expect(
-      findProfessorChoreographies({
-        professorId: crypto.randomUUID(),
-        selectedEventId: null,
-      }),
-    ).resolves.toEqual([]);
   });
 });

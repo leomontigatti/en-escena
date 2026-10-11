@@ -20,6 +20,7 @@ import {
 } from "@/routes/administracion.usuarios_.$userId";
 import { action as signInAction } from "@/routes/ingresar";
 
+import { createPostRequest, routeArgs } from "@/lib/admin/test-support/route";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
@@ -63,7 +64,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     ).resolves.toHaveLength(1);
 
     const suspendResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(
           adminRequest.url,
           adminRequest.headers.get("cookie") ?? "",
@@ -115,7 +116,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     expect(suspendedDetailMarkup).not.toContain("Suspender usuario");
 
     const reactivateResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(
           adminRequest.url,
           adminRequest.headers.get("cookie") ?? "",
@@ -147,7 +148,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     });
 
     const selfSuspendResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(
           `http://localhost/administracion/usuarios/${selfAdmin.userId}`,
           selfAdmin.request.headers.get("cookie") ?? "",
@@ -187,7 +188,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     ).resolves.toHaveLength(1);
 
     const updateResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(
           adminRequest.url,
           adminRequest.headers.get("cookie") ?? "",
@@ -247,7 +248,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     ).resolves.toHaveLength(1);
 
     const resetResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(
           adminRequest.url,
           adminRequest.headers.get("cookie") ?? "",
@@ -325,7 +326,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
 
       await expectThrownResponse(
         detailAction(
-          detailActionArgs(
+          detailRouteArgs(
             createPostRequest(
               blockedUser.request.url,
               blockedUser.request.headers.get("cookie") ?? "",
@@ -357,7 +358,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
         .where(eq(user.id, blockedUser.userId));
     }
     const selfResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(
           `http://localhost/administracion/usuarios/${selfAdmin.userId}`,
           selfAdmin.request.headers.get("cookie") ?? "",
@@ -390,7 +391,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       internalUsername: "admin.otro",
     });
     const craftedResult = await detailAction(
-      detailActionArgs(
+      detailRouteArgs(
         createPostRequest(
           `http://localhost/administracion/usuarios/${otherAdmin.userId}`,
           selfAdmin.request.headers.get("cookie") ?? "",
@@ -666,54 +667,6 @@ function renderDetailRoute(
   );
 }
 
-function listRouteArgs(request: Request) {
-  return {
-    request,
-    params: {},
-    context: new RouterContextProvider(),
-    url: new URL(request.url),
-    pattern: "/administracion/usuarios",
-  };
-}
-
-function detailRouteArgs(request: Request, userId: string) {
-  return {
-    request,
-    params: { userId },
-    context: new RouterContextProvider(),
-    url: new URL(request.url),
-    pattern: "/administracion/usuarios/:userId",
-  };
-}
-
-function detailActionArgs(request: Request, userId: string) {
-  return {
-    request,
-    params: { userId },
-    context: new RouterContextProvider(),
-    url: new URL(request.url),
-    pattern: "/administracion/usuarios/:userId",
-  };
-}
-
-function createPostRequest(
-  requestUrl: string,
-  cookie: string,
-  values: Record<string, string>,
-) {
-  const formData = new FormData();
-
-  for (const [key, value] of Object.entries(values)) {
-    formData.set(key, value);
-  }
-
-  return new Request(requestUrl, {
-    method: "POST",
-    body: formData,
-    headers: { cookie },
-  });
-}
-
 function submitSignInAction(identifier: string, password: string) {
   const formData = new FormData();
   formData.set("identifier", identifier);
@@ -729,4 +682,12 @@ function submitSignInAction(identifier: string, password: string) {
     params: {},
     context: new RouterContextProvider(),
   });
+}
+
+function listRouteArgs(request: Request) {
+  return routeArgs(request, "/administracion/usuarios");
+}
+
+function detailRouteArgs(request: Request, userId: string) {
+  return routeArgs(request, "/administracion/usuarios/:userId", { userId });
 }

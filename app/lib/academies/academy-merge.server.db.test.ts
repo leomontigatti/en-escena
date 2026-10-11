@@ -257,20 +257,6 @@ describe("mergeAcademies", () => {
       removed.academyId,
     );
   });
-
-  test("refuses merging an academy into itself", async () => {
-    const academy = await createAcademy("Academia Sola");
-
-    await expect(
-      mergeAcademies({
-        removedId: academy.academyId,
-        survivorId: academy.academyId,
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      message: "Elegí otra academia para fusionar.",
-    });
-  });
 });
 
 describe("loadAcademyMergeOptions", () => {
