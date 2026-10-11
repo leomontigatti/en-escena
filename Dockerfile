@@ -28,6 +28,8 @@ FROM base AS runtime
 # attach to a standalone database resource. See docs/operations/backups.md.
 # `awscli` is the B2 client for that drill and for the live storage backup —
 # backup-storage-to-b2.sh, reseed-storage-volume-from-b2.sh, restore-drill-from-b2.sh.
+# scripts/unexpected-error-maintenance.sh, another scheduled task, uses `psql`
+# and `curl` from here too.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends awscli ca-certificates curl \
   && install -d /usr/share/postgresql-common/pgdg \
