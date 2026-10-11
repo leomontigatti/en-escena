@@ -13,6 +13,7 @@ function row(overrides: Partial<ResultsExportRow> = {}): ResultsExportRow {
     categoryName: "Juvenil",
     dancerNames: ["Ana Pérez", "Bruno Gómez", "Carla Díaz"],
     groupType: "trio",
+    levelLabel: "Pre Elite",
     modalityName: "Danza clásica",
     name: "Lago",
     orderNumber: 7,
@@ -53,6 +54,13 @@ describe("the results export sheet", () => {
       88.5,
       "Medalla de plata",
     ]);
+  });
+
+  test("carries the presentation's level after its category", () => {
+    const [header, cells] = values([row()]);
+
+    expect(header.slice(3, 5)).toEqual(["Categoría", "Nivel"]);
+    expect(cells.slice(3, 5)).toEqual(["Juvenil", "Pre Elite"]);
   });
 
   test("counts a larger group's dancers rather than naming them", () => {

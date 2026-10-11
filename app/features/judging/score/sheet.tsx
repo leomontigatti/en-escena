@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { ChevronLeft, Undo2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
@@ -21,14 +21,6 @@ import { FieldGroup } from "@/components/ui/field";
 import type { InternalAccount } from "@/lib/auth/internal-account";
 import { formatScheduleDayHeading } from "@/lib/choreographies/schedule-formatters";
 import { isSheetComplete } from "@/lib/judging/sheet-criteria";
-import {
-  feedbackAudioFieldSubmission,
-  feedbackAudioFieldUrl,
-  initialFeedbackAudioField,
-  isFeedbackAudioFieldDirty,
-  reduceFeedbackAudioField,
-  type FeedbackAudioFieldEvent,
-} from "@/lib/judging/feedback-audio-field";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { hasUnsavedChanges } from "@/lib/shared/discard-guard";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
@@ -41,7 +33,7 @@ import {
 } from "./presentation-heading";
 import type { JudgePanelActionData } from "./action.server";
 import { DisqualifiedNotice } from "./disqualification";
-import { FeedbackRecorder } from "./feedback-recorder";
+import { FeedbackRecorder, useFeedbackAudioField } from "./feedback-recorder";
 import { IncompleteSheetNotice } from "./incomplete-sheet";
 import {
   buildJudgeSheetFormSchema,
@@ -86,14 +78,12 @@ export function JudgeScoreSheet({
     ),
     resolver: zodResolver(buildJudgeSheetFormSchema(criteria)),
   });
-  const [audio, setAudio] = useState(() =>
-    initialFeedbackAudioField(presentation.feedbackAudioUrl),
-  );
+  const audio = useFeedbackAudioField(presentation.feedbackAudioUrl);
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
   const isSaving = useRef(false);
   const isDirty = hasUnsavedChanges({
-    isAudioDirty: isFeedbackAudioFieldDirty(audio),
+    isAudioDirty: audio.isDirty,
     isFormDirty: form.formState.isDirty,
   });
   const discardDialog = useSheetDiscardGuard({
@@ -101,25 +91,29 @@ export function JudgeScoreSheet({
     isDirty,
     isSaving,
   });
-  const isSavePending = useJudgeSavePending(presentation.presentationId);
+  const isSavePending =
+    useJudgeSavePending(presentation.presentationId) || audio.isFinishing;
   const { disqualified, incomplete } = readSheetState(presentation);
 
   function discard() {
     form.reset();
-    setAudio(initialFeedbackAudioField(presentation.feedbackAudioUrl));
+    audio.reset();
   }
 
-  function applyAudioEvent(event: FeedbackAudioFieldEvent) {
-    setAudio((current) => reduceFeedbackAudioField(current, event));
-  }
+  // Never rejects: the take's hand-over only resolves, and `submit` rejects
+  // only on a framework invariant (docs/agents/validation.md, the `void` policy).
+  async function save(values: JudgeSheetFormValues) {
+    const audioSubmission = await audio.readSubmission();
+    if (!audioSubmission) {
+      return;
+    }
 
-  function save(values: JudgeSheetFormValues) {
     // The save navigates, and it is the one way out of the sheet that must
     // never be asked about.
     isSaving.current = true;
-    void submit(
+    await submit(
       buildJudgeSheetSubmission({
-        audio: feedbackAudioFieldSubmission(audio),
+        audio: audioSubmission,
         presentationId: presentation.presentationId,
         values,
       }),
@@ -161,19 +155,16 @@ export function JudgeScoreSheet({
               disqualified
                 ? (event) => {
                     event.preventDefault();
-                    save({ values: {} });
+                    // `save` never rejects, as it says.
+                    void save({ values: {} });
                   }
                 : form.handleSubmit(save)
             }
           >
             <FieldGroup>
               <FeedbackRecorder
-                audioUrl={feedbackAudioFieldUrl(audio)}
+                {...audio.recorderProps}
                 legendVariant="legend"
-                onDelete={() => applyAudioEvent({ type: "deleted" })}
-                onRecorded={(take) =>
-                  applyAudioEvent({ take, type: "recorded" })
-                }
               />
               {disqualified ? null : (
                 <SheetParts
@@ -186,7 +177,12 @@ export function JudgeScoreSheet({
           </form>
         </CardContent>
         <PinnedActions>
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button
+            disabled={isSavePending}
+            onClick={onClose}
+            type="button"
+            variant="outline"
+          >
             <ChevronLeft aria-hidden="true" data-icon="inline-start" />
             Volver
           </Button>
