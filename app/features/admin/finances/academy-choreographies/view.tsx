@@ -64,7 +64,7 @@ export function AcademyFinancesRouteView({
 }: AcademyFinancesRouteViewProps) {
   // The tabs, their two selections and the figures that follow them are the
   // portal summary's as well (`useFinanceTabs`); the two presets below read the
-  // choreography selection whichever tab is open, and are this page's alone.
+  // choreography selection, and are this page's alone.
   const {
     activeTab,
     activeThresholds,
@@ -79,6 +79,8 @@ export function AcademyFinancesRouteView({
   const [presetStage, setPresetStage] = useState<CobroStage | null>(
     initialPresetStage,
   );
+  const canCollect =
+    activeTab === choreographiesTabValue && choreographyTotals.hasSelection;
   const choreographyColumns = useMemo(
     () => buildChoreographyFinanceColumns(loaderData.academy.id),
     [loaderData.academy.id],
@@ -109,18 +111,19 @@ export function AcademyFinancesRouteView({
         // collections are disabled —there is nothing to collect against— but
         // they stay in view.
         //
-        // **The two presets act on choreographies only**, whichever tab is
-        // open: there is no seminar preset, and reading the seminar selection
-        // here would offer one that does not exist.
+        // **The two presets act on choreographies only** (#888): there is no
+        // seminar preset. On the seminar tab they are disabled too, since
+        // enabling them there would collect against the choreography selection
+        // out of sight while the seminar one in sight went untouched.
         <ResourceActionsMenu contentClassName="w-48">
           <DropdownMenuItem
-            disabled={!choreographyTotals.hasSelection}
+            disabled={!canCollect}
             onSelect={() => setPresetStage("deposit")}
           >
             {financePresetLabels.deposit}
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled={!choreographyTotals.hasSelection}
+            disabled={!canCollect}
             onSelect={() => setPresetStage("balance")}
           >
             {financePresetLabels.balance}

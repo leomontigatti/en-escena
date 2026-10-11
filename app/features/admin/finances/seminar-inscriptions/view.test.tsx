@@ -112,8 +112,8 @@ describe("SeminarInscriptionFinancesView", () => {
     expect(metricCardText("Saldo adeudado")).toContain("$ 37.000");
   });
 
-  test("narrows rows and metrics to one academy", async () => {
-    await mount("?academia=academy_1");
+  test("narrows rows and metrics to one academy through the search", async () => {
+    await mount("?busqueda=centro");
 
     expect(columnValues("Inscripto")).toEqual(["Ana López", "Nicolás Prado"]);
     expect(metricCardText("Seña total")).toContain("$ 15.000");
@@ -122,7 +122,7 @@ describe("SeminarInscriptionFinancesView", () => {
   });
 
   test("narrows rows and metrics to one instructor", async () => {
-    await mount("?docente=Bruno%20D%C3%ADaz");
+    await mount("?instructor=Bruno%20D%C3%ADaz");
 
     expect(columnValues("Inscripto")).toEqual(["Luz Suárez", "Nicolás Prado"]);
     expect(metricCardText("Saldo adeudado")).toContain("$ 32.000");
@@ -135,11 +135,21 @@ describe("SeminarInscriptionFinancesView", () => {
     expect(metricCardText("Saldo adeudado")).toContain("$ 5.000");
   });
 
-  test("searches by the person's name alone", async () => {
+  test("searches by the person's name", async () => {
     await mount("?busqueda=suarez");
 
     expect(columnValues("Inscripto")).toEqual(["Luz Suárez"]);
     expect(metricCardText("Saldo adeudado")).toContain("$ 20.000");
+  });
+
+  test("offers no academy filter, since the search covers the academy", async () => {
+    await mount("?academia=academy_1");
+
+    expect(columnValues("Inscripto")).toEqual([
+      "Ana López",
+      "Luz Suárez",
+      "Nicolás Prado",
+    ]);
   });
 
   test("opens the money dialog from the person's name, the row's only control", async () => {
