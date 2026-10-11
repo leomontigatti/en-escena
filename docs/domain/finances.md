@@ -715,11 +715,42 @@ the administrator who sees an error can trust that nothing moved. A preset
 selects and stores a price row only for inscriptions that have not covered their
 deposit yet; anything already past that threshold keeps the price it holds.
 
-The presets act on **choreographies only**, whichever tab of the academy's
-finances is open. There is no preset over seminar inscriptions: a bulk
-all-or-nothing crossing against a shared quota stops naming one row, and the
-volume does not ask for it. The per-inscription dialog is the only gesture for
-seminar money.
+The presets act on **the open tab's selection**: the choreographies on the
+`Coreografías` tab, the `(seminar, academy)` rows on the `Seminarios` tab. A
+selection on the other tab never enables them, so an action never reaches rows
+out of sight.
+
+### Per seminar
+
+On the `Seminarios` tab the same two presets act on the selected
+`(seminar, academy)` rows, which reverses #888's "no seminar preset" now that
+academies pay for several seminar inscriptions at once. Selecting a row means
+every **active** `seminarInscription` the academy holds in that seminar;
+withdrawn ones are never read. `Pagar seña` allocates each one's
+`Seña adeudada`, `Pagar saldo` its `Saldo adeudado`, deposit included, and the
+ones that owe nothing for the stage are skipped, so running a preset twice moves
+nothing the second time.
+
+- **No price picker.** An inscription that holds no price is stored the
+  `seminarPrice` that applies to the person today — the seminar's kind, falling
+  back to `regular`, the person's `forParticipants` cell, open dated rows before
+  the deadline-less one. One that already holds a price keeps it.
+- **Places.** Every selected seminar is locked `FOR UPDATE`, in id order, before
+  anything is read. Per seminar, the places needed are the inscriptions the
+  charge carries across their deposit, and the charge is refused when
+  `covered + needed > quota` for any of them, naming each seminar short and by
+  how many places. A `Pagar saldo` that crosses a deposit takes a place exactly
+  like a `Pagar seña`.
+- **All or nothing**, as on the choreography side: a seminar short of places, a
+  pool that cannot cover the charge or an inscription nothing prices rolls the
+  whole charge back. Money comes from the pool, oldest payment first, and no
+  payment is created.
+- The client posts the stage and the seminar ids alone; the server recomputes
+  who is charged, at which price and how much (`seminar-cobro-presets.server.ts`).
+  A refusal shows as an alert inside the dialog, since it names the part of the
+  selection that blocked it; a success closes the dialog with a toast.
+
+Invoicing stays `Emitir factura` on each `(seminar, academy)` detail.
 
 ## Anomalies
 

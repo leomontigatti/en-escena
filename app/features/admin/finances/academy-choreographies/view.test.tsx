@@ -2,7 +2,21 @@
 
 import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
+
+const { toastError, toastSuccess } = vi.hoisted(() => ({
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: toastSuccess,
+    warning: vi.fn(),
+  },
+}));
 
 import {
   openRadixSelect,
@@ -16,13 +30,17 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import { financePresetLabels } from "./presets";
+import type { AcademyFinancesActionData } from "./server";
 import { AcademyFinancesRouteView } from "./view";
 import type { AcademyFinancesLoaderData } from "./types";
 
 describe("AcademyFinancesRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
-  afterEach(renderer.cleanup);
+  afterEach(() => {
+    renderer.cleanup();
+    vi.clearAllMocks();
+  });
 
   test("shows aggregates only, without per-document breakdown or corrections", async () => {
     const router = createMemoryRouter(
@@ -310,10 +328,10 @@ describe("AcademyFinancesRouteView", () => {
     ]);
   });
 
-  // The presets act on choreographies only, so on the seminar tab they would
-  // collect against a selection that is out of sight while the one in sight
-  // goes untouched.
-  test("disables both presets on the seminar tab, even with choreographies selected", async () => {
+  // The presets act on the open tab's selection: a choreography selection out
+  // of sight never enables them on the seminar tab, and the seminar one in
+  // sight does.
+  test("acts on the seminar selection on the seminar tab", async () => {
     await renderListIntoDocument({
       loaderData: academyFinancesLoaderDataFixture({
         seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
@@ -322,13 +340,125 @@ describe("AcademyFinancesRouteView", () => {
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
     await clickTab("Seminarios");
-    await clickCheckbox(getRenderedCheckboxes()[1]);
     await openActionsMenu();
 
     expect(menuItemDisabledState()).toEqual([
       { label: financePresetLabels.deposit, disabled: true },
       { label: financePresetLabels.balance, disabled: true },
     ]);
+
+    await closeActionsMenu();
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await openActionsMenu();
+
+    expect(menuItemDisabledState()).toEqual([
+      { label: financePresetLabels.deposit, disabled: false },
+      { label: financePresetLabels.balance, disabled: false },
+    ]);
+  });
+
+  test("opens the seminar preset over the selected seminars with the owed figure against `Saldo disponible`", async () => {
+    const submissions: FormData[] = [];
+
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [
+          seminarFinanceRowFixture({ id: "seminar_1" }),
+          seminarFinanceRowFixture({
+            id: "seminar_2",
+            instructorName: "Nicolás Prado",
+            owedDepositAmount: { amount: 7000, status: "complete" },
+          }),
+        ],
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 40000,
+        },
+      }),
+      submissions,
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await clickCheckbox(getRenderedCheckboxes()[2]);
+
+    expect(dialogText()).toContain("Pagar seña");
+    expect(dialogText()).toContain("2 seminarios elegidos");
+    expect(dialogText()).toContain("Seña adeudada");
+    expect(dialogText()).toContain("$ 12.000");
+    expect(dialogText()).toContain("Saldo disponible");
+    expect(dialogText()).toContain("$ 40.000");
+    // No price picker: each person is priced by the server.
+    expect(dialogText()).not.toContain("Elegí un precio");
+
+    await act(async () => {
+      findButton("Guardar")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(submissions).toHaveLength(1);
+    expect([...submissions[0].entries()].sort()).toEqual([
+      ["intent", "pay-seminar-deposit-preset"],
+      ["seminarId", "seminar_1"],
+      ["seminarId", "seminar_2"],
+    ]);
+  });
+
+  test("shows a refused seminar charge as an alert in the dialog", async () => {
+    const refusal =
+      "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2030: falta 1.";
+
+    await renderListIntoDocument({
+      actionData: { message: refusal, status: "error" },
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "balance",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await act(async () => {
+      findButton("Guardar")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const alert = document.querySelector('[role="dialog"] [role="alert"]');
+
+    expect(alert?.textContent).toContain(refusal);
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  test("closes the seminar preset with a toast when the charge succeeds", async () => {
+    await renderListIntoDocument({
+      actionData: {
+        message: "Pagar saldo: asignamos lo que adeudaban los seminarios.",
+        status: "success",
+      },
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "balance",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await act(async () => {
+      findButton("Guardar")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(toastSuccess).toHaveBeenCalledWith(
+      "Pagar saldo: asignamos lo que adeudaban los seminarios.",
+      expect.anything(),
+    );
   });
 
   // The collections act on the selection, so an academy whose choreographies
@@ -841,6 +971,7 @@ describe("AcademyFinancesRouteView", () => {
 
   async function renderListIntoDocument(
     props: {
+      actionData?: AcademyFinancesActionData;
       initialEntry?: string;
       initialPresetStage?: "deposit" | "balance";
       loaderData?: AcademyFinancesLoaderData;
@@ -854,7 +985,7 @@ describe("AcademyFinancesRouteView", () => {
           action: async ({ request }) => {
             props.submissions?.push(await request.formData());
 
-            return null;
+            return props.actionData ?? null;
           },
           element: (
             <AcademyFinancesRouteView
@@ -935,6 +1066,19 @@ async function openActionsMenu() {
     );
     button.dispatchEvent(
       new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+}
+
+async function closeActionsMenu() {
+  await act(async () => {
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Escape",
+      }),
     );
     await Promise.resolve();
   });

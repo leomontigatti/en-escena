@@ -14,6 +14,7 @@ import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summa
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import type { ResolvedInscription } from "@/lib/finances/operational-summary-calculations.server";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
+import { paySeminarsPreset } from "@/lib/finances/seminar-cobro-presets.server";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -21,8 +22,9 @@ import {
 import type { PresetInscription } from "./preset-figures";
 import {
   choreographyIdFieldName,
+  financePresetAction,
   financePresetLabels,
-  financePresetStage,
+  seminarIdFieldName,
   type PresetPriceOption,
 } from "./presets";
 
@@ -30,8 +32,6 @@ export type AcademyFinancesActionData = {
   status: "error" | "success";
   message: string;
 };
-
-export type { PresetPriceOption };
 
 export async function loadAcademyFinances(input: {
   params: { academyId?: string };
@@ -106,22 +106,30 @@ export async function handleAcademyFinancesAction(input: {
   }
 
   const formData = await input.request.formData();
-  const stage = financePresetStage(String(formData.get("intent") ?? ""));
+  const preset = financePresetAction(String(formData.get("intent") ?? ""));
 
-  if (stage === null) {
+  if (preset === null) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
-  const result = await payChoreographiesPreset({
-    academyId,
-    choreographyIds: formData
-      .getAll(choreographyIdFieldName)
-      .map((value) => String(value).trim())
-      .filter(Boolean),
-    eventId: eventContext.selectedEventId,
-    priceIdByGroupType: readPriceSelection(formData),
-    stage,
-  });
+  const { stage, target } = preset;
+  // The seminar presets carry the selected seminars and nothing else: who is
+  // charged, at which price and how much is the server's to recompute.
+  const result =
+    target === "seminars"
+      ? await paySeminarsPreset({
+          academyId,
+          eventId: eventContext.selectedEventId,
+          seminarIds: readIds(formData, seminarIdFieldName),
+          stage,
+        })
+      : await payChoreographiesPreset({
+          academyId,
+          choreographyIds: readIds(formData, choreographyIdFieldName),
+          eventId: eventContext.selectedEventId,
+          priceIdByGroupType: readPriceSelection(formData),
+          stage,
+        });
 
   if (!result.ok) {
     return { status: "error", message: result.message };
@@ -129,8 +137,15 @@ export async function handleAcademyFinancesAction(input: {
 
   return {
     status: "success",
-    message: `${financePresetLabels[stage]}: asignamos lo que adeudaban las coreografías elegidas.`,
+    message: `${financePresetLabels[stage]}: asignamos lo que adeudaban ${target === "seminars" ? "los seminarios elegidos" : "las coreografías elegidas"}.`,
   };
+}
+
+function readIds(formData: FormData, fieldName: string): string[] {
+  return formData
+    .getAll(fieldName)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
 }
 
 /**

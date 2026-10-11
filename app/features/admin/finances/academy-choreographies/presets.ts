@@ -1,8 +1,9 @@
 /**
- * The two cobro presets, as **list actions** over the choreographies selected in
- * the academy's financial list. They are the only surviving `Pagar seña` /
- * `Pagar saldo`: each one pre-fills the owed figure of what is selected, asks
- * for the price, and writes plain allocations.
+ * The two cobro presets, as **list actions** over the selection of the open tab
+ * of the academy's financial list: the choreographies, or the seminars. They are
+ * the only surviving `Pagar seña` / `Pagar saldo`: each one pre-fills the owed
+ * figure of what is selected and writes plain allocations. The choreography
+ * ones ask for the price; the seminar ones price on the server.
  *
  * Shared by the view and the route action so both name the same intents and the
  * same field names. The stage itself is not defined here: which threshold a
@@ -13,30 +14,51 @@
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
-export const payDepositPresetIntent = "pay-deposit-preset";
-export const payBalancePresetIntent = "pay-balance-preset";
+const payDepositPresetIntent = "pay-deposit-preset";
+const payBalancePresetIntent = "pay-balance-preset";
 
 export const financePresetLabels = {
   deposit: "Pagar seña",
   balance: "Pagar saldo",
 } as const satisfies Record<CobroStage, string>;
 
-export const choreographyIdFieldName = "choreographyId";
+const paySeminarDepositPresetIntent = "pay-seminar-deposit-preset";
+const paySeminarBalancePresetIntent = "pay-seminar-balance-preset";
 
-export function financePresetIntent(stage: CobroStage): string {
+export const choreographyIdFieldName = "choreographyId";
+export const seminarIdFieldName = "seminarId";
+
+/** What a preset acts on: the selection of the tab it was fired from. */
+export type FinancePresetTarget = "choreographies" | "seminars";
+
+export function financePresetIntent(
+  stage: CobroStage,
+  target: FinancePresetTarget = "choreographies",
+): string {
+  if (target === "seminars") {
+    return stage === "deposit"
+      ? paySeminarDepositPresetIntent
+      : paySeminarBalancePresetIntent;
+  }
+
   return stage === "deposit" ? payDepositPresetIntent : payBalancePresetIntent;
 }
 
-export function financePresetStage(intent: string): CobroStage | null {
-  if (intent === payDepositPresetIntent) {
-    return "deposit";
+export function financePresetAction(
+  intent: string,
+): { stage: CobroStage; target: FinancePresetTarget } | null {
+  switch (intent) {
+    case payDepositPresetIntent:
+      return { stage: "deposit", target: "choreographies" };
+    case payBalancePresetIntent:
+      return { stage: "balance", target: "choreographies" };
+    case paySeminarDepositPresetIntent:
+      return { stage: "deposit", target: "seminars" };
+    case paySeminarBalancePresetIntent:
+      return { stage: "balance", target: "seminars" };
+    default:
+      return null;
   }
-
-  if (intent === payBalancePresetIntent) {
-    return "balance";
-  }
-
-  return null;
 }
 
 /**

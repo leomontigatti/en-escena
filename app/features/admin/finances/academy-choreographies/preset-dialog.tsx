@@ -491,7 +491,7 @@ function PresetPriceField({
  * The owed figure is the projection against the current picks and not the
  * loader's, so it is always the amount the button below is about to move.
  */
-function PresetTotals({
+export function PresetTotals({
   availableBalanceAmount,
   owedAmount,
   stage,
