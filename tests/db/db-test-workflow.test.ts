@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
 
+import postgresDatabaseConfig from "../../vitest.db.config";
+
 const readPackageScripts = async () => {
   const packageJson = JSON.parse(await readFile("package.json", "utf8")) as {
     scripts: Record<string, string>;
@@ -37,6 +39,16 @@ describe("DB test workflow", () => {
     expect(scripts["test:db:file"]).toBeUndefined();
     expect(scripts["test:db:file:final"]).toBeUndefined();
     expect(scripts["test:db:file:postgres"]).toBeUndefined();
+  });
+
+  // Every Postgres test file shares one database (ADR-0007), so two files at
+  // once write over each other's rows. Turning on parallelism here fails as
+  // flaky shards rather than as a clear error.
+  test("runs the Postgres suite one file at a time", () => {
+    const { fileParallelism, maxWorkers } = postgresDatabaseConfig.test ?? {};
+
+    expect(fileParallelism).toBe(false);
+    expect(maxWorkers).toBe(1);
   });
 
   // The sharded `db-gate` (#962) has one silent failure mode: growing the

@@ -9,15 +9,18 @@
 // What stays allowed is a doc check with a source of truth outside the doc:
 // links resolve, an index matches the files it lists, a value in the doc
 // matches the module that enforces it. Those assert against something computed
-// (`toContain(\`**${policy.bucket}**\`)`, a loop over the JSON map), so the
-// rule only fires when the expected text is a literal, or a name bound to one.
+// (`toContain(\`**${policy.bucket}**\`)`, a loop over the JSON map) or against
+// a format (`/^\*\*Status\*\*: superseded by ADR-\d{4}$/m`), so the rule only
+// fires when the expected text is a literal string, a regex that matches one
+// literal string, or a name bound to them: a `for...of` item, a `forEach` or
+// `test.each` callback parameter.
 //
-// A "doc" is any value read through a call whose argument names a `.md` path,
-// directly or through a variable: `readFile("GLOSSARY.md")`,
-// `readFileSync(codebaseMapPath)`, a `for (const path of adrPaths)` loop. Text
-// derived from it by a method call (`doc.slice(...)`) is still the doc. An item
-// of a loop over the doc's parts is not: checking each glossary heading against
-// a format is a structural check.
+// A "doc" is any value read by a `read*` call (`readFile`, `readFileSync`,
+// `readRepositoryFile`) whose argument names a `.md` path, directly, through a
+// variable, a `path.*` call, `new URL(...)` or a loop over paths. Text derived
+// from it by a method call or an index (`doc.slice(...)`, `lines[0]`) is still
+// the doc. An item of a loop over the doc's parts is not: checking each
+// glossary heading against a format is a structural check.
 
 const TEXT_MATCHERS = new Set([
   "toBe",
@@ -52,13 +55,30 @@ const WRAPPERS = new Set([
 ]);
 
 // The parts of an expression a `.md` path can hide in: `[...paths]`,
-// `dir + "/x.md"`, `path.resolve("docs/x.md")`.
+// `dir + "/x.md"`, `path.resolve("docs/x.md")`, `new URL("./x.md", base)`.
+// Any other call's result is not a path: `brokenLinks(doc)` returns findings.
 const PATH_PARTS = {
   ArrayExpression: (node) => node.elements,
   BinaryExpression: (node) => [node.right],
-  CallExpression: (node) => node.arguments,
+  CallExpression: (node) =>
+    node.callee.object?.name === "path" ? node.arguments : [],
+  NewExpression: (node) => (node.callee.name === "URL" ? node.arguments : []),
   SpreadElement: (node) => [node.argument],
 };
+
+// Array methods and `test.each`, whose callback's first parameter is an item.
+const ITERATING_METHODS = new Set([
+  "every",
+  "filter",
+  "flatMap",
+  "forEach",
+  "map",
+  "some",
+]);
+
+// A regex that can match more than one string: a class, group, quantifier,
+// alternation, wildcard or class escape is left once escaped literals go.
+const REGEX_SYNTAX = /[[\](){}*+?|.\\]/;
 
 function unwrap(node) {
   let current = node;
@@ -77,9 +97,20 @@ function isStringLiteral(node) {
   return node?.type === "Literal" && typeof node.value === "string";
 }
 
+function isLiteralPattern(pattern) {
+  return !REGEX_SYNTAX.test(pattern.replace(/\\[^dDwWsSbBpPu0-9]/g, ""));
+}
+
 function isLiteralText(node) {
   if (node.type === "TemplateLiteral") return node.expressions.length === 0;
-  return isStringLiteral(node) || Boolean(node.regex);
+  if (node.regex) return isLiteralPattern(node.regex.pattern);
+  return isStringLiteral(node);
+}
+
+function calleeName(call) {
+  return call.callee.type === "Identifier"
+    ? call.callee.name
+    : propertyName(call.callee);
 }
 
 function lastLiteralText(node) {
@@ -128,9 +159,32 @@ function promiseAllElement(declarator, name) {
   return list?.type === "ArrayExpression" ? list.elements[index] : undefined;
 }
 
+// `items.forEach((item) => ...)` and `test.each(items)("%s", (item) => ...)`:
+// the iterable whose items the callback's first parameter receives.
+function callbackIterable(definition) {
+  const callback = definition.node;
+  const call = callback.parent;
+  if (callback.params[0] !== definition.name) return undefined;
+  if (call?.type !== "CallExpression" || !call.arguments.includes(callback)) {
+    return undefined;
+  }
+  if (ITERATING_METHODS.has(propertyName(call.callee))) {
+    return call.callee.object;
+  }
+  const { callee } = call;
+  return callee.type === "CallExpression" &&
+    propertyName(callee.callee) === "each"
+    ? callee.arguments[0]
+    : undefined;
+}
+
 // Where a variable gets its value: a loop item of an iterable, or a value.
 function bindingOf(sourceCode, identifier) {
   const definition = resolveVariable(sourceCode, identifier)?.defs[0];
+  if (definition?.type === "Parameter") {
+    const iterable = callbackIterable(definition);
+    return iterable ? { kind: "loopItem", node: iterable } : undefined;
+  }
   if (definition?.type !== "Variable") return undefined;
 
   const declarator = definition.node;
@@ -167,25 +221,37 @@ function namesMarkdownPath(sourceCode, node, seen) {
 
 function isDocText(sourceCode, node, seen) {
   const current = visit(node, seen);
+  const docTextOf = DOC_TEXT[current?.type];
+  return Boolean(docTextOf) && docTextOf(sourceCode, current, seen);
+}
 
-  if (current?.type === "Identifier") {
-    const binding = bindingOf(sourceCode, current);
+// What makes each kind of expression the doc's text: a name bound to it, an
+// index into it, a method called on it, or a `read*` call given a `.md` path.
+const DOC_TEXT = {
+  Identifier(sourceCode, identifier, seen) {
+    const binding = bindingOf(sourceCode, identifier);
     return (
       binding?.kind === "value" && isDocText(sourceCode, binding.node, seen)
     );
-  }
-
-  if (current?.type !== "CallExpression") return false;
-
-  const { callee } = current;
-  return (
-    (callee.type === "MemberExpression" &&
-      isDocText(sourceCode, callee.object, seen)) ||
-    current.arguments.some((argument) =>
-      namesMarkdownPath(sourceCode, argument, new Set()),
-    )
-  );
-}
+  },
+  MemberExpression(sourceCode, member, seen) {
+    return member.computed && isDocText(sourceCode, member.object, seen);
+  },
+  CallExpression(sourceCode, call, seen) {
+    if (
+      call.callee.type === "MemberExpression" &&
+      isDocText(sourceCode, call.callee.object, seen)
+    ) {
+      return true;
+    }
+    return (
+      /read/i.test(calleeName(call) ?? "") &&
+      call.arguments.some((argument) =>
+        namesMarkdownPath(sourceCode, argument, new Set()),
+      )
+    );
+  },
+};
 
 function isFixedText(sourceCode, node, seen) {
   const current = visit(node, seen);
@@ -206,11 +272,15 @@ function isFixedText(sourceCode, node, seen) {
     );
   }
 
+  if (current.type === "ArrayExpression") {
+    return hasFixedElements(sourceCode, current, seen);
+  }
+
   return isLiteralText(current);
 }
 
 function isFixedList(sourceCode, node, seen) {
-  const current = unwrap(node);
+  const current = visit(node, seen);
 
   if (current?.type === "Identifier") {
     const binding = bindingOf(sourceCode, current);
@@ -221,8 +291,15 @@ function isFixedList(sourceCode, node, seen) {
 
   return (
     current?.type === "ArrayExpression" &&
-    current.elements.length > 0 &&
-    current.elements.every((element) =>
+    hasFixedElements(sourceCode, current, seen)
+  );
+}
+
+// `test.each` takes rows as well as items: `[["a"], ["b"]]` is fixed too.
+function hasFixedElements(sourceCode, array, seen) {
+  return (
+    array.elements.length > 0 &&
+    array.elements.every((element) =>
       element?.type === "SpreadElement"
         ? isFixedList(sourceCode, element.argument, seen)
         : isFixedText(sourceCode, element, seen),

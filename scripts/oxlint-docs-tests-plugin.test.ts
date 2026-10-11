@@ -58,8 +58,48 @@ new RuleTester().run("no-fixed-text", docsTestsPlugin.rules["no-fixed-text"], {
           expect(parseBucketList(match?.[1] ?? "")).toEqual(declaredBuckets);
         `,
     },
+    // A link check over the doc, and a resolver handed `.md` paths it reads none of.
+    {
+      filename,
+      code: `
+          const doc = readFileSync("docs/agents/workflows.md", "utf8");
+          expect(brokenLinks(doc).join("\\n")).toBe("");
+          expect(resolveLink("docs/a.md", "../b.md")).toBe("b.md");
+        `,
+    },
+    // A format the doc's status line must follow is structure, not wording.
+    {
+      filename,
+      code: `
+          const adr = await readFile("docs/adr/superseded/0001-a.md", "utf8");
+          expect(adr).toMatch(/^\\*\\*Status\\*\\*: superseded by ADR-\\d{4}$/m);
+        `,
+    },
   ],
   invalid: [
+    // The loop over requirements written as a callback.
+    {
+      filename,
+      code: `
+          const doc = readFileSync("docs/domain/access.md", "utf8");
+          const requirements = ["## Permission Matrix", "Server guards"];
+          requirements.forEach((requirement) => expect(doc).toContain(requirement));
+          test.each(requirements)("states %s", (requirement) => {
+            expect(doc).toContain(requirement);
+          });
+        `,
+      errors: 2,
+    },
+    // A line picked by index, and headings pinned as an array.
+    {
+      filename,
+      code: `
+          const doc = readFileSync("GLOSSARY.md", "utf8");
+          expect(doc.split("\\n")[0]).toBe("# Glossary");
+          expect(doc.match(/^## .+$/gm)).toEqual(["## Permission Matrix", "## Server guards"]);
+        `,
+      errors: 2,
+    },
     {
       filename,
       code: `
