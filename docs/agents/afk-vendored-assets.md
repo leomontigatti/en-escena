@@ -169,15 +169,15 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   that the agent never mutates the tracker or the remote. Runners that **prefetch** context with
   a read-only `gh` call cannot get there by simply omitting `GH_TOKEN` from the runner step, the
   way `agent-implement` / `agent-implement-prd` (both since retired) did. That was enough to
-  break the invariant in practice — sandcastle's `noSandbox()` builds the agent's environment as
+  break the invariant in practice — sandcastle's `noSandbox()` built the agent's environment as
   `{ ...process.env }`, so the step-level `GH_TOKEN` reached the agent, whose `gh` calls would
   have **succeeded** with the job's write permissions. Only the prompt's "do not run `gh`" stood
-  in the way, and a succeeding call leaves no trace in the logs. `revokeGitHubToken()`
-  ([`lib/runner.mts`](../../.sandcastle/lib/runner.mts)) drops `GH_TOKEN` / `GITHUB_TOKEN` /
-  `GH_ENTERPRISE_TOKEN` after the prefetch and before `createAgent()`; review, implement-pr and
-  update-branch all called it before their retirement, and `architecture-review` is the runner
-  that calls it now, revoking the token it used to read prior proposals before the agent starts.
-  `tests/afk/runner-token-revocation.test.ts` keeps the call ordered ahead of the agent.
+  in the way, and a succeeding call leaves no trace in the logs. The runners first deleted the
+  token from their own environment after the prefetch; since the runner spawns `claude` itself
+  (#1473), the agent's environment is an allow-list (`agentEnvironment` in
+  [`agent.mts`](../../.github/architecture-review/agent.mts)) that holds the agent credential
+  and what the CLI needs to run, and no GitHub token. `tests/afk/runner-agent.test.ts` checks
+  the environment a spawned agent actually sees.
 - **`agent-review` gets a bigger wall-clock budget** (45 / 40 instead of the usual 30 / 25),
   because the skill's sub-agents and the agent's own per-file diff reading both cost time. The
   table and the reasoning are in [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails"; the
@@ -318,9 +318,17 @@ command and `.prettierignore`.
   original repo's reference stack; it is kept as-is, as documentation of that concrete
   realization. The runner ↔ orchestrator reconciliation is already complete via the phase
   tickets of map #319 (#344 for the orchestrator↔runner model, #347 for the cutover): the local
-  Docker runner (`main.mts` + `*-prompt.md`) was retired and `.sandcastle/` today contains only
-  the surviving AFK runner (`agent-architecture-review/`) and its helpers (`lib/`,
-  `retry-feedback.mts`). The repo-wide coding standards and validation list that used to live
-  beside them moved to `docs/agents/`.
+  Docker runner (`main.mts` + `*-prompt.md`) was retired, and the surviving AFK runner now lives
+  in `.github/architecture-review/` beside its workflow. The repo-wide coding standards and
+  validation list that used to live beside it moved to `docs/agents/`.
+- **The runner no longer uses Sandcastle** (#1473), so Appendix A no longer describes the code.
+  The runner spawns `claude --print --output-format stream-json` itself (`agent.mts`), resumes
+  the session with `--resume` for the extract pass, and parses the `<output>` block against the
+  zod schema with code it owns (`structured-output.mts`). The §3.8 contract is unchanged: same
+  inputs, same output files, same two-pass shape. What changed is the budget: the abort now
+  kills the agent's process group, so an agent past its deadline stops instead of finishing on
+  its own, and the late-completion allowance that existed for that case is gone. The prompt is
+  a single turn, with no completion signal and no iteration loop: every run's log showed one
+  iteration.
 - The **prompts remain runner-neutral skeletons**: the "how the runner is invoked" half is made
   concrete when each workflow is wired.

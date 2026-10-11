@@ -188,15 +188,15 @@ marked as the data it is, which is what the identifier rule always asked for.
 `// the cupo of the cronograma` is a violation; ``// the `Cupo de cronograma`
 column`` is not.
 
-It covers `.ts`, `.tsx`, `.mts` and `.mjs` under `.sandcastle/`, `app/`,
+It covers `.ts`, `.tsx`, `.mts` and `.mjs` under `.github/`, `app/`,
 `scripts/` and `tests/`, plus the config files at the repo root — that is every
 directory in the repo holding a file of those extensions, which is the point:
 `vitest.config.ts` was hiding seven lines of Spanish behind exactly such a gap,
-and `.sandcastle/` was the next one waiting. A test derives the expected roots
+and the runner's old `.sandcastle/` folder was the next one waiting. A test derives the expected roots
 from `git ls-files`, so the next gap of that shape fails rather than hides.
 
-**Markdown is covered too** (#792): `.md` under `.agents/`, `.claude/`, `.github/`,
-`.sandcastle/` and `docs/`, plus the repo root. Two directories are exempt, for one reason — a record
+**Markdown is covered too** (#792): `.md` under `.agents/`, `.claude/`, `.github/`
+and `docs/`, plus the repo root. Two directories are exempt, for one reason — a record
 of something external may not be rewritten. `docs/adr/` is the decision as it was
 taken. `docs/research/` cites Argentine tax law by the titles the regulations
 actually carry, and `RG 1415/2003 — Régimen de emisión de comprobantes` is the

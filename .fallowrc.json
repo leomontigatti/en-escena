@@ -3,20 +3,17 @@
   "entry": [
     "src/index.{ts,tsx,js,jsx}",
     "src/main.{ts,tsx,js,jsx}",
-    ".sandcastle/agent-architecture-review/architecture-review.mts"
+    ".github/architecture-review/architecture-review.mts"
   ],
   "ignorePatterns": [
     "tests/db/setup-fast.ts",
     "tests/db/setup.ts",
     "tests/setup/react-test-env.ts"
   ],
-  // `@ai-hero/sandcastle` is value-imported by the `.mts` runner entry
-  // above and by `.sandcastle/lib/runner.mts`, but Fallow does not follow the
-  // `.mts` files into its import graph, so it reports the package as unused.
   // `shadcn` is a devDependency on purpose: its only production use is the
   // `@import "shadcn/tailwind.css"` in `app/app.css`, which Tailwind inlines at
   // build time, so nothing resolves it at runtime.
-  "ignoreDependencies": ["@ai-hero/sandcastle", "shadcn"],
+  "ignoreDependencies": ["shadcn"],
   "ignoreExports": [
     {
       "file": "tests/db/fast-db.ts",

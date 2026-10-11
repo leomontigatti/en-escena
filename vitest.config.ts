@@ -10,7 +10,6 @@ import viteConfig from "./vite.config";
 const testExclude = [
   ...configDefaults.exclude,
   "**/*.db.test.ts",
-  "**/.sandcastle/**",
   "**/.claude/worktrees/**",
 ];
 

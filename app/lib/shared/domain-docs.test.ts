@@ -683,7 +683,7 @@ describe("domain documentation", () => {
   // either resolves or it rotted, usually because the document moved (every hit
   // when this was added was an ADR rehomed into `superseded/`).
   test("keeps every relative markdown link pointed at an existing file", async () => {
-    const roots = ["docs", ".sandcastle", ".agents", ".claude"];
+    const roots = ["docs", ".github", ".agents", ".claude"];
     const vendoredSkills = Object.keys(
       (
         JSON.parse(await readFile("skills-lock.json", "utf8")) as {
