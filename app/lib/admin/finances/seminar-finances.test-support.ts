@@ -1,5 +1,12 @@
 import { db } from "@/db";
-import { payments, seminarInscriptions, seminarPrices } from "@/db/schema";
+import {
+  choreographyDancers,
+  payments,
+  seminarInscriptions,
+  seminarPrices,
+  seminars,
+} from "@/db/schema";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
   createDancer,
   createProfessor,
@@ -117,6 +124,186 @@ async function createFixtureSeminar(
 
   return created.seminar;
 }
+
+/**
+ * Two seminars of one event — an `Exclusivo` one and a `Común` one — with a full
+ * four-cell price list plus two dated rows: an expired one that must never apply
+ * and an early-bird one still open. One academy holds a participant and a
+ * non-participant in each seminar, and a withdrawn third person in the `Común`
+ * one; another academy holds a person in the `Exclusivo` one.
+ */
+export async function seedSeminarPresetFixture(input: {
+  paymentAmount: number;
+}) {
+  const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+  const academy = await createAcademyFinanceChoreographyFixture({
+    academyName: "Academia Bailando",
+    choreographyName: "Aire",
+    email: `bailando.${crypto.randomUUID()}@example.com`,
+    event,
+  });
+  const other = await createAcademyFinanceChoreographyFixture({
+    academyName: "Academia Vecina",
+    catalog: academy.catalog,
+    choreographyName: "Brisa",
+    email: `vecina.${crypto.randomUUID()}@example.com`,
+    event,
+  });
+  const academyId = academy.academy.academy.id;
+  const participant = await createDancer(academyId, {
+    firstName: "Ana",
+    lastName: "Bailando",
+  });
+  const outsider = await createDancer(academyId, {
+    firstName: "Bruno",
+    lastName: "Mirando",
+  });
+  const leaver = await createDancer(academyId, {
+    firstName: "Carla",
+    lastName: "Retirada",
+  });
+  const neighbour = await createDancer(other.academy.academy.id, {
+    firstName: "Dora",
+    lastName: "Vecina",
+  });
+
+  await db.insert(choreographyDancers).values({
+    ageAtEventStart: 14,
+    choreographyId: academy.choreography.id,
+    dancerId: participant.id,
+  });
+
+  const [special, regular] = await db
+    .insert(seminars)
+    .values([
+      {
+        eventId: event.id,
+        instructorName: "Abril Sosa",
+        kind: "special" as const,
+        quota: 20,
+        requiredDepositPercentage: 50,
+        scheduledDate: "2030-10-10",
+        startTime: "18:30",
+      },
+      {
+        eventId: event.id,
+        instructorName: "Nicolás Prado",
+        kind: "regular" as const,
+        quota: 20,
+        requiredDepositPercentage: 50,
+        scheduledDate: "2030-10-11",
+        startTime: "10:00",
+      },
+    ])
+    .returning();
+
+  const priceRows = await db
+    .insert(seminarPrices)
+    .values([
+      ...(
+        [
+          ["regular", true, 20000],
+          ["regular", false, 30000],
+          ["special", true, 40000],
+          ["special", false, 50000],
+        ] as const
+      ).map(([kind, forParticipants, amount]) => ({
+        amount,
+        eventId: event.id,
+        forParticipants,
+        kind,
+        name: `${kind} ${forParticipants ? "participante" : "no participante"}`,
+        paymentDeadline: null,
+      })),
+      // Still open, so it is what a non-participant of an `Exclusivo` seminar
+      // is charged today.
+      {
+        amount: 44000,
+        eventId: event.id,
+        forParticipants: false,
+        kind: "special" as const,
+        name: "Preventa exclusiva",
+        paymentDeadline: "2099-12-31",
+      },
+      // Cheaper, but its deadline has passed: today's resolution skips it.
+      {
+        amount: 2000,
+        eventId: event.id,
+        forParticipants: false,
+        kind: "regular" as const,
+        name: "Preventa vencida",
+        paymentDeadline: "2020-01-01",
+      },
+    ])
+    .returning();
+  const earlyBirdId = priceRows.find(
+    (row) => row.name === "Preventa exclusiva",
+  )!.id;
+  const expiredPriceId = priceRows.find(
+    (row) => row.name === "Preventa vencida",
+  )!.id;
+  const priceId = (kind: "regular" | "special", forParticipants: boolean) =>
+    priceRows.find(
+      (row) =>
+        row.kind === kind &&
+        row.forParticipants === forParticipants &&
+        row.paymentDeadline === null,
+    )!.id;
+
+  const [
+    specialParticipant,
+    specialOutsider,
+    regularParticipant,
+    regularOutsider,
+    regularLeaver,
+    specialNeighbour,
+  ] = await db
+    .insert(seminarInscriptions)
+    .values([
+      { dancerId: participant.id, seminarId: special!.id },
+      { dancerId: outsider.id, seminarId: special!.id },
+      { dancerId: participant.id, seminarId: regular!.id },
+      { dancerId: outsider.id, seminarId: regular!.id },
+      {
+        dancerId: leaver.id,
+        seminarId: regular!.id,
+        withdrawnAt: new Date("2030-04-01T12:00:00Z"),
+      },
+      { dancerId: neighbour.id, seminarId: special!.id },
+    ])
+    .returning();
+
+  await db.insert(payments).values({
+    academyId,
+    amount: input.paymentAmount,
+    eventId: event.id,
+    paymentDate: "2030-04-01",
+    paymentMethod: "transferencia",
+    paymentNumber: 1,
+  });
+
+  return {
+    academyId,
+    earlyBirdId,
+    eventId: event.id,
+    expiredPriceId,
+    inscriptions: {
+      regularLeaver: regularLeaver!,
+      regularOutsider: regularOutsider!,
+      regularParticipant: regularParticipant!,
+      specialNeighbour: specialNeighbour!,
+      specialOutsider: specialOutsider!,
+      specialParticipant: specialParticipant!,
+    },
+    priceId,
+    regular: regular!,
+    special: special!,
+  };
+}
+
+export type SeminarPresetFixture = Awaited<
+  ReturnType<typeof seedSeminarPresetFixture>
+>;
 
 export function seminarInscriptionFinancesUrl(eventId: string) {
   return `http://localhost/administracion/finanzas/seminarios?evento=${eventId}`;

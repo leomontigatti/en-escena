@@ -2,7 +2,21 @@
 
 import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
+
+const { toastError, toastSuccess } = vi.hoisted(() => ({
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastError,
+    info: vi.fn(),
+    success: toastSuccess,
+    warning: vi.fn(),
+  },
+}));
 
 import {
   openRadixSelect,
@@ -16,13 +30,17 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import { financePresetLabels } from "./presets";
+import type { AcademyFinancesActionData } from "./server";
 import { AcademyFinancesRouteView } from "./view";
 import type { AcademyFinancesLoaderData } from "./types";
 
 describe("AcademyFinancesRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
-  afterEach(renderer.cleanup);
+  afterEach(() => {
+    renderer.cleanup();
+    vi.clearAllMocks();
+  });
 
   test("shows aggregates only, without per-document breakdown or corrections", async () => {
     const router = createMemoryRouter(
@@ -310,10 +328,10 @@ describe("AcademyFinancesRouteView", () => {
     ]);
   });
 
-  // The presets act on choreographies only, so on the seminar tab they would
-  // collect against a selection that is out of sight while the one in sight
-  // goes untouched.
-  test("disables both presets on the seminar tab, even with choreographies selected", async () => {
+  // The presets act on the open tab's selection: a choreography selection out
+  // of sight never enables them on the seminar tab, and the seminar one in
+  // sight does.
+  test("acts on the seminar selection on the seminar tab", async () => {
     await renderListIntoDocument({
       loaderData: academyFinancesLoaderDataFixture({
         seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
@@ -322,13 +340,274 @@ describe("AcademyFinancesRouteView", () => {
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
     await clickTab("Seminarios");
-    await clickCheckbox(getRenderedCheckboxes()[1]);
     await openActionsMenu();
 
     expect(menuItemDisabledState()).toEqual([
       { label: financePresetLabels.deposit, disabled: true },
       { label: financePresetLabels.balance, disabled: true },
     ]);
+
+    await closeActionsMenu();
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await openActionsMenu();
+
+    expect(menuItemDisabledState()).toEqual([
+      { label: financePresetLabels.deposit, disabled: false },
+      { label: financePresetLabels.balance, disabled: false },
+    ]);
+  });
+
+  test("opens the seminar preset over the selected seminars with the owed figure against `Saldo disponible`", async () => {
+    const submissions: FormData[] = [];
+
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [
+          seminarFinanceRowFixture({ id: "seminar_1" }),
+          seminarFinanceRowFixture({
+            id: "seminar_2",
+            instructorName: "Nicolás Prado",
+          }),
+        ],
+        seminarPresetPreviews: {
+          seminar_1: seminarPresetPreviewFixture({ seminarId: "seminar_1" }),
+          seminar_2: seminarPresetPreviewFixture({
+            instructorName: "Nicolás Prado",
+            seminarId: "seminar_2",
+            stages: {
+              ...seminarPresetPreviewFixture().stages,
+              deposit: {
+                neededCount: 1,
+                people: [
+                  {
+                    amount: 7000,
+                    inscriptionId: "seminar_inscription_2",
+                    personName: "Bruno Mirando",
+                    priceName: "Exclusivo",
+                  },
+                ],
+              },
+            },
+          }),
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 40000,
+        },
+      }),
+      submissions,
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await clickCheckbox(getRenderedCheckboxes()[2]);
+
+    expect(dialogText()).toContain("Pagar seña");
+    expect(dialogText()).toContain("2 seminarios elegidos");
+    expect(dialogText()).toContain("Seña adeudada");
+    expect(dialogText()).toContain("$ 12.000");
+    expect(dialogText()).toContain("Saldo disponible");
+    expect(dialogText()).toContain("$ 40.000");
+    // No price picker: each person is priced by the server.
+    expect(dialogText()).not.toContain("Elegí un precio");
+
+    await act(async () => {
+      findButton("Asignar")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(submissions).toHaveLength(1);
+    expect([...submissions[0].entries()].sort()).toEqual([
+      ["intent", "pay-seminar-deposit-preset"],
+      ["seminarId", "seminar_1"],
+      ["seminarId", "seminar_2"],
+    ]);
+  });
+
+  test("lists each selected seminar with the people it reaches, their price and amount, and its places", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "balance",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [
+          seminarFinanceRowFixture({ id: "seminar_1" }),
+          seminarFinanceRowFixture({
+            id: "seminar_2",
+            instructorName: "Nicolás Prado",
+          }),
+        ],
+        seminarPresetPreviews: {
+          seminar_1: seminarPresetPreviewFixture({
+            coveredCount: 12,
+            seminarId: "seminar_1",
+            stages: {
+              ...seminarPresetPreviewFixture().stages,
+              balance: {
+                neededCount: 2,
+                people: [
+                  {
+                    amount: 40000,
+                    inscriptionId: "seminar_inscription_1",
+                    personName: "Ana Bailando",
+                    priceName: "Exclusivo participante",
+                  },
+                  {
+                    amount: 22000,
+                    inscriptionId: "seminar_inscription_2",
+                    personName: "Bruno Mirando",
+                    priceName: "Preventa exclusiva",
+                  },
+                ],
+              },
+            },
+          }),
+          seminar_2: seminarPresetPreviewFixture({
+            instructorName: "Nicolás Prado",
+            scheduledDate: "2026-10-11",
+            seminarId: "seminar_2",
+          }),
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 100000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await clickCheckbox(getRenderedCheckboxes()[2]);
+
+    const sections = [
+      ...document.querySelectorAll('[role="dialog"] section'),
+    ].map((section) => section.textContent ?? "");
+
+    expect(sections).toHaveLength(2);
+    expect(sections[0]).toContain("Abril Sosa · 10 de octubre de 2026");
+    expect(sections[0]).toContain("Lugares libres: 8 · Ocupa: 2");
+    expect(sections[0]).toContain("Ana Bailando");
+    expect(sections[0]).toContain("Exclusivo participante");
+    expect(sections[0]).toContain("$ 40.000");
+    expect(sections[0]).toContain("Bruno Mirando");
+    expect(sections[0]).toContain("Preventa exclusiva");
+    expect(sections[0]).toContain("$ 22.000");
+    expect(sections[1]).toContain("Nicolás Prado · 11 de octubre de 2026");
+    expect(sections[1]).toContain("Lugares libres: 20 · Ocupa: 1");
+    // The owed figure is the people's amounts summed.
+    expect(dialogText()).toContain("$ 70.000");
+    expect(findButton("Asignar")?.disabled).toBe(false);
+  });
+
+  test("disables `Asignar` and names the seminar and the shortfall when places fall short", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+        seminarPresetPreviews: {
+          seminar_1: seminarPresetPreviewFixture({
+            coveredCount: 20,
+            seminarId: "seminar_1",
+          }),
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 100000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(true);
+    expect(dialogText()).toContain("No alcanzan los lugares");
+    expect(dialogText()).toContain(
+      "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2026: falta 1.",
+    );
+  });
+
+  test("disables `Asignar` with its reason when the owed figure exceeds `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+        seminarPresetPreviews: {
+          seminar_1: seminarPresetPreviewFixture({ seminarId: "seminar_1" }),
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 3000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(true);
+    expect(dialogText()).toContain("No alcanza el saldo disponible");
+    expect(dialogText()).toContain(
+      "La academia adeuda $ 5.000 y tiene $ 3.000 disponibles.",
+    );
+    expect(dialogText()).not.toContain("No alcanzan los lugares");
+  });
+
+  test("toasts a refused seminar charge and keeps the dialog open", async () => {
+    const refusal =
+      "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2030: falta 1.";
+
+    await renderListIntoDocument({
+      actionData: { message: refusal, status: "error" },
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "balance",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await act(async () => {
+      findButton("Asignar")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(toastError).toHaveBeenCalledWith(refusal, expect.anything());
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(dialogText()).not.toContain(refusal);
+  });
+
+  test("closes the seminar preset with a toast when the charge succeeds", async () => {
+    await renderListIntoDocument({
+      actionData: {
+        message: "Pagar saldo: asignamos lo que adeudaban los seminarios.",
+        status: "success",
+      },
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "balance",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await act(async () => {
+      findButton("Asignar")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(toastSuccess).toHaveBeenCalledWith(
+      "Pagar saldo: asignamos lo que adeudaban los seminarios.",
+      expect.anything(),
+    );
   });
 
   // The collections act on the selection, so an academy whose choreographies
@@ -528,6 +807,10 @@ describe("AcademyFinancesRouteView", () => {
             },
           ],
         },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 6000,
+        },
       }),
       submissions,
     });
@@ -548,6 +831,120 @@ describe("AcademyFinancesRouteView", () => {
       ["intent", "pay-deposit-preset"],
       ["price-solo", "price_2"],
     ]);
+  });
+
+  /**
+   * The preset is all-or-nothing and the money comes out of `Saldo disponible`,
+   * so an owed figure above it is a refusal the dialog can already see.
+   */
+  test("disables `Asignar` with its reason when the owed figure exceeds `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 2000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(true);
+    expect(dialogText()).toContain("No alcanza el saldo disponible");
+    expect(dialogText()).toContain(
+      "La academia adeuda $ 3.000 y tiene $ 2.000 disponibles.",
+    );
+  });
+
+  test("re-enables `Asignar` when a cheaper price brings the owed figure within `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        priceOptionsByGroupType: {
+          solo: [
+            {
+              amount: 10000,
+              depositAmount: 3000,
+              id: "price_1",
+              name: "Primera fecha",
+              paymentDeadline: null,
+              scheduleIds: [],
+            },
+            {
+              amount: 6000,
+              depositAmount: 1500,
+              id: "price_2",
+              name: "Promoción",
+              paymentDeadline: null,
+              scheduleIds: [],
+            },
+          ],
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 2000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(true);
+
+    await openRadixSelect(
+      document.querySelector('[data-slot="select-trigger"]'),
+    );
+    await selectRadixOption("Promoción · $ 6.000");
+
+    expect(findButton("Asignar")?.disabled).toBe(false);
+    expect(dialogText()).not.toContain("No alcanza el saldo disponible");
+  });
+
+  test("keeps `Asignar` enabled when the owed figure equals `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 3000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(false);
+    expect(dialogText()).not.toContain("No alcanza el saldo disponible");
+  });
+
+  /**
+   * With an inscription that has no price, the known part of the debt is a lower
+   * bound: above the balance the charge cannot fit, below it the dialog cannot
+   * tell, and `Deuda incompleta` already says why.
+   */
+  test("blocks an incomplete owed figure whose known part already exceeds `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: incompleteOwedLoaderDataFixture(2000),
+    });
+    await clickCheckbox(getRenderedCheckboxes()[0]);
+
+    expect(dialogText()).toContain("Deuda incompleta");
+    expect(dialogText()).toContain("No alcanza el saldo disponible");
+    expect(findButton("Asignar")?.disabled).toBe(true);
+  });
+
+  test("does not block an incomplete owed figure whose known part fits `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: incompleteOwedLoaderDataFixture(5000),
+    });
+    await clickCheckbox(getRenderedCheckboxes()[0]);
+
+    expect(dialogText()).toContain("Deuda incompleta");
+    expect(dialogText()).not.toContain("No alcanza el saldo disponible");
+    expect(findButton("Asignar")?.disabled).toBe(false);
   });
 
   /**
@@ -841,6 +1238,7 @@ describe("AcademyFinancesRouteView", () => {
 
   async function renderListIntoDocument(
     props: {
+      actionData?: AcademyFinancesActionData;
       initialEntry?: string;
       initialPresetStage?: "deposit" | "balance";
       loaderData?: AcademyFinancesLoaderData;
@@ -854,7 +1252,7 @@ describe("AcademyFinancesRouteView", () => {
           action: async ({ request }) => {
             props.submissions?.push(await request.formData());
 
-            return null;
+            return props.actionData ?? null;
           },
           element: (
             <AcademyFinancesRouteView
@@ -940,6 +1338,19 @@ async function openActionsMenu() {
   });
 }
 
+async function closeActionsMenu() {
+  await act(async () => {
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Escape",
+      }),
+    );
+    await Promise.resolve();
+  });
+}
+
 async function clickCheckbox(checkbox: HTMLElement) {
   await act(async () => {
     checkbox.dispatchEvent(
@@ -997,6 +1408,7 @@ function academyFinancesLoaderDataFixture(
     },
     selectedEventId: "event_1",
     seminarFinanceRows: [],
+    seminarPresetPreviews: {},
     summary: {
       availableBalanceAmount: 0,
       depositAmount: { amount: 18000, status: "complete" },
@@ -1007,6 +1419,35 @@ function academyFinancesLoaderDataFixture(
     },
     ...overrides,
   };
+}
+
+/**
+ * Both fixture choreographies, the second with no price at all: the deposit
+ * owed is known only in part, 3000, which is a lower bound.
+ */
+function incompleteOwedLoaderDataFixture(availableBalanceAmount: number) {
+  return academyFinancesLoaderDataFixture({
+    inscriptions: [
+      presetInscriptionFixture({
+        choreographyId: "choreography_1",
+        id: "inscription_1",
+      }),
+      presetInscriptionFixture({
+        basePriceAmount: null,
+        basePriceId: null,
+        choreographyId: "choreography_2",
+        depositAmount: null,
+        id: "inscription_2",
+        owedBalanceAmount: null,
+        owedDepositAmount: null,
+      }),
+    ],
+    priceOptionsByGroupType: {},
+    summary: {
+      ...academyFinancesLoaderDataFixture().summary,
+      availableBalanceAmount,
+    },
+  });
 }
 
 /**
@@ -1057,6 +1498,50 @@ function seminarFinanceRowFixture(
     registrationCount: 2,
     scheduledDate: "2026-10-10",
     totalAmount: { amount: 20000, status: "complete" },
+    ...overrides,
+  };
+}
+
+/**
+ * What the seminar presets would charge in one seminar, as the loader reads it
+ * off the write's plan: by default one person owing 5000 of deposit and 8000
+ * of balance, needing one place out of twenty with none taken.
+ */
+function seminarPresetPreviewFixture(
+  overrides: Partial<
+    AcademyFinancesLoaderData["seminarPresetPreviews"][string]
+  > = {},
+): AcademyFinancesLoaderData["seminarPresetPreviews"][string] {
+  return {
+    coveredCount: 0,
+    instructorName: "Abril Sosa",
+    quota: 20,
+    scheduledDate: "2026-10-10",
+    seminarId: "seminar",
+    stages: {
+      balance: {
+        neededCount: 1,
+        people: [
+          {
+            amount: 8000,
+            inscriptionId: "seminar_inscription_1",
+            personName: "Ana Bailando",
+            priceName: "Regular",
+          },
+        ],
+      },
+      deposit: {
+        neededCount: 1,
+        people: [
+          {
+            amount: 5000,
+            inscriptionId: "seminar_inscription_1",
+            personName: "Ana Bailando",
+            priceName: "Regular",
+          },
+        ],
+      },
+    },
     ...overrides,
   };
 }

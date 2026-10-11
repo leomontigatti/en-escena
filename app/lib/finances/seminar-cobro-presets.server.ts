@@ -1,0 +1,570 @@
+/**
+ * `Pagar seña` and `Pagar saldo` over the `(seminar, academy)` rows selected on
+ * an academy's `Seminarios` tab: every active seminar inscription the academy
+ * holds in each selected seminar is charged what it owes for the stage, out of
+ * the academy's pool, in one all-or-nothing write.
+ *
+ * The seminar twin of `choreography-cobro-presets.server.ts`, with two
+ * differences the seminar side forces:
+ *
+ * - **There is no price picker.** An inscription that holds no price is stored
+ *   the row that applies to the person today; one that holds a price keeps it,
+ *   and is charged by it.
+ * - **Covering the deposit takes a place.** Every selected seminar is locked
+ *   before anything is read, and the charge is refused whole when any of them
+ *   is short of the places its crossings need.
+ *
+ * What the charge would do is read in two steps: `readSeminarCobroInscriptions`
+ * loads the academy's inscriptions with their money, and `planSeminarCobro`
+ * derives one stage's charge from them. The write runs both under its locks and
+ * a preview runs them outside, so the two cannot disagree on who is charged, at
+ * which price, or how many places it takes.
+ */
+
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
+
+import { db } from "@/db";
+import {
+  dancers,
+  professors,
+  seminarInscriptions,
+  seminars,
+} from "@/db/schema";
+import { formatDancerName } from "@/lib/finances/formatters";
+import {
+  deriveInscriptionFinancialFigures,
+  hasCrossedDepositThreshold,
+} from "@/lib/finances/inscription-financial-status";
+import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
+import {
+  resolveSeminarInscriptions,
+  type ResolvedSeminarInscription,
+  type SeminarFinancePriceRow,
+} from "@/lib/finances/seminar-inscription-thresholds.server";
+import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
+import { countCoveredSeminarInscriptionsBySeminar } from "@/lib/seminars/covered-inscriptions.server";
+
+import { spreadFromPool } from "./allocation-pool.server";
+import type { CobroStage } from "./choreography-cobro-presets.server";
+import {
+  runCobro,
+  type CobroResult,
+  type Executor,
+} from "./choreography-cobro-support.server";
+import {
+  applyCurrentSeminarPrices,
+  assertSeminarPlacesForCrossings,
+  lockSeminars,
+  type LockedSeminar,
+} from "./seminar-money-support.server";
+
+const seminarNotFoundMessage = "No encontramos ese seminario.";
+
+type ActiveSeminarInscription = {
+  dancerId: string | null;
+  firstName: string;
+  id: string;
+  lastName: string;
+  professorId: string | null;
+  selectedPriceId: string | null;
+  seminarId: string;
+};
+
+type PlanSeminar = Pick<
+  LockedSeminar,
+  "id" | "kind" | "requiredDepositPercentage"
+>;
+
+/** The academy's active inscriptions in the seminars, each with its money
+ * resolved: what one or both stages of the charge are planned from. */
+type SeminarCobroInscriptions = {
+  rows: ActiveSeminarInscription[];
+  resolutions: ReadonlyMap<string, ResolvedSeminarInscription>;
+  seminarsById: ReadonlyMap<string, PlanSeminar>;
+};
+
+/**
+ * One inscription the charge reaches: it owes something for the stage.
+ *
+ * `priceRow` is **the one row the charge prices with**: the row the inscription
+ * holds once the write is done — the one it already held, or, when it held
+ * none, the one the write stores. Its owed figures, the deposit it may cross
+ * and the name the preview shows all come from it, never from the row that
+ * applies today, so the charge can neither stop short of the deposit it holds
+ * nor carry it past the total it holds.
+ *
+ * `owedAmount` is `null` only when no row prices it at all, which refuses the
+ * charge. `owedDepositAmount` is what is left of that row's deposit.
+ */
+type SeminarCobroLine = ActiveSeminarInscription & {
+  crossesDeposit: boolean;
+  owedAmount: number | null;
+  owedDepositAmount: number | null;
+  priceRow: SeminarFinancePriceRow | null;
+};
+
+type SeminarCobroPlan = {
+  /** How many active inscriptions the academy holds across the seminars,
+   * reached by the charge or not. */
+  activeCount: number;
+  lines: SeminarCobroLine[];
+  /** Per seminar, how many of the lines carry an inscription across its
+   * deposit: the places the charge would take. */
+  neededBySeminarId: Map<string, number>;
+};
+
+/**
+ * The academy's **active** inscriptions in the seminars (withdrawn ones are
+ * never read), with their allocations, participant cell and price rows
+ * resolved. Read once, it answers both stages.
+ *
+ * `lock` takes the inscriptions' rows `FOR UPDATE`, in id order, as the
+ * choreography preset does: a withdrawal racing the charge either commits
+ * first, and is read here, or waits until the charge has priced and funded.
+ * Only the write asks for it, under the seminars' locks; a preview reads
+ * without it.
+ */
+async function readSeminarCobroInscriptions(
+  executor: Executor,
+  input: {
+    academyId: string;
+    eventId: string;
+    lock?: boolean;
+    seminars: readonly PlanSeminar[];
+  },
+): Promise<SeminarCobroInscriptions> {
+  const seminarsById = new Map(
+    input.seminars.map((seminar) => [seminar.id, seminar]),
+  );
+  const filter = {
+    academyId: input.academyId,
+    seminarIds: [...seminarsById.keys()],
+  };
+
+  if (input.lock) {
+    await lockActiveSeminarInscriptions(executor, filter);
+  }
+
+  const rows = await readActiveSeminarInscriptions(executor, filter);
+  const resolutions = await resolveSeminarInscriptions(executor, {
+    eventId: input.eventId,
+    rows: rows.map((row) => {
+      const seminar = seminarsById.get(row.seminarId)!;
+
+      return {
+        ...row,
+        requiredDepositPercentage: seminar.requiredDepositPercentage,
+        seminarKind: seminar.kind,
+        withdrawnAt: null,
+      };
+    }),
+  });
+
+  return { resolutions, rows, seminarsById };
+}
+
+/**
+ * What one stage of the preset would charge: each inscription's price and
+ * owed figure for the stage, and the places the crossings would take.
+ *
+ * Inscriptions that owe nothing for the stage are left out, so running the same
+ * preset twice reaches nobody the second time.
+ */
+function planSeminarCobro(
+  inscriptions: SeminarCobroInscriptions,
+  stage: CobroStage,
+): SeminarCobroPlan {
+  const lines = inscriptions.rows.flatMap((row) => {
+    const resolution = inscriptions.resolutions.get(row.id);
+    const line = resolution
+      ? planLine({
+          requiredDepositPercentage: inscriptions.seminarsById.get(
+            row.seminarId,
+          )!.requiredDepositPercentage,
+          resolution,
+          row,
+          stage,
+        })
+      : null;
+
+    return line ? [line] : [];
+  });
+
+  return {
+    activeCount: inscriptions.rows.length,
+    lines,
+    neededBySeminarId: countCrossingsBySeminar(lines),
+  };
+}
+
+/** The academy's active inscriptions in the seminars, read through the person
+ * as everywhere on this side. */
+function academyInscriptionsIn(input: {
+  academyId: string;
+  seminarIds: string[];
+}) {
+  return and(
+    inArray(seminarInscriptions.seminarId, input.seminarIds),
+    activeSeminarInscription(),
+    eq(
+      sql`coalesce(${dancers.academyId}, ${professors.academyId})`,
+      input.academyId,
+    ),
+  );
+}
+
+async function lockActiveSeminarInscriptions(
+  executor: Executor,
+  input: { academyId: string; seminarIds: string[] },
+): Promise<void> {
+  if (input.seminarIds.length === 0) {
+    return;
+  }
+
+  await executor
+    .select({ id: seminarInscriptions.id })
+    .from(seminarInscriptions)
+    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .where(academyInscriptionsIn(input))
+    .orderBy(asc(seminarInscriptions.id))
+    .for("update", { of: seminarInscriptions });
+}
+
+async function readActiveSeminarInscriptions(
+  executor: Executor,
+  input: { academyId: string; seminarIds: string[] },
+): Promise<ActiveSeminarInscription[]> {
+  if (input.seminarIds.length === 0) {
+    return [];
+  }
+
+  return await executor
+    .select({
+      dancerId: seminarInscriptions.dancerId,
+      firstName: sql<string>`coalesce(${dancers.firstName}, ${professors.firstName})`,
+      id: seminarInscriptions.id,
+      lastName: sql<string>`coalesce(${dancers.lastName}, ${professors.lastName})`,
+      professorId: seminarInscriptions.professorId,
+      seminarId: seminarInscriptions.seminarId,
+      selectedPriceId: seminarInscriptions.selectedPriceId,
+    })
+    .from(seminarInscriptions)
+    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .where(academyInscriptionsIn(input))
+    .orderBy(
+      seminarInscriptions.seminarId,
+      sql`coalesce(${dancers.lastName}, ${professors.lastName})`,
+      sql`coalesce(${dancers.firstName}, ${professors.firstName})`,
+      seminarInscriptions.id,
+    );
+}
+
+/**
+ * One inscription's part in the charge, or `null` when it owes nothing for the
+ * stage.
+ *
+ * Everything is derived from the row the inscription **stores** once the write
+ * is done: the row it holds, or, when it holds none, today's row, which is the
+ * one the write stores (`applyCurrentSeminarPrices` picks it by the same rule
+ * the effective row does). Below the deposit a held row may differ from
+ * today's, and the preset keeps it, so it is the one the charge is owed by.
+ */
+function planLine(input: {
+  requiredDepositPercentage: number;
+  resolution: ResolvedSeminarInscription;
+  row: ActiveSeminarInscription;
+  stage: CobroStage;
+}): SeminarCobroLine | null {
+  const { resolution, row } = input;
+  const priceRow =
+    row.selectedPriceId === null
+      ? resolution.priceRow
+      : resolution.storedPriceRow;
+  const thresholds = deriveSeminarInscriptionThresholds({
+    priceAmount: priceRow?.amount ?? null,
+    requiredDepositPercentage: input.requiredDepositPercentage,
+  });
+  const figures = deriveInscriptionFinancialFigures({
+    allocatedAmount: resolution.allocatedAmount,
+    thresholds,
+  });
+  const owedAmount =
+    input.stage === "deposit"
+      ? figures.owedDepositAmount
+      : figures.owedBalanceAmount;
+
+  if (owedAmount === 0) {
+    return null;
+  }
+
+  const crossesDeposit =
+    owedAmount !== null &&
+    !resolution.covered &&
+    hasCrossedDepositThreshold({
+      allocatedAmount: resolution.allocatedAmount + owedAmount,
+      depositAmount: thresholds.depositAmount,
+    });
+
+  return {
+    ...row,
+    crossesDeposit,
+    owedAmount,
+    owedDepositAmount: figures.owedDepositAmount,
+    priceRow,
+  };
+}
+
+function countCrossingsBySeminar(
+  lines: readonly SeminarCobroLine[],
+): Map<string, number> {
+  const needed = new Map<string, number>();
+
+  for (const line of lines) {
+    if (line.crossesDeposit) {
+      needed.set(line.seminarId, (needed.get(line.seminarId) ?? 0) + 1);
+    }
+  }
+
+  return needed;
+}
+
+/** One person a stage of the preset reaches, as the preset dialog lists them. */
+type SeminarCobroPreviewPerson = {
+  /** What the charge allocates to them; `null` when nothing prices them, which
+   * the write refuses. */
+  amount: number | null;
+  inscriptionId: string;
+  personName: string;
+  /** The row they hold once the charge is written, which is the row the
+   * amount is owed by. */
+  priceName: string | null;
+};
+
+/** What one stage of the preset would do in one seminar. */
+type SeminarCobroPreviewStage = {
+  /** The places the charge would take: the people it carries across their
+   * deposit. */
+  neededCount: number;
+  people: SeminarCobroPreviewPerson[];
+};
+
+/**
+ * One seminar of the event as the preset dialog previews it, for both stages,
+ * so the dialog can read any selection without asking the server again.
+ */
+export type SeminarCobroPreview = {
+  /** The places already taken, by every academy. */
+  coveredCount: number;
+  instructorName: string;
+  quota: number;
+  scheduledDate: string;
+  seminarId: string;
+  stages: Record<CobroStage, SeminarCobroPreviewStage>;
+};
+
+/**
+ * The preview of both presets over every seminar of the event, keyed by
+ * seminar. It reads the inscriptions once and plans both stages from them with
+ * `planSeminarCobro`, the plan the write runs under its locks, so the people,
+ * the prices and the places it shows are the ones the write would act on as
+ * long as nothing moves in between; when something does, the write's own
+ * checks are the last word.
+ *
+ * A seminar's plan does not depend on the other seminars of a selection, so
+ * one plan over all of them answers any selection the dialog is opened on.
+ */
+export async function readSeminarCobroPreviews(input: {
+  academyId: string;
+  eventId: string;
+}): Promise<Record<string, SeminarCobroPreview>> {
+  const eventSeminars = await db
+    .select({
+      id: seminars.id,
+      instructorName: seminars.instructorName,
+      kind: seminars.kind,
+      quota: seminars.quota,
+      requiredDepositPercentage: seminars.requiredDepositPercentage,
+      scheduledDate: seminars.scheduledDate,
+    })
+    .from(seminars)
+    .where(eq(seminars.eventId, input.eventId))
+    .orderBy(asc(seminars.id));
+
+  if (eventSeminars.length === 0) {
+    return {};
+  }
+
+  const [coveredBySeminarId, inscriptions] = await Promise.all([
+    countCoveredSeminarInscriptionsBySeminar(
+      eventSeminars.map((seminar) => seminar.id),
+      db,
+    ),
+    readSeminarCobroInscriptions(db, { ...input, seminars: eventSeminars }),
+  ]);
+  const deposit = planSeminarCobro(inscriptions, "deposit");
+  const balance = planSeminarCobro(inscriptions, "balance");
+
+  return Object.fromEntries(
+    eventSeminars.map((seminar) => [
+      seminar.id,
+      {
+        coveredCount: coveredBySeminarId.get(seminar.id) ?? 0,
+        instructorName: seminar.instructorName,
+        quota: seminar.quota,
+        scheduledDate: seminar.scheduledDate,
+        seminarId: seminar.id,
+        stages: {
+          balance: previewStage(balance, seminar.id),
+          deposit: previewStage(deposit, seminar.id),
+        },
+      } satisfies SeminarCobroPreview,
+    ]),
+  );
+}
+
+function previewStage(
+  plan: SeminarCobroPlan,
+  seminarId: string,
+): SeminarCobroPreviewStage {
+  return {
+    neededCount: plan.neededBySeminarId.get(seminarId) ?? 0,
+    people: plan.lines
+      .filter((line) => line.seminarId === seminarId)
+      .map((line) => ({
+        amount: line.owedAmount,
+        inscriptionId: line.id,
+        personName: formatDancerName(line),
+        priceName: line.priceRow?.name ?? null,
+      })),
+  };
+}
+
+/**
+ * Charges the stage over the selected seminars. The client names the seminars
+ * and nothing else: who is charged, at which price and how much is recomputed
+ * here, under the seminars' locks and the inscriptions'.
+ *
+ * The refusals, in the order they are checked: a seminar that is not the
+ * event's, a selection with no active inscription, a seminar short of places,
+ * an inscription nothing prices, and a pool that cannot cover the charge. Any
+ * of them rolls the whole charge back.
+ */
+export async function paySeminarsPreset(input: {
+  academyId: string;
+  eventId: string;
+  seminarIds: string[];
+  stage: CobroStage;
+}): Promise<CobroResult> {
+  const seminarIds = [...new Set(input.seminarIds)];
+
+  if (seminarIds.length === 0) {
+    return { ok: false, message: "Elegí al menos un seminario." };
+  }
+
+  return await runCobro(async (tx) => {
+    const locked = await lockSeminars(tx, seminarIds);
+
+    if (
+      locked.length !== seminarIds.length ||
+      locked.some((seminar) => seminar.eventId !== input.eventId)
+    ) {
+      return { ok: false, message: seminarNotFoundMessage };
+    }
+
+    const plan = planSeminarCobro(
+      await readSeminarCobroInscriptions(tx, {
+        academyId: input.academyId,
+        eventId: input.eventId,
+        lock: true,
+        seminars: locked,
+      }),
+      input.stage,
+    );
+
+    if (plan.activeCount === 0) {
+      return {
+        ok: false,
+        message: "Los seminarios elegidos no tienen inscripciones activas.",
+      };
+    }
+
+    const places = await assertSeminarPlacesForCrossings(tx, {
+      neededBySeminarId: plan.neededBySeminarId,
+      seminars: locked,
+    });
+
+    if (!places.ok) {
+      return places;
+    }
+
+    const priced = await applyCurrentSeminarPrices(tx, {
+      eventId: input.eventId,
+      inscriptions: plan.lines,
+      seminars: locked,
+    });
+
+    if (!priced.ok) {
+      return priced;
+    }
+
+    return await fundPlanLines(tx, {
+      academyId: input.academyId,
+      eventId: input.eventId,
+      lines: plan.lines,
+    });
+  });
+}
+
+/**
+ * Spreads each line's owed figure from the pool, oldest payment first.
+ *
+ * A line that crosses its deposit on the way to its balance is funded in two
+ * moves, up to the deposit and then the rest. The pool's over-allocation check
+ * reads the inscription's **effective** row, which below the deposit is
+ * today's and may be cheaper than the row it holds; once the deposit is
+ * covered it is the held row, the one the line is priced by, so the rest is
+ * checked against the total the charge is aiming at.
+ */
+async function fundPlanLines(
+  tx: Executor,
+  input: {
+    academyId: string;
+    eventId: string;
+    lines: readonly SeminarCobroLine[];
+  },
+): Promise<CobroResult> {
+  for (const line of input.lines) {
+    if (line.owedAmount === null) {
+      return {
+        ok: false,
+        message:
+          "No hay un precio de seminario configurado para alguna de las inscripciones.",
+      };
+    }
+
+    for (const amount of fundingMoves(line, line.owedAmount)) {
+      const funded = await spreadFromPool(tx, {
+        academyId: input.academyId,
+        amount,
+        eventId: input.eventId,
+        target: { id: line.id, kind: "seminar" },
+      });
+
+      if (!funded.ok) {
+        return funded;
+      }
+    }
+  }
+
+  return { ok: true };
+}
+
+function fundingMoves(line: SeminarCobroLine, owedAmount: number): number[] {
+  const toDeposit = line.owedDepositAmount ?? 0;
+
+  return line.crossesDeposit && toDeposit > 0 && toDeposit < owedAmount
+    ? [toDeposit, owedAmount - toDeposit]
+    : [owedAmount];
+}

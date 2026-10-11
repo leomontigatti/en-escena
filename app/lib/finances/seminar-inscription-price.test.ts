@@ -5,6 +5,7 @@ import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
 import {
   deriveSeminarInscriptionThresholds,
   resolveEffectiveSeminarPriceRow,
+  selectCurrentSeminarPriceRow,
   selectSeminarPriceCandidates,
   type SeminarPriceCandidateRow,
 } from "./seminar-inscription-price";
@@ -86,6 +87,64 @@ describe("selectSeminarPriceCandidates", () => {
         seminarKind: "regular",
       }),
     ).toEqual([regularOutsider]);
+  });
+});
+
+describe("selectCurrentSeminarPriceRow", () => {
+  beforeEach(() => {
+    onBusinessDate(today);
+  });
+
+  test("applies a dated row of the person's cell before its deadline", () => {
+    const earlyBird = row({
+      id: "early-bird",
+      amount: 15000,
+      paymentDeadline: "2026-07-01",
+    });
+
+    expect(
+      selectCurrentSeminarPriceRow({
+        forParticipants: true,
+        priceRows: [...priceRows, earlyBird],
+        seminarKind: "regular",
+      })?.id,
+    ).toBe(earlyBird.id);
+  });
+
+  test("falls back to the deadline-less row once the dated one has expired", () => {
+    const expired = row({
+      id: "expired",
+      amount: 15000,
+      paymentDeadline: "2026-06-01",
+    });
+
+    expect(
+      selectCurrentSeminarPriceRow({
+        forParticipants: true,
+        priceRows: [...priceRows, expired],
+        seminarKind: "regular",
+      })?.id,
+    ).toBe(regularParticipant.id);
+  });
+
+  test("prices a non-participant from their own cell and kind", () => {
+    expect(
+      selectCurrentSeminarPriceRow({
+        forParticipants: false,
+        priceRows,
+        seminarKind: "special",
+      })?.id,
+    ).toBe(specialOutsider.id);
+  });
+
+  test("is null when the person's cell has no row", () => {
+    expect(
+      selectCurrentSeminarPriceRow({
+        forParticipants: true,
+        priceRows: [regularOutsider],
+        seminarKind: "regular",
+      }),
+    ).toBeNull();
   });
 });
 

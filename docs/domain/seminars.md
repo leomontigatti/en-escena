@@ -143,11 +143,15 @@ How a seminar inscription is priced from those rows:
   neither enter the `Descuento por bailarín` qualifying set nor receive it: the
   participant row is already the "you are also dancing" reduction.
 
-- `selectedPriceId` is written by **the allocation dialog alone**, on the admin
-  `(seminar, academy)` financial detail — never at creation and never refreshed.
-  An inscription nobody has put money on therefore stores nothing and resolves
-  against the row that applies today, which is exactly what makes the price
-  follow the deadline until somebody says otherwise.
+- `selectedPriceId` is written by **the allocation dialog**, on the admin
+  `(seminar, academy)` financial detail, and by the **`Pagar seña` /
+  `Pagar saldo` presets** over the selected seminars of an academy's finance
+  page — never at creation and never refreshed. The dialog stores the row
+  picked; a preset stores the row that applies today, and only on an inscription
+  that holds none, never replacing one (`finances.md`, "Per seminar"). An
+  inscription nobody has charged therefore stores nothing and resolves against
+  the row that applies today, which is exactly what makes the price follow the
+  deadline until somebody says otherwise.
 
 ## The inscription
 

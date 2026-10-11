@@ -367,7 +367,9 @@ type)` among the special ones, enforced by `price_general_unique` and
   server-side. It is not read by anything the administrator sees: every
   displayed **figure** and every control — `Precio`, `Seña`, `Total`, the badge,
   and both the allocation dialog's readout and its picker — comes from the
-  effective row.
+  effective row. The one exception is the seminar preset's preview, which
+  names a charge rather than a state: it shows the row the charge prices with,
+  the held one (see "Per seminar").
 - **`Sin precio` is a state, not a defect.** An inscription that stores no row
   and that no row applies to today has null thresholds and incomplete figures.
   Portal creation is gated on price coverage by event readiness, which is where
@@ -571,6 +573,27 @@ they live in one module.
 - **Accepted cost, stated plainly**: a specific payment can no longer be lifted
   off a specific inscription. The remedy for a payment recorded in error is
   deleting the payment, which cascades its allocations.
+- **The pool lock.** Checking the floor reads what is free and then writes, so
+  two writes for one academy and event on different inscriptions could each
+  spend the same free money. Every write that moves the pool therefore takes a
+  transaction-scoped advisory lock on the `(academy, event)` pair
+  (`lockAcademyPool`, in the pool module) before it reads what is free: funding
+  and unfunding, so every preset and every single-inscription gesture of either
+  kind; the payment edit, before it checks the payment still covers what it
+  funds; the payment deletion; and the academy merge, on both academies in every
+  event. The write that comes second reads what the first left, so of two
+  charges the pool can cover only one of, the second is refused with
+  `La academia no tiene saldo disponible suficiente.` Funding and unfunding take
+  it after the seminar and inscription locks their callers hold, never before
+  one, so it adds no lock order to deadlock on; the lock is re-entrant, so a
+  preset that spreads many times waits once. The payment edit and deletion
+  lock the pool the payment is in and read it again; one that moved academy
+  while they waited is refused with
+  `El pago cambió mientras se guardaba. Volvé a intentarlo.` rather than
+  locking a second pool, since holding two taken in move order would deadlock
+  against the merge, which takes them sorted. Registering a payment takes no
+  lock: it only grows the pool. Deleting an academy takes none either, since an
+  academy with payments cannot be deleted.
 
 - **The quota, for a seminar target.** Every money gesture whose target is a
   seminar inscription locks the seminar row `FOR UPDATE` first, crossing or not
@@ -714,12 +737,69 @@ partway through, or any inscription is refused, the whole charge rolls back and
 the administrator who sees an error can trust that nothing moved. A preset
 selects and stores a price row only for inscriptions that have not covered their
 deposit yet; anything already past that threshold keeps the price it holds.
+The dialog's owed figure follows its price pickers, and when it exceeds
+`Saldo disponible` `Asignar` is disabled with the reason stated, as on the
+seminar side. An owed figure missing a price counts only when its known part
+already exceeds the balance; the server's refusal stays the last word.
 
-The presets act on **choreographies only**, whichever tab of the academy's
-finances is open. There is no preset over seminar inscriptions: a bulk
-all-or-nothing crossing against a shared quota stops naming one row, and the
-volume does not ask for it. The per-inscription dialog is the only gesture for
-seminar money.
+The presets act on **the open tab's selection**: the choreographies on the
+`Coreografías` tab, the `(seminar, academy)` rows on the `Seminarios` tab. A
+selection on the other tab never enables them, so an action never reaches rows
+out of sight.
+
+### Per seminar
+
+On the `Seminarios` tab the same two presets act on the selected
+`(seminar, academy)` rows, which reverses #888's "no seminar preset" now that
+academies pay for several seminar inscriptions at once. Selecting a row means
+every **active** `seminarInscription` the academy holds in that seminar;
+withdrawn ones are never read. `Pagar seña` allocates each one's
+`Seña adeudada`, `Pagar saldo` its `Saldo adeudado`, deposit included, and the
+ones that owe nothing for the stage are skipped, so running a preset twice moves
+nothing the second time.
+
+- **No price picker.** An inscription that holds no price is stored the
+  `seminarPrice` that applies to the person today — the seminar's kind, falling
+  back to `regular`, the person's `forParticipants` cell, open dated rows before
+  the deadline-less one. One that already holds a price keeps it, and **is
+  charged by it**: below its deposit the held row may differ from the row that
+  applies today, and the owed figure, the deposit it crosses (and so the place
+  it takes) and the price the dialog names all come from the held row, so the
+  charge neither stops short of the held deposit nor carries the inscription
+  past the held total. Funding a balance that crosses the deposit goes up to
+  the deposit first and then the rest, because the pool's over-allocation
+  check reads the effective row, which is the held one only from the crossing
+  on.
+- **Places.** Every selected seminar is locked `FOR UPDATE`, in id order, before
+  anything is read, and then the academy's active inscriptions in them, in id
+  order too, so a withdrawal racing the charge is serialised. The academy's
+  pool lock comes last, when the money moves ("The pool rules"), so a charge
+  racing another write for the same academy, on any seminar or choreography,
+  reads the pool that write left. Per seminar, the places needed are the inscriptions the
+  charge carries across their deposit, and the charge is refused when
+  `covered + needed > quota` for any of them, naming each seminar short and by
+  how many places. A `Pagar saldo` that crosses a deposit takes a place exactly
+  like a `Pagar seña`.
+- **All or nothing**, as on the choreography side: a seminar short of places, a
+  pool that cannot cover the charge or an inscription nothing prices rolls the
+  whole charge back. Money comes from the pool, oldest payment first, and no
+  payment is created.
+- The client posts the stage and the seminar ids alone; the server recomputes
+  who is charged, at which price and how much (`seminar-cobro-presets.server.ts`).
+  A refusal toasts and keeps the dialog open, so the administrator can
+  deselect or cancel; the loader revalidates, and the dialog's own warnings
+  restate the reason. A success closes the dialog with a toast.
+- **The dialog previews the write.** Per selected seminar it lists the people
+  the charge reaches, with the price each will hold and the amount, and the
+  places left against the places the charge takes; the owed figure is those
+  amounts summed. The loader reads it from the same plan the write runs
+  (`readSeminarCobroPreviews`), so preview and write cannot disagree on who,
+  at which price or how many places. `Asignar` is disabled, with the reason
+  stated, when a seminar is short of places (named, with the shortfall) or
+  the owed figure exceeds `Saldo disponible`; the server's checks stay the
+  last word for a state that moved after the dialog opened.
+
+Invoicing stays `Emitir factura` on each `(seminar, academy)` detail.
 
 ## Anomalies
 

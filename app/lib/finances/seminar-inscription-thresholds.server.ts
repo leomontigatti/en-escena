@@ -44,12 +44,17 @@ export type SeminarInscriptionFinanceRow = {
  * raw pair the write path judges by; the spread figures are what a surface
  * shows, and on a withdrawn row those two part ways exactly as they do for a
  * choreography inscription.
+ *
+ * `priceRow` is the effective row, the one every figure is derived from;
+ * `storedPriceRow` is the row `selectedPriceId` names, which below the deposit
+ * may be a different one.
  */
 export type ResolvedSeminarInscription = InscriptionFinancialFigures & {
   covered: boolean;
   id: string;
   priceRow: SeminarFinancePriceRow | null;
   seminarId: string;
+  storedPriceRow: SeminarFinancePriceRow | null;
   thresholds: InscriptionThresholds;
   withdrawn: boolean;
 };
@@ -160,6 +165,10 @@ export async function resolveSeminarInscriptions(
       requiredDepositPercentage: row.requiredDepositPercentage,
     });
     const withdrawn = row.withdrawnAt !== null;
+    const storedPriceRow =
+      row.selectedPriceId === null
+        ? null
+        : (priceRows.find((price) => price.id === row.selectedPriceId) ?? null);
 
     resolutions.set(row.id, {
       ...deriveInscriptionFinancialFigures({
@@ -167,14 +176,20 @@ export async function resolveSeminarInscriptions(
         thresholds,
         withdrawn,
       }),
+      // Covered is judged by the deposit of the row the inscription **stored**,
+      // which is the one the lock trigger judges by too.
       covered: isSeminarInscriptionCovered({
         allocatedAmount,
-        storedDepositAmount: storedDepositAmount(row, priceRows),
+        storedDepositAmount: deriveSeminarInscriptionThresholds({
+          priceAmount: storedPriceRow?.amount ?? null,
+          requiredDepositPercentage: row.requiredDepositPercentage,
+        }).depositAmount,
         withdrawn,
       }),
       id: row.id,
       priceRow,
       seminarId: row.seminarId,
+      storedPriceRow,
       thresholds,
       withdrawn,
     });
@@ -254,8 +269,10 @@ async function readSeminarInscriptionFinanceRows(
     .where(and(eq(seminars.eventId, input.eventId), input.where));
 }
 
-function collectPersonIds(
-  rows: readonly SeminarInscriptionFinanceRow[],
+/** The distinct people of one kind the inscriptions name, for the one
+ * participation read that prices them all. */
+export function collectPersonIds(
+  rows: readonly { dancerId: string | null; professorId: string | null }[],
   column: "dancerId" | "professorId",
 ): string[] {
   return [
@@ -267,29 +284,14 @@ function collectPersonIds(
   ];
 }
 
-function isParticipating(
-  row: SeminarInscriptionFinanceRow,
+/** Whether the person an inscription names is `Participando` in the event,
+ * which picks their price cell. */
+export function isParticipating(
+  row: { dancerId: string | null; professorId: string | null },
   participation: { dancerIds: Set<string>; professorIds: Set<string> },
 ): boolean {
   return row.dancerId !== null
     ? participation.dancerIds.has(row.dancerId)
     : row.professorId !== null &&
         participation.professorIds.has(row.professorId);
-}
-
-/** The deposit of the row the inscription **stored**, which is the one the
- * covered predicate and the lock trigger both judge by. */
-function storedDepositAmount(
-  row: SeminarInscriptionFinanceRow,
-  priceRows: readonly SeminarFinancePriceRow[],
-): number | null {
-  const stored =
-    row.selectedPriceId === null
-      ? null
-      : priceRows.find((price) => price.id === row.selectedPriceId);
-
-  return deriveSeminarInscriptionThresholds({
-    priceAmount: stored?.amount ?? null,
-    requiredDepositPercentage: row.requiredDepositPercentage,
-  }).depositAmount;
 }

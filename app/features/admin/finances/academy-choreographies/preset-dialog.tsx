@@ -5,6 +5,7 @@ import { useForm, useWatch, type Control } from "react-hook-form";
 import { useFetcher } from "react-router";
 import { z } from "zod";
 
+import { AlertStack } from "@/components/shared/alert-stack";
 import { SelectField } from "@/components/shared/select-field";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -84,6 +85,11 @@ type PresetPricesFormValues = z.input<typeof presetPricesFormSchema>;
  * selection, so leaving the pre-filled figure at the loader's would name an
  * amount the confirm is not about to write. The figure watches every pick at
  * once, because it is about all of them.
+ *
+ * **It blocks a charge it can see failing.** When the figure exceeds
+ * `Saldo disponible`, `Asignar` is disabled and the reason is stated; a cheaper
+ * pick that fits re-enables it. The server's refusal stays as the last word, for
+ * a balance that moved after the dialog opened.
  */
 export function FinancePresetDialog({
   availableBalanceAmount,
@@ -145,6 +151,10 @@ export function FinancePresetDialog({
       priceIdByGroupType,
     }),
     stage,
+  });
+  const isBalanceShort = isPresetBalanceShort({
+    availableBalanceAmount,
+    owedAmount: owed,
   });
 
   useServerActionToast(fetcher.data);
@@ -220,17 +230,11 @@ export function FinancePresetDialog({
             stage={stage}
           />
 
-          {owed.status === "incomplete" ? (
-            <Alert variant="warning">
-              <TriangleAlert aria-hidden="true" />
-              <AlertTitle>Deuda incompleta</AlertTitle>
-              <AlertDescription>
-                Alguna inscripción todavía no tiene precio, así que la cifra que
-                ves no es toda la deuda. Elegí un precio arriba para
-                completarla.
-              </AlertDescription>
-            </Alert>
-          ) : null}
+          <PresetOwedAlerts
+            availableBalanceAmount={availableBalanceAmount}
+            isBalanceShort={isBalanceShort}
+            owedAmount={owed}
+          />
 
           <DialogFooter>
             <DialogClose asChild>
@@ -238,7 +242,7 @@ export function FinancePresetDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" disabled={isSaving || isBalanceShort}>
               {isSaving ? (
                 <Spinner aria-hidden="true" data-icon="inline-start" />
               ) : (
@@ -250,6 +254,41 @@ export function FinancePresetDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * What the choreography dialog warns about its owed figure: that it is missing
+ * a price, and that `Saldo disponible` cannot cover it.
+ */
+function PresetOwedAlerts({
+  availableBalanceAmount,
+  isBalanceShort,
+  owedAmount,
+}: {
+  availableBalanceAmount: number;
+  isBalanceShort: boolean;
+  owedAmount: OperationalFinanceAmount;
+}) {
+  return (
+    <AlertStack>
+      {owedAmount.status === "incomplete" ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>Deuda incompleta</AlertTitle>
+          <AlertDescription>
+            Alguna inscripción todavía no tiene precio, así que la cifra que ves
+            no es toda la deuda. Elegí un precio arriba para completarla.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {isBalanceShort ? (
+        <PresetBalanceShortAlert
+          availableBalanceAmount={availableBalanceAmount}
+          owedAmount={owedAmount}
+        />
+      ) : null}
+    </AlertStack>
   );
 }
 
@@ -491,7 +530,7 @@ function PresetPriceField({
  * The owed figure is the projection against the current picks and not the
  * loader's, so it is always the amount the button below is about to move.
  */
-function PresetTotals({
+export function PresetTotals({
   availableBalanceAmount,
   owedAmount,
   stage,
@@ -517,5 +556,43 @@ function PresetTotals({
         </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * Whether `Saldo disponible` cannot cover the owed figure, which makes the
+ * preset a refusal the dialog can already see: it is all-or-nothing, so the
+ * server would roll the whole charge back.
+ *
+ * An incomplete figure (some inscription has no price) is a lower bound, so it
+ * counts only when even its known part exceeds the balance; below that the
+ * dialog cannot tell, and `Deuda incompleta` says why.
+ */
+export function isPresetBalanceShort(input: {
+  availableBalanceAmount: number;
+  owedAmount: OperationalFinanceAmount;
+}) {
+  return input.owedAmount.amount > input.availableBalanceAmount;
+}
+
+/**
+ * The warning both preset dialogs show beside `PresetTotals` when
+ * `isPresetBalanceShort` holds, while their submit stays disabled.
+ */
+export function PresetBalanceShortAlert({
+  availableBalanceAmount,
+  owedAmount,
+}: {
+  availableBalanceAmount: number;
+  owedAmount: OperationalFinanceAmount;
+}) {
+  return (
+    <Alert variant="warning">
+      <TriangleAlert aria-hidden="true" />
+      <AlertTitle>No alcanza el saldo disponible</AlertTitle>
+      <AlertDescription>
+        {`La academia adeuda ${formatAmount(owedAmount.amount)} y tiene ${formatAmount(availableBalanceAmount)} disponibles. Registrá el pago antes de asignar.`}
+      </AlertDescription>
+    </Alert>
   );
 }

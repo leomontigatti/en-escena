@@ -76,17 +76,36 @@ export function resolveEffectiveSeminarPriceRow<
       ? null
       : (input.priceRows.find((row) => row.id === input.selectedPriceId) ??
         null);
-  const current = selectApplicablePriceCandidate(
-    selectSeminarPriceCandidates(input),
-    getBusinessDateOnly(),
-  );
 
   return deriveEffectivePrice({
     allocatedAmount: input.allocatedAmount,
-    current,
+    current: selectCurrentSeminarPriceRow(input),
     requiredDepositPercentage: input.requiredDepositPercentage,
     stored,
   });
+}
+
+/**
+ * The row that applies to the person **today** when nobody has chosen one: of
+ * their cell and the seminar's kind (with its `regular` fallback), the dated
+ * rows whose deadline has not passed before the deadline-less one. `null` only
+ * when the cell has no row at all, which a seminar open for registration rules
+ * out.
+ *
+ * It is what an unpriced inscription is charged at, both by the effective price
+ * above and by a write that prices many inscriptions at once without a picker.
+ */
+export function selectCurrentSeminarPriceRow<
+  T extends SeminarPriceCandidateRow,
+>(input: {
+  forParticipants: boolean;
+  priceRows: readonly T[];
+  seminarKind: SeminarKind;
+}): T | null {
+  return selectApplicablePriceCandidate(
+    selectSeminarPriceCandidates(input),
+    getBusinessDateOnly(),
+  );
 }
 
 /**

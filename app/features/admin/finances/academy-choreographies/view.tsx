@@ -30,8 +30,13 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { FinancePresetDialog } from "./preset-dialog";
-import { financePresetLabels } from "./presets";
+import { financePresetLabels, type FinancePresetTarget } from "./presets";
+import { SeminarPresetDialog } from "./seminar-preset-dialog";
 import type { AcademyFinancesLoaderData } from "./types";
+
+function presetTargetOf(tab: string): FinancePresetTarget {
+  return tab === seminarsTabValue ? "seminars" : "choreographies";
+}
 
 type ChoreographyFinanceRow =
   AcademyFinancesLoaderData["choreographyFinanceRows"][number];
@@ -71,16 +76,27 @@ export function AcademyFinancesRouteView({
     activeTotals,
     choreographyTotals,
     onTabChange,
+    seminarTotals,
     selectedChoreographyIds,
     selectedSeminarIds,
     setSelectedChoreographyIds,
     setSelectedSeminarIds,
   } = useFinanceTabs(loaderData);
-  const [presetStage, setPresetStage] = useState<CobroStage | null>(
-    initialPresetStage,
+  // The preset remembers the tab it was opened from, which is the selection it
+  // acts on.
+  const [preset, setPreset] = useState<{
+    stage: CobroStage;
+    target: FinancePresetTarget;
+  } | null>(() =>
+    initialPresetStage === null
+      ? null
+      : { stage: initialPresetStage, target: presetTargetOf(activeTab) },
   );
+  const activeTarget = presetTargetOf(activeTab);
   const canCollect =
-    activeTab === choreographiesTabValue && choreographyTotals.hasSelection;
+    activeTarget === "seminars"
+      ? seminarTotals.hasSelection
+      : choreographyTotals.hasSelection;
   const choreographyColumns = useMemo(
     () => buildChoreographyFinanceColumns(loaderData.academy.id),
     [loaderData.academy.id],
@@ -92,7 +108,7 @@ export function AcademyFinancesRouteView({
   // Stable so the dialog can close itself from an effect when the write
   // succeeds without the effect re-running on every render of the list.
   const handlePresetOpenChange = useCallback((next: boolean) => {
-    setPresetStage((current) => (next ? current : null));
+    setPreset((current) => (next ? current : null));
   }, []);
 
   return (
@@ -111,20 +127,23 @@ export function AcademyFinancesRouteView({
         // collections are disabled —there is nothing to collect against— but
         // they stay in view.
         //
-        // **The two presets act on choreographies only** (#888): there is no
-        // seminar preset. On the seminar tab they are disabled too, since
-        // enabling them there would collect against the choreography selection
-        // out of sight while the seminar one in sight went untouched.
+        // **The two presets act on the open tab's selection**: an action never
+        // reaches rows out of sight, so a choreography selection does not
+        // enable them on the seminar tab, nor the reverse.
         <ResourceActionsMenu contentClassName="w-48">
           <DropdownMenuItem
             disabled={!canCollect}
-            onSelect={() => setPresetStage("deposit")}
+            onSelect={() =>
+              setPreset({ stage: "deposit", target: activeTarget })
+            }
           >
             {financePresetLabels.deposit}
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!canCollect}
-            onSelect={() => setPresetStage("balance")}
+            onSelect={() =>
+              setPreset({ stage: "balance", target: activeTarget })
+            }
           >
             {financePresetLabels.balance}
           </DropdownMenuItem>
@@ -197,7 +216,8 @@ export function AcademyFinancesRouteView({
         </Tabs>
       </div>
 
-      {presetStage !== null && choreographyTotals.selectedRows.length > 0 ? (
+      {preset?.target === "choreographies" &&
+      choreographyTotals.selectedRows.length > 0 ? (
         <FinancePresetDialog
           availableBalanceAmount={loaderData.summary.availableBalanceAmount}
           inscriptions={loaderData.inscriptions}
@@ -208,7 +228,16 @@ export function AcademyFinancesRouteView({
             loaderData.pricingScheduleIdByChoreography
           }
           selectedRows={choreographyTotals.selectedRows}
-          stage={presetStage}
+          stage={preset.stage}
+        />
+      ) : null}
+      {preset?.target === "seminars" && seminarTotals.hasSelection ? (
+        <SeminarPresetDialog
+          availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+          onOpenChange={handlePresetOpenChange}
+          previews={loaderData.seminarPresetPreviews}
+          selectedSeminarIds={seminarTotals.selectedRows.map((row) => row.id)}
+          stage={preset.stage}
         />
       ) : null}
     </AdminResourceLayout>

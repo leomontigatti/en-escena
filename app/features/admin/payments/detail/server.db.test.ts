@@ -9,11 +9,20 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
+import { seedSeminarPresetFixture } from "@/lib/admin/finances/seminar-finances.test-support";
+import {
+  lockAcademyPools,
+  spreadFromPool,
+} from "@/lib/finances/allocation-pool.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent } from "@/lib/test-support/events";
 
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../../tests/db/harness";
+import { runBehindAHolder } from "../../../../../tests/db/lock-contention";
 
 import { handlePaymentDetailAction } from "./server";
 import { deletePaymentIntent, updatePaymentIntent } from "./shared";
@@ -310,6 +319,172 @@ describe("admin payment detail", () => {
     ).resolves.toHaveLength(1);
   });
 });
+
+/**
+ * The edit checks the payment still covers what is allocated to it while a
+ * spread is allocating to it. Only the academy's pool lock orders the two; one
+ * PGlite connection would order them on its own, so this runs on Postgres only.
+ */
+describe.skipIf(isPgliteTestBackend())(
+  "a payment edit under real contention",
+  () => {
+    test("an edit that waits on a spread reads what the spread allocated, and refuses to go below it", async () => {
+      const fixture = await seedSeminarPresetFixture({ paymentAmount: 30000 });
+      const payment = await findPaymentByAcademyId(fixture.academyId);
+      const request = await buildPaymentDetailPostRequest({
+        fields: {
+          academyId: fixture.academyId,
+          amount: "10000",
+          internalNote: "",
+          // The fixture dates its payment in 2030; an edit refuses a future date.
+          paymentDate: "2026-03-15",
+          paymentMethod: payment.paymentMethod,
+          reference: "",
+        },
+        intent: updatePaymentIntent,
+        paymentId: payment.id,
+        requestUrl: paymentDetailUrl(payment.id, fixture.eventId),
+      });
+
+      const result = await runBehindAHolder({
+        waitingOn: "academy pool lock",
+        hold: async (tx) =>
+          expect(
+            await spreadFromPool(tx, {
+              academyId: fixture.academyId,
+              amount: 20000,
+              eventId: fixture.eventId,
+              target: {
+                id: fixture.inscriptions.specialParticipant.id,
+                kind: "seminar",
+              },
+            }),
+          ).toEqual({ ok: true }),
+        contender: () => handlePaymentDetailAction(request, payment.id),
+      });
+
+      expect(result).toMatchObject({
+        status: "error",
+        fieldErrors: {
+          amount: "El monto no puede ser menor al total ya asignado.",
+        },
+      });
+      await expect(findPaymentById(payment.id)).resolves.toMatchObject({
+        amount: 30000,
+      });
+    });
+
+    /**
+     * Locking the pool the payment moved to while still holding the one it was
+     * read in takes two pool locks in move order, which deadlocks against a
+     * merge that takes them sorted. So a payment that moved while the edit
+     * waited is refused instead.
+     */
+    test("refuses an edit whose payment moved academy while it waited on the pool lock", async () => {
+      const moved = await seedPaymentMovedBehindAHolder();
+      const request = await buildPaymentDetailPostRequest({
+        fields: {
+          academyId: moved.academyId,
+          amount: "6000",
+          internalNote: "",
+          paymentDate: "2026-03-15",
+          paymentMethod: "transferencia",
+          reference: "",
+        },
+        intent: updatePaymentIntent,
+        paymentId: moved.paymentId,
+        requestUrl: paymentDetailUrl(moved.paymentId, moved.eventId),
+      });
+
+      const result = await moved.runContender(() =>
+        handlePaymentDetailAction(request, moved.paymentId),
+      );
+
+      expect(result).toMatchObject({
+        status: "error",
+        intent: updatePaymentIntent,
+        message: "El pago cambió mientras se guardaba. Volvé a intentarlo.",
+      });
+      await expect(findPaymentById(moved.paymentId)).resolves.toMatchObject({
+        academyId: moved.nextAcademyId,
+        amount: 5000,
+      });
+    });
+
+    test("refuses a deletion whose payment moved academy while it waited on the pool lock", async () => {
+      const moved = await seedPaymentMovedBehindAHolder();
+      const request = await buildPaymentDetailPostRequest({
+        fields: { confirmDeletion: moved.paymentId, id: moved.paymentId },
+        intent: deletePaymentIntent,
+        paymentId: moved.paymentId,
+        requestUrl: paymentDetailUrl(moved.paymentId, moved.eventId),
+      });
+
+      const result = await moved.runContender(() =>
+        handlePaymentDetailAction(request, moved.paymentId),
+      );
+
+      expect(result).toMatchObject({
+        status: "error",
+        intent: deletePaymentIntent,
+        message: "El pago cambió mientras se guardaba. Volvé a intentarlo.",
+      });
+      await expect(findPaymentById(moved.paymentId)).resolves.toMatchObject({
+        academyId: moved.nextAcademyId,
+      });
+    });
+  },
+);
+
+/**
+ * A payment of one academy, and a way to run a contender behind a transaction
+ * that holds that academy's pool lock and moves the payment to another academy
+ * before committing.
+ */
+async function seedPaymentMovedBehindAHolder() {
+  const event = await createSavedEvent();
+  const academy = await createAcademyUser({
+    email: `${crypto.randomUUID()}@example.com`,
+    academyName: "Academia Pago Origen",
+  });
+  const nextAcademy = await createAcademyUser({
+    email: `${crypto.randomUUID()}@example.com`,
+    academyName: "Academia Pago Destino",
+  });
+
+  await registerAcademyEventPayment({
+    academyId: academy.academy.id,
+    amount: 5000,
+    eventId: event.id,
+    internalNote: "",
+    paymentDate: "2026-03-15",
+    paymentMethod: "transferencia",
+    reference: "",
+  });
+
+  const payment = await findPaymentByAcademyId(academy.academy.id);
+
+  return {
+    academyId: academy.academy.id,
+    eventId: event.id,
+    nextAcademyId: nextAcademy.academy.id,
+    paymentId: payment.id,
+    runContender: <T>(contender: () => Promise<T>) =>
+      runBehindAHolder({
+        waitingOn: "academy pool lock",
+        hold: async (tx) => {
+          await lockAcademyPools(tx, [
+            { academyId: academy.academy.id, eventId: event.id },
+          ]);
+          await tx
+            .update(payments)
+            .set({ academyId: nextAcademy.academy.id })
+            .where(eq(payments.id, payment.id));
+        },
+        contender,
+      }),
+  };
+}
 
 async function createFrozenInscription(input: {
   academyId: string;
