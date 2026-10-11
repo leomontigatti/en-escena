@@ -118,8 +118,13 @@ describe("parseArgs", () => {
       timeout: 540,
       once: false,
       loop: false,
+      coderabbit: true,
     });
     expect(parseArgs(["--once"])).toMatchObject({ pr: null, once: true });
+    expect(parseArgs(["7", "--loop", "--no-coderabbit"])).toMatchObject({
+      loop: true,
+      coderabbit: false,
+    });
   });
 
   test("gives --loop a timeout that fits one background command, unless one is passed", () => {
@@ -597,6 +602,68 @@ describe("classify", () => {
     );
   });
 
+  test("with CodeRabbit not required, is READY on an unreviewed head and never waits on it", () => {
+    const options = { coderabbit: false };
+    expect(
+      classify(snapshot({ coderabbitReviews: [] }), NOW, options),
+    ).toMatchObject({ verdict: "READY", exitCode: 0, pending: [] });
+    const pendingStatus = snapshot({
+      coderabbitReviews: [],
+      rollup: [...greenCi, coderabbitStatus("PENDING")],
+    });
+    expect(classify(pendingStatus, NOW, options)).toMatchObject({
+      verdict: "READY",
+      pending: [],
+    });
+    // A rate-limited CodeRabbit can leave its status red: not a failed check.
+    const failedStatus = snapshot({
+      coderabbitReviews: [],
+      rollup: [...greenCi, coderabbitStatus("FAILURE")],
+    });
+    expect(classify(failedStatus, NOW, options)).toMatchObject({
+      verdict: "READY",
+      failed: [],
+    });
+    expect(
+      classify(
+        snapshot({ coderabbitReviews: [], mergeState: "BEHIND" }),
+        NOW,
+        options,
+      ).verdict,
+    ).toBe("BEHIND");
+  });
+
+  test("with CodeRabbit not required, still reports the threads and findings it did leave", () => {
+    const body = fixPrompt("Outside diff comments:\n- Around line 3: Clarify.");
+    const reviewed = snapshot({
+      coderabbitReviews: [
+        { commit: HEAD, submittedAt: "2026-09-26T15:51:00Z", body },
+      ],
+    });
+    expect(classify(reviewed, NOW, { coderabbit: false }).verdict).toBe(
+      "FINDINGS",
+    );
+  });
+
+  test("reports review-body findings left on an older head until someone answers them", () => {
+    const late = {
+      commit: "a".repeat(40),
+      submittedAt: "2026-09-26T15:51:00Z",
+      body: fixPrompt("Outside diff comments:\n- Around line 3: Clarify."),
+    };
+    const pr = snapshot({ coderabbitReviews: [late] });
+    expect(classify(pr, NOW, { coderabbit: false }).verdict).toBe("FINDINGS");
+    const answer = {
+      author: "leomontigatti",
+      body: "Declined: the row is correct.",
+      createdAt: "2026-09-26T15:52:00Z",
+    };
+    expect(
+      classify({ ...pr, comments: [answer] }, NOW, { coderabbit: false })
+        .verdict,
+    ).toBe("READY");
+  });
+
   test("counts CodeRabbit's passes, for the triage rubric", () => {
     const reviews = [
       { commit: "a", submittedAt: "2026-09-26T15:00:00Z", body: "" },
@@ -677,6 +744,14 @@ describe("nextLoopStep", () => {
         [stuck, late + 60_000],
       ]),
     ).toEqual(["wait", "nudge", "wait"]);
+  });
+
+  test("nudges an unreviewed head once by default, and never when CodeRabbit is not required", () => {
+    const unreviewed = snapshot({ coderabbitReviews: [] });
+    expect(run([[classify(unreviewed, NOW), NOW]])).toEqual(["nudge"]);
+    expect(
+      run([[classify(unreviewed, NOW, { coderabbit: false }), NOW]]),
+    ).toEqual(["exit"]);
   });
 
   test("updates a branch behind its base once per run, then exits", () => {

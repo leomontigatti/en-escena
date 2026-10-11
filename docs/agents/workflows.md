@@ -210,6 +210,7 @@ relay to Codex.
 | `research` subagent    | `.agents/agents/research.md`    | `.claude/agents/research.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/research.toml` (model)    |
 | `reviewer` subagent    | `.agents/agents/reviewer.md`    | `.claude/agents/reviewer.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/reviewer.toml` (model)    |
 | `implementer` subagent | `.agents/agents/implementer.md` | `.claude/agents/implementer.md`, pinned to Opus                   | `.codex/agents/implementer.toml` (model) |
+| `reviewer-opus`        | `.agents/agents/reviewer.md`    | `.claude/agents/reviewer-opus.md`, on Opus, read-only             | none: Codex uses `reviewer`              |
 
 - **Do not add a `CLAUDE.md`**, here or in a parent directory: Claude Code reads
   `AGENTS.md` only as a fallback, when no `CLAUDE.md`, `.claude/CLAUDE.md` or
@@ -239,6 +240,10 @@ relay to Codex.
   `reviewer` through the routing line in `AGENTS.md`, since the vendored `code-review`
   skill takes no local edits. When T3 Code ships its orchestrator's `delegate_task`
   (pingdotgg/t3code#2829), the relays are what would change.
+- **The correctness axis runs on Opus** under Claude Code, through `reviewer-opus`: the
+  same instructions as `reviewer`, run natively rather than relayed, so the axis that
+  hunts for bugs is a second model family beside the Sol axes. Codex cannot run Opus, so
+  under Codex the axis is spawned as `reviewer`, on Sol like the rest.
 - **Codex reads `.codex/` from the main checkout, even in a worktree** (verified on
   codex-cli 0.159): a T3 worktree gets the hooks and the `research` and `reviewer`
   agents only once they are on the branch the main checkout has out, while `AGENTS.md`
@@ -886,7 +891,8 @@ seams**, typecheck and single test files as you go, the list in
 [`docs/agents/validation.md`](validation.md) once at the end, a browser check
 for rendered changes ([UI verification](#ui-verification)), then a review tiered by risk: the
 full two-axis `code-review` plus a correctness axis for money, results or judging, auth,
-migrations and `CONTEXT.md` terms, a single-agent readback for everything else. Either way a
+migrations, `CONTEXT.md` terms and destructive operational scripts, a single-agent readback for
+everything else, with the correctness axis beside it whenever the diff changes behaviour. Either way a
 finding is verified against the code before it is fixed, declined or brought to the user.
 
 Two rules sit on top of it for a local session: keep the change scoped to the requested
