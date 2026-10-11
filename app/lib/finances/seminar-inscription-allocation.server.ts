@@ -45,13 +45,11 @@ import {
   deriveSeminarInscriptionThresholds,
   selectSeminarPriceCandidates,
 } from "@/lib/finances/seminar-inscription-price";
-import {
-  readSeminarInscriptionThresholds,
-  type SeminarFinancePriceRow,
-} from "@/lib/finances/seminar-inscription-thresholds.server";
+import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
 
 import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
 import { seminarNoPlacesForDepositMessage } from "@/lib/seminars/registration-refusals";
+import { countSeminarPlacesShort } from "@/lib/seminars/seminar-places";
 
 import {
   readInscriptionAllocatedAmount,
@@ -64,6 +62,12 @@ import {
   type Executor,
   type Transaction,
 } from "./choreography-cobro-support.server";
+import {
+  collectPersonIds,
+  isParticipating,
+  lockSeminars,
+  type LockedSeminar,
+} from "./seminar-money-support.server";
 
 /** A seminar price row the dialog may offer, with the `Seña` it implies. */
 export type SeminarInscriptionPriceOption = {
@@ -128,9 +132,9 @@ export async function readSeminarInscriptionPriceOptions(input: {
       .where(inArray(seminarInscriptions.seminarId, [...seminarsById.keys()])),
   ]);
   const participation = await readEventParticipation(db, {
-    dancerIds: collectIds(inscriptionRows, "dancerId"),
+    dancerIds: collectPersonIds(inscriptionRows, "dancerId"),
     eventId: input.eventId,
-    professorIds: collectIds(inscriptionRows, "professorId"),
+    professorIds: collectPersonIds(inscriptionRows, "professorId"),
   });
 
   for (const inscription of inscriptionRows) {
@@ -278,7 +282,7 @@ async function assertSeminarPlaceForCrossing(
     allocatedAmount: number;
     amount: number;
     inscriptionId: string;
-    seminar: SeminarPricingRow;
+    seminar: LockedSeminar;
   },
 ): Promise<CobroResult> {
   const depositAmount = await readStoredSeminarDepositAmount(tx, {
@@ -305,7 +309,11 @@ async function assertSeminarPlaceForCrossing(
     { exceptInscriptionId: input.inscriptionId },
   );
 
-  return coveredCount >= input.seminar.quota
+  return countSeminarPlacesShort({
+    coveredCount,
+    neededCount: 1,
+    quota: input.seminar.quota,
+  }) > 0
     ? { ok: false, message: seminarNoPlacesForDepositMessage }
     : { ok: true };
 }
@@ -421,7 +429,7 @@ async function applySelectedSeminarPrice(
       selectedPriceId: string | null;
     };
     priceId: string | null;
-    seminar: SeminarPricingRow;
+    seminar: LockedSeminar;
   },
 ): Promise<CobroResult> {
   const crossed = await hasCrossedStoredSeminarDepositThreshold(tx, {
@@ -508,14 +516,6 @@ async function hasCrossedStoredSeminarDepositThreshold(
   });
 }
 
-type SeminarPricingRow = {
-  eventId: string;
-  id: string;
-  kind: SeminarFinancePriceRow["kind"];
-  quota: number;
-  requiredDepositPercentage: number;
-};
-
 type SeminarMoneyContext =
   | { ok: false; message: string }
   | {
@@ -525,7 +525,7 @@ type SeminarMoneyContext =
         id: string;
         selectedPriceId: string | null;
       };
-      seminar: SeminarPricingRow;
+      seminar: LockedSeminar;
     };
 
 /**
@@ -538,7 +538,7 @@ async function loadSeminarMoneyContext(
   tx: Transaction,
   input: SeminarInscriptionMoneyInput,
 ): Promise<SeminarMoneyContext> {
-  const seminar = await lockSeminarPricingRow(tx, input.seminarId);
+  const [seminar] = await lockSeminars(tx, [input.seminarId]);
 
   if (!seminar || seminar.eventId !== input.eventId) {
     return { ok: false, message: seminarNotFoundMessage };
@@ -571,9 +571,9 @@ async function loadSeminarMoneyContext(
   }
 
   const participation = await readEventParticipation(tx, {
-    dancerIds: collectIds([inscription], "dancerId"),
+    dancerIds: collectPersonIds([inscription], "dancerId"),
     eventId: input.eventId,
-    professorIds: collectIds([inscription], "professorId"),
+    professorIds: collectPersonIds([inscription], "professorId"),
   });
 
   return {
@@ -585,37 +585,6 @@ async function loadSeminarMoneyContext(
     },
     seminar,
   };
-}
-
-/**
- * The seminar's pricing row, taken **`FOR UPDATE`**. Every money gesture on a seminar
- * inscription starts here, crossing or not: the quota is decided by counting
- * covered rows, and a count that is not taken under a lock on the seminar can be
- * invalidated by a concurrent crossing between the count and the write. Two
- * transactions racing for the last place are serialized by this lock, and the
- * loser reads the count the winner already wrote.
- *
- * It is taken before anything else is read — including the price and the
- * participant cell — so the whole decision rests on one snapshot of the seminar.
- */
-async function lockSeminarPricingRow(
-  tx: Transaction,
-  seminarId: string,
-): Promise<SeminarPricingRow | null> {
-  const [seminar] = await tx
-    .select({
-      eventId: seminars.eventId,
-      id: seminars.id,
-      kind: seminars.kind,
-      quota: seminars.quota,
-      requiredDepositPercentage: seminars.requiredDepositPercentage,
-    })
-    .from(seminars)
-    .where(eq(seminars.id, seminarId))
-    .for("update")
-    .limit(1);
-
-  return seminar ?? null;
 }
 
 async function readPersonAcademyId(
@@ -641,27 +610,4 @@ async function readPersonAcademyId(
   }
 
   return null;
-}
-
-function collectIds(
-  rows: readonly { dancerId: string | null; professorId: string | null }[],
-  column: "dancerId" | "professorId",
-): string[] {
-  return [
-    ...new Set(
-      rows
-        .map((row) => row[column])
-        .filter((personId): personId is string => personId !== null),
-    ),
-  ];
-}
-
-function isParticipating(
-  row: { dancerId: string | null; professorId: string | null },
-  participation: { dancerIds: Set<string>; professorIds: Set<string> },
-): boolean {
-  return row.dancerId !== null
-    ? participation.dancerIds.has(row.dancerId)
-    : row.professorId !== null &&
-        participation.professorIds.has(row.professorId);
 }
