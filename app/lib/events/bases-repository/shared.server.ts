@@ -22,7 +22,6 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 import {
   type ExperienceLevel,
-  experienceLevelValues,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
 import {
@@ -51,9 +50,6 @@ export type EventBaseEntityKind = EventBaseUniqueEntityKind | "schedule";
 export type EventBaseUniqueEntityKind = "modality" | "submodality";
 
 export const groupTypeOrder: GroupType[] = [...groupTypeValues];
-export const experienceLevelOrder: ExperienceLevel[] = [
-  ...experienceLevelValues,
-];
 export const priceDefaultNames: Record<GroupType, string> = {
   solo: "Precio Solo",
   duo: "Precio Duo",
