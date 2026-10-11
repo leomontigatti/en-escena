@@ -11,12 +11,14 @@ async function createAcademyUser(input: {
   academyName: string;
   contactName?: string;
   email: string;
+  /** The user's name; the email when left out. */
+  name?: string;
   phone?: string;
   suspended?: boolean;
 }) {
   const signUpResult = await createAccessUser({
     email: input.email,
-    name: input.email,
+    name: input.name ?? input.email,
     password: "password-segura",
   });
 

@@ -7,9 +7,9 @@ import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-suppor
 
 import {
   buildGlobalPaymentRequest,
-  createAcademyUser,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
+import { createAcademyUser } from "@/lib/test-support/academies";
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 import { handlePaymentCreateAction } from "./server";

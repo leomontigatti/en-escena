@@ -15,13 +15,13 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
-
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import {
   createAcademyFinanceChoreographyFixture,
   createSavedEvent,
   registerPaymentForTest,
-} from "../admin/finances/finances.test-support";
+} from "@/lib/admin/finances/finances.test-support";
+
+import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

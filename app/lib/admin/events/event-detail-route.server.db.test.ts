@@ -10,10 +10,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
@@ -22,6 +18,8 @@ import {
   EventDetailRouteView,
   loader,
 } from "@/routes/administracion.eventos_.$eventId";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

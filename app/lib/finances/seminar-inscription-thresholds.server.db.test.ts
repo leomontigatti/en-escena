@@ -15,12 +15,12 @@ import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscrip
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
-
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import {
   createAcademyFinanceChoreographyFixture,
   createSavedEvent,
-} from "../admin/finances/finances.test-support";
+} from "@/lib/admin/finances/finances.test-support";
+
+import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

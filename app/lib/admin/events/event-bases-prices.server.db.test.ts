@@ -3,6 +3,17 @@ import { describe, expect, test } from "vitest";
 import { createSelectedPriceInscriptionForTest } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
+import {
+  action,
+  createSavedEvent,
+  loader,
+  renderPrecioDetalleRoute,
+  renderPrecioNuevoRoute,
+  renderPreciosRoute,
+  routeArgs,
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   createDeletePriceAdminRequest,
@@ -13,17 +24,6 @@ import {
   findSavedPriceById,
   findSavedPriceByScope,
 } from "./event-bases-price.test-support";
-import {
-  action,
-  createSavedEvent,
-  createSignedInRequest,
-  expectThrownResponse,
-  loader,
-  renderPrecioDetalleRoute,
-  renderPrecioNuevoRoute,
-  renderPreciosRoute,
-  routeArgs,
-} from "./event-bases.test-support";
 
 installDatabaseTestHooks();
 

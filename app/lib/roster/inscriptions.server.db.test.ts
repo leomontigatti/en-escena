@@ -20,13 +20,13 @@ import {
 } from "@/lib/roster/inscriptions.server";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
 import { createAcademyUser } from "@/lib/test-support/academies";
-
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import {
   createAcademyFinanceChoreographyFixture,
   createInactiveEvent,
   createSavedEvent,
-} from "../admin/finances/finances.test-support";
+} from "@/lib/admin/finances/finances.test-support";
+
+import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

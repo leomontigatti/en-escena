@@ -7,7 +7,6 @@ import {
   choreographyProfessors,
   professors,
 } from "@/db/schema";
-import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createCategory } from "@/lib/categories/repository.server";
 import {
@@ -34,6 +33,7 @@ import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

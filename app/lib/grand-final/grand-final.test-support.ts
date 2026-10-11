@@ -12,11 +12,9 @@ import {
   user,
 } from "@/db/schema";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
-import {
-  createAcademyUser,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 /**
  * One active event a `Gran final` test registers choreographies into by

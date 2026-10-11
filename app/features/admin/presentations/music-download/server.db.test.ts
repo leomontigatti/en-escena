@@ -8,13 +8,11 @@ import yauzl from "yauzl";
 
 import { db } from "@/db";
 import { academies, choreographies, schedules } from "@/db/schema";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { getAssetKindPolicy } from "@/lib/storage/asset-kinds";
 import { fsUpload } from "@/lib/storage/filesystem-client.server";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { loadMusicDownload } from "./server";
 import { buildMusicDownloadHref } from "./shared";
@@ -38,7 +36,7 @@ async function signedInRequest(
   day: string,
   role: "academy" | "admin" | "auditor" = "admin",
 ) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost${buildMusicDownloadHref(day)}`,
     role,

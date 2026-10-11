@@ -5,7 +5,7 @@ import {
   seedPeriodExportFixture,
 } from "@/features/admin/period-export/period-export.test-support";
 import { readWorkbook } from "@/features/admin/period-export/workbook.test-support";
-import { expectThrownResponse } from "@/lib/admin/test-support/db";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { loadProfessorsExport } from "./server";
 import { professorsExportPath } from "./shared";

@@ -3,10 +3,10 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { scores } from "@/db/schema";
 import { updateAdministrativeEventModality } from "@/features/admin/modalities/detail/server";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { listSubmodalityCriteria } from "@/lib/judging/criteria.server";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -145,7 +145,7 @@ async function submitCriteria(
     body.set(`criteria.${index}.name`, criterion.name);
   });
 
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body,
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost/administracion/modalidades/${fixture.catalog.modality.id}?evento=${fixture.event.id}`,

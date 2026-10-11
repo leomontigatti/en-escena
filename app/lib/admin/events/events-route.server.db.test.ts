@@ -7,10 +7,6 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { events } from "@/db/schema";
 import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
-import {
   createAdminSavedEvent as createSavedEvent,
   testEventDate as date,
 } from "@/lib/events/saved-event.test-support";
@@ -30,6 +26,8 @@ import {
 } from "@/routes/administracion.eventos_.$eventId";
 import { handle as eventoNuevoHandle } from "@/routes/administracion.eventos_.nuevo";
 import { action as createAction } from "@/routes/administracion.eventos_.nuevo";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

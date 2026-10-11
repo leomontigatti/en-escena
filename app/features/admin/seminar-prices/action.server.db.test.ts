@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { createSavedEvent } from "@/lib/events/bases.test-support";
 import { listSeminarPrices } from "@/lib/seminar-prices/repository.server";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { handleSeminarPriceAction } from "./action.server";
 
@@ -18,7 +18,7 @@ async function submit(
   body: FormData,
   email = `${crypto.randomUUID()}@example.com`,
 ) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body,
     email,
     requestUrl: url,
@@ -116,7 +116,7 @@ describe("administrative seminar price action", () => {
     body.set("intent", "delete-seminar-price");
     body.set("id", saved.id);
 
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       body,
       email: `${crypto.randomUUID()}@example.com`,
       requestUrl: `http://localhost/administracion/precios/seminarios/${saved.id}`,
@@ -139,7 +139,7 @@ describe("administrative seminar price action", () => {
 
     await submit(newUrl, seminarPriceBody());
 
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       body: seminarPriceBody({ name: "Otro precio participantes" }),
       email: `${crypto.randomUUID()}@example.com`,
       requestUrl: newUrl,
@@ -161,7 +161,7 @@ describe("administrative seminar price action", () => {
   test("refuses a malformed deadline", async () => {
     const event = await createSavedEvent("Regional 2029", { activate: true });
 
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       body: seminarPriceBody({ paymentDeadline: "31/05/2026" }),
       email: `${crypto.randomUUID()}@example.com`,
       requestUrl: newUrl,

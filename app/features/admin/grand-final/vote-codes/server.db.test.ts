@@ -1,14 +1,12 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
-import {
   createInactiveEvent,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
 import { createVoteCodeBatch } from "@/lib/grand-final/vote-codes.server";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import {
   handleGrandFinalListAction,

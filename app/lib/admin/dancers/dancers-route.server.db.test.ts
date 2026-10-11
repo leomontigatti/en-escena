@@ -24,10 +24,6 @@ import {
 } from "@/lib/events/experience-levels";
 import { buildDancerListSearch } from "@/lib/admin/dancers/dancers.shared";
 import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
-import {
   getInitialDialogIntent,
   type DancerActionError,
 } from "@/features/admin/dancers/detail/shared";
@@ -57,6 +53,8 @@ import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

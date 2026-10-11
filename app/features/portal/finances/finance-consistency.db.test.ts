@@ -17,14 +17,14 @@ import { createAcademySession } from "@/features/portal/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academyFinancesLoader } from "@/routes/administracion.finanzas_.$academyId";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   academyFinancesUrl,
   createSavedEvent,
-  createSignedInRequest,
   academyFinancesRouteArgs,
-} from "../../../lib/admin/finances/finances.test-support";
+} from "@/lib/admin/finances/finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

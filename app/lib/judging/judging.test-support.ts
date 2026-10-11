@@ -14,12 +14,10 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import {
-  createAcademyUser,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 const paidInFullAmount = 100000;
 

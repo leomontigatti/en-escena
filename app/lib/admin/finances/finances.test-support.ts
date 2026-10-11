@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -7,13 +6,9 @@ import {
   RouterProvider,
 } from "react-router";
 
-import { db } from "@/db";
-import { academies, user } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
-import {
-  createAccessUser,
-  createSessionRequestCookie,
-} from "@/lib/auth/access-auth.test-support";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   createChoreographyRecord,
@@ -62,70 +57,6 @@ export async function createInactiveEvent(name: string) {
   }
 
   return result.event;
-}
-
-// fallow-ignore-next-line code-duplication
-export async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-}) {
-  const signUpResult = await createAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    userId: signUpResult.response.user.id,
-    request: new Request(input.requestUrl, {
-      headers: {
-        cookie: createSessionRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
-export async function createAcademyUser(input: {
-  email: string;
-  academyName: string;
-}) {
-  const signIn = await createSignedInRequest({
-    email: input.email,
-    role: "academy",
-    requestUrl: "http://localhost/portal",
-  });
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signIn.userId,
-      name: input.academyName,
-      contactName: input.academyName,
-      phone: "11-5555-5555",
-    })
-    .returning();
-
-  if (!academy) {
-    throw new Error("Expected academy to be created.");
-  }
-
-  return {
-    academy,
-    /** The signed-in cookie, for a test that reaches a portal loader. */
-    cookie: signIn.request.headers.get("cookie") ?? "",
-    user: {
-      id: signIn.userId,
-    },
-  };
 }
 
 export async function createAcademyFinanceChoreographyFixture(input: {
