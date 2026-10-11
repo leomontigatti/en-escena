@@ -154,7 +154,7 @@ What the dialog announced is advisory.
   not, is assigned to it, because `choreographies.schedule_id` is not nullable
   and so cannot be released the same way. When withdrawn choreographies are the
   only thing holding it, the refusal says so
-  (`No se puede borrar el cronograma porque tiene coreografías retiradas asignadas.`).
+  (`No se puede eliminar el cronograma porque tiene coreografías retiradas asignadas.`).
 - It is **never revisited**: de-allocating every peso on it does not make it
   deletable, and there is no hard-delete path for it. Evidence is never destroyed
   through a side door.

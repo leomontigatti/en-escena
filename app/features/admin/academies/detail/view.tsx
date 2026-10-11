@@ -193,7 +193,7 @@ export function AcademyDetailRouteView({
           description={
             loaderData.deletionHoldings.length > 0
               ? "Solo se puede eliminar una academia vacía. Si es un duplicado, fusionala con la otra."
-              : `Esta acción borra la academia ${academy.name} y su usuario de acceso.`
+              : `Esta acción elimina la academia ${academy.name} y su usuario de acceso.`
           }
           isBlocked={loaderData.deletionHoldings.length > 0}
           blockedDescription={

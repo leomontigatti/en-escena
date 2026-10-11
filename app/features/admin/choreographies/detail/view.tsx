@@ -232,7 +232,7 @@ function RestoreChoreographyDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Restaurar coreografía</AlertDialogTitle>
+          <AlertDialogTitle>¿Restaurar la coreografía?</AlertDialogTitle>
           <AlertDialogDescription>
             {restoreChoreographyDescription}
           </AlertDialogDescription>
@@ -250,7 +250,7 @@ function RestoreChoreographyDialog({
               void submit(formData, { method: "post" });
             }}
           >
-            Restaurar coreografía
+            Restaurar
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -339,7 +339,7 @@ function ChoreographyMusicField({
       name="musicStorageKey"
       previewKind="audio"
       previewSelectedFile={false}
-      removeLabel="Borrar música"
+      removeLabel="Quitar música"
       uploadedLabel="Archivo de música cargado"
       variant="compact"
     />

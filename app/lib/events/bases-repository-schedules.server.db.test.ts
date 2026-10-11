@@ -255,7 +255,7 @@ describe("`Bases del evento` repository", () => {
     await expect(deleteCategory(babyJazz.id)).resolves.toMatchObject({
       ok: false,
       error:
-        "No se puede borrar la categoría porque tiene cronogramas relacionados.",
+        "No se puede eliminar la categoría porque tiene cronogramas relacionados.",
     });
 
     await expectCreated(
@@ -350,7 +350,7 @@ describe("`Bases del evento` repository", () => {
       deleteSchedule(block.id, { hasDependencies: async () => true }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error: "No se puede eliminar el cronograma porque tiene dependencias.",
     });
   });
 
@@ -788,7 +788,7 @@ describe("`Bases del evento` repository", () => {
       ok: false,
       code: "schedule-has-dependencies",
       error:
-        "No se puede borrar el cronograma porque tiene coreografías retiradas asignadas.",
+        "No se puede eliminar el cronograma porque tiene coreografías retiradas asignadas.",
     });
     await expect(deleteSchedule(freeBlock.id)).resolves.toEqual({ ok: true });
   });

@@ -52,7 +52,7 @@ const scheduleCapacityDeletedNotification = "schedule-capacity-deleted";
 const scheduleRegistrationOpenedNotification = "registration-opened";
 const scheduleRegistrationClosedNotification = "registration-closed";
 const scheduleDeleteConfirmationMessage =
-  "Confirmá el borrado del cronograma antes de continuar.";
+  "Confirmá la eliminación del cronograma antes de continuar.";
 const scheduleCapacityFieldNames = ["id", "groupType", "capacity"] as const;
 
 type ScheduleActionInput = EventBasesActionBaseInput & {

@@ -130,7 +130,10 @@ describe("the choreography detail as one draft", () => {
     expect(dialog?.textContent).toContain("Solo → Dúo");
     expect(page.saves()).toEqual([]);
 
-    await clickReactDomButton("Confirmar y guardar");
+    await clickReactDomButton("Guardar", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await settle();
 
     expect(page.saves()).toEqual([

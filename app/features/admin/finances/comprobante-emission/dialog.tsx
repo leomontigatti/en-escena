@@ -80,7 +80,7 @@ export function EmissionDialog({
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>Emitir Factura C</AlertDialogTitle>
+          <AlertDialogTitle>¿Emitir la Factura C?</AlertDialogTitle>
           <AlertDialogDescription>
             Vas a emitir una factura C por {formatAmount(billableAmount)}. Una
             vez emitida, sólo puede revertirse con una nota de crédito.
@@ -127,7 +127,7 @@ export function EmissionDialog({
                 ) : (
                   <Check aria-hidden="true" data-icon="inline-start" />
                 )}
-                Confirmar emisión
+                Emitir
               </Button>
             )}
           </AlertDialogFooter>

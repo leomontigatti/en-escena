@@ -184,7 +184,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
       action(routeArgs(blockedRequest.request, event.id)),
     ).resolves.toMatchObject({
       status: "error",
-      message: "Confirmá el borrado del evento.",
+      message: "Confirmá la eliminación del evento.",
     });
 
     const confirmedRequest = await createSignedInRequest({
