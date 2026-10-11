@@ -13,8 +13,9 @@ import { createAcademyRecord } from "@/features/portal/test-support/db";
 import {
   listAnchorComprobantes,
   recordComprobante,
-  type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
+
+import { facturaCInput } from "@/lib/comprobantes/comprobante-emission.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
@@ -51,35 +52,6 @@ async function seedInscribedChoreography(email: string) {
     .returning();
 
   return { event, academy, choreography, inscription };
-}
-
-// Snapshot of a `Factura C` to an anonymous final consumer issued by the exempt
-// issuer (the values replicate the real circuit of spike #428).
-function facturaCInput(
-  overrides: Partial<RecordComprobanteInput> & {
-    choreographyId: string;
-    eventId: string;
-  },
-): RecordComprobanteInput {
-  const { choreographyId, ...rest } = overrides;
-
-  return {
-    anchor: choreographyAnchor(choreographyId),
-    cbteTipo: 11,
-    ptoVta: 1,
-    cbteNro: 1,
-    cbteFch: "20260722",
-    impTotal: 10000,
-    issuerCuit: "30717611590",
-    issuerIvaCondition: "exento",
-    receptorDocTipo: 99,
-    receptorDocNro: "0",
-    receptorIvaConditionId: 5,
-    cae: "75123456789012",
-    caeVto: "20260801",
-    lines: [],
-    ...rest,
-  };
 }
 
 describe("recordComprobante persistence", () => {
