@@ -65,19 +65,14 @@ async function click(element: Element) {
   });
 }
 
-/**
- * A mouse pointer event jsdom will build: `PointerEvent` is not implemented,
- * and Radix ignores an event whose `pointerType` is not a real one.
- */
+/** A mouse pointer event: Radix ignores one whose `pointerType` is not real. */
 function radixPointerEvent(type: string) {
-  const event = new MouseEvent(type, {
+  return new PointerEvent(type, {
     bubbles: true,
     button: 0,
     cancelable: true,
+    pointerType: "mouse",
   });
-  Object.defineProperty(event, "pointerType", { value: "mouse" });
-
-  return event;
 }
 
 /** Adds a filter through the "Agregar filtro" picker: the group, then a value. */

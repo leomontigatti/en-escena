@@ -152,7 +152,9 @@ export function AudioPlayback({
           aria-label="Posición"
           className="min-w-0 flex-1"
           disabled={durationMs === 0}
-          max={durationMs}
+          // At `max` 0 Radix puts the thumb at `calc(NaN% + 0px)`: browsers
+          // drop that style, but jsdom throws on it.
+          max={Math.max(durationMs, 1)}
           step={1000}
           value={[Math.min(positionMs, durationMs)]}
           onValueChange={([nextPositionMs]) => seek(nextPositionMs ?? 0)}

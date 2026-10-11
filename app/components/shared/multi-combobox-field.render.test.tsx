@@ -48,16 +48,13 @@ function isOpen() {
   return getTrigger()?.getAttribute("aria-expanded") === "true";
 }
 
-/**
- * The event sequence a real click sends, which is what outside press reads.
- * jsdom has no `PointerEvent`, so the pointer events go out as mouse events.
- */
+/** The event sequence a real click sends, which is what outside press reads. */
 async function pressAndClick(element: HTMLElement) {
   await updateReactDomForm(() => {
     const init = { bubbles: true, cancelable: true, composed: true };
-    element.dispatchEvent(new MouseEvent("pointerdown", init));
+    element.dispatchEvent(new PointerEvent("pointerdown", init));
     element.dispatchEvent(new MouseEvent("mousedown", init));
-    element.dispatchEvent(new MouseEvent("pointerup", init));
+    element.dispatchEvent(new PointerEvent("pointerup", init));
     element.dispatchEvent(new MouseEvent("mouseup", init));
     element.click();
   });
