@@ -4,7 +4,6 @@ import {
   mkdirSync,
   mkdtempSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,8 +13,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // #1573: the SessionStart warning for a shell that cannot find the tools.
-// PATH is a directory of stubs plus the system tools the hook itself needs,
-// so each case decides exactly which tools the session "has".
+// PATH is only a directory of stubs, so each case decides exactly which tools
+// the session "has"; the hook itself needs nothing but bash.
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const hook = path.join(repoRoot, ".agents/hooks/check-tool-path.sh");
@@ -49,7 +48,6 @@ function runHook() {
 beforeEach(() => {
   binDir = mkdtempSync(path.join(tmpdir(), "tool-path-hook-"));
   mkdirSync(binDir, { recursive: true });
-  symlinkSync(which("jq"), path.join(binDir, "jq"));
 });
 
 afterEach(() => {

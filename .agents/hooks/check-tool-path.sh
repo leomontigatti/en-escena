@@ -26,5 +26,6 @@ fi
 
 message="This session's shell cannot find ${missing[*]} on PATH. The harness inherits PATH from the desktop login session, so a tool directory added only in ~/.bashrc is missing here. Do not prefix commands with \`export PATH=…\`: tell the user, who fixes it at the source as docs/agents/agent-configuration.md#the-agent-shells-path says. Without playwright-cli, stop before UI verification instead of using a harness's built-in browser."
 
-jq -n --arg message "$message" \
-  '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $message}}'
+# Printed without jq, so the warning needs nothing but bash. The message holds
+# no double quote or backslash, the two characters JSON would need escaped.
+printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$message"

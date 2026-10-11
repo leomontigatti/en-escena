@@ -16,8 +16,8 @@ import { git } from "./worktree-db";
 
 // Gets a browser signed in on this worktree's dev server, so UI verification
 // starts at the screen instead of at setup: starts `pnpm dev` when nothing
-// answers on the worktree's port, runs `pnpm db:seed` when the role's demo
-// account is missing, signs in through `/ingresar` with `playwright-cli` in a
+// answers on the worktree's port, runs `pnpm db:seed` on a database with no
+// users (see `seedDecision`), signs in through `/ingresar` with `playwright-cli` in a
 // session named for the role, and opens the path.
 //
 // Usage: pnpm ui:session <admin|academy|auditor|judge> <path>
@@ -180,13 +180,37 @@ async function startDev(root: string, origin: string, env: NodeJS.ProcessEnv) {
   );
 }
 
-async function accountExists(databaseUrl: string, email: string) {
+/**
+ * Whether the role's demo account is there to sign in with, or the seed has
+ * to create it. The seed resets more than its own rows (it deactivates every
+ * other active event), so it runs only on a database with no users at all,
+ * never on one holding other data, such as a copy refreshed from production.
+ */
+export function seedDecision(input: {
+  email: string;
+  accountExists: boolean;
+  users: number;
+}): "ready" | "seed" {
+  if (input.accountExists) return "ready";
+  if (input.users === 0) return "seed";
+
+  throw new Error(
+    `${input.email} is not in this database, which holds ${input.users} other users: it is not seeded demo data (a database refreshed from production?). Run pnpm db:seed yourself only if resetting it to demo data is what you want.`,
+  );
+}
+
+async function readAccounts(databaseUrl: string, email: string) {
   const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} });
 
   try {
-    const rows =
-      await sql`select 1 from en_escena_user where email = ${email} limit 1`;
-    return rows.length > 0;
+    const [row] = await sql<{ users: number; accountExists: boolean }[]>`
+      select
+        (select count(*) from en_escena_user)::int as users,
+        exists (select 1 from en_escena_user where email = ${email}) as "accountExists"`;
+    return {
+      users: row?.users ?? 0,
+      accountExists: row?.accountExists ?? false,
+    };
   } finally {
     await sql.end();
   }
@@ -222,8 +246,10 @@ async function prepareServer(root: string, email: string): Promise<string> {
   if (!env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not set; is .env linked?");
   }
-  if (!(await accountExists(env.DATABASE_URL, email))) {
-    step(`no ${email} in the database: running pnpm db:seed`);
+  const accounts = await readAccounts(env.DATABASE_URL, email);
+
+  if (seedDecision({ email, ...accounts }) === "seed") {
+    step("the database has no users: running pnpm db:seed");
     runQuiet("pnpm", ["db:seed"], root, env);
   }
 
@@ -236,10 +262,21 @@ async function prepareServer(root: string, email: string): Promise<string> {
   return origin;
 }
 
-function currentPath(role: Role, root: string): string {
-  return playwright([`-s=${role}`, "eval", "location.pathname", "--raw"], root)
-    .trim()
-    .replace(/^"|"$/g, "");
+/** The page's path, or null when it cannot be read, as mid-navigation. */
+function currentPath(role: Role, root: string): string | null {
+  const result = spawnSync(
+    "playwright-cli",
+    [`-s=${role}`, "eval", "location.pathname", "--raw"],
+    { cwd: root, encoding: "utf8" },
+  );
+
+  if (result.status !== 0) return null;
+  return result.stdout.trim().replace(/^"|"$/g, "");
+}
+
+function signedIn(role: Role, root: string): boolean {
+  const pathname = currentPath(role, root);
+  return pathname !== null && !pathname.startsWith("/ingresar");
 }
 
 /** Polls for up to ten seconds for the page to leave /ingresar. */
@@ -248,7 +285,7 @@ async function leftLogin(role: Role, root: string): Promise<boolean> {
 
   while (Date.now() < deadline) {
     await delay(500);
-    if (!currentPath(role, root).startsWith("/ingresar")) return true;
+    if (signedIn(role, root)) return true;
   }
 
   return false;
@@ -263,6 +300,8 @@ async function signIn(
   root: string,
 ): Promise<boolean> {
   for (let attempt = 1; attempt <= SIGN_IN_ATTEMPTS; attempt++) {
+    // A slow sign-in may have landed after the last poll gave up on it.
+    if (attempt > 1 && signedIn(role, root)) return true;
     for (const command of commands) playwright(command, root);
     if (await leftLogin(role, root)) return true;
   }

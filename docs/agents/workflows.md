@@ -172,8 +172,9 @@ The loop:
 
 1. **Get a signed-in session:** `pnpm ui:session <role> <path>`, with `admin`, `academy`,
    `auditor` or `judge`. It starts `pnpm dev` in the background when nothing answers on the
-   worktree's port (its log goes to `.playwright-cli/dev.log`), runs `pnpm db:seed` when the
-   role's demo account is missing, signs in through `/ingresar` in a `playwright-cli` session
+   worktree's port (its log goes to `.playwright-cli/dev.log`), runs `pnpm db:seed` on a database
+   with no users (one that has users but not the role's demo account, such as a production
+   refresh, is refused, never seeded over), signs in through `/ingresar` in a `playwright-cli` session
    named for the role, sized 1440×900, and opens the path. Every later command names that
    session: `playwright-cli -s=academy snapshot`. The session's login is also saved to
    `.playwright-cli/<role>-state.json`, for `state-load`.

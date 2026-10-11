@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { loginCommands, parseArgs, worktreeEnv } from "./ui-session";
+import {
+  loginCommands,
+  parseArgs,
+  seedDecision,
+  worktreeEnv,
+} from "./ui-session";
 
 describe("parseArgs", () => {
   it("takes a seeded role and an app path", () => {
@@ -84,5 +89,27 @@ describe("worktreeEnv", () => {
 
   it("keeps the process's own environment when there is no .env.local", () => {
     expect(worktreeEnv({ PORT: "5173" }, null)).toEqual({ PORT: "5173" });
+  });
+});
+
+describe("seedDecision", () => {
+  const email = "admin@enescena.local";
+
+  it("signs in when the role's demo account is there", () => {
+    expect(seedDecision({ email, accountExists: true, users: 5 })).toBe(
+      "ready",
+    );
+  });
+
+  it("seeds a database with no users at all", () => {
+    expect(seedDecision({ email, accountExists: false, users: 0 })).toBe(
+      "seed",
+    );
+  });
+
+  it("refuses to seed over a database holding other users, such as a production refresh", () => {
+    expect(() =>
+      seedDecision({ email, accountExists: false, users: 812 }),
+    ).toThrow(/812 other users/);
   });
 });
