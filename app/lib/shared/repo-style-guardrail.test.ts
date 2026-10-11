@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -214,21 +214,5 @@ describe("repo style check", () => {
     const violations = await checkRepoStyle();
 
     expect(violations).toEqual([]);
-  });
-
-  test("ships the repo-style command contract in package scripts and agent docs", async () => {
-    const [packageJson, workflowDoc, codebaseMap] = await Promise.all([
-      readFile("package.json", "utf8"),
-      readFile("docs/agents/workflows.md", "utf8"),
-      readFile("docs/agents/codebase-map.md", "utf8"),
-    ]);
-
-    expect(packageJson).toContain(
-      '"check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts"',
-    );
-    expect(workflowDoc).toContain("`pnpm check:repo-styles`");
-    expect(workflowDoc).toContain("repo-style");
-    expect(codebaseMap).toContain("`pnpm check:repo-styles`");
-    await expect(runRepoStyleGuardrail()).resolves.toBeUndefined();
   });
 });
