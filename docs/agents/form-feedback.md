@@ -43,7 +43,7 @@ client validation, an alert, a dialog. The result of a submit is a toast.
 | Failure of an action with no form behind it (inline row delete, toggle, reorder, a `fetcher` button)                                      | `destructive` toast.                                                                                                                                                                                                                                    |
 | Unexpected failure (the generic `{ status: "error" }` from `recoverableClientAction`, a network drop)                                     | `destructive` toast.                                                                                                                                                                                                                                    |
 | Message that arrives after a redirect (flash session)                                                                                     | Toast: the view it belonged to is gone.                                                                                                                                                                                                                 |
-| Success                                                                                                                                   | Toast. A success that must stay on screen is a `success` `Alert` ([style-guide.md § Alert variants](style-guide.md#alert-variants)).                                                                                                                    |
+| Success                                                                                                                                   | Toast. A success that must stay on screen is a `success` `Alert` ([style-guide.md § Alerts](style-guide.md#alerts)).                                                                                                                                    |
 | Duplicate warning (`status: "warning"`)                                                                                                   | The confirmation `AlertDialog` ([A third answer](#a-third-answer-the-duplicate-warning)).                                                                                                                                                               |
 | Field locked by the record's state, conditionally or for good                                                                             | `info` `Alert` in the page's `AlertStack`, above the form card, listing every reason and what unlocks it, or saying nothing does. The field renders as a `ReadOnly*Field`. The lock icon alone explains nothing and is never the channel.               |
 | Action forbidden by the record's state                                                                                                    | `BlockedActionDialog`, opened by the click on a control that stays enabled, with every reason in its `info` `Alert` ([style-guide.md § Detail pages](style-guide.md#detail-pages)).                                                                     |
@@ -76,7 +76,7 @@ record, not the viewer. Suppressing the alert for a role is a defect.
 
 **Block reasons are a server-built array of `{ code, label }`**: every reason is
 listed, none takes precedence, and they render as the alert's list
-([style-guide.md § Alert content](style-guide.md#alert-content)) in the field
+([style-guide.md § Alerts](style-guide.md#alerts)) in the field
 lock alert or in `BlockedActionDialog`. The `label` is the copy, and the server
 builds it because the server owns the rule. A `code` is born consumed: it exists
 only if something reads it, a test asserting which reasons fired or a rendering
@@ -88,8 +88,8 @@ away; it is consumed or dropped when that code is next touched.
 **An action result's `status` names its outcome, not its channel**: an action
 answers with `"success"`, `"error"` or `"warning"`. The channel comes from the
 message class ([Which channel carries a message](#which-channel-carries-a-message)).
-`ToastVariant` also accepts `info`, which is reserved until a product case
-needs it ([style-guide.md § React Hook Form](style-guide.md#react-hook-form)).
+There is no `info` toast until a product case needs one; `pnpm lint` refuses
+`toast.info`.
 Anything a reader needs beyond the status travels as the answer's payload (the
 `contingency` the comprobante dialog renders, the `selectedMusicStorageKey` the
 music editor keeps), or as the `intent` the request carried when the question is
@@ -208,7 +208,7 @@ carries it:
 - The form keeps the values, and the answer opens a confirmation:
   `DuplicateWarningDialog` (`app/components/shared/duplicate-warning-prompt.tsx`),
   an `AlertDialog` that reads like every other confirmation
-  ([style-guide.md § `AlertDialog` vs. `Dialog`](style-guide.md#alertdialog-vs-dialog)):
+  ([style-guide.md § Destructive actions](style-guide.md#destructive-actions)):
   a title naming the save the matches interrupted (`¿Guardar el bailarín?`,
   `¿Crear la academia?`), the matches, `Cancelar` back to the form, and
   the title's verb with its icon (`Guardar` with `Check`). Each new answer
