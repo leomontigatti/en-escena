@@ -12,22 +12,30 @@ import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
 
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
+import { createOpsAlertSender } from "@/lib/shared/ops-alert.server";
 import {
   reportUnexpectedServerError,
   routePatternInstrumentation,
 } from "@/lib/shared/unexpected-error-log.server";
+import { recordUnexpectedError } from "@/lib/shared/unexpected-error-store.server";
 
 export const streamTimeout = 5_000;
 
 // Records each request's route pattern for `handleError`, which is not given it.
 export const instrumentations = [routePatternInstrumentation];
 
+const sendOpsAlert = createOpsAlertSender({
+  environment: process.env,
+  fetch: globalThis.fetch,
+});
+
 export const handleError: HandleErrorFunction = (
   error,
   { request, params },
 ) => {
   // `void` because the report settles on its own: it catches the session
-  // lookup's failure and bounds its wait, so the promise never rejects.
+  // lookup's and the record's failures and bounds their waits, so the promise
+  // never rejects.
   void reportUnexpectedServerError(
     error,
     { request, params },
@@ -35,6 +43,8 @@ export const handleError: HandleErrorFunction = (
       resolveUserId: async (signedInRequest) =>
         (await accessAuthProvider.getAccessSession(signedInRequest))?.user.id ??
         null,
+      recordError: (entry) =>
+        recordUnexpectedError(entry, { sendAlert: sendOpsAlert }),
     },
   );
 };
