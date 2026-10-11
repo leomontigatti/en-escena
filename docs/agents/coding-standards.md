@@ -148,7 +148,7 @@ Route filenames are URLs, so they stay Spanish
 English (`loadAcademyFinances`). That mapping is intentional, not drift.
 
 "Docs" means every engineering doc, with no exceptions: ADRs, `docs/agents/`,
-`docs/domain/`, the glossary (`CONTEXT.md`), the repo index (`AGENTS.md`) and
+`docs/domain/`, the glossary (`GLOSSARY.md`), the repo index (`AGENTS.md`) and
 the style guide. No user reads these files, so the rule above already decides
 them. Being _about_ the product surface does not make a file part of it —
 otherwise ADRs would qualify too.
@@ -175,7 +175,7 @@ reaches what the others do. **Grammar**: Spanish function words, which only show
 up when the whole sentence is Spanish. **Morphology**: any word carrying an
 accent or `ñ`, whatever the sentence is doing — this is what catches
 `// ARCA respondió y no autorizó.`, a sentence with no function word in it at
-all. **Vocabulary**: every Spanish noun `CONTEXT.md` names. Measured over the
+all. **Vocabulary**: every Spanish noun `GLOSSARY.md` names. Measured over the
 tree, grammar and morphology overlap on 174 occurrences and are alone on 186 and
 749: drop any one and a clean run stops meaning what the gate says it means.
 
@@ -268,11 +268,27 @@ from starting — which is exactly what
 Spanish where it is, whatever this section says; `pnpm check:migration-immutability`
 enforces it, and `docs/db/migrations.md` explains why.
 
-`CONTEXT.md` is the mapping table, keyed on the code identifier: every entry is
+`GLOSSARY.md` is the mapping table, keyed on the code identifier: every entry is
 the canonical English identifier followed by `ui:`, the Spanish term the user
 sees. That direction matches how the table is used — you are writing code, you
 have the concept, you need the name and the copy. Reach for it before inventing
 a name, and cite it in review when a new identifier disagrees with the glossary.
+
+How to read it:
+
+- The identifier is the root, not the exact signature: decline it as needed
+  (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
+- `comprobante` is the only reserved Spanish term inside code (see
+  [Reserved Spanish Domain Terms](#reserved-spanish-domain-terms)).
+- **Prose is governed like an identifier** (#792): the `ui:` terms are what the
+  user reads, not what a comment, a test name or a design doc says. Write the
+  English identifier in prose, and if the surface's own wording is the point,
+  mark the Spanish as data, as the next paragraph describes.
+- External-system adapters are the exception (see
+  [Why Adapters Are Exempt](#why-adapters-are-exempt)).
+- Where an existing symbol disagrees with the identifier in the glossary, the
+  glossary wins and the symbol is pending rename; renames are tracked separately.
+- Retired terms carry no identifier: they must not appear in new code.
 
 Docs quote UI copy verbatim. Spanish inside a quoted string, a route path or a
 glossary `ui:` value is data, not prose, and stays Spanish. **Which mark makes it
@@ -281,7 +297,7 @@ double quote marks Spanish copy and a backtick marks a name, because a name has
 to nest inside a double-quoted test title; in markdown it is the backtick and
 only the backtick, because a double quote there is ordinary punctuation around
 ordinary prose. One exception, which would otherwise be circular: the glossary
-row's own `— ui: "…"` value is the term the checker parses out of `CONTEXT.md`,
+row's own `— ui: "…"` value is the term the checker parses out of `GLOSSARY.md`,
 so it is data by definition.
 
 A name is not translated. `Factura C` and `Nota de crédito C` are what WSFEv1

@@ -17,7 +17,7 @@ import { judgingDate } from "@/lib/judging/judging-day";
 
 /**
  * A judge's `finalistPick`: one academy eligible in one modality of the active
- * event, chosen from the judge's own list. See CONTEXT.md `finalistPick`.
+ * event, chosen from the judge's own list. See GLOSSARY.md `finalistPick`.
  *
  * The save follows the window of a score (`judgingDay`): it is open while one
  * of the modality's schedules is on the judging day, until 03:00 the next

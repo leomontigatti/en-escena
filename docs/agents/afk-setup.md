@@ -1,19 +1,69 @@
-# AFK — operational setup (labels, secrets)
+# AFK: Architecture Review setup and runner contract
 
-> **Scope since ADR-0016 (last amendment 2026-09-26).** The implement, review, write-PR, To
-> Issues, Update Branch, Label Behind PRs and Promote Queued runners are all retired;
-> implementation, review, PRD slicing and branch updates happen in local sessions (the last of
-> those through the [`babysit-pr`](../../.agents/skills/babysit-pr/SKILL.md) skill). Architecture
-> Review is the only AFK workflow left. What this document sets up is its infrastructure.
+Architecture Review is the only AFK workflow left (ADR-0016 and its amendments): a weekly,
+unattended pass that proposes one deepening opportunity as a PRD-shaped issue. This document is
+everything it needs: the label, the secret, the permissions, the contract between the workflow and
+its runner, and the guardrails. The platform spec it was built from, and the runners it described,
+were deleted on 2026-10-11 (ADR-0016, amendment of that date); what is below is what still holds.
+Originating issue: [#343](https://github.com/leomontigatti/en-escena/issues/343).
 
-Runbook for the infrastructure Architecture Review consumes (spec §3.1 covers the retired
-workflows too; only the parts still load-bearing here are kept). Spec §3.1 is the **source of
-truth** for _what_ is needed; this doc is the _how_ for this repo and the record of what is
-already provisioned. Originating issue: [#343](https://github.com/leomontigatti/en-escena/issues/343).
+## Where it lives
 
-> **Status:** labels **created** (2026-07-18). Secrets **documented** here; **loading** them is
-> a human action (see the checklist) because the values are credentials this runbook cannot
-> generate.
+| Piece                                                                                  | Role                                                                                        |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [`architecture-review.yml`](../../.github/workflows/architecture-review.yml)           | The orchestrator: checkout, install, run the runner, publish the PRD, write the summary.    |
+| [`architecture-review.mts`](../../.github/architecture-review/architecture-review.mts) | The runner's entry point: embeds the prior proposals in the prompt, runs two passes.        |
+| [`prompt.md`](../../.github/architecture-review/prompt.md)                             | The agent's prompt, and the only file the runner reads from the tree.                       |
+| [`agent.mts`](../../.github/architecture-review/agent.mts)                             | Spawns `claude --print --output-format stream-json`, with an allow-listed environment.      |
+| [`tests/afk/`](../../tests/afk/)                                                       | The contract's tests: CLI install, checkout credentials, budget, failure reason, agent env. |
+
+The agent itself reads, from the checkout: `GLOSSARY.md`, `docs/adr/`, `docs/agents/domain.md`,
+`docs/agents/coding-standards.md`, and the `codebase-design` and `domain-modeling` skills.
+Renaming or moving any of them means updating `prompt.md` in the same change.
+
+## The runner contract
+
+**Inputs in through environment variables, outputs out through files, and the orchestrator does
+every GitHub mutation.**
+
+- _Inputs:_ `GH_REPO`, `OUTPUT_DIR`, `AGENT_BUDGET_MINUTES`, `CLAUDE_CODE_OAUTH_TOKEN`, and
+  `GH_TOKEN`, which the runner uses only for a read-only prefetch of the prior `source:architecture-review`
+  proposals (open and closed) before it starts the agent.
+- _Outputs, in `OUTPUT_DIR`:_ `architecture_review_output.json`, plus `prd_title.txt` and
+  `prd_body.md` when it proposes; `failure_reason.txt` on failure; `*.agent.log` always. The JSON
+  is a discriminated union on `status`:
+
+  ```
+  // proposed:
+  { status: "proposed", title: string (1..256), body: string,
+    oneLineSummary: string, candidatesConsidered: string[] (>=1) }
+  // skipped (every fresh candidate is already covered):
+  { status: "skipped", reason: string }
+  ```
+
+- _Two passes._ The produce pass runs the prompt with no output schema, so a bad emit cannot abort
+  the work; the extract pass resumes the same session (`--resume`) with "emit `<output>` now,
+  change nothing" and validates it against the zod schema (`structured-output.mts`), retrying with
+  the validation error as feedback.
+- _Read-only agent, single publisher._ The agent makes no commits and creates nothing; the
+  workflow's publish step is the one path that opens the issue, labelled
+  `source:architecture-review` and `needs-triage`. A human triages it, and a local session slices
+  it with `to-tickets`.
+- _No GitHub token in the agent._ The agent ingests text anyone can write (issue bodies), so an
+  agent holding a credential is a prompt-injection blast radius. Its environment is an allow-list
+  (`agentEnvironment` in `agent.mts`) with the agent credential and what the CLI needs to run;
+  `tests/afk/runner-agent.test.ts` checks the environment a spawned agent actually sees.
+
+Two local choices ride on the contract without changing it:
+
+- **Weekly, not per weekday.** The spec's reference cron was `0 9 * * 1-5`; here it is `0 9 * * 1`
+  (Mondays). Between 2026-07-20 and 2026-09-01 the workflow proposed 33 PRDs and 5 were resolved:
+  the queue grew about five times faster than it drained, and the duplicate-avoidance rule pushes
+  a faster cadence toward ever more marginal candidates.
+- **Documentation drift.** The prompt asks the agent to list any contradiction between a
+  current-state document and the code it happened to read under `### Documentation drift` in the
+  PRD's Further Notes (or in `reason` on a skip). It is a trial of whether a docs-staleness pass
+  would earn its own workflow; if the heading keeps coming back empty, drop the rule.
 
 ## `source:*` labels
 
@@ -23,13 +73,12 @@ in the repo ([#1116](https://github.com/leomontigatti/en-escena/issues/1116); it
 `pnpm check:labels` fails CI when a workflow or the Architecture Review runner names a label the file does
 not hold, which is how a typo in an `--add-label` is caught before the run that needs it.
 
-> The spec says the Architecture Review workflow creates `source:architecture-review` on-demand
-> if missing; we pre-create it anyway so provenance is consistent from day zero.
+> The workflow's publish step also creates `source:architecture-review` if it is missing; it is
+> pre-created anyway so provenance is consistent from day zero.
 
 ## Secrets
 
-The full matrix (what each is / why) is in spec §3.1 → "Secrets". Operational summary for this
-repo:
+`CLAUDE_CODE_OAUTH_TOKEN` reaches the runner step only; `GITHUB_TOKEN` also publishes the PRD.
 
 | Secret                    | How to obtain it                                                                                                       | How to load it                          |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
@@ -64,28 +113,14 @@ pnpm setup:secrets
 By hand, without the script, it is the same thing it does internally: `gh secret set
 CLAUDE_CODE_OAUTH_TOKEN`, `gh secret list`.
 
-> **Why there is no `GH_READ_TOKEN` (and why that _is_ sticking to Matt's model).** Matt's
-> script in `course-video-manager` loads `CLAUDE_CODE_OAUTH_TOKEN` + `GH_READ_TOKEN` so the
-> _agent_ can read issues with `gh issue view` _inside_ the runner. That can read as a
-> divergence, but it is the opposite: `course-video-manager` is his **earlier, lightweight**
-> project (RALPH); the **spec of this platform** (also Matt's, more evolved) sets as a
-> **central rule** (spec §3, "central design rule") that _"the agent never holds a GitHub token
-> and never calls the GitHub API to mutate state"_. We follow **that** rule: the orchestrator
-> prefetches the context (e.g. the issue body, [#366]) and the runner carries no GitHub
-> credential. Sticking to Matt = keeping it token-free.
->
-> There is also a strong, independent security reason: the agent ingests third-party
-> controllable text (issue bodies, PR comments), so an LLM + a GitHub credential = the blast
-> radius of _prompt injection_. Note that Matt's `GH_READ_TOKEN` is a **classic PAT with the
-> `repo` scope**, which is **not read-only** (it grants read _and_ write on all the owner's
-> repos). Zero credentials in the agent is defense-in-depth.
+There is no `GH_READ_TOKEN` either: the runner prefetches what the agent needs to read, so the
+agent holds no GitHub credential (see the runner contract above).
 
-## Per-workflow permissions matrix
+## Permissions
 
-**Recorded in spec §3.1** → "Per-workflow permissions matrix" (8 rows, columns `contents` /
-`issues` / `pull-requests`). It is not duplicated here. Architecture Review's own declared block
-is `contents: read` (the checkout) and `issues: write` (the PRD it publishes); it needs no
-`pull-requests` scope since it never touches a PR.
+The workflow declares `contents: read` (the checkout) and `issues: write` (the PRD it publishes);
+it needs no `pull-requests` scope since it never touches a PR. The checkout sets
+`persist-credentials: false`, which `tests/afk/checkout-credentials.test.ts` holds.
 
 ## What a runner starts from ([#966](https://github.com/leomontigatti/en-escena/issues/966))
 
@@ -120,11 +155,11 @@ Every runner step carries **two** ceilings, and the order between them is load-b
 
 | Workflow              | Step `timeout-minutes` | `AGENT_BUDGET_MINUTES` |
 | --------------------- | ---------------------- | ---------------------- |
-| `architecture-review` | 20 (spec §4.8)         | 15                     |
+| `architecture-review` | 20                     | 15                     |
 
-**Why both.** A step `timeout-minutes` expiry is the one failure mode that escapes the §3.7
-reporting machinery: Actions kills the process tree, so `runMain`'s catch never runs, no
-`failure_reason.txt` is written, and the orchestrator can only comment "(no reason file
+**Why both.** A step `timeout-minutes` expiry is the one failure mode that escapes the failure
+reporting: Actions kills the process tree, so `runMain`'s catch never runs, no
+`failure_reason.txt` is written, and the run summary could only say "(no reason file
 written)". On #512 that cost an entire review with no diagnosis. `AGENT_BUDGET_MINUTES` builds
 an `AbortSignal` that the runner hands every agent turn: when it fires, the runner kills the
 agent's process group (the `claude` process and the shell tools it started) and the turn

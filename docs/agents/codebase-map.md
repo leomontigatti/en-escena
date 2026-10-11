@@ -1,7 +1,7 @@
 # Codebase Map
 
 Operational map for agents moving from a product flow to the files that usually
-matter. Use this after `CONTEXT.md`, the relevant ADRs and `docs/domain/`.
+matter. Use this after `GLOSSARY.md`, the relevant ADRs and `docs/domain/`.
 
 This file is intentionally compact. It is not a full dependency graph and should
 only list stable entry points, coordination modules and high-signal tests.
@@ -267,7 +267,7 @@ Use for the presentation order, the administrative participation list
 portal and the public program at `/programa`.
 
 - Domain: `docs/domain/judging.md` ("Participation And Judging", and the program rules under "Ranking And Results"), `docs/domain/choreographies.md` ("Administrative Choreography Lists", "Choreography Locks")
-- Glossary: `presentation`, `dancerSpacing`, `presentationWarning`, `judgeAssignment`, `choreographyParticipationList`, `eventProgram` in `CONTEXT.md`
+- Glossary: `presentation`, `dancerSpacing`, `presentationWarning`, `judgeAssignment`, `choreographyParticipationList`, `eventProgram` in `GLOSSARY.md`
 - Schema: `app/db/schema/presentations.ts` (the `presentation` table, whose unique constraint on event plus order number is `DEFERRABLE INITIALLY DEFERRED`, hand-written in `app/db/migrations/0025_cuddly_hairball.sql`, and the `judge_assignment` table, unique on the presentation and the judge)
 - Routes: `app/routes/administracion.presentaciones.tsx` (the administrative participation list, `Presentaciones`), `app/routes/portal.presentaciones.tsx` (the academy's read-only `Presentaciones` page), `app/routes/programa.tsx` (the public program, the product's only unauthenticated content route)
 - Modules: `app/lib/presentations/ordering.ts` (the pure block order, the dancer gap and moving a row by hand), `app/lib/presentations/warnings.ts` (the pure `Advertencia` derivation), `app/lib/presentations/evaluation-lock.server.ts` (the seam the choreography lock reads), `app/lib/presentations/participation.server.ts` (the event's participation read, the automatic ordering and the move by hand), `app/lib/presentations/judge-assignments.server.ts` (the assignable judges, and the one function each way of the pair goes through), `app/features/admin/presentations/list/server.ts`, `app/features/admin/presentations/list/judge-dialogs.tsx`, `app/features/admin/presentations/list/shared.ts`, `app/features/admin/presentations/list/view.tsx`, `app/lib/presentations/academy-program.server.ts` (one academy's rows, and whether the event is ordered and its program published), `app/features/program/list.tsx` and `app/features/program/shared.ts` (the program list both non-administrative surfaces render), `app/features/portal/presentations/list/server.ts`, `app/features/portal/presentations/list/view.tsx`, `app/lib/presentations/event-program.server.ts` (the public program's read and the published active event), `app/lib/presentations/program-dancer-names.server.ts` (who dances, as both program surfaces name them), `app/features/program/public/server.ts`, `app/features/program/public/view.tsx`, `app/features/program/public/print.tsx` (the A4 landscape layout, one page run per schedule), `app/components/shared/data-table-shell.tsx` (the `reorder` seam and `DataTableDragHandle`, on `@dnd-kit`)

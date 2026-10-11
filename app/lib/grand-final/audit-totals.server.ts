@@ -28,7 +28,7 @@ import { readRoundTally } from "@/lib/grand-final/result.server";
  * are counted apart from it: codes consumed and distinct voters should match
  * the columns' sums, and an auditor sees it when they do not.
  *
- * A link dies with its round (CONTEXT.md `auditLink`): its round is the one
+ * A link dies with its round (GLOSSARY.md `auditLink`): its round is the one
  * open when it was issued, or else the next one to open. Once that round
  * closed the link shows nothing, a `Desempate` included: the `Desempate`
  * takes links issued for it. Its result is administration's to publish.

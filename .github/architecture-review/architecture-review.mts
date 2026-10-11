@@ -1,4 +1,4 @@
-// Runner: Architecture Review — spec §4.8. Invoked weekly by
+// Runner: Architecture Review (contract in docs/agents/afk-setup.md). Invoked weekly by
 // `.github/workflows/architecture-review.yml`, the one AFK workflow left after
 // ADR-0016.
 //
@@ -6,7 +6,7 @@
 // architectural-improvement opportunity not already proposed, and emit it as a
 // PRD-shaped structured output. The runner is FULLY READ-ONLY — it makes no
 // commits and creates nothing; the workflow (orchestrator) is the sole
-// publisher (§3.9). Two-pass (produce the exploration, then extract the
+// publisher. Two-pass (produce the exploration, then extract the
 // structured PRD) so a bad emit can't waste the exploration.
 //
 // Env: GH_REPO, OUTPUT_DIR, AGENT_BUDGET_MINUTES. GH_TOKEN serves the

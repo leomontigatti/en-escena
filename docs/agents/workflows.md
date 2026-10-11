@@ -181,8 +181,8 @@ Rules for a session:
   the thread through the `link_pull_request` tool so T3 shows its status and
   settles the thread when it merges. To keep working on an existing PR, start
   the thread on that branch (or link the PR) instead of checking it out in
-  another worktree. What goes in the PR body, and how UI evidence is attached,
-  is in [pull-requests.md](./pull-requests.md).
+  another worktree. The PR body is written with the `pr` skill; how UI
+  evidence is attached is in [pull-requests.md](./pull-requests.md).
 - **Read-only threads** (writing issues, triage, reviewing a PR without editing
   code) can be started with the "local" workspace mode to skip the install; they
   must not change branches.
@@ -238,9 +238,9 @@ relay to Codex.
   all three. The script needs the `codex` CLI installed and logged in; without it the
   relay reports `blocked` rather than doing the work on Haiku. `scripts/agents/sol.sh doctor`
   checks that before any spawn, along with the `gh` login and `repo` scope the caller fetches
-  the spec with and the model answering a one-word prompt, and prints the fix for each failure. Review sub-agents reach
-  `reviewer` through the routing line in `AGENTS.md`, since the vendored `code-review`
-  skill takes no local edits. When T3 Code ships its orchestrator's `delegate_task`
+  the spec with and the model answering a one-word prompt, and prints the fix for each failure.
+  The `code-review` skill and its readback and correctness briefs name the agent to spawn. When
+  T3 Code ships its orchestrator's `delegate_task`
   (pingdotgg/t3code#2829), the relays are what would change.
 - **The correctness axis runs on Opus** under Claude Code, through `reviewer-opus`: the
   same instructions as `reviewer`, run natively rather than relayed, so the axis that
@@ -554,15 +554,14 @@ Hook guidance:
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.github/`, `app/`, `scripts/` or `tests/`, plus the
   repo-root configs (#592); on Spanish in the `.md` under `.agents/`, `.claude/`,
-  `.github/` and `docs/` — `docs/adr/`, `docs/research/` and the
-  vendored skills in `skills-lock.json` excepted, because all three are records of
-  something external (#792); on the `#` comments in
-  the YAML under `.github/` and at the repo root (#793); and on the `#` comments
+  `.github/` and `docs/` — `docs/adr/` and `docs/research/`
+  excepted, because both are records of something external (#792); on the `#` comments in
+  the YAML under `.agents/`, `.github/` and at the repo root (#793); and on the `#` comments
   and the stderr messages of the `.sh` under `.agents/` and `scripts/`, the hooks
   included (#947) — a hook's stderr is the sentence the agent reads back, so it
   is governed like a thrown error, whether it sits on the `>&2` line or in the
   variable that line prints. It reads three instruments: Spanish function words,
-  any word carrying an accent or `ñ`, and every Spanish noun `CONTEXT.md` names. Prose is governed like an identifier,
+  any word carrying an accent or `ñ`, and every Spanish noun `GLOSSARY.md` names. Prose is governed like an identifier,
   so `comprobante` is the only Spanish that survives bare; naming the Spanish
   term is still fine, marked as data. In code, quoted copy and backticked names
   are data; in markdown, only backticked ones are. See the Code Language section
@@ -813,7 +812,7 @@ a small stable interface.
 Use English for code filenames, folder names, symbols, and technical module
 names. Keep Spanish for user-facing UI copy, route path segments that are part
 of the product URL contract, and canonical domain vocabulary documented in
-`CONTEXT.md`.
+`GLOSSARY.md`.
 
 ## Portal Layout Routes
 
@@ -904,7 +903,7 @@ seams**, typecheck and single test files as you go, the list in
 [`docs/agents/validation.md`](validation.md) once at the end, a browser check
 for rendered changes ([UI verification](#ui-verification)), then a review tiered by risk: the
 full two-axis `code-review` plus a correctness axis for money, results or judging, auth,
-migrations, `CONTEXT.md` terms and destructive operational scripts, a single-agent readback for
+migrations, `GLOSSARY.md` terms and destructive operational scripts, a single-agent readback for
 everything else, with the correctness axis beside it whenever the diff changes behaviour. Either way a
 finding is verified against the code before it is fixed, declined or brought to the user.
 
@@ -1126,7 +1125,7 @@ Current form-submit standard:
 
 ## PRD Workflow
 
-A PRD is written with the vendored `to-spec` skill: the user runs `/to-spec` (the skill sets
+A PRD is written with the `to-spec` skill: the user runs `/to-spec` (the skill sets
 `disable-model-invocation`, so a session asks for it instead of calling the Skill tool). The
 skill carries the process and the template; what it does not know about this repo:
 
@@ -1142,7 +1141,7 @@ skill carries the process and the template; what it does not know about this rep
 
 ## Issue Breakdown Workflow
 
-A PRD is sliced into sub-issues with the vendored `to-tickets` skill: the user runs
+A PRD is sliced into sub-issues with the `to-tickets` skill: the user runs
 `/to-tickets <PRD number>` (user-invoked only, like `to-spec`). The skill's step 4 quizzes the
 user on the slices, and no slice is published before that approval. What it does not know
 about this repo:
@@ -1165,7 +1164,7 @@ about this repo:
 Use this when the user asks to find architecture improvements.
 
 1. Read existing architecture-related issues first so proposals are not duplicates.
-2. Read `CONTEXT.md` and relevant ADRs.
+2. Read `GLOSSARY.md` and relevant ADRs.
 3. Look for one high-leverage opportunity, not a list of cosmetic refactors.
 4. Prefer changes that increase locality, reduce repeated domain knowledge, or create a clearer test surface.
 5. Publish as a PRD only if the user asks to publish.

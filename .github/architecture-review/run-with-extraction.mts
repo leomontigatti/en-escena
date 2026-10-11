@@ -1,4 +1,4 @@
-// Two-pass produce/extract run (spec §3.8, "produce vs. extract").
+// Two-pass produce/extract run (docs/agents/afk-setup.md, "The runner contract").
 //
 // Asking one turn to both do the work and emit rigid JSON is brittle: a
 // malformed blob would throw the whole exploration away. So:

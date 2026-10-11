@@ -15,7 +15,7 @@ against the code before it is acted on.
 
 Always **ask**, whatever a pattern says, when the finding touches money (payments, prices,
 finances, `comprobante` emission), results or judging, auth, a migration, a destructive data
-path, or a term defined in `CONTEXT.md`; when it needs a product decision; and when a person, not
+path, or a term defined in `GLOSSARY.md`; when it needs a product decision; and when a person, not
 CodeRabbit, opened the thread.
 
 A finding backed by `docs/agents/coding-standards.md` or `docs/agents/style-guide.md` is never

@@ -22,7 +22,7 @@ import { events, modalities } from "./events";
  * one modality of the event. One row per judge per modality, upserted, so a
  * judge who changes their mind replaces their pick rather than adding one.
  * Whether the academy is eligible is the save's to check, since eligibility is
- * derived on read and never stored. See CONTEXT.md `finalistPick`.
+ * derived on read and never stored. See GLOSSARY.md `finalistPick`.
  *
  * Cascade on all four: a pick means nothing without its event, its modality,
  * its judge or its academy. A merged academy's picks go with it, and its
@@ -194,7 +194,7 @@ export const voteCodes = createTable(
 /**
  * One run of the public vote of the `Gran final` (`votingRound`). `number` is
  * 1, or 2 for the `Desempate`; an event holds at most one of each. Open from
- * `openedAt` while `closedAt` is null. See CONTEXT.md `votingRound`.
+ * `openedAt` while `closedAt` is null. See GLOSSARY.md `votingRound`.
  *
  * Cascade on the event, as everything of the `Gran final` does.
  */

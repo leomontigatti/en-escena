@@ -11,7 +11,7 @@ reviews:
     base_branches:
       - ".*"
   review_status: false
-  # The PR body is ours (docs/agents/pull-requests.md); the walkthrough comment,
+  # The PR body is ours (the `pr` skill, .agents/skills/pr); the walkthrough comment,
   # which scripts/pr-watch.ts reads, is still posted.
   high_level_summary: false
   pre_merge_checks:
@@ -33,7 +33,6 @@ reviews:
     simplify:
       enabled: false
   path_filters:
-    - "!docs/agents/afk-agent-platform-spec.md"
     - "!pnpm-lock.yaml"
     - "!app/db/migrations/**"
   path_instructions:
@@ -62,4 +61,4 @@ knowledge_base:
     filePatterns:
       - docs/agents/coding-standards.md
       - docs/agents/style-guide.md
-      - CONTEXT.md
+      - GLOSSARY.md

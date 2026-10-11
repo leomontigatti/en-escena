@@ -3,7 +3,7 @@
   Adapted: the source mandates `useEffectReducer` from `use-effect-reducer`; this repo uses
   neither that library nor reducers today, so the "Reducer choice" section is left neutral
   about the library. The principle — extract status logic into a pure, testable module —
-  stands. See docs/agents/afk-vendored-assets.md.
+  stands. See docs/agents/vendored-skills.md.
 -->
 
 When your change touches frontend code involving complex state, use this TDD workflow.

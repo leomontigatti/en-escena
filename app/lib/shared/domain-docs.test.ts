@@ -306,7 +306,7 @@ const judgingCodebaseMapRequirements = [
 
 describe("domain documentation", () => {
   test("keeps active event context in the domain glossary", async () => {
-    const glossary = await readFile("CONTEXT.md", "utf8");
+    const glossary = await readFile("GLOSSARY.md", "utf8");
 
     for (const requirement of glossaryRequirements) {
       expect(glossary).toContain(requirement);
@@ -314,7 +314,7 @@ describe("domain documentation", () => {
   });
 
   test("gives every glossary term its canonical code identifier", async () => {
-    const glossary = await readFile("CONTEXT.md", "utf8");
+    const glossary = await readFile("GLOSSARY.md", "utf8");
     const entryHeadings = glossary
       .split("\n")
       .filter((line) => line.startsWith("**"));
@@ -336,7 +336,7 @@ describe("domain documentation", () => {
   });
 
   test("keeps every glossary code identifier unique", async () => {
-    const glossary = await readFile("CONTEXT.md", "utf8");
+    const glossary = await readFile("GLOSSARY.md", "utf8");
     const identifiers = [
       ...glossary.matchAll(/^\*\*`([^`]+)`\*\* — ui: /gm),
     ].map(([, identifier]) => identifier);
@@ -514,7 +514,7 @@ describe("domain documentation", () => {
 
   test("drops the ranking from the judging doc and the glossary", async () => {
     const rules = await readFile("docs/domain/judging.md", "utf8");
-    const glossary = await readFile("CONTEXT.md", "utf8");
+    const glossary = await readFile("GLOSSARY.md", "utf8");
 
     for (const retired of retiredResultsTerms) {
       expect(rules, retired).not.toContain(retired);
@@ -523,7 +523,7 @@ describe("domain documentation", () => {
   });
 
   test("names the results vocabulary in the glossary", async () => {
-    const glossary = await readFile("CONTEXT.md", "utf8");
+    const glossary = await readFile("GLOSSARY.md", "utf8");
 
     for (const requirement of resultsGlossaryRequirements) {
       expect(glossary, requirement).toContain(requirement);
@@ -533,7 +533,7 @@ describe("domain documentation", () => {
   });
 
   test("names the judging vocabulary the scoring effort built", async () => {
-    const glossary = await readFile("CONTEXT.md", "utf8");
+    const glossary = await readFile("GLOSSARY.md", "utf8");
 
     for (const requirement of judgingGlossaryRequirements) {
       expect(glossary, requirement).toContain(requirement);
@@ -549,7 +549,7 @@ describe("domain documentation", () => {
   });
 
   test("marks the `Devolución` as built in the glossary", async () => {
-    const glossary = await readFile("CONTEXT.md", "utf8");
+    const glossary = await readFile("GLOSSARY.md", "utf8");
     const entry = glossary.slice(
       glossary.indexOf('**`feedbackAudio`** — ui: "Devolución"'),
     );
@@ -664,7 +664,7 @@ describe("domain documentation", () => {
     const map = await readFile("docs/agents/codebase-map.md", "utf8");
     const referencedPaths = [
       ...new Set(
-        [...map.matchAll(/`((?:app|docs)\/[^`]+|CONTEXT\.md)`/g)]
+        [...map.matchAll(/`((?:app|docs)\/[^`]+|GLOSSARY\.md)`/g)]
           .map(([, path]) => path)
           .filter((path) => !path.includes(" -- ")),
       ),
@@ -684,16 +684,9 @@ describe("domain documentation", () => {
   // when this was added was an ADR rehomed into `superseded/`).
   test("keeps every relative markdown link pointed at an existing file", async () => {
     const roots = ["docs", ".github", ".agents", ".claude"];
-    const vendoredSkills = Object.keys(
-      (
-        JSON.parse(await readFile("skills-lock.json", "utf8")) as {
-          skills: Record<string, unknown>;
-        }
-      ).skills,
-    );
     const documents = [
       "AGENTS.md",
-      "CONTEXT.md",
+      "GLOSSARY.md",
       ...(
         await Promise.all(
           roots.map((root) =>
@@ -704,14 +697,7 @@ describe("domain documentation", () => {
         .flat()
         .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
         .map((entry) => `${entry.parentPath}/${entry.name}`),
-    ].filter(
-      // Vendored skills are byte-identical to upstream and carry its example
-      // links; they are not ours to fix.
-      (document) =>
-        !vendoredSkills.some((name) =>
-          document.startsWith(`.agents/skills/${name}/`),
-        ),
-    );
+    ];
 
     expect(documents.length).toBeGreaterThan(50);
 

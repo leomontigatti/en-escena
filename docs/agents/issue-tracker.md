@@ -139,7 +139,7 @@ the spec is then read from its comments alone.
 
 ## Ticket operations
 
-The `to-spec` and `to-tickets` skills (vendored, `.agents/skills/`) ask for this section: where
+The `to-spec` and `to-tickets` skills (`.agents/skills/`) ask for this section: where
 the spec lives and how this tracker expresses tickets and their blocking edges. The rest of the
 repo's deltas are in [workflows.md](./workflows.md#prd-workflow).
 
@@ -163,7 +163,7 @@ criteria`, taken from the PRD's **Testing Decisions** (see [Test seams](#test-se
 
 ## Wayfinding operations
 
-The `wayfinder` skill (vendored, `.agents/skills/wayfinder`) asks for this section: how
+The `wayfinder` skill (`.agents/skills/wayfinder`) asks for this section: how
 _this_ tracker expresses the map, its tickets, blocking and the frontier, and what shape
 the destination takes when the map is reached.
 
@@ -181,12 +181,11 @@ the destination takes when the map is reached.
 
 ### Research tickets
 
-The skill says a research ticket is "resolved by a subagent that calls the Skill tool with
-`research`". Here that subagent is the **`research` agent** (`.agents/agents/research.md`): spawn
+A research ticket is resolved by the **`research` agent** (`.agents/agents/research.md`): spawn
 it with `subagent_type: "research"` and the ticket's question, one per research ticket, in
 parallel. Its definition carries the rules (primary sources with a URL beside every claim,
-`curl` and Codex's web search for fetching, a tool-call budget, a fixed report shape), and the `research`
-skill is not vendored.
+`curl` and Codex's web search for fetching, a tool-call budget, a fixed report shape); there is
+no `research` skill.
 
 The agent reports back as text and leaves git and the tracker alone, so the session that spawned
 it does the capture: post the findings on the ticket as its resolution, and only when they are a

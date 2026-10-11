@@ -231,14 +231,14 @@ export const schedules = createTable(
     // When the schedule's award ceremony happens: a date and a time, in the
     // same text shapes as `scheduledDate` and `startTime`. Any date is allowed,
     // because a ceremony after midnight falls on the next day. Both null when
-    // the schedule has no ceremony set. See CONTEXT.md `awardCeremony`.
+    // the schedule has no ceremony set. See GLOSSARY.md `awardCeremony`.
     awardCeremonyDate: text("award_ceremony_date"),
     awardCeremonyTime: text("award_ceremony_time"),
     totalCapacity: integer("total_capacity").notNull(),
     // Whether the schedule takes registrations right now. A manual switch an
     // administrator flips from the schedule detail — never a window, never a
     // derived value: a schedule that filled up closes while its siblings stay
-    // open. A new schedule starts closed. See CONTEXT.md `registrationOpen`.
+    // open. A new schedule starts closed. See GLOSSARY.md `registrationOpen`.
     registrationOpen: boolean("registration_open").notNull().default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -284,7 +284,7 @@ export const programVisibleDays = createTable(
 );
 
 // The kind of a seminar and of a seminar price. An enum rather than a boolean
-// so a third kind is a value and not a migration. See CONTEXT.md `seminarKind`.
+// so a third kind is a value and not a migration. See GLOSSARY.md `seminarKind`.
 export const seminarKind = pgEnum("en_escena_seminar_kind", [
   "regular",
   "special",
@@ -486,7 +486,7 @@ export const scheduleModalities = createTable(
 /**
  * The categories a schedule accepts, alongside the modalities it accepts.
  * Optional: no row for a schedule means it accepts every category, which is
- * what every schedule did before this table existed. See CONTEXT.md `schedule`.
+ * what every schedule did before this table existed. See GLOSSARY.md `schedule`.
  */
 export const scheduleCategories = createTable(
   "schedule_category",

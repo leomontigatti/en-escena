@@ -4,13 +4,13 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root.
+- **`GLOSSARY.md`** at the repo root.
 - **`docs/adr/`** - read ADRs that touch the area you're about to work in.
 - **`docs/domain/`** - read the domain rule file that touches the area you're about to work in.
 - **`docs/agents/codebase-map.md`** - after choosing the domain area, use the
   map to find the usual routes, server modules and tests for that flow.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
+If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `domain-modeling` skill creates them lazily when terms or decisions actually get resolved.
 
 ## File structure
 
@@ -18,7 +18,7 @@ Single-context repo:
 
 ```
 /
-|-- CONTEXT.md
+|-- GLOSSARY.md
 |-- docs/domain/
 |   `-- rules.md
 |-- docs/adr/
@@ -29,15 +29,15 @@ Single-context repo:
 
 ## Use the glossary's vocabulary
 
-When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
+When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `GLOSSARY.md`. Don't drift to synonyms the glossary explicitly avoids.
 
-Entries are keyed on the canonical code identifier; the `ui:` value is the Spanish copy the user sees. Use the identifier when naming code and the `ui:` value when writing anything that reaches a screen or a URL.
+Entries are keyed on the canonical code identifier; the `ui:` value is the Spanish copy the user sees. Use the identifier when naming code and the `ui:` value when writing anything that reaches a screen or a URL. The full reading rules are in [coding-standards.md](./coding-standards.md#code-language).
 
-If the concept you need isn't in the glossary yet, that's a signal - either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/grill-with-docs`).
+If the concept you need isn't in the glossary yet, that's a signal - either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for the `domain-modeling` skill).
 
 ## Use domain rules for behavior
 
-`CONTEXT.md` is intentionally short. Do not infer detailed behavior from glossary entries alone. Read `docs/domain/` for workflow, validation, lifecycle, finance, scoring, and configuration rules.
+`GLOSSARY.md` is intentionally short. Do not infer detailed behavior from glossary entries alone. Read `docs/domain/` for workflow, validation, lifecycle, finance, scoring, and configuration rules.
 
 ## Use the codebase map for implementation entry points
 
