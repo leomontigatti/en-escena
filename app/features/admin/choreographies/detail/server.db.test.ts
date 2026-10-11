@@ -44,10 +44,6 @@ import {
   date,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { resolveOccupiedCounts } from "@/lib/choreographies/schedule-capacity-occupancy.server";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
@@ -60,6 +56,10 @@ import { compatibleScheduleSelectionRequiredMessage } from "@/lib/choreographies
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import {
   installDatabaseTestHooks,
@@ -69,8 +69,6 @@ import {
   readBackendPid,
   waitForABackendBlockedBy,
 } from "../../../../../tests/db/lock-contention";
-import { choreographyAnchor } from "@/lib/comprobantes/anchor";
-import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 
 // The evaluated lock is the seam the judging effort will fill; until then it
 // answers `false` for everything, so a test that needs a closed choreography
@@ -3335,7 +3333,7 @@ async function loadDetail(input: {
   email: string;
   role: "academy" | "admin" | "auditor" | "judge";
 }) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: input.email,
     requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
     role: input.role,
@@ -3353,7 +3351,7 @@ async function submitDetailAction(input: {
   email: string;
   role: "academy" | "admin" | "auditor" | "judge";
 }) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body: input.body,
     email: input.email,
     requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,

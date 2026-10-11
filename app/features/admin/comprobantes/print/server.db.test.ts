@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { seminars } from "@/db/schema";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
 import {
   createChoreographyRecord,
@@ -14,6 +13,7 @@ import {
   recordComprobante,
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -44,7 +44,7 @@ function facturaCInput(
 }
 
 async function printHtml(comprobanteId: string) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `comprobantes.print.${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost/administracion/comprobantes/${comprobanteId}/imprimir`,
     role: "admin",

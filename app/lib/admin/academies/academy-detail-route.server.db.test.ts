@@ -10,16 +10,14 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { academies, dancers, user } from "@/db/schema";
-import {
-  createAcademyUser,
-  createSignedInRequest,
-} from "@/lib/admin/finances/finances.test-support";
 import { loadAcademiesList } from "@/features/admin/academies/list/server";
 import {
   AcademyDetailRouteView,
   action as detailAction,
   loader as detailLoader,
 } from "@/routes/administracion.academias_.$academyId";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -489,7 +487,7 @@ describe("`/administracion/academias` detail", () => {
         .where(eq(academies.id, academy.academy.id)),
     ).resolves.toEqual([]);
     await expect(
-      db.select({ id: user.id }).from(user).where(eq(user.id, academy.user.id)),
+      db.select({ id: user.id }).from(user).where(eq(user.id, academy.userId)),
     ).resolves.toEqual([]);
   });
 

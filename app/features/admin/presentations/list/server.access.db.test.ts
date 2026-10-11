@@ -1,9 +1,6 @@
 import { describe, expect, test } from "vitest";
-
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import {
   handlePresentationListAction,

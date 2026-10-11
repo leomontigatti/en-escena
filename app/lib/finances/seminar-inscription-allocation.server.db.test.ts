@@ -23,15 +23,15 @@ import {
 } from "@/lib/seminars/covered-inscriptions.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import {
+  createAcademyFinanceChoreographyFixture,
+  createSavedEvent,
+} from "@/lib/admin/finances/finances.test-support";
 
 import {
   installDatabaseTestHooks,
   isPgliteTestBackend,
 } from "../../../tests/db/harness";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-} from "../admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 

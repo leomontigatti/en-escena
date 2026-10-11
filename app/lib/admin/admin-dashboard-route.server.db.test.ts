@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter, RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
-import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { createOpenEventCatalog } from "@/lib/choreographies/registration.test-support";
 import { activateEvent } from "@/lib/events/management.server";
 import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
@@ -11,6 +10,7 @@ import { DashboardRouteView, loader } from "@/routes/administracion._index";
 
 import { db } from "@/db";
 import { schedules } from "@/db/schema";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

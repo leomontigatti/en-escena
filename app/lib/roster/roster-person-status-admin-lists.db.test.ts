@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { createAcademyUser } from "@/lib/test-support/academies";
@@ -19,6 +18,7 @@ import {
   loader as dancersLoader,
 } from "@/routes/administracion.bailarines";
 import { loader as professorsLoader } from "@/routes/administracion.profesores";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -28,7 +28,7 @@ let emailCounter = 0;
 
 async function adminRouteArgs(input: { pattern: string; search: string }) {
   emailCounter += 1;
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `admin.alta.${emailCounter}@example.com`,
     role: "admin",
     requestUrl: `http://localhost${input.pattern}?${input.search.replace(/^&/, "")}`,

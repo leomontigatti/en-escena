@@ -3,10 +3,6 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { db } from "@/db";
 import { professors } from "@/db/schema";
 import { adminListPageSize } from "@/lib/admin/admin-list";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { createProfessor } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
 import {
@@ -14,6 +10,8 @@ import {
   createEventFixtureDates,
   createSavedEvent,
 } from "@/lib/events/bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -162,7 +160,7 @@ describe("loadProfessorAccreditationsPrint", () => {
   });
 
   test("answers 403 to an auditor", async () => {
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       email: `acreditaciones.auditor.${crypto.randomUUID()}@example.com`,
       requestUrl: `http://localhost${buildProfessorAccreditationsHref({ professorIds: [], listSearch: "" })}`,
       role: "auditor",
@@ -180,7 +178,7 @@ async function seedAcademy(academyName: string) {
 }
 
 async function printHtml(href: string) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `acreditaciones.admin.${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost${href}`,
     role: "admin",

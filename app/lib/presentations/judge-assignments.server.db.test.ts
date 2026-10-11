@@ -9,10 +9,7 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import {
-  createAcademyUser,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import {
   assignJudges,
@@ -27,6 +24,7 @@ import {
 import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
 
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

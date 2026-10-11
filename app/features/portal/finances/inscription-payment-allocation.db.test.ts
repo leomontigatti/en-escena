@@ -16,12 +16,12 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { createAcademySession } from "@/features/portal/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   createSavedEvent,
   registerPaymentForTest,
-} from "../../../lib/admin/finances/finances.test-support";
+} from "@/lib/admin/finances/finances.test-support";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import {
   readVisibleProgramDays,
   setVisibleProgramDays,
 } from "@/lib/presentations/program-visibility.server";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import {
   handlePresentationListAction,
@@ -32,7 +32,7 @@ async function setVisibility(input: { days: string[]; eventId: string }) {
     body.append(programVisibleDayFieldName, day);
   }
 
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body,
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: listUrl,
@@ -43,7 +43,7 @@ async function setVisibility(input: { days: string[]; eventId: string }) {
 }
 
 async function loadList() {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: listUrl,
     role: "admin",

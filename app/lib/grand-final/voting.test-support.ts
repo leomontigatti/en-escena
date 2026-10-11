@@ -6,10 +6,7 @@ import {
   votingRoundFinalists,
   votingRounds,
 } from "@/db/schema";
-import {
-  createAcademyUser,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { castVote } from "@/lib/grand-final/vote.server";
 import {
   createVoteCodeBatch,
@@ -22,6 +19,7 @@ import {
   openVotingRound,
   readCurrentVotingRound,
 } from "@/lib/grand-final/voting-round.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { seedEligibilityFixture } from "./grand-final.test-support";
 

@@ -12,8 +12,6 @@ import {
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
   buildScheduleCapacityDraft,
@@ -23,12 +21,10 @@ import {
   createScheduleAdminRequest,
   createScheduleCapacityAdminRequest,
   createSavedEvent,
-  createSignedInRequest,
   expectCreated,
   expectScheduleCapacityBreakdown,
   findSavedScheduleById,
   findSavedScheduleByName,
-  expectThrownResponse,
   listSavedScheduleCapacities,
   loader,
   renderBloqueHorarioDetailRoute,
@@ -37,7 +33,11 @@ import {
   renderPriceNewErrorRoute,
   renderScheduleDetailErrorRoute,
   routeArgs,
-} from "./event-bases.test-support";
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

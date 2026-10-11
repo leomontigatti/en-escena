@@ -2,19 +2,15 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
+import { signInAccessUser } from "@/lib/auth/access-auth.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 import { academies, accessSession, user } from "@/db/schema";
-import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import {
-  createAccessUser,
-  createSessionRequestCookie,
-} from "@/lib/auth/access-auth.test-support";
 import {
   requireAcademyUser,
   requireAdminUser,
   requireInternalUser,
   requireSignedInUser,
 } from "@/lib/auth/internal-access.server";
-import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -85,6 +81,11 @@ describe("internal access authorization", () => {
       email: "suspendido.privado@example.com",
       role: "admin",
     });
+    // A second session the request does not carry: revocation must end it too.
+    await signInAccessUser({
+      email: "suspendido.privado@example.com",
+      password: "password-segura",
+    });
 
     await db.update(user).set({ suspended: true }).where(eq(user.id, userId));
 
@@ -105,6 +106,11 @@ describe("internal access authorization", () => {
     const { request, userId } = await createSignedInRequest({
       email: "revocado.privado@example.com",
       role: "admin",
+    });
+    // A second session the request does not carry: revocation must end it too.
+    await signInAccessUser({
+      email: "revocado.privado@example.com",
+      password: "password-segura",
     });
 
     await db
@@ -212,44 +218,6 @@ describe("internal access authorization", () => {
     expect(response.status).toBe(403);
   });
 });
-
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | InternalUserRole;
-}) {
-  const signUpResult = await createAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    request: new Request("http://localhost/protected", {
-      headers: {
-        cookie: createSessionRequestCookie(
-          (
-            await accessAuthProvider.signInCredentialUser({
-              email: input.email,
-              password: "password-segura",
-              request: new Request("http://localhost/ingresar", {
-                method: "POST",
-              }),
-            })
-          ).headers,
-        ),
-      },
-    }),
-    userId: signUpResult.response.user.id,
-  };
-}
 
 async function expectThrownResponse(resultPromise: Promise<unknown>) {
   try {

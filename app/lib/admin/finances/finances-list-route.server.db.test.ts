@@ -20,24 +20,24 @@ import {
   action as paymentCreateAction,
   loader as paymentCreateLoader,
 } from "@/routes/administracion.pagos_.nuevo";
+import {
+  buildGlobalPaymentRequest,
+  createInactiveEvent,
+  createSavedEvent,
+  financesListRouteArgs,
+  financesListUrl,
+  renderFinanceAccountsRoute,
+  paymentCreateRouteArgs,
+} from "@/lib/admin/finances/finances.test-support";
+import { seedEventSeminarFinanceFixture } from "@/lib/admin/finances/seminar-finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   academiesRouteArgs,
   renderAcademiesRoute,
 } from "../academies/academies-route.test-support";
-import {
-  buildGlobalPaymentRequest,
-  createAcademyUser,
-  createInactiveEvent,
-  createSavedEvent,
-  createSignedInRequest,
-  financesListRouteArgs,
-  financesListUrl,
-  renderFinanceAccountsRoute,
-  paymentCreateRouteArgs,
-} from "./finances.test-support";
-import { seedEventSeminarFinanceFixture } from "./seminar-finances.test-support";
 
 installDatabaseTestHooks();
 

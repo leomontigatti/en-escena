@@ -6,16 +6,14 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
   NewInternalUserRouteView,
   action,
   loader,
 } from "@/routes/administracion.usuarios_.nuevo";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { categories, choreographyProfessors, schedules } from "@/db/schema";
-import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -15,6 +14,7 @@ import {
   createProfessor,
 } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

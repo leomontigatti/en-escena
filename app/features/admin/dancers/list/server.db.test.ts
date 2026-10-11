@@ -3,10 +3,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographyDancers } from "@/db/schema";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
 import {
@@ -14,6 +10,8 @@ import {
   createEventFixtureDates,
   createSavedEvent,
 } from "@/lib/events/bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -154,7 +152,7 @@ async function seedAcademy() {
 }
 
 async function listRequest(search: string) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `bailarines.lista.admin.${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost/administracion/bailarines${search}`,
     role: "admin",

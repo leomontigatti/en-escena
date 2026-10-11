@@ -8,7 +8,7 @@ import {
   readWorkbook,
   type WorkbookCell,
 } from "@/features/admin/period-export/workbook.test-support";
-import { expectThrownResponse } from "@/lib/admin/test-support/db";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { loadCollectionExport } from "./server";
 import { collectionExportPath } from "./shared";

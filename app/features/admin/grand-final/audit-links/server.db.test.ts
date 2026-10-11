@@ -1,9 +1,5 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { openAuditLink } from "@/lib/grand-final/audit-link.server";
 import {
@@ -12,6 +8,8 @@ import {
 } from "@/lib/grand-final/voting.test-support";
 import { openVotingRound } from "@/lib/grand-final/voting-round.server";
 import { readAuditLinkToken } from "@/lib/grand-final/audit-url";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import {
   handleGrandFinalListAction,

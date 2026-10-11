@@ -11,7 +11,6 @@ import {
 } from "@/db/schema";
 import { loadAcademiesList } from "@/features/admin/academies/list/server";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import {
   createAcademySession,
   createDancer,
@@ -26,6 +25,7 @@ import {
   buildProfessorEventParticipationSql,
   readEventParticipation,
 } from "@/lib/participation/participation.server";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -169,7 +169,7 @@ describe("participation of a withdrawn choreography", () => {
       new Set([activeSide.professor.id]),
     );
 
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       email: "admin.academias.participacion@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/academias?evento=${event.id}`,
