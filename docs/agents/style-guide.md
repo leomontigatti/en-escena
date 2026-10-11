@@ -1,863 +1,300 @@
-# Style Guide
-
-Visual style guide for the product. The visual base is shadcn/ui `radix-nova`
-with its components, CSS tokens and theme font.
-
-## Visual direction
-
-The interface must prioritize clarity, fast reading and repeated use over a
-landing-page or showcase aesthetic.
-
-- Use light surfaces, sharp hierarchy and sufficient contrast.
-- Keep the experience suitable for forms, lists, tables and states.
-- Avoid dominant decorative backgrounds, large gradients, ornamental decoration
-  and marketing composition. Do not forbid dark backgrounds when they come from
-  the dark theme or from shadcn components.
-
-## Color and tokens
-
-Use shadcn/ui semantic tokens as the source of truth. Do not hardcode Tailwind
-colors (`slate`, `red`, `teal`, etc.) unless there is a specific need that cannot
-be expressed with existing tokens or variants.
-
-Rules:
-
-- Use `background`, `foreground`, `muted`, `muted-foreground`, `border`, `input`,
-  `ring`, `primary`, `primary-foreground`, `secondary`, `secondary-foreground`,
-  `accent`, `accent-foreground`, `destructive`, `card` and `card-foreground`.
-- For negative or error states, use `destructive` and the components' invalid
-  states (`aria-invalid`, `data-invalid`).
-- For positive, informative or warning states, prefer existing component variants
-  (`Badge`, `Alert`). Do not add custom variants or new semantic tokens without
-  an explicit decision.
-- Do not introduce brand palettes, custom hex values or parallel scales without
-  an explicit decision.
-
-## Radii
-
-Use the theme's radii (`--radius` and derivatives) and the classes the components
-already define. Do not patch radii per screen with ad hoc classes, except for
-layout or local composition.
-
-## Typography
-
-Use the current shadcn theme font. Do not add brand typefaces or alternative
-families without an explicit decision.
-
-Create hierarchy through components, variants, weight and spacing. Avoid manual
-typographic classes on base components when the component already defines the
-style.
-
-## Density and layout
-
-Use medium operational density. The interface must let you scan lists, forms and
-states without feeling cramped.
-
-Use `gap-*` for spacing between elements. Do not use `space-x-*` or `space-y-*`.
-Respect shadcn components' sizes and internal padding; adjust with `className`
-only for layout.
-
-Use operational shells for the academy portal, the admin panel and judging.
-Centered screens are reserved for authentication, errors and exceptional states.
-
-Prioritize tables for operational lists. Use cards for the mobile surfaces
-below or for simple repeated elements. Avoid dashboards with a large hero.
-
-## Viewports
-
-Design at **1440px** wide, and keep every
-screen working down to **1280px**, the floor: a 1366×768 laptop, or a
-1920×1080 one at Windows' 150% scaling, which is 1280 CSS pixels. At 1280 the
-admin sidebar leaves about 1000px of content, and that is the budget a table
-or a form row has to fit. Nothing laid out beside the list may take from it:
-filters and actions sit above the table, never in a side panel.
-
-Below 1280 nothing is promised beyond not breaking: content may scroll
-sideways, but must not overlap or become unreachable. Do not put a `min-width`
-on the page to enforce the floor; it breaks the mobile surfaces and browser
-zoom.
-
-Two surfaces are designed for phones as well: the public program, and the
-academy portal, which academies fill in from their phones (registering a
-dancer, photographing its document). The portal gets there screen by screen: a
-portal screen that is built or changed must also work at **390px**, and the
-screens nobody has touched wait for the audit in #1416. Judging is not designed
-for phones and waits for a remake. The admin panel is desktop-only: responsive
-prefixes that keep a form usable on a narrow window are fine, but do not design
-a mobile layout for it.
-
-## Base components
-
-Use shadcn/ui `radix-nova` as the base. The components live in
-`app/components/ui` and are treated as the visual source of truth.
-
-Rules:
-
-- Use existing components before creating custom markup. For a raw `<button>`,
-  `<select>`, `<textarea>` or `<input>`, `pnpm lint` enforces this
-  (`ui/no-raw-form-element`).
-- If the needed shadcn component is not installed and the pattern repeats or the
-  case clearly fits shadcn, add the component before creating a custom variant.
-- Use the component's variants before overriding colors, radii, typography or
-  states with `className`.
-- Use `className` for layout: grid, flex, gap, width, margin and local
-  composition.
-- In new code, do not use `space-x-*` or `space-y-*`; use `flex`/`grid` with
-  `gap-*`.
-- Prefer responsive props or component variants where they exist before
-  recreating behavior with classes. Example: `Field orientation="responsive"`.
-- Avoid hardcoding visual look on shadcn components: colors, radii, shadows,
-  typography and states. Hardcoding layout is allowed.
-- If no token, variant or component exists for a unique case, a one-off class is
-  acceptable. If the case repeats, extract it into a component, variant or token.
-- Do not install components without a concrete use.
-- Use `lucide-react` for icons and `data-icon` inside buttons.
-- Use `cn()` for conditional classes.
-
-## Alerts and empty states
-
-Use shadcn components for feedback and empty states.
-
-Rules:
-
-- Use `Alert` for callouts, notices, errors not tied to a field, and success
-  messages that persist on screen. Which class of message goes to an alert, a
-  toast or a field is
-  [form-feedback.md § Which channel carries a message](form-feedback.md#which-channel-carries-a-message).
-  If `Alert` is not installed and the case needs it, add it before creating
-  custom markup.
-- Use `Empty` for no-data states with a title, description and primary action. If
-  `Empty` is not installed and the case needs it, add it before creating custom
-  markup.
-- Migrate existing callouts and empty states when the file is touched or in a
-  dedicated pass.
-
-### Alert variants
-
-The variant says what kind of message it is, not how loud it should be:
-
-| Variant       | For                                                                                                  |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| `info`        | A state to know about, including a lock: why fields or actions are unavailable and what unlocks them |
-| `warning`     | Something the user should fix, or will regret if they go ahead                                       |
-| `destructive` | An error, or an action that cannot be undone                                                         |
-| `success`     | An outcome that stays on screen (toasts carry the rest)                                              |
-
-`default` is not used.
-
-### Alert icons
-
-Each variant has exactly one icon, imported under its canonical `lucide-react`
-name, in the position `Alert` gives it (top, beside the first line):
-
-| Variant       | Icon            |
-| ------------- | --------------- |
-| `destructive` | `CircleAlert`   |
-| `warning`     | `TriangleAlert` |
-| `info`        | `Info`          |
-| `success`     | `CircleCheck`   |
-
-No icon about the topic (`Trophy`, `Landmark`, `Ban`), no alias names
-(`AlertTriangle`, `AlertCircleIcon`, `InfoIcon`), and no class that moves the
-icon. An alert whose variant is chosen at run time picks its icon from the same
-table (`AccessNotice` in `app/components/auth/access-ui.tsx` is the model).
-
-### Alert content
-
-Every `Alert` has an `AlertTitle` and an `AlertDescription`. The title says
-what is going on in a few words; the description gives the detail and what to
-do. A lead line that introduces a list is the title, and the list is the
-description. Do not restyle a span into a headline or tighten the description's
-paragraph spacing: the title is the headline.
-
-A list inside an alert is a bulleted `ul` (`list-disc pl-5`) inside the
-`AlertDescription`. A reason that can only ever be one is a sentence, not a
-one-item list, and the description never repeats the title.
-
-### Toasts
-
-What a toast says and when one fires is in "Show server action feedback with
-toasts" under React Hook Form, and in [form-feedback.md](form-feedback.md). How
-it looks:
-
-- **Icons.** A toast draws the icon of the `Alert` of the same kind, so a
-  message reads the same as a toast and as an alert: `error` → `CircleAlert`,
-  `warning` → `TriangleAlert`, `info` → `Info`, `success` → `CircleCheck`.
-  They are set once on `AppToaster` (`app/components/shared/app-toaster.tsx`)
-  from `alertVariantIcons`; never pass `icon` to a single toast.
-- **Duration.** Leave Sonner's default. Set `duration` only for a specific case
-  that needs it, and say why beside it.
-- **Buttons.** A toast's button is a `Button` with `variant="link"` in the
-  toast's own colour (`text-current`), passed as the toast's `action`, and it
-  dismisses the toast when it acts. Sonner's filled action button is not used.
-  `useRosterRefusalToast` (`app/components/shared/roster-document-conflict.tsx`)
-  is the model.
-
-## States and badges
-
-Use `Badge` with the variants defined in `app/components/ui/badge.tsx`. The
-semantic variants `success`, `warning` and `info` are part of the current system
-and can be used when they express a clear product state.
-
-Rules:
-
-- Use `Badge` instead of custom spans for states.
-- Use `variant="destructive"` for negative states where appropriate.
-- For positive, informative or warning states, use `success`, `info` or `warning`
-  when that semantics is stable and documented by the flow.
-- For neutral states, use variants such as `default`, `secondary` or `outline`.
-- Do not add new `Badge` variants without an explicit product and design
-  decision.
-
-## Buttons
-
-Use `Button` and its variants (`default`, `secondary`, `outline`, `ghost`,
-`destructive`, `link`) and sizes (`xs`, `sm`, `default`, `lg`, `icon`, `icon-xs`,
-`icon-sm`, `icon-lg`).
-
-Use a single primary action per visual zone. Destructive actions must have clear
-text and a confirmation when the effect is irreversible. Icon-only buttons must
-have an accessible name and a tooltip when the icon is not obvious.
-
-Rules:
-
-- Page and form buttons use the default size. `sm` is for buttons inside a table
-  row or an alert.
-- A leading icon takes `data-icon="inline-start"`, which gives it the button's
-  icon padding; a bare `data-icon` skips it. A trailing icon takes
-  `inline-end`, and an icon-only button takes no `data-icon`. `pnpm lint`
-  enforces this (`ui/data-icon-position`).
-- An icon repeats what the label says. `Check` is for saving, `Trash2` for
-  deleting (`pnpm lint` rejects the `Trash` import); a destructive action other than a delete carries its own icon or
-  none. `Cancelar` has no icon.
-- Delete reads `Eliminar`, on a button, a menu item and the confirmation
-  alike: with `Trash2` on the two buttons, and as text alone in an
-  [actions menu](#actions-menu). The record is already named by the page.
-- Obvious icons need no tooltip: `Trash2`, `X`, play and pause, `Download`,
-  `Copy`, a drag handle and the back chevron of `Volver`. Every other icon-only button gets one. Text cut by
-  truncation keeps a native `title` instead.
-
-### Actions menu
-
-A page's actions live in `ResourceActionsMenu`, the `Acciones` button in its
-header.
-
-- The trigger reads `Acciones` after the `Ellipsis` icon, at the default size
-  and with no tooltip, since the word already says it. `ResourceActionsMenu`
-  takes no `size` and no label.
-- Menu items are text only: no icon, the destructive ones included.
-  `pnpm lint` enforces this (`ui/actions-menu-text-only`) for the items
-  written inside the menu's own JSX.
-- Put a `DropdownMenuSeparator` before the destructive items, so they sit last
-  and apart.
-- Two actions that undo each other show as one item: the one the record's
-  state calls for (`Abrir votación` or `Cerrar votación`, `Publicar resultado`
-  or `Ocultar resultado`, `Suspender` or `Reactivar`). The other is not a
-  blocked action to explain, it is the opposite of the current state. An item
-  the menu does show and the state still forbids stays and opens
-  `BlockedActionDialog` ([Detail pages](#detail-pages)).
-
-## Pending, loading and transitions
-
-Pending feedback must be specific to the operation. Do not use a global spinner
-or state that hides which request is working.
-
-Rules:
-
-- Use a pending state on the button when an action originates from a concrete
-  button or submit and the user might retry it. Disable the action while the
-  request is in flight and change the label or icon to show progress.
-- While that request is in flight, `Cancelar` is disabled together with the
-  button that started it, and comes back with it. The same goes for whatever
-  else sits beside it in the footer (`Descartar cambios`, `Anterior`): with them
-  live, the dialog can be closed, or the form reopened and resubmitted, while
-  the first request is still running. A dialog that closes on the confirming
-  click, or that starts no request, has nothing to disable. `Volver` is a link
-  that leaves the page and goes through the discard guard; this rule does not
-  cover it, and today it stays live during a save.
-- Use a small inline spinner when a specific fragment of the screen updates
-  without blocking the rest: auxiliary calculations, badges, summaries, counters
-  or small panels.
-- Keep the current rows or results visible while the table updates due to
-  filters, search, pagination or refresh. Show the updating state inside the
-  table or in its controls bar; do not empty the list or replace it with a
-  full-page loader.
-- Use skeletons only when there is a real deferred reveal or an initial load
-  where the final structure is already known and improves reading. The skeleton
-  must resemble the content that is going to arrive.
-- Do not use skeletons for routes that still block until the loader finishes, nor
-  for short mutations where a pending button state or inline spinner is enough.
-- Keep shells, breadcrumbs, titles and context visible during requests when the
-  screen already has useful data. Avoid the flicker of unmounting and remounting
-  the whole view for a single operation.
-- Evaluate View Transitions only after fixing request flow and pending states.
-  Use them only when they communicate real continuity between views or stable
-  states — for example list to detail, dialog open/close or a deferred content
-  reveal.
-- Between pages there is one view transition, the record title: a record's name
-  morphs from its row into its detail page's title and back. Mark the
-  identifying `DataTableLink` of a row that opens its own record with
-  `recordTitle` (one per row, never on links to other records); the admin and
-  portal page headers and `Volver` take care of the rest, and every other page
-  change swaps without a crossfade.
-- Do not use View Transitions as makeup for slow loaders, broad revalidations or
-  persistent shells that do not change visual context.
-
-## Forms
-
-Forms use visible labels above the field. The placeholder can show an example or
-a short rule — `Opcional`, `Mínimo 8 caracteres` — but it never replaces the
-label. The one exception is a list of repeated rows, like a sheet's criteria:
-each field keeps its label for screen readers (`sr-only`), and the placeholder
-names the field instead of a column header over the rows.
-
-Rules:
-
-- Use the components in `app/components/ui/field.tsx` (`Field`, `FieldLabel`,
-  `FieldContent`, `FieldError`, `FieldDescription`, `FieldGroup`,
-  `FieldSeparator`, `FieldSet`, `FieldLegend`) to build form fields as
-  appropriate.
-- Use `FieldGroup` for field layout; not `space-y-*`.
-- Use `Field orientation="responsive"` when the field must go from vertical to
-  horizontal depending on available width.
-- Mark the container with `data-invalid` when the field has an error, even if the
-  error comes from client validation, so label, input and message share the
-  visual state.
-- Show errors with `FieldError` and `destructive` states.
-- Show help with `FieldDescription`, and reserve it for explanation that must
-  stay on screen while the field is being filled in. A rule short enough to fit
-  the input goes in the placeholder instead.
-- Do not rely only on an asterisk to indicate a required field; use clear copy
-  when the context requires it.
-- In React Hook Form forms, use the shared fields before defining local fields
-  with `Controller`: `TextInputField`, `IntegerInputField`, `TextareaField`,
-  `SelectField`, `ComboboxField`, `MultiComboboxField`, `DateOnlyField`,
-  `TimeOnlyField` and `FileUploadField`. Create a local field only when the
-  pattern does not yet exist as a shared component, or when the form needs a
-  specific composition — for example dynamic arrays, checkbox groups, switches
-  with their own UI logic or confirmation controls.
-- Respect the height, border, focus and states of `Input`, `Checkbox`, `Select`,
-  `DateOnlyField` and other existing controls. `pnpm lint` enforces the height,
-  radius and focus ring part (`ui/no-restyle`).
-- In forms and filters, when multiple options must be selected, use a
-  multi-select `Combobox` instead of long checkbox lists. If `Combobox` is not
-  installed and the case needs it, add it before creating custom markup.
-- Use `Checkbox` for simple booleans submitted in a form.
-- Use `Switch` for on/off preferences or settings. If `Switch` is not installed
-  and the case needs it, add it before creating custom markup.
-- Use `Checkbox` for a few visible options when the set is short and it is
-  neither a filter nor a multiple relation of Event configuration. For long
-  lists, Event configuration, filters and multiple relations, use a multi-select
-  `Combobox`.
-- Use shadcn's `Select` for single selection. Do not use a native `<select>` or
-  `NativeSelect`.
-- Use shadcn's `Textarea` for multiline text. Do not use a hand-styled native
-  `<textarea>`.
-- Migrate existing native selects and textareas when the file is touched or in a
-  dedicated pass.
-- In long forms, split into sections with a small title. Avoid nested cards.
-- A row repeater (a `useFieldArray` of short rows) shows its column labels once,
-  above the first row, and keeps an `sr-only` label on each row's fields.
-- A choice shown in place, `OptionCardsField` for one pick and `ChecklistField`
-  for many, draws each option as a `ChoiceCard`: as tall as an `Input`, the
-  label in regular weight, the radio or checkbox at the end, in two columns once
-  the width allows.
-
-### Form layout
-
-A form page is one `AdminResourceFormCard` holding the whole form, with no card
-header. Alerts about the form sit above the card.
-
-- Wrap the alerts above the card in `AlertStack`
-  (`app/components/shared/alert-stack.tsx`): it spaces them and renders nothing
-  when none shows, so an empty wrapper never opens a gap under the header.
-  Guard each alert where it is used (`condition ? <SomeAlert /> : null`). The
-  stack only drops `null` and `false` children, so an alert component that
-  returns `null` by itself still counts and leaves the gap.
-- Lay the fields out in `FieldGroup className="grid gap-5 md:grid-cols-2"`. A
-  field that needs the width spans both columns.
-- The card has no maximum width. It fills the shell like the alerts, tabs and
-  tables around it, so the page keeps one edge.
-- The actions close the card as its last row: `FormActions` (or `PinnedActions`
-  on a read-only page) passed as `AdminResourceFormCard`'s `footer`. The shared
-  `BackButton` (`Volver`) sits on the left and the shared `SubmitButton`
-  (`Guardar`) on the right, with `Descartar cambios` beside it when
-  [Editing and saving](#editing-and-saving) asks for it.
-- The row stays one row on a phone. Below `sm`, `BackButton` shrinks to its
-  chevron, a square like an `icon` button with `Volver` kept for screen
-  readers; `Descartar cambios` and `Guardar` keep their words, because they are
-  the actions that change or drop data. When a row still runs out of width,
-  shorten the action whose icon says it alone, never let the row wrap or
-  overflow.
-- The row is sticky. On a card that fits the viewport it rests right under the
-  fields; on one that runs past the bottom edge it sticks there until the end of
-  the card scrolls into view. A plain `Card` that holds it takes
-  `overflow-clip`: the card's own `overflow-hidden` makes it a scroll container,
-  which stops a sticky child from sticking.
-- With tabs, the footer goes where the form is. When one tab holds the form, the
-  footer closes that tab's card and the other tabs have none. When one form
-  spans the tabs, the card holds the tabs and the footer closes it under them.
-  Keep a panel mounted behind the other tab (`forceMount`, hidden when
-  inactive) only when a switch must not lose it: a picked file, fields another
-  tab's `Guardar` submits, or the leave guard over its draft.
-- A form in a `Dialog` is one column, with `Cancelar` and then the primary action
-  on the right of the footer.
-- The portal's `Nueva coreografía` wizard follows the same layout: each step
-  in one card, closed by `PinnedActions` with the step buttons.
-
-## Editing and saving
-
-How an edit screen saves decides the shape of its form, so settle it before
-laying the fields out. What happens after the submit (stay or redirect, which
-channel carries the message) is [form-feedback.md](form-feedback.md).
-
-Rules:
-
-- One save model per form. A form either waits for `Guardar` or saves each field
-  on its own, never both: a select that writes on change beside fields that wait
-  for `Guardar` is the case to avoid
-  ([Primer, Saving](https://primer.style/product/ui-patterns/saving/)).
-- Default to an explicit `Guardar`. Selects, comboboxes, multi-selects, checkbox
-  lists and file fields wait for it: arrowing through a select already picks an
-  option, and a screen reader user can only hear the options by picking them.
-- Save on change only a single field that nothing else on the screen depends on,
-  with its own confirm and cancel
-  ([Atlassian, Inline edit](https://atlassian.design/patterns/inline-edit)). A
-  field whose change recalculates others, or has consequences, never saves on
-  its own.
-- No edit mode. A detail page shows its fields editable in place, and a user
-  who may not edit sees them disabled with only `Volver`. There is no `Editar`
-  button, no `?modo=` parameter and no `Cancelar` in the footer.
-- `Guardar` stays disabled until something differs from what is saved, and while
-  a submit or a preview is in flight. After a server error it stays enabled: the
-  action refills the form with what was typed, which reads as unchanged. A
-  successful save starts a clean draft from what was saved. Create forms follow
-  the same rule, measured against their empty defaults.
-- A form that edits more than one field offers `Descartar cambios` beside
-  `Guardar` while it has changes, and it resets the form without leaving.
-- A form with unsaved changes asks before it is left, through the shared
-  `DiscardChangesDialog`. On a page the guard sits on the router (`useBlocker`
-  plus `beforeunload`), not on `Volver`: the sidebar, the breadcrumbs, the
-  browser's back and a closing tab are ways out too. `Volver` is the browser's
-  back when the page before is the app's, so a list returns with its filters,
-  and a link to its fallback list otherwise. The save's own submission is never
-  asked about. In a `Dialog`, `Cancelar`, the close button and Esc go through
-  `useDiscardGuard`.
-- Fields that affect each other stay on one screen, visible together. Do not
-  split them across `Tabs`, steps or dialogs: a change in one tab that rewrites a
-  field in another is a change the user does not see
-  ([NN/g, Tabs, Used Right](https://www.nngroup.com/articles/tabs-used-right/)).
-- When a change makes the server recalculate other fields, preview it: send the
-  draft through a fetcher, show the pending state on the fields that will change
-  ([Pending](#pending-loading-and-transitions)), and update them in place. The
-  preview writes nothing. The action re-checks everything when `Guardar` writes,
-  because the preview is older than the write.
-- Confirm on `Guardar` only when the save has consequences beyond the fields the
-  user edited, such as withdrawn dancers, a deleted presentation, a moved
-  schedule or a price change. Name each one in the `AlertDialog`
-  (`Bea Lagos (queda retirada)`, not `algunos bailarines`). A save without consequences goes
-  straight through: a dialog on every save teaches people to click past it
-  ([NN/g, Confirmation dialogs](https://www.nngroup.com/articles/confirmation-dialog/)).
-- An action `intent` is a server boundary: one operation with its own checks and
-  transaction. It does not decide how the screen splits into forms. One
-  `Guardar` may submit a draft that the action applies as several operations in
-  one transaction. Two intents are no reason for two forms, or for locking one
-  part of the screen while another has unsaved changes.
-- Migrate an existing screen that breaks these rules when the file is touched or
-  in a dedicated pass.
-
-## React Hook Form
-
-Follow shadcn's React Hook Form pattern: `useForm`, a Zod resolver, `Controller`
-when the control needs it, and `Field` components.
-
-Rules:
-
-- Every React form in the application uses React Hook Form, Zod and shadcn/ui
-  components, regardless of surface (`Panel de administración`,
-  `Portal de academias`, auth, judging or public views). The one exception is an
-  **action-only form**: a submit button plus hidden inputs and no editable field
-  (logout, delete, withdraw, a confirmation with one intent). A form with any
-  editable control (`Input`, `Textarea`, `Select`, `Combobox`, `MultiCombobox`,
-  `Checkbox`, `Switch`, a date or time field, a file input) is not action-only.
-- Define the schema with Zod and pass it to `useForm` via `zodResolver`.
-- Derive the form types from the schema when there is Zod validation: use
-  `z.input<typeof schema>` for the form's editable values and
-  `z.output<typeof schema>` for already validated/normalized values. Avoid
-  casting `zodResolver`; if TypeScript asks for a cast, first check whether the
-  manual types are diverging from the schema.
-- Reuse the same schema or equivalent rules in the server action so client and
-  server do not diverge.
-- Keep mutations in React Router `action`/`fetcher` server-side. RHF validates
-  and controls state on the client; the action re-validates, authorizes and
-  persists.
-- Use the shared form components when they cover the case: `TextInputField`,
-  `IntegerInputField`, `TextareaField`, `SelectField`, `ComboboxField`,
-  `MultiComboboxField`, `DateOnlyField`, `TimeOnlyField` and `FileUploadField`.
-  These components own their `Controller`; screens pass them `control`, `name`,
-  copy and options.
-- Use `Controller` locally only for controlled components that do not yet have a
-  shared wrapper, or for specific compositions such as `Checkbox`, `Switch`,
-  dynamic arrays and a screen's custom fields.
-- For simple inputs, prefer the shadcn pattern with `Controller` and spreading
-  `field` when the form already uses React Hook Form. Keep `register` only in
-  simple forms where it does not complicate consistency.
-- Show errors with `FieldError`; mark `data-invalid` on `Field` and
-  `aria-invalid` on the control.
-- Validate on submit (`mode: "onSubmit"`, React Hook Form's default): a field
-  shows no error until `Guardar` is pressed, and from then on its error follows
-  what is typed. Do not validate on blur or on change before the first submit:
-  an error that appears while the form is still being filled in reads as a
-  reproach for unfinished work. A running sum or counter beside the fields (a
-  sheet's total, the criteria's `n / 100`) is not a field and may show its
-  state live.
-- Validate required fields on the client. For empty required fields, always use
-  the message `Este campo es obligatorio.`, including `Select`, `Combobox`,
-  multiple checkboxes and empty arrays. Reserve specific messages for values that
-  are present but invalid.
-- Do not use HTML validation (`required`, `minLength`, `pattern`) as the primary
-  UX or as a substitute for React Hook Form. Semantic or input attributes such as
-  `type`, `min`, `max`, `step`, `maxLength`, `autoComplete` and `aria-required`
-  are allowed when they add accessibility or input constraints without replacing
-  RHF/Zod validation.
-- Do not render manual inline errors with ad hoc paragraphs or red classes. Use
-  `FieldError` and the field's shadcn/ui states. If an external component cannot
-  integrate cleanly with this pattern, document the exception with a short
-  comment and create explicit debt to migrate it.
-- For `Select`, pass `field.value` and `field.onChange` to the `Select`
-  component, and put `aria-invalid` on `SelectTrigger`.
-- For dynamic arrays, use `useFieldArray`, `FieldSet`, `FieldLegend` and
-  `FieldDescription`; use `field.id` as the key.
-- Show only client validation errors inline. Errors returned by the server are
-  not integrated with `form.setError` and are not shown as `FieldError`; they are
-  shown with a toast and, when useful, the form keeps the submitted values so the
-  person can correct and resubmit. The channel for every class of message is in
-  [form-feedback.md § Which channel carries a message](form-feedback.md#which-channel-carries-a-message).
-- When an RHF form posts to a React Router action with `useSubmit`, use
-  `createValidatedRouteFormDataSubmitHandler` so the submitted `FormData` is built
-  from the values RHF validated, preserving `intent`, submit buttons and other
-  hidden DOM fields. Use `createValidatedRouteSubmitHandler` only when you
-  explicitly want to submit the DOM target without rewriting it from the RHF
-  values.
-- In effects that call RHF methods (`reset`, `setError`, etc.), destructure the
-  method and use it in the dependencies (`const { reset } = form`) instead of
-  depending on the whole `form` object.
-- RHF forms must not end in `form.submit()` or
-  `HTMLFormElement.prototype.submit()`. After validating with RHF, submit through
-  React Router with `useSubmit`, `useFetcher.submit` or the appropriate shared
-  helper.
-- Use `useSubmit` when the submit must preserve the route's navigation or
-  redirect semantics. Use `useFetcher.submit` when the screen, modal or dialog
-  must stay mounted during recoverable errors.
-- Shared submit helpers must build and send `FormData`, not a
-  `Record<string, string>`, to preserve repeated fields, arrays, multiple
-  checkboxes and future files.
-- Show server action feedback with toasts:
-  - Success confirmed by the server: `toast.success`.
-  - Error confirmed by the server, with or without `fieldErrors`: `toast.error`.
-    Do not duplicate those errors in inline fields; inline validation belongs to
-    the RHF/Zod client schema.
-  - For successes after a redirect, carry the message in the flash session
-    (`app/lib/shared/flash-notification.server.ts`). The `notificacion` search
-    parameter was removed — see
-    [form-feedback.md](form-feedback.md). Keep the messages, IDs and
-    `success | error` variants in a common map
-    (`app/lib/shared/notification-toasts.ts`). Do not use `toast.info` until
-    there is a concrete product case that needs it.
-  - A submit that fails unexpectedly (a service throwing, the network dropping)
-    also arrives as an error result, because every route module with an `action`
-    exports the `clientAction` that produces it. The view stays mounted, so it
-    must read that generic `{ status: "error", message }` as well as its own
-    result shapes — see [form-feedback.md](form-feedback.md).
-  - Do not use inline `Alert` or `Notice` for server confirmations or errors
-    unless the message must remain as a persistent screen state. Use inline
-    alerts only for current conditions, warnings before acting or visible screen
-    constraints; not for the result of an already submitted action.
-- Type submit handlers as `React.SubmitEvent<HTMLFormElement>` or
-  `React.SubmitEventHandler<HTMLFormElement>`. Do not use `React.FormEvent` or
-  `React.FormEventHandler` for forms: in React 19 those types are deprecated
-  because they do not represent real form events.
-- Migrate existing manual forms to React Hook Form when the file is touched or in
-  a dedicated pass, prioritizing forms with client validation, selects,
-  comboboxes, multiple checkboxes and derived state.
-
-## Destructive actions
-
-Destructive actions use confirmation dialogs. Do not use forms with confirmation
-checkboxes for destructive actions.
-
-Rules:
-
-- Confirm the action with clear copy in the dialog.
-- Use `Button variant="destructive"` for the final action.
-- Keep complex forms out of destructive confirmations.
-- Migrate existing checkbox-based destructive actions when the file is touched or
-  in a dedicated pass.
-
-### `AlertDialog` vs. `Dialog`
-
-A single explicit rule for choosing the component:
-
-- **`AlertDialog`**: yes/no confirmations and consequential actions (delete,
-  archive, verify, save changes on a consequential record), and the
-  acknowledgment of a blocked action ([Detail pages](#detail-pages)). It exposes
-  `role="alertdialog"`, traps focus and does **not** close on outside click;
-  Escape closes it, as `Cancelar` does. Its look is smaller, with a centered
-  header and a footer bar: that is the "confirmation" look.
-- **`Dialog`**: forms and views (create/edit resources, detail panels). It closes
-  via overlay/Escape and has an X button.
-
-For deletion confirmations use the shared `DeleteDialog` component
-(`app/components/shared/delete-dialog.tsx`), built on `AlertDialog`: it
-centralizes `isPending` (disables + spinner on the destructive button), the
-`isBlocked` mode (hides the destructive button and shows a blocking
-title/description) and the `details` slot. Do not duplicate that logic or
-hand-roll a `Dialog` for deleting.
-
-A confirmation reads the same wherever it appears:
-
-- The title is a question naming the action and its object, such as
-  `¿Eliminar la coreografía?`, `¿Guardar los cambios?` or
-  `¿Anular el comprobante?`. Not `Confirmar …`.
-- The footer holds `Cancelar` and then the verb from the title (`Eliminar`,
-  `Guardar`, `Anular`), never a generic `Confirmar` or `Aceptar`. The verb button
-  carries the icon [Buttons](#buttons) gives that verb, and is `destructive` only
-  when the action destroys or reverses something.
-  While the verb's request is in flight, `Cancelar` is disabled with it
-  ([Pending, loading and transitions](#pending-loading-and-transitions)).
-- A confirmation is a shared component in `app/components/shared/`, not an
-  `AlertDialog` written inline in a view: `DeleteDialog` for deletions,
-  `WithdrawDialog` for withdrawals, `DiscardChangesDialog` for leaving unsaved
-  changes. A new kind of confirmation gets its own component there. The
-  acknowledgment of a blocked action ([Detail pages](#detail-pages)) is
-  `BlockedActionDialog`, which has no verb: its only button is `Cerrar`.
-
-Both keep their default width: no `size` prop, no `max-w-*`. The one exception
-is an `AlertDialog` that carries a list, a preview or an alert, such as the
-withdrawn dancers a save names: it widens with `className="sm:max-w-lg"`, the
-`Dialog` width, so each line fits on one. `BlockedActionDialog` always does,
-blocked deletes included; a confirmable `DeleteDialog` keeps the default even
-with its alert and `details`, and so does its twin `WithdrawDialog`, which the
-same item opens when the record holds money. `pnpm lint` enforces the width on classes written
-in place (`ui/dialog-width`).
-
-## Navigation
-
-Each context uses a shell matching its operational intensity.
-
-| Context                   | Shell                                                              |
-| ------------------------- | ------------------------------------------------------------------ |
-| `Panel de administración` | Sidebar on desktop, topbar with user and actions, dense navigation |
-| `Portal de academias`     | Topbar with secondary navigation or tabs                           |
-| Judging                   | Focused layout, minimal topbar, next presentation prominent        |
-| Public views              | Simple topbar, readable content, visible filters                   |
-| Authentication            | Centered card                                                      |
-
-Do not use a hero as the main structure of operational navigation.
-
-Rules:
-
-- Use `Sidebar` for the admin panel's main navigation.
-- Use `Breadcrumb` for hierarchy and location within deep routes. The last
-  crumb repeats the page title: `Nueva categoría`, not `Nueva`.
-- Use `Tabs` for secondary navigation between sibling views. If `Tabs` is not
-  installed and the case needs it, add it before creating custom markup. Do not
-  use them to split one form whose fields affect each other
-  ([Editing and saving](#editing-and-saving)).
-- `Tabs` take `variant="line"`, on `TabsList`. `pnpm lint` enforces this
-  (`ui/tabs-line-variant`).
-- Tabs that switch what a whole page lists (`Coreografías` / `Seminarios`, the
-  days of an event) keep the active tab in the URL through `useUrlTab`
-  (`app/lib/shared/url-tab.ts`), so a reload or a shared link lands on the same
-  tab. The hook owns how: the default tab is the absence of the parameter, a
-  switch replaces the history entry, and the parameters that belong to the tab
-  being left (a page number) are reset. The parameter names what the tab picks,
-  and the names live in that module: `?tipo=` for `Coreografías` /
-  `Seminarios`, `?dia=` for a day. A new kind of tab adds its name there.
-- Every other tab set keeps its state local: tabs that split one record into
-  sections, and tabs inside a card or a control (a judge's sheet, the
-  checklist's `Todos` / `Seleccionados`).
-- A record with tabs keeps its form in one of them: the tabs sit outside the
-  card, the fields' tab holds the card with its footer, and any other tab is a
-  table of its own with no card and no buttons (the dancer details, the
-  seminar's `Inscriptos`). The event's detail is the exception: its fields span
-  both tabs, so the card holds the tabs and a refused save brings the tab with
-  the error forward.
-- A panel that holds fields takes `forceMount` and `data-[state=inactive]:hidden`.
-  Radix unmounts an inactive panel, and with it the leave guard in the footer,
-  the inputs the save posts and a file picked in a native file input.
-- A controlled `Tabs` switches through `onValueChange`, never through `onClick`
-  on each trigger: the arrow keys switch tabs without a click.
-- Use `DropdownMenu` for contextual actions.
-- Do not build navigation with hand-styled buttons or links when an equivalent
-  shadcn component exists.
-
-## Page header
-
-Every page opens with its surface's shared header: `AdminResourceLayout` in the
-admin panel, `PortalPageHeader` in the academy portal (`PortalListPage` renders
-it on a list).
-
-- The title is an `h2` on every page, detail pages included, and a description
-  always follows it.
-- A detail page's title is the record's name (`Luna de Papel`), not its type
-  (`Detalle coreografía`), followed by its number when it has one:
-  `Luna de Papel # 007` for a choreography, `Luna de Papel · N.º 1` for a
-  presentation. The two markers stay apart because the numbers do: `#` is the
-  choreography's registration number in the event, `N.º` its place in the
-  program.
-- The actions slot holds the list's create button (`action`, which always draws
-  `Plus`), the `Acciones` menu ([Actions menu](#actions-menu)), or
-  nothing. Any other link or button goes through `headerAction` or the menu.
-
-## Detail pages
-
-A record's detail page shows its data as locked inputs (`disabled`, with the
-lock icon), in the same grid as its edit form, so viewing and editing look
-alike. Pages about money, scores or documents use `MetricCard`s and tables
-instead.
-
-- When the record's state locks fields, an `info` `Alert` above the form lists
-  every reason and what unlocks them, or says the lock is for good when nothing
-  does (`La evaluación no se puede anular.`), and speaks of the fields only.
-  The fields render as the shared read-only ones (`ReadOnlyField`,
-  `ReadOnlyDateField`, `ReadOnlySelectField`, `ReadOnlyTextareaField`), not as
-  a disabled picker or select: every locked field looks the same, and the
-  value still travels in the body. The alert shows to every role that can see
-  the record, auditors included. A field with no meaning for the record is left
-  out rather than rendered locked: not applicable is not blocked.
-- An action the record's state forbids is never refused after the submit, and
-  never disabled either, on a detail page or a list page alike (the portal's
-  `Nueva coreografía` too): the `Acciones` menu item or button stays enabled, and
-  the click opens an acknowledgment instead of the action, `BlockedActionDialog`.
-  The one exception is a pair of actions that undo each other, which the menu
-  shows as the one item the state calls for ([Actions menu](#actions-menu)).
-  Its title says what cannot be done (`No se puede bonificar la coreografía`),
-  its description says what it takes, its `info` `Alert` lists every reason, and
-  `Cerrar` is its only button. A disabled control cannot say why — a tooltip
-  cannot hold a list and does not reach touch screens — and an alert on the page
-  would sit on nearly every record and stop being read. When the same state also
-  locks fields, the field alert and the acknowledgment each give the reasons
-  that concern them.
-
-  The blocked mode of `DeleteDialog` is built on it for a deletion; its
-  description says what it takes to delete, not what deleting does. The
-  server still refuses, for the race. A submit button disabled until the form
-  is complete or changed is not a block by the record's state, and stays as it
-  is.
-
-- Every shared field draws the lock icon when disabled, `TextareaField`
-  included. A `Switch` does not: its disabled look already reads as locked.
-
-## Tables and lists
-
-Use tables as the default pattern for operational lists, especially in
-administration. On a mobile surface, adapt to compact cards or stacked lists.
-
-A list read on a phone — the portal's and the public program — does this with
-`ClientDataTable`'s `renderCard`: below `sm` the rows become compact cards,
-searched, filtered and paged like the table, which stays as it is above `sm`.
-Do not hide columns to fit a phone: a card holds every column the table has,
-leaving out only the empty ones. A card reads top to bottom: the linked name
-with its number on the right, then what the row is (a muted line, `·`-joined),
-then what the list is about — a result's badge on the left and its figure on
-the right, or who dances. Nothing in a card is cut: a phone has no hover
-for a truncated cell's `title`, so long values wrap. The portal `Resultados` list is the reference, and every list of `ProgramListRow`
-builds on `ProgramRowCard`. Cards have no sort header, selection or reordering; a list that needs one of them on
-a phone needs its own design first.
-
-Rules:
-
-- Use `Table` or derived components such as `DataTable` before creating custom
-  tables.
-- Keep header, hover, cell and state styles inside the shared component when the
-  pattern repeats.
-- Use badges for states.
-- A table has no actions column. A row's actions are reached from its name:
-  the link to its detail page, or, for a record with no page, a
-  `Button variant="link"` that opens a `Dialog` holding them (an audit link,
-  a QR code batch). When the row's state forbids all of them, the name opens
-  `BlockedActionDialog` instead.
-- Show bulk actions only when there is an active selection.
-- Keep the search box and the faceted filters in one toolbar above the table.
-  Each applied filter is a button group: the field as muted text (with its
-  icon, when the group has one), the value as a button whose menu picks another
-  single value, and a trash button that removes it. The rest are added from the
-  "Agregar filtro" icon button, which hides once every group is applied. The
-  table keeps its full width: do not put filters in a panel, `Sheet` or
-  `Dialog` that takes room from the list or covers it.
-- Draw a value the way the list already draws it: a status reads as its badge
-  (`renderValue` on the group). Give a group the icon the sidebar uses for its
-  concept, so a field reads the same everywhere.
-- A value's menu has no search; the add picker offers one for a group of more
-  than seven values. This is the single-select case only: a filter that takes
-  several values at once is still a multi-select `Combobox`, as the forms rules
-  say.
-- Use a sticky header only on long lists.
-- Leave a list on the default `auto` layout unless it actually overflows. `auto`
-  lets each column ask for the width it needs, and forcing a table with narrow
-  columns —a number, a date, a badge, an amount— to fill the page only spreads
-  short content across it.
-- Reach for `layout="fit"` on a list that does overflow, which in practice means
-  one with several free-text columns. Give every column a `width`, and cut the
-  long cells with `DataTableTruncatedText` rather than letting them wrap.
-  Tune the weights so every header fits at the 1280px floor, taking the room
-  from the free-text columns that truncate anyway: a share that fits at 1280
-  only grows wider above it.
-- A `width` is a share of the row, not a percentage: the table divides each
-  column by the total. Do not make them add up to 100 — the selection checkbox
-  is a column the view never declares, and a budget balanced to 100% would
-  overflow the row by exactly its width.
-
-## Cards and panels
-
-Use cards sparingly. Do not use them as the general page structure.
-
-Rules:
-
-- Card: repeated item, modal, authentication, empty state or one-off summary.
-- Panel: grouping of a form or detail section.
-- Section: page block without a box, separated by spacing and a heading.
-- Do not nest cards inside cards.
-- Use `Card` for visual panels with a border or surface.
-- Use `<section>` without a card when only semantic separation or spacing is
-  needed.
-- If the panel has a title or description, use `CardHeader`, `CardTitle` and
-  `CardDescription`.
-- If the panel only groups content without its own title, use `CardContent`.
-- Use the full composition where appropriate: `CardHeader`, `CardTitle`,
-  `CardDescription`, `CardContent`, `CardFooter`.
-- Do not override `Card`'s color, border, radius or shadow except for a very
-  concrete local need.
-- Migrate custom panels with a border/surface to `Card` when the file is touched
-  or in a dedicated pass.
-
-## Interface text
-
-The entire visible interface is in Spanish. Use a neutral, direct and operational
-Rioplatense tone.
-
-Rules:
-
-- Use forms such as `Ingresá`, `Revisá`, `Completá`.
-- Avoid a marketing tone in operational flows.
-- Name buttons with a verb and an object where it helps: `Guardar cambios`,
-  `Registrar pago`, `Publicar resultados`.
-- In empty states, explain the cause and the next available action.
-- In errors, state what to correct. Use generic messages only as a fallback.
-- In administration, use canonical glossary terms such as `Coreografía`,
-  `Presentación` and `Estado financiero`.
-- In the academy portal, avoid internal jargon when it does not help the action.
-- Use lowercase for domain terms inside sentences (`Nuevo bailarín`,
-  `Editar profesor`, `Guardar coreografía`) unless they start a sentence, appear
-  in titles/sections, or are proper nouns. Fix existing inconsistencies when the
-  screen is touched.
+# Style guide
+
+The judgement calls of the product's interface, one decision each with its
+reason and a component that already gets it right. The base is shadcn/ui
+`radix-nova`: its components in `app/components/ui`, its tokens and its font.
+
+The mechanical rules are not here. `pnpm lint` holds them, each message
+carrying its reason (the list heads `scripts/oxlint-ui-plugin.mjs`), and
+`pnpm check:repo-styles` holds theme colours and `gap` over `space-*`. When a
+lint message and this page seem to disagree, the lint message is current.
 
 ## Theme
 
-Keep the shadcn `radix-nova` theme and its light/dark tokens. Do not remove dark
-support coming from shadcn, but do not design a custom dark experience or add
-custom `dark:` overrides either, except for a concrete need.
+- **Operational, not showcase.** Light surfaces, sharp hierarchy, medium
+  density: these screens are read and filled in all day. No hero, large
+  gradient or decorative background.
+- **Tokens and variants before classes.** A colour, radius or state comes from
+  a token or a component variant; `className` is for layout (grid, flex, gap,
+  width, margin). A case with no token gets a one-off class; a second case
+  gets a variant or a component. A new token, variant or typeface is a product
+  decision, not a fix.
+- **A state is a `Badge`**: a semantic variant (`success`, `info`, `warning`,
+  `destructive`) when its meaning is stable, a neutral one otherwise.
+- **A shadcn component before custom markup.** If the right one is not
+  installed and the case fits it, add it (see [shadcn.md](shadcn.md)); never
+  install one without a use.
 
-The product can operate in light by default. If dark mode later becomes a
-requirement, use the theme's tokens instead of hardcoding colors per screen.
+## Viewports
+
+- **Design at 1440 px; everything works down to 1280 px**, a 1366×768 laptop
+  or a 1920×1080 one at 150%. At 1280 the admin sidebar leaves about 1000 px:
+  that is the budget of a table or a form row. Filters and actions sit above
+  the list, never in a side panel.
+- **Below 1280, nothing breaks**: content may scroll sideways, never overlap.
+  No page `min-width`: it breaks phones and zoom.
+- **Phones:** the public program and the academy portal, which academies fill
+  in from their phones. A portal screen that is built or changed also works at
+  390 px. Judging waits for its remake; the admin panel is desktop-only.
+
+## Alerts
+
+Which channel carries a message (alert, toast or field) is
+[form-feedback.md](form-feedback.md#which-channel-carries-a-message).
+
+- **An alert's variant says what kind of message it is**, not how loud:
+  `info` a state to know, including a lock and what unlocks it; `warning`
+  something to fix or regret; `destructive` an error or what cannot be undone;
+  `success` an outcome that stays on screen.
+- **The title says what is going on in a few words; the description gives the
+  detail and what to do.** A lead line that introduces a list is the title.
+  A list is a bulleted `ul` in the description; a reason that can only be one
+  is a sentence. An alert whose variant is chosen at run time picks its icon
+  from the same table: `AccessNotice` (`app/components/auth/access-ui.tsx`).
+- **Alerts above a form go in `AlertStack`**, each guarded where it is used
+  (`condition ? <Alert /> : null`), so an empty stack leaves no gap.
+- **A toast looks like its alert.** `AppToaster` sets the icons once from
+  `alertVariantIcons`; leave Sonner's duration unless a case needs another,
+  with the reason beside it. A toast's button is a `link` button in the
+  toast's colour that dismisses it: `useRosterRefusalToast`
+  (`app/components/shared/roster-document-conflict.tsx`).
+
+## Buttons
+
+- **One primary action per visual zone.** Page and form buttons take the
+  default size; `sm` is for a table row or an alert.
+- **An icon repeats the label**: `Check` saves, `Trash2` deletes, `Cancelar`
+  has none. A destructive action other than a delete carries its own icon or
+  none.
+- **An icon-only button has an accessible name and a tooltip**, unless its
+  icon is obvious: `Trash2`, `X`, play and pause, `Download`, `Copy`, a drag
+  handle, `Volver`'s chevron. Text cut by truncation keeps a native `title`.
+
+### Actions menu
+
+- **A page's actions live in `ResourceActionsMenu`** (`Acciones`, after the
+  `Ellipsis` icon, no tooltip). A `DropdownMenuSeparator` sets the
+  destructive items apart, last.
+- **Two actions that undo each other are one item**, the one the record's
+  state calls for (`Publicar resultado` / `Ocultar resultado`). Any other item
+  the state forbids stays enabled and opens `BlockedActionDialog`
+  ([Detail pages](#detail-pages)).
+
+## Pending and transitions
+
+- **Pending shows on what is working**, never as a global spinner. The button
+  that started a request is disabled and shows a spinner; `Cancelar` and every
+  other footer action are disabled with it, so the form cannot be closed or
+  resubmitted mid-request. `Volver` is a link through the leave guard and
+  stays live.
+- **A fragment that updates alone gets an inline spinner**; a table that
+  refreshes keeps its rows, and a screen with data keeps its shell, breadcrumbs
+  and title mounted.
+- **Skeletons only for a real deferred reveal** whose structure is known,
+  shaped like what arrives; never for a loader that still blocks, nor for a
+  short mutation.
+- **One view transition between pages: the record title**, morphing from its
+  row's `DataTableLink recordTitle` into the detail's title and back. Every
+  other page change swaps without a crossfade; a transition never covers for a
+  slow loader.
+
+## Forms
+
+- **Labels sit above the field.** A placeholder shows an example or a short
+  rule (`Opcional`, `Mínimo 8 caracteres`), never the label. The exception is
+  a row repeater: each field keeps an `sr-only` label and the placeholder names
+  it; the column labels show once, above the first row.
+- **`FieldDescription` holds what must stay on screen while filling in.**
+- **Several options are picked in place with `ChecklistField`**
+  (`app/components/shared/checklist-field.tsx`), never in a popover that covers
+  what follows. Up to eight options it is a plain checkbox group; from nine on
+  it adds a search and the `Todos | Seleccionados` tabs, because only then
+  does the list scroll (#1262). One option of a few shown in place is
+  `OptionCardsField`; both draw `ChoiceCard`s.
+- **`Checkbox` for a boolean submitted with the form, `Switch` for a setting
+  that reads as on or off.**
+- **A shared field before a local `Controller`**: the fields in
+  `app/components/shared/*-field.tsx` own their `Controller`. A local one is
+  for what has no shared field yet: arrays, checkbox groups, confirmation
+  controls.
+- **A required field is said in words when the context needs it**, never by an
+  asterisk alone. An empty required field reads `Este campo es obligatorio.`,
+  whatever the control; a specific message is for a value that is present and
+  wrong.
+- **Validate on submit.** No field shows an error before `Guardar`; from then
+  on its error follows what is typed. A running total beside the fields is not
+  a field and may show its state live.
+- **Client errors are inline (`FieldError`, `data-invalid`); server errors are
+  a toast**, with the submitted values kept so they can be corrected.
+- **A long form splits into titled sections**, never nested cards.
+
+### Forms in code
+
+- **Every form is React Hook Form with a Zod schema and shadcn fields**, on
+  every surface. The one exception is an action-only form: a submit button and
+  hidden inputs, no editable control (logout, a delete).
+- **The server action reuses the schema or its rules** and re-validates,
+  authorizes and persists; the client only validates and holds state. HTML
+  validation (`required`, `pattern`) never stands in for it; input attributes
+  such as `type`, `min` and `autoComplete` are welcome.
+- **Types come from the schema**: `z.input` for the form's values, `z.output`
+  for the validated ones. A cast on `zodResolver` means the types drifted.
+- **A form posts through React Router**: `useSubmit` when the submit keeps the
+  route's navigation or redirect, a fetcher when the screen or dialog must stay
+  mounted through a recoverable error. Build the body with
+  `createValidatedRouteFormDataSubmitHandler`, which sends a `FormData` from the
+  values React Hook Form validated and keeps `intent` and hidden fields.
+- **An effect that calls a form method depends on that method**
+  (`const { reset } = form`), not on the whole form.
+
+### Form layout
+
+- **One `AdminResourceFormCard` holds the whole form**, with no header and no
+  maximum width; alerts about the form sit above it in `AlertStack`.
+- **Fields go in `FieldGroup className="grid gap-5 md:grid-cols-2"`**; a field
+  that needs the width spans both.
+- **The actions close the card as its last row**: `FormActions` (`PinnedActions`
+  on a read-only page) as the card's `footer`, `BackButton` on the left,
+  `SubmitButton` on the right with `Descartar cambios` beside it when there is
+  more than one field. The row is sticky and stays one row on a phone: below
+  `sm`, `Volver` shrinks to its chevron; the actions that change or drop data
+  keep their words. A plain `Card` holding it takes `overflow-clip`, since
+  `overflow-hidden` stops a sticky child.
+- **A form in a `Dialog` is one column**, `Cancelar` then the primary action.
+- **With tabs, the footer goes where the form is**: closing the fields' tab
+  when one tab holds the form, closing the card around the tabs when one form
+  spans them (the event's detail). A panel keeps `forceMount` and hides when
+  inactive only when it holds something a switch must not lose: a picked file,
+  fields another tab's `Guardar` posts, the leave guard.
+
+## Editing and saving
+
+What happens after the submit is [form-feedback.md](form-feedback.md).
+
+- **One save model per form: an explicit `Guardar`.** Selects, checklists and
+  file fields wait for it too, since arrowing through a select already picks
+  ([Primer, Saving](https://primer.style/product/ui-patterns/saving/)). Only a
+  single field nothing else depends on may save on its own, with its own
+  confirm and cancel.
+- **No edit mode.** A detail page shows its fields editable in place; a user who
+  may not edit sees them disabled with only `Volver`.
+- **`Guardar` is disabled until something differs from what is saved**, and
+  while a submit or a preview runs; after a server error it stays enabled.
+  Create forms measure against their empty defaults.
+- **Leaving with unsaved changes asks**, through `DiscardChangesDialog`: on a
+  page the guard sits on the router (`useBlocker` and `beforeunload`), since
+  the sidebar, the breadcrumbs and the browser's back are ways out too; in a
+  dialog, `useDiscardGuard`.
+- **Fields that affect each other stay on one screen**, never split across
+  tabs, steps or dialogs ([NN/g, Tabs](https://www.nngroup.com/articles/tabs-used-right/)).
+  When a change makes the server recalculate others, preview it through a
+  fetcher, pending on the fields that will change; the save re-checks it.
+- **Confirm a save only when it has consequences beyond the edited fields**,
+  and name each one (`Bea Lagos (queda retirada)`). A dialog on every save
+  teaches people to click past it.
+- **An action `intent` is a server boundary**, not a reason to split a screen
+  into forms: one `Guardar` may post a draft the action applies as several
+  operations in one transaction.
+
+## Destructive actions
+
+- **An `AlertDialog` confirms; a `Dialog` holds a form or a view.** The
+  `AlertDialog` traps focus and ignores an outside click, which is what a
+  yes/no on a consequential action wants.
+- **A confirmation that waits on its request passes `isPending` to
+  `ConfirmationDialog`**, which keeps it open, and the caller closes it once
+  settled (`useCloseOnceSettled`).
+- **The verb is `destructive` only when the action destroys or reverses.**
+- **A destructive action is confirmed in a dialog**, never by a checkbox on a
+  form, and complex forms stay out of a confirmation.
+
+## Navigation
+
+- **Each surface has its shell**: a sidebar for the admin, a topbar with tabs
+  for the portal, a minimal topbar for judging, a simple one for public views,
+  a centred card for authentication.
+- **The last breadcrumb repeats the page title**: `Nueva categoría`.
+- **Tabs switch between sibling views**, never through the fields of one form.
+  A controlled `Tabs` switches through `onValueChange`, so the arrow keys work.
+- **Tabs that switch what a page lists keep the tab in the URL** through
+  `useUrlTab` (`app/lib/shared/url-tab.ts`), which owns the default, the
+  history entry, the reset page and the parameter names (`?tipo=`, `?dia=`).
+  Tabs inside one record, a card or a control keep their state local.
+- **A record with tabs keeps its form in one of them**: the tabs outside the
+  card, every other tab a table of its own (the dancer's details, a seminar's
+  `Inscriptos`). The event's detail is the exception: one form spans its tabs,
+  and a refused save brings the erring tab forward.
+
+## Page header
+
+- **Every page opens with its surface's header**: `AdminResourceLayout`, or
+  `PortalPageHeader` (`PortalListPage` on a list), a title and always a
+  description.
+- **A detail page's title is the record's name**, then its number:
+  `Luna de Papel # 007` for a choreography (registration number),
+  `Luna de Papel · N.º 1` for a presentation (place in the program).
+- **The header's action slot** holds the list's create button (`Plus`), the
+  `Acciones` menu, or nothing; anything else goes through `headerAction`.
+
+## Detail pages
+
+- **A record's data shows as locked inputs in its form's grid**, so viewing and
+  editing look alike. Money, scores and documents use `MetricCard`s and tables.
+- **Fields the record's state locks render as the shared read-only fields**
+  (`ReadOnlyField` and its siblings), under an `info` alert that lists every
+  reason and what unlocks it, or says the lock is for good. Every role that
+  sees the record sees it. A field with no meaning for the record is left out:
+  not applicable is not blocked.
+- **An action the state forbids is never disabled and never refused after the
+  submit**: it opens `BlockedActionDialog`, whose `info` alert lists every
+  reason and whose only button is `Cerrar`. A disabled control cannot say why,
+  and a page alert would sit on nearly every record. The server still refuses,
+  for the race.
+- **Every shared field draws the lock icon when disabled**; a `Switch` does
+  not, its disabled look already reads as locked.
+
+## Tables and lists
+
+- **Operational lists are tables** (`ClientDataTable`, `ServerDataTable`).
+  On a phone, `renderCard` turns rows into cards below `sm`, holding every
+  column the table has except the empty ones: name and number, then what the
+  row is, then what the list is about, nothing truncated. The portal
+  `Resultados` list is the reference; program lists build on `ProgramRowCard`.
+- **No actions column.** A row's actions are reached from its name: its detail
+  page, or a `link` button opening a `Dialog` for a record with no page; when
+  the state forbids them all, the name opens `BlockedActionDialog`.
+- **Bulk actions show only with a selection.**
+- **Search and filters share one toolbar above the table.** An applied filter
+  is a button group: the field, its value as a menu, a trash button; the rest
+  come from `Agregar filtro`. A value reads the way the list draws it (its
+  badge), with the icon the sidebar gives its concept. A value's menu has no
+  search; the add picker gets one past seven values.
+- **Every row is one height, 40 px, set by the shared table**
+  (`data-table-shell.tsx`). A view never sizes a row; a control inside a cell
+  fits it, and its cell trims its padding rather than growing the row
+  (the presentation list's number input and drag grip).
+- **Tabs sit 16 px above the list's search through `ListTabs`**
+  (`app/components/shared/list-tabs.tsx`), never spaced per page.
+- **A list keeps the `auto` layout unless it overflows.** One that does
+  (several free-text columns) takes `layout="fit"`, a `width` on every column
+  and `DataTableTruncatedText` on the long cells, tuned so every header fits at
+  1280 px. A `width` is a share of the row, so the weights need not add to 100.
+
+## Cards
+
+- **A card is for a repeated item, a modal, authentication, an empty state or a
+  one-off summary**, never the page's structure, and never nested. A `section`
+  with a heading separates what needs no box. A card with a title uses
+  `CardHeader`, `CardTitle` and `CardDescription`.
+
+## Interface text
+
+- **Spanish, Rioplatense, neutral and operational**: `Ingresá`, `Revisá`,
+  `Completá`; no marketing tone.
+- **A button names a verb and, where it helps, its object**: `Registrar pago`,
+  `Publicar resultados`.
+- **An empty state says why and what to do next; an error says what to
+  correct**, with a generic message only as a fallback.
+- **The admin uses [GLOSSARY.md](../../GLOSSARY.md)'s terms**, the portal no
+  jargon that does not help; inside a sentence they are lowercase
+  (`Nuevo bailarín`).
