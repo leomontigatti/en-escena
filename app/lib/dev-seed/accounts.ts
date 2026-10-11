@@ -7,7 +7,9 @@ export const DEV_SEED_ACADEMY_EMAIL = "academia@enescena.local";
 export const DEV_SEED_AUDITOR_EMAIL = "auditoria@enescena.local";
 export const DEV_SEED_JUDGE_EMAIL = "jurado@enescena.local";
 export const DEV_SEED_LEGACY_ACADEMY_EMAIL = "academia.antigua@enescena.local";
-export const DEV_SEED_PASSWORD = "demo-en-escena";
+// Public demo data printed by `pnpm db:seed`, not a credential: `ggignore` keeps
+// GitGuardian from reporting it.
+export const DEV_SEED_PASSWORD = "demo-en-escena"; // ggignore
 
 /** The account `pnpm ui:session <role>` signs in as, by the role's name. */
 export const DEV_SEED_ACCOUNTS = {
