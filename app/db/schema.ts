@@ -10,3 +10,4 @@ export * from "./schema/comprobantes";
 export * from "./schema/presentations";
 export * from "./schema/judging";
 export * from "./schema/grand-final";
+export * from "./schema/operations";

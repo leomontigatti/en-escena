@@ -7,12 +7,16 @@ import {
 } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import type { UnexpectedErrorEntry } from "./unexpected-error-store.server";
 import {
   reportUnexpectedServerError,
   routePatternInstrumentation,
 } from "./unexpected-error-log.server";
 
 const signedInUser = async () => "user-123";
+// The row and its alert are `recordUnexpectedError`'s, tested against the
+// database beside it; here only whether a report reaches it is observed.
+const recordError = vi.fn(async (_entry: UnexpectedErrorEntry) => {});
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 
@@ -22,6 +26,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  recordError.mockClear();
   vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -47,7 +52,7 @@ describe("handleError behind the route pattern instrumentation", () => {
       void reportUnexpectedServerError(
         error,
         { request, params },
-        { resolveUserId: signedInUser },
+        { resolveUserId: signedInUser, recordError },
       );
     };
     const build = {
@@ -143,10 +148,11 @@ describe("reportUnexpectedServerError", () => {
       await reportUnexpectedServerError(
         refusal,
         { request: portalRequest(), params: {} },
-        { resolveUserId: signedInUser },
+        { resolveUserId: signedInUser, recordError },
       );
 
       expect(consoleError).not.toHaveBeenCalled();
+      expect(recordError).not.toHaveBeenCalled();
     },
   );
 
@@ -157,7 +163,7 @@ describe("reportUnexpectedServerError", () => {
     await reportUnexpectedServerError(
       new Error("The operation was aborted."),
       { request: portalRequest({ signal: controller.signal }), params: {} },
-      { resolveUserId: signedInUser },
+      { resolveUserId: signedInUser, recordError },
     );
 
     expect(consoleError).not.toHaveBeenCalled();
@@ -167,7 +173,7 @@ describe("reportUnexpectedServerError", () => {
     await reportUnexpectedServerError(
       new Error("boom"),
       { request: portalRequest(), params: {} },
-      { resolveUserId: signedInUser },
+      { resolveUserId: signedInUser, recordError },
     );
     expect(loggedLine().route).toBe("/portal");
 
@@ -180,7 +186,7 @@ describe("reportUnexpectedServerError", () => {
         ),
         params: { dancerId: "dancer-7" },
       },
-      { resolveUserId: signedInUser },
+      { resolveUserId: signedInUser, recordError },
     );
     expect(loggedLine().route).toBe("unknown");
   });
@@ -193,6 +199,7 @@ describe("reportUnexpectedServerError", () => {
         resolveUserId: async () => {
           throw new Error("connect ECONNREFUSED 127.0.0.1:5432");
         },
+        recordError,
       },
     );
 
@@ -204,7 +211,10 @@ describe("reportUnexpectedServerError", () => {
     const report = reportUnexpectedServerError(
       new Error("boom"),
       { request: portalRequest(), params: {} },
-      { resolveUserId: () => new Promise<string | null>(() => {}) },
+      {
+        resolveUserId: () => new Promise<string | null>(() => {}),
+        recordError,
+      },
     );
 
     await vi.advanceTimersByTimeAsync(1000);
@@ -219,7 +229,7 @@ describe("reportUnexpectedServerError", () => {
     await reportUnexpectedServerError(
       new Error("boom"),
       { request: portalRequest(), params: {} },
-      { resolveUserId: signedInUser },
+      { resolveUserId: signedInUser, recordError },
     );
 
     expect(loggedLine()).toMatchObject({ release: "unknown" });
@@ -239,7 +249,7 @@ describe("reportUnexpectedServerError", () => {
     await reportUnexpectedServerError(
       error,
       { request: portalRequest({ method: "POST" }), params: {} },
-      { resolveUserId: signedInUser },
+      { resolveUserId: signedInUser, recordError },
     );
 
     expect(loggedLine().stack).toMatch(

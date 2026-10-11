@@ -6,6 +6,7 @@ import type { Params, ServerInstrumentation } from "react-router";
 import { readRelease } from "@/lib/shared/app-environment.server";
 import { readErrorProperty } from "@/lib/shared/error-properties.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
+import type { UnexpectedErrorEntry } from "@/lib/shared/unexpected-error-store.server";
 import {
   describeErrorStack,
   isDeliberateRefusal,
@@ -14,6 +15,7 @@ import {
 
 type UnexpectedServerErrorDependencies = {
   resolveUserId: (request: Request) => Promise<string | null>;
+  recordError: (entry: UnexpectedErrorEntry) => Promise<void>;
 };
 
 // `handleError` is given the matched params but not the route pattern, and the
@@ -53,15 +55,16 @@ const routePatternInstrumentation: ServerInstrumentation = {
 
 /**
  * Writes the one `[server:unexpected]` line for an error React Router hands to
- * `handleError`, as a single JSON line so a grep on the tag returns all of it.
- * The line names the route by its pattern and carries no request data: param
- * values, query string, form body, headers and session stay out, since they
- * hold dancer and payment data (Ley 25.326 minimisation, #987).
+ * `handleError`, as a single JSON line so a grep on the tag returns all of it,
+ * and hands the same fields to `recordError`, which keeps them as a row and
+ * alerts. The line names the route by its pattern and carries no request
+ * data: param values, query string, form body, headers and session stay out,
+ * since they hold dancer and payment data (Ley 25.326 minimisation, #987).
  */
 async function reportUnexpectedServerError(
   error: unknown,
   { request, params }: { request: Request; params: Params },
-  { resolveUserId }: UnexpectedServerErrorDependencies,
+  { resolveUserId, recordError }: UnexpectedServerErrorDependencies,
 ): Promise<void> {
   if (request.signal.aborted || isDeliberateRefusal(error)) {
     return;
@@ -70,16 +73,18 @@ async function reportUnexpectedServerError(
   // Read before the first `await`, while still inside the request's scope.
   const route = readRoutePattern(request, params);
   const userId = await resolveUserIdWithin(resolveUserId, request);
+  const at = new Date();
   const line = {
     route,
     method: request.method,
     userId,
-    at: new Date().toISOString(),
+    at: at.toISOString(),
     release: readRelease(),
     stack: describeServerError(error),
   };
 
   console.error(`[server:unexpected] ${JSON.stringify(line)}`);
+  await recordError({ ...line, source: "server", at });
 }
 
 // An error raised before any loader ran (the CSRF check, a failed match) has
