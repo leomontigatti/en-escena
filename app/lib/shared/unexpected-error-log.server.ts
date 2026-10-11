@@ -175,6 +175,7 @@ function constraintOf(cause: unknown) {
 
 export {
   describeServerError,
+  resolveUserIdWithin,
   reportUnexpectedServerError,
   routePatternInstrumentation,
 };

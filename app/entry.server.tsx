@@ -12,7 +12,7 @@ import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
 
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import { createOpsAlertSender } from "@/lib/shared/ops-alert.server";
+import { sendOpsAlert } from "@/lib/shared/ops-alert.server";
 import {
   reportUnexpectedServerError,
   routePatternInstrumentation,
@@ -23,11 +23,6 @@ export const streamTimeout = 5_000;
 
 // Records each request's route pattern for `handleError`, which is not given it.
 export const instrumentations = [routePatternInstrumentation];
-
-const sendOpsAlert = createOpsAlertSender({
-  environment: process.env,
-  fetch: globalThis.fetch,
-});
 
 export const handleError: HandleErrorFunction = (
   error,

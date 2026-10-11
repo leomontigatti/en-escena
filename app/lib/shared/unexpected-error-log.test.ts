@@ -5,25 +5,30 @@ import { reportUnexpectedClientError } from "./unexpected-error-log";
 
 describe("reportUnexpectedClientError", () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
+  let fetchFake: ReturnType<typeof vi.fn<typeof fetch>>;
 
   beforeEach(() => {
     consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchFake = vi.fn<typeof fetch>(
+      async () => new Response(null, { status: 204 }),
+    );
+    vi.stubGlobal("fetch", fetchFake);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-18T22:15:00.000Z"));
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  test("writes one tagged line with route pattern, time, release and stack", () => {
+  test("writes one tagged line with route pattern, time and stack", () => {
     const error = new TypeError("Cannot read properties of undefined");
 
     reportUnexpectedClientError(error, {
       // As React Router hands it over: the routes' relative paths joined.
       pattern: "portal/bailarines/:dancerId",
-      release: "a383c3a4480b9286af5acfdff5290ec1836cfda3",
     });
 
     expect(consoleError).toHaveBeenCalledTimes(1);
@@ -33,17 +38,67 @@ describe("reportUnexpectedClientError", () => {
     expect(JSON.parse(output.slice("[client:unexpected] ".length))).toEqual({
       route: "/portal/bailarines/:dancerId",
       at: "2026-10-18T22:15:00.000Z",
-      release: "a383c3a4480b9286af5acfdff5290ec1836cfda3",
       stack: error.stack,
     });
+  });
+
+  test("sends the same line to the server, which keeps it", () => {
+    const error = new TypeError("Cannot read properties of undefined");
+
+    reportUnexpectedClientError(error, { pattern: "portal" });
+
+    expect(fetchFake).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchFake.mock.calls[0];
+    expect(url).toBe("/internal/client-error");
+    expect(init).toMatchObject({
+      method: "POST",
+      credentials: "same-origin",
+      keepalive: true,
+      headers: { "content-type": "application/json" },
+    });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      route: "/portal",
+      at: "2026-10-18T22:15:00.000Z",
+      stack: error.stack,
+    });
+  });
+
+  test("trims a long browser stack so the report fits the endpoint's 8 KB", () => {
+    const error = new Error("too much recursion");
+    error.stack = `InternalError: too much recursion\n${"render@https://sistema.enescena.com.ar/assets/chunk-DkS2F3a_.js:1:23456\n".repeat(200)}`;
+
+    reportUnexpectedClientError(error, { pattern: "portal" });
+
+    const body = String(fetchFake.mock.calls[0][1]?.body);
+    expect(new TextEncoder().encode(body).byteLength).toBeLessThan(8 * 1024);
+    expect(JSON.parse(body).stack).toMatch(
+      /^InternalError: too much recursion\n/,
+    );
+  });
+
+  test("stops sending after a page's first few errors, so a render loop cannot flood the server", async () => {
+    // A fresh module is a fresh page load.
+    vi.resetModules();
+    const { reportUnexpectedClientError: reportOnFreshPage } =
+      await import("./unexpected-error-log");
+
+    for (let index = 0; index < 50; index += 1) {
+      reportOnFreshPage(new Error(`boom ${index}`), {
+        pattern: "portal",
+      });
+    }
+
+    expect(consoleError).toHaveBeenCalledTimes(50);
+    expect(fetchFake).toHaveBeenCalledTimes(10);
   });
 
   test("writes nothing for a refusal the boundary renders", () => {
     reportUnexpectedClientError(
       new UNSAFE_ErrorResponseImpl(403, "Forbidden", "No tenés permiso."),
-      { pattern: "administracion", release: "unknown" },
+      { pattern: "administracion" },
     );
 
     expect(consoleError).not.toHaveBeenCalled();
+    expect(fetchFake).not.toHaveBeenCalled();
   });
 });

@@ -101,5 +101,11 @@ function readTopicId(value: string | undefined) {
   return topicId;
 }
 
-export { createOpsAlertSender };
+/** The process's one sender, so the unset case is announced once. */
+const sendOpsAlert = createOpsAlertSender({
+  environment: process.env,
+  fetch: (...args) => globalThis.fetch(...args),
+});
+
+export { createOpsAlertSender, sendOpsAlert };
 export type { SendOpsAlert };
