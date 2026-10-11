@@ -42,9 +42,10 @@ Validate as you go: `pnpm typecheck` and the single test file for the slice
 
 ## 3. Validate once at the end
 
-Run the list in [`docs/agents/validation.md`](../../../docs/agents/validation.md): `pnpm typecheck`,
-`pnpm lint`, `pnpm test:unit`, and `pnpm test:db <path>` for the DB test files you touched. Fix and
-re-run each until it is clean before moving to the next. CI owns the full `pnpm test`.
+Run the list in [`docs/agents/validation.md`](../../../docs/agents/validation.md): `pnpm gate`
+(typecheck, lint and unit tests, failures only) and `pnpm test:db <path>` for the DB test files you
+touched. Fix and re-run each until it is clean before moving to the next. CI owns the full
+`pnpm test`.
 
 ## 4. Verify in the browser
 
