@@ -109,7 +109,8 @@ the audit of 2026-10-11 found a dozen packages to bump, and most of them were
 plain minor or patch releases nobody had got round to. The objection above
 was to a queue of unreviewable PRs, and the config keeps that queue from forming:
 
-- one grouped PR per ecosystem a week (npm and GitHub Actions), at most five open;
+- one grouped PR per ecosystem a week (npm and GitHub Actions), at most five open
+  per ecosystem;
 - majors ignored, so each one is still a hand-written issue whose release notes
   are read against this repo;
 - a seven-day `cooldown`, which is longer than `minimumReleaseAge`'s three days,

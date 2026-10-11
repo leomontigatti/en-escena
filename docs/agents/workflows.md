@@ -613,9 +613,9 @@ Hook guidance:
     `minimumReleaseAge`.
   - **Dependency updates.** Dependabot opens version-update PRs for minor
     and patch releases only (`.github/dependabot.yml`): weekly, one grouped
-    PR per ecosystem (npm, GitHub Actions), at most five open. Its `cooldown`
-    of seven days stays above `minimumReleaseAge`, so a bump PR never asks
-    for a release pnpm refuses, and seven is the floor zizmor's
+    PR per ecosystem (npm, GitHub Actions), at most five open per ecosystem.
+    Its `cooldown` of seven days stays above `minimumReleaseAge`, so a bump PR
+    never asks for a release pnpm refuses, and seven is the floor zizmor's
     `dependabot-cooldown` audit enforces. Majors are ignored on purpose: each
     is a hand-written issue whose release notes are checked against this repo.
     A major, or any bump done by hand, targets the newest release that is at
