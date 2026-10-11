@@ -41,7 +41,8 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   `check:*` scripts.
 - **Subagents**: spawn `code-review`'s Standards and Spec axes and the readback as the
   `reviewer` agent, and research as the `research` agent; both run on Codex's gpt-6.1-sol.
-  Spawn the correctness axis as `reviewer-opus`, which runs on Opus for a second model
+  Run `scripts/agents/sol.sh doctor` once before the first of those spawns, and fix
+  what it fails. Spawn the correctness axis as `reviewer-opus`, which runs on Opus for a second model
   family; Codex has no Opus, so under Codex it stays on `reviewer` (see "Agent
   configuration" in [docs/agents/workflows.md](docs/agents/workflows.md)).
 - **Coding standards**: [docs/agents/coding-standards.md](docs/agents/coding-standards.md),

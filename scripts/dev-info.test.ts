@@ -25,9 +25,10 @@ describe("renderInfo", () => {
     tools: [{ name: "codex", ok: true, detail: "Logged in" }],
   };
 
-  it("prints a ready psql line and the table prefix for the database", () => {
+  it("prints the query and psql lines and the table prefix for the database", () => {
     const output = renderInfo({ ...base, database: "en-escena-wt-x" });
 
+    expect(output).toContain('pnpm db:sql "select …"');
     expect(output).toContain(
       "docker exec -it en-escena-postgres psql -U postgres -d en-escena-wt-x",
     );
@@ -37,7 +38,10 @@ describe("renderInfo", () => {
     expect(output).toContain("ok      codex: Logged in");
   });
 
-  it("drops the psql line when there is no database", () => {
-    expect(renderInfo({ ...base, database: null })).not.toContain("psql");
+  it("drops the query and psql lines when there is no database", () => {
+    const output = renderInfo({ ...base, database: null });
+
+    expect(output).not.toContain("psql");
+    expect(output).not.toContain("db:sql");
   });
 });

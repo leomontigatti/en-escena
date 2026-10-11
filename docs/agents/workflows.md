@@ -152,7 +152,7 @@ agent starts. The worktree's own database and dev port come later, on its first
 Actions → Import from t3.json), once per T3 install. `pnpm dev:info` reports
 that state without opening `.env`, which agents are denied: no `.env` means the
 script was never imported; `.env` but no `node_modules` means the install step
-failed. It also prints the dev port, the database with a ready `psql` line, and
+failed. It also prints the dev port, the database with the `pnpm db:sql` and `psql` lines, and
 which tools the shell reaches. The main checkout stays on
 `master` and is nobody's working directory.
 
@@ -236,7 +236,9 @@ relay to Codex.
   `codex exec` and returns the final message verbatim. The script names the model for
   Claude Code and the two `.toml` wrappers name it for Codex, so a model change touches
   all three. The script needs the `codex` CLI installed and logged in; without it the
-  relay reports `blocked` rather than doing the work on Haiku. Review sub-agents reach
+  relay reports `blocked` rather than doing the work on Haiku. `scripts/agents/sol.sh doctor`
+  checks that before any spawn, along with the `gh` login and `repo` scope the caller fetches
+  the spec with and the model answering a one-word prompt, and prints the fix for each failure. Review sub-agents reach
   `reviewer` through the routing line in `AGENTS.md`, since the vendored `code-review`
   skill takes no local edits. When T3 Code ships its orchestrator's `delegate_task`
   (pingdotgg/t3code#2829), the relays are what would change.
