@@ -1,5 +1,3 @@
-import { useActionData } from "react-router";
-
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAcademyGrandFinalAction,
@@ -39,13 +37,14 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function AcademyGrandFinalRoute({
+  actionData,
   loaderData,
 }: Route.ComponentProps) {
-  const actionData = useActionData<typeof action>();
-
   return (
     <AcademyGrandFinalView
-      actionData={actionData && "status" in actionData ? actionData : undefined}
+      actionData={
+        actionData && "message" in actionData ? actionData : undefined
+      }
       loaderData={loaderData}
     />
   );

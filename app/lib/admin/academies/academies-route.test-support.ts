@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { RouterContextProvider } from "react-router";
 
 import {
   AcademiesListRouteView,
@@ -24,7 +25,7 @@ export function academiesRouteArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/academias",
   };

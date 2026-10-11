@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { expectThrownResponse } from "@/lib/test-support/http";
@@ -15,7 +16,7 @@ describe("`/cambiar-contrasena` route", () => {
         pattern: "/cambiar-contrasena",
         request: new Request("http://localhost/cambiar-contrasena"),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );

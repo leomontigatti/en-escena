@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterContextProvider,
+  RouterProvider,
+} from "react-router";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
@@ -267,7 +271,7 @@ export function academyFinancesRouteArgs(request: Request, academyId: string) {
   return {
     request,
     params: { academyId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/finanzas/:academyId",
   };
@@ -277,7 +281,7 @@ export function financesListRouteArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/finanzas",
   };
@@ -287,7 +291,7 @@ export function paymentCreateRouteArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/pagos/nuevo",
   };

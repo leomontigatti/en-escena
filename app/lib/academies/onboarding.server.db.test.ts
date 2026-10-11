@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -531,7 +532,7 @@ function routeLoaderArgs(request: Request) {
   const url = new URL(request.url);
 
   return {
-    context: {},
+    context: new RouterContextProvider(),
     params: {},
     pattern: "/registro/academia",
     request,

@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, redirect } from "react-router";
+import {
+  createRoutesStub,
+  redirect,
+  RouterContextProvider,
+} from "react-router";
 import { expect } from "vitest";
 
 import { CategoryDetailView } from "@/features/admin/categories/detail/view";
@@ -355,7 +359,7 @@ export function routeArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/eventos",
   };
