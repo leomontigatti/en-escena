@@ -124,7 +124,7 @@ export function ChoreographyMusicEditorForm({
               existingPreviewUrl={choreography.musicDownloadUrl}
               {...getAssetUploadFieldProps("choreographyMusic")}
               previewKind="audio"
-              removeLabel="Borrar música"
+              removeLabel="Quitar música"
               onSelectedFileChange={handleSelectedMusicFileChange}
               onStorageKeyChange={handleMusicStorageKeyChange}
               onValidationErrorChange={handleMusicValidationErrorChange}

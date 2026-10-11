@@ -437,7 +437,7 @@ function RemoveDocumentsDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar los cambios</AlertDialogTitle>
+          <AlertDialogTitle>¿Guardar los cambios?</AlertDialogTitle>
           <AlertDialogDescription>
             Guardar elimina estos documentos. La acción no se puede deshacer y
             las academias van a dejar de verlos.

@@ -216,7 +216,7 @@ function getFileUploadControlConfig(
     placeholder = "",
     previewKind = "image",
     previewSelectedFile = true,
-    removeLabel = "Borrar imagen",
+    removeLabel = "Quitar imagen",
     replaceRequiresRemoval = false,
     storageKeyInputName,
     storageKeyValue = "",

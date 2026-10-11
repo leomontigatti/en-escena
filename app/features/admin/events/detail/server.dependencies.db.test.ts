@@ -99,7 +99,7 @@ describe("event dependencies on the event detail action", () => {
 
     expect(result).toMatchObject({
       status: "error",
-      message: "No se puede borrar un evento con dependencias operativas.",
+      message: "No se puede eliminar un evento con dependencias operativas.",
     });
     await expect(readEvent(event.id)).resolves.toBeDefined();
   });

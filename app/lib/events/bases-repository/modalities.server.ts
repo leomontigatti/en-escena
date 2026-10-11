@@ -506,7 +506,7 @@ async function modalityHasEventBaseDependencies(
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se puede borrar la modalidad porque tiene submodalidades relacionadas.",
+        "No se puede eliminar la modalidad porque tiene submodalidades relacionadas.",
     };
   }
 
@@ -520,7 +520,7 @@ async function modalityHasEventBaseDependencies(
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se puede borrar la modalidad porque tiene categorías relacionadas.",
+        "No se puede eliminar la modalidad porque tiene categorías relacionadas.",
     };
   }
 
@@ -534,7 +534,7 @@ async function modalityHasEventBaseDependencies(
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se puede borrar la modalidad porque tiene Cronogramas relacionados.",
+        "No se puede eliminar la modalidad porque tiene Cronogramas relacionados.",
     };
   }
 

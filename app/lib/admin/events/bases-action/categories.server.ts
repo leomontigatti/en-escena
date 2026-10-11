@@ -26,7 +26,7 @@ const categoryBasePath = "/administracion/categorias";
 const categorySavedNotification = "category-saved";
 const categoryDeletedNotification = "category-deleted";
 const categoryDeleteConfirmationMessage =
-  "Confirmá el borrado de la categoría antes de continuar.";
+  "Confirmá la eliminación de la categoría antes de continuar.";
 
 export const categoryActionHandler: EventBasesActionHandler<CategoryActionInput> =
   {

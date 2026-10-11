@@ -518,12 +518,12 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
 
     await openActionsMenu();
     await clickMenuItem("Emitir factura");
-    expect(document.body.textContent).toContain("Confirmar emisión");
+    expect(document.body.textContent).toContain("¿Emitir la Factura C?");
 
     await clickReactDomButton("revalidar");
 
     // The preview still shows the amount frozen on open, not a $ 0.
-    expect(document.body.textContent).toContain("Confirmar emisión");
+    expect(document.body.textContent).toContain("¿Emitir la Factura C?");
     expect(document.body.textContent).toContain("12.000");
   });
 });

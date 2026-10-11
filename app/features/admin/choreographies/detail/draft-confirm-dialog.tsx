@@ -1,3 +1,5 @@
+import { Check } from "lucide-react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +38,7 @@ export function ConfirmDraftDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar cambios</AlertDialogTitle>
+          <AlertDialogTitle>¿Guardar los cambios?</AlertDialogTitle>
           <AlertDialogDescription>
             Guardar esta coreografía también cambia lo siguiente. Revisalo antes
             de confirmar.
@@ -71,7 +73,8 @@ export function ConfirmDraftDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm}>
-            Confirmar y guardar
+            <Check aria-hidden="true" data-icon="inline-start" />
+            Guardar
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

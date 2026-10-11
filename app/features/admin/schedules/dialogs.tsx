@@ -85,7 +85,7 @@ export function ScheduleActions({
         description={
           deleteBlockReasons.length > 0
             ? "Para eliminarlo, no tiene que tener coreografías asignadas, tampoco retiradas, ni precios que lo cubran."
-            : `Esta acción borra ${schedule.name}. No se puede deshacer.`
+            : `Esta acción elimina ${schedule.name}. No se puede deshacer.`
         }
         isBlocked={deleteBlockReasons.length > 0}
         blockedDescription={<ReasonList reasons={deleteBlockReasons} />}
