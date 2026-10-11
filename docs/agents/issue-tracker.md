@@ -175,6 +175,8 @@ the destination takes when the map is reached.
 - **The frontier** is the open, unassigned, unblocked children. List the children with
   `gh issue view <map> --json subIssues`, keep the open ones, then drop any whose
   `gh issue view <n> --json assignees,blockedBy` shows an assignee or a blocker still `OPEN`.
+  The blockers are under `.blockedBy.nodes[]`, each with `.number` and `.state`:
+  `--jq '[.blockedBy.nodes[] | select(.state == "OPEN") | .number]'`.
 - **Claiming** is `gh issue edit <ticket> --add-assignee @me`, before any work.
 
 ### Research tickets
