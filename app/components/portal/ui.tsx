@@ -5,7 +5,7 @@ import {
   ClipboardList,
   GraduationCap,
   HandCoins,
-  Home,
+  House,
   Inbox,
   Info,
   ListOrdered,
@@ -208,7 +208,7 @@ const primaryNavigationItems = [
   {
     label: "Inicio",
     to: "/portal",
-    icon: Home,
+    icon: House,
   },
   {
     label: "Profesores",

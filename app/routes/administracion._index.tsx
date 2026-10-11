@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Link } from "react-router";
 import {
-  Building2,
+  BuildingComplex,
   ClipboardList,
   GraduationCap,
   HandCoins,
@@ -205,7 +205,7 @@ const auditorHomeCards = [
   {
     title: "Academias",
     description: "Consultá los datos y el contacto de cada academia.",
-    icon: Building2,
+    icon: BuildingComplex,
     to: "/administracion/academias",
   },
   {
