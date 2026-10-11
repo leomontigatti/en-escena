@@ -814,24 +814,31 @@ const PAGE_HEADER_SURFACES = ["admin", "portal"].flatMap((surface) => [
 const DARK_CLASS = /(?:^|\s)dark:\S/;
 const FORM_EVENT_TYPES = new Set(["FormEvent", "FormEventHandler"]);
 
+function isMember(node, property) {
+  return (
+    node?.type === "MemberExpression" &&
+    !node.computed &&
+    node.property.name === property
+  );
+}
+
+// `HTMLFormElement.prototype.submit`.
+function isPrototypeSubmit(node) {
+  const prototype = node.object;
+  return (
+    isMember(prototype, "prototype") &&
+    prototype.object.type === "Identifier" &&
+    prototype.object.name === "HTMLFormElement"
+  );
+}
+
 function isNativeFormSubmit(node) {
   const callee = node.callee;
-  if (callee.type !== "MemberExpression" || callee.computed) return false;
   // `form.submit()`: React Router's `submit` and a fetcher's always take what
   // they send.
-  if (callee.property.name === "submit" && node.arguments.length === 0) {
-    return true;
-  }
+  if (isMember(callee, "submit") && node.arguments.length === 0) return true;
   // `HTMLFormElement.prototype.submit.call(form)`.
-  const target = callee.object;
-  return (
-    target.type === "MemberExpression" &&
-    target.property.name === "submit" &&
-    target.object.type === "MemberExpression" &&
-    target.object.property.name === "prototype" &&
-    target.object.object.type === "Identifier" &&
-    target.object.object.name === "HTMLFormElement"
-  );
+  return isMember(callee?.object, "submit") && isPrototypeSubmit(callee.object);
 }
 
 const restrictedSyntax = {

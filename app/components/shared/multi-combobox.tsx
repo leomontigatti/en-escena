@@ -234,7 +234,7 @@ function MultiComboboxChipsControl<TOption extends MultiComboboxOption>({
       aria-invalid={config.error ? true : undefined}
       className={cn(
         config.disabled &&
-          "cursor-default border-input/50 bg-input/25 has-data-[slot=combobox-chip]:px-2.5 dark:bg-input/40",
+          "cursor-default border-input/50 bg-input/25 has-data-[slot=combobox-chip]:px-2.5",
         "relative pr-9",
         config.className,
       )}

@@ -4,7 +4,10 @@
     "correctness": "off"
   },
   "plugins": ["react", "import", "typescript"],
-  "jsPlugins": ["./scripts/oxlint-ui-plugin.mjs"],
+  "jsPlugins": [
+    "./scripts/oxlint-ui-plugin.mjs",
+    "./scripts/oxlint-code-plugin.mjs"
+  ],
   "options": {
     "typeAware": true
   },
@@ -88,6 +91,13 @@
       "rules": {
         "ui/no-borrar": "error",
         "ui/restricted-syntax": "error"
+      }
+    },
+    {
+      "files": ["app/**/*.ts", "app/**/*.tsx"],
+      "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "code/catch-reason": "error"
       }
     }
   ]
