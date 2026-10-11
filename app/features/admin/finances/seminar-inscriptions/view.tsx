@@ -1,4 +1,4 @@
-import { Presentation } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -256,7 +256,7 @@ function buildFacetedFilters(
   return [
     {
       id: "instructor",
-      icon: Presentation,
+      icon: GraduationCap,
       label: "Instructor",
       options: distinctOptions(
         inscriptions.map((inscription) => ({
