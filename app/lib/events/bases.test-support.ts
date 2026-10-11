@@ -7,7 +7,7 @@ import {
 } from "@/db/schema";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
-import { readFixtureCapacityScheduleId } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { readFixtureCapacityScheduleId } from "@/lib/choreographies/registration.test-support";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   experienceLevelLabels,

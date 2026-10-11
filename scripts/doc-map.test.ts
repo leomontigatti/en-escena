@@ -139,6 +139,12 @@ describe("doc gate", () => {
     expect(
       isExcludedFromDocGate("app/lib/auth/access-auth.test-support.ts"),
     ).toBe(true);
+    expect(isExcludedFromDocGate("app/lib/auth/routes.test-support.tsx")).toBe(
+      true,
+    );
+    expect(isExcludedFromDocGate("app/lib/auth/test-support/session.ts")).toBe(
+      true,
+    );
     expect(isExcludedFromDocGate("app/lib/auth/access-auth-client.ts")).toBe(
       false,
     );

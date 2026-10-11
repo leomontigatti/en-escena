@@ -3,14 +3,14 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
-import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
+import { expectCreated } from "@/lib/events/bases.test-support";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
 import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/saved-event.test-support";
 import {
   invalidBirthDateMessage,
   underageBirthDateMessage,
@@ -26,7 +26,7 @@ import {
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

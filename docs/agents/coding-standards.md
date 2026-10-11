@@ -35,6 +35,27 @@ document contains fixed text; it checks a doc's structure against something
 outside it (a link resolves, an index matches its files, a value matches the
 code that enforces it). `pnpm check:docs-tests` enforces that one.
 
+### Test support files
+
+A fixture, builder or render helper that tests under `app/` share lives in one
+of two places, chosen by who uses it:
+
+- **One domain's tests**: `<name>.test-support.ts` (`.tsx` when it renders),
+  beside the code it builds for: `app/lib/events/bases.test-support.ts`,
+  `app/lib/auth/access-auth.test-support.ts`.
+- **Tests across domains**: a module in a `test-support/` directory.
+  `app/lib/test-support/` holds what any test may want (requests, forms,
+  academies, the DOM); `app/features/<area>/test-support/` and
+  `app/lib/admin/test-support/` hold what one area's tests share.
+
+No other suffix (`*.test-helpers.ts`, `*-test-fixtures.server.db.ts`,
+`fixtures.ts`): the documentation gate recognises the `.test-support` suffix
+and the directory as test code, and a reader finds every fixture with one
+search. Identifiers are English like the rest of the code. Before adding a file, extend
+the one that already builds those rows or requests, as the
+[`tdd` skill](../../.agents/skills/tdd/SKILL.md) says; a fixture that a second
+domain starts importing moves to `app/lib/test-support/`.
+
 ### Component tests
 
 Test meaningful logic or observable behaviour. Do not render components to
@@ -72,7 +93,8 @@ that changes mapped code without changing its document:
 | `docs/domain/access.md`             | `app/lib/auth/**`                                                   |
 | `docs/operations/infrastructure.md` | `app/lib/storage/**`, `app/lib/portal/choreography-music.server.ts` |
 
-Test files (`*.test.ts`, `*.test.tsx`, `*.test-support.ts`) never fire it.
+Test files (`*.test.ts`, `*.test.tsx`, `*.test-support.ts(x)`, anything under a
+`test-support/` directory) never fire it.
 Deletions and renames of mapped code do.
 
 If your change touches mapped code, do one of two things **before committing**:

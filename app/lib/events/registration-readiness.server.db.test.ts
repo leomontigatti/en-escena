@@ -19,14 +19,14 @@ import {
   createSavedEvent as createSavedEventFixture,
   expectCreated,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import {
   getEventRegistrationReadiness,
   getEventRegistrationReadinessByEventId,
   markEventRegistrationReadinessDirty,
 } from "@/lib/events/registration-readiness.server";
 
-import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";

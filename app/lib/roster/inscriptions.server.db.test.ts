@@ -13,7 +13,7 @@ import { createChoreographyRecord } from "@/features/portal/choreographies/test-
 import {
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import {
   findProfessorChoreographies,
   findRosterSeminarInscriptions,

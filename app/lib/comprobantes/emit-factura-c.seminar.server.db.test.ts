@@ -15,7 +15,7 @@ import {
   seminarPrices,
   seminars,
 } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import {
   ArcaClient,
   type ArcaBillingPort,
@@ -25,7 +25,7 @@ import {
   facturaCAprobada,
   notaCreditoCAprobada,
   ultimoAutorizado,
-} from "@/lib/comprobantes/arca/fixtures";
+} from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
 import {
   listAnchorComprobantes,
@@ -38,7 +38,7 @@ import {
 } from "@/lib/comprobantes/emit-factura-c.server";
 import { annulComprobante } from "@/lib/comprobantes/emit-nota-credito.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { createSavedEvent } from "@/lib/events/bases.test-support";
 import { deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 

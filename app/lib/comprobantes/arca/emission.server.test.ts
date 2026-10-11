@@ -19,7 +19,7 @@ import {
   facturaCConsultada,
   facturaCRechazada,
   ultimoAutorizado,
-} from "./fixtures";
+} from "./wsfe-responses.test-support";
 import {
   parseCreateVoucherResult,
   parseLastVoucher,

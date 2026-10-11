@@ -12,7 +12,7 @@ import {
   expectPriceSavedRedirect,
   findSavedPriceById,
   findSavedPriceByScope,
-} from "./event-bases-price.test-helpers";
+} from "./event-bases-price.test-support";
 import {
   action,
   createSavedEvent,
@@ -23,7 +23,7 @@ import {
   renderPrecioNuevoRoute,
   renderPreciosRoute,
   routeArgs,
-} from "./event-bases.test-helpers";
+} from "./event-bases.test-support";
 
 installDatabaseTestHooks();
 

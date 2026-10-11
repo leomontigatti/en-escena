@@ -16,7 +16,7 @@ import {
 } from "@/lib/admin/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
-import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
 import {
   action,
   EventDetailRouteView,

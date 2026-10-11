@@ -48,7 +48,7 @@ import {
   createSavedEvent as createEventFixture,
   expectCreated,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { AdminShellRouteView } from "@/routes/administracion";
 import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";

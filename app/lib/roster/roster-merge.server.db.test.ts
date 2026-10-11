@@ -16,11 +16,11 @@ import {
   createAcademySession,
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import {
   createEventChoreographyFixture,
   createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import {
   loadRosterMergeOptions,
   mergeRosterPeople,
