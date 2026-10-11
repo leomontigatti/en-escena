@@ -4,16 +4,15 @@ The judgement calls of the product's interface, one decision each with its
 reason and a component that already gets it right. The base is shadcn/ui
 `radix-nova`: its components in `app/components/ui`, its tokens and its font.
 
-The mechanical rules are not here. `pnpm lint` holds them, each message
-carrying its reason (the list heads `scripts/oxlint-ui-plugin.mjs`), and
-`pnpm check:repo-styles` holds theme colours and `gap` over `space-*`. When a
-lint message and this page seem to disagree, the lint message is current.
+The mechanical rules live in `pnpm lint`, each message carrying its reason
+(listed atop `scripts/oxlint-ui-plugin.mjs`), and in `pnpm check:repo-styles`
+(theme colours, `gap` over `space-*`); where they disagree with this page, they
+are current.
 
 ## Theme
 
-- **Operational, not showcase.** Light surfaces, sharp hierarchy, medium
-  density: these screens are read and filled in all day. No hero, large
-  gradient or decorative background.
+- **Operational, not showcase**: light surfaces, sharp hierarchy, medium
+  density, for screens read and filled in all day.
 - **Tokens and variants before classes.** A colour, radius or state comes from
   a token or a component variant; `className` is for layout (grid, flex, gap,
   width, margin). A case with no token gets a one-off class; a second case
@@ -33,9 +32,8 @@ lint message and this page seem to disagree, the lint message is current.
   the list, never in a side panel.
 - **Below 1280, nothing breaks**: content may scroll sideways, never overlap.
   No page `min-width`: it breaks phones and zoom.
-- **Phones:** the public program and the academy portal, which academies fill
-  in from their phones. A portal screen that is built or changed also works at
-  390 px. Judging waits for its remake; the admin panel is desktop-only.
+- **Phones:** the public program, and the portal screen by screen: one built
+  or changed works at 390 px. The admin panel is desktop-only.
 
 ## Alerts
 
@@ -47,7 +45,8 @@ Which channel carries a message (alert, toast or field) is
   something to fix or regret; `destructive` an error or what cannot be undone;
   `success` an outcome that stays on screen.
 - **The title says what is going on in a few words; the description gives the
-  detail and what to do.** A lead line that introduces a list is the title.
+  detail and what to do, never repeating the title.** A lead line that
+  introduces a list is the title.
   A list is a bulleted `ul` in the description; a reason that can only be one
   is a sentence. An alert whose variant is chosen at run time picks its icon
   from the same table: `AccessNotice` (`app/components/auth/access-ui.tsx`).
@@ -64,7 +63,7 @@ Which channel carries a message (alert, toast or field) is
 - **One primary action per visual zone.** Page and form buttons take the
   default size; `sm` is for a table row or an alert.
 - **An icon repeats the label**: `Check` saves, `Trash2` deletes, `Cancelar`
-  has none. A destructive action other than a delete carries its own icon or
+  has none. A delete reads `Eliminar` alone: the page already names the record. A destructive action other than a delete carries its own icon or
   none.
 - **An icon-only button has an accessible name and a tooltip**, unless its
   icon is obvious: `Trash2`, `X`, play and pause, `Download`, `Copy`, a drag
@@ -90,13 +89,11 @@ Which channel carries a message (alert, toast or field) is
 - **A fragment that updates alone gets an inline spinner**; a table that
   refreshes keeps its rows, and a screen with data keeps its shell, breadcrumbs
   and title mounted.
-- **Skeletons only for a real deferred reveal** whose structure is known,
-  shaped like what arrives; never for a loader that still blocks, nor for a
-  short mutation.
+- **Skeletons only for a deferred reveal** whose structure is known, shaped
+  like what arrives.
 - **One view transition between pages: the record title**, morphing from its
-  row's `DataTableLink recordTitle` into the detail's title and back. Every
-  other page change swaps without a crossfade; a transition never covers for a
-  slow loader.
+  row's `DataTableLink recordTitle` into the detail's title and back; every
+  other page change swaps without a crossfade.
 
 ## Forms
 
@@ -144,8 +141,6 @@ Which channel carries a message (alert, toast or field) is
   mounted through a recoverable error. Build the body with
   `createValidatedRouteFormDataSubmitHandler`, which sends a `FormData` from the
   values React Hook Form validated and keeps `intent` and hidden fields.
-- **An effect that calls a form method depends on that method**
-  (`const { reset } = form`), not on the whole form.
 
 ### Form layout
 
@@ -161,6 +156,8 @@ Which channel carries a message (alert, toast or field) is
   keep their words. A plain `Card` holding it takes `overflow-clip`, since
   `overflow-hidden` stops a sticky child.
 - **A form in a `Dialog` is one column**, `Cancelar` then the primary action.
+  The portal's `Nueva coreografía` wizard puts each step in one card, closed
+  by `PinnedActions`.
 - **With tabs, the footer goes where the form is**: closing the fields' tab
   when one tab holds the form, closing the card around the tabs when one form
   spans them (the event's detail). A panel keeps `forceMount` and hides when
@@ -210,9 +207,6 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
 
 ## Navigation
 
-- **Each surface has its shell**: a sidebar for the admin, a topbar with tabs
-  for the portal, a minimal topbar for judging, a simple one for public views,
-  a centred card for authentication.
 - **The last breadcrumb repeats the page title**: `Nueva categoría`.
 - **Tabs switch between sibling views**, never through the fields of one form.
   A controlled `Tabs` switches through `onValueChange`, so the arrow keys work.
@@ -242,14 +236,16 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
   editing look alike. Money, scores and documents use `MetricCard`s and tables.
 - **Fields the record's state locks render as the shared read-only fields**
   (`ReadOnlyField` and its siblings), under an `info` alert that lists every
-  reason and what unlocks it, or says the lock is for good. Every role that
-  sees the record sees it. A field with no meaning for the record is left out:
-  not applicable is not blocked.
+  reason and what unlocks it, or says the lock is for good, and speaks of the
+  fields only. Every role that sees the record sees it. A field with no
+  meaning for the record is left out: not applicable is not blocked.
 - **An action the state forbids is never disabled and never refused after the
   submit**: it opens `BlockedActionDialog`, whose `info` alert lists every
-  reason and whose only button is `Cerrar`. A disabled control cannot say why,
-  and a page alert would sit on nearly every record. The server still refuses,
-  for the race.
+  reason that concerns the action and whose only button is `Cerrar`; a blocked
+  `DeleteDialog` says what it takes to delete. A disabled control cannot say
+  why, and a page alert would sit on nearly every record. The server still
+  refuses, for the race. A submit disabled until the form is complete or
+  changed is not such a block.
 - **Every shared field draws the lock icon when disabled**; a `Switch` does
   not, its disabled look already reads as locked.
 
@@ -260,6 +256,8 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
   column the table has except the empty ones: name and number, then what the
   row is, then what the list is about, nothing truncated. The portal
   `Resultados` list is the reference; program lists build on `ProgramRowCard`.
+  A card has no sort header, selection or reordering: a list that needs one on
+  a phone needs its own design first.
 - **No actions column.** A row's actions are reached from its name: its detail
   page, or a `link` button opening a `Dialog` for a record with no page; when
   the state forbids them all, the name opens `BlockedActionDialog`.
@@ -279,6 +277,7 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
   (several free-text columns) takes `layout="fit"`, a `width` on every column
   and `DataTableTruncatedText` on the long cells, tuned so every header fits at
   1280 px. A `width` is a share of the row, so the weights need not add to 100.
+- **A sticky header only on a long list.**
 
 ## Cards
 
