@@ -45,7 +45,11 @@ import {
   deriveSeminarInscriptionThresholds,
   selectSeminarPriceCandidates,
 } from "@/lib/finances/seminar-inscription-price";
-import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
+import {
+  collectPersonIds,
+  isParticipating,
+  readSeminarInscriptionThresholds,
+} from "@/lib/finances/seminar-inscription-thresholds.server";
 
 import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
 import { seminarNoPlacesForDepositMessage } from "@/lib/seminars/registration-refusals";
@@ -63,8 +67,6 @@ import {
   type Transaction,
 } from "./choreography-cobro-support.server";
 import {
-  collectPersonIds,
-  isParticipating,
   lockSeminars,
   type LockedSeminar,
 } from "./seminar-money-support.server";

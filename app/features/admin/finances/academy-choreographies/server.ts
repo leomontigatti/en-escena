@@ -32,10 +32,16 @@ import {
   type PresetPriceOption,
 } from "./presets";
 
-export type AcademyFinancesActionData = {
-  status: "error" | "success";
-  message: string;
-};
+/**
+ * `refusal` marks an error as one of the seminar preset's own refusals — a
+ * seminar short of places, a pool that cannot cover the charge, an inscription
+ * nothing prices, a selection with nothing to charge. The seminar dialog shows
+ * those as an alert, since they name the part of the selection that blocked
+ * the charge; an error without it is unexpected and toasts.
+ */
+export type AcademyFinancesActionData =
+  | { status: "success"; message: string }
+  | { status: "error"; message: string; refusal?: "seminar-preset" };
 
 export async function loadAcademyFinances(input: {
   params: { academyId?: string };
@@ -145,7 +151,9 @@ export async function handleAcademyFinancesAction(input: {
         });
 
   if (!result.ok) {
-    return { status: "error", message: result.message };
+    return target === "seminars"
+      ? { status: "error", message: result.message, refusal: "seminar-preset" }
+      : { status: "error", message: result.message };
   }
 
   return {

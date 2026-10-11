@@ -3,9 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
-  choreographyDancers,
   paymentAllocations,
-  payments,
   seminarInscriptions,
   seminarPrices,
   seminars,
@@ -13,12 +11,13 @@ import {
 import {
   academyFinancesRouteArgs,
   academyFinancesUrl,
-  createAcademyFinanceChoreographyFixture,
 } from "@/lib/admin/finances/finances.test-support";
-import { createDancer } from "@/lib/choreographies/registration.test-support";
+import {
+  seedSeminarPresetFixture,
+  type SeminarPresetFixture,
+} from "@/lib/admin/finances/seminar-finances.test-support";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
-import { createSavedEvent } from "@/lib/test-support/events";
 import {
   action as academyFinancesAction,
   loader as academyFinancesLoader,
@@ -28,177 +27,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-/**
- * Two seminars of one event — an `Exclusivo` one and a `Común` one — with a full
- * four-cell price list plus two dated rows: an expired one that must never apply
- * and an early-bird one still open. One academy holds a participant and a
- * non-participant in each seminar, and a withdrawn third person in the `Común`
- * one; another academy holds a person in the `Exclusivo` one.
- */
-async function seedFixture(input: { paymentAmount: number }) {
-  const event = await createSavedEvent({ requiredDepositPercentage: 30 });
-  const academy = await createAcademyFinanceChoreographyFixture({
-    academyName: "Academia Bailando",
-    choreographyName: "Aire",
-    email: `bailando.${crypto.randomUUID()}@example.com`,
-    event,
-  });
-  const other = await createAcademyFinanceChoreographyFixture({
-    academyName: "Academia Vecina",
-    catalog: academy.catalog,
-    choreographyName: "Brisa",
-    email: `vecina.${crypto.randomUUID()}@example.com`,
-    event,
-  });
-  const academyId = academy.academy.academy.id;
-  const participant = await createDancer(academyId, {
-    firstName: "Ana",
-    lastName: "Bailando",
-  });
-  const outsider = await createDancer(academyId, {
-    firstName: "Bruno",
-    lastName: "Mirando",
-  });
-  const leaver = await createDancer(academyId, {
-    firstName: "Carla",
-    lastName: "Retirada",
-  });
-  const neighbour = await createDancer(other.academy.academy.id, {
-    firstName: "Dora",
-    lastName: "Vecina",
-  });
-
-  await db.insert(choreographyDancers).values({
-    ageAtEventStart: 14,
-    choreographyId: academy.choreography.id,
-    dancerId: participant.id,
-  });
-
-  const [special, regular] = await db
-    .insert(seminars)
-    .values([
-      {
-        eventId: event.id,
-        instructorName: "Abril Sosa",
-        kind: "special" as const,
-        quota: 20,
-        requiredDepositPercentage: 50,
-        scheduledDate: "2030-10-10",
-        startTime: "18:30",
-      },
-      {
-        eventId: event.id,
-        instructorName: "Nicolás Prado",
-        kind: "regular" as const,
-        quota: 20,
-        requiredDepositPercentage: 50,
-        scheduledDate: "2030-10-11",
-        startTime: "10:00",
-      },
-    ])
-    .returning();
-
-  const priceRows = await db
-    .insert(seminarPrices)
-    .values([
-      ...(
-        [
-          ["regular", true, 20000],
-          ["regular", false, 30000],
-          ["special", true, 40000],
-          ["special", false, 50000],
-        ] as const
-      ).map(([kind, forParticipants, amount]) => ({
-        amount,
-        eventId: event.id,
-        forParticipants,
-        kind,
-        name: `${kind} ${forParticipants ? "participante" : "no participante"}`,
-        paymentDeadline: null,
-      })),
-      // Still open, so it is what a non-participant of an `Exclusivo` seminar
-      // is charged today.
-      {
-        amount: 44000,
-        eventId: event.id,
-        forParticipants: false,
-        kind: "special" as const,
-        name: "Preventa exclusiva",
-        paymentDeadline: "2099-12-31",
-      },
-      // Cheaper, but its deadline has passed: today's resolution skips it.
-      {
-        amount: 2000,
-        eventId: event.id,
-        forParticipants: false,
-        kind: "regular" as const,
-        name: "Preventa vencida",
-        paymentDeadline: "2020-01-01",
-      },
-    ])
-    .returning();
-  const earlyBirdId = priceRows.find(
-    (row) => row.name === "Preventa exclusiva",
-  )!.id;
-  const priceId = (kind: "regular" | "special", forParticipants: boolean) =>
-    priceRows.find(
-      (row) =>
-        row.kind === kind &&
-        row.forParticipants === forParticipants &&
-        row.paymentDeadline === null,
-    )!.id;
-
-  const [
-    specialParticipant,
-    specialOutsider,
-    regularParticipant,
-    regularOutsider,
-    regularLeaver,
-    specialNeighbour,
-  ] = await db
-    .insert(seminarInscriptions)
-    .values([
-      { dancerId: participant.id, seminarId: special!.id },
-      { dancerId: outsider.id, seminarId: special!.id },
-      { dancerId: participant.id, seminarId: regular!.id },
-      { dancerId: outsider.id, seminarId: regular!.id },
-      {
-        dancerId: leaver.id,
-        seminarId: regular!.id,
-        withdrawnAt: new Date("2030-04-01T12:00:00Z"),
-      },
-      { dancerId: neighbour.id, seminarId: special!.id },
-    ])
-    .returning();
-
-  await db.insert(payments).values({
-    academyId,
-    amount: input.paymentAmount,
-    eventId: event.id,
-    paymentDate: "2030-04-01",
-    paymentMethod: "transferencia",
-    paymentNumber: 1,
-  });
-
-  return {
-    academyId,
-    earlyBirdId,
-    eventId: event.id,
-    inscriptions: {
-      regularLeaver: regularLeaver!,
-      regularOutsider: regularOutsider!,
-      regularParticipant: regularParticipant!,
-      specialNeighbour: specialNeighbour!,
-      specialOutsider: specialOutsider!,
-      specialParticipant: specialParticipant!,
-    },
-    priceId,
-    regular: regular!,
-    special: special!,
-  };
-}
-
-type Fixture = Awaited<ReturnType<typeof seedFixture>>;
+type Fixture = SeminarPresetFixture;
 
 async function postPreset(
   fixture: Fixture,
@@ -299,12 +128,13 @@ async function readStoredPriceIds(fixture: Fixture) {
 
 describe("the seminar presets on the academy's finance page", () => {
   test("`Pagar seña` over two seminars allocates every owed deposit and prices each person from their own cell", async () => {
-    const fixture = await seedFixture({ paymentAmount: 100000 });
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
     const { inscriptions } = fixture;
 
+    // A seminar named twice is charged once.
     const result = await postPreset(fixture, {
       intent: "pay-seminar-deposit-preset",
-      seminarIds: [fixture.special.id, fixture.regular.id],
+      seminarIds: [fixture.special.id, fixture.regular.id, fixture.special.id],
     });
 
     expect(result).toMatchObject({ status: "success" });
@@ -335,7 +165,7 @@ describe("the seminar presets on the academy's finance page", () => {
   });
 
   test("`Pagar saldo` allocates every owed balance, deposit included, and keeps a price already held", async () => {
-    const fixture = await seedFixture({ paymentAmount: 200000 });
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 200000 });
     const { inscriptions } = fixture;
     // Somebody priced this one on purpose, at the deadline-less row while the
     // early-bird one is still open, and covered its deposit.
@@ -374,7 +204,7 @@ describe("the seminar presets on the academy's finance page", () => {
   });
 
   test("running the same preset twice moves nothing the second time", async () => {
-    const fixture = await seedFixture({ paymentAmount: 100000 });
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
     const input = {
       intent: "pay-seminar-deposit-preset",
       seminarIds: [fixture.special.id, fixture.regular.id],
@@ -389,39 +219,52 @@ describe("the seminar presets on the academy's finance page", () => {
     expect(await readAllocatedByInscription(fixture)).toEqual(afterFirst);
   });
 
-  test("a seminar short of places refuses the whole charge, naming it and the shortfall", async () => {
-    const fixture = await seedFixture({ paymentAmount: 100000 });
+  test("a seminar short of places refuses the whole charge, counting the places already taken and naming each seminar short", async () => {
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
 
+    // One place of the `Exclusivo` seminar is already taken.
+    expect(
+      await allocateToSeminarInscription({
+        academyId: fixture.academyId,
+        amount: 20000,
+        eventId: fixture.eventId,
+        inscriptionId: fixture.inscriptions.specialParticipant.id,
+        priceId: fixture.priceId("special", true),
+        seminarId: fixture.special.id,
+      }),
+    ).toEqual({ ok: true });
     await db
       .update(seminars)
       .set({ quota: 1 })
-      .where(eq(seminars.id, fixture.special.id));
+      .where(inArray(seminars.id, [fixture.special.id, fixture.regular.id]));
+    const allocatedBefore = await readAllocatedByInscription(fixture);
+    const storedBefore = await readStoredPriceIds(fixture);
 
     const result = await postPreset(fixture, {
       intent: "pay-seminar-deposit-preset",
       seminarIds: [fixture.special.id, fixture.regular.id],
     });
 
+    // `Exclusivo`: one taken plus one to cross against one place. `Común`: two
+    // to cross against one place. The seminars are named in id order.
     expect(result).toEqual({
       status: "error",
-      message:
-        "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2030: falta 1.",
+      message: expect.any(String),
+      refusal: "seminar-preset",
     });
     expect(
-      [...(await readAllocatedByInscription(fixture)).values()].every(
-        (amount) => amount === 0,
-      ),
-    ).toBe(true);
-    expect(
-      [...(await readStoredPriceIds(fixture)).values()].every(
-        (priceId) => priceId === null,
-      ),
-    ).toBe(true);
+      (result as { message: string }).message.split(/(?<=\.) /).sort(),
+    ).toEqual([
+      "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2030: falta 1.",
+      "No quedan lugares suficientes en el seminario de Nicolás Prado del 11 de octubre de 2030: falta 1.",
+    ]);
+    expect(await readAllocatedByInscription(fixture)).toEqual(allocatedBefore);
+    expect(await readStoredPriceIds(fixture)).toEqual(storedBefore);
   });
 
   test("a pool that cannot cover the charge refuses the whole charge", async () => {
     // Enough for the first seminar's deposits, not for both.
-    const fixture = await seedFixture({ paymentAmount: 50000 });
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 50000 });
 
     const result = await postPreset(fixture, {
       intent: "pay-seminar-deposit-preset",
@@ -431,6 +274,7 @@ describe("the seminar presets on the academy's finance page", () => {
     expect(result).toEqual({
       status: "error",
       message: "La academia no tiene saldo disponible suficiente.",
+      refusal: "seminar-preset",
     });
     expect(
       [...(await readAllocatedByInscription(fixture)).values()].every(
@@ -445,7 +289,7 @@ describe("the seminar presets on the academy's finance page", () => {
   });
 
   test("refuses a seminar that is not one of the event's", async () => {
-    const fixture = await seedFixture({ paymentAmount: 100000 });
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
 
     const result = await postPreset(fixture, {
       intent: "pay-seminar-deposit-preset",
@@ -455,6 +299,7 @@ describe("the seminar presets on the academy's finance page", () => {
     expect(result).toEqual({
       status: "error",
       message: "No encontramos ese seminario.",
+      refusal: "seminar-preset",
     });
     expect(
       [...(await readAllocatedByInscription(fixture)).values()].every(
@@ -464,9 +309,118 @@ describe("the seminar presets on the academy's finance page", () => {
   });
 });
 
+describe("an inscription holding a price that is not today's, below its deposit", () => {
+  // The preset keeps a held price, so it charges by it: the amount, the place
+  // and the preview's price name all come from the row the inscription holds,
+  // never from the row that applies today.
+  test("`Pagar seña` covers the held row's deposit and takes the place it needs", async () => {
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
+    const { inscriptions } = fixture;
+    // Today's row is the early-bird one (44.000, deposit 22.000); the held one
+    // is dearer (50.000, deposit 25.000).
+    const held = fixture.priceId("special", false);
+
+    expect(
+      await allocateToSeminarInscription({
+        academyId: fixture.academyId,
+        amount: 10000,
+        eventId: fixture.eventId,
+        inscriptionId: inscriptions.specialOutsider.id,
+        priceId: held,
+        seminarId: fixture.special.id,
+      }),
+    ).toEqual({ ok: true });
+
+    const special = (await loadPreviews(fixture))[fixture.special.id]!;
+
+    expect(special.stages.deposit.neededCount).toBe(2);
+    expect(
+      special.stages.deposit.people.find(
+        (person) => person.inscriptionId === inscriptions.specialOutsider.id,
+      ),
+    ).toMatchObject({ amount: 15000, priceName: "special no participante" });
+
+    expect(
+      await postPreset(fixture, {
+        intent: "pay-seminar-deposit-preset",
+        seminarIds: [fixture.special.id],
+      }),
+    ).toMatchObject({ status: "success" });
+
+    expect(
+      (await readAllocatedByInscription(fixture)).get(
+        inscriptions.specialOutsider.id,
+      ),
+    ).toBe(25000);
+    expect(
+      (await readStoredPriceIds(fixture)).get(inscriptions.specialOutsider.id),
+    ).toBe(held);
+    expect(
+      (await loadPreviews(fixture))[fixture.special.id]!.coveredCount,
+    ).toBe(2);
+  });
+
+  test("`Pagar saldo` stops at the held row's total, dearer or cheaper than today's", async () => {
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 200000 });
+    const { inscriptions } = fixture;
+    // Dearer than today's early-bird row: 50.000 against 44.000.
+    const dearer = fixture.priceId("special", false);
+    // Cheaper than today's 30.000: the expired row, picked on purpose.
+    const cheaper = fixture.expiredPriceId;
+
+    for (const [inscriptionId, seminarId, priceId, amount] of [
+      [inscriptions.specialOutsider.id, fixture.special.id, dearer, 10000],
+      [inscriptions.regularOutsider.id, fixture.regular.id, cheaper, 500],
+    ] as const) {
+      expect(
+        await allocateToSeminarInscription({
+          academyId: fixture.academyId,
+          amount,
+          eventId: fixture.eventId,
+          inscriptionId,
+          priceId,
+          seminarId,
+        }),
+      ).toEqual({ ok: true });
+    }
+
+    const previews = await loadPreviews(fixture);
+    const previewed = [
+      ...previews[fixture.special.id]!.stages.balance.people,
+      ...previews[fixture.regular.id]!.stages.balance.people,
+    ];
+
+    expect(
+      previewed.find(
+        (person) => person.inscriptionId === inscriptions.specialOutsider.id,
+      ),
+    ).toMatchObject({ amount: 40000, priceName: "special no participante" });
+    expect(
+      previewed.find(
+        (person) => person.inscriptionId === inscriptions.regularOutsider.id,
+      ),
+    ).toMatchObject({ amount: 1500, priceName: "Preventa vencida" });
+
+    expect(
+      await postPreset(fixture, {
+        intent: "pay-seminar-balance-preset",
+        seminarIds: [fixture.special.id, fixture.regular.id],
+      }),
+    ).toMatchObject({ status: "success" });
+
+    const allocated = await readAllocatedByInscription(fixture);
+    const stored = await readStoredPriceIds(fixture);
+
+    expect(allocated.get(inscriptions.specialOutsider.id)).toBe(50000);
+    expect(allocated.get(inscriptions.regularOutsider.id)).toBe(2000);
+    expect(stored.get(inscriptions.specialOutsider.id)).toBe(dearer);
+    expect(stored.get(inscriptions.regularOutsider.id)).toBe(cheaper);
+  });
+});
+
 describe("the seminar preset preview in the academy's finance loader", () => {
   test("`Pagar seña`: the people, prices and amounts it lists are what the action then writes", async () => {
-    const fixture = await seedFixture({ paymentAmount: 100000 });
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
     const { inscriptions } = fixture;
 
     const previews = await loadPreviews(fixture);
@@ -540,7 +494,7 @@ describe("the seminar preset preview in the academy's finance loader", () => {
   });
 
   test("`Pagar saldo` lists a covered person at the price they hold, for the rest only, and needs no place for them", async () => {
-    const fixture = await seedFixture({ paymentAmount: 200000 });
+    const fixture = await seedSeminarPresetFixture({ paymentAmount: 200000 });
     const { inscriptions } = fixture;
     const chosen = fixture.priceId("special", false);
 

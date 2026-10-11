@@ -367,7 +367,9 @@ type)` among the special ones, enforced by `price_general_unique` and
   server-side. It is not read by anything the administrator sees: every
   displayed **figure** and every control — `Precio`, `Seña`, `Total`, the badge,
   and both the allocation dialog's readout and its picker — comes from the
-  effective row.
+  effective row. The one exception is the seminar preset's preview, which
+  names a charge rather than a state: it shows the row the charge prices with,
+  the held one (see "Per seminar").
 - **`Sin precio` is a state, not a defect.** An inscription that stores no row
   and that no row applies to today has null thresholds and incomplete figures.
   Portal creation is gated on price coverage by event readiness, which is where
@@ -734,9 +736,18 @@ nothing the second time.
 - **No price picker.** An inscription that holds no price is stored the
   `seminarPrice` that applies to the person today — the seminar's kind, falling
   back to `regular`, the person's `forParticipants` cell, open dated rows before
-  the deadline-less one. One that already holds a price keeps it.
+  the deadline-less one. One that already holds a price keeps it, and **is
+  charged by it**: below its deposit the held row may differ from the row that
+  applies today, and the owed figure, the deposit it crosses (and so the place
+  it takes) and the price the dialog names all come from the held row, so the
+  charge neither stops short of the held deposit nor carries the inscription
+  past the held total. Funding a balance that crosses the deposit goes up to
+  the deposit first and then the rest, because the pool's over-allocation
+  check reads the effective row, which is the held one only from the crossing
+  on.
 - **Places.** Every selected seminar is locked `FOR UPDATE`, in id order, before
-  anything is read. Per seminar, the places needed are the inscriptions the
+  anything is read, and then the academy's active inscriptions in them, in id
+  order too, so a withdrawal racing the charge is serialised. Per seminar, the places needed are the inscriptions the
   charge carries across their deposit, and the charge is refused when
   `covered + needed > quota` for any of them, naming each seminar short and by
   how many places. A `Pagar saldo` that crosses a deposit takes a place exactly
@@ -747,8 +758,10 @@ nothing the second time.
   payment is created.
 - The client posts the stage and the seminar ids alone; the server recomputes
   who is charged, at which price and how much (`seminar-cobro-presets.server.ts`).
-  A refusal shows as an alert inside the dialog, since it names the part of the
-  selection that blocked it; a success closes the dialog with a toast.
+  The preset's own refusals show as an alert inside the dialog, since they name
+  the part of the selection that blocked it; the action marks them
+  (`refusal: "seminar-preset"`), so an unexpected failure still toasts. A
+  success closes the dialog with a toast.
 - **The dialog previews the write.** Per selected seminar it lists the people
   the charge reaches, with the price each will hold and the amount, and the
   places left against the places the charge takes; the owed figure is those

@@ -13,7 +13,11 @@ import { asc, eq, inArray } from "drizzle-orm";
 
 import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
 import { selectCurrentSeminarPriceRow } from "@/lib/finances/seminar-inscription-price";
-import type { SeminarFinancePriceRow } from "@/lib/finances/seminar-inscription-thresholds.server";
+import {
+  collectPersonIds,
+  isParticipating,
+  type SeminarFinancePriceRow,
+} from "@/lib/finances/seminar-inscription-thresholds.server";
 import { readEventParticipation } from "@/lib/participation/participation.server";
 import { countCoveredSeminarInscriptionsBySeminar } from "@/lib/seminars/covered-inscriptions.server";
 import {
@@ -196,29 +200,4 @@ export async function applyCurrentSeminarPrices(
   }
 
   return { ok: true };
-}
-
-export function collectPersonIds(
-  rows: readonly { dancerId: string | null; professorId: string | null }[],
-  column: "dancerId" | "professorId",
-): string[] {
-  return [
-    ...new Set(
-      rows
-        .map((row) => row[column])
-        .filter((personId): personId is string => personId !== null),
-    ),
-  ];
-}
-
-/** Whether the person an inscription names is `Participando` in the event,
- * which picks their price cell. */
-export function isParticipating(
-  row: { dancerId: string | null; professorId: string | null },
-  participation: { dancerIds: Set<string>; professorIds: Set<string> },
-): boolean {
-  return row.dancerId !== null
-    ? participation.dancerIds.has(row.dancerId)
-    : row.professorId !== null &&
-        participation.professorIds.has(row.professorId);
 }

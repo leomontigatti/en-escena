@@ -49,10 +49,12 @@ import type { AcademyFinancesActionData } from "./server";
  * server makes the same checks as the last word, for a state that moved after
  * the dialog opened.
  *
- * A refusal names what blocked it, so it stays in the dialog as an alert where
- * the administrator can read it against the selection, instead of a toast that
- * leaves. A success closes the dialog with a toast over the list the loader
- * has just revalidated, as the choreography preset does.
+ * The preset's own refusals (`refusal: "seminar-preset"`) name what blocked
+ * it, so they stay in the dialog as an alert where the administrator can read
+ * them against the selection, instead of a toast that leaves. An unexpected
+ * failure toasts and keeps the dialog open, as `form-feedback.md` says. A
+ * success closes the dialog with a toast over the list the loader has just
+ * revalidated, as the choreography preset does.
  */
 export function SeminarPresetDialog({
   availableBalanceAmount,
@@ -70,11 +72,9 @@ export function SeminarPresetDialog({
   const fetcher = useFetcher<AcademyFinancesActionData>();
   const formAction = useOptionalFormAction();
   const isSaving = fetcher.state !== "idle";
-  const refusal =
-    fetcher.state === "idle" && fetcher.data?.status === "error"
-      ? fetcher.data.message
-      : null;
-  const isDone = fetcher.data?.status === "success";
+  const { isDone, refusal, toast } = readSeminarPresetOutcome(
+    fetcher.state === "idle" ? fetcher.data : undefined,
+  );
   const summary = summarizeSeminarPreset({
     availableBalanceAmount,
     previews,
@@ -83,7 +83,7 @@ export function SeminarPresetDialog({
   });
   const isBlocked = summary.shortfalls.length > 0 || summary.isBalanceShort;
 
-  useServerActionToast(isDone ? fetcher.data : undefined);
+  useServerActionToast(toast);
 
   useEffect(() => {
     if (isDone) {
@@ -196,6 +196,24 @@ export function SeminarPresetDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * Where the answer of a settled submit goes. The preset's own refusals stay in
+ * the dialog as its alert; a success and an unexpected failure are the result
+ * of the submit, so they toast.
+ */
+function readSeminarPresetOutcome(data: AcademyFinancesActionData | undefined) {
+  const refusal =
+    data?.status === "error" && data.refusal === "seminar-preset"
+      ? data.message
+      : null;
+
+  return {
+    isDone: data?.status === "success",
+    refusal,
+    toast: refusal === null ? data : undefined,
+  };
 }
 
 type SeminarPresetSummaryRow = SeminarCobroPreview["stages"][CobroStage] &
