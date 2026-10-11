@@ -445,10 +445,7 @@ export function PresentationsListView({
               }
               onOrderAutomatically={() => setIsOrderingDialogOpen(true)}
             />
-            {/* `gap-3` and the tab row's `pb-1` add up to the 16px every
-                list keeps between its tabs and its search. */}
-            <div className="flex flex-col gap-3">
-              <PresentationDayTabs loaderData={loaderData} />
+            <PresentationDayTabs loaderData={loaderData}>
               <ServerDataTable
                 rows={rows}
                 columns={columns}
@@ -480,7 +477,7 @@ export function PresentationsListView({
                 // place in it, and a selection reaches every row.
                 hidePagination
               />
-            </div>
+            </PresentationDayTabs>
           </div>
         </TooltipProvider>
       ) : (

@@ -1,4 +1,5 @@
 import { WalletCards } from "lucide-react";
+import { Fragment } from "react";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
@@ -7,8 +8,8 @@ import {
   type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { ListTabs } from "@/components/shared/list-tabs";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/features/admin/schedules/view-shared";
 import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
@@ -254,49 +255,56 @@ export function PortalAcademyFinancesRouteView({
         totalAmount={activeThresholds.totalAmount}
       />
 
-      <Tabs value={activeTab} onValueChange={onTabChange}>
-        <TabsList variant="line">
-          <TabsTrigger value={choreographiesTabValue}>Coreografías</TabsTrigger>
-          <TabsTrigger value={seminarsTabValue}>Seminarios</TabsTrigger>
-        </TabsList>
-        <TabsContent value={choreographiesTabValue} className="pt-2">
-          <ClientDataTable
-            rows={loaderData.choreographyFinanceRows}
-            columns={choreographyFinanceColumns}
-            facetedFilters={choreographyFinanceFacetedFilters}
-            getRowKey={(row) => row.id}
-            searchPlaceholder="Buscar por número o nombre"
-            textFilterColumnId="name"
-            selectableRows
-            selectedRowIds={selectedChoreographyIds}
-            onSelectedRowIdsChange={setSelectedChoreographyIds}
-            // By number, like every other choreography list: it is the row's
-            // identity within the event.
-            initialSort={{
-              columnId: "choreographyNumber",
-              direction: "asc",
-            }}
-            emptyMessage="No hay coreografías para mostrar."
-          />
-        </TabsContent>
-        <TabsContent value={seminarsTabValue} className="pt-2">
-          <ClientDataTable
-            rows={loaderData.seminarFinanceRows}
-            columns={seminarFinanceColumns}
-            facetedFilters={seminarFinanceFacetedFilters}
-            getRowKey={(row) => row.id}
-            searchPlaceholder="Buscar por instructor"
-            textFilterColumnId="instructorName"
-            selectableRows
-            selectedRowIds={selectedSeminarIds}
-            onSelectedRowIdsChange={setSelectedSeminarIds}
-            // By the seminar's moment, which is the order every seminar list
-            // opens in on both sides.
-            initialSort={{ columnId: "scheduledDate", direction: "asc" }}
-            emptyMessage="No hay seminarios para mostrar."
-          />
-        </TabsContent>
-      </Tabs>
+      <ListTabs
+        onValueChange={onTabChange}
+        tabs={[
+          { label: "Coreografías", value: choreographiesTabValue },
+          { label: "Seminarios", value: seminarsTabValue },
+        ]}
+        value={activeTab}
+      >
+        {/* A key per tab, so a tab's list never inherits the other's state. */}
+        {activeTab === seminarsTabValue ? (
+          <Fragment key={seminarsTabValue}>
+            <ClientDataTable
+              rows={loaderData.seminarFinanceRows}
+              columns={seminarFinanceColumns}
+              facetedFilters={seminarFinanceFacetedFilters}
+              getRowKey={(row) => row.id}
+              searchPlaceholder="Buscar por instructor"
+              textFilterColumnId="instructorName"
+              selectableRows
+              selectedRowIds={selectedSeminarIds}
+              onSelectedRowIdsChange={setSelectedSeminarIds}
+              // By the seminar's moment, which is the order every seminar list
+              // opens in on both sides.
+              initialSort={{ columnId: "scheduledDate", direction: "asc" }}
+              emptyMessage="No hay seminarios para mostrar."
+            />
+          </Fragment>
+        ) : (
+          <Fragment key={choreographiesTabValue}>
+            <ClientDataTable
+              rows={loaderData.choreographyFinanceRows}
+              columns={choreographyFinanceColumns}
+              facetedFilters={choreographyFinanceFacetedFilters}
+              getRowKey={(row) => row.id}
+              searchPlaceholder="Buscar por número o nombre"
+              textFilterColumnId="name"
+              selectableRows
+              selectedRowIds={selectedChoreographyIds}
+              onSelectedRowIdsChange={setSelectedChoreographyIds}
+              // By number, like every other choreography list: it is the row's
+              // identity within the event.
+              initialSort={{
+                columnId: "choreographyNumber",
+                direction: "asc",
+              }}
+              emptyMessage="No hay coreografías para mostrar."
+            />
+          </Fragment>
+        )}
+      </ListTabs>
     </PortalListPage>
   );
 }

@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
+
+import { ListTabs } from "@/components/shared/list-tabs";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
 import { listQueryParamNames } from "@/lib/list-query/list-query";
 import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
@@ -31,34 +33,37 @@ export function useScheduleDayTab(
 }
 
 export function ScheduleDayTabs({
+  children,
   days,
   liveDay = null,
   tab,
 }: {
+  /** The list the chosen day narrows. */
+  children: ReactNode;
   days: readonly string[];
   /** The day the public program calls `En vivo`, which its tab announces. */
   liveDay?: string | null;
   tab: ReturnType<typeof useScheduleDayTab>;
 }) {
   return (
-    <Tabs
-      value={tab.value}
+    <ListTabs
       onValueChange={tab.onValueChange}
-      // An event with more days than the page is wide scrolls its tabs rather
-      // than widening the page; the padding keeps the active underline, drawn
-      // below the list, inside the scroll box that would otherwise clip it.
-      className="max-w-full overflow-x-auto pb-1"
+      tabs={[
+        { label: "Todos", value: allDaysTabValue },
+        ...days.map((day) => ({
+          label: (
+            <>
+              {formatScheduleDayTabLabel(day)}
+              {day === liveDay ? <LiveBadge /> : null}
+            </>
+          ),
+          value: day,
+        })),
+      ]}
+      value={tab.value}
     >
-      <TabsList variant="line">
-        <TabsTrigger value={allDaysTabValue}>Todos</TabsTrigger>
-        {days.map((day) => (
-          <TabsTrigger key={day} value={day}>
-            {formatScheduleDayTabLabel(day)}
-            {day === liveDay ? <LiveBadge /> : null}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
+      {children}
+    </ListTabs>
   );
 }
 
