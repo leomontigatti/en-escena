@@ -29,10 +29,18 @@ When the shape of that interface is itself in question (how deep the module is, 
 
 - **Implementation-coupled**: mocks internal collaborators, tests private methods, or verifies through a side channel (querying the database instead of using the interface). The tell: the test breaks when you refactor but behavior hasn't changed.
 - **Tautological**: the assertion recomputes the expected value the way the code does (`expect(add(a, b)).toBe(a + b)`, a snapshot derived by hand the same way, a constant asserted equal to itself), so it passes by construction and can never disagree with the code. Expected values must come from an independent source of truth: a known-good literal, a worked example, the spec.
+- **Restating text**: the assertion checks that a document contains a sentence, or that a component shows copy that nothing computes. The text lives in one place, so the test only fails when someone rewords it. Text earns an assertion when code computes it (a plural, a fallback, `" / 12 disponibles"`), the law fixes it (`"Nota de Crédito C"`), or a real bug produced the wrong text. `pnpm check:docs-tests` fails the doc case.
+- **Pass-through**: the test mocks a collaborator to return a value, then asserts the code returned that same value. It is the tautology through a mock: assert what the code does with the value instead.
 - **Horizontal slicing**: writing all tests first, then all implementation. Bulk tests verify _imagined_ behavior: you test the _shape_ of things rather than user-facing behavior, the tests go insensitive to real changes, and you commit to test structure before understanding the implementation. Work in **vertical slices** instead: one test → one implementation → repeat, each test a **tracer bullet** that responds to what the last cycle taught you.
 
 ## Rules of the loop
 
+- **Name the bug first.** Before writing a test, say which wrong implementation would make it fail. If the only answer is "someone changed the constant, the copy or the doc", do not write it: it is one of the anti-patterns above.
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle.
 - **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.
+
+## Keeping the suite lean
+
+- **Extend a fixture before adding one.** Before creating a test-support file, look for the one that already builds those rows or requests (`app/lib/test-support/`, the `*-test-fixtures.server.db.ts` beside the domain) and extend it. A new support file needs a reason no existing one fits.
+- **Delete what a better test made redundant.** When a test at a seam covers behaviour that older, shallower tests also cover, delete the older ones in the same change, and list them with the reason in the PR.

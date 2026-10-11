@@ -2,16 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
 
-import fastDatabaseConfig from "../../vitest.db.fast.config";
 import postgresDatabaseConfig from "../../vitest.db.config";
-
-type DatabaseTestConfig = {
-  test?: {
-    fileParallelism?: boolean;
-    maxWorkers?: number | string;
-    setupFiles?: string[];
-  };
-};
 
 const readPackageScripts = async () => {
   const packageJson = JSON.parse(await readFile("package.json", "utf8")) as {
@@ -23,20 +14,6 @@ const readPackageScripts = async () => {
 
 const readCiWorkflow = async () =>
   await readFile(".github/workflows/ci.yml", "utf8");
-
-const dbWorkflowScopeGuardrails = [
-  "pnpm test:db <path>...   # only the DB test files your change touches",
-  "Do not run `pnpm test`.",
-];
-
-const localAuthDatabaseModes = [
-  "Default DB validation (`pnpm test:db`, part of `pnpm test`)",
-  "does not",
-  "require local Postgres once the repo dependencies are installed.",
-  "High-fidelity DB validation (`pnpm test:db:postgres`)",
-  "requires local Postgres through",
-  "`TEST_DATABASE_URL`.",
-];
 
 describe("DB test workflow", () => {
   test("uses PGlite for the default DB suite and reserves Postgres for the CI gate", async () => {
@@ -64,34 +41,14 @@ describe("DB test workflow", () => {
     expect(scripts["test:db:file:postgres"]).toBeUndefined();
   });
 
-  test("keeps fast DB runs worker-safe and leaves the Postgres suite serialized", () => {
-    const fastTestConfig = (fastDatabaseConfig as DatabaseTestConfig).test;
-    const postgresTestConfig = (postgresDatabaseConfig as DatabaseTestConfig)
-      .test;
+  // Every Postgres test file shares one database (ADR-0007), so two files at
+  // once write over each other's rows. Turning on parallelism here fails as
+  // flaky shards rather than as a clear error.
+  test("runs the Postgres suite one file at a time", () => {
+    const { fileParallelism, maxWorkers } = postgresDatabaseConfig.test ?? {};
 
-    expect(fastTestConfig?.fileParallelism).toBe(true);
-    expect(fastTestConfig?.maxWorkers).toBe("50%");
-    expect(fastTestConfig?.setupFiles).toEqual(["./tests/db/setup-fast.ts"]);
-
-    expect(postgresTestConfig?.fileParallelism).toBe(false);
-    expect(postgresTestConfig?.maxWorkers).toBe(1);
-    expect(postgresTestConfig?.setupFiles).toEqual(["./tests/db/setup.ts"]);
-  });
-
-  test("documents the fast-vs-final DB validation workflow", async () => {
-    const validationDoc = await readFile("docs/agents/validation.md", "utf8");
-
-    for (const requiredText of dbWorkflowScopeGuardrails) {
-      expect(validationDoc).toContain(requiredText);
-    }
-  });
-
-  test("documents which DB validation modes require local Postgres", async () => {
-    const localAuthDoc = await readFile("docs/local-auth.md", "utf8");
-
-    for (const requiredText of localAuthDatabaseModes) {
-      expect(localAuthDoc).toContain(requiredText);
-    }
+    expect(fileParallelism).toBe(false);
+    expect(maxWorkers).toBe(1);
   });
 
   // The sharded `db-gate` (#962) has one silent failure mode: growing the

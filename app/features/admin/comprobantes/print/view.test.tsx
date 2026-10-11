@@ -248,13 +248,4 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain("01/08/2026 — 03/08/2026");
     expect(html).toContain("Vencimiento de pago:");
   });
-
-  test("matches the printed representation snapshot", () => {
-    const html = renderComprobantePrintDocument({
-      model: buildComprobantePrintViewModel(printRecord()),
-      qrCodeSvg: QR_SVG_STUB,
-    });
-
-    expect(html).toMatchSnapshot();
-  });
 });

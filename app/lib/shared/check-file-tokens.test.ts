@@ -56,32 +56,10 @@ describe("file-token check", () => {
     ]);
   });
 
-  test("ships the strict command contract in package scripts, hook wiring, and agent docs", async () => {
-    const [
-      packageJson,
-      preCommitHook,
-      validationDoc,
-      codingStandards,
-      codebaseMap,
-    ] = await Promise.all([
-      readFile("package.json", "utf8"),
-      readFile(".husky/pre-commit", "utf8"),
-      readFile("docs/agents/validation.md", "utf8"),
-      readFile("docs/agents/coding-standards.md", "utf8"),
-      readFile("docs/agents/codebase-map.md", "utf8"),
-    ]);
+  test("runs from the pre-commit hook and passes with nothing staged", async () => {
+    const preCommitHook = await readFile(".husky/pre-commit", "utf8");
 
-    expect(packageJson).toContain(
-      '"check:file-tokens": "node --import tsx scripts/check-file-tokens.ts"',
-    );
-    expect(preCommitHook).toContain("pnpm exec lint-staged");
-    expect(preCommitHook).toContain("pnpm typecheck");
     expect(preCommitHook).toContain("pnpm check:file-tokens");
-    expect(validationDoc).toContain("`pnpm check:file-tokens`");
-    expect(validationDoc).toContain("token ceiling");
-    expect(codingStandards).toContain("5500");
-    expect(codingStandards).toContain("clear module boundary");
-    expect(codebaseMap).toContain("`pnpm check:file-tokens`");
 
     await expect(
       runFileTokenCheck({ cwd: process.cwd(), files: [] }),

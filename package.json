@@ -18,6 +18,7 @@
     "test:db": "vitest --config vitest.db.fast.config.ts --run",
     "test:db:postgres": "pnpm db:test:reset && vitest --config vitest.db.config.ts --run",
     "check:banned-imports": "node --import tsx scripts/check-banned-imports.ts",
+    "check:docs-tests": "oxlint -c .oxlintrc.docs-tests.json",
     "check:labels": "node --import tsx scripts/check-labels.ts",
     "check:comment-language": "node --import tsx scripts/check-comment-language.ts",
     "check:pr-title": "node --import tsx scripts/check-pr-title.ts",

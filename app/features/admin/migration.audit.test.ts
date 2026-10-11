@@ -1,42 +1,13 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, test } from "vitest";
 
-const codebaseMapPath = path.resolve("docs/agents/codebase-map.md");
-const adminComponentsDirectory = path.resolve("app/components/admin");
-
 describe("admin migration audit", () => {
-  test("documents the stable admin entry points in the codebase map", () => {
-    const codebaseMap = readFileSync(codebaseMapPath, "utf8");
-
-    expect(codebaseMap).toContain("## Admin Shell And Dashboard");
-    expect(codebaseMap).toContain("app/routes/administracion.tsx");
-    expect(codebaseMap).toContain("app/routes/administracion._index.tsx");
-    expect(codebaseMap).toContain("## Admin Users");
-    expect(codebaseMap).toContain("app/features/admin/users/");
-    expect(codebaseMap).toContain("## Admin Choreographies");
-    expect(codebaseMap).toContain("## Admin Events And `Bases del evento`");
-    expect(codebaseMap).toContain("app/features/admin/events/list/");
-    expect(codebaseMap).toContain("app/features/admin/modalities/");
-    expect(codebaseMap).toContain("app/features/admin/categories/");
-    expect(codebaseMap).toContain("app/features/admin/schedules/");
-    expect(codebaseMap).toContain("app/features/admin/prices/");
-    expect(codebaseMap).not.toContain(
-      "## Admin Migration To app/features/admin",
-    );
-  });
-
   test("keeps migrated admin route adapters owned by admin feature modules", () => {
     for (const route of migratedAdminRouteAudits) {
       expectRouteAdapterDelegatesToFeature(route);
     }
-  });
-
-  test("keeps app/components/admin at the audited structure used by the migration", () => {
-    expect(listFiles(adminComponentsDirectory)).toEqual(
-      expectedAdminComponentFiles,
-    );
   });
 });
 
@@ -136,14 +107,6 @@ const migratedAdminRouteAudits = [
   ),
 ] as const;
 
-const expectedAdminComponentFiles = [
-  "events/form.tsx",
-  "resource-layout.tsx",
-  "shell.interaction.test.tsx",
-  "shell.test.tsx",
-  "shell.tsx",
-];
-
 function migratedAdminRoute(
   routeFile: string,
   featureImportPrefix: string,
@@ -173,19 +136,4 @@ function expectRouteAdapterDelegatesToFeature(route: MigratedAdminRouteAudit) {
 
 function stripTypeOnlyImports(source: string) {
   return source.replace(/^import type[\s\S]*?;\n/gm, "");
-}
-
-function listFiles(directoryPath: string, relativePrefix = ""): string[] {
-  return readdirSync(directoryPath, { withFileTypes: true })
-    .flatMap((entry) => {
-      const entryPath = path.join(directoryPath, entry.name);
-      const relativePath = path.join(relativePrefix, entry.name);
-
-      if (entry.isDirectory()) {
-        return listFiles(entryPath, relativePath);
-      }
-
-      return [relativePath];
-    })
-    .sort();
 }

@@ -97,6 +97,9 @@ jobs:
       # manifest does not keep it out, and typecheck has no opinion once it is
       # re-added. The rule carries its own reason and prints it on failure.
       - run: pnpm check:banned-imports
+      # No test asserts that a doc contains fixed text (#1571): such a test
+      # breaks on every rewording and catches no bug.
+      - run: pnpm check:docs-tests
       # Every label the automation names exists (#1116). The AFK state machine
       # runs on exact label strings, and a typo in an `--add-label` otherwise
       # surfaces only as a refused edit in the middle of the run that needs it.

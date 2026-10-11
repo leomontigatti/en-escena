@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  awardLabels,
-  presentationAverage,
-  awardForAverage,
-} from "@/lib/judging/award";
+import { presentationAverage, awardForAverage } from "@/lib/judging/award";
 
 describe("a presentation's average", () => {
   test("is the mean of the values every judge left", () => {
@@ -60,12 +56,5 @@ describe("the award read from that average", () => {
     [100, "gold"],
   ])("reads %s as %s", (average, award) => {
     expect(awardForAverage(average)).toBe(award);
-  });
-
-  test("names each award as administration reads it", () => {
-    expect(awardLabels.specialMention).toBe("Mención especial");
-    expect(awardLabels.bronze).toBe("Medalla de bronce");
-    expect(awardLabels.silver).toBe("Medalla de plata");
-    expect(awardLabels.gold).toBe("Medalla de oro");
   });
 });

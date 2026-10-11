@@ -27,6 +27,9 @@ that sync, beyond the `GLOSSARY.md` rename upstream made too:
 - `domain-modeling` describes this repo's single context and its glossary entry format
   (identifier, then `ui:`), which `app/lib/shared/domain-docs.test.ts` enforces.
 - `diagnosing-bugs` stops at findings when asked to diagnose, and leaves the fix to `implement`.
+- `tdd` adds the "Name the bug first" rule, the restating-text and pass-through anti-patterns
+  and § Keeping the suite lean (#1571), and `code-review`'s Standards brief checks every new or
+  changed test against them.
 - `pr` carries the body rules and the one-way doors of [`pull-requests.md`](./pull-requests.md).
 
 ## Pulling an upstream change
