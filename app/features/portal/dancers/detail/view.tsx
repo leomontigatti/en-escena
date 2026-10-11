@@ -27,20 +27,10 @@ import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { portalSeminarDetailPath } from "@/features/portal/seminars/shared";
 import {
@@ -529,47 +519,27 @@ function PortalDancerStatusDialog({
 
   useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
 
+  // The dialog lives as long as its action: closing clears the intent.
+  if (!action) {
+    return null;
+  }
+
   return (
-    <>
-      {action ? (
-        <div className="sr-only">
-          <p>{action.confirmTitle}</p>
-          <p>{action.confirmDescription}</p>
-        </div>
-      ) : null}
-      <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-        {action ? (
-          <AlertDialogContent forceMount>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {action.confirmDescription}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isPending}>
-                Cancelar
-              </AlertDialogCancel>
-              <Form id={dialogFormId} method="post">
-                <input type="hidden" name="intent" value={action.intent} />
-                <Button
-                  type="submit"
-                  variant={action.confirmButtonVariant}
-                  disabled={isPending}
-                >
-                  {isPending ? (
-                    <Spinner aria-hidden="true" data-icon="inline-start" />
-                  ) : (
-                    <PortalDancerStatusActionIcon intent={action.intent} />
-                  )}
-                  {action.confirmButtonLabel}
-                </Button>
-              </Form>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        ) : null}
-      </AlertDialog>
-    </>
+    <ConfirmationDialog
+      confirmIcon={portalDancerStatusActionIcon(action.intent)}
+      confirmLabel={action.confirmButtonLabel}
+      description={action.confirmDescription}
+      destructive={action.confirmButtonVariant === "destructive"}
+      form={dialogFormId}
+      isPending={isPending}
+      onOpenChange={onOpenChange}
+      open={isOpen}
+      title={action.confirmTitle}
+    >
+      <Form id={dialogFormId} method="post">
+        <input type="hidden" name="intent" value={action.intent} />
+      </Form>
+    </ConfirmationDialog>
   );
 }
 
@@ -599,16 +569,8 @@ function formatList(items: string[]) {
   return `${items.slice(0, -1).join(", ")} y ${items.at(-1)}`;
 }
 
-function PortalDancerStatusActionIcon({
-  intent,
-}: {
-  intent: PortalDancerStatusIntent;
-}) {
-  if (intent === "archive-dancer") {
-    return <Archive aria-hidden="true" data-icon="inline-start" />;
-  }
-
-  return <RotateCcw aria-hidden="true" data-icon="inline-start" />;
+function portalDancerStatusActionIcon(intent: PortalDancerStatusIntent) {
+  return intent === "archive-dancer" ? Archive : RotateCcw;
 }
 
 /**

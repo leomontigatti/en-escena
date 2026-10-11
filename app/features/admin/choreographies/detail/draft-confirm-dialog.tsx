@@ -1,15 +1,6 @@
 import { Check } from "lucide-react";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { formatAmount } from "@/lib/finances/formatters";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
@@ -35,50 +26,43 @@ export function ConfirmDraftDialog({
   const withdrawnDancers = consequences?.withdrawnDancers ?? [];
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="sm:max-w-lg">
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Guardar los cambios?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Guardar esta coreografía también cambia lo siguiente. Revisalo antes
-            de confirmar.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="flex flex-col gap-3 text-sm text-muted-foreground">
-          {moves.length > 0 ? (
+    <ConfirmationDialog
+      className="sm:max-w-lg"
+      confirmIcon={Check}
+      confirmLabel="Guardar"
+      description="Guardar esta coreografía también cambia lo siguiente. Revisalo antes de confirmar."
+      onConfirm={onConfirm}
+      onOpenChange={onOpenChange}
+      open={open}
+      title="¿Guardar los cambios?"
+    >
+      <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+        {moves.length > 0 ? (
+          <ul className="list-disc pl-5">
+            {moves.map((move) => (
+              <li key={move.label}>
+                {move.label}: {move.from} → {move.to}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {withdrawnDancers.length > 0 ? (
+          <div className="flex flex-col gap-2">
             <ul className="list-disc pl-5">
-              {moves.map((move) => (
-                <li key={move.label}>
-                  {move.label}: {move.from} → {move.to}
-                </li>
+              {withdrawnDancers.map((dancer) => (
+                <li key={dancer.id}>{dancer.name}: inscripción retirada</li>
               ))}
             </ul>
-          ) : null}
-          {withdrawnDancers.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              <ul className="list-disc pl-5">
-                {withdrawnDancers.map((dancer) => (
-                  <li key={dancer.id}>{dancer.name}: inscripción retirada</li>
-                ))}
-              </ul>
-              <p>
-                {withdrawnDancers.length === 1
-                  ? "Su inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: conserva el dinero y sigue en el comprobante."
-                  : "Sus inscripciones tienen dinero asignado o un comprobante emitido, así que no se borran: conservan el dinero y siguen en el comprobante."}{" "}
-                Volver a agregar al bailarín la reactiva.
-              </p>
-            </div>
-          ) : null}
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>
-            <Check aria-hidden="true" data-icon="inline-start" />
-            Guardar
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+            <p>
+              {withdrawnDancers.length === 1
+                ? "Su inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: conserva el dinero y sigue en el comprobante."
+                : "Sus inscripciones tienen dinero asignado o un comprobante emitido, así que no se borran: conservan el dinero y siguen en el comprobante."}{" "}
+              Volver a agregar al bailarín la reactiva.
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </ConfirmationDialog>
   );
 }
 
