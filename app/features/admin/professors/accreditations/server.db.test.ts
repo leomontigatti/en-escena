@@ -5,13 +5,10 @@ import { professors } from "@/db/schema";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import { createProfessor } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
-import {
-  createEventChoreographyFixture,
-  createEventFixtureDates,
-  createSavedEvent,
-} from "@/lib/events/bases.test-support";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -112,9 +109,9 @@ describe("loadProfessorAccreditationsPrint", () => {
   });
 
   test("with nothing ticked, prints only the professors dancing on the list's day", async () => {
-    const event = await createSavedEvent("Regional Días", {
-      activate: true,
-      dates: createEventFixtureDates(2026),
+    const event = await createSavedEvent({
+      name: "Regional Días",
+      ...eventDates(2026),
     });
     const academy = await seedAcademy("Academia Días");
     const friday = await createProfessor(academy.id, { firstName: "Vera" });

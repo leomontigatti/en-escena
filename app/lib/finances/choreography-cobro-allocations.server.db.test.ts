@@ -8,9 +8,9 @@ import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import { applyAllocationDelta } from "@/lib/finances/choreography-cobro-allocations.server";
 import {
   createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
   registerPaymentForTest,
 } from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

@@ -20,7 +20,6 @@ import {
   createEventScheduleAdminFixture,
   createScheduleAdminRequest,
   createScheduleCapacityAdminRequest,
-  createSavedEvent,
   expectCreated,
   expectScheduleCapacityBreakdown,
   findSavedScheduleById,
@@ -36,6 +35,7 @@ import {
 } from "@/lib/admin/events/event-bases.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -595,7 +595,10 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("does not leak schedule capacity field errors into unrelated forms", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -667,7 +670,10 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("returns inline capacity required errors from the schedule action", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -723,7 +729,10 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("rejects duplicate capacity group types server-side on schedule creation", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -767,7 +776,10 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("rejects invalid capacity rows server-side when the client is bypassed", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );

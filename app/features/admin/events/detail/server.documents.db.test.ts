@@ -22,7 +22,7 @@ import {
   eventDocumentKinds,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
-import { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -76,7 +76,7 @@ type DocumentChange = "keep" | "remove" | "upload";
 
 describe("event documents on the event detail action", () => {
   test("an upload creates the row the detail view then offers", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
 
     const result = await save(event, { professor_contract: "upload" });
 
@@ -97,7 +97,7 @@ describe("event documents on the event detail action", () => {
   });
 
   test("a re-upload replaces the row instead of adding a second one", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
 
     await save(event, { adult_contract: "upload" });
     const first = await readDocumentRows(event.id);
@@ -113,7 +113,7 @@ describe("event documents on the event detail action", () => {
   // The save is the whole form, so a document nobody touched has to survive the
   // trip: the "kept" field is what says so.
   test("a save that touches nothing leaves the documents alone", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
     await save(event, { minor_authorization: "upload" });
 
     const result = await save(event, {});
@@ -124,7 +124,7 @@ describe("event documents on the event detail action", () => {
   });
 
   test("clearing a document removes the row and the bytes on save", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
     await save(event, { minor_authorization: "upload" });
 
     const result = await save(event, { minor_authorization: "remove" });
@@ -139,7 +139,7 @@ describe("event documents on the event detail action", () => {
   // Choosing a file after clearing the field is a replacement. Reading it as a
   // removal would delete the bytes the administration was replacing.
   test("a file wins over a cleared field", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
     await save(event, { adult_contract: "upload" });
     removedKeys = [];
 
@@ -151,7 +151,7 @@ describe("event documents on the event detail action", () => {
 
   // A body that never carried the document fields is not "remove all three".
   test("a submission without the document fields keeps them", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
     await save(event, { professor_contract: "upload" });
 
     const body = eventFormBody(event);
@@ -166,7 +166,7 @@ describe("event documents on the event detail action", () => {
   });
 
   test("a storage failure leaves the document offered instead of half-deleted", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
     await save(event, { adult_contract: "upload" });
     removeDocumentMock.mockRejectedValueOnce(new Error("volume unavailable"));
 
@@ -180,7 +180,7 @@ describe("event documents on the event detail action", () => {
   });
 
   test("the event fields are refused before any document is touched", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
 
     const body = documentsBody(event, { professor_contract: "upload" });
     body.set("name", "");
@@ -199,7 +199,7 @@ describe("event documents on the event detail action", () => {
   });
 
   test("deleting the event takes its documents with it", async () => {
-    const event = await createAdminSavedEvent();
+    const event = await createSavedEvent({ active: false });
     await save(event, { professor_contract: "upload" });
 
     await db.delete(events).where(eq(events.id, event.id));

@@ -21,8 +21,8 @@ function scoresUrl(presentationId: string) {
   return `http://localhost/administracion/presentaciones/${presentationId}/puntajes`;
 }
 
-async function seedScoredPresentation() {
-  const fixture = await seedJudgingFixture();
+async function seedScoredPresentation(options: { active?: boolean } = {}) {
+  const fixture = await seedJudgingFixture(options);
   const presentation = await fixture.addPresentation({
     name: "Primera",
     orderNumber: 1,
@@ -281,7 +281,7 @@ describe("the scores route's writes", () => {
 
   test("refuses a score that does not belong to the presentation", async () => {
     const presentation = await seedScoredPresentation();
-    const other = await seedScoredPresentation();
+    const other = await seedScoredPresentation({ active: false });
 
     const result = await submitAsAdmin(presentation.presentationId, {
       intent: "edit-score",

@@ -23,11 +23,11 @@ import { loader as academyFinancesLoader } from "@/routes/administracion.finanza
 import { loader as portalFinanzasLoader } from "@/routes/portal.finanzas";
 import {
   academyFinancesUrl,
-  createSavedEvent,
   academyFinancesRouteArgs,
 } from "@/lib/admin/finances/finances.test-support";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

@@ -6,8 +6,8 @@ import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
-import { createInactiveEvent } from "@/lib/admin/finances/finances.test-support";
 import { seedEventSeminarFinanceFixture } from "@/lib/admin/finances/seminar-finances.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -103,7 +103,11 @@ describe("readSeminarInscriptionFinanceRows", () => {
 /** A seminar of an inactive event with one inscription of the same academy:
  * what the event-wide read has to leave out. */
 async function seedInscriptionInAnotherEvent(academyId: string) {
-  const otherEvent = await createInactiveEvent("En Escena 2025");
+  const otherEvent = await createSavedEvent({
+    name: "En Escena 2025",
+    active: false,
+    ...eventDates(2025),
+  });
   const created = await createSeminar(otherEvent.id, {
     instructorName: "Carla Ríos",
     kind: "regular",

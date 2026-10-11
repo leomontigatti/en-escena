@@ -7,7 +7,6 @@ import {
   createDancer,
   createProfessor,
 } from "@/lib/choreographies/registration.test-support";
-import { createSavedEvent } from "@/lib/events/bases.test-support";
 import {
   deleteSeminarInscriptionForAcademy,
   removeSeminarInscription,
@@ -22,6 +21,7 @@ import {
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -32,7 +32,11 @@ const beforeStart = new Date("2026-10-10T21:29:00.000Z");
 const afterStart = new Date("2026-10-10T21:31:00.000Z");
 
 async function createSeminarFixture(quota = 2) {
-  const event = await createSavedEvent("Regional 2026");
+  const event = await createSavedEvent({
+    name: "Regional 2026",
+    active: false,
+    ...eventDates(2030),
+  });
   const seminar = await createSeminar(event.id, {
     instructorName: "Abril Sosa",
     scheduledDate: "2026-10-10",
@@ -237,7 +241,11 @@ describe("seminar inscriptions", () => {
 
   test("refuses a seminar of another event", async () => {
     const { seminar } = await createSeminarFixture();
-    const otherEvent = await createSavedEvent("Regional 2027");
+    const otherEvent = await createSavedEvent({
+      name: "Regional 2027",
+      active: false,
+      ...eventDates(2030),
+    });
     const academy = await createAcademy("Academia Otro Evento");
     const dancer = await createDancer(academy.id);
 
@@ -343,7 +351,11 @@ describe("seminar inscriptions", () => {
     const { eventId, seminar } = await createSeminarFixture();
     const academy = await createAcademy("Academia Dueña");
     const otherAcademy = await createAcademy("Academia Ajena Baja");
-    const otherEvent = await createSavedEvent("Regional 2027");
+    const otherEvent = await createSavedEvent({
+      name: "Regional 2027",
+      active: false,
+      ...eventDates(2030),
+    });
     const professor = await createProfessor(academy.id);
     const inscriptionId = expectRegistered(
       await registerSeminarInscription({

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { createSavedEvent } from "@/lib/events/bases.test-support";
 import { listSeminarPrices } from "@/lib/seminar-prices/repository.server";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { handleSeminarPriceAction } from "./action.server";
 
@@ -61,7 +61,10 @@ function seminarPriceBody(
 
 describe("administrative seminar price action", () => {
   test("creates a row and lands on its detail, then edits and deletes it", async () => {
-    const event = await createSavedEvent("Regional 2026", { activate: true });
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const created = await submit(newUrl, seminarPriceBody());
     const [saved] = await listSeminarPrices(event.id);
 
@@ -106,7 +109,10 @@ describe("administrative seminar price action", () => {
   });
 
   test("refuses a delete that was not confirmed from the detail", async () => {
-    const event = await createSavedEvent("Regional 2027", { activate: true });
+    const event = await createSavedEvent({
+      name: "Regional 2027",
+      ...eventDates(2030),
+    });
 
     await submit(newUrl, seminarPriceBody());
 
@@ -135,7 +141,10 @@ describe("administrative seminar price action", () => {
   });
 
   test("refuses a second deadline-less row of the same cell", async () => {
-    const event = await createSavedEvent("Regional 2028", { activate: true });
+    const event = await createSavedEvent({
+      name: "Regional 2028",
+      ...eventDates(2030),
+    });
 
     await submit(newUrl, seminarPriceBody());
 
@@ -159,7 +168,10 @@ describe("administrative seminar price action", () => {
   });
 
   test("refuses a malformed deadline", async () => {
-    const event = await createSavedEvent("Regional 2029", { activate: true });
+    const event = await createSavedEvent({
+      name: "Regional 2029",
+      ...eventDates(2030),
+    });
 
     const { request } = await createSignedInRequest({
       body: seminarPriceBody({ paymentDeadline: "31/05/2026" }),
@@ -180,7 +192,10 @@ describe("administrative seminar price action", () => {
   });
 
   test("empties a deadline that had been picked", async () => {
-    const event = await createSavedEvent("Regional 2030", { activate: true });
+    const event = await createSavedEvent({
+      name: "Regional 2030",
+      ...eventDates(2030),
+    });
 
     await submit(newUrl, seminarPriceBody({ paymentDeadline: "2026-05-31" }));
 

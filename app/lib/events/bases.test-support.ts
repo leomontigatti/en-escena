@@ -8,7 +8,6 @@ import {
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 import { readFixtureCapacityScheduleId } from "@/lib/choreographies/registration.test-support";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   experienceLevelLabels,
   type ExperienceLevel,
@@ -21,16 +20,7 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
-
-type SavedEventFixtureOptions = {
-  activate?: boolean;
-  dates?: SavedEventFixtureDates;
-};
-
-type SavedEventFixtureDates = {
-  startsAt: Date;
-  endsAt: Date;
-};
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 type InscriptionsFixtureState = "none" | "active" | "withdrawn";
 
@@ -62,43 +52,12 @@ type SavedPriceFixtureInput = {
   scheduleIds?: readonly string[];
 };
 
-let createdEventOffset = 0;
-
-export function createEventFixtureDates(year: number): SavedEventFixtureDates {
-  return {
-    startsAt: new Date(Date.UTC(year, 4, 1, 12, 0, 0)),
-    endsAt: new Date(Date.UTC(year, 4, 3, 12, 0, 0)),
-  };
-}
-
-export async function createSavedEvent(
-  name: string,
-  { activate = false, dates }: SavedEventFixtureOptions = {},
-) {
-  const eventOffset = createdEventOffset++;
-  const eventDates = dates ?? createEventFixtureDates(2030 + eventOffset);
-  const result = await createEvent({
-    name,
-    ...eventDates,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  if (activate) {
-    const activationResult = await activateEvent(result.event.id);
-
-    if (!activationResult.ok) {
-      throw new Error(activationResult.error);
-    }
-  }
-
-  return result.event;
-}
-
 export async function createEventModalitiesFixture(name = "Regional 2026") {
-  const event = await createSavedEvent(name);
+  const event = await createSavedEvent({
+    name,
+    active: false,
+    ...eventDates(2030),
+  });
   const jazz = await expectCreated(createModality(event.id, { name: "Jazz" }));
   const urbanas = await expectCreated(
     createModality(event.id, { name: "Danzas urbanas" }),
@@ -152,7 +111,11 @@ export async function createSavedPrice(
 }
 
 export async function createEventPriceFixture(name = "Regional 2026") {
-  const event = await createSavedEvent(name);
+  const event = await createSavedEvent({
+    name,
+    active: false,
+    ...eventDates(2030),
+  });
   const modality = await expectCreated(
     createModality(event.id, { name: "Jazz" }),
   );

@@ -19,10 +19,10 @@ import {
 import {
   createChoreographyOnBases,
   createSavedAcademy,
-  createSavedEvent,
   expectCreated,
   fixedExperienceLevel,
 } from "@/lib/events/bases.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -30,8 +30,16 @@ installDatabaseTestHooks();
 
 describe("`Bases del evento` repository", () => {
   test("keeps modality names unique inside one event only", async () => {
-    const firstEvent = await createSavedEvent("Regional 2026");
-    const secondEvent = await createSavedEvent("Final 2026");
+    const firstEvent = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const secondEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     await expect(
       createModality(firstEvent.id, { name: " jazz contemporáneo " }),
@@ -54,7 +62,11 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("manages submodalities under a modality and blocks deleting the parent while they exist", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Danzas urbanas" }),
     );
@@ -103,8 +115,16 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("rejects a submodality assigned to a modality from another event", async () => {
-    const firstEvent = await createSavedEvent("Regional 2026");
-    const secondEvent = await createSavedEvent("Final 2026");
+    const firstEvent = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const secondEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const firstModality = await expectCreated(
       createModality(firstEvent.id, { name: "Jazz" }),
     );
@@ -122,7 +142,11 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("updates `Bases del evento` labels while preserving event-scoped uniqueness", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Danzas urbanas" }),
     );
@@ -163,8 +187,16 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("keeps categories unique per event and modality set", async () => {
-    const firstEvent = await createSavedEvent("Regional 2026");
-    const secondEvent = await createSavedEvent("Final 2026");
+    const firstEvent = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const secondEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const firstModality = await expectCreated(
       createModality(firstEvent.id, { name: "Jazz" }),
     );
@@ -228,7 +260,11 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("rejects category age overlaps and invalid experience levels", async () => {
-    const firstEvent = await createSavedEvent("Regional 2026");
+    const firstEvent = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const firstModality = await expectCreated(
       createModality(firstEvent.id, { name: "Jazz" }),
     );
@@ -279,7 +315,11 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("updates categories and blocks deleting modalities with related categories", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -319,7 +359,11 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("refuses removing registration paths the choreographies of a category still occupy", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const academy = await createSavedAcademy();
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -634,7 +678,11 @@ describe("`Bases del evento` repository", () => {
 async function createOccupiableCategory({
   groupTypes = ["solo", "duo"],
 }: { groupTypes?: string[] } = {}) {
-  const event = await createSavedEvent("Regional 2026");
+  const event = await createSavedEvent({
+    name: "Regional 2026",
+    active: false,
+    ...eventDates(2030),
+  });
   const academy = await createSavedAcademy();
   const jazz = await expectCreated(createModality(event.id, { name: "Jazz" }));
   const category = await expectCreated(

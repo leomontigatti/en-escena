@@ -20,11 +20,8 @@ import {
 } from "@/lib/roster/inscriptions.server";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
 import { createAcademyUser } from "@/lib/test-support/academies";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createInactiveEvent,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -57,7 +54,11 @@ async function createSeminar(input: {
  */
 async function seedSeminarFixture(kind: RosterPersonKind) {
   const event = await createSavedEvent();
-  const otherEvent = await createInactiveEvent("En Escena 2025");
+  const otherEvent = await createSavedEvent({
+    name: "En Escena 2025",
+    active: false,
+    ...eventDates(2025),
+  });
   const academy = await createAcademyUser({
     academyName: "Academia Seminarios",
     email: `seminarios.${crypto.randomUUID()}@example.com`,

@@ -6,7 +6,6 @@ import {
   votingRoundFinalists,
   votingRounds,
 } from "@/db/schema";
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { castVote } from "@/lib/grand-final/vote.server";
 import {
   createVoteCodeBatch,
@@ -20,6 +19,7 @@ import {
   readCurrentVotingRound,
 } from "@/lib/grand-final/voting-round.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { seedEligibilityFixture } from "./grand-final.test-support";
 
@@ -108,8 +108,8 @@ export function voterVote(input: {
  * holding as many of its two banners as asked. Picks and banners are written
  * straight to their tables: eligibility is not what a round test is about.
  */
-export async function seedFinalistsFixture() {
-  const fixture = await seedEligibilityFixture();
+export async function seedFinalistsFixture(options: { active?: boolean } = {}) {
+  const fixture = await seedEligibilityFixture(options);
   const judgeId = await fixture.addJudge();
 
   return {
@@ -161,8 +161,8 @@ export async function seedFinalistsFixture() {
  * An event with round 1 open over two finalists, `Alas` and `Ritmo Sur`, and
  * a way to issue codes of the event, or of another one.
  */
-export async function seedOpenRoundFixture() {
-  const fixture = await seedFinalistsFixture();
+export async function seedOpenRoundFixture(options: { active?: boolean } = {}) {
+  const fixture = await seedFinalistsFixture(options);
   const alas = await fixture.addFinalist("Alas");
   const ritmo = await fixture.addFinalist("Ritmo Sur");
   const outsider = await fixture.addAcademy("Sin elegir");

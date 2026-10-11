@@ -3,7 +3,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { auditLinks } from "@/db/schema";
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import {
   createAuditLink,
   listAuditLinks,
@@ -13,6 +12,7 @@ import {
   readAuditSession,
   revokeAuditLink,
 } from "@/lib/grand-final/audit-link.server";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import {
@@ -95,7 +95,7 @@ describe("`createAuditLink`", () => {
 
   test("counts only the event's own links toward the limit", async () => {
     const event = await createSavedEvent();
-    const other = await createSavedEvent();
+    const other = await createSavedEvent({ active: false });
 
     for (let index = 0; index < maxActiveAuditLinks; index += 1) {
       await createLink(other.id, `Auditor ${index + 1}`);
@@ -155,7 +155,7 @@ describe("`readAuditLinkHandover`", () => {
 
   test("does not reach another event's link", async () => {
     const event = await createSavedEvent();
-    const other = await createSavedEvent();
+    const other = await createSavedEvent({ active: false });
     const link = await createLink(other.id);
 
     await expect(
@@ -243,7 +243,7 @@ describe("`revokeAuditLink`", () => {
 
   test("does not reach another event's link", async () => {
     const event = await createSavedEvent();
-    const other = await createSavedEvent();
+    const other = await createSavedEvent({ active: false });
     const link = await createLink(other.id);
 
     await expect(

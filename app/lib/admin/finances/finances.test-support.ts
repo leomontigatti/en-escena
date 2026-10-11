@@ -9,7 +9,6 @@ import {
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSignedInRequest } from "@/lib/test-support/auth";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   createChoreographyRecord,
   createEventCatalog,
@@ -25,39 +24,7 @@ import {
 } from "@/routes/administracion.finanzas";
 import { date as choreographyDate } from "@/features/portal/choreographies/test-support/db";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
-
-export async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]> = {},
-) {
-  const result = await createEvent({
-    name: "En Escena 2026",
-    startsAt: choreographyDate("2026-05-01T12:00:00Z"),
-    endsAt: choreographyDate("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  await activateEvent(result.event.id);
-
-  return result.event;
-}
-
-export async function createInactiveEvent(name: string) {
-  const result = await createEvent({
-    name,
-    startsAt: choreographyDate("2025-05-01T12:00:00Z"),
-    endsAt: choreographyDate("2025-05-03T12:00:00Z"),
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
+import { createSavedEvent } from "@/lib/test-support/events";
 
 export async function createAcademyFinanceChoreographyFixture(input: {
   academyName: string;

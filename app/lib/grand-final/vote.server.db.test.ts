@@ -143,7 +143,7 @@ describe("`castVote` with a code", () => {
     { label: "a code of another event", eventOfCode: "other" as const },
   ])("refuses $label as unknown", async ({ eventOfCode }) => {
     const round = await seedOpenRoundFixture();
-    const other = await seedOpenRoundFixture();
+    const other = await seedOpenRoundFixture({ active: false });
     const token =
       eventOfCode === "none"
         ? "AAAAAAAAAAAAAAAAAAAAAA"
@@ -338,7 +338,7 @@ describe("`castVote` with a voter", () => {
 describe("`readVoterStanding`", () => {
   test("reads a voter as available, then as voted for its academy, in that round only", async () => {
     const round = await seedOpenRoundFixture();
-    const other = await seedOpenRoundFixture();
+    const other = await seedOpenRoundFixture({ active: false });
     const voterId = await seedVoter();
     const standing = (roundId: string) =>
       readVoterStanding({ roundId, voterId });

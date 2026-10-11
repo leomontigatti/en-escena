@@ -17,10 +17,10 @@ import {
   createEventCatalog,
   createProfessor,
 } from "@/features/portal/choreographies/test-support/db";
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import type { Province } from "@/lib/academies/provinces";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { buildPeriodExportHref, type ExportPeriod } from "./shared";
 

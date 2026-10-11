@@ -23,16 +23,13 @@ import {
   fixedExperienceLevel,
 } from "@/lib/events/bases.test-support";
 import { activateEvent } from "@/lib/events/management.server";
-import {
-  createPortalSavedEvent as createSavedEvent,
-  testEventDate as date,
-} from "@/lib/events/saved-event.test-support";
 import { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
 import { createAcademySession } from "@/features/portal/test-support/db";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -45,9 +42,10 @@ describe("loadPortalChoreographiesList", () => {
       academyName: "Academia sin Evento Activo",
     });
     await createSavedEvent({
+      active: false,
       name: "Regional 2026",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
 
     const loaderData = await loadPortalChoreographiesList(
@@ -66,9 +64,10 @@ describe("loadPortalChoreographiesList", () => {
       academyName: "Academia Bases Incompletas",
     });
     const activeEvent = await createSavedEvent({
+      active: false,
       name: "Regional 2026",
-      startsAt: date("2026-07-01T12:00:00Z"),
-      endsAt: date("2026-07-03T12:00:00Z"),
+      startsAt: new Date("2026-07-01T12:00:00Z"),
+      endsAt: new Date("2026-07-03T12:00:00Z"),
     });
     await activateEvent(activeEvent.id);
 
@@ -131,9 +130,10 @@ describe("loadPortalChoreographiesList", () => {
       academyName: "Academia Crear Coreografía",
     });
     const activeEvent = await createSavedEvent({
+      active: false,
       name: "Regional 2026",
-      startsAt: date("2026-07-01T12:00:00Z"),
-      endsAt: date("2026-07-03T12:00:00Z"),
+      startsAt: new Date("2026-07-01T12:00:00Z"),
+      endsAt: new Date("2026-07-03T12:00:00Z"),
     });
     await activateEvent(activeEvent.id);
     await db.insert(dancers).values({
@@ -176,14 +176,14 @@ describe("loadPortalChoreographiesList", () => {
     const selectedEvent = await createEventRecord({
       active: true,
       name: "Regional 2025",
-      startsAt: date("2025-10-10T12:00:00Z"),
-      endsAt: date("2025-10-12T12:00:00Z"),
+      startsAt: new Date("2025-10-10T12:00:00Z"),
+      endsAt: new Date("2025-10-12T12:00:00Z"),
     });
     const activeEvent = await createEventRecord({
       active: false,
       name: "Regional 2026",
-      startsAt: date("2026-10-10T12:00:00Z"),
-      endsAt: date("2026-10-12T12:00:00Z"),
+      startsAt: new Date("2026-10-10T12:00:00Z"),
+      endsAt: new Date("2026-10-12T12:00:00Z"),
     });
     const selectedCatalog = await createEventCatalog(selectedEvent.id);
     const ownerDancer = await createDancer(owner.academyId, {
@@ -468,8 +468,8 @@ async function createEventRecord(
       name: "Evento",
       active: false,
       requiredDepositPercentage: 30,
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
       ...overrides,
     })
     .returning();
