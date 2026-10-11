@@ -7,14 +7,17 @@ gate; a session's job is to catch its own mistakes cheaply, not to reproduce CI.
 ## The rule
 
 ```sh
-pnpm typecheck
-pnpm lint                # ~6.5 s over the whole repo
-pnpm test:unit
+pnpm gate                # pnpm typecheck, pnpm lint, pnpm test:unit
 pnpm test:db <path>...   # only the DB test files your change touches
 ```
 
-Run this **once, after your edits**. Do not run `pnpm test`. When a command fails,
-fix it and rerun that command before the next one.
+Run this **once, after your edits**. Do not run `pnpm test`. `pnpm gate` runs its
+three steps in order, every one of them even after one fails, and prints only the
+failures, each at its file and line, then one summary line. Its output is already
+short, so never pipe it into `tail` or `head`: that is what used to hide the
+failure. When a step fails, fix it and rerun that step on its own
+(`pnpm typecheck`, `pnpm lint`, `pnpm test:unit <path>`) before the next
+`pnpm gate`.
 
 Run `pnpm typecheck` and `pnpm build` one after the other, never in parallel:
 `pnpm build` cleans and regenerates `build/`, which TypeScript may read mid-check,
@@ -22,7 +25,7 @@ and the result is a transient TS6053 missing-file error that is not a real failu
 
 ## This list is exhaustive
 
-These four are the whole validation surface. **Every command you run is one that
+These commands are the whole validation surface. **Every command you run is one that
 exists**: check [the script index](../operations/scripts.md) before running one
 that is not on this list, never after it fails. A guessed command once cost an
 agent its whole budget and its uncommitted slice.
@@ -31,6 +34,7 @@ The scripts that exist and what owns what:
 
 | Command                             | Owns                                                                                                                                                                                                                                                                                    |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm gate`                         | The next three rows in one run: failures only, each at its file and line, and one summary line                                                                                                                                                                                          |
 | `pnpm typecheck`                    | Types, unused locals and parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) — flags in `tsconfig.json` — also run by the `Stop` hook |
 | `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules, the `code` standards rules and the `Trash` import — **only** these; also run by the `Stop` hook                                                                                                    |
 | `pnpm format` / `:check`            | All formatting — also applied per file by the `PostToolUse` hook                                                                                                                                                                                                                        |
