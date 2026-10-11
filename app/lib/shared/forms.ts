@@ -159,6 +159,7 @@ export function useOptionalFormAction() {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
     return useFormAction();
   } catch {
+    // No router context: see above.
     return undefined;
   }
 }
@@ -168,6 +169,7 @@ export function useOptionalSubmit() {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
     return useSubmit();
   } catch {
+    // No router context: see above.
     return async () => {};
   }
 }
@@ -177,6 +179,7 @@ export function useOptionalNavigation() {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
     return useNavigation();
   } catch {
+    // No router context: see above.
     return { state: "idle" } as const;
   }
 }

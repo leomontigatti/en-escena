@@ -143,6 +143,7 @@ function useFeedbackTake({
       analyser.fftSize = 1024;
       audioContext.createMediaStreamSource(stream).connect(analyser);
     } catch {
+      // Whichever of the three failed, the take did not start (see above).
       setError(microphoneErrorMessage);
       applyTakeEvent({ type: "failed" });
       return;
