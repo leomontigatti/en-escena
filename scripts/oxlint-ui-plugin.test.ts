@@ -220,6 +220,71 @@ export const refusal = "Confirmá el borrado del evento.";
 export const withdrawn = "La inscripción no se borra.";
 `;
 
+const structureViolatingFixture = `
+import { AlertTriangle, Info, Trophy } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertDialog } from "@/components/ui/alert-dialog";
+
+export function Violating() {
+  return (
+    <AlertDialog>
+      <Alert>
+        <Info />
+        <AlertTitle>Sin variante</AlertTitle>
+        <AlertDescription>Una alerta sin tipo.</AlertDescription>
+      </Alert>
+      <Alert variant="warning">
+        <AlertTriangle />
+        <AlertTitle>Alias</AlertTitle>
+        <AlertDescription>El icono con otro nombre.</AlertDescription>
+      </Alert>
+      <Alert variant="info">
+        <Trophy className="mt-1" />
+        <AlertDescription>Sin título, con icono del tema.</AlertDescription>
+      </Alert>
+      <Alert variant="success">
+        {/* Un comentario no esconde lo que falta. */}
+        <AlertTitle>Sin icono ni descripción</AlertTitle>
+      </Alert>
+    </AlertDialog>
+  );
+}
+`;
+
+const structureCompliantFixture = `
+import { CircleAlert, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+function Reasons() {
+  return <AlertDescription>Una razón.</AlertDescription>;
+}
+
+export function Compliant(props: { variant: "info" | "warning"; icon: React.ReactNode }) {
+  return (
+    <div>
+      <Alert variant="destructive">
+        <CircleAlert aria-hidden="true" />
+        <AlertTitle>No se pudo guardar</AlertTitle>
+        <AlertDescription>Revisá los campos.</AlertDescription>
+      </Alert>
+      <Alert variant={props.variant}>
+        <Info />
+        <AlertTitle>Variante elegida al vuelo</AlertTitle>
+      </Alert>
+      <Alert variant="info">
+        {props.icon}
+        <AlertTitle>Icono por prop</AlertTitle>
+      </Alert>
+      <Alert variant="info">
+        <Info />
+        <AlertTitle>Descripción de un componente</AlertTitle>
+        <Reasons />
+      </Alert>
+    </div>
+  );
+}
+`;
+
 const restrictedViolatingFixture = `
 import type { FormEvent } from "react";
 import { toast } from "sonner";
@@ -287,6 +352,11 @@ describe("ui oxlint plugin", () => {
     ) as { rules: Record<string, unknown> };
     tempRoot = await mkdtemp(path.join(tmpdir(), "oxlint-ui-plugin-"));
     await mkdir(path.join(tempRoot, "app", "features"), { recursive: true });
+    // Fixtures that write an AlertDialog live where the shared confirmations
+    // do, the one place `ui/confirmation-shared` allows it.
+    await mkdir(path.join(tempRoot, "app", "components", "shared"), {
+      recursive: true,
+    });
     await writeFile(
       path.join(tempRoot, ".oxlintrc.json"),
       JSON.stringify({
@@ -302,6 +372,8 @@ describe("ui oxlint plugin", () => {
           "ui/actions-menu-text-only": "error",
           "ui/confirm-wording": "error",
           "ui/no-borrar": "error",
+          "ui/confirmation-shared": "error",
+          "ui/alert-structure": "error",
           "ui/restricted-syntax": "error",
           // The repo's own entry, so the test judges the config that ships.
           "no-restricted-imports": repoConfig.rules["no-restricted-imports"],
@@ -317,19 +389,31 @@ describe("ui oxlint plugin", () => {
       compliantFixture,
     );
     await writeFile(
-      path.join(tempRoot, "app", "features", "conventions-violating.tsx"),
+      path.join(
+        tempRoot,
+        "app",
+        "components",
+        "shared",
+        "conventions-violating.tsx",
+      ),
       conventionsViolatingFixture,
     );
     await writeFile(
-      path.join(tempRoot, "app", "features", "conventions-compliant.tsx"),
+      path.join(
+        tempRoot,
+        "app",
+        "components",
+        "shared",
+        "conventions-compliant.tsx",
+      ),
       conventionsCompliantFixture,
     );
     await writeFile(
-      path.join(tempRoot, "app", "features", "copy-violating.tsx"),
+      path.join(tempRoot, "app", "components", "shared", "copy-violating.tsx"),
       copyViolatingFixture,
     );
     await writeFile(
-      path.join(tempRoot, "app", "features", "copy-compliant.tsx"),
+      path.join(tempRoot, "app", "components", "shared", "copy-compliant.tsx"),
       copyCompliantFixture,
     );
     // An <h1> is the page header's business only in the admin and the portal.
@@ -363,6 +447,19 @@ describe("ui oxlint plugin", () => {
     await writeFile(
       path.join(tempRoot, "app", "features", "copy-server.ts"),
       copyServerFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "structure-violating.tsx"),
+      structureViolatingFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "structure-compliant.tsx"),
+      structureCompliantFixture,
+    );
+    // The same import is the shared confirmations' own business.
+    await writeFile(
+      path.join(tempRoot, "app", "components", "shared", "some-dialog.tsx"),
+      'import { AlertDialog } from "@/components/ui/alert-dialog";\nexport const Dialog = AlertDialog;\n',
     );
   });
 
@@ -441,7 +538,7 @@ describe("ui oxlint plugin", () => {
   test("flags tabs without the line variant, unpositioned button icons, dialog width overrides, the Trash icon and icons in an actions menu", () => {
     const diagnostics = lint(
       tempRoot,
-      "app/features/conventions-violating.tsx",
+      "app/components/shared/conventions-violating.tsx",
     );
 
     expect(diagnostics).toEqual([
@@ -504,13 +601,13 @@ describe("ui oxlint plugin", () => {
   });
 
   test("stays silent on line tabs, positioned and icon-only button icons, the wide alert dialog, dialog heights, dynamic classes, lookalike components, a text-only actions menu and an icon in another menu", () => {
-    expect(lint(tempRoot, "app/features/conventions-compliant.tsx")).toEqual(
-      [],
-    );
+    expect(
+      lint(tempRoot, "app/components/shared/conventions-compliant.tsx"),
+    ).toEqual([]);
   });
 
   test("flags a confirmation that is not a question or answers with a generic verb, and delete copy that says borrar", () => {
-    expect(lint(tempRoot, "app/features/copy-violating.tsx")).toEqual([
+    expect(lint(tempRoot, "app/components/shared/copy-violating.tsx")).toEqual([
       {
         rule: "ui(confirm-wording)",
         line: 13,
@@ -582,7 +679,59 @@ describe("ui oxlint plugin", () => {
   });
 
   test("stays silent on question titles, dynamic titles, verbs from the title, buttons outside a confirmation, copy that says a record is not deleted, a draft and comments", () => {
-    expect(lint(tempRoot, "app/features/copy-compliant.tsx")).toEqual([]);
+    expect(lint(tempRoot, "app/components/shared/copy-compliant.tsx")).toEqual(
+      [],
+    );
+  });
+
+  test("flags an AlertDialog outside the shared confirmations, and alerts without a variant, with another icon, a moved icon or a missing part", () => {
+    expect(lint(tempRoot, "app/features/structure-violating.tsx")).toEqual([
+      {
+        rule: "ui(confirmation-shared)",
+        line: 4,
+        message: expect.stringContaining("ConfirmationDialog"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 9,
+        message: expect.stringContaining("`variant`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 15,
+        message: expect.stringContaining("Draw `TriangleAlert`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 19,
+        message: expect.stringContaining("`AlertTitle`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 20,
+        message: expect.stringContaining("Draw `Info`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 20,
+        message: expect.stringContaining("Drop `className`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 23,
+        message: expect.stringContaining("with `CircleCheck`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 23,
+        message: expect.stringContaining("`AlertDescription`"),
+      },
+    ]);
+  });
+
+  test("stays silent on the shared confirmations, canonical alerts, a dynamic variant, and an icon or a part it cannot see", () => {
+    expect(lint(tempRoot, "app/components/shared/some-dialog.tsx")).toEqual([]);
+    expect(lint(tempRoot, "app/features/structure-compliant.tsx")).toEqual([]);
   });
 
   test("flags toast.info, a dark: class, an admin page's h1, FormEvent and a native form submit", () => {

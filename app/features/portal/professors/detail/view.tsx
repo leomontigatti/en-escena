@@ -14,19 +14,9 @@ import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-per
 import { ProfessorChoreographiesTable } from "@/components/shared/roster-inscriptions-table";
 import { RosterSeminarInscriptionsTable } from "@/components/shared/roster-seminar-inscriptions-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { portalSeminarDetailPath } from "@/features/portal/seminars/shared";
 import {
@@ -301,60 +291,32 @@ function ProfessorStatusDialog({
 
   useCloseOnceSettled({ isPending, onClose: () => onOpenChange(false) });
 
+  // The dialog lives as long as its action: closing clears the intent.
+  if (!action) {
+    return null;
+  }
+
   return (
-    <>
-      {action ? (
-        <div className="sr-only">
-          <p>{action.confirmTitle}</p>
-          <p>{action.confirmDescription}</p>
-        </div>
-      ) : null}
-      <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-        {action ? (
-          <AlertDialogContent forceMount>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {action.confirmDescription}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isPending}>
-                Cancelar
-              </AlertDialogCancel>
-              <Form id={dialogFormId} method="post">
-                <input type="hidden" name="intent" value={action.intent} />
-                <Button
-                  type="submit"
-                  variant={action.confirmButtonVariant}
-                  disabled={isPending}
-                >
-                  {isPending ? (
-                    <Spinner aria-hidden="true" data-icon="inline-start" />
-                  ) : (
-                    <ProfessorStatusActionIcon intent={action.intent} />
-                  )}
-                  {action.confirmButtonLabel}
-                </Button>
-              </Form>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        ) : null}
-      </AlertDialog>
-    </>
+    <ConfirmationDialog
+      confirmIcon={professorStatusActionIcon(action.intent)}
+      confirmLabel={action.confirmButtonLabel}
+      description={action.confirmDescription}
+      destructive={action.confirmButtonVariant === "destructive"}
+      form={dialogFormId}
+      isPending={isPending}
+      onOpenChange={onOpenChange}
+      open={isOpen}
+      title={action.confirmTitle}
+    >
+      <Form id={dialogFormId} method="post">
+        <input type="hidden" name="intent" value={action.intent} />
+      </Form>
+    </ConfirmationDialog>
   );
 }
 
-function ProfessorStatusActionIcon({
-  intent,
-}: {
-  intent: ProfessorStatusIntent;
-}) {
-  if (intent === archiveProfessorIntent) {
-    return <Archive aria-hidden="true" data-icon="inline-start" />;
-  }
-
-  return <RotateCcw aria-hidden="true" data-icon="inline-start" />;
+function professorStatusActionIcon(intent: ProfessorStatusIntent) {
+  return intent === archiveProfessorIntent ? Archive : RotateCcw;
 }
 
 function getProfessorStatusFormId(intent: ProfessorStatusIntent | null) {

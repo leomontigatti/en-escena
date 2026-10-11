@@ -14,6 +14,10 @@
 //   question and its verb is the title's, never `Confirmar` or `Aceptar`.
 // - `no-borrar`: Interface text, a delete says `eliminar`. It also reads the
 //   `.ts` files, where refusals and server messages live.
+// - `confirmation-shared`: Destructive actions, an `AlertDialog` is written
+//   once in app/components/shared, never inline in a view.
+// - `alert-structure`: Alerts, an `Alert` has a variant, that variant's one
+//   icon, an `AlertTitle` and an `AlertDescription`.
 // - `restricted-syntax`: single shapes the guide bans, each with its reason:
 //   `toast.info`, a `dark:` class, an `<h1>` under the admin or the portal,
 //   `FormEvent`, and a native `form.submit()`. oxlint has no
@@ -647,6 +651,162 @@ const noBorrar = {
   },
 };
 
+const SHARED_DIRECTORY_SEGMENT = `${path.sep}app${path.sep}components${path.sep}shared${path.sep}`;
+
+function importsUiModule(source, filename, module) {
+  if (source === `${UI_ALIAS_PREFIX}${module}`) return true;
+  if (!source.startsWith(".")) return false;
+  return path
+    .resolve(path.dirname(filename), source)
+    .endsWith(`${UI_DIRECTORY_SEGMENT}${module}`);
+}
+
+const confirmationShared = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "AlertDialog is used only by the shared confirmations in app/components/shared.",
+    },
+    messages: {
+      inline:
+        "Use a confirmation from app/components/shared (`ConfirmationDialog`, `DeleteDialog`, `WithdrawDialog`, `BlockedActionDialog`, `ArcaConfirmationDialog`) instead of an `AlertDialog` in a view: the shared one owns the question, the footer and the pending state, so every confirmation reads and behaves the same. A new kind of confirmation gets its own component there (style guide, Destructive actions).",
+    },
+    schema: [],
+  },
+  create(context) {
+    if (`${context.filename}`.includes(SHARED_DIRECTORY_SEGMENT)) return {};
+
+    return {
+      ImportDeclaration(node) {
+        if (
+          importsUiModule(node.source.value, context.filename, "alert-dialog")
+        ) {
+          context.report({ node, messageId: "inline" });
+        }
+      },
+    };
+  },
+};
+
+const ALERT_ICONS = new Map([
+  ["destructive", "CircleAlert"],
+  ["warning", "TriangleAlert"],
+  ["info", "Info"],
+  ["success", "CircleCheck"],
+]);
+const ALERT_PARTS = new Set(["AlertTitle", "AlertDescription", "AlertAction"]);
+
+// What an alert's children are, as far as one file shows: its icon, its
+// parts, or something the rule cannot see into (a prop, a wrapper component).
+// Whitespace and `{/* comments */}` render nothing.
+function isBlankChild(child) {
+  return (
+    (child.type === "JSXText" && child.value.trim() === "") ||
+    (child.type === "JSXExpressionContainer" &&
+      child.expression.type === "JSXEmptyExpression")
+  );
+}
+
+function alertChildren(node, uiImports, icons) {
+  return node.children
+    .filter((child) => !isBlankChild(child))
+    .map((child) => {
+      if (child.type !== "JSXElement") return { kind: "unknown" };
+      const name = child.openingElement.name;
+      if (name.type === "JSXIdentifier" && icons.has(name.name)) {
+        return { kind: "icon", element: child.openingElement };
+      }
+      const part = uiImports.componentName(name);
+      return ALERT_PARTS.has(part) ? { kind: part } : { kind: "unknown" };
+    });
+}
+
+function checkAlertParts(context, opening, children, variant, icon) {
+  // The rest needs every child in sight: a prop or a wrapper component may
+  // bring the icon or the parts.
+  if (children.some((child) => child.kind === "unknown")) return;
+  if (!icon) {
+    context.report({
+      node: opening,
+      messageId: "missingIcon",
+      data: { icon: ALERT_ICONS.get(variant), variant },
+    });
+  }
+  for (const part of ["AlertTitle", "AlertDescription"]) {
+    if (!children.some((child) => child.kind === part)) {
+      context.report({ node: opening, messageId: "part", data: { part } });
+    }
+  }
+}
+
+function checkAlertIcon(context, icon, variant) {
+  const canonical = ALERT_ICONS.get(variant);
+  if (icon.name.name !== canonical) {
+    context.report({
+      node: icon,
+      messageId: "icon",
+      data: { found: icon.name.name, icon: canonical, variant },
+    });
+  }
+  if (findAttribute(icon, "className")) {
+    context.report({ node: icon, messageId: "iconClass" });
+  }
+}
+
+const alertStructure = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "An Alert has a variant, that variant's icon, a title and a description.",
+    },
+    messages: {
+      variant:
+        "Give <Alert> a `variant` of `info`, `warning`, `destructive` or `success`: the variant says what kind of message it is, and `default` says nothing (style guide, Alerts).",
+      icon: "Draw `{{icon}}` in a `{{variant}}` alert, not `{{found}}`: each variant has one icon, so a message reads the same as an alert and as a toast (style guide, Alerts).",
+      missingIcon:
+        "Start a `{{variant}}` alert with `{{icon}}`: each variant has one icon, so a message reads the same as an alert and as a toast (style guide, Alerts).",
+      iconClass:
+        "Drop `className` from the alert's icon: `Alert` places it, beside the first line (style guide, Alerts).",
+      part: "Give the alert an `{{part}}`: the title says what is going on in a few words, the description the detail and what to do (style guide, Alerts).",
+    },
+    schema: [],
+  },
+  create(context) {
+    const uiImports = trackUiImports(context);
+    const icons = new Set();
+
+    return {
+      ImportDeclaration(node) {
+        uiImports.ImportDeclaration(node);
+        if (node.source.value !== ICON_PACKAGE) return;
+        for (const specifier of node.specifiers) {
+          icons.add(specifier.local.name);
+        }
+      },
+      JSXElement(node) {
+        const opening = node.openingElement;
+        if (uiImports.componentName(opening.name) !== "Alert") return;
+
+        const variantAttribute = findAttribute(opening, "variant");
+        if (variantAttribute && hasUnreadableValue(variantAttribute)) return;
+        const variant = stringAttribute(opening, "variant");
+        if (!ALERT_ICONS.has(variant)) {
+          context.report({ node: opening, messageId: "variant" });
+          return;
+        }
+
+        const children = alertChildren(node, uiImports, icons);
+        const icon = children.find((child) => child.kind === "icon");
+        if (icon) checkAlertIcon(context, icon.element, variant);
+
+        checkAlertParts(context, opening, children, variant, icon);
+      },
+    };
+  },
+};
+
 const PAGE_HEADER_SURFACES = ["admin", "portal"].flatMap((surface) => [
   `${path.sep}app${path.sep}features${path.sep}${surface}${path.sep}`,
   `${path.sep}app${path.sep}components${path.sep}${surface}${path.sep}`,
@@ -764,6 +924,8 @@ export default {
     "actions-menu-text-only": actionsMenuTextOnly,
     "confirm-wording": confirmWording,
     "no-borrar": noBorrar,
+    "confirmation-shared": confirmationShared,
+    "alert-structure": alertStructure,
     "restricted-syntax": restrictedSyntax,
   },
 };
