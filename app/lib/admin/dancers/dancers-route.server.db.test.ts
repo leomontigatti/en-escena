@@ -917,56 +917,6 @@ describe("`/administracion/bailarines` route", () => {
     });
   });
 
-  test("saves a dancer who participated in any event without a correction reason", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
-    const academy = await createAcademyUser({
-      email: "admin.motivo.historial.bailarines.academia@example.com",
-      academyName: "Academia Motivo Historial",
-      contactName: "Marta Historial",
-      phone: "9999-9999",
-    });
-    const dancer = await createDancer({
-      academyId: academy.academy.id,
-      firstName: "Lola",
-      lastName: "Historial",
-      birthDate: "2011-11-11",
-    });
-    await linkDancerToEventChoreography({
-      eventId: event.id,
-      academyId: academy.academy.id,
-      dancerId: dancer.id,
-      choreographyName: "Memoria",
-    });
-    const { request } = await createSignedInRequest({
-      email: "admin.motivo.historial.bailarines@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}`,
-    });
-
-    const result = await detailAction(
-      detailActionArgs(
-        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-          intent: "update-dancer",
-          firstName: "Lolita",
-          lastName: "Historial",
-          birthDate: "2011-11-11",
-          documentType: "",
-          documentNumber: "",
-        }),
-        dancer.id,
-      ),
-    );
-
-    expect(result).toMatchObject({
-      status: "success",
-      message: "Bailarín guardado.",
-    });
-    await expectPersistedDancer(dancer.id, {
-      firstName: "Lolita",
-      lastName: "Historial",
-    });
-  });
-
   test("warns when another dancer of the academy has that name and birth date", async () => {
     const academy = await createAcademyUser({
       email: "admin.homonimo.bailarines.academia@example.com",

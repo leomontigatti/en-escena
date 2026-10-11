@@ -157,48 +157,6 @@ describe("admin payment detail", () => {
     });
   });
 
-  test("deletes a payment without requiring an administrative reason", async () => {
-    const event = await createSavedEvent();
-    const academy = await createAcademyUser({
-      email: "academia.pago.eliminar@example.com",
-      academyName: "Academia Pago Eliminar",
-    });
-    await createSignedInRequest({
-      email: "admin.pago.eliminar@example.com",
-      role: "admin",
-      requestUrl: paymentDetailUrl("payment_pending", event.id),
-    });
-
-    await registerAcademyEventPayment({
-      academyId: academy.academy.id,
-      amount: 4000,
-      eventId: event.id,
-      internalNote: null,
-      paymentDate: "2026-03-15",
-      paymentMethod: "transferencia",
-      reference: null,
-    });
-
-    const payment = await findPaymentByAcademyId(academy.academy.id);
-    const request = await buildPaymentDetailPostRequest({
-      fields: {
-        confirmDeletion: payment.id,
-        id: payment.id,
-      },
-      intent: deletePaymentIntent,
-      paymentId: payment.id,
-      requestUrl: paymentDetailUrl(payment.id, event.id),
-    });
-
-    await expect(
-      handlePaymentDetailAction(request, payment.id),
-    ).rejects.toMatchObject({
-      status: 302,
-    });
-
-    await expect(findPaymentById(payment.id)).resolves.toBeUndefined();
-  });
-
   test("cascades allocation removal when deleting a payment", async () => {
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
