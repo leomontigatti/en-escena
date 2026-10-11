@@ -38,7 +38,8 @@ protection, so making a job required is a human step in the repo settings.
 The commit gate before any of these is `.husky/pre-commit`: gitleaks on the
 staged diff, `lint-staged`, `check:comment-language`, `typecheck`,
 `check:file-tokens` and `check:fallow`. Hooks can be skipped, so it is the
-minimum, not the validation of a session's work.
+minimum, not the validation of a session's work. What joins it stays fast and
+deterministic: formatting staged files through `lint-staged` is the model.
 
 gitleaks is not a pnpm dependency: when the binary is not on `PATH`, the
 pre-commit line warns and continues, and CI's `checks` step is the blocking

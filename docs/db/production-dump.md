@@ -74,7 +74,7 @@ The overrides that pick a different one are in
 [Choosing which dump](#choosing-which-dump) above.
 
 Only custom-format (`.dmp`) artifacts are accepted. The gzipped `pg_dumpall`
-files from before the post-cutover backup posture are refused: `pg_restore` cannot read them, and their
+files from before the custom-format switch are refused: `pg_restore` cannot read them, and their
 `\connect` directives repoint the session mid-restore.
 
 ### When the nightly artifact is not fresh enough

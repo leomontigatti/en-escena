@@ -447,7 +447,7 @@ drill's throwaway container exists to avoid: the output carries its own
 `\connect` directives, so review what it targets before running it against a
 server that holds anything you care about.
 
-Run this drill before every event, For the recurring check, see below — a drill that depends on someone
+Run this drill before every event. For the recurring check, see below — a drill that depends on someone
 remembering to run it is not a control.
 
 ### Scheduled Database Restore Drill
@@ -582,4 +582,4 @@ hypervisor.
 - **Revisit trigger:** a compliance requirement (e.g. a data-protection audit or
   a client/regulatory obligation), a move off Hostinger to a provider with
   encrypted block storage, or splitting the volume onto a dedicated device. See
-  #401 and the note in `.env.example`.
+  the note in `.env.example`.

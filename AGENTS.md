@@ -23,8 +23,8 @@ Codex, "call the Skill tool with X" means open `.agents/skills/X/SKILL.md` and f
   [scripts.md](docs/operations/scripts.md) before running a command it does not list.
 - **Subagents**: reviewers spawn as "Spawning a reviewer" in the `code-review` skill says,
   research as [agent-configuration.md](docs/agents/agent-configuration.md#delegating-to-subagents) says.
-- **Coding standards**: [coding-standards.md](docs/agents/coding-standards.md); Spanish for
-  what the user reads, English for everything else, with identifiers mapped to UI terms in
+- **Coding standards** (code language included):
+  [coding-standards.md](docs/agents/coding-standards.md); identifiers map to UI terms in
   [GLOSSARY.md](GLOSSARY.md).
 
 ## When routed

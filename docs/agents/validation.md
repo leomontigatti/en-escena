@@ -115,7 +115,7 @@ a deliberate upgrade.
 
 The files exempt from `exhaustive-deps` under `overrides` are a **shrinking
 allowlist**: they use a deliberate `resetKey = JSON.stringify(values)` idiom the
-rule cannot see through. Leave the list as it is to make your change pass; if your
+rule cannot see through. A change passes the rule, never by joining the list: if your
 new code trips the rule, the rule is probably right.
 
 ESLint cannot replace it while `typescript-eslint` refuses TypeScript 7

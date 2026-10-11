@@ -202,8 +202,8 @@ healthcheck has to allow for that:
 | `health_check_enabled`      | `true`             | Was `false`, almost certainly because of the `/` |
 | `health_check_start_period` | `60`               | Must cover the migration plus the ~45s retries   |
 
-Set on the application (`x1383fsxfsixpgmvd9quv7tj`) before its first deploy
-and confirmed live. For reference, the probe around them is `GET` over
+Set on the application (`x1383fsxfsixpgmvd9quv7tj`) before the first deploy
+that applied migrations from the container entrypoint, and confirmed live. For reference, the probe around them is `GET` over
 `http` to `localhost`, every 5s, 5s timeout, 10 retries.
 
 `/internal/health` must not query Postgres. Migration success already gates

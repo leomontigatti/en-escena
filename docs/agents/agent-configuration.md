@@ -50,6 +50,11 @@ files holds instructions of its own.
   `reviewer-luna` agents only once they are on the branch the main checkout has out, while
   `AGENTS.md` and the skills come from the worktree itself. The hook commands resolve
   `git rev-parse --show-toplevel`, so the scripts that run are the worktree's.
+- **Codex's sandbox needs elevated permission for real Postgres**, since
+  `TEST_DATABASE_URL` reaches it over TCP on `localhost:5433`. A persistent approval
+  uses these scoped prefixes, never a broader one: `pnpm test:db:postgres`,
+  `pnpm db:test:reset`, and `docker compose up -d postgres` when the container must be
+  started. The test database is still the only one those commands touch.
 - **Codex runs a project hook only once it is trusted**: the project must be trusted, and
   each hook reviewed and approved when Codex first offers it.
 - **Harness-only files stay where they are**: the permission allowlist in

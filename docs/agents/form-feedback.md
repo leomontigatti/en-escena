@@ -106,7 +106,7 @@ form beside it never reads it as a rejected edit.
 ### Testing and scope
 
 The seam is per feature: a view's interaction test asserts that a refusal reaches
-it as a toast, and that test is the model. The status contract is a type, so
+it as a toast. The status contract is a type, so
 `pnpm typecheck` holds it and no shared test is needed.
 
 Rendering server `fieldErrors` on the fields is ruled out by this rule: views do
