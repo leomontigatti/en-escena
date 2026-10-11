@@ -255,7 +255,6 @@ describe("the seminar presets on the academy's finance page", () => {
     expect(result).toEqual({
       status: "error",
       message: expect.any(String),
-      refusal: "seminar-preset",
     });
     expect(
       (result as { message: string }).message.split(/(?<=\.) /).sort(),
@@ -279,7 +278,6 @@ describe("the seminar presets on the academy's finance page", () => {
     expect(result).toEqual({
       status: "error",
       message: "La academia no tiene saldo disponible suficiente.",
-      refusal: "seminar-preset",
     });
     expect(
       [...(await readAllocatedByInscription(fixture)).values()].every(
@@ -304,7 +302,6 @@ describe("the seminar presets on the academy's finance page", () => {
     expect(result).toEqual({
       status: "error",
       message: "No encontramos ese seminario.",
-      refusal: "seminar-preset",
     });
     expect(
       [...(await readAllocatedByInscription(fixture)).values()].every(

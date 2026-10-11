@@ -554,40 +554,12 @@ describe("AcademyFinancesRouteView", () => {
     expect(dialogText()).not.toContain("No alcanzan los lugares");
   });
 
-  test("shows a refused seminar charge as an alert in the dialog", async () => {
+  test("toasts a refused seminar charge and keeps the dialog open", async () => {
     const refusal =
       "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2030: falta 1.";
 
     await renderListIntoDocument({
-      actionData: {
-        message: refusal,
-        refusal: "seminar-preset",
-        status: "error",
-      },
-      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
-      initialPresetStage: "balance",
-      loaderData: academyFinancesLoaderDataFixture({
-        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
-      }),
-    });
-
-    await clickCheckbox(getRenderedCheckboxes()[1]);
-    await act(async () => {
-      findButton("Guardar")?.click();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-
-    const alert = document.querySelector('[role="dialog"] [role="alert"]');
-
-    expect(alert?.textContent).toContain(refusal);
-    expect(toastError).not.toHaveBeenCalled();
-  });
-
-  test("toasts an unexpected failure of the seminar charge and keeps the dialog open", async () => {
-    const failure = "No pudimos completar la acción. Intentá nuevamente.";
-
-    await renderListIntoDocument({
-      actionData: { message: failure, status: "error" },
+      actionData: { message: refusal, status: "error" },
       initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
       initialPresetStage: "balance",
       loaderData: academyFinancesLoaderDataFixture({
@@ -604,9 +576,9 @@ describe("AcademyFinancesRouteView", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(toastError).toHaveBeenCalledWith(failure, expect.anything());
+    expect(toastError).toHaveBeenCalledWith(refusal, expect.anything());
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
-    expect(dialogText()).not.toContain(failure);
+    expect(dialogText()).not.toContain(refusal);
   });
 
   test("closes the seminar preset with a toast when the charge succeeds", async () => {

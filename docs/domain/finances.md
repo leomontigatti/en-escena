@@ -777,10 +777,9 @@ nothing the second time.
   payment is created.
 - The client posts the stage and the seminar ids alone; the server recomputes
   who is charged, at which price and how much (`seminar-cobro-presets.server.ts`).
-  The preset's own refusals show as an alert inside the dialog, since they name
-  the part of the selection that blocked it; the action marks them
-  (`refusal: "seminar-preset"`), so an unexpected failure still toasts. A
-  success closes the dialog with a toast.
+  A refusal toasts and keeps the dialog open, so the administrator can
+  deselect or cancel; the loader revalidates, and the dialog's own warnings
+  restate the reason. A success closes the dialog with a toast.
 - **The dialog previews the write.** Per selected seminar it lists the people
   the charge reaches, with the price each will hold and the amount, and the
   places left against the places the charge takes; the owed figure is those
