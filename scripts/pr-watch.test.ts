@@ -645,6 +645,25 @@ describe("classify", () => {
     );
   });
 
+  test("reports review-body findings left on an older head until someone answers them", () => {
+    const late = {
+      commit: "a".repeat(40),
+      submittedAt: "2026-09-26T15:51:00Z",
+      body: fixPrompt("Outside diff comments:\n- Around line 3: Clarify."),
+    };
+    const pr = snapshot({ coderabbitReviews: [late] });
+    expect(classify(pr, NOW, { coderabbit: false }).verdict).toBe("FINDINGS");
+    const answer = {
+      author: "leomontigatti",
+      body: "Declined: the row is correct.",
+      createdAt: "2026-09-26T15:52:00Z",
+    };
+    expect(
+      classify({ ...pr, comments: [answer] }, NOW, { coderabbit: false })
+        .verdict,
+    ).toBe("READY");
+  });
+
   test("counts CodeRabbit's passes, for the triage rubric", () => {
     const reviews = [
       { commit: "a", submittedAt: "2026-09-26T15:00:00Z", body: "" },

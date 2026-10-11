@@ -393,13 +393,14 @@ function isBotOrRequest(comment: { author: string; body: string }): boolean {
 }
 
 /**
- * Review-body findings on the head commit that nobody has answered yet. They
- * have no thread, so the answer is a top-level comment posted after the review.
+ * Review-body findings from CodeRabbit's latest review that nobody has answered
+ * yet. They have no thread, so the answer is a top-level comment posted after
+ * the review. The latest review counts whatever commit it covers: one that
+ * lands on an older head after a push, as it can under --no-coderabbit, would
+ * otherwise never surface.
  */
 function unansweredReviewFindings(pr: PrSnapshot): string | null {
-  const review = pr.coderabbitReviews
-    .filter((candidate) => candidate.commit === pr.head)
-    .at(-1);
+  const review = pr.coderabbitReviews.at(-1);
   if (review === undefined) return null;
   const findings = findingsFromReview(review.body);
   const answered = pr.comments.some(

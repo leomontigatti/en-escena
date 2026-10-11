@@ -67,8 +67,9 @@ Tier the review by risk:
   axis's prompt, never a `gh` command for it to run.
 - **Readback** for everything else: follow [READBACK.md](READBACK.md). One sub-agent restates
   what the diff does and flags anything surprising, in under 200 words. When the diff changes
-  behaviour, add the correctness axis beside it; a docs-only or config-only diff keeps the
-  readback alone.
+  behaviour, add the correctness axis beside it, config included (a header, a cache directive, a
+  build or server setting). A docs-only diff, or a config-only one that changes no runtime
+  behaviour (tooling, agent or editor settings), keeps the readback alone.
 
 The correctness axis is [CORRECTNESS.md](CORRECTNESS.md): one sub-agent, on Opus, that assumes
 the diff has a bug and traces the path that triggers it. It runs in the same message as the
