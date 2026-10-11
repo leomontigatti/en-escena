@@ -90,11 +90,15 @@ export function createBudget():
  * message; this only fires when the budget is unset or set too close to the
  * step's own timeout. `writeFileSync` is safe in a signal handler.
  *
+ * `cancel` kills the agent before the runner exits: it leads its own process
+ * group, so it would otherwise outlive the runner and keep working while the
+ * workflow's later steps run.
+ *
  * Returns a disposer: the handlers are only wanted while `main` is in flight, so
  * they must not outlive the run and leak onto the process (which would also make
  * them fire during an unrelated shutdown).
  */
-function installSignalHandlers(): () => void {
+function installSignalHandlers(cancel: AbortController): () => void {
   const names = ["SIGTERM", "SIGINT"] as const;
   const handlers = names.map((name) => {
     const handler = () => {
@@ -108,6 +112,7 @@ function installSignalHandlers(): () => void {
       } catch {
         // Nothing useful left to do; the console log is the remaining record.
       }
+      cancel.abort(new Error(`Runner received ${name}.`));
       process.exit(1);
     };
     process.on(name, handler);
@@ -124,10 +129,10 @@ function installSignalHandlers(): () => void {
 /** What `runMain` hands a runner. */
 export interface RunnerContext {
   /**
-   * Hand this to every agent turn so the wall-clock budget kills the agent.
-   * `undefined` when no budget is configured.
+   * Hand this to every agent turn: it aborts, killing the agent, when the
+   * wall-clock budget runs out or the runner is told to stop.
    */
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /**
@@ -139,10 +144,14 @@ export async function runMain(
   main: (context: RunnerContext) => Promise<void>,
 ): Promise<void> {
   const budget = createBudget();
-  const removeSignalHandlers = installSignalHandlers();
+  const cancel = new AbortController();
+  const signal = budget
+    ? AbortSignal.any([budget.signal, cancel.signal])
+    : cancel.signal;
+  const removeSignalHandlers = installSignalHandlers(cancel);
 
   try {
-    await main({ signal: budget?.signal });
+    await main({ signal });
   } catch (error) {
     // A budget abort is expected and self-explanatory — report it without the
     // stack, which would only point at the abort plumbing.

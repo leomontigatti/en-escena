@@ -109,15 +109,15 @@ describe("runMain", () => {
     expect(process.exitCode).not.toBe(1);
   });
 
-  it("passes no signal when no budget is configured", async () => {
+  it("passes a signal that never aborts on its own when no budget is configured", async () => {
     vi.stubEnv("AGENT_BUDGET_MINUTES", "");
-    let received: AbortSignal | undefined = new AbortController().signal;
+    let received: AbortSignal | undefined;
 
     await runMain(async ({ signal }) => {
       received = signal;
     });
 
-    expect(received).toBeUndefined();
+    expect(received?.aborted).toBe(false);
   });
 
   it("removes its SIGTERM/SIGINT handlers when the run ends, so they can't fire on an unrelated shutdown", async () => {
@@ -149,35 +149,56 @@ describe("runMain", () => {
   });
 });
 
+/**
+ * A stub agent that never finishes, started under `runMain` with the runner's
+ * signal. It prints its own pid and its child's, as an agent running a shell
+ * tool would have, so a test can check both die.
+ */
+function startHangingAgent() {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "log").mockImplementation(() => {});
+  const command = writeAgentStub(
+    outputDir,
+    "hanging-agent",
+    `const { spawn } = require("node:child_process");
+const tool = spawn("sleep", ["600"], { stdio: "ignore" });
+console.log(JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: JSON.stringify([process.pid, tool.pid]) }] } }));
+setInterval(() => {}, 1000);`,
+  );
+  const logPath = join(outputDir, "architecture-review.agent.log");
+  const pids: number[] = [];
+
+  const run = runMain(async ({ signal }) => {
+    const waitForPids = setInterval(() => {
+      const match = /\[(\d+),(\d+)\]/.exec(readFileSync(logPath, "utf8"));
+      if (match && pids.length === 0)
+        pids.push(Number(match[1]), Number(match[2]));
+    }, 20);
+    try {
+      await runAgent({ prompt: "", label: "test", logPath, signal, command });
+    } finally {
+      clearInterval(waitForPids);
+    }
+  });
+
+  return { run, pids };
+}
+
+async function expectAllDead(pids: readonly number[]): Promise<void> {
+  expect(pids).toHaveLength(2);
+  await vi.waitFor(() => {
+    for (const pid of pids) expect(isAlive(pid), `pid ${pid}`).toBe(false);
+  });
+}
+
 describe("a budget overrun", () => {
   it("kills the agent and the processes it started, and fails with a readable reason", async () => {
     // 0.01 min is 600 ms: long enough for the stub to start its child.
     vi.stubEnv("AGENT_BUDGET_MINUTES", "0.01");
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    const command = writeAgentStub(
-      outputDir,
-      "hanging-agent",
-      `const { spawn } = require("node:child_process");
-const tool = spawn("sleep", ["600"], { stdio: "ignore" });
-console.log(JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: JSON.stringify([process.pid, tool.pid]) }] } }));
-setInterval(() => {}, 1000);`,
-    );
-    const logPath = join(outputDir, "architecture-review.agent.log");
-    let pids: number[] = [];
     const started = Date.now();
 
-    await runMain(async ({ signal }) => {
-      const waitForPids = setInterval(() => {
-        const match = /\[(\d+),(\d+)\]/.exec(readFileSync(logPath, "utf8"));
-        if (match) pids = [Number(match[1]), Number(match[2])];
-      }, 20);
-      try {
-        await runAgent({ prompt: "", label: "test", logPath, signal, command });
-      } finally {
-        clearInterval(waitForPids);
-      }
-    });
+    const { run, pids } = startHangingAgent();
+    await run;
 
     expect(Date.now() - started).toBeLessThan(10_000);
     expect(failureReason()).toContain(
@@ -187,11 +208,31 @@ setInterval(() => {}, 1000);`,
     // whole diagnosis for this failure mode.
     expect(failureReason()).not.toMatch(/\n\s+at /);
     expect(process.exitCode).toBe(1);
-    expect(pids).toHaveLength(2);
-    await vi.waitFor(() => {
-      for (const pid of pids) expect(isAlive(pid), `pid ${pid}`).toBe(false);
-    });
+    await expectAllDead(pids);
 
+    process.exitCode = 0;
+  });
+});
+
+// The agent leads its own process group, so the step timeout's or a
+// cancellation's SIGTERM to the runner would not reach it: without this it
+// kept working while the workflow's later steps ran.
+describe("a SIGTERM to the runner", () => {
+  it("kills the agent before the runner exits, and leaves a reason", async () => {
+    vi.stubEnv("AGENT_BUDGET_MINUTES", "");
+    const exit = vi
+      .spyOn(process, "exit")
+      .mockImplementation(() => undefined as never);
+
+    const { run, pids } = startHangingAgent();
+    await vi.waitFor(() => expect(pids).toHaveLength(2));
+    process.emit("SIGTERM", "SIGTERM");
+
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(failureReason()).toContain("Runner received SIGTERM");
+    await expectAllDead(pids);
+
+    await run;
     process.exitCode = 0;
   });
 });
