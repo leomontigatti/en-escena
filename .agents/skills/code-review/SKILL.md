@@ -57,7 +57,7 @@ Each smell reads _what it is_ → _how to fix_; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
-Issue both sub-agent calls together, in the foreground, and aggregate the reports they return. Spawn each as the `reviewer` agent. Its sandbox has no network, so paste the spec's body and comments into the Spec prompt rather than a `gh` command for it to run.
+Issue both sub-agent calls together, as [Spawning a reviewer](#spawning-a-reviewer) says, and aggregate the reports they return. Each starts from its prompt alone, so paste the spec's body and comments into the Spec prompt rather than a `gh` command for it to run.
 
 **Standards sub-agent prompt** should include:
 
@@ -78,6 +78,35 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
 
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
+
+## Spawning a reviewer
+
+Every review role runs on a fixed model, at an effort picked for what the role does:
+
+| Role            | Model                         | Effort | Why that effort                                                                                                                        |
+| --------------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Standards, Spec | Codex `gpt-6.1-sol`           | medium | breadth: every hunk matched against a list (the documented rules, the spec's lines); tracing a path in depth is the correctness axis's |
+| Readback        | Codex `gpt-6-luna`            | low    | restating a diff and flagging what jars needs little reasoning, and Luna spares the Sol quota                                          |
+| Correctness     | Opus, through `reviewer-opus` | -      | a second model family hunting bugs; it keeps the Claude agent's own effort                                                             |
+
+How the session reaches each model depends on where it runs:
+
+- **Claude Code in a T3 thread**: the main session calls `delegate_task` once per Codex role, all in
+  the message that spawns `reviewer-opus` with the Agent tool. Each call takes
+  `target: {providerInstanceId: "codex", model, options: {reasoningEffort}}` from the table,
+  `mode: "async"`, `role: "review"`, a `title` naming the axis and round, and a `clientRequestId`
+  of `<issue>-<axis>-r<round>`, the same on a retry of that round. The task opens with "Before
+  anything else, read `.agents/agents/reviewer.md` and follow it." and carries the brief. Each
+  child shows in the T3 app under this thread; its report arrives as a notification, and
+  `task_status` returns it as `summary`. Stop a stray one with `task_cancel`. A later round is a
+  new `delegate_task` carrying the prior findings and your answers to them, never a message to
+  the child thread. When a call refuses a model id, `orchestrator_capabilities` lists the live
+  ones. A Claude subagent can reach `delegate_task` too (measured on #1568), but spawning from
+  the main session keeps one hop and leaves each report with the session that judges it.
+- **Codex**: spawn the native agents, `reviewer` for Standards, Spec and correctness and
+  `reviewer-luna` for the readback; their `.codex/agents/*.toml` repeat the models above,
+  so a model change touches both.
+- **Claude Code outside T3** (no `delegate_task` tool): every axis goes to `reviewer-opus`.
 
 ## The other review briefs
 
