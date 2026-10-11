@@ -26,8 +26,8 @@ afterEach(() => {
   rmSync(directory, { force: true, recursive: true });
 });
 
-// The agent must never hold a GitHub credential (spec §3.9: "the agent never
-// mutates the tracker/VCS remote"). The runner step exports `GH_TOKEN` for its
+// The agent must never hold a GitHub credential (docs/agents/afk-setup.md:
+// "No GitHub token in the agent"). The runner step exports `GH_TOKEN` for its
 // own read-only prefetch, and the old runner handed the agent a copy of
 // `process.env`, so the token reached it with the job's `issues: write`.
 describe("agentEnvironment", () => {
@@ -88,7 +88,7 @@ describe("runAgent", () => {
             {
               type: "tool_use",
               name: "Bash",
-              input: { command: "cat CONTEXT.md" },
+              input: { command: "cat GLOSSARY.md" },
             },
           ],
         },
@@ -118,7 +118,7 @@ describe("runAgent", () => {
     });
     const log = readFileSync(logPath, "utf8");
     expect(log).toContain("Reading the glossary.");
-    expect(log).toContain("⚙ Bash(cat CONTEXT.md)");
+    expect(log).toContain("⚙ Bash(cat GLOSSARY.md)");
   });
 
   it("hands the prompt over stdin and resumes the session it is given", async () => {

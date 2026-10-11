@@ -23,7 +23,7 @@ import {
 // The language half is that same detector, not a copy of it: the heuristics,
 // the glossary and the reserved terms all come from
 // `scripts/check-comment-language.ts` through `findSpanishMarkersInText`, so a
-// term added to `CONTEXT.md` reaches this gate the day it is added.
+// term added to `GLOSSARY.md` reaches this gate the day it is added.
 
 /**
  * The types the repo's history actually uses, read off

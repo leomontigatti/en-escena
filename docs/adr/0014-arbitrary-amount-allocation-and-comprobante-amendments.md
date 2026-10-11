@@ -564,7 +564,7 @@ delta with sign and amount because the admin emits the document.
 - The current-state model is not here. It is
   [docs/domain/finances.md](../domain/finances.md), rewritten for this map by
   #666, and the identifier → UI term mapping is in
-  [CONTEXT.md](../../CONTEXT.md).
+  [GLOSSARY.md](../../GLOSSARY.md).
 - #625 item 1 — moving superseded ADRs into `docs/adr/superseded/` — is still
   open, and this ADR adds two more documents to its case. It was deliberately not
   done here: `app/lib/shared/domain-docs.test.ts` synchronises a non-recursive

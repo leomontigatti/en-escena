@@ -1,11 +1,11 @@
-# AFK — Architecture Review. Spec §4.8.
+# AFK — Architecture Review. Contract and setup: docs/agents/afk-setup.md.
 #
 # Scheduled unattended pass: the architecture-review runner surveys the codebase
 # read-only, picks ONE high-leverage deepening opportunity not already proposed,
 # and emits it as a PRD-shaped structured output → orchestrator publishes it as an
 # issue labeled `source:architecture-review`. A human then triages it, and a local
 # session slices it into sub-issues with `to-tickets`. The agent creates nothing — the orchestrator is the sole
-# publisher (§3.9).
+# publisher.
 
 name: AFK Architecture Review
 
@@ -70,13 +70,13 @@ jobs:
           claude --version
 
       - name: Run architecture-review runner
-        timeout-minutes: 20 # spec §4.8 guardrail
+        timeout-minutes: 20 # wall-clock guardrail, docs/agents/afk-setup.md
         env:
           # Read-only prefetch of prior proposals uses this; the agent's environment
           # is an allow-list without it, so the agent holds no token.
           GH_TOKEN: ${{ github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Internal deadline, below the step's `timeout-minutes` (20, §4.8): the
+          # Internal deadline, below the step's `timeout-minutes` (20): the
           # runner kills the agent and fails with a real reason instead of being
           # killed without leaving one (#512).
           AGENT_BUDGET_MINUTES: 15
@@ -155,9 +155,8 @@ jobs:
             esac
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # This pass is scheduled, so there is no issue or PR to label and comment on
-      # the way §3.7 prescribes for the label-triggered workflows: the run summary
-      # is the only place a human will look. Same reason resolution as theirs.
+      # This pass is scheduled, so there is no issue or PR to label and comment on:
+      # the run summary is the only place a human will look.
       - name: On failure — report the reason in the run summary
         if: failure()
         run: |

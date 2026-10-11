@@ -6,9 +6,8 @@ disable-model-invocation: true
 
 <!--
   Local adaptation of `implement-spec` in mattpocock/skills
-  (skills/engineering/implement-spec/SKILL.md, graduated 2026-09-24), not pinned by
-  skills-lock.json. It keeps upstream's task graph, frontier and integration branch, and swaps in
-  this repo's pieces: the `implementer` agent running `implement`, migrations serialised, the
+  (skills/engineering/implement-spec/SKILL.md, graduated 2026-09-24). It keeps upstream's task
+  graph, frontier and integration branch, and swaps in this repo's pieces: the `implementer` agent running `implement`, migrations serialised, the
   browser check and the tiered review once at the end, then `babysit-pr`. Issue #1536.
 -->
 
@@ -72,8 +71,8 @@ For each report with `status: done`:
    merge the tip again, and move on.
 2. Comment `Implemented in <sha>. Part of #<PRD>.` on the sub-issue, which stays open
    ([issue-tracker.md](../../../docs/agents/issue-tracker.md)).
-3. Push. After the first merge, open the PR as a **draft** in the shape of
-   [PRD PRs](../../../docs/agents/pull-requests.md#prd-prs) and link it to the thread; after
+3. Push. After the first merge, open the PR as a **draft** with the PRD PR body of the `pr` skill
+   ([PRD PRs](../../../docs/agents/pull-requests.md#prd-prs)) and link it to the thread; after
    that, tick the sub-issue's box in its body. CodeRabbit does not review a draft, so the chain
    pays one review instead of one per slice.
 4. Remove the implementer's worktree and branch (`git worktree remove <path>`,

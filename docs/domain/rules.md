@@ -1,6 +1,6 @@
 # Domain Rules
 
-`CONTEXT.md` owns canonical terms. Domain behavior lives in focused files:
+`GLOSSARY.md` owns canonical terms. Domain behavior lives in focused files:
 
 - [events.md](./events.md) - event context, settings, administration and portal shell rules.
 - [access.md](./access.md) - registration, users and sessions.

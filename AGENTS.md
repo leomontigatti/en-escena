@@ -41,13 +41,14 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   `check:*` scripts.
 - **Subagents**: spawn `code-review`'s Standards and Spec axes and the readback as the
   `reviewer` agent, and research as the `research` agent; both run on Codex's gpt-6.1-sol.
-  Spawn the correctness axis as `reviewer-opus`, which runs on Opus for a second model
+  Run `scripts/agents/sol.sh doctor` once before the first of those spawns, and fix
+  what it fails. Spawn the correctness axis as `reviewer-opus`, which runs on Opus for a second model
   family; Codex has no Opus, so under Codex it stays on `reviewer` (see "Agent
   configuration" in [docs/agents/workflows.md](docs/agents/workflows.md)).
 - **Coding standards**: [docs/agents/coding-standards.md](docs/agents/coding-standards.md),
   including the code language convention (Spanish for what the user reads, English for
   everything else; `comprobante` as the only reserved term). The identifier → UI term
-  mapping lives in [CONTEXT.md](CONTEXT.md).
+  mapping lives in [GLOSSARY.md](GLOSSARY.md).
 
 ## When routed
 
@@ -70,7 +71,7 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   CLI would overwrite.
 - **Form feedback and redirection** (stay/redirect matrix, flash session vs. direct
   `actionData`): [docs/agents/form-feedback.md](docs/agents/form-feedback.md).
-- **Pull requests** (short body shape, UI evidence, babysitting a PR):
+- **Pull requests** (the body is written with the `pr` skill; UI evidence, babysitting a PR):
   [docs/agents/pull-requests.md](docs/agents/pull-requests.md).
 - **Issue tracker** (GitHub Issues via `gh`): [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
 - **Triage labels**: [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
@@ -85,9 +86,7 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
 - **Fallow** (commit gate via `pnpm check:fallow`, and investigation tool):
   [docs/agents/fallow.md](docs/agents/fallow.md).
-- **AFK platform** (one workflow remains, Architecture Review; every other runner was
-  retired in ADR-0016 and its amendments). The
-  vendored spec of the original 8 is [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md);
-  what was adapted is in [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).
-- **AFK operational setup** (the Claude Code secret, the Architecture Review schedule;
-  runbook for spec §3.1): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).
+- **Architecture Review** (the one AFK workflow left, ADR-0016: its runner contract, secret
+  and schedule): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).
+- **Skills started from upstream** (where each came from, pulling an upstream change):
+  [docs/agents/vendored-skills.md](docs/agents/vendored-skills.md).

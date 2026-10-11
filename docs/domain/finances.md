@@ -6,7 +6,7 @@ ladder was retired, what was rejected and on what fiscal footing — lives in
 [ADR-0014](../adr/0014-arbitrary-amount-allocation-and-comprobante-amendments.md),
 which ratifies [ADR-0009](../adr/0009-inscription-based-finances.md). Read those
 for _why_; read this for _what_. The identifier → UI term mapping is in
-[CONTEXT.md](../../CONTEXT.md).
+[GLOSSARY.md](../../GLOSSARY.md).
 
 ## How to read this document
 

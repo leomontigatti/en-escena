@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import { git } from "./worktree-db";
 
 // Prints what an agent needs to work in this worktree without reading `.env`,
-// which agents are denied: the setup state, the dev port, the database and a
-// psql line for it, and which tools the agent's shell can reach. It prints no
+// which agents are denied: the setup state, the dev port, the database and the
+// `pnpm db:sql` and psql lines for it, and which tools the agent's shell can reach. It prints no
 // secret: of `DATABASE_URL` only the database name leaves this script.
 //
 // Usage: pnpm dev:info. Always exits 0; a missing piece is a line, not an error.
@@ -49,6 +49,7 @@ export function renderInfo(input: {
     `Database: ${input.database ?? "none: DATABASE_URL is not set; is .env linked?"}`,
     ...(input.database
       ? [
+          `Query:    pnpm db:sql "select …" (read-only, this database)`,
           `psql:     docker exec -it ${CONTAINER} psql -U postgres -d ${input.database}`,
           "          Tables are prefixed `en_escena_` (en_escena_choreography); `\\dt en_escena_*` lists them.",
         ]

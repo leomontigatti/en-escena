@@ -10,7 +10,7 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 
 // A price with no `paymentDeadline` never expires: it is the row that applies
 // once every dated rung of the ladder has passed. "Precio base" is already the
-// UI term for `selectedPrice` (CONTEXT.md), so this row is named after the
+// UI term for `selectedPrice` (GLOSSARY.md), so this row is named after the
 // absence itself rather than borrowing that term.
 export const openEndedDeadlineLabel = "Sin fecha límite";
 

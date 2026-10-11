@@ -49,6 +49,7 @@
     "db:worktree": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/worktree-db.ts",
     "worktree:sweep": "node --import tsx scripts/worktree-sweep.ts",
     "db:test:reset": "node --import tsx tests/db/reset-test-schema.ts",
+    "db:sql": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/db-sql.ts",
     "db:studio": "node --env-file=.env --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs studio",
     "db:seed": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/worktree-db.ts ensure && node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-dev.ts",
     "setup:secrets": "bash scripts/setup-github-secrets.sh"

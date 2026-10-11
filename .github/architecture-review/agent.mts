@@ -16,7 +16,7 @@ const AGENT_EFFORT = "medium";
  * Everything the agent's environment holds: what the CLI and its shell tools
  * need to run, and the agent credential.
  *
- * §3.9's hard invariant is that the agent never mutates the tracker or the
+ * The contract's hard invariant (docs/agents/afk-setup.md) is that the agent never mutates the tracker or the
  * remote. The runner step carries `GH_TOKEN` for its own read-only prefetch, so
  * copying `process.env` would hand the agent a token with the job's
  * `issues: write`, and its `gh` calls would succeed. An allow-list keeps that

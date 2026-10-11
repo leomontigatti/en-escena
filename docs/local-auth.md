@@ -188,7 +188,8 @@ primary way to get a local login. It creates, on the local `DATABASE_URL`:
   CUIT a placeholder: it is not a fiscal document.
 
 To read the data directly, the tables are `en_escena_<singular>`
-(`en_escena_choreography`, `en_escena_comprobante`); `\dt en_escena_*` in
+(`en_escena_choreography`, `en_escena_comprobante`): `pnpm db:sql "<query>"` runs
+one read-only query against the worktree's database, and `\dt en_escena_*` in
 `psql` lists them.
 
 It writes to the `DATABASE_URL` in effect — the worktree's own database when
@@ -309,7 +310,7 @@ The following are not required for local operation or implementation:
 When changing auth, registration or recovery behavior, keep this
 reference order:
 
-1. `CONTEXT.md`, the domain glossary and repo workflows are authoritative.
+1. `GLOSSARY.md`, the domain glossary and repo workflows are authoritative.
 2. ADR [0013: Exit Supabase](adr/0013-exit-supabase.md) is the accepted
    decision record: Better Auth is the credential provider. ADRs 0001 and 0006
    are historical and superseded.

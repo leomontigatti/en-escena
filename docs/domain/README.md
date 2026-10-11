@@ -1,10 +1,10 @@
 # Domain Rules
 
-`CONTEXT.md` is the canonical glossary. These files hold detailed business rules that would make the glossary too heavy.
+`GLOSSARY.md` is the canonical glossary. These files hold detailed business rules that would make the glossary too heavy.
 
 Read order for domain work:
 
-1. `CONTEXT.md`
+1. `GLOSSARY.md`
 2. Relevant ADRs in `docs/adr/`
 3. Relevant files in `docs/domain/`
 

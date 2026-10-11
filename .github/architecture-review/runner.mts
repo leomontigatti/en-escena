@@ -1,4 +1,4 @@
-// Runner plumbing (spec §3.8, the agent-runner contract): the output files the
+// Runner plumbing (the runner contract in docs/agents/afk-setup.md): the output files the
 // orchestrator reads, the wall-clock budget, and `runMain`, which turns any
 // throw into `failure_reason.txt` and a non-zero exit.
 
@@ -18,7 +18,7 @@ export function writeOutput(name: string, content: string): void {
 }
 
 /**
- * Record a human-readable failure reason (spec §3.7) before exiting non-zero.
+ * Record a human-readable failure reason before exiting non-zero.
  * The orchestrator writes it to the run summary.
  */
 function writeFailure(reason: string): void {
@@ -138,7 +138,7 @@ export interface RunnerContext {
 /**
  * Run a runner's `main`, funnelling any throw into `failure_reason.txt` + a
  * non-zero exit so the orchestrator's `failure()` step reports a reason instead
- * of the run dying without one (§3.7).
+ * of the run dying without one.
  */
 export async function runMain(
   main: (context: RunnerContext) => Promise<void>,
