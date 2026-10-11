@@ -10,12 +10,13 @@ any time: it reads the working tree and writes nothing but its own output.
 
 ## Development
 
-| Script          | Purpose                                                                                                                                                                                                                                                           |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`      | Start the React Router development server on `.env.local`'s `PORT`, first creating the worktree's database if it has none; fails if the port is taken.                                                                                                            |
-| `pnpm dev:stop` | Stop this worktree's dev server: the process listening on `.env.local`'s `PORT` that runs from inside the worktree. Prints `stopped <pid> on <port>` or `nothing listening on <port>`; a listener from another directory is left alone and reported, with exit 1. |
-| `pnpm build`    | Build the app for production.                                                                                                                                                                                                                                     |
-| `pnpm start`    | Serve the built app with `@react-router/serve`.                                                                                                                                                                                                                   |
+| Script          | Purpose                                                                                                                                                                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`      | Start the React Router development server on `.env.local`'s `PORT`, first creating the worktree's database if it has none; fails if the port is taken.                                                                                                                          |
+| `pnpm dev:stop` | Stop this worktree's dev server: the process listening on `.env.local`'s `PORT` that runs from inside the worktree. Prints `stopped <pid> on <port>` or `nothing listening on <port>`; a listener from another directory is left alone and reported, with exit 1.               |
+| `pnpm dev:info` | Print this worktree's setup state, dev port, database with a ready `docker exec … psql` line and the `en_escena_` table prefix, and which of node, pnpm, codex (logged in), playwright-cli, gitleaks and docker the shell reaches. Prints no secret; read it instead of `.env`. |
+| `pnpm build`    | Build the app for production.                                                                                                                                                                                                                                                   |
+| `pnpm start`    | Serve the built app with `@react-router/serve`.                                                                                                                                                                                                                                 |
 
 ## Validation
 

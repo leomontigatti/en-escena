@@ -29,6 +29,10 @@
           {
             "type": "command",
             "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/block-npx-tsc.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.agents/hooks/block-pkill-f.sh\""
           }
         ]
       }
