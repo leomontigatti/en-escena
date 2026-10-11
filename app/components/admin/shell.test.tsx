@@ -26,13 +26,13 @@ describe("admin shell route handles", () => {
       },
       {
         params: {},
-        data: {
+        loaderData: {
           professor: { firstName: "Ana", lastName: "Pérez" },
         },
         handle: {
           adminBreadcrumbs: [
             (match: AdminBreadcrumbTestMatch) => {
-              const data = match.data as
+              const data = match.loaderData as
                 | { professor?: { firstName: string; lastName: string } }
                 | undefined;
 

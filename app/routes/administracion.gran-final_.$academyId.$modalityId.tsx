@@ -17,7 +17,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Gran final", to: "/administracion/gran-final" },
     (match) => {
-      const data = match.data as AcademyGrandFinalLoaderData | undefined;
+      const data = match.loaderData as AcademyGrandFinalLoaderData | undefined;
 
       return { label: data?.academyName ?? "Academia" };
     },

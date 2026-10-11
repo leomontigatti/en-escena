@@ -5,7 +5,6 @@ import {
 } from "react-router";
 import { beforeEach, describe, expect, test } from "vitest";
 
-import config from "../../../react-router.config";
 import { readRequestedUrl } from "./requested-url.server";
 
 const origin = "https://sistema.enescena.com.ar";
@@ -24,8 +23,8 @@ function record({ request, url }: LoaderFunctionArgs) {
   return null;
 }
 
-// React Router's own request handler, under this repo's `future` config, over a
-// root, an index route with an action and a list route.
+// React Router's own request handler over a root, an index route with an
+// action and a list route.
 function serve(request: Request) {
   const build = {
     entry: { module: { default: () => new Response("<html></html>") } },
@@ -47,7 +46,7 @@ function serve(request: Request) {
     assets: { url: "/assets/manifest.js", version: "test", routes: {} },
     publicPath: "/",
     assetsBuildDirectory: "build/client",
-    future: config.future,
+    future: {},
     ssr: true,
     isSpaMode: false,
     prerender: [],
@@ -57,10 +56,6 @@ function serve(request: Request) {
   return createRequestHandler(build, "production")(request);
 }
 
-const rootDataPath = config.future?.v8_trailingSlashAwareDataRequests
-  ? "/_.data"
-  : "/_root.data";
-
 describe("readRequestedUrl", () => {
   test.each([
     ["a document request", "/administracion/academias?pagina=2"],
@@ -69,7 +64,7 @@ describe("readRequestedUrl", () => {
       "a data request for some routes",
       "/administracion/academias.data?pagina=2&_routes=root%2Cacademies",
     ],
-    ["the root's data request", `${rootDataPath}?evento=1`],
+    ["the root's data request", "/_.data?evento=1"],
     [
       "a data request for a path with a trailing slash",
       "/administracion/academias/_.data?pagina=2",
@@ -89,7 +84,7 @@ describe("readRequestedUrl", () => {
 
   test("drops the index marker of a submit to an index route", async () => {
     await serve(
-      new Request(`${origin}${rootDataPath}?index&evento=1`, {
+      new Request(`${origin}/_.data?index&evento=1`, {
         method: "POST",
       }),
     );

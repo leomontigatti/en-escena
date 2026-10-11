@@ -74,7 +74,7 @@ export type AdminShellBreadcrumbItem = {
   to?: string;
 };
 
-type AdminRouteMatch = Partial<Pick<UIMatch, "data" | "handle">> &
+type AdminRouteMatch = Partial<Pick<UIMatch, "loaderData" | "handle">> &
   Pick<UIMatch, "params">;
 
 type AdminBreadcrumbFactory = (

@@ -23,7 +23,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Finanzas", to: "/administracion/finanzas" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       return data?.academy
         ? {
             label: data.academy.name,
@@ -32,7 +32,7 @@ export const handle = {
         : null;
     },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       return data?.choreography ? { label: data.choreography.name } : null;
     },
   ],

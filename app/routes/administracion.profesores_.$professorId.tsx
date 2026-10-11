@@ -30,7 +30,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Profesores", to: "/administracion/profesores" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       const professor = data?.professor;
       return professor
         ? { label: `${professor.firstName} ${professor.lastName}` }

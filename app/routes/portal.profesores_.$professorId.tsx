@@ -28,7 +28,8 @@ export const handle = {
   portalBreadcrumbs: [
     { label: "Profesores", to: "/portal/profesores" },
     (match) => {
-      const data = match.data as PortalProfessorDetailLoaderData | undefined;
+      const data = match.loaderData as
+        PortalProfessorDetailLoaderData | undefined;
       const professor = data?.professor;
 
       return professor
