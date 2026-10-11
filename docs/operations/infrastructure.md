@@ -252,6 +252,27 @@ With the token or the chat unset (locally, in tests, in staging) nothing is
 sent, and `[ops-alert:disabled]` is logged once per process. A refused or
 unreachable post logs `[ops-alert:failed]` with the status, never the token.
 
+#### Unexpected error maintenance task
+
+A Coolify scheduled task on the production **application** resource, set up
+like the backup tasks ([Backups](./backups.md#daily-schedule): invoked with
+`sh`, never `pnpm`), keeps the table to its 90 days and watches the connection
+limit:
+
+- Command: `sh scripts/unexpected-error-maintenance.sh`
+- Frequency: `*/10 * * * *`, so a connection pile-up is seen within ten
+  minutes; the deletion is an indexed range and costs nothing at that cadence.
+- Environment: the application's own: `DATABASE_URL` and the Telegram
+  variables above. `CONNECTION_ALERT_PERCENT` (default `80`) sets the
+  threshold.
+
+Each run deletes the rows older than 90 days, then compares the client
+connections in `pg_stat_activity` with the slots the app's role can use
+(`max_connections` less the reserved ones) and, at or above the threshold, posts `[postgres:connections] <used> of <max> …` to the ops chat. It
+posts again on every run while the count stays high. With the Telegram variables
+unset it prints the message instead; a failed post or query exits non-zero,
+which Coolify reports as `TaskFailed` after its retries.
+
 ## Database
 
 - Coolify-managed Postgres, image `postgres:17-alpine`, co-located with the app
