@@ -77,7 +77,9 @@
         "ui/data-icon-position": "error",
         "ui/dialog-width": "error",
         "ui/actions-menu-text-only": "error",
-        "ui/confirm-wording": "error"
+        "ui/confirm-wording": "error",
+        "ui/confirmation-shared": "error",
+        "ui/alert-structure": "error"
       }
     },
     {
