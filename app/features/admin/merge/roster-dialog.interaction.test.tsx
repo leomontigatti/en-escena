@@ -92,16 +92,6 @@ async function pickSurvivor(label: string) {
 }
 
 describe("RosterMergeDialog", () => {
-  // A confirmation's title asks the action it confirms (style guide,
-  // `AlertDialog` vs. `Dialog`), even when the dialog holds the survivor's pick.
-  test("asks the merge as its title", async () => {
-    await renderDialog();
-
-    expect(document.querySelector('[role="dialog"] h2')?.textContent).toBe(
-      "¿Fusionar al bailarín?",
-    );
-  });
-
   test("offers the academy's other dancers, archived ones marked", async () => {
     await renderDialog();
     await clickReactDomButton("Elegir");

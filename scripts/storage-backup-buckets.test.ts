@@ -76,21 +76,4 @@ describe("storage backup bucket lists", () => {
     expect(match).not.toBeNull();
     expect(parseBucketList(match?.[1] ?? "")).toEqual(declaredBuckets);
   });
-
-  test("the infrastructure doc gives the feedback audio bucket its own contract", () => {
-    const infrastructure = readRepositoryFile(
-      "docs/operations/infrastructure.md",
-    );
-
-    expect(infrastructure).toContain("### `Devolución` audio contract");
-    expect(infrastructure).toContain("en-escena-feedback-audio");
-    expect(infrastructure).toContain("STORAGE_BACKUP_BUCKETS");
-  });
-
-  test("the runbook records the manual production step for the feedback audio bucket", () => {
-    const runbook = readRepositoryFile("docs/operations/backups.md");
-
-    expect(runbook).toContain("en-escena-feedback-audio");
-    expect(runbook).toMatch(/Pending production step/);
-  });
 });

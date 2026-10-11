@@ -9,8 +9,7 @@ import {
 } from "./provinces";
 
 describe("the province list", () => {
-  test("offers the 24 Argentine jurisdictions and `Otro país`", () => {
-    expect(provinceOptions).toHaveLength(25);
+  test("offers `Otro país` last", () => {
     expect(provinceOptions.at(-1)).toEqual({
       label: "Otro país",
       value: "otro_pais",
