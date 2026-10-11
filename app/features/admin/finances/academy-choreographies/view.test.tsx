@@ -310,6 +310,27 @@ describe("AcademyFinancesRouteView", () => {
     ]);
   });
 
+  // The presets act on choreographies only, so on the seminar tab they would
+  // collect against a selection that is out of sight while the one in sight
+  // goes untouched.
+  test("disables both presets on the seminar tab, even with choreographies selected", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await clickTab("Seminarios");
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await openActionsMenu();
+
+    expect(menuItemDisabledState()).toEqual([
+      { label: financePresetLabels.deposit, disabled: true },
+      { label: financePresetLabels.balance, disabled: true },
+    ]);
+  });
+
   // The collections act on the selection, so an academy whose choreographies
   // spill onto a second page is one whose deposit cannot be collected in a
   // single reading. Twenty-five rows fit on one page here; the shared default

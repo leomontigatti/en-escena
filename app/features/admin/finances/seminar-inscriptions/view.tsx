@@ -1,4 +1,4 @@
-import { BuildingComplex, Presentation } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -8,6 +8,7 @@ import {
   type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import type { DataTableFacetedFilterOption } from "@/components/shared/data-table.shared";
+import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Button } from "@/components/ui/button";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
@@ -34,8 +35,7 @@ type InscriptionRow =
 
 /** The facets' parameter names, which the route's revalidation rule reads. */
 export const seminarInscriptionFinanceFacetedFilterIds = [
-  "academia",
-  "docente",
+  "instructor",
   "estado",
 ] as const;
 
@@ -43,8 +43,8 @@ export const seminarInscriptionFinanceFacetedFilterIds = [
  * Every seminar inscription of the event, across academies: the place to see
  * who owes what for seminars without opening one `(seminar, academy)` detail
  * after another. The figures above the table sum the rows the search and the
- * filters leave, so narrowing to one academy or one instructor answers what
- * they owe.
+ * filters leave, so narrowing to one academy (through the search) or one
+ * instructor answers what they owe.
  *
  * The person's name is the row's only control and opens the same money dialog
  * the detail does; the rest of the row is reading.
@@ -116,13 +116,14 @@ function InscriptionsTable({
         columns={columns}
         facetedFilters={facetedFilters}
         getRowKey={(inscription) => inscription.inscriptionId}
-        // The person alone: academy and instructor are facets, and a search
-        // that also matched them would answer a question the filters already
-        // ask.
-        matchesSearch={matchesPersonName}
+        // The person and the academy: an event has too many academies for a
+        // facet's list, and their names are typed more easily than scrolled to.
+        // The instructor stays a facet, so the search does not answer it too.
+        matchesSearch={matchesPersonOrAcademyName}
+        layout="fit"
         pageSize={25}
         renderFilteredSummary={(rows) => <FilteredMetrics rows={rows} />}
-        searchPlaceholder="Buscar por nombre"
+        searchPlaceholder="Buscar por nombre o academia"
         emptyMessage="No hay inscripciones a seminarios para mostrar."
       />
       {openInscription ? (
@@ -172,15 +173,29 @@ function FilteredMetrics({ rows }: { rows: InscriptionRow[] }) {
   );
 }
 
-function matchesPersonName(inscription: InscriptionRow, search: string) {
-  return matchesListSearch(search, [formatDancerName(inscription)]);
+function matchesPersonOrAcademyName(
+  inscription: InscriptionRow,
+  search: string,
+) {
+  return matchesListSearch(search, [
+    formatDancerName(inscription),
+    inscription.academyName,
+  ]);
 }
+
+/** Each money column's share of the `fit` row, by the shared column's id. */
+const moneyColumnWidths: Record<string, number> = {
+  deposit: 9,
+  total: 9,
+  owedBalance: 14,
+  financialStatus: 13,
+};
 
 // The price column stays on the detail: across seminars the row's name says
 // less than its amounts, and the list is about what is owed.
-const moneyColumns = inscriptionFinanceColumns.filter(
-  (column) => column.id !== "price",
-);
+const moneyColumns = inscriptionFinanceColumns
+  .filter((column) => column.id !== "price")
+  .map((column) => ({ ...column, width: moneyColumnWidths[column.id] }));
 
 function buildInscriptionColumns(
   onOpenMoneyDialog: (inscriptionId: string) => void,
@@ -189,38 +204,47 @@ function buildInscriptionColumns(
     {
       id: "academy",
       header: "Academia",
-      cell: (inscription) => inscription.academyName,
-      // The id and not the name: the facet's values are pooled across columns,
-      // and an id cannot collide with an instructor's name.
-      filterValue: (inscription) => inscription.academyId,
+      // Context for the row, which is about the person and the money.
+      className: "text-muted-foreground",
+      cell: (inscription) => (
+        <DataTableTruncatedText value={inscription.academyName} />
+      ),
       sortValue: (inscription) => inscription.academyName,
+      width: 16,
     },
     {
       id: "person",
       header: "Inscripto",
       className: "font-medium",
       cell: (inscription) => (
-        <Button
-          type="button"
-          variant="link"
-          className="h-auto p-0 text-left font-medium"
-          onClick={() => onOpenMoneyDialog(inscription.inscriptionId)}
-        >
-          {formatDancerName(inscription)}
-        </Button>
+        <DataTableTruncatedText value={formatDancerName(inscription)}>
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto p-0 text-left font-medium"
+            onClick={() => onOpenMoneyDialog(inscription.inscriptionId)}
+          >
+            {formatDancerName(inscription)}
+          </Button>
+        </DataTableTruncatedText>
       ),
       sortValue: (inscription) => formatDancerName(inscription),
+      width: 18,
     },
     {
       id: "seminar",
       header: "Seminario",
       // A seminar is named by who teaches it; the date tells two seminars of
       // the same instructor apart.
-      cell: (inscription) =>
-        `${inscription.instructorName} · ${formatDate(inscription.scheduledDate)}`,
+      cell: (inscription) => (
+        <DataTableTruncatedText
+          value={`${inscription.instructorName} · ${formatDate(inscription.scheduledDate)}`}
+        />
+      ),
       filterValue: (inscription) => inscription.instructorName,
       sortValue: (inscription) =>
         `${inscription.scheduledDate} ${inscription.instructorName}`,
+      width: 23,
     },
     ...moneyColumns,
   ];
@@ -231,20 +255,9 @@ function buildFacetedFilters(
 ): DataTableFacetedFiltersOf<typeof seminarInscriptionFinanceFacetedFilterIds> {
   return [
     {
-      id: "academia",
-      icon: BuildingComplex,
-      label: "Academia",
-      options: distinctOptions(
-        inscriptions.map((inscription) => ({
-          label: inscription.academyName,
-          value: inscription.academyId,
-        })),
-      ),
-    },
-    {
-      id: "docente",
-      icon: Presentation,
-      label: "Docente",
+      id: "instructor",
+      icon: GraduationCap,
+      label: "Instructor",
       options: distinctOptions(
         inscriptions.map((inscription) => ({
           label: inscription.instructorName,
