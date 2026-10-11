@@ -1,6 +1,6 @@
 ---
 name: babysit-pr
-description: "See an open PR through CI and CodeRabbit's review until it is ready to merge: wait on a watcher, fix real findings, decline false ones with a reason, stop at the user's call. Use when asked to babysit, watch or get a PR green or mergeable, and at the end of implement."
+description: "See an open PR through CI, and CodeRabbit's review when it gets one, until it is ready to merge: wait on a watcher, fix real findings, decline false ones with a reason, stop at the user's call. Use when asked to babysit, watch or get a PR green or mergeable, and at the end of implement."
 ---
 
 <!--
@@ -10,8 +10,13 @@ description: "See an open PR through CI and CodeRabbit's review until it is read
 
 # Babysit a PR
 
-You own one PR from its last push to **ready to merge**: checks green, CodeRabbit done on the head
-commit, every finding fixed or answered. The merge is the user's.
+You own one PR from its last push to **ready to merge**: checks green, the in-session review
+(step 5 of the `implement` skill) run, every finding fixed or answered. The merge is the user's.
+
+CodeRabbit is optional (see "Babysitting a PR" in
+[pull-requests.md](../../../docs/agents/pull-requests.md)). Ask it for a review only when the PR is
+in the full-review tier of `implement` step 5, and only once, on the head the PR was opened with. A
+rate limit, a skipped review or a silent CodeRabbit is never a reason to wait.
 
 The session that opened the PR babysits it: it wrote the change, so it is the one that can judge
 whether a finding holds. The waiting costs it nothing, because a script does the waiting and the
@@ -24,12 +29,23 @@ Done when `git status` is clean and `HEAD` is the PR head.
 
 ## 2. Wait for the round
 
-Run `pnpm pr:watch <n> --loop` with Bash, `run_in_background: true` and a timeout of 7200000 ms,
-then end your turn. No subagent, no `sleep`: the command re-invokes you when it exits. It does the
-mechanical moves itself, each once per run: it waits while anything on the head commit runs, asks
-CodeRabbit to review the head (on `NO_REVIEW`, or when its status stays pending), and updates a
-branch that is only behind `master`. Its JSON line records what it did: `nudged` lists the heads it
-asked about, `updatedBranch` whether it updated the branch.
+Run `pnpm pr:watch <n> --loop --no-coderabbit` with Bash, `run_in_background: true` and a timeout
+of 7200000 ms, then end your turn. No subagent, no `sleep`: the command re-invokes you when it
+exits. The one exception is the first round of a full-review-tier PR: run
+`pnpm pr:watch <n> --loop --timeout 1500` instead, so the watcher asks CodeRabbit for its review of
+that head and gives it 25 minutes, past the 15 the watcher waits before nudging a pending status.
+Every later run, whatever ended that round, passes `--no-coderabbit`. When that round ends on
+CodeRabbit (`NO_REVIEW`; `WAITING` with `CodeRabbit` in `pending`; `CHECKS` whose only entry in
+`failed` is `CodeRabbit`), read CodeRabbit's latest comment for the reason (a rate limit, "Review
+limit reached", a skip), note it for the report, and start the watcher with `--no-coderabbit`. It
+is never a NEEDS YOU.
+
+The watcher does the mechanical moves itself, each once per run: it waits while anything on the
+head commit runs, asks CodeRabbit to review the head (only without `--no-coderabbit`: on
+`NO_REVIEW`, or when its status stays pending), and updates a branch that is only behind `master`.
+Its JSON line records what it did: `nudged` lists the heads it asked about, `updatedBranch` whether
+it updated the branch. With `--no-coderabbit` it does not wait on CodeRabbit at all, but threads and
+findings CodeRabbit did leave still end the round as `THREADS` or `FINDINGS`.
 
 On every wake, first bring the local branch level with GitHub, since the watcher may have updated
 it: `git fetch origin <branch> && git merge --ff-only origin/<branch>`. Then read the one JSON line
@@ -46,11 +62,7 @@ it printed; its exit code is the verdict:
 | 5    | `WAITING`                     | See below.                                                           |
 | 6, 7 | `GATE`, `CLOSED`, `GH_FAILED` | Step 5 as BLOCKED, with `gate` or the error.                         |
 
-On `NO_REVIEW`, check `nudged`. Without the head in it, the request was never sent (the run timed
-out, or the comment failed, which its stderr names): start the watcher again. With it, the watcher
-asked and still has no review: read CodeRabbit's latest comment. A rate limit names when it resets: step 5 as NEEDS YOU, with the
-reset time and the choice between waiting for it and merging without the review. Anything else:
-step 5 as NEEDS YOU, quoting the reply.
+`NO_REVIEW` comes only from the first round of a full-review-tier PR, and is handled above.
 
 `WAITING` means the same `pending` sat unchanged for 45 minutes, or the run reached its timeout.
 Start the watcher once more; a second `WAITING` on the same head is step 5 as BLOCKED, naming what
@@ -68,6 +80,8 @@ returns, run the call and read the real output before deciding.
 
 A red check is triaged from its log: `gh run view --job <job-id> --log-failed`, both ids read from
 its `link` (`…/runs/<run-id>/job/<job-id>`).
+A `CodeRabbit` entry in `failed` is not a check to triage: it is CodeRabbit declining to review,
+handled as in step 2.
 
 - Caused by the diff: **fix**.
 - A flake (a timeout, a runner or network error): `gh run rerun <run-id> --failed`, once per head
@@ -125,15 +139,17 @@ Report to the user in this shape:
 
 ```
 Verdict: READY | NEEDS YOU | BLOCKED | MERGED — one line why
-PR: #<n> at <short sha>; checks <green|what is red>; CodeRabbit passes: <n>
+PR: #<n> at <short sha>; checks <green|what is red>; CodeRabbit: <n passes | skipped: why>
 Needs you: <each ask, with the finding and the options>   (omit when empty)
 Fixed: <finding> → <sha>                                  (one line each)
 Declined: <finding> — <reason>                            (one line each)
 Rubric candidates: <pattern>                              (omit when empty)
 ```
 
-`CodeRabbit passes` counts review objects. A pass that finds nothing leaves only its summary
-comment, so `READY` with 0 passes is a PR it reviewed and found clean, never one it skipped: that
-case is `NO_REVIEW`.
+`coderabbitPasses` counts review objects. A pass that finds nothing leaves only its summary
+comment, so `READY` with 0 passes from a run without `--no-coderabbit` is a PR it reviewed and
+found clean. Report CodeRabbit as `skipped` when the PR was not in the full-review tier, or when it
+was asked and never reviewed (name the reason: a rate limit, a skip); `READY` stands either way.
 
 Nothing here merges, marks a PR draft or ready, rebases or force-pushes: those are the user's.
+`implement-spec` marks its own draft ready before it calls this skill.
