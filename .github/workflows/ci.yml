@@ -179,7 +179,7 @@ jobs:
   # turns the gate red. `github.token`
   # is read-only here (see the top-level `permissions:`) and is used for nothing else.
   # Both tools are version-pinned; bumping them is a manual edit, documented in
-  # docs/agents/workflows.md alongside the `pinact run --update` pin bump.
+  # docs/operations/ci.md alongside the `pinact run --update` pin bump.
   # No pinact in CI: zizmor's `unpinned-uses` already fails on anything not SHA-pinned.
   actions-gate:
     name: actions-gate

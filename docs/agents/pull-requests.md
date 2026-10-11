@@ -1,7 +1,7 @@
 # Pull requests
 
 How a PR is written here. The title rule is
-enforced (`pnpm check:pr-title`, see [workflows.md](./workflows.md#continuous-integration));
+enforced (`pnpm check:pr-title`, see [ci.md](../operations/ci.md#required-contexts));
 everything below is convention. Branches and linking the PR to its T3 thread are
 in [workflows.md](./workflows.md#branches-worktrees-and-t3-code-threads).
 

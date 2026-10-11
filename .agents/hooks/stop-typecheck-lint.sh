@@ -41,7 +41,7 @@
 # There is no `SubagentStop` hook: it is a distinct event, and `research`,
 # `Explore` and `Plan` do not author app code.
 #
-# See docs/agents/workflows.md.
+# See docs/agents/agent-configuration.md.
 
 set -uo pipefail
 

@@ -17,7 +17,7 @@ The skills speak in terms of five canonical triage roles. Three map to a label h
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
-`needs-info` and `wontfix` were retired in #1116. With one maintainer there is no reporter to
+`needs-info` and `wontfix` were retired. With one maintainer there is no reporter to
 wait on, so "needs more information" is a decision the maintainer owes, which is what
 `question` + `ready-for-human` already say. And a decision not to do something is made by
 closing: an open issue labelled "will not be actioned" is a closure that did not happen.
@@ -39,8 +39,8 @@ not been triaged.
 `priority:urgent` is empty outside the run-up to an event. Dated work also goes in a milestone
 ("Before the next event"), which is what carries the deadline; the label only says it comes
 first. A parked issue carries a comment stating its wake-up
-trigger ("the first slice of #739 lands"); without one it is `priority:later`. Deciding against
-is a different thing: parked will be done when the trigger fires, a rejected issue is closed.
+trigger ("the first slice of the list-query work lands"); without one it is
+`priority:later`. Deciding against is a different thing: parked will be done when the trigger fires, a rejected issue is closed.
 
 | Type label    | Meaning                                                                   |
 | ------------- | ------------------------------------------------------------------------- |
@@ -52,7 +52,7 @@ is a different thing: parked will be done when the trigger fires, a rejected iss
 
 An Architecture Review PRD that documents a confirmed defect carries `bug` next to
 `refactor`. When the defect is cheap and the PRD is large, extract the defect into its own
-`bug` issue so it can ship alone (#1063 out of #740 is the example).
+`bug` issue so it can ship alone.
 
 The dispatch queue is `priority:next` plus `ready-for-agent`:
 `gh issue list --label priority:next --label ready-for-agent`. Skip an issue whose

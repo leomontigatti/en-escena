@@ -10,7 +10,7 @@ Over one map this repo grew an `actions-gate` job, a secrets gate, six tsconfig
 strictness flags, a type-aware lint scope, a migration-safety gate, a dependency
 audit gate, a PR-title gate and two Claude hooks. This ADR records **why** those
 exist and why the alternatives were refused. It does **not** describe them: the
-current setup lives in [docs/agents/workflows.md](../agents/workflows.md) (how
+current setup lives in [docs/operations/ci.md](../operations/ci.md) (how
 each gate is wired, and how to bump its pins) and in
 [docs/agents/validation.md](../agents/validation.md) (the ownership
 table, and what an agent runs before committing). Restating them here would
@@ -41,7 +41,7 @@ download that CI runs anyway.
 
 Every concern has exactly one owner, and a new rule enters only if it catches a
 bug class **no existing owner can see**. Which owner holds what is the table in
-[docs/agents/workflows.md](../agents/workflows.md) § Linting, and it is the table
+[docs/agents/validation.md](../agents/validation.md), and it is the table
 that is current — this section records only why the split exists.
 
 The reason is that a rule duplicating another owner turns its linter into a

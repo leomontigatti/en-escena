@@ -18,7 +18,7 @@ not restate it.
 - Destination: a Backblaze B2 bucket through its S3-compatible endpoint, plus a
   local copy on the VPS for the database.
 - Database format: custom-format `pg_dump`, restored with `pg_restore`. Artifacts
-  predating #594 are gzipped plain SQL from `pg_dumpall`. See
+  from before the custom-format switch are gzipped plain SQL from `pg_dumpall`. See
   [Database Backup](#database-backup-coolify-native).
 - Storage format: copied objects under a B2 prefix, keys intact (`academies/...`).
 - Frequency: database at `0 3,15 * * *` UTC (2x/day), configured on the Coolify
@@ -59,10 +59,10 @@ The database backup is configured on the **Postgres resource** in Coolify, not o
 the application. There is no script and nothing in this repo to run.
 
 - Destination: the B2 bucket registered under Coolify's _S3 Storages_ as
-  `enescena-db-backups` (unhyphenated — see #588). It is the **only** database
+  `enescena-db-backups` (unhyphenated). It is the **only** database
   backup destination. The hyphenated `en-escena-db-backups`, which belonged to
   the retired app-script path, was deleted with the Supabase decommission
-  (#598 step 8) along with the pre-cutover dumps it held; no Supabase-era copy
+  along with the pre-cutover dumps it held; no Supabase-era copy
   of the database exists anywhere now.
 - Local copies are kept as well, under
   `/data/coolify/backups/databases/<team>/<resource>/` on the VPS. Keep "Disable
@@ -85,8 +85,7 @@ whichever is reached first triggers the cleanup, and `0` means unlimited.
 The counts are `0` on purpose, so that the day limits are what govern. That is
 the trap in this screen: because the limits are independent, a count of 7 at two
 dumps a day caps history at 3.5 days no matter what the day field says, and the
-two fields both reading `7` look consistent while meaning different things
-(#653). Set a count here only as a number of _dumps_, after multiplying out the
+two fields both reading `7` look consistent while meaning different things. Set a count here only as a number of _dumps_, after multiplying out the
 cadence.
 
 The 5 GB local cap is a backstop, not a policy: at ~180 KB a dump, seven days of
@@ -94,18 +93,16 @@ history is about 2.5 MB.
 
 B2 history starts on **2026-08-04**, when this backup first ran — the hyphenated
 predecessor bucket and the dumps it held were deleted with the Supabase
-decommission (#598 step 8). A listing that shows only a few days is therefore
+decommission. A listing that shows only a few days is therefore
 expected until the window fills, and is not evidence of misconfigured retention;
-reading it as such is what #653 got wrong. The first age-based prune falls around
+reading it as such is a mistake. The first age-based prune falls around
 **2026-09-03**. Until it happens, the 30 days above is the configured retention,
 not the observed one.
 
 ### Format
 
-**Decision (#594, item 2): the artifact is custom format — "Backup All Databases"
-goes unchecked** on the Scheduled Backup of the Postgres resource. #302 had chosen
-`pg_dumpall` in exchange for Coolify's one-click restore; that trade-off turned out
-not to exist (see below), so the choice is now made on the merits. The checkbox is
+**Decision: the artifact is custom format — "Backup All Databases"
+goes unchecked** on the Scheduled Backup of the Postgres resource. The checkbox is
 edited in the Coolify UI; nothing in this repo controls it.
 
 Unchecked, Coolify runs:
@@ -123,7 +120,7 @@ gzip step: custom format is already compressed.
 What that buys, and why it was worth switching:
 
 - `pg_restore` compatibility with the tooling that already exists.
-  `db:refresh:prod` now consumes one of these artifacts directly (#595) instead
+  `db:refresh:prod` now consumes one of these artifacts directly instead
   of taking a second dump against the live database — see
   [Production Database Dump](../db/production-dump.md).
 - Selective restore (`--table`, `--schema`), `--list` to inspect an artifact
@@ -147,7 +144,7 @@ includes all databases" checkbox that selects the restore command: checked, it
 drops every non-template database, recreates the target and pipes
 `gunzip -cf | psql`; unchecked, it runs `pg_restore -U … -d …` from an editable
 command field (the UI itself suggests adding `--clean`). So the format choice
-does not cost the one-click restore path, contrary to what #302 assumed. The
+does not cost the one-click restore path. The
 practical difference is that the `pg_dumpall` branch cleans up after itself and
 the `pg_restore` branch does not unless you add `--clean`.
 
@@ -188,7 +185,6 @@ As configured (verified 2026-08-06):
   not this rule — the two 30s are unrelated.
 - **`en-escena-filestore-backups`**: `daysFromHidingToDeleting = 30`,
   `daysFromUploadingToHiding` unset — the same shape, and for the same reason.
-  It had no rule at all until #639; nothing had ever been expired from it.
 
 **The filestore bucket must not get an age-based rule.** The storage backup ends
 in `aws s3 sync` (`scripts/backup-storage-to-b2.sh`), which compares size and
@@ -234,10 +230,10 @@ Coolify. What is left here belongs to the storage backup and to the scheduled
 restore drill.
 
 `COOLIFY_BACKUP_BUCKET` names the bucket Coolify's own backup writes to
-(unhyphenated, #588), which the scheduled restore drill reads. It replaced the
+(unhyphenated), which the scheduled restore drill reads. It replaced the
 retired `B2_DATABASE_BUCKET`, which pointed at the hyphenated bucket of the old
-app-script path (#594 item 5). `B2_DATABASE_BUCKET`, `B2_DATABASE_PREFIX` and
-`B2_PREFIX` were purged from the production environment with #598 step 8; the
+app-script path. `B2_DATABASE_BUCKET`, `B2_DATABASE_PREFIX` and
+`B2_PREFIX` were purged from the production environment; the
 bucket they named no longer exists.
 
 ```sh
@@ -262,7 +258,7 @@ The storage scripts still accept the legacy **`B2_BUCKET`** as a fallback for
 `B2_FILESTORE_BUCKET` (`backup-storage-to-b2.sh` and `restore-drill-from-b2.sh`),
 but new production configuration should set `B2_FILESTORE_BUCKET` explicitly.
 **`B2_PREFIX` is read by nothing** — it was a fallback for `B2_DATABASE_PREFIX`
-in the database script retired in #594 item 5, and `B2_FILESTORE_PREFIX` carries
+in the database script since retired, and `B2_FILESTORE_PREFIX` carries
 its own default of `filestore`. Both legacy variables can be deleted from the
 environment once `B2_FILESTORE_BUCKET` is set explicitly.
 
@@ -278,9 +274,7 @@ backup succeeds, over fewer buckets. Every asset kind declared in
 the defaults of `scripts/backup-storage-to-b2.sh`,
 `scripts/restore-drill-from-b2.sh` and
 `scripts/reseed-storage-volume-from-b2.sh`, which
-`scripts/storage-backup-buckets.test.ts` pins against those declarations. The
-sample omitted `enescena-seminar-pictures` until #1177 added
-`en-escena-feedback-audio` beside it.
+`scripts/storage-backup-buckets.test.ts` pins against those declarations.
 
 `en-escena-feedback-audio` holds the `Devolución` a judge records for an academy
 (see [Infrastructure](./infrastructure.md#devoluci%C3%B3n-audio-contract)). It is
@@ -316,7 +310,7 @@ The scheduled environment needs:
 
 The production Docker image installs PostgreSQL client 17 in the runtime stage so
 the Coolify scheduled task can run inside the application container. It was
-originally added for `backup-database-to-b2.sh`; **that script is gone (#594 item 5) and the client must stay**, because the scheduled restore drill needs
+originally added for `backup-database-to-b2.sh`; **that script is gone and the client must stay**, because the scheduled restore drill needs
 `pg_restore` and `psql` from the same package. The client version must be equal
 to or newer than the Postgres server version, or `pg_restore` refuses the
 archive. The server runs `postgres:17-alpine`, so keep both pinned to 17.
@@ -353,7 +347,7 @@ straight to B2, keys intact; there is no local staging copy.
 The **database** backup is scheduled on the Coolify Postgres resource, not here.
 It is the only database backup: the parallel scheduled task that ran
 `sh scripts/backup-database-to-b2.sh` was deleted, and the script with it, once
-the native backup passed a restore drill (#594 items 1 and 5).
+the native backup passed a restore drill.
 
 Add a scheduled task for Storage. Its base cadence is twice a day, raised during
 an event window to shrink the RPO:
@@ -388,7 +382,7 @@ installing it on the host.
 Prove the database backup restores, not just that the backup job exits 0. The
 drill restores an artifact into a **throwaway Postgres container** — never into
 `enescena` — then compares per-table row counts and the Drizzle migration
-journal against the live database. This is the check #267 step 7 requires.
+journal against the live database.
 
 Run it on the server, because the database has no published port (see
 [Production infrastructure](./infrastructure.md#database)) and the local
@@ -426,8 +420,7 @@ inspecting a custom-format artifact by hand instead, `pg_restore --list` and
 
 Reading the result:
 
-- **Row counts match exactly** — the strongest outcome, and what #267 step 7
-  asks for. Expect it when nothing has been written since the backup ran.
+- **Row counts match exactly** — the strongest outcome. Expect it when nothing has been written since the backup ran.
 - **Some table restored fewer rows than live** — a failure by default. Rows
   written after the backup are legitimate drift, but they look exactly like
   rows a partial restore lost, so the drill will not call that a pass on its
@@ -454,8 +447,7 @@ drill's throwaway container exists to avoid: the output carries its own
 `\connect` directives, so review what it targets before running it against a
 server that holds anything you care about.
 
-Run this drill before every event, and as the one-time strict gate for #267
-step 7. For the recurring check, see below — a drill that depends on someone
+Run this drill before every event. For the recurring check, see below — a drill that depends on someone
 remembering to run it is not a control.
 
 ### Scheduled Database Restore Drill
@@ -590,4 +582,4 @@ hypervisor.
 - **Revisit trigger:** a compliance requirement (e.g. a data-protection audit or
   a client/regulatory obligation), a move off Hostinger to a provider with
   encrypted block storage, or splitting the volume onto a dedicated device. See
-  #401 and the note in `.env.example`.
+  the note in `.env.example`.

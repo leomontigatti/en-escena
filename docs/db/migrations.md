@@ -139,7 +139,7 @@ contract, and it is correct once no running code reads the object any more.
 Mark the statement in the generated `.sql`:
 
 ```sql
--- reason: contract step of #123; no running code has read "nota" since #120.
+-- reason: contract step; no running code reads "nota" any more.
 -- squawk-ignore ban-drop-column
 ALTER TABLE "event" DROP COLUMN "nota";
 ```
@@ -202,8 +202,8 @@ healthcheck has to allow for that:
 | `health_check_enabled`      | `true`             | Was `false`, almost certainly because of the `/` |
 | `health_check_start_period` | `60`               | Must cover the migration plus the ~45s retries   |
 
-Set on the application (`x1383fsxfsixpgmvd9quv7tj`) before the first deploy of
-#613 and confirmed live. For reference, the probe around them is `GET` over
+Set on the application (`x1383fsxfsixpgmvd9quv7tj`) before the first deploy
+that applied migrations from the container entrypoint, and confirmed live. For reference, the probe around them is `GET` over
 `http` to `localhost`, every 5s, 5s timeout, 10 retries.
 
 `/internal/health` must not query Postgres. Migration success already gates
@@ -218,7 +218,7 @@ command arrives, whereas a chained `CMD` would be silently overridden and the
 migrations would never run — with no error, because the app would start
 normally.
 
-Answered on the first deploy, 2026-08-04 (#593):
+Answered on the first deploy, 2026-08-04:
 
 ```console
 $ docker inspect --format='{{json .Config.Entrypoint}} {{json .Config.Cmd}}' <app-container>
@@ -272,5 +272,4 @@ nothing reads it anymore.
 - A CI drift-check (fails when `db:generate` produces an uncommitted migration)
   runs in the `checks` job of `.github/workflows/ci.yml`. `db:generate` is
   offline — it diffs `schema.ts` against `app/db/migrations/meta/` without a
-  database — so it needs no Postgres service. Decided in #305; deferred here
-  from the Fase 0 baseline (#391).
+  database — so it needs no Postgres service.

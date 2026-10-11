@@ -122,7 +122,7 @@ fixes.
   inside an always-ask area of [coderabbit-triage.md](coderabbit-triage.md) is an **ask**: abort
   the merge with `git merge --abort` and go to step 5 as NEEDS YOU. For a PR that is part of a
   GitHub stack (see "Stacked PRs" in
-  [workflows.md](../../../docs/agents/workflows.md#stacked-prs)), never merge `master` into the
+  [ci.md](../../../docs/operations/ci.md#stacked-prs)), never merge `master` into the
   layer by hand: the fix is `gh stack rebase` and `gh stack push`, and that push is a force-push
   the user signs off on first, so go straight to step 5 as NEEDS YOU naming the stack and the
   rebase the user needs to run.
