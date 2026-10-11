@@ -811,7 +811,8 @@ const PAGE_HEADER_SURFACES = ["admin", "portal"].flatMap((surface) => [
   `${path.sep}app${path.sep}features${path.sep}${surface}${path.sep}`,
   `${path.sep}app${path.sep}components${path.sep}${surface}${path.sep}`,
 ]);
-const DARK_CLASS = /(?:^|\s)dark:\S/;
+// `dark:` as any of a class's variants: `dark:bg-x`, `md:dark:bg-x`.
+const DARK_CLASS = /(?:^|\s)(?:[\w-]+:)*dark:\S/;
 const FORM_EVENT_TYPES = new Set(["FormEvent", "FormEventHandler"]);
 
 function isMember(node, property) {

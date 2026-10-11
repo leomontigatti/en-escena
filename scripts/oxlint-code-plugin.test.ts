@@ -25,6 +25,15 @@ export function load(read: () => string) {
     return read();
   } catch (error) {}
 }
+
+export function save(write: () => void) {
+  try {
+    write();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: "No se pudo guardar" };
+  }
+}
 `;
 
 const compliantFixture = `
@@ -52,6 +61,22 @@ export function hostOf(url: string) {
     return new URL(url).hostname;
   } catch {
     throw new Error("Not a valid URL.");
+  }
+}
+
+export function report(run: () => void, log: (message: string) => void) {
+  try {
+    run();
+  } catch ({ message }) {
+    log(message);
+  }
+}
+
+export function track(run: () => void, log: (error: unknown) => void) {
+  try {
+    run();
+  } catch ($error) {
+    log({ $error });
   }
 }
 
@@ -126,6 +151,11 @@ describe("code oxlint plugin", () => {
       {
         rule: "code(catch-reason)",
         line: 13,
+        message: expect.stringContaining("one-line reason"),
+      },
+      {
+        rule: "code(catch-reason)",
+        line: 20,
         message: expect.stringContaining("one-line reason"),
       },
     ]);

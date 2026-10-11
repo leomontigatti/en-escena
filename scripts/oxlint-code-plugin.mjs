@@ -6,31 +6,70 @@
 //   a binding it never reads, either throws or carries a one-line reason, in
 //   its body or right above its `try`.
 
-// Whether a node holds a `throw` of its own: one inside a nested function
-// throws for that function, not for the catch.
-function containsThrow(node) {
-  if (!node || typeof node.type !== "string") return false;
-  if (node.type === "ThrowStatement") return true;
-  if (
-    node.type === "FunctionDeclaration" ||
-    node.type === "FunctionExpression" ||
-    node.type === "ArrowFunctionExpression"
-  ) {
-    return false;
-  }
-  return Object.entries(node).some(([key, value]) => {
-    if (key === "parent") return false;
-    if (Array.isArray(value)) return value.some(containsThrow);
-    return typeof value?.type === "string" && containsThrow(value);
+const FUNCTIONS = new Set([
+  "FunctionDeclaration",
+  "FunctionExpression",
+  "ArrowFunctionExpression",
+]);
+
+function childNodes(node) {
+  return Object.entries(node).flatMap(([key, value]) => {
+    if (key === "parent") return [];
+    const values = Array.isArray(value) ? value : [value];
+    return values.filter((item) => typeof item?.type === "string");
   });
 }
 
-function readsBinding(sourceCode, clause) {
-  if (clause.param?.type !== "Identifier") return false;
-  const name = clause.param.name;
-  return new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(
-    sourceCode.getText(clause.body),
-  );
+// Whether a node holds a `throw` of its own: one inside a nested function
+// throws for that function, not for the catch.
+function containsThrow(node) {
+  if (node.type === "ThrowStatement") return true;
+  if (FUNCTIONS.has(node.type)) return false;
+  return childNodes(node).some(containsThrow);
+}
+
+// The names a catch binds: `error`, or each one a pattern destructures.
+function boundNames(pattern) {
+  if (!pattern) return [];
+  switch (pattern.type) {
+    case "Identifier":
+      return [pattern.name];
+    case "ObjectPattern":
+      return pattern.properties.flatMap((property) =>
+        boundNames(property.type === "RestElement" ? property : property.value),
+      );
+    case "ArrayPattern":
+      return pattern.elements.flatMap(boundNames);
+    case "RestElement":
+      return boundNames(pattern.argument);
+    case "AssignmentPattern":
+      return boundNames(pattern.left);
+    default:
+      return [];
+  }
+}
+
+// A name used as a value, not a property's key or a member's property.
+function isReference(node, parent) {
+  if (parent?.type === "MemberExpression") {
+    return parent.computed || parent.object === node;
+  }
+  if (parent?.type === "Property" && parent.key === node) {
+    return parent.computed || parent.shorthand;
+  }
+  return true;
+}
+
+function referencesAny(node, names, parent) {
+  if (node.type === "Identifier" && names.has(node.name)) {
+    if (isReference(node, parent)) return true;
+  }
+  return childNodes(node).some((child) => referencesAny(child, names, node));
+}
+
+function readsBinding(clause) {
+  const names = new Set(boundNames(clause.param));
+  return names.size > 0 && referencesAny(clause.body, names, clause);
 }
 
 // A comment on the line or lines right above the `try`.
@@ -60,7 +99,7 @@ const catchReason = {
 
     return {
       CatchClause(node) {
-        if (readsBinding(sourceCode, node)) return;
+        if (readsBinding(node)) return;
         if (containsThrow(node.body)) return;
         if (sourceCode.getCommentsInside(node.body).length > 0) return;
         if (hasReasonAbove(sourceCode, node.parent)) return;

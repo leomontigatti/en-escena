@@ -295,7 +295,7 @@ export function Violating(props: { form: HTMLFormElement }) {
   HTMLFormElement.prototype.submit.call(props.form);
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => event;
   return (
-    <div className="bg-card dark:bg-muted" onSubmit={onSubmit}>
+    <div className="bg-card md:dark:bg-muted" onSubmit={onSubmit}>
       <h1>Título</h1>
     </div>
   );

@@ -310,8 +310,8 @@ unrelated failure reaches `handleError` and its `[server:unexpected]` line; or
 ids, error: describeServerError(thrown) })`, in the family of `[arca:unreachable]`
 and `[auth:provider:error]`, with ids and never a request body, document,
 email, password or token. A bare `catch {}` needs the expected condition in the
-code or a one-line reason above it; `pnpm lint` holds that part
-(`code/catch-reason`).
+code or a one-line reason, inside the catch or right above its `try`; `pnpm
+lint` holds that part (`code/catch-reason`).
 
 ### Commits and pull requests are English
 
