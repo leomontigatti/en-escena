@@ -33,11 +33,7 @@ export default mergeConfig(
       ],
     },
     test: {
-      exclude: [
-        ...configDefaults.exclude,
-        "**/.sandcastle/**",
-        "**/.claude/worktrees/**",
-      ],
+      exclude: [...configDefaults.exclude, "**/.claude/worktrees/**"],
       fileParallelism: false,
       include: ["**/*.db.test.ts"],
       maxConcurrency: 1,

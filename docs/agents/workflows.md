@@ -524,9 +524,9 @@ Hook guidance:
   above, alongside zizmor and actionlint.
 
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
-  name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
+  name anywhere under `.github/`, `app/`, `scripts/` or `tests/`, plus the
   repo-root configs (#592); on Spanish in the `.md` under `.agents/`, `.claude/`,
-  `.github/`, `.sandcastle/` and `docs/` — `docs/adr/`, `docs/research/` and the
+  `.github/` and `docs/` — `docs/adr/`, `docs/research/` and the
   vendored skills in `skills-lock.json` excepted, because all three are records of
   something external (#792); on the `#` comments in
   the YAML under `.github/` and at the repo root (#793); and on the `#` comments

@@ -20,7 +20,7 @@ already provisioned. Originating issue: [#343](https://github.com/leomontigatti/
 `source:architecture-review` is listed, with colour and description, in the `provenance` group of
 [`.github/labels.json`](../../.github/labels.json), and `pnpm labels:sync` creates or updates it
 in the repo ([#1116](https://github.com/leomontigatti/en-escena/issues/1116); it never deletes).
-`pnpm check:labels` fails CI when a workflow or a Sandcastle runner names a label the file does
+`pnpm check:labels` fails CI when a workflow or the Architecture Review runner names a label the file does
 not hold, which is how a typo in an `--add-label` is caught before the run that needs it.
 
 > The spec says the Architecture Review workflow creates `source:architecture-review` on-demand
@@ -126,15 +126,10 @@ Every runner step carries **two** ceilings, and the order between them is load-b
 reporting machinery: Actions kills the process tree, so `runMain`'s catch never runs, no
 `failure_reason.txt` is written, and the orchestrator can only comment "(no reason file
 written)". On #512 that cost an entire review with no diagnosis. `AGENT_BUDGET_MINUTES` builds
-an `AbortSignal` that the runner passes to sandcastle's `run()`, which rejects with the abort
-reason — turning the timeout back into an **ordinary throw** that the existing failure plumbing
-reports normally.
-
-**The abort does not stop the agent.** Under `noSandbox()` the agent is a bare child process
-whose `exec` has no cancel path, so sandcastle's race against the abort only settles once the
-agent exits on its own. The step's `timeout-minutes` is the only hard stop; the budget decides
-how the run is _reported_, not when the agent stops. The gap between the two is where an agent
-that was nearly done finishes anyway.
+an `AbortSignal` that the runner hands every agent turn: when it fires, the runner kills the
+agent's process group (the `claude` process and the shell tools it started) and the turn
+rejects with the abort reason — turning the timeout back into an **ordinary throw** that the
+existing failure plumbing reports normally.
 
 **The invariant: the budget must stay strictly below the step's `timeout-minutes`.** If it is
 equal or larger, Actions wins the race and the guardrail buys nothing.

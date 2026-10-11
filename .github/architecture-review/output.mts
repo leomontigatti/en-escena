@@ -16,6 +16,7 @@ const skipped = z.object({
   reason: z.string().min(1),
 });
 
-export const architectureReviewSchema = z.discriminatedUnion("status", [proposed, skipped]);
-
-export type ArchitectureReviewOutput = z.infer<typeof architectureReviewSchema>;
+export const architectureReviewSchema = z.discriminatedUnion("status", [
+  proposed,
+  skipped,
+]);
