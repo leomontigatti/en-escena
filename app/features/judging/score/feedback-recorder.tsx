@@ -60,7 +60,7 @@ type Session = {
 
 /**
  * One take on the device mic with `MediaRecorder` (webm/opus, Chrome only):
- * start, pause and resume, stop at will or at the three-minute cap the
+ * start, pause and resume, stop at will or at the five-minute cap the
  * recorder enforces itself. The finished audio goes to `onRecorded`; the
  * phases and the elapsed time are app/lib/judging/feedback-take.ts.
  */

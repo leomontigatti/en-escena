@@ -11,8 +11,8 @@
  * app/features/judging/score/feedback-recorder.tsx.
  */
 
-/** A take stops itself here: three minutes is as long as a `Devolución` gets. */
-export const maxRecordingMs = 180_000;
+/** A take stops itself here: five minutes is as long as a `Devolución` gets. */
+export const maxRecordingMs = 300_000;
 
 export type TakePhase = "idle" | "requesting" | "recording" | "paused";
 
@@ -75,7 +75,7 @@ export function takeElapsedMs(state: TakeState, now: number) {
   return Math.min(maxRecordingMs, state.recordedMs + currentStretchMs);
 }
 
-/** Whether the take has run its three minutes and must stop itself. */
+/** Whether the take has run its five minutes and must stop itself. */
 export function hasFilledTake(state: TakeState, now: number) {
   return takeElapsedMs(state, now) >= maxRecordingMs;
 }

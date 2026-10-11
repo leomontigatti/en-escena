@@ -57,11 +57,11 @@ describe("the judge's take on the mic", () => {
     expect(takeElapsedMs(resumed, start + 10_000)).toBe(3_000);
   });
 
-  test("never reads past three minutes, which is where the take fills up", () => {
+  test("never reads past five minutes, which is where the take fills up", () => {
     const recording = recordingFrom(start);
 
-    expect(hasFilledTake(recording, start + maxRecordingMs - 1)).toBe(false);
-    expect(hasFilledTake(recording, start + maxRecordingMs)).toBe(true);
+    expect(hasFilledTake(recording, start + 300_000 - 1)).toBe(false);
+    expect(hasFilledTake(recording, start + 300_000)).toBe(true);
     expect(takeElapsedMs(recording, start + maxRecordingMs + 5_000)).toBe(
       maxRecordingMs,
     );
