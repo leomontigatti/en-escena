@@ -9,6 +9,12 @@
 # Usage:
 #   scripts/agents/sol.sh run <research|reviewer> <prompt-file>
 #   scripts/agents/sol.sh wait <run-dir>
+#   scripts/agents/sol.sh doctor
+#
+# `doctor` checks what a run needs before any reviewer is spawned: the codex
+# CLI and its login, the `gh` login and the `repo` scope the caller uses to
+# fetch the spec, and the model answering a one-word prompt. One line per
+# check; it exits 1 with the fix for each check that failed, 0 otherwise.
 #
 # `run` starts the task detached and waits for it; `wait` resumes waiting on a
 # task a previous call left running. Each waits at most $SOL_WAIT_SECONDS (540,
@@ -29,9 +35,12 @@ set -euo pipefail
 readonly model="gpt-6.1-sol"
 readonly effort="medium"
 readonly wait_seconds="${SOL_WAIT_SECONDS:-540}"
+# `doctor` bounds its model probe where coreutils' `timeout` exists.
+timeout_cmd=()
+command -v timeout >/dev/null && timeout_cmd=(timeout 120)
 
 usage() {
-  echo "usage: $0 run <research|reviewer> <prompt-file> | $0 wait <run-dir>" >&2
+  echo "usage: $0 run <research|reviewer> <prompt-file> | $0 wait <run-dir> | $0 doctor" >&2
   exit 2
 }
 
@@ -90,8 +99,56 @@ start() {
   await "$dir"
 }
 
+doctor() {
+  local failed=0 detail scopes dir
+  check() { # <ok|FAIL> <name> <detail or fix>
+    if [[ $1 == ok ]]; then
+      printf 'ok    %s: %s\n' "$2" "$3"
+    else
+      printf 'FAIL  %s: fix: %s\n' "$2" "$3"
+      failed=1
+    fi
+  }
+
+  if ! command -v codex >/dev/null; then
+    check FAIL codex "install the codex CLI, then run \`codex login\`"
+  elif detail=$(codex login status 2>&1); then
+    check ok "codex login" "$(tail -n 1 <<<"$detail")"
+    dir=$(mktemp -d "${TMPDIR:-/tmp}/sol-doctor.XXXXXX")
+    if echo 'Reply with the single word OK.' | ${timeout_cmd[@]+"${timeout_cmd[@]}"} \
+      codex exec -m "$model" -c 'model_reasoning_effort="low"' -s read-only \
+      --skip-git-repo-check --ephemeral -o "$dir/out.md" - >"$dir/codex.log" 2>&1 &&
+      [[ -s "$dir/out.md" ]]; then
+      check ok model "$model answers"
+      rm -rf "$dir"
+    else
+      check FAIL model "$model did not answer: $(tail -n 1 "$dir/codex.log" | cut -c 1-200) (full log: $dir/codex.log)"
+    fi
+  else
+    check FAIL "codex login" "codex login"
+  fi
+
+  if ! command -v gh >/dev/null; then
+    check FAIL gh "install the GitHub CLI, then run \`gh auth login\`"
+  elif ! detail=$(gh auth status --active 2>&1); then
+    check FAIL "gh login" "gh auth login"
+  else
+    scopes=$(sed -n "s/.*Token scopes: //p" <<<"$detail")
+    if [[ -n $scopes && $scopes != *"'repo'"* ]]; then
+      check FAIL "gh scopes" "gh auth refresh -s repo (the token has $scopes)"
+    elif detail=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>&1); then
+      check ok "gh login" "reads $detail"
+    else
+      check FAIL "gh login" "gh auth login (gh repo view failed: $(tail -n 1 <<<"$detail"))"
+    fi
+  fi
+
+  return "$failed"
+}
+
 case ${1:-} in
   run) (($# == 3)) || usage; start "$2" "$3" ;;
   wait) (($# == 2)) && [[ -f "$2/pid" ]] || usage; await "$2" ;;
+  doctor) (($# == 1)) || usage; doctor ;;
   *) usage ;;
 esac
