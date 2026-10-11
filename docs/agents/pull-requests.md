@@ -100,6 +100,12 @@ ticks each box when its slice lands on the branch, so the body is the progress
 record: a session that resumes the PR reads it there, not in the scrollback,
 and nothing is committed to the repository to track it.
 
+A PRD PR is the one PR opened as a **draft**: the `implement-spec` skill opens it
+after the first slice merges and marks it ready when the last has landed and the
+chain has been reviewed, then babysits it. CodeRabbit does not review drafts
+(`auto_review.drafts` defaults to off), so the chain pays one review instead of
+one per slice.
+
 ## UI evidence
 
 A PR that changes what a screen looks like carries before and after images. A

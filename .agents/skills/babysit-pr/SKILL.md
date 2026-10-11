@@ -137,3 +137,4 @@ comment, so `READY` with 0 passes is a PR it reviewed and found clean, never one
 case is `NO_REVIEW`.
 
 Nothing here merges, marks a PR draft or ready, rebases or force-pushes: those are the user's.
+`implement-spec` marks its own draft ready before it calls this skill.
