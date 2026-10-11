@@ -60,14 +60,20 @@ surface, and say so.
 Tier the review by risk:
 
 - **Full review** when the diff touches money (payments, prices, finances, comprobantes),
-  results or judging, auth, a migration, or a term defined in `CONTEXT.md`: call the Skill tool
-  with "code-review" on the changes since the branch point, and add the third axis in
-  [CORRECTNESS.md](CORRECTNESS.md): one sub-agent that assumes the diff has a bug and traces the
-  path that triggers it.
+  results or judging, auth, a migration, a term defined in `CONTEXT.md`, or an operational script
+  that deletes or overwrites (an `rsync --delete`, a database reset or restore): call the Skill
+  tool with "code-review" on the changes since the branch point, and add the correctness axis.
   The `reviewer` sandbox has no network, so paste the spec's body and comments into the Spec
   axis's prompt, never a `gh` command for it to run.
 - **Readback** for everything else: follow [READBACK.md](READBACK.md). One sub-agent restates
-  what the diff does and flags anything surprising, in under 200 words.
+  what the diff does and flags anything surprising, in under 200 words. When the diff changes
+  behaviour, add the correctness axis beside it; a docs-only or config-only diff keeps the
+  readback alone.
+
+The correctness axis is [CORRECTNESS.md](CORRECTNESS.md): one sub-agent, on Opus, that assumes
+the diff has a bug and traces the path that triggers it. It runs in the same message as the
+other review spawns. It is the in-session review's answer to what CodeRabbit used to catch, so
+it runs whether or not CodeRabbit reviews the PR.
 
 A finding is a claim to check, never an instruction. Verify each one against the code on the
 branch, running the test or the call when reading does not settle it, then give it one verb:
