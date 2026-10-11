@@ -7,12 +7,14 @@ import {
   choreographies,
   comprobantes,
   dancers,
+  events,
   paymentAllocations,
   payments,
   professors,
   user,
   votes,
 } from "@/db/schema";
+import { lockAcademyPools } from "@/lib/finances/allocation-pool.server";
 import { formatSpanishList } from "@/lib/shared/text-normalization";
 
 import type {
@@ -50,6 +52,21 @@ export async function mergeAcademies(input: {
   }
 
   return await db.transaction(async (tx) => {
+    // Both academies' pools, in every event, before anything else: the merge
+    // moves payments and allocations between them, and a spread already
+    // reading one of them finishes first. Taken ahead of the academy lock,
+    // because a spread holding its pool lock needs the academy row to insert.
+    const eventRows = await tx.select({ id: events.id }).from(events);
+    await lockAcademyPools(
+      tx,
+      eventRows.flatMap((event) =>
+        [input.removedId, input.survivorId].map((academyId) => ({
+          academyId,
+          eventId: event.id,
+        })),
+      ),
+    );
+
     // Ordered by id, so two merges over the same pair lock in the same order.
     const locked = await tx
       .select({

@@ -9,11 +9,17 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
+import { seedSeminarPresetFixture } from "@/lib/admin/finances/seminar-finances.test-support";
+import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent } from "@/lib/test-support/events";
 
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../../tests/db/harness";
+import { runBehindAHolder } from "../../../../../tests/db/lock-contention";
 
 import { handlePaymentDetailAction } from "./server";
 import { deletePaymentIntent, updatePaymentIntent } from "./shared";
@@ -310,6 +316,62 @@ describe("admin payment detail", () => {
     ).resolves.toHaveLength(1);
   });
 });
+
+/**
+ * The edit checks the payment still covers what is allocated to it while a
+ * spread is allocating to it. Only the academy's pool lock orders the two; one
+ * PGlite connection would order them on its own, so this runs on Postgres only.
+ */
+describe.skipIf(isPgliteTestBackend())(
+  "a payment edit under real contention",
+  () => {
+    test("an edit that waits on a spread reads what the spread allocated, and refuses to go below it", async () => {
+      const fixture = await seedSeminarPresetFixture({ paymentAmount: 30000 });
+      const payment = await findPaymentByAcademyId(fixture.academyId);
+      const request = await buildPaymentDetailPostRequest({
+        fields: {
+          academyId: fixture.academyId,
+          amount: "10000",
+          internalNote: "",
+          // The fixture dates its payment in 2030; an edit refuses a future date.
+          paymentDate: "2026-03-15",
+          paymentMethod: payment.paymentMethod,
+          reference: "",
+        },
+        intent: updatePaymentIntent,
+        paymentId: payment.id,
+        requestUrl: paymentDetailUrl(payment.id, fixture.eventId),
+      });
+
+      const result = await runBehindAHolder({
+        waitingOn: "academy pool lock",
+        hold: async (tx) =>
+          expect(
+            await spreadFromPool(tx, {
+              academyId: fixture.academyId,
+              amount: 20000,
+              eventId: fixture.eventId,
+              target: {
+                id: fixture.inscriptions.specialParticipant.id,
+                kind: "seminar",
+              },
+            }),
+          ).toEqual({ ok: true }),
+        contender: () => handlePaymentDetailAction(request, payment.id),
+      });
+
+      expect(result).toMatchObject({
+        status: "error",
+        fieldErrors: {
+          amount: "El monto no puede ser menor al total ya asignado.",
+        },
+      });
+      await expect(findPaymentById(payment.id)).resolves.toMatchObject({
+        amount: 30000,
+      });
+    });
+  },
+);
 
 async function createFrozenInscription(input: {
   academyId: string;

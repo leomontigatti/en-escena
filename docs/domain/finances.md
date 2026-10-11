@@ -573,6 +573,22 @@ they live in one module.
 - **Accepted cost, stated plainly**: a specific payment can no longer be lifted
   off a specific inscription. The remedy for a payment recorded in error is
   deleting the payment, which cascades its allocations.
+- **The pool lock.** Checking the floor reads what is free and then writes, so
+  two writes for one academy and event on different inscriptions could each
+  spend the same free money. Every write that moves the pool therefore takes a
+  transaction-scoped advisory lock on the `(academy, event)` pair
+  (`lockAcademyPool`, in the pool module) before it reads what is free: funding
+  and unfunding, so every preset and every single-inscription gesture of either
+  kind; the payment edit, before it checks the payment still covers what it
+  funds; the payment deletion; and the academy merge, on both academies in every
+  event. The write that comes second reads what the first left, so of two
+  charges the pool can cover only one of, the second is refused with
+  `La academia no tiene saldo disponible suficiente.` Funding and unfunding take
+  it after the seminar and inscription locks their callers hold, never before
+  one, so it adds no lock order to deadlock on; the lock is re-entrant, so a
+  preset that spreads many times waits once. Registering a payment takes no
+  lock: it only grows the pool. Deleting an academy takes none either, since an
+  academy with payments cannot be deleted.
 
 - **The quota, for a seminar target.** Every money gesture whose target is a
   seminar inscription locks the seminar row `FOR UPDATE` first, crossing or not
@@ -747,7 +763,10 @@ nothing the second time.
   on.
 - **Places.** Every selected seminar is locked `FOR UPDATE`, in id order, before
   anything is read, and then the academy's active inscriptions in them, in id
-  order too, so a withdrawal racing the charge is serialised. Per seminar, the places needed are the inscriptions the
+  order too, so a withdrawal racing the charge is serialised. The academy's
+  pool lock comes last, when the money moves ("The pool rules"), so a charge
+  racing another write for the same academy, on any seminar or choreography,
+  reads the pool that write left. Per seminar, the places needed are the inscriptions the
   charge carries across their deposit, and the charge is refused when
   `covered + needed > quota` for any of them, naming each seminar short and by
   how many places. A `Pagar saldo` that crosses a deposit takes a place exactly

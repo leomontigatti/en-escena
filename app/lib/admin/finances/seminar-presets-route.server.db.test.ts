@@ -16,6 +16,7 @@ import {
   seedSeminarPresetFixture,
   type SeminarPresetFixture,
 } from "@/lib/admin/finances/seminar-finances.test-support";
+import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import {
@@ -23,7 +24,11 @@ import {
   loader as academyFinancesLoader,
 } from "@/routes/administracion.finanzas_.$academyId";
 
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../tests/db/harness";
+import { runBehindAHolder } from "../../../../tests/db/lock-contention";
 
 installDatabaseTestHooks();
 
@@ -551,3 +556,53 @@ describe("the seminar preset preview in the academy's finance loader", () => {
     ).toBe("special no participante");
   });
 });
+
+/**
+ * Two writes for one academy on disjoint inscriptions share nothing but the
+ * pool, so only the academy's pool lock can keep them from both spending the
+ * same free money. The fast suite runs them through one PGlite connection,
+ * which serialises them on its own and would pass without the lock, so this
+ * runs on Postgres only.
+ */
+describe.skipIf(isPgliteTestBackend())(
+  "the academy's pool under real contention",
+  () => {
+    test("a preset that waits on a spread for another seminar reads the pool that spread left, and refuses the charge", async () => {
+      // Enough for one seminar's deposits, not for both.
+      const fixture = await seedSeminarPresetFixture({ paymentAmount: 30000 });
+      const { inscriptions } = fixture;
+
+      const result = await runBehindAHolder({
+        waitingOn: "academy pool lock",
+        hold: async (tx) =>
+          expect(
+            await spreadFromPool(tx, {
+              academyId: fixture.academyId,
+              amount: 20000,
+              eventId: fixture.eventId,
+              target: {
+                id: inscriptions.specialParticipant.id,
+                kind: "seminar",
+              },
+            }),
+          ).toEqual({ ok: true }),
+        contender: () =>
+          postPreset(fixture, {
+            intent: "pay-seminar-deposit-preset",
+            seminarIds: [fixture.regular.id],
+          }),
+      });
+
+      expect(result).toEqual({
+        status: "error",
+        message: "La academia no tiene saldo disponible suficiente.",
+        refusal: "seminar-preset",
+      });
+      const allocated = await readAllocatedByInscription(fixture);
+      expect(allocated.get(inscriptions.specialParticipant.id)).toBe(20000);
+      expect(
+        [...allocated.values()].reduce((sum, amount) => sum + amount, 0),
+      ).toBeLessThanOrEqual(30000);
+    });
+  },
+);

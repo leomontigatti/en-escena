@@ -13,6 +13,8 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { lockPaymentPool } from "@/lib/finances/allocation-pool.server";
+import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
@@ -145,67 +147,62 @@ async function updatePayment(input: {
     };
   }
 
-  const [payment, academy] = await Promise.all([
-    db.query.payments.findFirst({
-      columns: {
-        academyId: true,
-        eventId: true,
-        id: true,
-      },
-      where: eq(payments.id, input.paymentId),
-    }),
-    db.query.academies.findFirst({
-      columns: { id: true },
-      where: eq(academies.id, parsed.data.academyId),
-    }),
-  ]);
+  // Under the pool lock, so a spread allocating to this payment right now is
+  // either counted here or waits until the edit has saved.
+  const refusal = await db.transaction(
+    async (tx): Promise<UpdatePaymentActionData["fieldErrors"] | null> => {
+      const payment = await lockPaymentPool(tx, input.paymentId);
 
-  if (!payment) {
-    throw new Response("No encontramos ese pago.", { status: 404 });
-  }
+      if (!payment) {
+        throw new Response("No encontramos ese pago.", { status: 404 });
+      }
 
-  if (!academy) {
+      const academy = await tx.query.academies.findFirst({
+        columns: { id: true },
+        where: eq(academies.id, parsed.data.academyId),
+      });
+
+      if (!academy) {
+        return { academyId: "Seleccioná una academia válida." };
+      }
+
+      const accountingFieldErrors = getPaymentEditAccountingFieldErrors({
+        allocatedAmount: await sumPaymentAllocatedAmount(input.paymentId, tx),
+        currentAcademyId: payment.academyId,
+        nextAcademyId: parsed.data.academyId,
+        nextAmount: Number(parsed.data.amount),
+      });
+
+      if (Object.keys(accountingFieldErrors).length > 0) {
+        return accountingFieldErrors;
+      }
+
+      await tx
+        .update(payments)
+        .set({
+          academyId: parsed.data.academyId,
+          amount: Number(parsed.data.amount),
+          internalNote: parsed.data.internalNote || null,
+          paymentDate: parsed.data.paymentDate,
+          paymentMethod: parsed.data.paymentMethod,
+          reference: parsed.data.reference || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(payments.id, input.paymentId));
+
+      return null;
+    },
+  );
+
+  if (refusal) {
     return {
       status: "error",
       intent: updatePaymentIntent,
       message: "Revisá los datos del pago.",
-      fieldErrors: {
-        academyId: "Seleccioná una academia válida.",
-      },
+      fieldErrors: refusal,
       values,
     };
   }
-
-  const allocatedAmount = await sumPaymentAllocatedAmount(payment.id);
-  const accountingFieldErrors = getPaymentEditAccountingFieldErrors({
-    allocatedAmount,
-    currentAcademyId: payment.academyId,
-    nextAcademyId: parsed.data.academyId,
-    nextAmount: Number(parsed.data.amount),
-  });
-
-  if (Object.keys(accountingFieldErrors).length > 0) {
-    return {
-      status: "error",
-      intent: updatePaymentIntent,
-      message: "Revisá los datos del pago.",
-      fieldErrors: accountingFieldErrors,
-      values,
-    };
-  }
-
-  await db
-    .update(payments)
-    .set({
-      academyId: parsed.data.academyId,
-      amount: Number(parsed.data.amount),
-      internalNote: parsed.data.internalNote || null,
-      paymentDate: parsed.data.paymentDate,
-      paymentMethod: parsed.data.paymentMethod,
-      reference: parsed.data.reference || null,
-      updatedAt: new Date(),
-    })
-    .where(eq(payments.id, payment.id));
 
   return {
     status: "success",
@@ -233,22 +230,18 @@ async function deletePayment(input: {
     };
   }
 
-  const payment = await db.query.payments.findFirst({
-    columns: {
-      eventId: true,
-    },
-    where: eq(payments.id, input.paymentId),
-  });
-
-  if (!payment) {
-    throw new Response("No encontramos ese pago.", { status: 404 });
-  }
-
   // Its allocations fall with the foreign key cascade — the database is what
   // cascades, not this module — and nothing else has to be reconciled: every
   // figure an inscription shows is derived from what is allocated to it right
-  // now. There is no blocking case: the deletion always proceeds.
-  await db.delete(payments).where(eq(payments.id, input.paymentId));
+  // now. There is no blocking case: the deletion always proceeds, under the
+  // pool lock so that no spread is allocating to the payment as it goes.
+  await db.transaction(async (tx) => {
+    if (!(await lockPaymentPool(tx, input.paymentId))) {
+      throw new Response("No encontramos ese pago.", { status: 404 });
+    }
+
+    await tx.delete(payments).where(eq(payments.id, input.paymentId));
+  });
 
   throw redirect("/administracion/pagos");
 }
@@ -271,8 +264,11 @@ function getPaymentFormValues(payment: {
   };
 }
 
-async function sumPaymentAllocatedAmount(paymentId: string) {
-  const rows = await db
+async function sumPaymentAllocatedAmount(
+  paymentId: string,
+  executor: Executor = db,
+) {
+  const rows = await executor
     .select({ amount: paymentAllocations.amount })
     .from(paymentAllocations)
     .where(eq(paymentAllocations.paymentId, paymentId));
