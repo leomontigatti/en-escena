@@ -70,6 +70,10 @@ describe("readRequestedUrl", () => {
       "/administracion/academias.data?pagina=2&_routes=root%2Cacademies",
     ],
     ["the root's data request", `${rootDataPath}?evento=1`],
+    [
+      "a data request for a path with a trailing slash",
+      "/administracion/academias/_.data?pagina=2",
+    ],
   ])(
     "reads the URL React Router hands the loaders, not the wire's (%s)",
     async (_label, path) => {

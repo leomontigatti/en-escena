@@ -23,12 +23,10 @@ export function readRequestedUrl(request: Request): URL {
   return url;
 }
 
-// The root's data is fetched from `/_root.data`; every other route's from
-// `<path>.data`.
+// A path ending in a slash, the root's included, fetches its data from
+// `<path>/_.data`; any other from `<path>.data`.
 function stripDataSuffix(pathname: string) {
-  if (pathname === "/_root.data") {
-    return "/";
-  }
-
-  return pathname.replace(/\.data$/, "");
+  return pathname.endsWith("/_.data")
+    ? pathname.slice(0, -"_.data".length)
+    : pathname.replace(/\.data$/, "");
 }

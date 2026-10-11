@@ -13,6 +13,6 @@ export default {
     v8_splitRouteModules: true,
     v8_viteEnvironmentApi: true,
     v8_passThroughRequests: true,
-    v8_trailingSlashAwareDataRequests: false,
+    v8_trailingSlashAwareDataRequests: true,
   },
 } satisfies Config;
