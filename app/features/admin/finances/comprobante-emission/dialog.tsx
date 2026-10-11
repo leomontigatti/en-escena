@@ -1,41 +1,18 @@
 import { Check } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useFetcher } from "react-router";
 
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  ContingencyAlert,
-  contingencyCancelLabel,
-  resolveContingencySubmitState,
-} from "@/lib/comprobantes/contingency-alert";
-
+import { ArcaConfirmationDialog } from "@/components/shared/arca-confirmation-dialog";
 import { formatAmount } from "@/lib/finances/formatters";
-import { useServerActionToast } from "@/lib/shared/toasts";
+
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
   recheckComprobanteIntent,
-  type ComprobanteEmissionActionData,
 } from "./shared";
 
 /**
- * Emission confirmation as an `AlertDialog` (#480, ADR-0011): focus is trapped,
- * it does not close on an outside click and it exposes `role="alertdialog"`. No
- * checkbox: the dialog itself is the confirmation. The amount arrives derived
- * from what was collected, so the operator cannot emit for a different figure:
- * the dialog only previews, and is then confirmed or cancelled. The `confirm`
- * travels as a hidden field — the deliberate-submit keyword the server requires
- * — not as a tick.
+ * Emission confirmation (#480, ADR-0011). The amount arrives derived from
+ * what was collected, so the operator cannot emit for a different figure: the
+ * dialog only previews, and is then confirmed or cancelled.
  *
  * Driven from the header's actions menu (ADR-0011): the `Emitir factura`
  * affordance is an item of the `ResourceActionsMenu`, not a separate button, and
@@ -50,90 +27,21 @@ export function EmissionDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const fetcher = useFetcher<ComprobanteEmissionActionData>();
-  const isSaving = fetcher.state !== "idle";
-  const contingency =
-    fetcher.data?.status === "warning" ? fetcher.data.contingency : null;
-
-  // Manual verification is declared by the operator, so it cannot survive a new
-  // attempt: every response from the server clears it and the retry goes back to
-  // being blocked if it is still unresolved.
-  const [acknowledged, setAcknowledged] = useState(false);
-  useEffect(() => {
-    setAcknowledged(false);
-  }, [fetcher.data]);
-
-  const submitState = resolveContingencySubmitState(contingency, acknowledged);
-
-  useServerActionToast(fetcher.data?.status === "error" ? fetcher.data : null, {
-    toastId: "comprobante-emission:error",
-  });
-
-  function handleOpenChange(next: boolean) {
-    if (isSaving) {
-      return;
-    }
-    onOpenChange(next);
-  }
-
   return (
-    <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogContent className="sm:max-w-lg">
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Emitir la Factura C?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Vas a emitir una factura C por {formatAmount(billableAmount)}. Una
-            vez emitida, sólo puede revertirse con una nota de crédito.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-
-        <fetcher.Form method="post" className="flex flex-col gap-4">
-          <input type="hidden" name="intent" value={emitComprobanteIntent} />
-          <input
-            type="hidden"
-            name="confirm"
-            value={emitComprobanteConfirmValue}
-          />
-
-          <EmissionPreview billableAmount={billableAmount} />
-
-          {contingency ? (
-            <ContingencyAlert
-              acknowledged={acknowledged}
-              contingency={contingency}
-              isBusy={isSaving}
-              onAcknowledge={() => setAcknowledged(true)}
-              onRecheck={(payload) =>
-                fetcher.submit(payload, { method: "post" })
-              }
-              recheckIntent={recheckComprobanteIntent}
-            />
-          ) : null}
-
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button" disabled={isSaving}>
-              {contingencyCancelLabel(submitState)}
-            </AlertDialogCancel>
-            {/* Recovered: the comprobante is already authorized and on record, so
-                the button is removed. Disabling it would read as "hold on" and
-                would invite a retry that would emit a second comprobante. */}
-            {submitState === "removed" ? null : (
-              <Button
-                type="submit"
-                disabled={isSaving || submitState === "blocked"}
-              >
-                {isSaving ? (
-                  <Spinner aria-hidden="true" data-icon="inline-start" />
-                ) : (
-                  <Check aria-hidden="true" data-icon="inline-start" />
-                )}
-                Emitir
-              </Button>
-            )}
-          </AlertDialogFooter>
-        </fetcher.Form>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ArcaConfirmationDialog
+      confirmIcon={Check}
+      confirmLabel="Emitir"
+      confirmValue={emitComprobanteConfirmValue}
+      description={`Vas a emitir una factura C por ${formatAmount(billableAmount)}. Una vez emitida, sólo puede revertirse con una nota de crédito.`}
+      intent={emitComprobanteIntent}
+      onOpenChange={onOpenChange}
+      open={open}
+      recheckIntent={recheckComprobanteIntent}
+      title="¿Emitir la Factura C?"
+      toastId="comprobante-emission:error"
+    >
+      <EmissionPreview billableAmount={billableAmount} />
+    </ArcaConfirmationDialog>
   );
 }
 

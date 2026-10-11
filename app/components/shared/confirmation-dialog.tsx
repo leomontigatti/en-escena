@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,13 @@ type ConfirmationDialogProps = {
   /** The id of the form the verb submits. Without it, the verb only runs
    * `onConfirm`. */
   form?: string;
+  /**
+   * Whether the verb's request is in flight, for a dialog that waits on it:
+   * passed at all, the verb no longer closes the dialog, and the caller
+   * closes it once the request settles (`useCloseOnceSettled`). While true,
+   * `Cancelar`, the verb and Escape are held.
+   */
+  isPending?: boolean;
   onConfirm?: () => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -49,13 +58,26 @@ export function ConfirmationDialog({
   description,
   destructive = false,
   form,
+  isPending,
   onConfirm,
   onOpenChange,
   open,
   title,
 }: ConfirmationDialogProps) {
+  // A dialog that waits on its request keeps the verb from closing it, so
+  // the verb is a plain button rather than Radix's closing action.
+  const Verb = isPending === undefined ? AlertDialogAction : Button;
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (isPending) {
+          return;
+        }
+        onOpenChange(next);
+      }}
+    >
       <AlertDialogContent className={className}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -63,14 +85,14 @@ export function ConfirmationDialog({
         </AlertDialogHeader>
         {children}
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={confirmDisabled}
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          <Verb
+            disabled={confirmDisabled || isPending}
             // The form submits from the click itself, not from a submit
-            // button's default action: the click also closes the dialog, a
-            // caller may unmount it —form included— on close, and a browser
-            // drops the submission of a form that is no longer in the
-            // document.
+            // button's default action: unless the dialog waits on its
+            // request, the click also closes it, a caller may unmount it
+            // —form included— on close, and a browser drops the submission
+            // of a form that is no longer in the document.
             onClick={() => {
               if (form) {
                 getConfirmationForm(form).requestSubmit();
@@ -80,11 +102,13 @@ export function ConfirmationDialog({
             type="button"
             variant={destructive ? "destructive" : "default"}
           >
-            {ConfirmIcon ? (
+            {isPending ? (
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+            ) : ConfirmIcon ? (
               <ConfirmIcon aria-hidden="true" data-icon="inline-start" />
             ) : null}
             {confirmLabel}
-          </AlertDialogAction>
+          </Verb>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

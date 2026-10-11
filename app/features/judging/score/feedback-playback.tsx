@@ -2,15 +2,7 @@ import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AudioPlayback } from "@/components/shared/audio-playback";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { Button } from "@/components/ui/button";
 import { emptyLevels, summarizePeaks } from "@/lib/judging/feedback-waveform";
 
@@ -113,31 +105,17 @@ export function FeedbackPlayback({
         </Button>
       ) : null}
 
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{deleteFeedbackAudioTitle}</AlertDialogTitle>
-            <AlertDialogDescription>
-              La devolución que grabaste se pierde. Podés grabar otra después.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => {
-                // Deleting unmounts the player, and a removed `<audio>` stops.
-                setIsDeleteOpen(false);
-                onDelete?.();
-              }}
-            >
-              <Trash2 aria-hidden="true" data-icon="inline-start" />
-              Eliminar
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmationDialog
+        confirmIcon={Trash2}
+        confirmLabel="Eliminar"
+        description="La devolución que grabaste se pierde. Podés grabar otra después."
+        destructive
+        // Deleting unmounts the player, and a removed `<audio>` stops.
+        onConfirm={() => onDelete?.()}
+        onOpenChange={setIsDeleteOpen}
+        open={isDeleteOpen}
+        title={deleteFeedbackAudioTitle}
+      />
     </AudioPlayback>
   );
 }

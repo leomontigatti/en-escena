@@ -1,48 +1,32 @@
 import { Ban } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { useState } from "react";
+import { Link } from "react-router";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
+import { ArcaConfirmationDialog } from "@/components/shared/arca-confirmation-dialog";
 import { PinnedActions } from "@/components/shared/pinned-actions";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
   comprobanteAnchorHref,
   formatComprobanteAnchorLabel,
 } from "@/lib/comprobantes/anchor-reading";
 import {
-  ContingencyAlert,
-  contingencyCancelLabel,
-  resolveContingencySubmitState,
-} from "@/lib/comprobantes/contingency-alert";
-import {
   formatComprobanteArcaDate,
   formatComprobanteNumber,
   formatComprobanteStatusLabel,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
-import { useServerActionToast } from "@/lib/shared/toasts";
 import { lowercaseFirst } from "@/lib/shared/utils";
 
 import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
@@ -50,7 +34,6 @@ import {
   annulComprobanteConfirmValue,
   annulComprobanteIntent,
   recheckNotaCreditoIntent,
-  type ComprobanteDetailActionData,
 } from "./shared";
 
 type ComprobanteDetailRouteViewProps = {
@@ -202,11 +185,9 @@ function anchorKindLabel(anchor: ComprobanteDetail["anchor"]) {
 }
 
 /**
- * Annulment confirmation as an `AlertDialog` (ADR-0011): focus trapped, it does
- * not close on an outside click and it exposes `role="alertdialog"`. No
- * checkbox: the confirmation is the dialog itself. The copy says what is being
- * annulled, for how much, and that the annulment materializes by emitting a
- * mirror credit note.
+ * Annulment confirmation (ADR-0011). The copy says what is being annulled,
+ * for how much, and that the annulment materializes by emitting a mirror
+ * credit note.
  */
 function AnnulDialog({
   comprobante,
@@ -217,97 +198,27 @@ function AnnulDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  // The action's feedback travels via `fetcher.data`, not via `useActionData`:
-  // the form is submitted with the fetcher, so the response (ARCA's
-  // rejection/contingency) comes back here and not to the route's `actionData`.
-  // The happy path redirects and the fetcher follows it, revalidating the detail
-  // (which stops being annullable).
-  const fetcher = useFetcher<ComprobanteDetailActionData>();
-  const isSaving = fetcher.state !== "idle";
-  const actionData = fetcher.data;
-  const contingency =
-    actionData?.status === "warning" ? actionData.contingency : null;
-
-  // Manual verification is declared by the operator, so it cannot survive a new
-  // attempt: every response from the server clears it and the retry goes back to
-  // being blocked if it is still unresolved.
-  const [acknowledged, setAcknowledged] = useState(false);
-  useEffect(() => {
-    setAcknowledged(false);
-  }, [fetcher.data]);
-
-  const submitState = resolveContingencySubmitState(contingency, acknowledged);
-
-  useServerActionToast(actionData?.status === "error" ? actionData : null, {
-    toastId: "comprobante-annul:error",
-  });
-
-  function handleOpenChange(next: boolean) {
-    if (isSaving) {
-      return;
-    }
-    onOpenChange(next);
-  }
-
   return (
-    <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogContent className="sm:max-w-lg">
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Anular el comprobante?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Vas a anular la{" "}
-            {lowercaseFirst(formatComprobanteTipoLabel(comprobante.cbteTipo))}{" "}
-            {formatComprobanteNumber(comprobante)} por{" "}
-            {formatAmount(comprobante.impTotal)}. La anulación se materializa
-            emitiendo una nota de crédito espejo.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-
-        <fetcher.Form method="post" className="flex flex-col gap-4">
-          <input type="hidden" name="intent" value={annulComprobanteIntent} />
-          <input
-            type="hidden"
-            name="confirm"
-            value={annulComprobanteConfirmValue}
-          />
-
-          {contingency ? (
-            <ContingencyAlert
-              acknowledged={acknowledged}
-              contingency={contingency}
-              isBusy={isSaving}
-              onAcknowledge={() => setAcknowledged(true)}
-              onRecheck={(payload) =>
-                fetcher.submit(payload, { method: "post" })
-              }
-              recheckIntent={recheckNotaCreditoIntent}
-            />
-          ) : null}
-
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button" disabled={isSaving}>
-              {contingencyCancelLabel(submitState)}
-            </AlertDialogCancel>
-            {/* Recovered: the credit note is already authorized and on
-                record, so the button is removed. Disabling it would read as
-                "hold on" and would invite a retry that would emit a second one. */}
-            {submitState === "removed" ? null : (
-              <Button
-                type="submit"
-                variant="destructive"
-                disabled={isSaving || submitState === "blocked"}
-              >
-                {isSaving ? (
-                  <Spinner aria-hidden="true" data-icon="inline-start" />
-                ) : (
-                  <Ban aria-hidden="true" data-icon="inline-start" />
-                )}
-                Anular
-              </Button>
-            )}
-          </AlertDialogFooter>
-        </fetcher.Form>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ArcaConfirmationDialog
+      confirmIcon={Ban}
+      confirmLabel="Anular"
+      confirmValue={annulComprobanteConfirmValue}
+      description={
+        <>
+          Vas a anular la{" "}
+          {lowercaseFirst(formatComprobanteTipoLabel(comprobante.cbteTipo))}{" "}
+          {formatComprobanteNumber(comprobante)} por{" "}
+          {formatAmount(comprobante.impTotal)}. La anulación se materializa
+          emitiendo una nota de crédito espejo.
+        </>
+      }
+      destructive
+      intent={annulComprobanteIntent}
+      onOpenChange={onOpenChange}
+      open={open}
+      recheckIntent={recheckNotaCreditoIntent}
+      title="¿Anular el comprobante?"
+      toastId="comprobante-annul:error"
+    />
   );
 }
