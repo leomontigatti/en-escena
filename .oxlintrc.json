@@ -84,7 +84,8 @@
       "files": ["app/**/*.ts", "app/**/*.tsx"],
       "excludeFiles": ["app/components/ui/**", "**/*.test.ts", "**/*.test.tsx"],
       "rules": {
-        "ui/no-borrar": "error"
+        "ui/no-borrar": "error",
+        "ui/restricted-syntax": "error"
       }
     }
   ]
