@@ -29,15 +29,25 @@ function describeErrorStack(error: unknown) {
   }
 }
 
+// Enough to see what broke on a page; a render loop past it would only flood
+// the endpoint, whose own per-address limit would refuse it anyway.
+const MAX_SENT_PER_PAGE = 10;
+// The endpoint refuses a body over 8 KB, and Firefox and Safari keep every
+// frame of a deep stack where V8 stops at ten: the top of it is what names
+// the bug.
+const MAX_SENT_STACK_LENGTH = 6000;
+let sentOnThisPage = 0;
+
 /**
  * Writes the one `[client:unexpected]` line for an error `<HydratedRouter>`
  * hands to `onError`: a loader, action or render failure in the browser. One
- * JSON line, like the server's, kept in the browser console: nothing is sent
- * anywhere.
+ * JSON line, like the server's, in the browser console, and the same fields
+ * sent to `/internal/client-error`, which keeps them with the release and the
+ * user stamped by the server.
  */
 function reportUnexpectedClientError(
   error: unknown,
-  { pattern, release }: { pattern: string; release: string },
+  { pattern }: { pattern: string },
 ) {
   if (isDeliberateRefusal(error)) {
     return;
@@ -45,15 +55,33 @@ function reportUnexpectedClientError(
 
   // The browser cannot read the session cookie and React Router does not say
   // which request failed, so unlike `[server:unexpected]` the line carries no
-  // user id and no method.
+  // user id and no method. Nor the release: the page does not publish it.
   const line = {
     route: toAbsolutePattern(pattern),
     at: new Date().toISOString(),
-    release,
     stack: describeErrorStack(error),
   };
 
   console.error(`[client:unexpected] ${JSON.stringify(line)}`);
+
+  if (sentOnThisPage >= MAX_SENT_PER_PAGE) {
+    return;
+  }
+
+  sentOnThisPage += 1;
+  // `keepalive` lets the report outlive a navigation away from the page.
+  // A failed send is dropped: the line above is already in the console, and
+  // reporting the report's failure could loop.
+  fetch("/internal/client-error", {
+    method: "POST",
+    credentials: "same-origin",
+    keepalive: true,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      ...line,
+      stack: line.stack.slice(0, MAX_SENT_STACK_LENGTH),
+    }),
+  }).catch(() => {});
 }
 
 export {

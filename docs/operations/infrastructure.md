@@ -217,11 +217,18 @@ application **Logs** tab, or with
 Retention there is short: `rylai`'s `/etc/docker/daemon.json` caps each
 container's `json-file` log at three 10 MB files, and every deploy replaces the
 container, so its lines go with it. A browser error writes the same line tagged
-`[client:unexpected]`, without user id or method, to that browser's console
-only; nothing is sent to the server yet.
+`[client:unexpected]`, without user id, method or release, to that browser's
+console, and posts it to `/internal/client-error`. The endpoint takes only a
+same-origin JSON body under 8 KB, at most 60 per address (`CF-Connecting-IP`,
+an IPv6 one counted by its /64) every 10 minutes, and stamps the server's
+release and the session's user. Anyone can forge such a report, so browser
+reports send at most 20 alerts an hour between them; past that they are kept
+without alerting, and server errors still alert. The
+release is never in the HTML: the repository is public, so the deployed commit
+would tell anyone which fixes are not live yet.
 
-So each server line is also kept as a row of `en_escena_unexpected_error`,
-grouped by a **signature** that stays the same for one bug across releases.
+So each server line and each browser report is also kept as a row of
+`en_escena_unexpected_error`, grouped by a **signature** that stays the same for one bug across releases.
 Read the rows with `docker exec` and `psql` as in [Database](#database), for
 example
 `select signature, count(*), max(created_at) from en_escena_unexpected_error group by 1 order by 3 desc`.
