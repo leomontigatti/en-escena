@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -17,7 +17,14 @@ afterEach(() => {
   rmSync(directory, { force: true, recursive: true });
 });
 
+// A killed orphan stays a zombie until init reaps it, and a container whose
+// PID 1 does not reap keeps it that way; `kill(pid, 0)` still succeeds on one.
 function isAlive(pid: number): boolean {
+  const stat = `/proc/${pid}/stat`;
+  if (existsSync(stat)) {
+    const state = readFileSync(stat, "utf8").split(") ")[1]?.[0];
+    return state !== undefined && state !== "Z";
+  }
   try {
     process.kill(pid, 0);
     return true;
@@ -26,38 +33,58 @@ function isAlive(pid: number): boolean {
   }
 }
 
+function killQuietly(pid: number | undefined): void {
+  if (pid === undefined) return;
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch {
+    // Already gone.
+  }
+}
+
 // The bug: a SIGKILL to the test run (a `timeout`, an oomd kill of the agent's
 // shell) skips every teardown, and the detached stub agent was reparented and
 // kept running with its `sleep` tool, holding the worktree open for 14 hours.
 describe("writeAgentStub", () => {
   it("writes a stub that dies with its tools when the process that started it dies", async () => {
+    const stubPath = join(directory, "hanging-agent");
     const pidsPath = join(directory, "pids");
-    const command = writeAgentStub(
-      directory,
-      "hanging-agent",
-      `const { spawn } = require("node:child_process");
-const tool = spawn("sleep", ["600"], { stdio: "ignore" });
-require("node:fs").writeFileSync(${JSON.stringify(pidsPath)}, JSON.stringify([process.pid, tool.pid]));
-setInterval(() => {}, 1000);`,
-    );
-    // A stand-in runner starts the stub the way `runAgent` does (detached, so
-    // the stub leads its own process group), then is killed outright.
+    // A stand-in runner: once the stub exists it starts it the way `runAgent`
+    // does (detached, so the stub leads its own process group).
     const runner = spawn(
       process.execPath,
       [
         "-e",
-        `require("node:child_process").spawn(${JSON.stringify(command)}, [], { detached: true, stdio: "ignore" }).unref(); setInterval(() => {}, 1000);`,
+        `const fs = require("node:fs");
+const wait = setInterval(() => {
+  if (!fs.existsSync(${JSON.stringify(`${stubPath}.ready`)})) return;
+  clearInterval(wait);
+  require("node:child_process").spawn(${JSON.stringify(stubPath)}, [], { detached: true, stdio: "ignore" }).unref();
+}, 20);
+setInterval(() => {}, 1000);`,
       ],
       { stdio: "ignore" },
     );
-    const pids = await vi.waitFor(
-      () => JSON.parse(readFileSync(pidsPath, "utf8")) as number[],
-      { timeout: 5_000 },
-    );
-
-    runner.kill("SIGKILL");
+    let pids: number[] = [];
 
     try {
+      writeAgentStub(
+        directory,
+        "hanging-agent",
+        `const { spawn } = require("node:child_process");
+const tool = spawn("sleep", ["600"], { stdio: "ignore" });
+require("node:fs").writeFileSync(${JSON.stringify(pidsPath)}, JSON.stringify([process.pid, tool.pid]));
+setInterval(() => {}, 1000);`,
+        { parentPid: runner.pid },
+      );
+      writeAgentStub(directory, "hanging-agent.ready", "");
+      pids = await vi.waitFor(
+        () => JSON.parse(readFileSync(pidsPath, "utf8")) as number[],
+        { timeout: 5_000 },
+      );
+
+      runner.kill("SIGKILL");
+
       await vi.waitFor(
         () => {
           for (const pid of pids)
@@ -67,13 +94,8 @@ setInterval(() => {}, 1000);`,
       );
     } finally {
       // Never let this test leak what it asserts about.
-      for (const pid of pids) {
-        try {
-          process.kill(pid, "SIGKILL");
-        } catch {
-          // Already gone, which is the point.
-        }
-      }
+      killQuietly(runner.pid);
+      for (const pid of pids) if (isAlive(pid)) killQuietly(pid);
     }
   });
 });
