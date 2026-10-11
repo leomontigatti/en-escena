@@ -49,6 +49,7 @@ import {
   expectCreated,
   fixedExperienceLevel,
 } from "@/lib/events/bases-test-fixtures.server.db";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { AdminShellRouteView } from "@/routes/administracion";
 import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";
 import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.cronogramas_.$scheduleId";
@@ -360,7 +361,7 @@ export function routeArgs(request: Request) {
     request,
     params: {},
     context: new RouterContextProvider(),
-    url: new URL(request.url),
+    url: readRequestedUrl(request),
     pattern: "/administracion/eventos",
   };
 }
@@ -407,7 +408,7 @@ export async function loader({ request }: { request: Request }) {
 }
 
 export async function action({ request }: { request: Request }) {
-  const pathname = new URL(request.url).pathname;
+  const pathname = readRequestedUrl(request).pathname;
 
   if (pathname.startsWith("/administracion/categorias")) {
     return handleCategoryAction(request);

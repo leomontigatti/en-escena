@@ -51,23 +51,21 @@ describe("redirectToCanonicalListUrl", () => {
     );
   });
 
-  // A client navigation reaches the loader as React Router's data request; the
-  // redirect must send the reader to the page, not to that request.
-  test("redirects a client navigation to the list's page, not its data request", () => {
-    let thrown: unknown;
-
-    try {
+  // A client navigation reaches the loader as React Router's data request,
+  // whose `_routes` is not part of the query the reader asked for.
+  test("leaves a client navigation that already holds the applied query where it is", () => {
+    expect(() =>
       redirectToCanonicalListUrl(
         new Request(
           "http://localhost/lista.data?busqueda=Ana&estado=archivados&tipo=duo&pagina=2&_routes=root%2Clista",
         ),
         appliedQuery,
-      );
-    } catch (error) {
-      thrown = error;
-    }
+      ),
+    ).not.toThrow();
+  });
 
-    expect(thrown).toBeUndefined();
+  test("redirects a client navigation to the list's page, not its data request", () => {
+    let thrown: unknown;
 
     try {
       redirectToCanonicalListUrl(
@@ -78,6 +76,7 @@ describe("redirectToCanonicalListUrl", () => {
       thrown = error;
     }
 
+    expect(thrown).toBeInstanceOf(Response);
     expect((thrown as Response).headers.get("Location")).toBe(
       "/lista?busqueda=Ana&estado=archivados&tipo=duo&pagina=2",
     );

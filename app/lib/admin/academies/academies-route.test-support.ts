@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RouterContextProvider } from "react-router";
 
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   AcademiesListRouteView,
   loader as academiesLoader,
@@ -26,7 +27,7 @@ export function academiesRouteArgs(request: Request) {
     request,
     params: {},
     context: new RouterContextProvider(),
-    url: new URL(request.url),
+    url: readRequestedUrl(request),
     pattern: "/administracion/academias",
   };
 }

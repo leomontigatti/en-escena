@@ -69,12 +69,13 @@ async function runEventBasesActionWithHandler<
     handler,
     recordId,
   });
+  const requestUrl = readRequestedUrl(request).href;
   const preflightError = getEventBasesActionPreflightError({
     allowedIntents,
     formData,
     handler,
     input,
-    requestUrl: readRequestedUrl(request).href,
+    requestUrl,
   });
 
   if (preflightError) {
@@ -95,11 +96,7 @@ async function runEventBasesActionWithHandler<
     );
   }
 
-  const target = handler.buildRedirectUrl(
-    readRequestedUrl(request).href,
-    input,
-    result,
-  );
+  const target = handler.buildRedirectUrl(requestUrl, input, result);
 
   if (target.transport === "flash") {
     throw await redirectWithFlashNotification(target.url, target.notification);

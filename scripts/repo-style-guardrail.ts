@@ -149,6 +149,12 @@ const rosterPersonStatusOwnerDirectory = path.join("app", "lib", "roster");
 
 const repoStyleExceptions: RepoStyleException[] = [
   {
+    filePath: path.join("app", "components", "ui", "avatar.tsx"),
+    match: "-space-x-2",
+    reason: "AvatarGroup uses negative overlap spacing intentionally.",
+    rule: "prefer-gap-over-space",
+  },
+  {
     filePath: path.join("app", "lib", "shared", "requested-url.server.ts"),
     reason: "The requested URL module is the owner of `request.url`.",
     rule: "requested-url-owns-request-url",
@@ -158,28 +164,6 @@ const repoStyleExceptions: RepoStyleException[] = [
     reason:
       "The document render is never a data request, and the router renders the URL as received.",
     rule: "requested-url-owns-request-url",
-  },
-  ...[
-    path.join(
-      "app",
-      "lib",
-      "admin",
-      "academies",
-      "academies-route.test-support.ts",
-    ),
-    path.join("app", "lib", "admin", "events", "event-bases.test-helpers.tsx"),
-    path.join("app", "lib", "admin", "finances", "finances.test-support.ts"),
-  ].map((filePath): RepoStyleException => ({
-    filePath,
-    reason:
-      "Test support builds a loader's `url` argument from a document request it made itself.",
-    rule: "requested-url-owns-request-url",
-  })),
-  {
-    filePath: path.join("app", "components", "ui", "avatar.tsx"),
-    match: "-space-x-2",
-    reason: "AvatarGroup uses negative overlap spacing intentionally.",
-    rule: "prefer-gap-over-space",
   },
   {
     filePathPrefix: rosterPersonStatusOwnerDirectory,

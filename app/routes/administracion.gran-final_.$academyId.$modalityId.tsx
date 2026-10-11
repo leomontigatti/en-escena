@@ -42,9 +42,7 @@ export default function AcademyGrandFinalRoute({
 }: Route.ComponentProps) {
   return (
     <AcademyGrandFinalView
-      actionData={
-        actionData && "message" in actionData ? actionData : undefined
-      }
+      actionData={actionData && "status" in actionData ? actionData : undefined}
       loaderData={loaderData}
     />
   );

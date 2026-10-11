@@ -19,6 +19,7 @@ import {
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   AcademyFinancesRouteView,
   loader as academyFinancesLoader,
@@ -272,7 +273,7 @@ export function academyFinancesRouteArgs(request: Request, academyId: string) {
     request,
     params: { academyId },
     context: new RouterContextProvider(),
-    url: new URL(request.url),
+    url: readRequestedUrl(request),
     pattern: "/administracion/finanzas/:academyId",
   };
 }
@@ -282,7 +283,7 @@ export function financesListRouteArgs(request: Request) {
     request,
     params: {},
     context: new RouterContextProvider(),
-    url: new URL(request.url),
+    url: readRequestedUrl(request),
     pattern: "/administracion/finanzas",
   };
 }
@@ -292,7 +293,7 @@ export function paymentCreateRouteArgs(request: Request) {
     request,
     params: {},
     context: new RouterContextProvider(),
-    url: new URL(request.url),
+    url: readRequestedUrl(request),
     pattern: "/administracion/pagos/nuevo",
   };
 }
