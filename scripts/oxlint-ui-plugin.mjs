@@ -666,7 +666,7 @@ const confirmationShared = {
     },
     messages: {
       inline:
-        "Use a confirmation from app/components/shared (`ConfirmationDialog`, `DeleteDialog`, `WithdrawDialog`, `BlockedActionDialog`) instead of an `AlertDialog` in a view: the shared one owns the question, the footer and the pending state, so every confirmation reads and behaves the same. A new kind of confirmation gets its own component there (style guide, Destructive actions).",
+        "Use a confirmation from app/components/shared (`ConfirmationDialog`, `DeleteDialog`, `WithdrawDialog`, `BlockedActionDialog`, `ArcaConfirmationDialog`) instead of an `AlertDialog` in a view: the shared one owns the question, the footer and the pending state, so every confirmation reads and behaves the same. A new kind of confirmation gets its own component there (style guide, Destructive actions).",
     },
     schema: [],
   },
@@ -695,9 +695,18 @@ const ALERT_PARTS = new Set(["AlertTitle", "AlertDescription", "AlertAction"]);
 
 // What an alert's children are, as far as one file shows: its icon, its
 // parts, or something the rule cannot see into (a prop, a wrapper component).
+// Whitespace and `{/* comments */}` render nothing.
+function isBlankChild(child) {
+  return (
+    (child.type === "JSXText" && child.value.trim() === "") ||
+    (child.type === "JSXExpressionContainer" &&
+      child.expression.type === "JSXEmptyExpression")
+  );
+}
+
 function alertChildren(node, uiImports, icons) {
   return node.children
-    .filter((child) => !(child.type === "JSXText" && child.value.trim() === ""))
+    .filter((child) => !isBlankChild(child))
     .map((child) => {
       if (child.type !== "JSXElement") return { kind: "unknown" };
       const name = child.openingElement.name;

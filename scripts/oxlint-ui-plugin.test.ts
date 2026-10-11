@@ -243,6 +243,7 @@ export function Violating() {
         <AlertDescription>Sin título, con icono del tema.</AlertDescription>
       </Alert>
       <Alert variant="success">
+        {/* Un comentario no esconde lo que falta. */}
         <AlertTitle>Sin icono ni descripción</AlertTitle>
       </Alert>
     </AlertDialog>

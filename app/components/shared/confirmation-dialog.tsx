@@ -89,10 +89,10 @@ export function ConfirmationDialog({
           <Verb
             disabled={confirmDisabled || isPending}
             // The form submits from the click itself, not from a submit
-            // button's default action: the click also closes the dialog, a
-            // caller may unmount it —form included— on close, and a browser
-            // drops the submission of a form that is no longer in the
-            // document.
+            // button's default action: unless the dialog waits on its
+            // request, the click also closes it, a caller may unmount it
+            // —form included— on close, and a browser drops the submission
+            // of a form that is no longer in the document.
             onClick={() => {
               if (form) {
                 getConfirmationForm(form).requestSubmit();
