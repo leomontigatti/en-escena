@@ -10,7 +10,7 @@ export default {
   allowedActionOrigins: ["sistema.enescena.com.ar", "pruebas.enescena.com.ar"],
   future: {
     v8_middleware: true,
-    v8_splitRouteModules: false,
+    v8_splitRouteModules: true,
     v8_viteEnvironmentApi: false,
     v8_passThroughRequests: false,
     v8_trailingSlashAwareDataRequests: false,
