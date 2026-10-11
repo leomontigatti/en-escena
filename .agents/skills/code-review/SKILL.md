@@ -101,9 +101,11 @@ How the session reaches each model depends on where it runs:
   `task_status` returns it as `summary`. Stop a stray one with `task_cancel`. A later round is a
   new `delegate_task` carrying the prior findings and your answers to them, never a message to
   the child thread. When a call refuses a model id, `orchestrator_capabilities` lists the live
-  ones.
+  ones. A Claude subagent can reach `delegate_task` too (measured on #1568), but spawning from
+  the main session keeps one hop and leaves each report with the session that judges it.
 - **Codex**: spawn the native agents, `reviewer` for Standards, Spec and correctness and
-  `reviewer-luna` for the readback; their `.codex/agents/*.toml` set the models above.
+  `reviewer-luna` for the readback; their `.codex/agents/*.toml` repeat the models above,
+  so a model change touches both.
 - **Claude Code outside T3** (no `delegate_task` tool): every axis goes to `reviewer-opus`.
 
 ## The other review briefs

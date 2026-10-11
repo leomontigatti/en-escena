@@ -182,10 +182,9 @@ the destination takes when the map is reached.
 ### Research tickets
 
 A research ticket is resolved by the **`research` agent** (`.agents/agents/research.md`): spawn
-it with the ticket's question, one per research ticket, in parallel, the way "Agent
-configuration" in [workflows.md](./workflows.md#agent-configuration) says for your harness. In a
-T3 thread that is a `delegate_task` whose task opens with "Before anything else, read
-`.agents/agents/research.md` and follow it." Its definition carries the rules (primary sources
+it with the ticket's question, one per research ticket, in parallel, the way
+"Delegating to subagents" in [workflows.md](./workflows.md#delegating-to-subagents) says for
+your harness. Its definition carries the rules (primary sources
 with a URL beside every claim, `curl` and web search for fetching, a tool-call budget, a fixed
 report shape); there is no `research` skill.
 
