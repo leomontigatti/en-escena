@@ -71,11 +71,11 @@ of them, and ask for its report as text with a fixed shape: status, one-line
 summary, artifacts touched, next step, risks. A subagent whose last action is a
 tool call returns the tool result instead of its report.
 
-Reading outside the repo goes to the `research` agent (`.agents/agents/research.md`). It
-fetches plain-text sources with `curl`, and searches and reads rendered pages with Codex's
-built-in `web_search` tool, in live mode both through `scripts/agents/sol.sh` and when a
-Codex thread spawns it (`.codex/agents/research.toml`). Nothing is
-installed per machine beyond the logged-in `codex` CLI the agent already needs.
+Reading outside the repo goes to the `research` agent (`.agents/agents/research.md`), on
+gpt-6-luna at medium effort: it judges and condenses sources more than it reasons, and Luna
+spares the Sol quota. It fetches plain-text sources with `curl`, and searches and reads rendered
+pages with its harness's web search. How each harness spawns it is under
+[Agent configuration](#agent-configuration).
 
 ## Investigate before recommending
 
@@ -198,19 +198,18 @@ checkout's `master` current. It only runs when that checkout is clean and on
 ## Agent configuration
 
 Claude Code and Codex read one copy of everything; only the wiring each harness
-insists on reading from its own directory is kept per harness, and each of those
-files holds no instructions of its own beyond, for the Claude Code subagents, how to
-relay to Codex.
+insists on reading from its own directory is kept per harness, and none of those
+files holds instructions of its own.
 
-| What                   | The one copy                    | Claude Code reads it through                                      | Codex reads it through                   |
-| ---------------------- | ------------------------------- | ----------------------------------------------------------------- | ---------------------------------------- |
-| Repo instructions      | `AGENTS.md`                     | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly                     |
-| Skills                 | `.agents/skills/<name>/`        | `.claude/skills`, a symlink to `.agents/skills`                   | `.agents/skills` directly                |
-| Hooks                  | `.agents/hooks/*.sh`            | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`                      |
-| `research` subagent    | `.agents/agents/research.md`    | `.claude/agents/research.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/research.toml` (model)    |
-| `reviewer` subagent    | `.agents/agents/reviewer.md`    | `.claude/agents/reviewer.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/reviewer.toml` (model)    |
-| `implementer` subagent | `.agents/agents/implementer.md` | `.claude/agents/implementer.md`, pinned to Opus                   | `.codex/agents/implementer.toml` (model) |
-| `reviewer-opus`        | `.agents/agents/reviewer.md`    | `.claude/agents/reviewer-opus.md`, on Opus, read-only             | none: Codex uses `reviewer`              |
+| What                   | The one copy                    | Claude Code reads it through                                                                  | Codex reads it through                                      |
+| ---------------------- | ------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Repo instructions      | `AGENTS.md`                     | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists)                             | `AGENTS.md` directly                                        |
+| Skills                 | `.agents/skills/<name>/`        | `.claude/skills`, a symlink to `.agents/skills`                                               | `.agents/skills` directly                                   |
+| Hooks                  | `.agents/hooks/*.sh`            | the `hooks` block of `.claude/settings.json`                                                  | `.codex/hooks.json`                                         |
+| `research` subagent    | `.agents/agents/research.md`    | in T3, a `delegate_task` child on gpt-6-luna; outside, `.claude/agents/research.md` on Sonnet | `.codex/agents/research.toml` (model)                       |
+| `reviewer` subagent    | `.agents/agents/reviewer.md`    | in T3, `delegate_task` children on gpt-6.1-sol and gpt-6-luna; outside, `reviewer-opus`       | `.codex/agents/reviewer.toml`, `reviewer-luna.toml` (model) |
+| `implementer` subagent | `.agents/agents/implementer.md` | `.claude/agents/implementer.md`, pinned to Opus                                               | `.codex/agents/implementer.toml` (model)                    |
+| `reviewer-opus`        | `.agents/agents/reviewer.md`    | `.claude/agents/reviewer-opus.md`, on Opus, read-only                                         | none: Codex uses `reviewer`                                 |
 
 - **Do not add a `CLAUDE.md`**, here or in a parent directory: Claude Code reads
   `AGENTS.md` only as a fallback, when no `CLAUDE.md`, `.claude/CLAUDE.md` or
@@ -226,28 +225,29 @@ relay to Codex.
   its `apply_patch` tool). The scripts read either payload: Claude Code's
   `tool_input.file_path` or a Codex patch in `tool_input.command`, and
   `$CLAUDE_PROJECT_DIR` or, when Codex leaves it unset, the checkout the hook runs in.
-- **`implementer` is no relay**: it edits, tests and commits in its own worktree, so each
-  harness runs it on its own model. Claude Code's wrapper pins Opus in its frontmatter, since a
-  subagent left to the user's default (`CLAUDE_CODE_SUBAGENT_MODEL`) may run on Haiku; Codex's
-  names gpt-6.1-sol.
-- **`research` and `reviewer` run on Codex's gpt-6.1-sol at medium effort**, whichever harness
-  orchestrates. A Claude Code subagent can only run a Claude model, so the Claude wrappers
-  are Haiku relays: they hand the prompt to `scripts/agents/sol.sh`, which runs
-  `codex exec` and returns the final message verbatim. The script names the model for
-  Claude Code and the two `.toml` wrappers name it for Codex, so a model change touches
-  all three. The script needs the `codex` CLI installed and logged in; without it the
-  relay reports `blocked` rather than doing the work on Haiku. `scripts/agents/sol.sh doctor`
-  checks that before any spawn, along with the `gh` login and `repo` scope the caller fetches
-  the spec with and the model answering a one-word prompt, and prints the fix for each failure.
-  The `code-review` skill and its readback and correctness briefs name the agent to spawn. When
-  T3 Code ships its orchestrator's `delegate_task`
-  (pingdotgg/t3code#2829), the relays are what would change.
-- **The correctness axis runs on Opus** under Claude Code, through `reviewer-opus`: the
-  same instructions as `reviewer`, run natively rather than relayed, so the axis that
-  hunts for bugs is a second model family beside the Sol axes. Codex cannot run Opus, so
-  under Codex the axis is spawned as `reviewer`, on Sol like the rest.
+- **`implementer` runs on its harness's own model**: it edits, tests and commits in its own
+  worktree. Claude Code's wrapper pins Opus in its frontmatter, since a subagent left to the
+  user's default (`CLAUDE_CODE_SUBAGENT_MODEL`) may run on Haiku; Codex's names gpt-6.1-sol.
+- **The review roles and research run on Codex models whichever harness orchestrates**: the
+  Standards and Spec axes on gpt-6.1-sol, the readback and research on gpt-6-luna, at the
+  efforts "Spawning a reviewer" in the `code-review` skill gives with its reasons. One rule per
+  provider:
+  - **Claude Code in a T3 thread** delegates them with T3's `delegate_task` to the `codex`
+    provider instance, from the main session, and reads each report back with `task_status`.
+    The child shows in the T3 app under the thread and `task_cancel` stops it. A Claude
+    subagent can reach `delegate_task` too (measured on #1568), but spawning from the main
+    session keeps one hop and leaves every child's report with the session that judges it.
+  - **Codex** spawns them as its own agents, whose `.toml` wrappers name the model and effort.
+  - **Claude Code outside T3** has no route to Codex: the review axes go to `reviewer-opus`,
+    and research to `.claude/agents/research.md`, on Sonnet.
+
+  A model change touches the skill's table and the matching `.toml`.
+
+- **The correctness axis runs on Opus** under Claude Code, through `reviewer-opus`, so the
+  axis that hunts for bugs is a second model family beside the Codex axes. Codex cannot run
+  Opus, so under Codex the axis is spawned as `reviewer`, on Sol like the rest.
 - **Codex reads `.codex/` from the main checkout, even in a worktree** (verified on
-  codex-cli 0.159): a T3 worktree gets the hooks and the `research` and `reviewer`
+  codex-cli 0.159): a T3 worktree gets the hooks and the `research`, `reviewer` and `reviewer-luna`
   agents only once they are on the branch the main checkout has out, while `AGENTS.md`
   and the skills come from the worktree itself. The hook commands resolve
   `git rev-parse --show-toplevel`, so the scripts that run are the worktree's.

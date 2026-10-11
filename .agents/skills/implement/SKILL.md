@@ -57,9 +57,8 @@ surface, and say so.
 
 ## 5. Review
 
-Run `scripts/agents/sol.sh doctor` once before the first review spawn. Each `FAIL` line carries
-its fix: run it, or bring it to the user when it needs a login, and spawn only once the doctor
-passes.
+Spawn every reviewer the way "Spawning a reviewer" in the `code-review` skill says: the model
+each axis runs on, and how this harness reaches it.
 
 Tier the review by risk:
 
@@ -67,7 +66,7 @@ Tier the review by risk:
   results or judging, auth, a migration, a term defined in `GLOSSARY.md`, or an operational script
   that deletes or overwrites (an `rsync --delete`, a database reset or restore): call the Skill
   tool with "code-review" on the changes since the branch point, and add the correctness axis.
-  The `reviewer` sandbox has no network, so paste the spec's body and comments into the Spec
+  The reviewer starts from its prompt alone, so paste the spec's body and comments into the Spec
   axis's prompt, never a `gh` command for it to run.
 - **Readback** for everything else: follow [READBACK.md](../code-review/READBACK.md). One sub-agent restates
   what the diff does and flags anything surprising, in under 200 words. When the diff changes
