@@ -331,7 +331,7 @@ Rules:
   when the context requires it.
 - In React Hook Form forms, use the shared fields before defining local fields
   with `Controller`: `TextInputField`, `IntegerInputField`, `TextareaField`,
-  `SelectField`, `ComboboxField`, `MultiComboboxField`, `DateOnlyField`,
+  `SelectField`, `ComboboxField`, `ChecklistField`, `DateOnlyField`,
   `TimeOnlyField` and `FileUploadField`. Create a local field only when the
   pattern does not yet exist as a shared component, or when the form needs a
   specific composition — for example dynamic arrays, checkbox groups, switches
@@ -339,16 +339,13 @@ Rules:
 - Respect the height, border, focus and states of `Input`, `Checkbox`, `Select`,
   `DateOnlyField` and other existing controls. `pnpm lint` enforces the height,
   radius and focus ring part (`ui/no-restyle`).
-- In forms and filters, when multiple options must be selected, use a
-  multi-select `Combobox` instead of long checkbox lists. If `Combobox` is not
-  installed and the case needs it, add it before creating custom markup.
+- In a form, several options are picked with `ChecklistField`, shown in place
+  rather than in a popover. Up to eight options it is a plain checkbox group;
+  from nine on it adds a search and the `Todos | Seleccionados` tabs, because
+  only then does the list scroll.
 - Use `Checkbox` for simple booleans submitted in a form.
 - Use `Switch` for on/off preferences or settings. If `Switch` is not installed
   and the case needs it, add it before creating custom markup.
-- Use `Checkbox` for a few visible options when the set is short and it is
-  neither a filter nor a multiple relation of Event configuration. For long
-  lists, Event configuration, filters and multiple relations, use a multi-select
-  `Combobox`.
 - Use shadcn's `Select` for single selection. Do not use a native `<select>` or
   `NativeSelect`.
 - Use shadcn's `Textarea` for multiline text. Do not use a hand-styled native
@@ -478,8 +475,8 @@ Rules:
   `Portal de academias`, auth, judging or public views). The one exception is an
   **action-only form**: a submit button plus hidden inputs and no editable field
   (logout, delete, withdraw, a confirmation with one intent). A form with any
-  editable control (`Input`, `Textarea`, `Select`, `Combobox`, `MultiCombobox`,
-  `Checkbox`, `Switch`, a date or time field, a file input) is not action-only.
+  editable control (`Input`, `Textarea`, `Select`, `Combobox`,
+  `ChecklistField`, `Checkbox`, `Switch`, a date or time field, a file input) is not action-only.
 - Define the schema with Zod and pass it to `useForm` via `zodResolver`.
 - Derive the form types from the schema when there is Zod validation: use
   `z.input<typeof schema>` for the form's editable values and
@@ -493,7 +490,7 @@ Rules:
   persists.
 - Use the shared form components when they cover the case: `TextInputField`,
   `IntegerInputField`, `TextareaField`, `SelectField`, `ComboboxField`,
-  `MultiComboboxField`, `DateOnlyField`, `TimeOnlyField` and `FileUploadField`.
+  `ChecklistField`, `DateOnlyField`, `TimeOnlyField` and `FileUploadField`.
   These components own their `Controller`; screens pass them `control`, `name`,
   copy and options.
 - Use `Controller` locally only for controlled components that do not yet have a
@@ -790,9 +787,7 @@ Rules:
   (`renderValue` on the group). Give a group the icon the sidebar uses for its
   concept, so a field reads the same everywhere.
 - A value's menu has no search; the add picker offers one for a group of more
-  than seven values. This is the single-select case only: a filter that takes
-  several values at once is still a multi-select `Combobox`, as the forms rules
-  say.
+  than seven values. No list filter takes several values at once.
 - Use a sticky header only on long lists.
 - Leave a list on the default `auto` layout unless it actually overflows. `auto`
   lets each column ask for the width it needs, and forcing a table with narrow

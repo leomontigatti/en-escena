@@ -20,21 +20,36 @@ afterEach(() => {
 
 let submittedDancerIds: string[] = [];
 
-function DancersChecklist({ initial = [] }: { initial?: string[] }) {
-  const form = useForm({ defaultValues: { dancerIds: initial } });
+const dancers = [
+  { value: "d1", label: "Abril Sosa" },
+  { value: "d2", label: "Bea Lagos" },
+  { value: "d3", label: "Camila Ríos" },
+  { value: "d4", label: "Delfina Paz" },
+  { value: "d5", label: "Emma Gil" },
+  { value: "d6", label: "Flor Díaz" },
+  { value: "d7", label: "Gala Ruiz" },
+  { value: "d8", label: "Helena Vera" },
+  { value: "d9", label: "Inés Mora" },
+];
+
+function DancersChecklist({
+  inputName,
+  options = dancers,
+}: {
+  inputName?: string;
+  options?: typeof dancers;
+}) {
+  const form = useForm({ defaultValues: { dancerIds: [] as string[] } });
   submittedDancerIds = form.watch("dancerIds");
 
   return (
     <ChecklistField
       control={form.control}
       emptySelectionMessage="Todavía no seleccionaste bailarines."
+      inputName={inputName}
       label="Bailarines"
       name="dancerIds"
-      options={[
-        { value: "d1", label: "Abril Sosa" },
-        { value: "d2", label: "Bea Lagos" },
-        { value: "d3", label: "Camila Ríos" },
-      ]}
+      options={options}
       searchLabel="Buscar bailarines"
     />
   );
@@ -101,7 +116,48 @@ describe("ChecklistField", () => {
     expect(document.body.textContent).toContain("Sin resultados.");
 
     await clickReactDomButton("Limpiar búsqueda");
-    expect(getRowNames()).toEqual(["Abril Sosa", "Bea Lagos", "Camila Ríos"]);
+    expect(getRowNames()).toEqual(dancers.map((dancer) => dancer.label));
+  });
+
+  // Eight rows fit the list's height even in one column, so there is nothing
+  // to search for and every checked row is already in sight.
+  test("drops the search and the tabs while every option fits without scrolling", async () => {
+    await renderer.renderAsync(
+      <DancersChecklist options={dancers.slice(0, 8)} />,
+    );
+
+    expect(getSearchInput()).toBeNull();
+    expect(document.querySelectorAll('[role="tab"]')).toHaveLength(0);
+    expect(getRowNames()).toHaveLength(8);
+
+    await clickRow("Helena Vera");
+    expect(submittedDancerIds).toEqual(["d8"]);
+  });
+
+  // "Sin resultados." would blame a search nobody typed.
+  test("says there is nothing to pick when the list has no options", async () => {
+    await renderer.renderAsync(<DancersChecklist options={[]} />);
+
+    expect(document.body.textContent).toContain("Sin opciones.");
+    expect(document.body.textContent).not.toContain("Sin resultados.");
+  });
+
+  // A form that posts its own fields, rather than the values React Hook Form
+  // validated, reads the checked options from the DOM.
+  test("posts each checked option under `inputName`", async () => {
+    await renderer.renderAsync(<DancersChecklist inputName="dancerIds" />);
+
+    await clickRow("Bea Lagos");
+    await clickRow("Inés Mora");
+
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLInputElement>(
+          'input[type="hidden"][name="dancerIds"]',
+        ),
+        (input) => input.value,
+      ),
+    ).toEqual(["d2", "d9"]);
   });
 
   test("shows only the checked options under `Seleccionados`, counting them", async () => {

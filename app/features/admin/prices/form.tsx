@@ -3,9 +3,9 @@ import { useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import { ChecklistField } from "@/components/shared/checklist-field";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
-import { FieldGroup } from "@/components/ui/field";
+import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -163,16 +163,19 @@ export function PriceForm({
           // Not behind the structural lock: a price in use still takes
           // schedules, and the server refuses dropping one its inscriptions
           // sit on.
-          <MultiComboboxField
-            control={form.control}
-            emptyMessage="Sin cronogramas disponibles"
-            id={`price-schedules-${fieldIdSuffix}`}
-            inputName="scheduleIds"
-            label="Cronogramas"
-            name="scheduleIds"
-            options={scheduleOptions}
-            placeholder="Elegí cronogramas"
-          />
+          <FieldSet className="gap-2">
+            <FieldLegend variant="label">Cronogramas</FieldLegend>
+            <ChecklistField
+              control={form.control}
+              emptySelectionMessage="Todavía no seleccionaste cronogramas."
+              inputName="scheduleIds"
+              label="Cronogramas"
+              name="scheduleIds"
+              noOptionsMessage="El evento todavía no tiene cronogramas."
+              options={scheduleOptions}
+              searchLabel="Buscar cronogramas"
+            />
+          </FieldSet>
         ) : null}
         <GuardedDeadlineField
           fieldId={`price-payment-deadline-${fieldIdSuffix}`}

@@ -11,7 +11,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import { ChecklistField } from "@/components/shared/checklist-field";
+import { cn } from "@/lib/shared/utils";
 import {
   ReadOnlyDateField,
   ReadOnlyField,
@@ -20,7 +21,12 @@ import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { TimeOnlyField } from "@/components/shared/time-only-field";
 import { Button } from "@/components/ui/button";
-import { FieldGroup, FieldSet } from "@/components/ui/field";
+import {
+  FieldDescription,
+  FieldGroup,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import {
   Tooltip,
   TooltipContent,
@@ -48,7 +54,7 @@ import {
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
   getScheduleCategoryOptions,
-  scheduleCategoriesPlaceholder,
+  scheduleCategoriesEmptyMeaning,
   scheduleFormSchema,
   toScheduleCapacityFormValues,
   type ScheduleFormValues,
@@ -513,7 +519,7 @@ function ScheduleCapacityInlineFields({
 
 /**
  * The categories the schedule accepts. Optional: leaving it empty is the
- * schedule accepting every category, which is what the placeholder says. Only
+ * schedule accepting every category, which the description says. Only
  * the categories sharing a modality with the modalities currently selected are
  * offered, so the field follows the modalities field as it changes.
  */
@@ -536,16 +542,24 @@ function ScheduleCategoriesField({
   );
 
   return (
-    <MultiComboboxField
-      className={className}
-      control={form.control}
-      emptyMessage="Sin categorías disponibles"
-      inputName="categoryIds"
-      label="Categorías"
-      name="categoryIds"
-      options={categoryOptions}
-      placeholder={scheduleCategoriesPlaceholder}
-    />
+    <FieldSet className={cn("gap-2", className)}>
+      <FieldLegend variant="label">Categorías</FieldLegend>
+      <FieldDescription>{scheduleCategoriesEmptyMeaning}</FieldDescription>
+      <ChecklistField
+        control={form.control}
+        emptySelectionMessage="Todavía no seleccionaste categorías."
+        inputName="categoryIds"
+        label="Categorías"
+        name="categoryIds"
+        noOptionsMessage={
+          selectedModalityIds?.length
+            ? "Ninguna categoría comparte una modalidad con las elegidas."
+            : "Elegí una modalidad para ver sus categorías."
+        }
+        options={categoryOptions}
+        searchLabel="Buscar categorías"
+      />
+    </FieldSet>
   );
 }
 
@@ -563,16 +577,19 @@ function ScheduleMultipleSelectField({
   title: string;
 }) {
   return (
-    <MultiComboboxField
-      className={className}
-      control={form.control}
-      emptyMessage="Sin modalidades disponibles"
-      inputName={name}
-      label={title}
-      name={name}
-      options={options}
-      placeholder="Seleccioná modalidades"
-    />
+    <FieldSet className={cn("gap-2", className)}>
+      <FieldLegend variant="label">{title}</FieldLegend>
+      <ChecklistField
+        control={form.control}
+        emptySelectionMessage="Todavía no seleccionaste modalidades."
+        inputName={name}
+        label={title}
+        name={name}
+        noOptionsMessage="El evento todavía no tiene modalidades."
+        options={options}
+        searchLabel="Buscar modalidades"
+      />
+    </FieldSet>
   );
 }
 
