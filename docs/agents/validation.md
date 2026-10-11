@@ -32,7 +32,7 @@ The scripts that exist and what owns what:
 | Command                             | Owns                                                                                                                                                                                                                                                                                    |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm typecheck`                    | Types, unused locals and parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) — flags in `tsconfig.json` — also run by the `Stop` hook |
-| `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules and the `Trash` import — **only** these; also run by the `Stop` hook                                                                                                                                |
+| `pnpm lint`                         | React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules, the `code` standards rules and the `Trash` import — **only** these; also run by the `Stop` hook                                                                                                    |
 | `pnpm format` / `:check`            | All formatting — also applied per file by the `PostToolUse` hook                                                                                                                                                                                                                        |
 | `pnpm test:unit`                    | Unit and React suites                                                                                                                                                                                                                                                                   |
 | `pnpm test:db <path>`               | DB suite on in-process PGlite                                                                                                                                                                                                                                                           |
@@ -80,8 +80,9 @@ you; [ci.md](../operations/ci.md#the-actions-gate) has its setup and pin bumps.
 [oxlint](https://oxc.rs), configured in `.oxlintrc.json`: that file and the rule
 messages are the source of truth, so read the rules there. It owns what nothing
 else can see: React hook mistakes, import cycles, un-awaited promises, the `ui`
-style guide rules listed in the header of `scripts/oxlint-ui-plugin.mjs`, and
-`Trash2` over `Trash` through `no-restricted-imports`. Formatting is Prettier's,
+style guide rules listed in the header of `scripts/oxlint-ui-plugin.mjs`, the
+coding-standards rules in `scripts/oxlint-code-plugin.mjs` (a `catch` that drops
+what it caught), and `Trash2` over `Trash` through `no-restricted-imports`. Formatting is Prettier's,
 unused code is `tsc`'s and repo conventions are the `check:*` scripts', and a rule
 that duplicates another owner stays out (decision 2 of ADR-0015). If it reports
 nothing, that is the expected result, not a reason to look for another linter.

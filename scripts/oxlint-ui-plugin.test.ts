@@ -285,6 +285,41 @@ export function Compliant(props: { variant: "info" | "warning"; icon: React.Reac
 }
 `;
 
+const restrictedViolatingFixture = `
+import type { FormEvent } from "react";
+import { toast } from "sonner";
+
+export function Violating(props: { form: HTMLFormElement }) {
+  toast.info("Guardado");
+  props.form.submit();
+  HTMLFormElement.prototype.submit.call(props.form);
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => event;
+  return (
+    <div className="bg-card md:dark:bg-muted" onSubmit={onSubmit}>
+      <h1>Título</h1>
+    </div>
+  );
+}
+`;
+
+const restrictedCompliantFixture = `
+import { toast } from "sonner";
+
+export function Compliant(props: {
+  fetcher: { submit: (data: FormData) => void };
+  data: FormData;
+}) {
+  toast.success("Guardado");
+  props.fetcher.submit(props.data);
+  const onSubmit = (event: React.SubmitEvent<HTMLFormElement>) => event;
+  return (
+    <div className="bg-card darker:bg-muted" onSubmit={onSubmit}>
+      <h2>Título</h2>
+    </div>
+  );
+}
+`;
+
 type Diagnostic = {
   code: string;
   message: string;
@@ -339,6 +374,7 @@ describe("ui oxlint plugin", () => {
           "ui/no-borrar": "error",
           "ui/confirmation-shared": "error",
           "ui/alert-structure": "error",
+          "ui/restricted-syntax": "error",
           // The repo's own entry, so the test judges the config that ships.
           "no-restricted-imports": repoConfig.rules["no-restricted-imports"],
         },
@@ -379,6 +415,34 @@ describe("ui oxlint plugin", () => {
     await writeFile(
       path.join(tempRoot, "app", "components", "shared", "copy-compliant.tsx"),
       copyCompliantFixture,
+    );
+    // An <h1> is the page header's business only in the admin and the portal.
+    await mkdir(path.join(tempRoot, "app", "features", "admin"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(
+        tempRoot,
+        "app",
+        "features",
+        "admin",
+        "restricted-violating.tsx",
+      ),
+      restrictedViolatingFixture,
+    );
+    await writeFile(
+      path.join(
+        tempRoot,
+        "app",
+        "features",
+        "admin",
+        "restricted-compliant.tsx",
+      ),
+      restrictedCompliantFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "public-page.tsx"),
+      "export function Page() {\n  return <h1>Programa</h1>;\n}\n",
     );
     await writeFile(
       path.join(tempRoot, "app", "features", "copy-server.ts"),
@@ -668,6 +732,33 @@ describe("ui oxlint plugin", () => {
   test("stays silent on the shared confirmations, canonical alerts, a dynamic variant, and an icon or a part it cannot see", () => {
     expect(lint(tempRoot, "app/components/shared/some-dialog.tsx")).toEqual([]);
     expect(lint(tempRoot, "app/features/structure-compliant.tsx")).toEqual([]);
+  });
+
+  test("flags toast.info, a dark: class, an admin page's h1, FormEvent and a native form submit", () => {
+    const expected = [
+      [2, "`FormEvent`"],
+      [6, "`toast.info`"],
+      [7, "`form.submit()`"],
+      [8, "`form.submit()`"],
+      [9, "`FormEvent`"],
+      [11, "`dark:`"],
+      [12, "`<h1>`"],
+    ].map(([line, text]) => ({
+      rule: "ui(restricted-syntax)",
+      line,
+      message: expect.stringContaining(text as string),
+    }));
+
+    expect(
+      lint(tempRoot, "app/features/admin/restricted-violating.tsx"),
+    ).toEqual(expected);
+  });
+
+  test("stays silent on other toasts, a fetcher submit, SubmitEvent, a class that only starts with dark, an h2, and a public page's h1", () => {
+    expect(
+      lint(tempRoot, "app/features/admin/restricted-compliant.tsx"),
+    ).toEqual([]);
+    expect(lint(tempRoot, "app/features/public-page.tsx")).toEqual([]);
   });
 
   test("the repo config enables every rule the plugin defines, and only those", async () => {

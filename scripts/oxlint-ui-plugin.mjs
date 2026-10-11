@@ -18,6 +18,10 @@
 //   once in app/components/shared, never inline in a view.
 // - `alert-structure`: Alerts, an `Alert` has a variant, that variant's one
 //   icon, an `AlertTitle` and an `AlertDescription`.
+// - `restricted-syntax`: single shapes the guide bans, each with its reason:
+//   `toast.info`, a `dark:` class, an `<h1>` under the admin or the portal,
+//   `FormEvent`, and a native `form.submit()`. oxlint has no
+//   `no-restricted-syntax`, so this is that block.
 //
 // `Trash2` over `Trash` (Buttons) is the built-in `no-restricted-imports`, in
 // `.oxlintrc.json`.
@@ -803,6 +807,120 @@ const alertStructure = {
   },
 };
 
+const PAGE_HEADER_SURFACES = ["admin", "portal"].flatMap((surface) => [
+  `${path.sep}app${path.sep}features${path.sep}${surface}${path.sep}`,
+  `${path.sep}app${path.sep}components${path.sep}${surface}${path.sep}`,
+]);
+// `dark:` as any of a class's variants: `dark:bg-x`, `md:dark:bg-x`.
+const DARK_CLASS = /(?:^|\s)(?:[\w-]+:)*dark:\S/;
+const FORM_EVENT_TYPES = new Set(["FormEvent", "FormEventHandler"]);
+
+function isMember(node, property) {
+  return (
+    node?.type === "MemberExpression" &&
+    !node.computed &&
+    node.property.name === property
+  );
+}
+
+// `HTMLFormElement.prototype.submit`.
+function isPrototypeSubmit(node) {
+  const prototype = node.object;
+  return (
+    isMember(prototype, "prototype") &&
+    prototype.object.type === "Identifier" &&
+    prototype.object.name === "HTMLFormElement"
+  );
+}
+
+function isNativeFormSubmit(node) {
+  const callee = node.callee;
+  // `form.submit()`: React Router's `submit` and a fetcher's always take what
+  // they send.
+  if (isMember(callee, "submit") && node.arguments.length === 0) return true;
+  // `HTMLFormElement.prototype.submit.call(form)`.
+  return isMember(callee?.object, "submit") && isPrototypeSubmit(callee.object);
+}
+
+const restrictedSyntax = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "Shapes the style guide bans outright, each with its reason.",
+    },
+    messages: {
+      toastInfo:
+        "Drop `toast.info`: a toast is a success or an error the server confirmed, and no product case has needed an informative one yet (style guide, Forms).",
+      dark: "Drop the `dark:` class: the theme's tokens already carry the dark mode, and a hand-tuned dark look drifts from it (style guide, Theme).",
+      h1: "Use the page header instead of an `<h1>`: `AdminResourceLayout` and `PortalPageHeader` title every page with an `h2` (style guide, Page header).",
+      formEvent:
+        "Type a submit handler with `React.SubmitEvent` (or `SubmitEventHandler`), not `FormEvent`: React 19 deprecates it because it does not describe a form's submit (style guide, Forms).",
+      formSubmit:
+        "Submit through React Router (`useSubmit`, a fetcher's `submit`, or `requestSubmit()`), not the native `form.submit()`: it skips the submit event, so React Hook Form's validation and the router never see it (style guide, Forms).",
+    },
+    schema: [],
+  },
+  create(context) {
+    const filename = `${context.filename}`;
+    const ownsPageHeader = PAGE_HEADER_SURFACES.some((segment) =>
+      filename.includes(segment),
+    );
+
+    function checkClasses(node, text) {
+      if (DARK_CLASS.test(text)) context.report({ node, messageId: "dark" });
+    }
+
+    return {
+      CallExpression(node) {
+        const callee = node.callee;
+        if (
+          callee.type === "MemberExpression" &&
+          callee.object.type === "Identifier" &&
+          callee.object.name === "toast" &&
+          callee.property.name === "info"
+        ) {
+          context.report({ node, messageId: "toastInfo" });
+        } else if (isNativeFormSubmit(node)) {
+          context.report({ node, messageId: "formSubmit" });
+        }
+      },
+      Literal(node) {
+        if (typeof node.value === "string") checkClasses(node, node.value);
+      },
+      TemplateElement(node) {
+        checkClasses(node, node.value.cooked ?? "");
+      },
+      JSXOpeningElement(node) {
+        if (
+          ownsPageHeader &&
+          node.name.type === "JSXIdentifier" &&
+          node.name.name === "h1"
+        ) {
+          context.report({ node, messageId: "h1" });
+        }
+      },
+      ImportSpecifier(node) {
+        if (
+          node.parent.source.value === "react" &&
+          FORM_EVENT_TYPES.has(node.imported.name)
+        ) {
+          context.report({ node, messageId: "formEvent" });
+        }
+      },
+      TSQualifiedName(node) {
+        if (
+          node.left.type === "Identifier" &&
+          node.left.name === "React" &&
+          FORM_EVENT_TYPES.has(node.right.name)
+        ) {
+          context.report({ node, messageId: "formEvent" });
+        }
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: "ui" },
   rules: {
@@ -816,5 +934,6 @@ export default {
     "no-borrar": noBorrar,
     "confirmation-shared": confirmationShared,
     "alert-structure": alertStructure,
+    "restricted-syntax": restrictedSyntax,
   },
 };
