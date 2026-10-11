@@ -1,4 +1,5 @@
 import { Info, ListOrdered, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import { useSearchParams } from "react-router";
 
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -128,11 +129,17 @@ function PresentationWarningsNotice({
 }
 
 export function PresentationDayTabs({
+  children,
   loaderData,
 }: {
+  children: ReactNode;
   loaderData: PresentationListResult;
 }) {
   const tab = useScheduleDayTab(loaderData.days);
 
-  return <ScheduleDayTabs days={loaderData.days} tab={tab} />;
+  return (
+    <ScheduleDayTabs days={loaderData.days} tab={tab}>
+      {children}
+    </ScheduleDayTabs>
+  );
 }
