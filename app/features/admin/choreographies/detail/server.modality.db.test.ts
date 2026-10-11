@@ -42,7 +42,7 @@ import {
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
-import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";

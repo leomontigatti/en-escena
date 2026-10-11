@@ -6,7 +6,7 @@ import {
   facturaCRechazada,
   ultimoAutorizado,
   ultimoAutorizadoVacio,
-} from "./fixtures";
+} from "./wsfe-responses.test-support";
 import {
   formatArcaMessage,
   parseCreateVoucherResult,

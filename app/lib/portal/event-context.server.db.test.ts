@@ -5,7 +5,7 @@ import { schedules } from "@/db/schema";
 import {
   createEventRecord,
   createOpenEventCatalog,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import {
   getPortalActiveEventContext,
   getPortalShellEventContext,

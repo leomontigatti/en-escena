@@ -3,11 +3,11 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, seminarInscriptions, seminars } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent } from "@/lib/events/bases.test-support";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
-import { coverSeminarInscriptionDeposit } from "@/lib/seminars/test-fixtures.server.db";
-import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createSeminar,

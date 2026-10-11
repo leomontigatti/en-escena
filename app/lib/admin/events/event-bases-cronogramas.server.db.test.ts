@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, scheduleCapacities } from "@/db/schema";
-import { createOpenEventCatalog } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createOpenEventCatalog } from "@/lib/choreographies/registration.test-support";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createModality } from "@/lib/modalities/repository.server";
@@ -37,7 +37,7 @@ import {
   renderPriceNewErrorRoute,
   renderScheduleDetailErrorRoute,
   routeArgs,
-} from "./event-bases.test-helpers";
+} from "./event-bases.test-support";
 
 installDatabaseTestHooks();
 

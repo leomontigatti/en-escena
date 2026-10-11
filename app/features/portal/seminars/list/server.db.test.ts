@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { activateEvent } from "@/lib/events/management.server";
-import { createPortalSavedEvent } from "@/lib/events/saved-event-test-support.server";
-import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { createPortalSavedEvent } from "@/lib/events/saved-event.test-support";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";

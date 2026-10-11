@@ -25,7 +25,7 @@ import {
   type DancerBirthDateCorrectionResult,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerBirthDateScheduleMoveMessages } from "@/lib/choreographies/dancer-birthdate-messages";
-import { createAcademySession } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createAcademySession } from "@/lib/choreographies/registration.test-support";
 import {
   experienceLevelLabels,
   isExperienceLevel,
@@ -33,7 +33,7 @@ import {
 import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";

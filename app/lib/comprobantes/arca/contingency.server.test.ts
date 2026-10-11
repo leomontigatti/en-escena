@@ -22,7 +22,7 @@ import {
   facturaCAprobada,
   facturaCConsultada,
   ultimoAutorizado,
-} from "./fixtures";
+} from "./wsfe-responses.test-support";
 
 // The comprobante that was attempted, with the amount and date that were sent to
 // ARCA: that is what the queried one is validated against.

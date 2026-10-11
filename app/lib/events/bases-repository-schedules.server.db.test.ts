@@ -26,14 +26,14 @@ import {
   createSavedPrice,
   createSavedSchedule,
   expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import {
   createAcademySession,
   createDancer,
   createOpenEventCatalog,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import {
   installDatabaseTestHooks,

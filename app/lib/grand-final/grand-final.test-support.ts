@@ -16,7 +16,7 @@ import {
   createAcademyUser,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
-import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 
 /**
  * One active event a `Gran final` test registers choreographies into by

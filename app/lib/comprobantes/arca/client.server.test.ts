@@ -17,7 +17,7 @@ import {
   notaCreditoCAprobada,
   ultimoAutorizado,
   ultimoNotaCreditoAutorizado,
-} from "./fixtures";
+} from "./wsfe-responses.test-support";
 
 // Timeouts in milliseconds: the tests exercise the real cut-off, with no fake
 // timers.

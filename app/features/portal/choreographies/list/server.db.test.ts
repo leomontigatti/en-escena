@@ -21,12 +21,12 @@ import {
 import {
   expectCreated,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { activateEvent } from "@/lib/events/management.server";
 import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate as date,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/saved-event.test-support";
 import { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
   createChoreographyRecord,

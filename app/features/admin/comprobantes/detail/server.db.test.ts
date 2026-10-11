@@ -28,7 +28,7 @@ import {
   notaCreditoCAprobada,
   notaCreditoCConsultada,
   ultimoNotaCreditoAutorizado,
-} from "@/lib/comprobantes/arca/fixtures";
+} from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { seminarAnchor } from "@/lib/comprobantes/anchor";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 import { createAcademyUser } from "@/lib/test-support/academies";

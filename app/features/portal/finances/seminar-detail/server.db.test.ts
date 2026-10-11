@@ -7,7 +7,7 @@ import { loadSeminarFinanceDetail } from "@/features/admin/finances/academy-semi
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/seminar-detail/server";
 import { createAcademySession } from "@/features/portal/test-support/db";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";

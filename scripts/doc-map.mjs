@@ -36,7 +36,9 @@ export function isExcludedFromDocGate(filePath) {
   return (
     filePath.endsWith(".test.ts") ||
     filePath.endsWith(".test.tsx") ||
-    filePath.endsWith(".test-support.ts")
+    filePath.endsWith(".test-support.ts") ||
+    filePath.endsWith(".test-support.tsx") ||
+    filePath.includes("/test-support/")
   );
 }
 

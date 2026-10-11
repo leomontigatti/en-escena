@@ -21,8 +21,8 @@ import {
   renderModalidadDetalleRoute,
   renderNuevaModalidadRoute,
   routeArgs,
-} from "./event-bases.test-helpers";
-import { createPriceAdminRequest } from "./event-bases-price.test-helpers";
+} from "./event-bases.test-support";
+import { createPriceAdminRequest } from "./event-bases-price.test-support";
 
 installDatabaseTestHooks();
 

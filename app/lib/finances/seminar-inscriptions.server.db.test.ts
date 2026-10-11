@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { seminarInscriptions } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
