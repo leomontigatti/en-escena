@@ -40,7 +40,7 @@ import {
   createEventFixtureDates,
   createSavedEvent as createSavedEventFixture,
   expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import {
   DancersListRouteView,
   handle as bailarinesHandle,
@@ -55,7 +55,7 @@ import {
 import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

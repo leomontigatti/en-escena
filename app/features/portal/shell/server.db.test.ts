@@ -16,7 +16,7 @@ import { activateEvent } from "@/lib/events/management.server";
 import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate as date,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/saved-event.test-support";
 import { loader as portalIndexLoader } from "@/routes/portal._index";
 import { loader as bailarinesLoader } from "@/routes/portal.bailarines";
 import { loader as coreografiasLoader } from "@/routes/portal.coreografias";

@@ -13,8 +13,8 @@ import {
   type EventRow,
 } from "@/features/admin/events/detail/server.test-support";
 import type { EventFormValues } from "@/lib/admin/events/form-values";
-import { createChoreographyOnNewBases } from "@/lib/events/bases-test-fixtures.server.db";
-import { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createChoreographyOnNewBases } from "@/lib/events/bases.test-support";
+import { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

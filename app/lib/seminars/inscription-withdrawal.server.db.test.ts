@@ -8,7 +8,7 @@ import {
   seminarInscriptions,
   seminarPrices,
 } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import {
   allocateToSeminarInscription,

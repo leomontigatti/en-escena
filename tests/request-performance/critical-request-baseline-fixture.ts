@@ -19,13 +19,13 @@ import {
   createAccessUser,
   createSessionRequestCookie,
 } from "@/lib/auth/access-auth.test-support";
-import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { activateEvent } from "@/lib/events/management.server";
 import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate as date,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/saved-event.test-support";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyUser } from "@/lib/test-support/academies";
 

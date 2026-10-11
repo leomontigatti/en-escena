@@ -20,7 +20,7 @@ import {
   createSavedPrice,
   createSavedSchedule,
   expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 
 import { insertTestPrice } from "@/lib/prices/price-rows.test-support";
 import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";

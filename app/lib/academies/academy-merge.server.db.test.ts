@@ -23,11 +23,11 @@ import {
 import {
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import {
   createEventChoreographyFixture,
   createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { castVote } from "@/lib/grand-final/vote.server";
 import { seedOpenRoundFixture } from "@/lib/grand-final/voting.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";

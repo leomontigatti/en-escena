@@ -9,7 +9,7 @@ import {
   seminarPrices,
   seminars,
 } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import {
   allocateToSeminarInscription,
   readSeminarInscriptionPriceOptions,

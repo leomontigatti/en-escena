@@ -19,7 +19,7 @@ import {
   createEventChoreographyFixture,
   createEventFixtureDates,
   createSavedEvent as createSavedEventFixture,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import {
   ProfessorsListRouteView,
   handle as profesoresHandle,

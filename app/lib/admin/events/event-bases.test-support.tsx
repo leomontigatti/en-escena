@@ -44,7 +44,7 @@ import {
   createSavedEvent as createEventFixture,
   expectCreated,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { AdminShellRouteView } from "@/routes/administracion";
 import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";
 import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.cronogramas_.$scheduleId";

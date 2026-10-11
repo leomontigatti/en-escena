@@ -13,7 +13,7 @@ import { activateEvent } from "@/lib/events/management.server";
 import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate as date,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/saved-event.test-support";
 import { CREATE_CHOREOGRAPHY_INTENT } from "@/features/portal/choreographies/create/flow";
 import {
   handleCreateChoreographyAction,

@@ -45,7 +45,7 @@ import {
   createGrupalOnlyModalityFixture,
   createProfessor,
   createScheduleForModalityFixture,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import {
   getAgeAtDate,

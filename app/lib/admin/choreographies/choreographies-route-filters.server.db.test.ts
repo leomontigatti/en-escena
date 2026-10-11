@@ -21,7 +21,7 @@ import {
   createEventFixtureDates,
   createSavedEvent as createSavedEventFixture,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import {
@@ -32,7 +32,7 @@ import {
 import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

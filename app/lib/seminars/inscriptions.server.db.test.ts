@@ -6,8 +6,8 @@ import { dancers, seminarInscriptions } from "@/db/schema";
 import {
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent } from "@/lib/events/bases.test-support";
 import {
   deleteSeminarInscriptionForAcademy,
   removeSeminarInscription,

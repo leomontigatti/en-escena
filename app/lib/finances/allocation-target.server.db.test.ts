@@ -12,8 +12,8 @@ import {
   seminarPrices,
   seminars,
 } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent } from "@/lib/events/bases.test-support";
 import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
 import { applyAllocationDelta } from "@/lib/finances/choreography-cobro-allocations.server";
 import { createAcademyUser } from "@/lib/test-support/academies";

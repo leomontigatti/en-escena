@@ -3,7 +3,7 @@ import { payments, seminarInscriptions, seminarPrices } from "@/db/schema";
 import {
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 
 import {
