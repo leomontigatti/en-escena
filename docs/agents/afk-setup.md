@@ -26,8 +26,8 @@ Renaming or moving any of them means updating `prompt.md` in the same change.
 **Inputs in through environment variables, outputs out through files, and the orchestrator does
 every GitHub mutation.**
 
-- _Inputs:_ `OUTPUT_DIR`, `AGENT_BUDGET_MINUTES`, `CLAUDE_CODE_OAUTH_TOKEN`, and `GH_TOKEN`, which
-  the runner uses only for a read-only prefetch of the prior `source:architecture-review`
+- _Inputs:_ `GH_REPO`, `OUTPUT_DIR`, `AGENT_BUDGET_MINUTES`, `CLAUDE_CODE_OAUTH_TOKEN`, and
+  `GH_TOKEN`, which the runner uses only for a read-only prefetch of the prior `source:architecture-review`
   proposals (open and closed) before it starts the agent.
 - _Outputs, in `OUTPUT_DIR`:_ `architecture_review_output.json`, plus `prd_title.txt` and
   `prd_body.md` when it proposes; `failure_reason.txt` on failure; `*.agent.log` always. The JSON

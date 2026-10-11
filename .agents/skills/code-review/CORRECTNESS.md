@@ -6,9 +6,9 @@
 # Correctness
 
 The bug-hunting axis of step 5 of the `implement` skill. It runs on every diff that changes
-behaviour: beside the readback, or as the third axis of the full review. Standards asks whether the code
-follows the repo's conventions and Spec whether it does what the issue asked; this one asks
-whether it is **wrong**. It took over the job CodeRabbit did on every PR: the bugs it caught
+behaviour: beside the readback, or as the third axis of the full review. Standards asks whether
+the code follows the repo's conventions and Spec whether it does what the issue asked; this one
+asks whether it is **wrong**. It took over the job CodeRabbit did on every PR: the bugs it caught
 that the in-session review missed fell in the areas the brief now names.
 
 1. Use the fixed point, diff command and commit list pinned for `code-review`, or for the
