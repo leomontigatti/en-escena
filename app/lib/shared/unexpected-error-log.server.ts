@@ -115,6 +115,8 @@ async function resolveUserIdWithin(
   try {
     return await Promise.race([resolveUserId(request), timeout]);
   } catch {
+    // The user id only adds context: failing to find it must not lose the
+    // report it belongs to.
     return null;
   } finally {
     clearTimeout(timeoutId);
