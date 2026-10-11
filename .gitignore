@@ -9,6 +9,9 @@ build
 tmp/
 .fallow/
 
+# implementer subagents' worktrees (Agent tool isolation, the implement-spec skill)
+.claude/worktrees/
+
 # playwright-cli scratch: snapshots, console logs, saved login state
 .playwright-cli/
 

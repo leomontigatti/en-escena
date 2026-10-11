@@ -21,7 +21,8 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   this run.
 - **Implementing** (a feature, a fix, any code change) happens in a local session: call the
   Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
-  Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets`: see
+  Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets` and built
+  with `/implement-spec`: see
   "Where work starts" in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Investigate before implementing**: see the section of the same name in
   [docs/agents/workflows.md](docs/agents/workflows.md).
@@ -38,10 +39,11 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   judge — and is not a formatter; formatting is
   Prettier's, unused code is `tsc`'s, and repo conventions belong to the
   `check:*` scripts.
-- **Subagents**: spawn every review sub-agent (`code-review`'s Standards and Spec axes, the
-  correctness axis, the readback) as the `reviewer` agent, and research as the `research` agent; both run on
-  Codex's gpt-6.1-sol (see "Agent configuration" in
-  [docs/agents/workflows.md](docs/agents/workflows.md)).
+- **Subagents**: spawn `code-review`'s Standards and Spec axes and the readback as the
+  `reviewer` agent, and research as the `research` agent; both run on Codex's gpt-6.1-sol.
+  Spawn the correctness axis as `reviewer-opus`, which runs on Opus for a second model
+  family; Codex has no Opus, so under Codex it stays on `reviewer` (see "Agent
+  configuration" in [docs/agents/workflows.md](docs/agents/workflows.md)).
 - **Coding standards**: [docs/agents/coding-standards.md](docs/agents/coding-standards.md),
   including the code language convention (Spanish for what the user reads, English for
   everything else; `comprobante` as the only reserved term). The identifier → UI term
