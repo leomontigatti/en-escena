@@ -572,10 +572,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
 
     await expect(action(routeArgs(request.request))).resolves.toEqual({
       status: "error",
-      message: "Confirmá el borrado de la categoría antes de continuar.",
+      message: "Confirmá la eliminación de la categoría antes de continuar.",
       fieldErrors: {
         confirmDelete:
-          "Confirmá el borrado de la categoría antes de continuar.",
+          "Confirmá la eliminación de la categoría antes de continuar.",
       },
       scope: {
         intent: "delete-category",
@@ -608,7 +608,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
 
     await expect(action(routeArgs(blockedRequest.request))).resolves.toEqual({
       status: "error",
-      message: "Confirmá el borrado de la modalidad.",
+      message: "Confirmá la eliminación de la modalidad.",
       fieldErrors: {},
       scope: {
         intent: "delete-modality",

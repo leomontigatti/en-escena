@@ -20,7 +20,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Categorías", to: "/administracion/categorias" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       return { label: data?.category?.name ?? "Categoría" };
     },
   ],

@@ -10,6 +10,10 @@
 // - `actions-menu-text-only`: Actions menu, no icon inside the JSX of a
 //   `ResourceActionsMenu`. It reads one file: items a child component renders
 //   are out of its sight.
+// - `confirm-wording`: Destructive actions, a confirmation's title is a
+//   question and its verb is the title's, never `Confirmar` or `Aceptar`.
+// - `no-borrar`: Interface text, a delete says `eliminar`. It also reads the
+//   `.ts` files, where refusals and server messages live.
 //
 // `Trash2` over `Trash` (Buttons) is the built-in `no-restricted-imports`, in
 // `.oxlintrc.json`.
@@ -445,6 +449,200 @@ const actionsMenuTextOnly = {
   },
 };
 
+// The static start of what an element shows: its leading text, or `undefined`
+// when it starts with something the rule cannot read (a prop, a call).
+function leadingText(element) {
+  for (const child of element.children) {
+    if (child.type === "JSXText") {
+      if (child.value.trim() === "") continue;
+      return child.value.trim();
+    }
+    if (child.type === "JSXExpressionContainer") {
+      return staticString(child.expression);
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+// Every piece of static text an element shows, icons and props skipped.
+function staticText(element) {
+  return element.children
+    .flatMap((child) => {
+      if (child.type === "JSXText") return [child.value];
+      if (child.type === "JSXExpressionContainer") {
+        return [staticString(child.expression) ?? ""];
+      }
+      return [];
+    })
+    .join(" ")
+    .trim();
+}
+
+function staticString(expression) {
+  if (expression?.type === "Literal" && typeof expression.value === "string") {
+    return expression.value;
+  }
+  if (expression?.type === "TemplateLiteral") {
+    const start = expression.quasis[0]?.value.cooked ?? "";
+    // A template that opens with an expression starts with what it reads.
+    return start === "" && expression.expressions.length > 0
+      ? undefined
+      : start;
+  }
+  return undefined;
+}
+
+function attributeString(openingElement, name) {
+  const attribute = findAttribute(openingElement, name);
+  if (!attribute?.value) return undefined;
+  if (attribute.value.type === "Literal") return attribute.value.value;
+  return staticString(attribute.value.expression);
+}
+
+const GENERIC_VERB = /^(Confirmar|Aceptar)\b/;
+
+function genericVerb(text) {
+  return text?.replace(/^¿/, "").match(GENERIC_VERB)?.[1];
+}
+
+function isInside(openingElement, isAncestor) {
+  for (let node = openingElement.parent?.parent; node; node = node.parent) {
+    if (node.type === "JSXElement" && isAncestor(node.openingElement)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const confirmWording = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "A confirmation's title is a question and its verb repeats the title's.",
+    },
+    messages: {
+      question:
+        "Write a confirmation's title as a question naming the action and its object (`¿Eliminar la coreografía?`): it is what the buttons under it answer (style guide, Destructive actions).",
+      verb: "Name the action with the verb from the title (`Eliminar`, `Guardar`, `Anular`), not `{{verb}}`: a generic verb sends the user back to the question to learn what the button does (style guide, Destructive actions).",
+    },
+    schema: [],
+  },
+  create(context) {
+    const uiImports = trackUiImports(context);
+
+    function checkTitle(node, text) {
+      if (text === undefined) return;
+      if (!text.startsWith("¿")) {
+        context.report({ node, messageId: "question" });
+      }
+    }
+
+    function checkVerb(node, text) {
+      const verb = genericVerb(text);
+      if (verb) context.report({ node, messageId: "verb", data: { verb } });
+    }
+
+    return {
+      ImportDeclaration: uiImports.ImportDeclaration,
+      JSXElement(node) {
+        const opening = node.openingElement;
+        const component = uiImports.componentName(opening.name);
+
+        if (component === "AlertDialogTitle") {
+          const text = leadingText(node);
+          checkTitle(opening, text);
+          checkVerb(opening, text);
+          return;
+        }
+
+        if (
+          component === "AlertDialogAction" ||
+          (component === "Button" &&
+            isInside(
+              opening,
+              (ancestor) =>
+                uiImports.componentName(ancestor.name) === "AlertDialogFooter",
+            ))
+        ) {
+          checkVerb(opening, staticText(node));
+          return;
+        }
+
+        if (
+          opening.name.type === "JSXIdentifier" &&
+          opening.name.name === "ConfirmationDialog"
+        ) {
+          const title = attributeString(opening, "title");
+          checkTitle(opening, title);
+          checkVerb(opening, title);
+          checkVerb(opening, attributeString(opening, "confirmLabel"));
+        }
+      },
+    };
+  },
+};
+
+// Every word built on `borr-` (`borrar`, `borró`, `Borrá`, `borralo`,
+// `borremos`), with letter boundaries that know accents, since `\b` does
+// not. `borrador` is a draft, not a delete.
+const BORR_WORD = /(?<!\p{L})borr(?!ador)\p{L}*/giu;
+// A sentence that says a record is not deleted (`no se borra`, `Suspender no
+// borra datos`) describes the data, not an action the user takes. Only the
+// third person: `no borres` is still an instruction to delete.
+const NOT_DELETED = /(?<!\p{L})no (?:se )?$/iu;
+const DESCRIBING_FORMS = new Set(["borra", "borran"]);
+
+function borrarWord(text) {
+  for (const match of text.matchAll(BORR_WORD)) {
+    const word = match[0].toLowerCase();
+    const before = text.slice(0, match.index);
+    if (DESCRIBING_FORMS.has(word) && NOT_DELETED.test(before)) continue;
+    return word;
+  }
+  return undefined;
+}
+
+const noBorrar = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description: "A delete says eliminar, not borrar.",
+    },
+    messages: {
+      word: "Say `eliminar` (`elimina`, `eliminación`), not `{{word}}`: the button and the menu item say `Eliminar`, and a refusal or a confirmation that says `borrar` reads as another action. A file taken out of a field is `Quitar` (style guide, Interface text).",
+    },
+    schema: [],
+  },
+  create(context) {
+    function check(node, text) {
+      const word = text === undefined ? undefined : borrarWord(text);
+      if (word) {
+        context.report({
+          node,
+          messageId: "word",
+          data: { word },
+        });
+      }
+    }
+
+    return {
+      Literal(node) {
+        if (typeof node.value !== "string") return;
+        if (node.parent?.type === "ImportDeclaration") return;
+        check(node, node.value);
+      },
+      TemplateElement(node) {
+        check(node, node.value.cooked);
+      },
+      JSXText(node) {
+        check(node, node.value);
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: "ui" },
   rules: {
@@ -454,5 +652,7 @@ export default {
     "data-icon-position": dataIconPosition,
     "dialog-width": dialogWidth,
     "actions-menu-text-only": actionsMenuTextOnly,
+    "confirm-wording": confirmWording,
+    "no-borrar": noBorrar,
   },
 };

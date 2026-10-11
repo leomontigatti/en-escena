@@ -27,7 +27,7 @@ export const handle = {
   portalBreadcrumbs: [
     { label: "Bailarines", to: "/portal/bailarines" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       const dancer = data?.dancer;
 
       return dancer

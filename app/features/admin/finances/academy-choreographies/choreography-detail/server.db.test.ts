@@ -1,3 +1,5 @@
+import { RouterContextProvider } from "react-router";
+
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -552,7 +554,7 @@ function detailRouteArgs(input: {
   request: Request;
 }) {
   return {
-    context: {},
+    context: new RouterContextProvider(),
     params: {
       academyId: input.academyId,
       choreographyId: input.choreographyId,

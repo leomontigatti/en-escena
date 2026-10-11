@@ -7,12 +7,13 @@ import {
   PUBLIC_REGISTRATION_CONFIRMATION_ERROR_PATH,
 } from "@/lib/auth/access-paths.shared";
 import { createLegacySessionCookieClearHeaders } from "@/lib/auth/legacy-session-cookies.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 import type { Route } from "./+types/registro_.confirmar";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
 

@@ -4,8 +4,8 @@ Runbook for moving the `enescena.com.ar` zone from DreamHost to Cloudflare,
 leaving inbound mail as forwarding to Gmail and sending outbound mail through
 Resend from our own sender address.
 
-Closes the operational dependency of #490 (own sender) and unblocks Option A of
-#238 (WAF and rate limiting in front of the app).
+Covers the operational dependency for sending from our own sender and the WAF and
+rate limiting in front of the app.
 
 The host and application this zone points at are described in
 [Production infrastructure](./infrastructure.md).
@@ -51,10 +51,9 @@ The last four A rows showed up in Cloudflare's automatic scan and not in the
 manual probe, which didn't test those names. Treat the scan as the source and
 review it in full before deleting anything.
 
-Note for #490: the issue claims there is no DKIM because it probed the
-`mail._domainkey` selector. There is one, under `dreamhost._domainkey`. It
-doesn't change the plan — Resend signs with its own `resend._domainkey`
-selector — but the issue has it wrong.
+The zone already has a DKIM selector, `dreamhost._domainkey` (see the table above).
+It doesn't change the plan — Resend signs with its own `resend._domainkey`
+selector.
 
 ## Target zone in Cloudflare
 
@@ -285,7 +284,7 @@ Two considerations specific to this app:
 
 ## 3. Hostinger
 
-The VPS firewall is already default-deny with SSH restricted (#238). The step
+The VPS firewall is already default-deny with SSH restricted. The step
 that makes the WAF inescapable is accepting `443` only from Cloudflare's ranges:
 while `443` is open to `0.0.0.0/0`, anyone can hit `72.60.59.2` directly with SNI
 and bypass the WAF.
@@ -328,13 +327,13 @@ users reach someone, and `no-reply` senders have worse reputation with filters.
 
 ### Traefik behind the proxy: left alone
 
-The rate limit middleware proposed in #238 was conceived before Cloudflare was in
+The Traefik rate limit middleware was conceived before Cloudflare was in
 the picture. With the WAF and rate limiting running at Cloudflare's edge (section
 2.4) and the firewall closed to Cloudflare's ranges (section 3), that middleware
 is a redundant third line that adds little margin and costs configuration (app
 labels + dynamic configuration). It is omitted.
 
-If it is ever reintroduced, an error in #238's framing needs correcting: behind
+If it is ever reintroduced, note that behind
 the proxy, the source IP Traefik sees is Cloudflare's, so the middleware has to
 group by `CF-Connecting-IP`
 (`sourceCriterion.requestHeaderName: CF-Connecting-IP`) or it would punish all
@@ -352,7 +351,7 @@ Almost nothing:
 - No module reads the client IP (`X-Forwarded-For`, `CF-Connecting-IP` or
   equivalents), so the proxy forces no code changes.
 - There is no rate limiting in the app; it lives only in Cloudflare. The Traefik
-  middleware proposed in #238 was discarded (section 4).
+  rate limit middleware was left out (section 4).
 - The Brevo to Resend switch requires no changes: `app/lib/shared/email.server.ts`
   already supports both and defaults to Resend.
 

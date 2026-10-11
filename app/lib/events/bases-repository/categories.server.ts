@@ -278,7 +278,7 @@ function categoryHasSchedules(): EventBaseFailure {
     ok: false,
     code: "event-bases-has-dependencies",
     error:
-      "No se puede borrar la categoría porque tiene cronogramas relacionados.",
+      "No se puede eliminar la categoría porque tiene cronogramas relacionados.",
   };
 }
 
@@ -291,7 +291,7 @@ function categoryHasChoreographies(): EventBaseFailure {
     ok: false,
     code: "event-bases-has-dependencies",
     error:
-      "No se puede borrar la categoría porque tiene coreografías relacionadas.",
+      "No se puede eliminar la categoría porque tiene coreografías relacionadas.",
   };
 }
 

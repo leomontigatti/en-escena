@@ -63,6 +63,20 @@ function comprobanteFixture(
   };
 }
 
+/** The dialog's verb, apart from the page's own `Anular comprobante`. */
+function voidButton() {
+  const button = findButton("Anular", {
+    exact: true,
+    within: document.querySelector('[role="alertdialog"]'),
+  });
+
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error('Expected the dialog\'s "Anular" to be rendered.');
+  }
+
+  return button;
+}
+
 // A route with a real loader, so the fetcher's revalidation shows up in the view.
 // The detail shows its data as locked inputs, whose value is not text content.
 function lockedFieldValue(label: string) {
@@ -180,12 +194,15 @@ describe("ComprobanteDetailRouteView", () => {
     const { action } = unverifiedThenRecovered();
     await mount({ initialAnnulDialogOpen: true, action });
 
-    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Anular", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
 
     expect(document.body.textContent).toContain(
       "Nota de crédito C 0001-00000008",
     );
-    expect(getButton("Anular comprobante").disabled).toBe(true);
+    expect(voidButton().disabled).toBe(true);
   });
 
   // A refusal that is neither a contingency nor ARCA's is the server's word,
@@ -199,7 +216,10 @@ describe("ComprobanteDetailRouteView", () => {
       }),
     });
 
-    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Anular", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
@@ -211,14 +231,17 @@ describe("ComprobanteDetailRouteView", () => {
     expect(
       document.querySelector('[role="alertdialog"]')?.textContent,
     ).not.toContain("Ese comprobante ya fue anulado");
-    expect(getButton("Anular comprobante").disabled).toBe(false);
+    expect(voidButton().disabled).toBe(false);
   });
 
   test("verify now recovers the credit note and removes the annul button", async () => {
     const { action, recheckPayloads } = unverifiedThenRecovered();
     await mount({ initialAnnulDialogOpen: true, action });
 
-    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Anular", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await clickReactDomButton("Verificar ahora");
 
     // Only the sequence number travels from the client (ADR-0012 decision 4).
@@ -274,7 +297,10 @@ describe("ComprobanteDetailRouteView", () => {
 
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Anular", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await clickReactDomButton("Verificar ahora");
 
     expect(document.body.textContent).toContain("quedó registrado");
@@ -285,10 +311,13 @@ describe("ComprobanteDetailRouteView", () => {
     const { action } = unverifiedThenRecovered();
     await mount({ initialAnnulDialogOpen: true, action });
 
-    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Anular", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await clickReactDomButton("Ya verifiqué en ARCA");
 
-    expect(getButton("Anular comprobante").disabled).toBe(false);
+    expect(voidButton().disabled).toBe(false);
   });
 
   test("renders the comprobante data and the actions menu", async () => {

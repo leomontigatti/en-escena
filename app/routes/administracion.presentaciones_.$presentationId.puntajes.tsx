@@ -18,7 +18,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Presentaciones", to: "/administracion/presentaciones" },
     (match) => {
-      const data = match.data as PresentationScoresLoaderData | undefined;
+      const data = match.loaderData as PresentationScoresLoaderData | undefined;
 
       return { label: data?.presentation.name ?? "Puntajes" };
     },

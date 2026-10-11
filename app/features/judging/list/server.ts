@@ -11,6 +11,7 @@ import {
   type JudgePresentationRow,
 } from "@/lib/judging/judge-list.server";
 import { isOpenForJudges, judgingDate } from "@/lib/judging/judging-day";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { dayTabParam } from "@/lib/shared/url-tab";
 
 /**
@@ -54,7 +55,7 @@ export async function loadJudgePanelRouteData(
   const now = new Date();
   const today = judgingDate(now);
   const assignedDays = await readJudgeAssignedDays({ judgeId: user.id });
-  const requestedDay = new URL(request.url).searchParams.get(dayTabParam);
+  const requestedDay = readRequestedUrl(request).searchParams.get(dayTabParam);
   // Only a day the judge has presentations on is honoured: anything else in
   // the URL, a stale link or a typo, is the judging day.
   const day =

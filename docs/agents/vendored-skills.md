@@ -2,7 +2,7 @@
 
 Most of the skills in `.agents/skills/` started as copies of someone else's, and all of them are
 ours now. Until 2026-10-11 the ones from `mattpocock/skills` were pinned byte-identical to
-upstream by content hash, with a "no local edits" rule; that rule was dropped (#1563), so a skill
+upstream by content hash, with a "no local edits" rule; that rule was dropped, so a skill
 is edited like any other doc, and checked like one by Prettier and `check:comment-language`.
 
 ## Where each came from
@@ -13,7 +13,7 @@ is edited like any other doc, and checked like one by Prettier and `check:commen
 | `grilling`, `handoff`, `writing-for-agents`                                                                                            | `mattpocock/skills` `skills/productivity/<name>`                                                                                           |
 | `resolving-merge-conflicts`                                                                                                            | `mattpocock/skills`, which has since deleted it; kept because `babysit-pr` and `implementer` use it                                        |
 | `implement` (as `do-work`, with `DB-TDD.md` and `FRONTEND-TDD.md`)                                                                     | [`mattpocock/course-video-manager`](https://github.com/mattpocock/course-video-manager), reshaped after `implement` in `mattpocock/skills` |
-| `implement-spec`                                                                                                                       | `mattpocock/skills` `skills/engineering/implement-spec`, adapted from the start (#1536)                                                    |
+| `implement-spec`                                                                                                                       | `mattpocock/skills` `skills/engineering/implement-spec`, adapted from the start                                                            |
 | `babysit-pr`, `housekeeping`                                                                                                           | none                                                                                                                                       |
 
 Last synced with `mattpocock/skills` at `49dd158d` (2026-10-09). The local changes that survived

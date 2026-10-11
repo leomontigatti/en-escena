@@ -25,6 +25,7 @@ import {
   parsePublicAccessForm,
 } from "@/lib/auth/public-access-route.shared";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/registro";
@@ -75,7 +76,7 @@ export async function action({ request }: Route.ActionArgs) {
     email: formResult.data.email,
     password: formResult.data.password,
     request,
-    requestUrl: request.url,
+    requestUrl: readRequestedUrl(request).href,
   });
 
   return buildPublicAccessFormSuccess<RegistrationField, RegistrationValues>({

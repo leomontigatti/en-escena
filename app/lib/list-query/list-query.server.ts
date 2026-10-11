@@ -7,6 +7,7 @@ import {
   escapeLikePattern,
   foldSearchText,
 } from "@/lib/list-query/list-query";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 /**
  * The accented letters the SQL fold knows, and what each folds to. It is the
@@ -72,7 +73,7 @@ export function redirectToCanonicalListUrl<TColumnId extends string>(
   request: Request,
   input: AppliedListQuery<TColumnId>,
 ) {
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
   const canonicalSearch = buildCanonicalListSearch({
     ...input,
     currentSearch: url.search,

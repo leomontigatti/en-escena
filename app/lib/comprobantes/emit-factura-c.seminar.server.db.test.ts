@@ -489,7 +489,7 @@ describe("seminar deletion with fiscal history", () => {
       ok: false,
       code: "has-comprobantes",
       error:
-        "No se puede borrar el seminario porque tiene comprobantes emitidos.",
+        "No se puede eliminar el seminario porque tiene comprobantes emitidos.",
     });
   });
 });

@@ -296,7 +296,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
+        "No se puede eliminar el cupo de cronograma porque tiene dependencias.",
     });
 
     const savedSchedule = await db.query.scheduleCapacities.findFirst({
@@ -465,7 +465,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
+        "No se puede eliminar el cupo de cronograma porque tiene dependencias.",
     });
     await expect(
       validateInlineScheduleCapacityDependencies({

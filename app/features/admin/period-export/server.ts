@@ -13,6 +13,7 @@ import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import {
   periodToBeforeFromMessage,
@@ -33,7 +34,7 @@ export async function readPeriodExport(request: Request): Promise<{
   period: ExportPeriod;
 }> {
   await requireInternalUser(request, ["auditor"]);
-  const period = readExportPeriod(new URL(request.url).searchParams);
+  const period = readExportPeriod(readRequestedUrl(request).searchParams);
 
   if (period.from !== null && period.to !== null && period.from > period.to) {
     throw new Response(periodToBeforeFromMessage, { status: 400 });

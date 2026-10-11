@@ -1,7 +1,6 @@
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, loadEnv } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 // A worktree's `.env.local` (`pnpm db:worktree`) holds its own PORT. Strict, so
 // a port another server holds fails loudly instead of drifting to the next one
@@ -10,6 +9,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 const port = Number(loadEnv("development", process.cwd(), "").PORT) || 5173;
 
 export default defineConfig({
-  plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  plugins: [tailwindcss(), reactRouter()],
+  resolve: { tsconfigPaths: true },
   server: { port, strictPort: true },
 });

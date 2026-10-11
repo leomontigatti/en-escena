@@ -8,19 +8,30 @@ only list stable entry points, coordination modules and high-signal tests.
 
 ## Code Placement
 
-- `app/routes` files are thin React Router entrypoints. Keep long-lived table,
-  form, modal and loader/action implementation in feature or lib modules.
+- `app/routes` files are thin React Router entrypoints. A route file owns `meta`,
+  `handle`, a `loader` and `action` that delegate to feature or server modules, the
+  default component that wires route data and search params to a feature view, and
+  route-only re-exports existing tests use. Table definitions, modal flows, form
+  controllers, loader/action business logic and helper clusters live behind a
+  feature module once a route grows past that.
   A route with an `action` and a UI also exports a `clientAction` delegating to
   `recoverableClientAction`, so an unexpected failure keeps the view mounted; see
   [form-feedback.md](form-feedback.md#unexpected-failures-during-a-submit).
-- Feature folders under `app/features` own product experiences:
-  route-level views, route loaders/actions, request and form parsing, redirects,
-  pending state, UI copy and flow-specific tests. Prefer surface-first folders
-  such as `admin/categories` and `portal/choreographies`.
+- Feature folders under `app/features`, shaped `<surface>/<feature>/<flow>/`, own product
+  experiences: route-level views, route loaders/actions, request and form parsing,
+  redirects, pending state, UI copy and flow-specific tests. Prefer surface-first
+  folders such as `admin/categories` and `portal/choreographies`. Inside a flow,
+  `server.ts` holds the loader/action implementation and request parsing,
+  `view.tsx` the route-level screen where the folder name supplies the context
+  (`list/view.tsx`, `detail/view.tsx`), and a substantial submodule gets a specific
+  name (`music-editor-form.tsx`, `flow.ts`, `fields.tsx`). Feature-specific tests
+  sit beside the module they exercise.
 - Domain folders under `app/lib` own reusable behavior behind small interfaces: domain
   rules, persistence modules, access policy, storage adapters and cross-surface
   orchestration. A module in `app/lib/categories/` should not depend on admin
-  route action types, redirects, notifications or feature route paths.
+  route action types, redirects, notifications or feature route paths. A module
+  whose behaviour no single surface owns stays in `app/lib` even when one route
+  imports it today.
 - Inside `app/lib`, prefer filenames that name the capability or interface they
   expose, such as `registration-resolution.server.ts`,
   `dancer-records.server.ts`, `verification.ts` or `category-identity.ts`.
@@ -29,6 +40,10 @@ only list stable entry points, coordination modules and high-signal tests.
 - `app/lib/admin/` and `app/lib/portal/` are allowed for reusable behavior
   that is still specific to one product surface. Do not create them as mirrors
   of every feature folder.
+- `app/components/ui` holds the shadcn/ui primitives and `app/components/shared`
+  reusable cross-surface UI. Feature-specific screens, dialogs, tables and form
+  flows stay in their feature folder until two product surfaces need the same
+  module through a small stable interface.
 - `Bases del evento` is domain vocabulary for modalities, categories,
   schedules, capacities and prices. In code, prefer concrete resource names for
   feature modules and use `event-bases`/`bases` names only for aggregators that
@@ -44,6 +59,39 @@ only list stable entry points, coordination modules and high-signal tests.
   place while they still coordinate several resources, and avoid moving whole
   files into `app/lib` if they still depend on route actions, feature paths,
   redirects, notification helpers or UI copy.
+
+## Routes and layouts
+
+Routes use `@react-router/fs-routes` flat naming. A detail or form route under a
+list URL is a **sibling** of the list route, marked by a trailing underscore on
+the list segment: list `administracion.eventos.tsx`, detail
+`administracion.eventos_.$eventId.tsx`, form `administracion.eventos_.nuevo.tsx`.
+Nest it (`administracion.eventos.$eventId.tsx`) only when the list renders an
+`<Outlet />`; without one the child URL matches while the screen keeps rendering
+the list. After adding or renaming a route file, run `pnpm typecheck` and read
+`.react-router/types/+routes.ts`: a sibling does not list the list route as its
+parent, and every child of a shell lists the shell. Quote a route path with a
+`$` segment in the shell (`sed -n '1,220p' 'app/routes/administracion.eventos_.$eventId.tsx'`)
+so it does not expand the param.
+
+The portal and the `Panel de administración` are layout routes:
+
+- `portal.tsx` owns `PortalShell` and `administracion.tsx` owns `AdminShell`; each
+  loads its shell-wide data (the admin's includes the active Event context) and
+  renders `<Outlet />`. `portal._index.tsx` and `administracion._index.tsx` own
+  the dashboards.
+- Child screens render only their content, never the shell again.
+- Child loaders and actions still authorize themselves (`requireAcademyUser(request)`
+  in the portal), even when they need no shell data.
+- Breadcrumbs come from `handle.portalBreadcrumbs` and `handle.adminBreadcrumbs`
+  on child routes, collected in the layout by `getPortalBreadcrumbItems(matches)`
+  and `getAdminBreadcrumbItems(matches)`. `handle.adminShell` carries the admin
+  shell's options, read by `getAdminShellOptions(matches)`; a global
+  user-management screen sets `handle.adminShell.showEventSelector = false`.
+- Each layout exports the `ErrorBoundary` that renders a child's error inside the
+  shell (`app/components/shared/error-panel.tsx`), so child routes export none.
+  A `handle` breadcrumb function tolerates `match.data` being `undefined`, since
+  it runs for the failed child too.
 
 ## Public Academy Registration
 
@@ -271,7 +319,7 @@ portal and the public program at `/programa`.
 - Schema: `app/db/schema/presentations.ts` (the `presentation` table, whose unique constraint on event plus order number is `DEFERRABLE INITIALLY DEFERRED`, hand-written in `app/db/migrations/0025_cuddly_hairball.sql`, and the `judge_assignment` table, unique on the presentation and the judge)
 - Routes: `app/routes/administracion.presentaciones.tsx` (the administrative participation list, `Presentaciones`), `app/routes/portal.presentaciones.tsx` (the academy's read-only `Presentaciones` page), `app/routes/programa.tsx` (the public program, the product's only unauthenticated content route)
 - Modules: `app/lib/presentations/ordering.ts` (the pure block order, the dancer gap and moving a row by hand), `app/lib/presentations/warnings.ts` (the pure `Advertencia` derivation), `app/lib/presentations/evaluation-lock.server.ts` (the seam the choreography lock reads), `app/lib/presentations/participation.server.ts` (the event's participation read, the automatic ordering and the move by hand), `app/lib/presentations/judge-assignments.server.ts` (the assignable judges, and the one function each way of the pair goes through), `app/features/admin/presentations/list/server.ts`, `app/features/admin/presentations/list/judge-dialogs.tsx`, `app/features/admin/presentations/list/shared.ts`, `app/features/admin/presentations/list/view.tsx`, `app/lib/presentations/academy-program.server.ts` (one academy's rows, and whether the event is ordered and its program published), `app/features/program/list.tsx` and `app/features/program/shared.ts` (the program list both non-administrative surfaces render), `app/features/portal/presentations/list/server.ts`, `app/features/portal/presentations/list/view.tsx`, `app/lib/presentations/event-program.server.ts` (the public program's read and the published active event), `app/lib/presentations/program-dancer-names.server.ts` (who dances, as both program surfaces name them), `app/features/program/public/server.ts`, `app/features/program/public/view.tsx`, `app/features/program/public/print.tsx` (the A4 landscape layout, one page run per schedule), `app/components/shared/data-table-shell.tsx` (the `reorder` seam and `DataTableDragHandle`, on `@dnd-kit`)
-- Current state: implemented. The decisions and their rationale are in wayfinder map #907 and in the presentation lists PRD linked from it.
+- Current state: implemented.
 - Tests: `app/lib/presentations/presentation-table.db.test.ts`, `app/lib/presentations/ordering.test.ts`, `app/lib/presentations/warnings.test.ts`, `app/lib/presentations/participation.server.db.test.ts`, `app/lib/presentations/judge-assignments.server.db.test.ts`, `app/features/admin/presentations/list/shared.test.ts`, `app/features/admin/presentations/list/view.test.tsx`, `app/features/admin/presentations/list/view.interaction.test.tsx`, `app/features/admin/presentations/list/notices.interaction.test.tsx`, `app/features/admin/presentations/list/judge-dialogs.interaction.test.tsx`, `app/features/admin/presentations/list/server.access.db.test.ts`, `app/lib/presentations/academy-program.server.db.test.ts`, `app/features/portal/presentations/list/view.test.tsx`, `app/features/program/list.interaction.test.tsx`, `app/lib/presentations/event-program.server.db.test.ts`, `app/features/program/public/server.db.test.ts`, `app/features/program/public/view.test.tsx`
 
 ## Judging And Results
@@ -295,7 +343,6 @@ disqualifications, program, results publishing and the academy's results.
 
 ## Cross-Cutting Validation
 
-- Run route/type validation with `pnpm typecheck`, never `pnpm exec tsc`.
-- Use `pnpm test:db <path>` for focused persistence work; `pnpm test` (unit + PGlite DB) is the default confidence command and needs no local Postgres. Real Postgres is `pnpm test:db:postgres` locally; CI runs the same suite sharded behind `db-gate` (#305, #962).
-- Use `pnpm check:repo-styles` after UI changes.
-- Use `pnpm check:file-tokens` before committing staged application source.
+What to run, and when, is [validation.md](validation.md): `pnpm typecheck` for
+routes and types, `pnpm test:db <path>` for persistence work. `pnpm check:repo-styles`
+gates UI style (in CI) and `pnpm check:file-tokens` staged file size (in pre-commit).

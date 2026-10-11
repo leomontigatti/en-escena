@@ -2,12 +2,7 @@
 
 Rules for `Seminario` and `Inscripción a seminario`: a class an event offers
 around the competition, created by administration and filled by academies from
-their roster. The basis was decided on the wayfinder map
-[#857](https://github.com/leomontigatti/en-escena/issues/857) and built in
-[#881](https://github.com/leomontigatti/en-escena/pull/881); prices, payments
-and the place taken by the deposit were decided on the map
-[#884](https://github.com/leomontigatti/en-escena/issues/884). Each rule's
-reasoning lives in the ticket that fixed it.
+their roster.
 
 ## How to read this document
 
@@ -78,9 +73,7 @@ what runs today.
 
 ## Prices
 
-The price list was decided on
-[Seminar prices as event-level rows](https://github.com/leomontigatti/en-escena/issues/904)
-and its name amendment, and mirrors the choreography price list wherever the
+The price list mirrors the choreography price list wherever the
 rule fits; every difference is named.
 
 - **A `seminarPrice` (`Precio de seminario`) is an event-level row shared by
@@ -314,5 +307,5 @@ de-allocating below it releases both.
   academy, where the name opens the removal confirmation). The form carries
   `Tipo de seminario` and `Seña (%)`, both read-only while any inscription of the
   seminar is covered, and there is **no prices tab**: seminar prices are edited
-  in the `Seminarios` tab of `Precios` (#890), and money for a seminar lives
+  in the `Seminarios` tab of `Precios`, and money for a seminar lives
   under `Finanzas` (`finances.md`, "Surfaces").

@@ -5,6 +5,7 @@ import { createCookie } from "react-router";
 
 import { db } from "@/db";
 import { voters } from "@/db/schema";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 /**
@@ -114,7 +115,7 @@ export function createVoterSignIn(deps: {
         await exchangeCookie.parse(request.headers.get("Cookie")),
         now(),
       );
-      const params = new URL(request.url).searchParams;
+      const params = readRequestedUrl(request).searchParams;
       const code = params.get("code");
 
       if (

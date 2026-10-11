@@ -39,6 +39,7 @@ import {
   type PresentationWarning,
 } from "@/lib/presentations/warnings";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import { readMusicDownloadDays } from "../music-download/server";
 
@@ -90,7 +91,7 @@ export async function loadPresentationListRouteData(request: Request) {
 
   const result = await loadPresentationList({
     canOrder: user.role === "admin",
-    filters: readPresentationFilters(new URL(request.url).searchParams),
+    filters: readPresentationFilters(readRequestedUrl(request).searchParams),
     selectedEventId: eventContext.selectedEventId,
   });
 

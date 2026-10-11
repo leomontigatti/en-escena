@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -110,7 +111,7 @@ describe("portal loader event active", () => {
         headers: { cookie: session.cookie },
       }),
       params: {},
-      context: {},
+      context: new RouterContextProvider(),
       url: new URL("http://localhost/portal"),
       pattern: "/portal",
     });

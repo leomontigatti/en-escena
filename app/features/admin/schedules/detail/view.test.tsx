@@ -379,7 +379,7 @@ describe("EventScheduleDetailView", () => {
       "¿Eliminar el cronograma?",
     );
     expect(dialog?.textContent).toContain(
-      "Esta acción borra Mañana. No se puede deshacer.",
+      "Esta acción elimina Mañana. No se puede deshacer.",
     );
   });
 

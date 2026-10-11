@@ -9,6 +9,7 @@ import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { toProfessorAppliedListQuery } from "@/lib/admin/professors/professors.shared";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 export async function loadProfessorsList(request: Request) {
   const user = await requireInternalUser(request, ["admin", "auditor"]);
@@ -18,7 +19,7 @@ export async function loadProfessorsList(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const filters = readProfessorFilters(new URL(request.url).searchParams);
+  const filters = readProfessorFilters(readRequestedUrl(request).searchParams);
   const listResult = await listProfessors({
     selectedEventId: eventContext.selectedEventId,
     filters,

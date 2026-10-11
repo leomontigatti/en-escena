@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
@@ -128,7 +129,7 @@ function loadRegistrationConfirmationRoute(
   return loader({
     request: new Request(url, { headers }),
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url,
     pattern: PUBLIC_REGISTRATION_CONFIRMATION_PATH,
   });

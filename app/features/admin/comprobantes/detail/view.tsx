@@ -253,7 +253,7 @@ function AnnulDialog({
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent className="sm:max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>Anular comprobante</AlertDialogTitle>
+          <AlertDialogTitle>¿Anular el comprobante?</AlertDialogTitle>
           <AlertDialogDescription>
             Vas a anular la{" "}
             {lowercaseFirst(formatComprobanteTipoLabel(comprobante.cbteTipo))}{" "}
@@ -302,7 +302,7 @@ function AnnulDialog({
                 ) : (
                   <Ban aria-hidden="true" data-icon="inline-start" />
                 )}
-                Anular comprobante
+                Anular
               </Button>
             )}
           </AlertDialogFooter>

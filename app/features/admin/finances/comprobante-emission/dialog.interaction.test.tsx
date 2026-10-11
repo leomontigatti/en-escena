@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  findButton,
   getButton,
 } from "@/lib/test-support/react-dom";
 
@@ -15,6 +16,20 @@ import {
   recheckComprobanteIntent,
   type ComprobanteEmissionActionData,
 } from "./shared";
+
+/** The dialog's verb, apart from the page's own `Emitir Factura C`. */
+function emitButton() {
+  const button = findButton("Emitir", {
+    exact: true,
+    within: document.querySelector('[role="alertdialog"]'),
+  });
+
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error('Expected the dialog\'s "Emitir" to be rendered.');
+  }
+
+  return button;
+}
 
 const toastError = vi.hoisted(() => vi.fn());
 
@@ -111,11 +126,14 @@ describe("EmissionDialog", () => {
       action,
     });
 
-    await clickReactDomButton("Confirmar emisión");
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
 
     expect(document.body.textContent).toContain("Factura C 0001-00000043");
     // Retrying blindly is exactly how a duplicate comprobante gets emitted.
-    expect(getButton("Confirmar emisión").disabled).toBe(true);
+    expect(emitButton().disabled).toBe(true);
     expect(getButton("Verificar ahora")).not.toBeNull();
     expect(getButton("Ya verifiqué en ARCA")).not.toBeNull();
   });
@@ -128,10 +146,13 @@ describe("EmissionDialog", () => {
       action,
     });
 
-    await clickReactDomButton("Confirmar emisión");
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await clickReactDomButton("Ya verifiqué en ARCA");
 
-    expect(getButton("Confirmar emisión").disabled).toBe(false);
+    expect(emitButton().disabled).toBe(false);
   });
 
   test("verify now sends only the sequence number and resolves the alert inside the dialog", async () => {
@@ -142,7 +163,10 @@ describe("EmissionDialog", () => {
       action,
     });
 
-    await clickReactDomButton("Confirmar emisión");
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await clickReactDomButton("Verificar ahora");
 
     // Neither the amount nor the date travels from the client (ADR-0012
@@ -170,12 +194,15 @@ describe("EmissionDialog", () => {
       action,
     });
 
-    await clickReactDomButton("Confirmar emisión");
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
 
     expect(document.body.textContent).toContain(
       "CUIT sin habilitar (código 10016)",
     );
-    expect(getButton("Confirmar emisión").disabled).toBe(false);
+    expect(emitButton().disabled).toBe(false);
   });
 
   // A refusal that is neither a contingency nor ARCA's is the server's word,
@@ -190,7 +217,10 @@ describe("EmissionDialog", () => {
       }),
     });
 
-    await clickReactDomButton("Confirmar emisión");
+    await clickReactDomButton("Emitir", {
+      exact: true,
+      within: document.querySelector('[role="alertdialog"]'),
+    });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
@@ -201,7 +231,7 @@ describe("EmissionDialog", () => {
     expect(document.body.textContent).not.toContain(
       "No hay nada para facturar.",
     );
-    expect(getButton("Confirmar emisión").disabled).toBe(false);
+    expect(emitButton().disabled).toBe(false);
   });
 
   test("renders nothing while closed", async () => {
@@ -230,6 +260,6 @@ describe("EmissionDialog", () => {
 
     // No checkbox: the confirmation is enabled from the start.
     expect(document.body.querySelector('input[type="checkbox"]')).toBeNull();
-    expect(getButton("Confirmar emisión").disabled).toBe(false);
+    expect(emitButton().disabled).toBe(false);
   });
 });

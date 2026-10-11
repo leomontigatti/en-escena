@@ -42,7 +42,7 @@ export const seminarHasInscriptionsMessage =
  * remove every row — and this one is not.
  */
 export const seminarHasComprobantesMessage =
-  "No se puede borrar el seminario porque tiene comprobantes emitidos.";
+  "No se puede eliminar el seminario porque tiene comprobantes emitidos.";
 
 /**
  * The refusal of a **revival**: the withdrawn row still holds money past the

@@ -146,6 +146,80 @@ export function Compliant(props: { end: boolean; className?: string }) {
 }
 `;
 
+const copyViolatingFixture = `
+import {
+  AlertDialogAction,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+
+export function Violating(props: { name: string }) {
+  return (
+    <div>
+      <AlertDialogTitle>Confirmar los cambios</AlertDialogTitle>
+      <AlertDialogTitle>¿Confirmar el envío?</AlertDialogTitle>
+      <AlertDialogFooter>
+        <Button>Aceptar</Button>
+      </AlertDialogFooter>
+      <AlertDialogAction>Confirmar y guardar</AlertDialogAction>
+      <ConfirmationDialog title="Anular comprobante" confirmLabel="Confirmar" />
+      <p>No se puede borrar la categoría.</p>
+      <p>{\`Esta acción borra \${props.name}.\`}</p>
+      <p>Se borró la categoría.</p>
+      <p>Borrá la modalidad o pedí que la borremos.</p>
+      <p>No borres el cronograma.</p>
+    </div>
+  );
+}
+`;
+
+const copyCompliantFixture = `
+import {
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+
+function FileField(props: { removeLabel: string }) {
+  return <span>{props.removeLabel}</span>;
+}
+
+export function Compliant(props: { name: string; title: string }) {
+  return (
+    <div>
+      <AlertDialogTitle>¿Guardar los cambios?</AlertDialogTitle>
+      <AlertDialogTitle>¿Suspender a {props.name}?</AlertDialogTitle>
+      <AlertDialogTitle>{props.title}</AlertDialogTitle>
+      <AlertDialogFooter>
+        <Button>Cancelar</Button>
+        <Button>Guardar</Button>
+      </AlertDialogFooter>
+      <Button>Confirmar voto</Button>
+      <ConfirmationDialog
+        title={\`¿Revocar el acceso de \${props.name}?\`}
+        confirmLabel="Revocar"
+      />
+      <p>Suspender no borra datos.</p>
+      <p>Esta inscripción no se borra: queda retirada.</p>
+      <p>Guardá el borrador.</p>
+      <FileField removeLabel="Quitar imagen" />
+      <label>Confirmar contraseña</label>
+      <ConfirmationDialog title={\`\${props.name}: ¿eliminar?\`} confirmLabel="Eliminar" />
+    </div>
+  );
+}
+`;
+
+// Server copy is a refusal the user reads too, so the rule reads `.ts`.
+const copyServerFixture = `
+// Borrar el evento también borra sus bases.
+export const refusal = "Confirmá el borrado del evento.";
+export const withdrawn = "La inscripción no se borra.";
+`;
+
 type Diagnostic = {
   code: string;
   message: string;
@@ -191,6 +265,8 @@ describe("ui oxlint plugin", () => {
           "ui/data-icon-position": "error",
           "ui/dialog-width": "error",
           "ui/actions-menu-text-only": "error",
+          "ui/confirm-wording": "error",
+          "ui/no-borrar": "error",
           // The repo's own entry, so the test judges the config that ships.
           "no-restricted-imports": repoConfig.rules["no-restricted-imports"],
         },
@@ -211,6 +287,18 @@ describe("ui oxlint plugin", () => {
     await writeFile(
       path.join(tempRoot, "app", "features", "conventions-compliant.tsx"),
       conventionsCompliantFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "copy-violating.tsx"),
+      copyViolatingFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "copy-compliant.tsx"),
+      copyCompliantFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "copy-server.ts"),
+      copyServerFixture,
     );
   });
 
@@ -355,6 +443,82 @@ describe("ui oxlint plugin", () => {
     expect(lint(tempRoot, "app/features/conventions-compliant.tsx")).toEqual(
       [],
     );
+  });
+
+  test("flags a confirmation that is not a question or answers with a generic verb, and delete copy that says borrar", () => {
+    expect(lint(tempRoot, "app/features/copy-violating.tsx")).toEqual([
+      {
+        rule: "ui(confirm-wording)",
+        line: 13,
+        message: expect.stringContaining("as a question"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 13,
+        message: expect.stringContaining("not `Confirmar`"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 14,
+        message: expect.stringContaining("not `Confirmar`"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 16,
+        message: expect.stringContaining("not `Aceptar`"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 18,
+        message: expect.stringContaining("not `Confirmar`"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 19,
+        message: expect.stringContaining("as a question"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 19,
+        message: expect.stringContaining("not `Confirmar`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 20,
+        message: expect.stringContaining("not `borrar`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 21,
+        message: expect.stringContaining("not `borra`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 22,
+        message: expect.stringContaining("not `borró`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 23,
+        message: expect.stringContaining("not `borrá`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 24,
+        message: expect.stringContaining("not `borres`"),
+      },
+    ]);
+    expect(lint(tempRoot, "app/features/copy-server.ts")).toEqual([
+      {
+        rule: "ui(no-borrar)",
+        line: 3,
+        message: expect.stringContaining("not `borrado`"),
+      },
+    ]);
+  });
+
+  test("stays silent on question titles, dynamic titles, verbs from the title, buttons outside a confirmation, copy that says a record is not deleted, a draft and comments", () => {
+    expect(lint(tempRoot, "app/features/copy-compliant.tsx")).toEqual([]);
   });
 
   test("the repo config enables every rule the plugin defines, and only those", async () => {

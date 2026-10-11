@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -344,7 +344,7 @@ function routeArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/usuarios",
   };

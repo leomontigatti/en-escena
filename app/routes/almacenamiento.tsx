@@ -1,3 +1,4 @@
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   getDefaultStorageUrlSigningSecret,
   getDefaultStorageVolumeDir,
@@ -10,7 +11,7 @@ import type { Route } from "./+types/almacenamiento";
 // token minted by `createFilesystemSignedUrl`. This replaces the presigned S3
 // URL that pointed at B2 while B2 was the live store.
 export async function loader({ request }: Route.LoaderArgs) {
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
 
   return serveFilesystemObject({
     baseDir: getDefaultStorageVolumeDir(),

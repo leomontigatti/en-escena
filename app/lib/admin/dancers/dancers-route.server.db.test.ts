@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -1899,7 +1900,7 @@ function routeArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/bailarines",
   };
@@ -1909,7 +1910,7 @@ function detailRouteArgs(request: Request, dancerId: string) {
   return {
     request,
     params: { dancerId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/bailarines/:dancerId",
   };
@@ -1919,7 +1920,7 @@ function detailActionArgs(request: Request, dancerId: string) {
   return {
     request,
     params: { dancerId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/bailarines/:dancerId",
   };

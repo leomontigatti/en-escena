@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, redirect } from "react-router";
+import {
+  createRoutesStub,
+  redirect,
+  RouterContextProvider,
+} from "react-router";
 import { expect } from "vitest";
 
 import { CategoryDetailView } from "@/features/admin/categories/detail/view";
@@ -45,6 +49,7 @@ import {
   expectCreated,
   fixedExperienceLevel,
 } from "@/lib/events/bases.test-support";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { AdminShellRouteView } from "@/routes/administracion";
 import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";
 import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.cronogramas_.$scheduleId";
@@ -355,8 +360,8 @@ export function routeArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
-    url: new URL(request.url),
+    context: new RouterContextProvider(),
+    url: readRequestedUrl(request),
     pattern: "/administracion/eventos",
   };
 }
@@ -403,7 +408,7 @@ export async function loader({ request }: { request: Request }) {
 }
 
 export async function action({ request }: { request: Request }) {
-  const pathname = new URL(request.url).pathname;
+  const pathname = readRequestedUrl(request).pathname;
 
   if (pathname.startsWith("/administracion/categorias")) {
     return handleCategoryAction(request);
