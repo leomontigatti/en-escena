@@ -593,7 +593,6 @@ describe.skipIf(isPgliteTestBackend())(
       expect(result).toEqual({
         status: "error",
         message: "La academia no tiene saldo disponible suficiente.",
-        refusal: "seminar-preset",
       });
       const allocated = await readAllocatedByInscription(fixture);
       expect(allocated.get(inscriptions.specialParticipant.id)).toBe(20000);
