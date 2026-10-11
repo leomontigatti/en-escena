@@ -230,6 +230,7 @@ export function ScheduleForm({
           className="md:col-span-2"
           form={form}
           name="modalityIds"
+          onValueChange={() => dropUnofferedCategories(form, categories)}
           options={modalityOptions}
           title="Modalidades"
         />
@@ -563,16 +564,41 @@ function ScheduleCategoriesField({
   );
 }
 
+/**
+ * Unchecks the categories no checked modality offers any more. The checklist
+ * only draws the offered ones, so a category left behind would post with no
+ * row to uncheck it, and the server refuses a category that shares no
+ * modality with the schedule.
+ */
+function dropUnofferedCategories(
+  form: ScheduleFormController,
+  categories: EventScheduleCategoryRow[],
+) {
+  const offered = new Set(
+    getScheduleCategoryOptions(categories, form.getValues("modalityIds")).map(
+      (option) => option.value,
+    ),
+  );
+  const categoryIds = form.getValues("categoryIds");
+  const kept = categoryIds.filter((categoryId) => offered.has(categoryId));
+
+  if (kept.length !== categoryIds.length) {
+    form.setValue("categoryIds", kept, { shouldDirty: true });
+  }
+}
+
 function ScheduleMultipleSelectField({
   className,
   form,
   name,
+  onValueChange,
   options,
   title,
 }: {
   className?: string;
   form: ScheduleFormController;
   name: "modalityIds";
+  onValueChange?: () => void;
   options: Array<{ value: string; label: string }>;
   title: string;
 }) {
@@ -586,6 +612,7 @@ function ScheduleMultipleSelectField({
         label={title}
         name={name}
         noOptionsMessage="El evento todavía no tiene modalidades."
+        onValueChange={onValueChange}
         options={options}
         searchLabel="Buscar modalidades"
       />

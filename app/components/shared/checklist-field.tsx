@@ -70,10 +70,13 @@ function ChecklistField<
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<ChecklistTab>("all");
   const searchable = options.length >= SEARCHABLE_OPTION_COUNT;
+
   // A list that shrinks below the threshold drops its search and tabs, and
-  // with them whatever they were narrowing it to.
-  const activeQuery = searchable ? query : "";
-  const activeTab = searchable ? tab : "all";
+  // with them whatever they were narrowing it to: grown back, it starts over.
+  if (!searchable && (query !== "" || tab !== "all")) {
+    setQuery("");
+    setTab("all");
+  }
 
   return (
     <Controller
@@ -85,8 +88,8 @@ function ChecklistField<
           : [];
         const rows = options.filter(
           (option) =>
-            (activeTab === "all" || selected.includes(option.value)) &&
-            matchesListSearch(activeQuery, [option.label]),
+            (tab === "all" || selected.includes(option.value)) &&
+            matchesListSearch(query, [option.label]),
         );
 
         function toggle(value: string) {
@@ -147,7 +150,7 @@ function ChecklistField<
                 <p className="px-3 py-6 text-center text-sm text-muted-foreground">
                   {options.length === 0
                     ? noOptionsMessage
-                    : activeTab === "selected" && activeQuery.length === 0
+                    : tab === "selected" && query.length === 0
                       ? emptySelectionMessage
                       : "Sin resultados."}
                 </p>

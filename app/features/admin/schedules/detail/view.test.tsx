@@ -154,6 +154,30 @@ describe("EventScheduleDetailView", () => {
     ).toEqual(["category_baby"]);
   });
 
+  // A category stays checked only while a checked modality offers it: one
+  // dropped from the list would post without a row to uncheck it, and the
+  // server refuses a category that shares no modality with the schedule.
+  test("unchecks the categories a modality took with it when it is unchecked", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({ initialDeleteDialogOpen: false });
+
+    await updateReactDomForm(() => {
+      Array.from(
+        document.querySelectorAll<HTMLElement>('[data-slot="choice-card"]'),
+      )
+        .find((row) => row.textContent === "Jazz")
+        ?.click();
+    });
+
+    expect(document.querySelectorAll('input[name="modalityIds"]')).toHaveLength(
+      0,
+    );
+    expect(document.querySelectorAll('input[name="categoryIds"]')).toHaveLength(
+      0,
+    );
+  });
+
   // An empty selection is a value, not a gap: the schedule accepts every
   // category, and the field says so, since a checklist has no placeholder.
   test("reads an empty selection as accepting every category", async () => {

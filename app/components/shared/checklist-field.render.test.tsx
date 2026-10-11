@@ -134,6 +134,24 @@ describe("ChecklistField", () => {
     expect(submittedDancerIds).toEqual(["d8"]);
   });
 
+  // Grown back, a list that lost its search must not come back filtered by a
+  // query its user can no longer remember typing.
+  test("starts over when the list shrinks below the search and grows back", async () => {
+    await renderer.renderAsync(<DancersChecklist />);
+    await updateReactDomForm(() => {
+      setInputValue(getSearchInput(), "Inés");
+    });
+    await pickTab("Seleccionados");
+
+    await renderer.renderAsync(
+      <DancersChecklist options={dancers.slice(0, 8)} />,
+    );
+    await renderer.renderAsync(<DancersChecklist />);
+
+    expect(getSearchInput().value).toBe("");
+    expect(getRowNames()).toEqual(dancers.map((dancer) => dancer.label));
+  });
+
   // "Sin resultados." would blame a search nobody typed.
   test("says there is nothing to pick when the list has no options", async () => {
     await renderer.renderAsync(<DancersChecklist options={[]} />);
