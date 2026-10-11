@@ -6,10 +6,10 @@ import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
+import { createInactiveEvent } from "@/lib/admin/finances/finances.test-support";
+import { seedEventSeminarFinanceFixture } from "@/lib/admin/finances/seminar-finances.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
-import { createInactiveEvent } from "../admin/finances/finances.test-support";
-import { seedEventSeminarFinanceFixture } from "../admin/finances/seminar-finances.test-support";
 
 installDatabaseTestHooks();
 

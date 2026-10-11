@@ -8,14 +8,14 @@ import {
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import { loader } from "@/routes/administracion.finanzas_.seminarios";
-
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { createSignedInRequest } from "../../../../lib/admin/finances/finances.test-support";
 import {
   seedEventSeminarFinanceFixture,
   seminarInscriptionFinancesUrl,
   type EventSeminarFinanceFixture,
-} from "../../../../lib/admin/finances/seminar-finances.test-support";
+} from "@/lib/admin/finances/seminar-finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+
+import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

@@ -6,8 +6,8 @@ import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import {
   createAcademyFinanceChoreographyFixture,
   createSavedEvent,
-  createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

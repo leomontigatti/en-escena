@@ -18,7 +18,7 @@ import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.serv
 import { applyAllocationDelta } from "@/lib/finances/choreography-cobro-allocations.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
-import { createAcademyFinanceChoreographyFixture } from "../admin/finances/finances.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

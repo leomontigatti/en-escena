@@ -9,14 +9,10 @@ import {
   createSubmodality,
 } from "@/lib/modalities/repository.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
   createSavedEvent,
-  createSignedInRequest,
   expectCreated,
-  expectThrownResponse,
   formData,
   loader,
   renderCategoriaDetalleRoute,
@@ -27,7 +23,11 @@ import {
   renderPrecioNuevoRoute,
   renderRoute,
   routeArgs,
-} from "./event-bases.test-support";
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

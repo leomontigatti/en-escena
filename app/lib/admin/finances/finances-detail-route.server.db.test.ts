@@ -21,24 +21,24 @@ import {
   loader as academyFinancesLoader,
 } from "@/routes/administracion.finanzas_.$academyId";
 import { action as paymentCreateAction } from "@/routes/administracion.pagos_.nuevo";
+import {
+  academyFinancesUrl,
+  buildGlobalPaymentRequest,
+  createAcademyFinanceChoreographyFixture,
+  createInactiveEvent,
+  createSavedEvent,
+  academyFinancesRouteArgs,
+  paymentCreateRouteArgs,
+  renderAcademyFinancesRoute,
+} from "@/lib/admin/finances/finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   academiesRouteArgs,
   renderAcademiesRoute,
 } from "../academies/academies-route.test-support";
-import {
-  academyFinancesUrl,
-  buildGlobalPaymentRequest,
-  createAcademyUser,
-  createAcademyFinanceChoreographyFixture,
-  createInactiveEvent,
-  createSavedEvent,
-  createSignedInRequest,
-  academyFinancesRouteArgs,
-  paymentCreateRouteArgs,
-  renderAcademyFinancesRoute,
-} from "./finances.test-support";
 
 installDatabaseTestHooks();
 

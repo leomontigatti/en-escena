@@ -7,10 +7,6 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { choreographyProfessors, professors } from "@/db/schema";
 import { buildProfessorListSearch } from "@/lib/admin/professors/professors.shared";
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
@@ -32,6 +28,8 @@ import {
   handle as profesorDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.profesores_.$professorId";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

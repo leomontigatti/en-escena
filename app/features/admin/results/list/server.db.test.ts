@@ -3,14 +3,12 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, presentations, scores } from "@/db/schema";
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { publishResults } from "@/lib/judging/results.server";
 import { activateEvent, deactivateEvent } from "@/lib/events/management.server";
 import { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { handleResultsListAction, loadResultsListRouteData } from "./server";
 import {

@@ -2,10 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -74,7 +72,7 @@ async function insertJudges(count: number) {
 }
 
 async function listRequest(search: string) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `usuarios.lista.${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost/administracion/usuarios${search}`,
     role: "admin",

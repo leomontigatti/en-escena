@@ -3,8 +3,6 @@ import { describe, expect, test } from "vitest";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { createSchedule } from "@/lib/schedules/repository.server";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
   buildScheduleCapacityDraft,
@@ -13,15 +11,17 @@ import {
   createScheduleAdminRequest,
   createScheduleCapacityAdminRequest,
   createSavedEvent,
-  createSignedInRequest,
   expectCreated,
-  expectThrownResponse,
   formData,
   loader,
   renderModalidadDetalleRoute,
   renderNuevaModalidadRoute,
   routeArgs,
-} from "./event-bases.test-support";
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import { createPriceAdminRequest } from "./event-bases-price.test-support";
 
 installDatabaseTestHooks();

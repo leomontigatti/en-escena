@@ -2,10 +2,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { loader as layoutLoader } from "@/routes/administracion";
 import { loader as academyDetailLoader } from "@/routes/administracion.academias_.$academyId";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
@@ -20,6 +16,8 @@ import { loader as eventsLoader } from "@/routes/administracion.eventos";
 import { loader as paymentsLoader } from "@/routes/administracion.pagos";
 import { loader as newPaymentLoader } from "@/routes/administracion.pagos_.nuevo";
 import { loader as professorsLoader } from "@/routes/administracion.profesores";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -90,7 +88,7 @@ async function openPanelScreen(input: {
   role: "academy" | "admin" | "auditor" | "judge";
 }) {
   const url = `http://localhost${input.path}`;
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: url,
     role: input.role,

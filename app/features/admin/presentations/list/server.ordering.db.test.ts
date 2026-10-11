@@ -2,8 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { scores } from "@/db/schema";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import {
   handlePresentationListAction,
@@ -25,7 +25,7 @@ async function orderAutomatically(days: string[]) {
     body.append(orderDayFieldName, day);
   }
 
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body,
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: listUrl,
@@ -36,7 +36,7 @@ async function orderAutomatically(days: string[]) {
 }
 
 async function loadList() {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: listUrl,
     role: "admin",
