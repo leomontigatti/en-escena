@@ -137,11 +137,21 @@ is left (`gh pr update-branch`, or a local merge when it conflicts). A PR nobody
 is babysitting is updated the same way by hand. After a stack's bottom layer
 merges, the next layer is behind: babysit it again.
 
-CodeRabbit is the second reviewer, configured by `.coderabbit.yaml`, which is
-read from the PR's head branch; its `base_branches` entry is what lets a PR
-stacked on a non-master branch be reviewed at all. It reviews each push on its
-own and reports through its `CodeRabbit` commit status; a pass with no findings
-posts no review, only its summary comment. When the status stays pending,
-`@coderabbitai review` asks again. Its findings are verified against the source
-like any other: it has the diff and the repo's standards, not the issue or the
-domain.
+CodeRabbit is optional. The in-session review carries its job: the correctness
+axis of `implement` step 5 runs on every diff that changes behaviour, on Opus
+beside the Sol axes, and its brief names the areas where CodeRabbit caught bugs
+that review used to miss. CodeRabbit is asked once, by the babysit, and only on
+a PR in the full-review tier, once the PR is final; every other PR is watched
+with `pnpm pr:watch --no-coderabbit`. While the repo has under 10 GitHub stars,
+CodeRabbit gives it no automatic reviews and each request spends a small hourly
+allowance, so a rate limit or a skipped review is never a reason to wait: the
+PR is ready once its checks are green and the in-session review ran, and the
+babysit reports CodeRabbit as skipped.
+
+When it does run, it is configured by `.coderabbit.yaml`, which is read from
+the PR's head branch; its `base_branches` entry is what lets a PR stacked on a
+non-master branch be reviewed at all. It reports through its `CodeRabbit`
+commit status; a pass with no findings posts no review, only its summary
+comment. `@coderabbitai review` asks for a pass. Its findings are verified
+against the source like any other: it has the diff and the repo's standards,
+not the issue or the domain.

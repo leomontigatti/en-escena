@@ -35,7 +35,13 @@ import { fileURLToPath } from "node:url";
 // on any other verdict, when the same checks stay pending for STALL_SECONDS, or
 // at its timeout, which fits one background Bash command.
 //
-// Usage: pnpm pr:watch [pr] [--once] [--loop] [--interval <s>] [--timeout <s>]
+// With --no-coderabbit the round does not wait on CodeRabbit: its status is
+// neither pending nor failed, an unreviewed head is READY rather than
+// NO_REVIEW, and --loop never asks it to review. Threads and findings it did
+// leave still count. CodeRabbit is optional (docs/agents/pull-requests.md), and
+// a rate limit is never a reason to wait.
+//
+// Usage: pnpm pr:watch [pr] [--once] [--loop] [--no-coderabbit] [--interval <s>] [--timeout <s>]
 //
 // Exit codes: 0 READY or MERGED, 2 CONFLICTS, 3 THREADS or FINDINGS, 4 CHECKS,
 // 5 WAITING (timed out, or --once mid-round), 6 GATE or CLOSED, 7 `gh` kept
@@ -66,6 +72,8 @@ export type Options = {
   timeout: number;
   once: boolean;
   loop: boolean;
+  /** Whether the round waits on CodeRabbit and requires its review of the head. */
+  coderabbit: boolean;
 };
 
 type CheckRun = {
@@ -169,12 +177,14 @@ export function parseArgs(argv: string[]): Options {
     timeout: 540,
     once: false,
     loop: false,
+    coderabbit: true,
   };
   let timeoutPassed = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--once") options.once = true;
     else if (arg === "--loop") options.loop = true;
+    else if (arg === "--no-coderabbit") options.coderabbit = false;
     else if (arg === "--interval")
       options.interval = positiveSeconds(arg, argv[(i += 1)]);
     else if (arg === "--timeout") {
@@ -383,13 +393,14 @@ function isBotOrRequest(comment: { author: string; body: string }): boolean {
 }
 
 /**
- * Review-body findings on the head commit that nobody has answered yet. They
- * have no thread, so the answer is a top-level comment posted after the review.
+ * Review-body findings from CodeRabbit's latest review that nobody has answered
+ * yet. They have no thread, so the answer is a top-level comment posted after
+ * the review. The latest review counts whatever commit it covers: one that
+ * lands on an older head after a push, as it can under --no-coderabbit, would
+ * otherwise never surface.
  */
 function unansweredReviewFindings(pr: PrSnapshot): string | null {
-  const review = pr.coderabbitReviews
-    .filter((candidate) => candidate.commit === pr.head)
-    .at(-1);
+  const review = pr.coderabbitReviews.at(-1);
   if (review === undefined) return null;
   const findings = findingsFromReview(review.body);
   const answered = pr.comments.some(
@@ -413,9 +424,15 @@ function firstVerdict(
   return rules.find(([, holds]) => holds)?.[0] ?? "READY";
 }
 
-export function classify(pr: PrSnapshot, now: number): Verdict {
+export function classify(
+  pr: PrSnapshot,
+  now: number,
+  { coderabbit: required = true }: Pick<Partial<Options>, "coderabbit"> = {},
+): Verdict {
   const checks = summarizeChecks(pr.rollup, pr.base);
-  const coderabbit = coderabbitState(pr, now);
+  const coderabbit = required
+    ? coderabbitState(pr, now)
+    : { done: true, reviewed: true, failed: false };
   const pending = [...checks.pending];
   if (!coderabbit.done) pending.push(CODERABBIT_CONTEXT);
   if (pr.mergeState === "UNKNOWN") pending.push("merge-state");
@@ -736,7 +753,7 @@ async function watch(options: Options): Promise<number> {
   for (;;) {
     try {
       const now = Date.now();
-      const verdict = classify(readSnapshot(number), now);
+      const verdict = classify(readSnapshot(number), now, options);
       failures = 0;
       const outOfTime =
         now - started + options.interval * 1000 > options.timeout * 1000;
@@ -773,7 +790,7 @@ async function main() {
     );
     if (error instanceof UsageError)
       console.error(
-        "usage: pnpm pr:watch [pr] [--once] [--loop] [--interval <s>] [--timeout <s>]",
+        "usage: pnpm pr:watch [pr] [--once] [--loop] [--no-coderabbit] [--interval <s>] [--timeout <s>]",
       );
     process.exitCode = 1;
   }

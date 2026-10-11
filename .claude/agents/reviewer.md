@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Reviews a diff against the brief it is given and reports back. Use for every review sub-agent — the Standards and Spec axes of code-review, the correctness axis, and the readback.
+description: Reviews a diff against the brief it is given and reports back. Use for the Standards and Spec axes of code-review and the readback; the correctness axis goes to reviewer-opus.
 model: haiku
 effort: low
 maxTurns: 12
