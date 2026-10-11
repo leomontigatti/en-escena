@@ -1144,8 +1144,9 @@ wanting a concrete starting point.
 - **Agent runner** = TypeScript entry scripts under `.sandcastle/<workflow>/<workflow>.ts`, run
   with `pnpm exec tsx`, using `@ai-hero/sandcastle` driving `claudeCode()` in a `noSandbox()`
   sandbox. The model and effort are pinned in one place — `AGENT_MODEL` / `AGENT_EFFORT` in
-  [`.sandcastle/lib/runner.mts`](../../.sandcastle/lib/runner.mts) — so this doc deliberately
-  does not restate them. `OUTPUT_DIR` = the GitHub Actions `runner.temp`.
+  [`.github/architecture-review/agent.mts`](../../.github/architecture-review/agent.mts), where
+  the runner moved when it dropped Sandcastle (see `afk-vendored-assets.md`) — so this doc
+  deliberately does not restate them. `OUTPUT_DIR` = the GitHub Actions `runner.temp`.
 - **Prompts** = `.sandcastle/<workflow>/prompt.md` (the work) + `extraction.md` (the
   "emit `<output>` now" pass), with `{{VAR}}` interpolation and `` !`cmd` `` command
   substitution for embedding fetched context.

@@ -38,10 +38,10 @@ import { collectSourceFiles } from "./source-files";
 // `stderrMessagesIn` for why each predicate is exactly this narrow.
 
 // Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
-// root-level configs `collectScannedFiles` adds. `.sandcastle` is here because
-// the agent workflows are code the same way `scripts/` is: a prompt or a
+// root-level configs `collectScannedFiles` adds. `.github` is here because the
+// Architecture Review runner is code the same way `scripts/` is: a prompt or a
 // workflow step is read by a contributor, not by an end user.
-export const scannedDirectories = [".sandcastle", "app", "scripts", "tests"];
+export const scannedDirectories = [".github", "app", "scripts", "tests"];
 const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 
 // The docs are engineering prose too, and #592's argument does not stop at the
@@ -52,13 +52,7 @@ const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 // `.agents` joined when the agent config moved there so Claude Code and Codex
 // share it: the local skills, the hooks and the research agent's instructions
 // are ours, and only the vendored skills below are exempt.
-export const scannedDocDirectories = [
-  ".agents",
-  ".claude",
-  ".github",
-  ".sandcastle",
-  "docs",
-];
+export const scannedDocDirectories = [".agents", ".claude", ".github", "docs"];
 const docFilePattern = /\.md$/;
 
 // Records of something external, which a sweep may not rewrite. An ADR is the

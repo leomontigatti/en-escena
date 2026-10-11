@@ -98,14 +98,9 @@ Open questions, known risks, deferred decisions.
 
 # EXECUTION
 
-When your exploration is complete, output the literal completion signal on its own line to end
-this pass:
-
-```
-<promise>COMPLETE</promise>
-```
-
-(The structured `<output>` block below is requested separately, in a follow-up pass.)
+When your exploration is complete, end this turn with a short note naming your pick and the
+candidates you weighed. Do not emit the `<output>` block yet: it is requested separately, in a
+follow-up turn.
 
 # OUTPUT (extraction pass)
 

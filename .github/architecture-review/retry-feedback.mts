@@ -1,4 +1,4 @@
-import { StructuredOutputError } from "@ai-hero/sandcastle";
+import type { StructuredOutputError } from "./structured-output.mjs";
 
 export function buildRetryFeedback(
   error: StructuredOutputError,

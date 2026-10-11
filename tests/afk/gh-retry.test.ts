@@ -12,7 +12,7 @@ import {
   ghWithRetry,
   isTransientGhError,
   type GhRetryDeps,
-} from "../../.sandcastle/lib/gh.mjs";
+} from "../../.github/architecture-review/gh.mjs";
 
 /** An error shaped like what `execFileSync("gh", …)` throws (stderr carries the HTTP status). */
 function ghError(stderr: string, extra: Record<string, unknown> = {}): Error {

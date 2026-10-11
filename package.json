@@ -96,7 +96,6 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@ai-hero/sandcastle": "^0.12.0",
     "@electric-sql/pglite": "^0.5.8",
     "@react-router/dev": "^7.18.3",
     "@tailwindcss/vite": "^4.3.3",
