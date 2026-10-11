@@ -30,7 +30,9 @@ describe("PresentationDayTabs", () => {
                   days: ["2026-05-01", "2026-05-02"],
                 } as PresentationListResult
               }
-            />
+            >
+              {null}
+            </PresentationDayTabs>
           ),
         },
       ],

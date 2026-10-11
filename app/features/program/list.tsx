@@ -87,53 +87,52 @@ export function ProgramList({
       : rows.filter((row) => row.scheduledDate === tab.value);
 
   return (
-    // `gap-3` and the tab row's `pb-1` add up to the 16px every list keeps
-    // between its tabs and its search.
-    <div className="flex flex-col gap-3">
-      <ScheduleDayTabs days={days} liveDay={liveView.liveBadgeDay} tab={tab} />
-      {tab.value === allDaysTabValue ? null : renderDayNotice?.(tab.value)}
+    <ScheduleDayTabs days={days} liveDay={liveView.liveBadgeDay} tab={tab}>
+      <div className="flex flex-col gap-3">
+        {tab.value === allDaysTabValue ? null : renderDayNotice?.(tab.value)}
 
-      <ClientDataTable
-        rows={visibleRows}
-        columns={buildProgramColumns({
-          choreographyPath,
-          evaluatedChoreographyIds: liveView.evaluatedChoreographyIds,
-          showAcademy,
-          showLevel,
-        })}
-        getRowKey={(row) => row.choreographyId}
-        layout="fit"
-        // One search on every list of the order; the academy only where the
-        // list shows it.
-        matchesSearch={(row, search) =>
-          matchesPresentationSearch(search, {
-            academyName: showAcademy ? row.academyName : undefined,
-            choreographyNumber: row.choreographyNumber,
-            name: row.name,
-            orderNumber: row.orderNumber,
-          })
-        }
-        renderCard={(row) => (
-          <ProgramRowCard
-            evaluated={liveView.evaluatedChoreographyIds.has(
-              row.choreographyId,
-            )}
-            row={row}
-            showLevel={showLevel}
-            to={choreographyPath?.(row) ?? null}
-          >
-            <ProgramCardWho row={row} showAcademy={showAcademy} />
-          </ProgramRowCard>
-        )}
-        searchPlaceholder={
-          showAcademy
-            ? "Buscar por número, nombre o academia"
-            : "Buscar por número o nombre"
-        }
-        initialSort={{ columnId: "orden", direction: "asc" }}
-        emptyMessage="No hay presentaciones que coincidan con la búsqueda."
-      />
-    </div>
+        <ClientDataTable
+          rows={visibleRows}
+          columns={buildProgramColumns({
+            choreographyPath,
+            evaluatedChoreographyIds: liveView.evaluatedChoreographyIds,
+            showAcademy,
+            showLevel,
+          })}
+          getRowKey={(row) => row.choreographyId}
+          layout="fit"
+          // One search on every list of the order; the academy only where the
+          // list shows it.
+          matchesSearch={(row, search) =>
+            matchesPresentationSearch(search, {
+              academyName: showAcademy ? row.academyName : undefined,
+              choreographyNumber: row.choreographyNumber,
+              name: row.name,
+              orderNumber: row.orderNumber,
+            })
+          }
+          renderCard={(row) => (
+            <ProgramRowCard
+              evaluated={liveView.evaluatedChoreographyIds.has(
+                row.choreographyId,
+              )}
+              row={row}
+              showLevel={showLevel}
+              to={choreographyPath?.(row) ?? null}
+            >
+              <ProgramCardWho row={row} showAcademy={showAcademy} />
+            </ProgramRowCard>
+          )}
+          searchPlaceholder={
+            showAcademy
+              ? "Buscar por número, nombre o academia"
+              : "Buscar por número o nombre"
+          }
+          initialSort={{ columnId: "orden", direction: "asc" }}
+          emptyMessage="No hay presentaciones que coincidan con la búsqueda."
+        />
+      </div>
+    </ScheduleDayTabs>
   );
 }
 

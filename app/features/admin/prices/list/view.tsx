@@ -1,12 +1,13 @@
 import { TriangleAlert } from "lucide-react";
+import { Fragment } from "react";
 
 import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ListTabs } from "@/components/shared/list-tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { buildCreatePath } from "@/lib/shared/navigation";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -83,38 +84,45 @@ export function EventPricesListView({
           </Alert>
         ) : null}
       </AlertStack>
-      <Tabs value={tab.value} onValueChange={tab.onValueChange}>
-        <TabsList variant="line">
-          <TabsTrigger value={choreographiesTabValue}>Coreografías</TabsTrigger>
-          <TabsTrigger value={seminarPricesTabValue}>Seminarios</TabsTrigger>
-        </TabsList>
-        <TabsContent value={choreographiesTabValue} className="pt-2">
-          {loaderData.prices.length > 0 ? (
-            <PriceListTable
-              prices={loaderData.prices}
-              selectedEventId={loaderData.selectedEventId}
-            />
-          ) : (
-            <AdminEmptyState
-              title={emptyPriceList.nothingYet}
-              description="Creá el primer precio para definir importes base o específicos por cronograma del evento activo."
-            />
-          )}
-        </TabsContent>
-        <TabsContent value={seminarPricesTabValue} className="pt-2">
-          {loaderData.seminarPrices.length > 0 ? (
-            <SeminarPriceListTable
-              seminarPrices={loaderData.seminarPrices}
-              selectedEventId={loaderData.selectedEventId}
-            />
-          ) : (
-            <AdminEmptyState
-              title={emptySeminarPriceList.nothingYet}
-              description="Creá los precios que comparten todos los seminarios del evento activo."
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+      <ListTabs
+        onValueChange={tab.onValueChange}
+        tabs={[
+          { label: "Coreografías", value: choreographiesTabValue },
+          { label: "Seminarios", value: seminarPricesTabValue },
+        ]}
+        value={tab.value}
+      >
+        {/* A key per tab, so a tab's list never inherits the other's state. */}
+        {tab.value === seminarPricesTabValue ? (
+          <Fragment key={seminarPricesTabValue}>
+            {loaderData.seminarPrices.length > 0 ? (
+              <SeminarPriceListTable
+                seminarPrices={loaderData.seminarPrices}
+                selectedEventId={loaderData.selectedEventId}
+              />
+            ) : (
+              <AdminEmptyState
+                title={emptySeminarPriceList.nothingYet}
+                description="Creá los precios que comparten todos los seminarios del evento activo."
+              />
+            )}
+          </Fragment>
+        ) : (
+          <Fragment key={choreographiesTabValue}>
+            {loaderData.prices.length > 0 ? (
+              <PriceListTable
+                prices={loaderData.prices}
+                selectedEventId={loaderData.selectedEventId}
+              />
+            ) : (
+              <AdminEmptyState
+                title={emptyPriceList.nothingYet}
+                description="Creá el primer precio para definir importes base o específicos por cronograma del evento activo."
+              />
+            )}
+          </Fragment>
+        )}
+      </ListTabs>
     </AdminResourceLayout>
   );
 }
