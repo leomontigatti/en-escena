@@ -1,4 +1,4 @@
-import { Home, Receipt, Users } from "lucide-react";
+import { House, Receipt, Users } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
@@ -16,7 +16,7 @@ const navigationGroups = [
       {
         label: "Inicio",
         to: "/portal",
-        icon: Home,
+        icon: House,
       },
       {
         label: "Profesores",
