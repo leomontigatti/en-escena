@@ -2,8 +2,8 @@
 
 The single convention for feedback and redirection in form `action`s across En
 Escena: which channel carries each class of message (field error, alert, dialog
-or toast), and how a message reaches it. It answers #201 ("do we need the query
-param in the URL to show a toast?") and is the durable reference for PRD #409.
+or toast), and how a message reaches it. It answers whether a toast needs a query
+param in the URL: it does not.
 
 Base rule for any new form: **first decide whether the current view still makes
 sense after the submit**. That determines whether you stay or redirect, and by which
@@ -96,7 +96,7 @@ music editor keeps), or as the `intent` the request carried when the question is
 which form the answer belongs to (how the payment delete dialog keys its
 re-open); the reader narrows on that field, never on a status of its own. A
 status no reader knows about is silently dropped, which is how the choreography
-detail's `"roster-error"` answers were lost (#661). The payload cases are the
+detail's `"roster-error"` answers were lost. The payload cases are the
 comprobante dialogs' `contingency` on a `"warning"`, the music editor's
 `selectedMusicStorageKey` on an `"error"`, and the moved presentation's
 `"success"` with no message at all; the intent case is the merge refusal, an
@@ -106,11 +106,11 @@ form beside it never reads it as a rejected edit.
 ### Testing and scope
 
 The seam is per feature: a view's interaction test asserts that a refusal reaches
-it as a toast, and #619's test is the model. The status contract is a type, so
+it as a toast, and that test is the model. The status contract is a type, so
 `pnpm typecheck` holds it and no shared test is needed.
 
-#517 (rendering server `fieldErrors` on the fields) was decided against by this
-rule on 2026-10-07; views do not read `fieldErrors`.
+Rendering server `fieldErrors` on the fields is ruled out by this rule: views do
+not read `fieldErrors`.
 
 ## Behavior matrix
 
@@ -172,10 +172,10 @@ reload or back-navigation.
 This is React Router's idiomatic pattern. The project already has a session (Better
 Auth / cookies, see `app/lib/auth/access-auth-provider.betterauth.server.ts`), so the
 flash session helper reuses that infrastructure instead of introducing a new session.
-The helper is a single module in `app/lib/shared` (see #411); do not reinvent the
+The helper is a single module in `app/lib/shared`; do not reinvent the
 mechanism per feature.
 
-**Answer to #201:** the query param is **not** needed for edit-in-place (most cases);
+The query param is **not** needed for edit-in-place (most cases);
 for real redirects the correct transport is the flash session, **not** a URL param.
 The URL must never show a technical notification parameter.
 
@@ -183,9 +183,8 @@ The URL must never show a technical notification parameter.
 
 The only transport for a message across a `redirect` is the **flash session**
 (`app/lib/shared/flash-notification.server.ts`). The `?notificacion=` query param and
-the `RouteToasts` reader in `root.tsx` no longer exist: they were removed in the
-contract ticket (#416). The shared catalog of messages/variants with stable IDs lives
-in `app/lib/shared/notification-toasts.ts` and feeds both the flash flow and the direct
+the `RouteToasts` reader in `root.tsx` no longer exist. The shared catalog of
+messages/variants with stable IDs lives in `app/lib/shared/notification-toasts.ts` and feeds both the flash flow and the direct
 `actionData` one. For a new form: use the flash session (redirect) or direct
 `actionData` (stay), never a URL param.
 
@@ -196,7 +195,7 @@ second choreography with the same name and cast, a second academy with the same
 name: each is a duplicate often enough to raise, and a legitimate registration often
 enough that turning it away would be the worse bug. Those actions answer with a
 **warning** beside their existing `error` / `success` shapes, and one mechanism
-carries it (PRD #1090):
+carries it:
 
 - The action returns `{ status: "warning", warning: { kind, matches: [{ id, ... }] } }`
   with the values the user typed, and **writes nothing**. `DuplicateWarning` in

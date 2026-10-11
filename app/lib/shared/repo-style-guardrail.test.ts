@@ -217,17 +217,17 @@ describe("repo style check", () => {
   });
 
   test("ships the repo-style command contract in package scripts and agent docs", async () => {
-    const [packageJson, workflowDoc, codebaseMap] = await Promise.all([
+    const [packageJson, validationDoc, codebaseMap] = await Promise.all([
       readFile("package.json", "utf8"),
-      readFile("docs/agents/workflows.md", "utf8"),
+      readFile("docs/agents/validation.md", "utf8"),
       readFile("docs/agents/codebase-map.md", "utf8"),
     ]);
 
     expect(packageJson).toContain(
       '"check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts"',
     );
-    expect(workflowDoc).toContain("`pnpm check:repo-styles`");
-    expect(workflowDoc).toContain("repo-style");
+    expect(validationDoc).toContain("`pnpm check:repo-styles`");
+    expect(validationDoc).toContain("repo-style");
     expect(codebaseMap).toContain("`pnpm check:repo-styles`");
     await expect(runRepoStyleGuardrail()).resolves.toBeUndefined();
   });

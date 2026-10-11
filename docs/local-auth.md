@@ -112,7 +112,7 @@ Database-backed tests keep two paths:
   `pnpm test:db <archivo>`. It is also part of `pnpm test`.
 - `pnpm test:db:postgres`: high-fidelity path that resets and migrates the
   schema through `TEST_DATABASE_URL` against real Postgres. Reserved for the CI gate
-  on the PR (#305) and manual fidelity checks. Focus a file with
+  on the PR and manual fidelity checks. Focus a file with
   `pnpm test:db:postgres <archivo>`.
 
 Validation mode requirements:
@@ -221,7 +221,7 @@ server console with an `[email:dev]` prefix and does not require provider
 credentials.
 
 Public academy registration confirmation and recovery emails are now app-owned through Better
-Auth (#420): the app builds the Spanish content and sends it via
+Auth: the app builds the Spanish content and sends it via
 `app/lib/shared/email.server.ts`, so in non-production the link is printed to the
 server console with the `[email:dev]` prefix. The demo accounts above skip this
 flow; to test registration itself, or as an alternative to the seed, use it:
@@ -264,7 +264,7 @@ EMAIL_FROM="En Escena <acceso@your-verified-domain.example>"
 `EMAIL_FROM` must use an address on the verified Resend sending domain. The Better Auth
 registration and recovery emails use this sender.
 
-Registration and recovery emails are app-owned through Better Auth (#420): the
+Registration and recovery emails are app-owned through Better Auth: the
 app builds the Spanish content and sends it through the email boundary. The
 Supabase `Send Email` Auth Hook and its `SEND_EMAIL_HOOK_SECRET` are retired.
 The emails link to:
@@ -273,11 +273,6 @@ The emails link to:
 - recovery: `/cambiar-contrasena?code=...`
 
 ## Legacy `sb-*` cookies
-
-The `auth.users` → `user` reconciliation sweep (#424) was a one-off against the
-cutover database, where both schemas coexisted. That database is gone (#267,
-#598), so the module and its `pnpm auth:reconcile-supabase-users` command were
-removed in #582.
 
 The only Supabase Auth residue still running is
 `app/lib/auth/legacy-session-cookies.server.ts`, which expires any `sb-*` cookie

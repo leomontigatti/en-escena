@@ -25,9 +25,8 @@ const readCiWorkflow = async () =>
   await readFile(".github/workflows/ci.yml", "utf8");
 
 const dbWorkflowScopeGuardrails = [
-  "Use `pnpm test:db <path-to-db-test>` while iterating",
-  "Run `pnpm test` before finishing",
-  "Do not run `pnpm exec tsc` directly",
+  "pnpm test:db <path>...   # only the DB test files your change touches",
+  "Do not run `pnpm test`.",
 ];
 
 const localAuthDatabaseModes = [
@@ -80,10 +79,10 @@ describe("DB test workflow", () => {
   });
 
   test("documents the fast-vs-final DB validation workflow", async () => {
-    const workflowDoc = await readFile("docs/agents/workflows.md", "utf8");
+    const validationDoc = await readFile("docs/agents/validation.md", "utf8");
 
     for (const requiredText of dbWorkflowScopeGuardrails) {
-      expect(workflowDoc).toContain(requiredText);
+      expect(validationDoc).toContain(requiredText);
     }
   });
 

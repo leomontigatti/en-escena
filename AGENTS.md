@@ -1,89 +1,54 @@
 # En Escena — guide for coding agents
 
-Index of the repo's conventions. Every operative rule lives in its own file under
-`docs/agents/`; this file only routes. The first section is
-read at the start of every task; the second is reached when its leading word
-matches the task.
+Routes to the repo's conventions; each rule lives in the file a route names. The
+first section applies to every task; a line in the second applies when its
+leading word matches the task.
 
-Claude Code and Codex share this file (there is deliberately no `CLAUDE.md`), the skills in
-`.agents/skills/`, and the hooks in `.agents/hooks/`: see "Agent configuration" in
-[docs/agents/workflows.md](docs/agents/workflows.md). In Codex, "call the Skill tool
-with X" means open `.agents/skills/X/SKILL.md` and follow it.
+Claude Code and Codex share this file, the skills in `.agents/skills/` and the hooks
+in `.agents/hooks/` ([agent-configuration.md](docs/agents/agent-configuration.md)). In
+Codex, "call the Skill tool with X" means open `.agents/skills/X/SKILL.md` and follow it.
 
 ## Every task
 
-- **Session conduct**: when a step needs no input from the user, keep going, and
-  put status notes in the same message as the next action. Stop and ask only when
-  the work cannot continue without them, or before anything destructive: deleting
-  data, force-pushing, changing anything outside this repository. When a rule in
-  these docs fights the task, say so and get a sign-off before breaking it. End a
-  run with what needs the user first, then what changed, then what was found in
-  this run.
-- **Implementing** (a feature, a fix, any code change) happens in a local session: call the
-  Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
-  Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets` and built
-  with `/implement-spec`: see
-  "Where work starts" in [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Investigate before implementing**: see the section of the same name in
-  [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Branches, worktrees and T3 Code threads** (each thread works in its own T3
-  worktree, link every PR to the thread):
-  see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Validation**: [docs/agents/validation.md](docs/agents/validation.md).
-  Use `pnpm typecheck` (not `pnpm exec tsc`); a hook enforces it. Do not run
-  `pnpm typecheck` in parallel with `pnpm build`. **The commands listed there are
-  the whole validation surface — check the script index below before running one
-  that is not, rather than after it fails.** `pnpm lint` is oxlint over what
-  `.oxlintrc.json` enables — React hook mistakes, import cycles, un-awaited
-  promises, and the `ui` rules, which are the style guide clauses a machine can
-  judge — and is not a formatter; formatting is
-  Prettier's, unused code is `tsc`'s, and repo conventions belong to the
-  `check:*` scripts.
-- **Subagents**: review axes spawn as "Spawning a reviewer" in the `code-review` skill says,
-  research as "Delegating to subagents" in [docs/agents/workflows.md](docs/agents/workflows.md)
-  says; both pick the model and the route for your harness.
-- **Coding standards**: [docs/agents/coding-standards.md](docs/agents/coding-standards.md),
-  including the code language convention (Spanish for what the user reads, English for
-  everything else; `comprobante` as the only reserved term). The identifier → UI term
-  mapping lives in [GLOSSARY.md](GLOSSARY.md).
+- **Session conduct**: when a step needs no input from the user, keep going, and put
+  status notes in the same message as the next action. Stop and ask only when the work
+  cannot continue without them, or before anything destructive: deleting data,
+  force-pushing, changing anything outside this repository. When a rule in these docs
+  fights the task, say so and get a sign-off before breaking it. End a run with what
+  needs the user first, then what changed, then what was found in this run.
+- **Implementing** (a feature, a fix, any code change): call the Skill tool with
+  "implement" before editing. Where work starts, investigating before editing, and the
+  thread's branch and worktree: [workflows.md](docs/agents/workflows.md).
+- **Validation**: [validation.md](docs/agents/validation.md) is the whole surface; check
+  [scripts.md](docs/operations/scripts.md) before running a command it does not list.
+- **Subagents**: reviewers spawn as "Spawning a reviewer" in the `code-review` skill says,
+  research as [agent-configuration.md](docs/agents/agent-configuration.md#delegating-to-subagents) says.
+- **Coding standards**: [coding-standards.md](docs/agents/coding-standards.md); Spanish for
+  what the user reads, English for everything else, with identifiers mapped to UI terms in
+  [GLOSSARY.md](GLOSSARY.md).
 
 ## When routed
 
-- **Every other command**: [docs/operations/scripts.md](docs/operations/scripts.md)
-  is the complete index of `pnpm` scripts — databases, backups, the AFK workflows —
-  each with a link to its runbook. A command that is not there is not a script of
-  this repo. Rows marked ⚠️ reach outside the repo or destroy local state; read
-  the runbook before running one. Mind the neighbours: `pnpm db:refresh:prod`
-  replaces the local **development** database from a production backup artifact,
-  while `pnpm db:test:reset` resets the separate **test** database — "refresh the
-  local db" means the first.
-- **Documentation** (when a change needs a doc change, which is rarely, and where it goes):
-  see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
-- **Style guide** (frontend/UI): [docs/agents/style-guide.md](docs/agents/style-guide.md).
-- **UI verification** (a rendered change is checked in a real browser with `playwright-cli`
-  against `pnpm db:seed` data, with before/after screenshots): see the section of the same
-  name in [docs/agents/workflows.md](docs/agents/workflows.md).
-- **shadcn/ui** (upstream sync policy, and which local divergences are deliberate):
-  [docs/agents/shadcn.md](docs/agents/shadcn.md). Read it before re-adding a component the
-  CLI would overwrite.
-- **Form feedback and redirection** (stay/redirect matrix, flash session vs. direct
-  `actionData`): [docs/agents/form-feedback.md](docs/agents/form-feedback.md).
-- **Pull requests** (the body is written with the `pr` skill; UI evidence, babysitting a PR):
-  [docs/agents/pull-requests.md](docs/agents/pull-requests.md).
-- **Issue tracker** (GitHub Issues via `gh`): [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
-- **Triage labels**: [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
-- **Domain docs** (single-context layout): [docs/agents/domain.md](docs/agents/domain.md).
-- **Local operation and auth** (DB, access auth, email-log): [docs/local-auth.md](docs/local-auth.md).
-- **Production infrastructure** (VPS, Coolify app, Postgres resource, storage
-  volume — current state; the rationale is ADR-0013):
-  [docs/operations/infrastructure.md](docs/operations/infrastructure.md).
-- **Staging** (the copy of production at `pruebas.enescena.com.ar` for specific tests, reset
-  with `pnpm staging:reset`): [docs/operations/staging.md](docs/operations/staging.md).
-- **DNS and email** (zone on Cloudflare, inbound via Email Routing, outbound via
-  Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
-- **Fallow** (commit gate via `pnpm check:fallow`, and investigation tool):
-  [docs/agents/fallow.md](docs/agents/fallow.md).
-- **Architecture Review** (the one AFK workflow left, ADR-0016: its runner contract, secret
-  and schedule): [docs/agents/afk-setup.md](docs/agents/afk-setup.md).
-- **Skills started from upstream** (where each came from, pulling an upstream change):
-  [docs/agents/vendored-skills.md](docs/agents/vendored-skills.md).
+- **Commands**: [scripts.md](docs/operations/scripts.md) indexes every `pnpm` script; read
+  the runbook of a ⚠️ row first. "Refresh the local db" is `pnpm db:refresh:prod`, which
+  replaces the **development** database; `pnpm db:test:reset` is the **test** database.
+- **Code placement**, **routes and layouts**: [codebase-map.md](docs/agents/codebase-map.md).
+- **Documentation**, **UI verification**: [workflows.md](docs/agents/workflows.md).
+- **Style guide** (frontend/UI): [style-guide.md](docs/agents/style-guide.md).
+- **shadcn/ui** (before re-adding a component the CLI would overwrite):
+  [shadcn.md](docs/agents/shadcn.md).
+- **Form feedback and redirection**: [form-feedback.md](docs/agents/form-feedback.md).
+- **Pull requests**: [pull-requests.md](docs/agents/pull-requests.md).
+- **Issues**, **PRDs**: [issue-tracker.md](docs/agents/issue-tracker.md);
+  **triage labels**: [triage-labels.md](docs/agents/triage-labels.md).
+- **Domain docs**: [domain.md](docs/agents/domain.md).
+- **CI**, **dependencies**: [ci.md](docs/operations/ci.md).
+- **Agent configuration** (skills, hooks, subagent wiring):
+  [agent-configuration.md](docs/agents/agent-configuration.md).
+- **Local database and auth**: [local-auth.md](docs/local-auth.md).
+- **Production infrastructure**: [infrastructure.md](docs/operations/infrastructure.md).
+- **Staging** (`pruebas.enescena.com.ar`): [staging.md](docs/operations/staging.md).
+- **DNS and email**: [dns-and-email.md](docs/operations/dns-and-email.md).
+- **Fallow**: [fallow.md](docs/agents/fallow.md).
+- **Architecture Review** runner: [afk-setup.md](docs/agents/afk-setup.md).
+- **Upstream skills**: [vendored-skills.md](docs/agents/vendored-skills.md).

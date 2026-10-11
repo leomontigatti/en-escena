@@ -5,7 +5,6 @@ unattended pass that proposes one deepening opportunity as a PRD-shaped issue. T
 everything it needs: the label, the secret, the permissions, the contract between the workflow and
 its runner, and the guardrails. The platform spec it was built from, and the runners it described,
 were deleted on 2026-10-11 (ADR-0016, amendment of that date); what is below is what still holds.
-Originating issue: [#343](https://github.com/leomontigatti/en-escena/issues/343).
 
 ## Where it lives
 
@@ -69,7 +68,7 @@ Two local choices ride on the contract without changing it:
 
 `source:architecture-review` is listed, with colour and description, in the `provenance` group of
 [`.github/labels.json`](../../.github/labels.json), and `pnpm labels:sync` creates or updates it
-in the repo ([#1116](https://github.com/leomontigatti/en-escena/issues/1116); it never deletes).
+in the repo (it never deletes).
 `pnpm check:labels` fails CI when a workflow or the Architecture Review runner names a label the file does
 not hold, which is how a typo in an `--add-label` is caught before the run that needs it.
 
@@ -122,7 +121,7 @@ The workflow declares `contents: read` (the checkout) and `issues: write` (the P
 it needs no `pull-requests` scope since it never touches a PR. The checkout sets
 `persist-credentials: false`, which `tests/afk/checkout-credentials.test.ts` holds.
 
-## What a runner starts from ([#966](https://github.com/leomontigatti/en-escena/issues/966))
+## What a runner starts from
 
 Three inputs used to drift from run to run. All three are pinned now.
 
@@ -160,7 +159,7 @@ Every runner step carries **two** ceilings, and the order between them is load-b
 **Why both.** A step `timeout-minutes` expiry is the one failure mode that escapes the failure
 reporting: Actions kills the process tree, so `runMain`'s catch never runs, no
 `failure_reason.txt` is written, and the run summary could only say "(no reason file
-written)". On #512 that cost an entire review with no diagnosis. `AGENT_BUDGET_MINUTES` builds
+written)". `AGENT_BUDGET_MINUTES` builds
 an `AbortSignal` that the runner hands every agent turn: when it fires, the runner kills the
 agent's process group (the `claude` process and the shell tools it started) and the turn
 rejects with the abort reason — turning the timeout back into an **ordinary throw** that the

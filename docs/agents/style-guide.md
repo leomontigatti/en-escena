@@ -559,7 +559,7 @@ Rules:
     the RHF/Zod client schema.
   - For successes after a redirect, carry the message in the flash session
     (`app/lib/shared/flash-notification.server.ts`). The `notificacion` search
-    parameter was removed in #416 — see
+    parameter was removed — see
     [form-feedback.md](form-feedback.md). Keep the messages, IDs and
     `success | error` variants in a common map
     (`app/lib/shared/notification-toasts.ts`). Do not use `toast.info` until
@@ -762,9 +762,8 @@ leaving out only the empty ones. A card reads top to bottom: the linked name
 with its number on the right, then what the row is (a muted line, `·`-joined),
 then what the list is about — a result's badge on the left and its figure on
 the right, or who dances. Nothing in a card is cut: a phone has no hover
-for a truncated cell's `title`, so long values wrap. The portal `Resultados` list is the reference
-(#1440), and every list of `ProgramListRow` builds on `ProgramRowCard`. Cards
-have no sort header, selection or reordering; a list that needs one of them on
+for a truncated cell's `title`, so long values wrap. The portal `Resultados` list is the reference, and every list of `ProgramListRow`
+builds on `ProgramRowCard`. Cards have no sort header, selection or reordering; a list that needs one of them on
 a phone needs its own design first.
 
 Rules:

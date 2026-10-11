@@ -78,7 +78,7 @@ Most of those rows are cosmetic. Two are load-bearing and will break behaviour
 if they are reconciled away:
 
 `dialog.tsx`'s `useLayerAbovePress` stops a `Select` closing its parent dialog
-when the press that dismissed the select lands on the overlay (#708). The comment
+when the press that dismissed the select lands on the overlay. The comment
 in the file explains the mechanism. Deleting it reopens the bug.
 
 `forceMount` on `dialog.tsx` and `alert-dialog.tsx` has no upstream counterpart

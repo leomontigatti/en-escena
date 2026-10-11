@@ -155,15 +155,10 @@ otherwise ADRs would qualify too.
 
 ### The surrounding file does not decide the language
 
-The tree used to carry 2,198 lines of Spanish comments across 177 files, and the
-argument that kept adding to them was "consistent with the file": reviews of
-[#698](https://github.com/leomontigatti/en-escena/issues/698) and
-[#701](https://github.com/leomontigatti/en-escena/issues/701) both found new
-Spanish comments defended on exactly that ground. That debt is gone —
-[#592](https://github.com/leomontigatti/en-escena/issues/592) swept it, comments
-and test names alike — and `pnpm check:comment-language` now fails the commit and
-the build on Spanish prose in a comment, a test name or a thrown error message,
-so the argument no longer has anything to appeal to.
+"Consistent with the file" is not an argument for a Spanish comment: the tree's
+Spanish comments and test names were swept to zero, and `pnpm check:comment-language`
+fails the commit and the build on Spanish prose in a comment, a test name or a
+thrown error message.
 
 The converse still holds: **do not opportunistically translate** comments you are
 not otherwise touching. The sweep is done, so a stray Spanish line is now a bug
@@ -179,9 +174,7 @@ all. **Vocabulary**: every Spanish noun `GLOSSARY.md` names. Measured over the
 tree, grammar and morphology overlap on 174 occurrences and are alone on 186 and
 749: drop any one and a clean run stops meaning what the gate says it means.
 
-[#792](https://github.com/leomontigatti/en-escena/issues/792) settled the licence
-the glossary grants, and settled it the strict way: **prose is governed exactly
-like an identifier.** A bare Spanish noun in an English comment is the same
+The glossary grants no licence: **prose is governed exactly like an identifier.** A bare Spanish noun in an English comment is the same
 choice the identifier rule forbids, so the only Spanish that survives bare is the
 reserved list below. Naming the Spanish term is still fine — it just has to be
 marked as the data it is, which is what the identifier rule always asked for.
@@ -195,7 +188,7 @@ directory in the repo holding a file of those extensions, which is the point:
 and the runner's old `.sandcastle/` folder was the next one waiting. A test derives the expected roots
 from `git ls-files`, so the next gap of that shape fails rather than hides.
 
-**Markdown is covered too** (#792): `.md` under `.agents/`, `.claude/`, `.github/`
+**Markdown is covered too**: `.md` under `.agents/`, `.claude/`, `.github/`
 and `docs/`, plus the repo root. Two directories are exempt, for one reason — a record
 of something external may not be rewritten. `docs/adr/` is the decision as it was
 taken. `docs/research/` cites Argentine tax law by the titles the regulations
@@ -208,8 +201,7 @@ The guardrail does not read arbitrary string literals, and that is deliberate:
 Spanish UI copy lives in literals, so flagging them wholesale would be wrong.
 That left one gap wide enough to matter — a Spanish `throw new Error("…")` is
 engineering prose by this section's own test, since nobody but a developer or an
-operator ever reads it, and eleven of them were still in the tree after #592
-reported zero. **The argument of a `new …Error(…)` is checked like a comment.**
+operator ever reads it. **The argument of a `new …Error(…)` is checked like a comment.**
 
 The predicate is narrow on purpose, and both halves of it earn their place:
 
@@ -231,26 +223,21 @@ throw an `Error` at a user, that is the bug — not this rule.
 Marking still works the usual way, so ``throw new Error("Expected `Bases del
 evento` to exist.")`` is fine. What the gate cannot see is a message assembled
 from a fragment passed in as a variable: `decodePem(…, "El certificado")` fed a
-Spanish subject into an English sentence and survived #592's sweep untouched.
+Spanish subject into an English sentence and the gate never saw it.
 
-**YAML is covered too** (#793): `.yml` and `.yaml` under `.github/`, plus the
+**YAML is covered too**: `.yml` and `.yaml` under `.github/`, plus the
 repo root. A `#` opens a comment at line start or after whitespace and outside a
 quoted scalar, which is YAML's own rule, so a `#` inside a value — `#fff`, or the
-`#305` of an issue reference — is not one. A shell comment inside a `run: |`
+`#` of an issue reference — is not one. A shell comment inside a `run: |`
 block _is_ read, because the contributor reading it is the one reading the YAML
 comment above it. One exclusion: `pnpm-lock.yaml` is generated, not written.
 
-It was gated because leaving it on review is what let six Spanish comments across
-four workflow files outlive #592's sweep.
-
-**Shell is covered too** ([#947](https://github.com/leomontigatti/en-escena/issues/947)):
+**Shell is covered too**:
 `.sh` under `.agents/` and `scripts/`, plus the repo root. Its `#` comments are
 read by YAML's rule, the same one a `run: |` block already went through. Its
 **stderr is read like a thrown `Error`**, because that is what it is: an agent
 hook's stderr is the sentence the agent is handed back, so nobody but an
-agent or an operator ever reads it. `block-npx-tsc.sh` shipped that sentence in
-Spanish through #592's sweep and #793's, because the gate reached only the `.md`
-under `.claude/`, where the hooks lived then.
+agent or an operator ever reads it.
 
 The predicate reads the quoted strings on a line that redirects to `>&2`, and the
 literals assigned to a variable the file interpolates into one — `instruction="…"`
@@ -263,8 +250,7 @@ exists in the tree.
 One file type is exempt from every direction of this rule: **an applied migration under
 `app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole
 `.sql` file, so translating a comment inside one stops the production container
-from starting — which is exactly what
-[#762](https://github.com/leomontigatti/en-escena/pull/762) did. Leave its
+from starting. Leave its
 Spanish where it is, whatever this section says; `pnpm check:migration-immutability`
 enforces it, and `docs/db/migrations.md` explains why.
 
@@ -280,7 +266,7 @@ How to read it:
   (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
 - `comprobante` is the only reserved Spanish term inside code (see
   [Reserved Spanish Domain Terms](#reserved-spanish-domain-terms)).
-- **Prose is governed like an identifier** (#792): the `ui:` terms are what the
+- **Prose is governed like an identifier**: the `ui:` terms are what the
   user reads, not what a comment, a test name or a design doc says. Write the
   English identifier in prose, and if the surface's own wording is the point,
   mark the Spanish as data, as the next paragraph describes.
@@ -308,7 +294,7 @@ Backtick them and move on.
 ### A `catch` rethrows what it does not expect, or logs before converting
 
 A catch that turns a failure into user copy hides it from everyone else, so it
-does one of two things ([#1514](https://github.com/leomontigatti/en-escena/issues/1514)).
+does one of two things.
 **It tests the condition it expects** — an error code, `instanceof`, a refusal
 class such as `RecoveryLinkRefusedError` — **and rethrows the rest**, so an
 unrelated failure reaches `handleError` and its `[server:unexpected]` line; or
@@ -456,6 +442,25 @@ When a file grows past the soft limit and no clear module boundary exists yet,
 prefer tightening naming, removing dead branches, and clarifying sections before
 creating a forced abstraction.
 
-When validating work around a file-size refactor, use the current repo commands
-and order from `docs/agents/workflows.md`, including
-`pnpm check:file-tokens`, `pnpm typecheck`, and `pnpm test`.
+A file-size refactor validates with [validation.md](validation.md) plus
+`pnpm check:file-tokens` on the staged files.
+
+## Loaders and request performance
+
+A loader or action that calls the database or the service layer loads what its
+route renders, once:
+
+- Records the caller already loaded are passed in, not re-fetched; a layout loader
+  and its child do not both fetch the same event context.
+- A route that needs only ids, labels, status flags or counts gets a slim query
+  variant, not the full nested data.
+- Independent queries run in parallel.
+- An expensive helper says so in its name.
+
+When a route, form, table or navigation path feels slow, measure before
+diagnosing: time the loader or action at the real route seam, split into auth,
+event or context lookup, the main query or mutation, serialization, and
+revalidation. Record the route id, the intent, and whether the request came from a
+navigation, `useSubmit`, `fetcher.submit` or a native `<Form>`. A revalidation that
+follows an action is measured as its own loader, not blamed on the action. Postgres
+sits next to the app, so distance to the database is a poor first guess.

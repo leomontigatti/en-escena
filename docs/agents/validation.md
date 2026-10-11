@@ -13,21 +13,19 @@ pnpm test:unit
 pnpm test:db <path>...   # only the DB test files your change touches
 ```
 
-Run this **once, after your edits**. Do not run `pnpm test`.
+Run this **once, after your edits**. Do not run `pnpm test`. When a command fails,
+fix it and rerun that command before the next one.
+
+Run `pnpm typecheck` and `pnpm build` one after the other, never in parallel:
+`pnpm build` cleans and regenerates `build/`, which TypeScript may read mid-check,
+and the result is a transient TS6053 missing-file error that is not a real failure.
 
 ## This list is exhaustive
 
-These four are the whole validation surface. **Do not invent commands.** If a
-command you are about to run is not on this list, it either does not exist or is
-not yours to run — check `package.json` before running it, never after it fails.
-
-A concrete failure this rule exists to prevent, from when implementation still ran
-on GitHub Actions: on run 31192040488 an agent finished its work green, then spent
-its remaining budget running the full `pnpm test:db` twice (this policy says not
-to) and finally chained a `pnpm lint` that **did not exist at the time**. The step
-timeout killed it mid-chain, before it had committed, and the entire slice was
-lost. A local session has no step timeout, but the same habit costs the same
-minutes and ends the same way when a command is guessed.
+These four are the whole validation surface. **Every command you run is one that
+exists**: check [the script index](../operations/scripts.md) before running one
+that is not on this list, never after it fails. A guessed command once cost an
+agent its whole budget and its uncommitted slice.
 
 The scripts that exist and what owns what:
 
@@ -59,44 +57,40 @@ CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
 Why the table has this shape — one owner per concern, gates scoped to what a
 PR adds — is `docs/adr/0015-deterministic-guardrails.md`.
 
-Three of those rows have an automatic enforcement point inside the session
-(#982). `PostToolUse` on `Write|Edit` formats every
-file you write, silently, so `pnpm format` is not yours to remember. `Stop` runs
-`pnpm typecheck && pnpm lint` and **blocks the end of the turn** with exit 2 and
-the failing output when either is red — it is a backstop, not a substitute for
-running them yourself, since it reports once at the end with no idea what you
-changed. It skips a turn that touched nothing either half of the gate reads —
-`.ts`/`.tsx`/`.mts`/`.cts`, `tsconfig*.json` and `package.json` for typecheck,
-`.js`/`.jsx`/`.mjs`/`.cjs` and `.oxlintrc.json` for lint — and it skips every
-workflow on GitHub Actions. It looks at
-the working tree only; committed work was already typechecked by pre-commit.
-`SKIP_STOP_CHECKS` set to any value is the bypass (`SKIP_STOP_CHECKS=1`), and it
-is for local work, not for getting a red branch committed here. Both hooks are
-described in `docs/agents/workflows.md`.
+Three of those rows also run inside the session, from the hooks in
+[agent-configuration.md](./agent-configuration.md#session-hooks): every file you
+write is formatted, and the end of a turn is blocked while `pnpm typecheck` or
+`pnpm lint` is red. The `Stop` hook is a backstop, not a substitute for running
+them yourself. `SKIP_STOP_CHECKS=1` turns it off for local work, never to get a
+red branch committed.
 
-gitleaks has no `check:*` script either: it runs from `.husky/pre-commit`, where
-it warns and continues if the binary is missing, and blocking from the `checks`
-job. It is only the client-side half of the secrets gate — GitHub secret scanning
-with **push protection** is the server-side owner for provider tokens, and it
-blocks the push itself, so the custom rules in `.gitleaks.toml` deliberately cover
-only what this repo can leak that push protection does not (#978).
+gitleaks has no `check:*` script: it runs from `.husky/pre-commit`, where it warns
+and continues if the binary is missing, and blocking from the `checks` job. It is
+the client-side half of the secrets gate; GitHub push protection blocks provider
+tokens at the push, so `.gitleaks.toml` covers only what this repo can leak that
+push protection does not.
 
-The zizmor and actionlint rows are the `actions-gate` job (#955) and have no local
-script on purpose: they only ever read `.github/workflows/**`, and both are pinned inside
-`ci.yml`. If you edited a workflow, the gate is what tells you; how it is set up
-and how to bump its pins is in `docs/agents/workflows.md`.
+zizmor and actionlint are the `actions-gate` job and have no local script: they
+only read `.github/workflows/**`. If you edited a workflow, the gate is what tells
+you; [ci.md](../operations/ci.md#the-actions-gate) has its setup and pin bumps.
 
 ## About `pnpm lint`
 
-`oxlint`, configured in `.oxlintrc.json` — that file is the list of rules, read it
-there rather than trusting a count written down here. What `pnpm lint` owns is
-React hook mistakes, import cycles, un-awaited promises, the `ui` style guide rules
-and the `Trash` import restriction, both described below.
+[oxlint](https://oxc.rs), configured in `.oxlintrc.json`: that file and the rule
+messages are the source of truth, so read the rules there. It owns what nothing
+else can see: React hook mistakes, import cycles, un-awaited promises, the `ui`
+style guide rules listed in the header of `scripts/oxlint-ui-plugin.mjs`, and
+`Trash2` over `Trash` through `no-restricted-imports`. Formatting is Prettier's,
+unused code is `tsc`'s and repo conventions are the `check:*` scripts', and a rule
+that duplicates another owner stays out (decision 2 of ADR-0015). If it reports
+nothing, that is the expected result, not a reason to look for another linter.
 
-The un-awaited-promise rules are type-aware (`oxlint-tsgolint`), which is why the
-run costs ~6.5 s instead of the ~1.5 s it cost before: type-aware linting builds a
-TypeScript program. They catch the bug class `tsc` cannot see — a promise nothing
-awaits, which silently drops whatever it would have rejected with.
+The un-awaited-promise rules are type-aware (`oxlint-tsgolint`), which is most of
+the ~6.5 s. Two of their options are load-bearing and invisible in the rule name:
+`no-floating-promises` runs with `checkThenables: true` because Drizzle's query
+builders are thenables, not `Promise`s; `no-misused-promises` runs with
+`checksVoidReturn.attributes: false` so an async function in a JSX prop
+(`onClick={async () => …}`) passes.
 
 **The `void` policy.** `void` on a promise is a claim that its rejection cannot
 carry information, and this repo treats exactly two cases as settled:
@@ -113,28 +107,19 @@ carry information, and this repo treats exactly two cases as settled:
 `void` on **any other** promise needs a reason in the code, and a reviewer should
 ask for one — `await` it, or handle the rejection.
 
-It checks structure, **not** formatting or taste. Its only UI rules are the
-style guide clauses a machine can judge: the `ui` ones, listed in the header of
-`scripts/oxlint-ui-plugin.mjs` (no raw form element where an `app/components/ui`
-component exists, no `className` overriding a ui component's height, radius or
-focus state, `TabsList` in the line variant, a position on every button icon's
-`data-icon`, dialogs at their default width, no icon in an actions menu), and
-`Trash2` over `Trash` through
-`no-restricted-imports`. It has no opinion on
-formatting (Prettier's), on unused code (`tsc`'s) or on this repo's conventions
-(the `check:*` scripts').
+The `ui` rules have no per-file exemptions: their `overrides` entry excludes
+`app/components/ui/**` and test files, and nothing else. A case they misjudge is
+narrowed in the plugin, with a test. JS plugins are alpha in oxlint, so
+`package.json` pins oxlint to an exact version and a plugin API change arrives as
+a deliberate upgrade.
 
-The `ui` rules have no per-file exemption lists: the `overrides` entry in
-`.oxlintrc.json` that enables them excludes `app/components/ui/**` (where the
-primitives are defined) and test files, and nothing else.
-If it reports nothing, that is the expected result, not a reason to look for
-another linter.
+The files exempt from `exhaustive-deps` under `overrides` are a **shrinking
+allowlist**: they use a deliberate `resetKey = JSON.stringify(values)` idiom the
+rule cannot see through. Leave the list as it is to make your change pass; if your
+new code trips the rule, the rule is probably right.
 
-Fourteen files carry a **temporary exemption** from `exhaustive-deps`, listed
-under `overrides` in `.oxlintrc.json`. They use a deliberate
-`resetKey = JSON.stringify(values)` idiom the rule cannot see through. Do not add
-to that list to make your change pass — if your new code trips the rule, the rule
-is probably right.
+ESLint cannot replace it while `typescript-eslint` refuses TypeScript 7
+([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)).
 
 ## Why not `pnpm test`
 
@@ -148,12 +133,10 @@ is probably right.
 | `pnpm test` (both) | ~13 min    |
 
 A local machine is faster, but the proportion holds: the DB suite is most of the
-cost. When implementation still ran on GitHub Actions, a prompt that asked for
-`pnpm test` before _and_ after the edits spent ~26 minutes waiting and exhausted a
-30-minute budget on PR #512.
+cost.
 
 CI never does this: `checks` runs on its own runner and the DB suite is split
-across the `db-shard` matrix behind the `db-gate` aggregator (#962), so the whole
+across the `db-shard` matrix behind the `db-gate` aggregator, so the whole
 pipeline finishes in the time of its slowest job. Duplicating that serially
 inside the session buys nothing.
 
@@ -169,14 +152,22 @@ almost all of the safety net.
 A test that fails and passes on a rerun with nothing changed is a **flake**, and
 a flake is a defect in the test: rerunning until green hides it from the next
 session. Open an issue with the test's file and name and the failing output, or
-add them to the open one, before moving on. Two causes found so far (#1338):
-state a `unit-shared` worker carries from one file to the next
-([workflows.md](./workflows.md#continuous-integration)), and a fixed pause
+add them to the open one, before moving on. Two causes found so far: state a
+`unit-shared` worker carries from one file to the next (below), and a fixed pause
 standing in for an outcome, where `waitFor` from
 `app/lib/test-support/react-dom.tsx` waits for the outcome itself. A "Test timed
 out" is the exception: it says only that the test exceeded its deadline, and
-`vitest.config.ts` already allows for load (#1426). File it and investigate the
-timeout.
+`vitest.config.ts` already allows for load. File it and investigate the timeout.
+
+`test:unit` runs as two Vitest projects. A file that calls `vi.mock`,
+`vi.doMock`, `vi.hoisted`, `vi.stubGlobal` or `vi.stubEnv`, or imports a local
+helper that does, runs in `unit-isolated` with a fresh module graph; every other
+file runs in `unit-shared` with `isolate: false`, sharing a worker and its
+imported modules with the files before it. The split is computed from file
+contents, so there is no list to keep, but a `unit-shared` test resets any
+module-level state it touches (a module's `let`, a `Set`, a cache) itself. The
+jsdom window is shared the same way, its URL included: a test whose form posts
+to the document's URL sets it (`window.history.replaceState`) before it renders.
 
 ## Targeting DB tests
 

@@ -95,8 +95,20 @@ file as its model asks for the file's shape, not its breach. Such a finding is a
 whichever axis raised it, and it is a **fix**, or an **ask** when an exception is wanted. A finding
 backed by the standards is never a **decline** on your judgement alone.
 
-Done when every finding carries a verb and every **fix** is made. Repeat step 3 for anything you
-touched. Refactoring belongs here, under green tests.
+Then walk the **breadth** list and say in the final report which entries applied: the common
+defect is a change that works on the tested path and is missing everywhere else.
+
+- **Reverse states.** A way in needs its way out and a way to see it: open needs close, publish
+  needs a visible published state and, where the domain allows it, unpublish. A transition the
+  domain makes irreversible shows its terminal state and says so.
+- **Entry points.** A behaviour reachable from the admin is usually reachable from the portal
+  too, or from a list and its detail. Name the paths you checked and the ones deliberately
+  different.
+- **Docs.** Whether the change makes existing guidance wrong, by the
+  [documentation rules](../../../docs/agents/workflows.md#documentation).
+
+Done when every finding carries a verb, every **fix** is made and the breadth list is walked.
+Repeat step 3 for anything you touched. Refactoring belongs here, under green tests.
 
 ## 6. Commit
 

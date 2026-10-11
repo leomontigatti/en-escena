@@ -60,13 +60,13 @@ describe("file-token check", () => {
     const [
       packageJson,
       preCommitHook,
-      workflowDoc,
+      validationDoc,
       codingStandards,
       codebaseMap,
     ] = await Promise.all([
       readFile("package.json", "utf8"),
       readFile(".husky/pre-commit", "utf8"),
-      readFile("docs/agents/workflows.md", "utf8"),
+      readFile("docs/agents/validation.md", "utf8"),
       readFile("docs/agents/coding-standards.md", "utf8"),
       readFile("docs/agents/codebase-map.md", "utf8"),
     ]);
@@ -77,8 +77,8 @@ describe("file-token check", () => {
     expect(preCommitHook).toContain("pnpm exec lint-staged");
     expect(preCommitHook).toContain("pnpm typecheck");
     expect(preCommitHook).toContain("pnpm check:file-tokens");
-    expect(workflowDoc).toContain("`pnpm check:file-tokens`");
-    expect(workflowDoc).toContain("strict file-token check");
+    expect(validationDoc).toContain("`pnpm check:file-tokens`");
+    expect(validationDoc).toContain("token ceiling");
     expect(codingStandards).toContain("5500");
     expect(codingStandards).toContain("clear module boundary");
     expect(codebaseMap).toContain("`pnpm check:file-tokens`");
