@@ -10,7 +10,7 @@ import {
 import { APIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { desc, eq } from "drizzle-orm";
-import { parse, serialize } from "cookie";
+import { parseCookie, stringifySetCookie } from "cookie";
 
 import { db } from "@/db";
 import { account, accessSession, user, verification } from "@/db/schema";
@@ -495,20 +495,18 @@ async function readBetterAuthResetTokenUserId(
 }
 
 function buildRecoveryTokenCookie(token: string | null) {
-  return serialize(
-    RECOVERY_TOKEN_COOKIE_NAME,
-    token ? signRecoveryToken(token) : "",
-    {
-      httpOnly: true,
-      maxAge: token ? undefined : 0,
-      path: "/",
-      sameSite: "lax",
-    },
-  );
+  return stringifySetCookie({
+    name: RECOVERY_TOKEN_COOKIE_NAME,
+    value: token ? signRecoveryToken(token) : "",
+    httpOnly: true,
+    maxAge: token ? undefined : 0,
+    path: "/",
+    sameSite: "lax",
+  });
 }
 
 function readRecoveryTokenCookie(request: Request): string | null {
-  const cookies = parse(request.headers.get("cookie") ?? "");
+  const cookies = parseCookie(request.headers.get("cookie") ?? "");
   const signedToken = cookies[RECOVERY_TOKEN_COOKIE_NAME];
 
   if (!signedToken) {

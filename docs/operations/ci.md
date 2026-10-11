@@ -145,6 +145,7 @@ cover that case.
 - **Dependabot** (`.github/dependabot.yml`) opens weekly version-update PRs for
   minor and patch releases only, one grouped PR per ecosystem, with a seven-day
   `cooldown` that stays above `minimumReleaseAge`. A major is a hand-written
-  issue whose release notes are checked against this repo (ADR-0015 §5). A
+  issue whose release notes are checked against this repo (ADR-0015 §5), and so
+  is a better-auth minor, which can require a schema migration (#984). A
   major, or any bump by hand, targets the newest release at least three days
   old, not the version an issue's title names.
