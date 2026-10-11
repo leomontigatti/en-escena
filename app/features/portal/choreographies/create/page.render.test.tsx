@@ -151,6 +151,13 @@ function getStepCounter() {
   )?.textContent;
 }
 
+/** The checklist rows the step has checked. */
+function countCheckedRows() {
+  return document.querySelectorAll(
+    '[data-slot="choice-card"] [role="checkbox"][data-state="checked"]',
+  ).length;
+}
+
 function isNextDisabled() {
   return (findButton("Siguiente", { exact: true }) as HTMLButtonElement)
     .disabled;
@@ -414,7 +421,7 @@ describe("the choreography registration page", () => {
       expect(submissions.at(0)?.get("intent")).toBe(
         RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT,
       );
-      expect(document.body.textContent).toContain("Seleccionados, 1");
+      expect(countCheckedRows()).toBe(1);
       expect(isNextDisabled()).toBe(false);
     });
 
@@ -460,7 +467,7 @@ describe("the choreography registration page", () => {
       await waitFor(() => getHeading() === "¿Quiénes bailan?");
 
       expect(router.state.location.search).toBe("?paso=bailarines");
-      expect(document.body.textContent).toContain("Seleccionados, 0");
+      expect(countCheckedRows()).toBe(0);
     });
 
     test("goes back a step with the browser's back", async () => {

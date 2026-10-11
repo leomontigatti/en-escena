@@ -4,9 +4,9 @@ import { useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
 import { IntegerInputField } from "@/components/shared/integer-input-field";
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import { ChecklistField } from "@/components/shared/checklist-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { FieldGroup } from "@/components/ui/field";
+import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import type {
   ActionData,
   CategoryActionValues,
@@ -166,34 +166,46 @@ function CategoryForm({
           name="maxAge"
           placeholder="Inclusive"
         />
-        <MultiComboboxField
-          control={form.control}
-          label="Tipos de grupo"
-          name="groupTypes"
-          inputName="groupTypes"
-          options={groupTypeOptions}
-          placeholder="Seleccioná tipos de grupo"
-        />
-        <MultiComboboxField
-          control={form.control}
-          label="Niveles de experiencia"
-          name="experienceLevels"
-          inputName="experienceLevels"
-          options={experienceLevelOptions}
-          placeholder="Seleccioná niveles"
-        />
-        <MultiComboboxField
-          control={form.control}
-          label="Modalidades"
-          name="modalityIds"
-          inputName="modalityIds"
-          options={modalities.map((modality) => ({
-            value: modality.id,
-            label: modality.name,
-          }))}
-          className="md:col-span-2"
-          placeholder="Seleccioná modalidades"
-        />
+        <FieldSet className="gap-2">
+          <FieldLegend variant="label">Tipos de grupo</FieldLegend>
+          <ChecklistField
+            control={form.control}
+            emptySelectionMessage="Todavía no seleccionaste tipos de grupo."
+            inputName="groupTypes"
+            label="Tipos de grupo"
+            name="groupTypes"
+            options={groupTypeOptions}
+            searchLabel="Buscar tipos de grupo"
+          />
+        </FieldSet>
+        <FieldSet className="gap-2">
+          <FieldLegend variant="label">Niveles de experiencia</FieldLegend>
+          <ChecklistField
+            control={form.control}
+            emptySelectionMessage="Todavía no seleccionaste niveles."
+            inputName="experienceLevels"
+            label="Niveles de experiencia"
+            name="experienceLevels"
+            options={experienceLevelOptions}
+            searchLabel="Buscar niveles"
+          />
+        </FieldSet>
+        <FieldSet className="gap-2 md:col-span-2">
+          <FieldLegend variant="label">Modalidades</FieldLegend>
+          <ChecklistField
+            control={form.control}
+            emptySelectionMessage="Todavía no seleccionaste modalidades."
+            inputName="modalityIds"
+            label="Modalidades"
+            name="modalityIds"
+            noOptionsMessage="El evento todavía no tiene modalidades."
+            options={modalities.map((modality) => ({
+              value: modality.id,
+              label: modality.name,
+            }))}
+            searchLabel="Buscar modalidades"
+          />
+        </FieldSet>
       </FieldGroup>
     </form>
   );

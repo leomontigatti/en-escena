@@ -20,9 +20,8 @@ are current.
   decision, not a fix.
 - **A state is a `Badge`**: a semantic variant (`success`, `info`, `warning`,
   `destructive`) when its meaning is stable, a neutral one otherwise.
-- **A shadcn component before custom markup.** If the right one is not
-  installed and the case fits it, add it (see [shadcn.md](shadcn.md)); never
-  install one without a use.
+- **A shadcn component before custom markup**, added when the case fits it
+  ([shadcn.md](shadcn.md)), never installed without a use.
 
 ## Viewports
 
@@ -106,14 +105,15 @@ Which channel carries a message (alert, toast or field) is
   (`app/components/shared/checklist-field.tsx`), never in a popover that covers
   what follows. Up to eight options it is a plain checkbox group; from nine on
   it adds a search and the `Todos | Seleccionados` tabs, because only then
-  does the list scroll (#1262). One option of a few shown in place is
-  `OptionCardsField`; both draw `ChoiceCard`s.
+  does the list scroll (#1262). An empty selection that means something says it
+  in a `FieldDescription`, since a checklist has no placeholder (the schedule's
+  `Categorías`: none checked accepts them all); options another field takes
+  away are unchecked with it. One pick shown in place is `OptionCardsField`;
+  both draw `ChoiceCard`s.
 - **`Checkbox` for a boolean submitted with the form, `Switch` for a setting
   that reads as on or off.**
-- **A shared field before a local `Controller`**: the fields in
-  `app/components/shared/*-field.tsx` own their `Controller`. A local one is
-  for what has no shared field yet: arrays, checkbox groups, confirmation
-  controls.
+- **A shared field (`app/components/shared/*-field.tsx`) before a local
+  `Controller`**, which is for what has no shared field yet.
 - **A required field is said in words when the context needs it**, never by an
   asterisk alone. An empty required field reads `Este campo es obligatorio.`,
   whatever the control; a specific message is for a value that is present and
@@ -151,10 +151,11 @@ Which channel carries a message (alert, toast or field) is
 - **The actions close the card as its last row**: `FormActions` (`PinnedActions`
   on a read-only page) as the card's `footer`, `BackButton` on the left,
   `SubmitButton` on the right with `Descartar cambios` beside it when there is
-  more than one field. The row is sticky and stays one row on a phone: below
-  `sm`, `Volver` shrinks to its chevron; the actions that change or drop data
-  keep their words. A plain `Card` holding it takes `overflow-clip`, since
-  `overflow-hidden` stops a sticky child.
+  more than one field. The row is sticky, and while it is on the page the page
+  scrolls focus clear of it (`scroll-padding-bottom`, `app/app.css`), so a
+  pinned bar is always `PinnedActions`. It stays one row on a phone: below
+  `sm`, `Volver` shrinks to its chevron. A plain `Card` holding it takes
+  `overflow-clip`, since `overflow-hidden` stops a sticky child.
 - **A form in a `Dialog` is one column**, `Cancelar` then the primary action.
   The portal's `Nueva coreografía` wizard puts each step in one card, closed
   by `PinnedActions`.

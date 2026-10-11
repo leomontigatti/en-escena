@@ -104,14 +104,16 @@ describe("the finalist banner form", () => {
   }
 
   const saveButton = () => findButton("Guardar", { exact: true });
+  const judgeRow = (name: string) =>
+    [
+      ...document.querySelectorAll<HTMLElement>('[data-slot="choice-card"]'),
+    ].find((row) => row.textContent === name);
 
   test("posts the judges, none included, with the marker that says the field was sent", async () => {
     await mount();
 
     await updateReactDomForm(() => {
-      document
-        .querySelector<HTMLElement>('[data-slot="combobox-chip-remove"]')
-        ?.click();
+      judgeRow("Ana Juez")?.click();
     });
     await updateReactDomForm(() => {
       saveButton()?.click();
@@ -126,14 +128,7 @@ describe("the finalist banner form", () => {
     await mount();
 
     await updateReactDomForm(() => {
-      document
-        .querySelector<HTMLElement>('[data-slot="combobox-trigger"]')
-        ?.click();
-    });
-    await updateReactDomForm(() => {
-      [...document.querySelectorAll<HTMLElement>('[role="option"]')]
-        .find((option) => option.textContent === "Bruno Juez")
-        ?.click();
+      judgeRow("Bruno Juez")?.click();
     });
     await updateReactDomForm(() => {
       saveButton()?.click();
