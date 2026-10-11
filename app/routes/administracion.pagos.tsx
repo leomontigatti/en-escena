@@ -22,8 +22,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   return await loadPaymentsList(request);
 }
 
-export { PaymentsListRouteView };
-
 export default function PaymentsListRoute({
   loaderData,
 }: PaymentsListRouteProps) {

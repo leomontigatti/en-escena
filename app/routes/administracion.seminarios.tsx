@@ -21,7 +21,7 @@ export const shouldRevalidate = createDataTableShouldRevalidate({
   filterParamNames: [...seminarFacetedFilterIds],
 });
 
-export function SeminarsListRouteView({ loaderData }: SeminarsListViewProps) {
+function SeminarsListRouteView({ loaderData }: SeminarsListViewProps) {
   return <SeminarsListView loaderData={loaderData} />;
 }
 

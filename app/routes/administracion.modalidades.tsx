@@ -18,9 +18,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export const shouldRevalidate = createDataTableShouldRevalidate();
 
-export function ModalitiesListRouteView({
-  loaderData,
-}: EventModalitiesListViewProps) {
+function ModalitiesListRouteView({ loaderData }: EventModalitiesListViewProps) {
   return <EventModalitiesListView loaderData={loaderData} />;
 }
 

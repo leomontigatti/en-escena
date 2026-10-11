@@ -228,18 +228,6 @@ export {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
 } from "@/lib/choreographies/choreography-roster.server";
-export type {
-  ChoreographyCategoryCalculationMode,
-  ChoreographyDancerOption,
-  ChoreographyDancerScheduleOption,
-  ChoreographyDancerScheduleResolution,
-  ChoreographyProfessorOption,
-  DancerEditingBlockReason,
-  ResolveChoreographyDancersResult,
-  UpdateChoreographyDancersResult,
-  UpdateChoreographyProfessorsResult,
-  UpdateChoreographyResult,
-} from "@/lib/choreographies/choreography-roster.server";
 
 async function hydrateChoreographyRows(
   rows: ChoreographyRow[],

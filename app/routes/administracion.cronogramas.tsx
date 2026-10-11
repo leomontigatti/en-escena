@@ -21,7 +21,7 @@ export const shouldRevalidate = createDataTableShouldRevalidate({
   filterParamNames: [...scheduleFacetedFilterIds],
 });
 
-export function EventSchedulesListRouteView({
+function EventSchedulesListRouteView({
   loaderData,
 }: EventSchedulesListViewProps) {
   return <EventSchedulesListView loaderData={loaderData} />;
