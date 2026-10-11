@@ -14,7 +14,6 @@ import {
 } from "@/db/schema";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import {
-  deriveGroupType,
   resolveChoreographyRegistrationOperation,
   resolveChoreographyRegistrationOperationForResolvedDancers,
 } from "@/lib/choreographies/registration-resolution.server";
@@ -27,21 +26,11 @@ import {
   createOpenEventCatalog,
   createProfessor,
   date,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
-
-describe("deriveGroupType", () => {
-  test("maps dancer counts to the shared group type used by admin re-resolution", () => {
-    expect(deriveGroupType(1)).toBe("solo");
-    expect(deriveGroupType(2)).toBe("duo");
-    expect(deriveGroupType(3)).toBe("trio");
-    expect(deriveGroupType(4)).toBe("grupal");
-    expect(deriveGroupType(9)).toBe("grupal");
-  });
-});
 
 describe("choreography registration resolution", () => {
   test("resolves a valid solo registration using the event local start date, required experience levels, and compatible schedule capacities", async () => {

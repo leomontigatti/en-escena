@@ -11,11 +11,9 @@ import {
   user,
 } from "@/db/schema";
 import { deleteEmptyAcademy } from "@/lib/academies/academy-deletion.server";
-import {
-  createEventChoreographyFixture,
-  createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -85,7 +83,11 @@ describe("deleteEmptyAcademy", () => {
       academyName: "Academia Mixta",
       email: "mixta@example.com",
     });
-    const event = await createSavedEvent("Evento Academia Mixta");
+    const event = await createSavedEvent({
+      name: "Evento Academia Mixta",
+      active: false,
+      ...eventDates(2030),
+    });
 
     await db.insert(professors).values({
       academyId,
@@ -112,7 +114,11 @@ describe("deleteEmptyAcademy", () => {
       academyName: "Academia Retirada",
       email: "retirada@example.com",
     });
-    const event = await createSavedEvent("Evento Academia Retirada");
+    const event = await createSavedEvent({
+      name: "Evento Academia Retirada",
+      active: false,
+      ...eventDates(2030),
+    });
     const fixture = await createEventChoreographyFixture({
       academyId,
       eventId: event.id,

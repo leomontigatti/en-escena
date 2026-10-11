@@ -1,0 +1,2 @@
+ALTER TABLE "en_escena_access_session" ADD COLUMN "impersonated_by" varchar(255);--> statement-breakpoint
+ALTER TABLE "en_escena_access_session" ADD CONSTRAINT "en_escena_access_session_impersonated_by_en_escena_user_id_fk" FOREIGN KEY ("impersonated_by") REFERENCES "public"."en_escena_user"("id") ON DELETE cascade ON UPDATE no action;

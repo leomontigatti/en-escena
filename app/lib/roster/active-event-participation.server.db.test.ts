@@ -11,13 +11,11 @@ import {
   createAcademySession,
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
-import {
-  createEventChoreographyFixture,
-  createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -140,8 +138,12 @@ describe("active event participation reader", () => {
       academyName: "Academia Pasada",
       email: "pasada.academia@example.com",
     });
-    const pastEvent = await createSavedEvent("En Escena Pasado");
-    await createSavedEvent("En Escena Activo", { activate: true });
+    const pastEvent = await createSavedEvent({
+      name: "En Escena Pasado",
+      active: false,
+      ...eventDates(2030),
+    });
+    await createSavedEvent({ name: "En Escena Activo", ...eventDates(2030) });
     const [dancer, professor] = await Promise.all([
       createDancer(academy.academyId, { firstName: "Flor", lastName: "Ayer" }),
       createProfessor(academy.academyId, {
@@ -172,7 +174,11 @@ describe("active event participation reader", () => {
       academyName: "Academia Sin Evento",
       email: "sin.evento.academia@example.com",
     });
-    const event = await createSavedEvent("En Escena Inactivo");
+    const event = await createSavedEvent({
+      name: "En Escena Inactivo",
+      active: false,
+      ...eventDates(2030),
+    });
     const dancer = await createDancer(academy.academyId, {
       firstName: "Hana",
       lastName: "Espera",
@@ -200,8 +206,9 @@ async function createRoster(academyName: string) {
     academyName: `Academia ${academyName}`,
     email: `${crypto.randomUUID()}@example.com`,
   });
-  const activeEvent = await createSavedEvent("En Escena Activo", {
-    activate: true,
+  const activeEvent = await createSavedEvent({
+    name: "En Escena Activo",
+    ...eventDates(2030),
   });
 
   return { academyId: academy.academyId, activeEvent };

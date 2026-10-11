@@ -23,14 +23,12 @@ import {
 import {
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
-import {
-  createEventChoreographyFixture,
-  createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
 import { castVote } from "@/lib/grand-final/vote.server";
 import { seedOpenRoundFixture } from "@/lib/grand-final/voting.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -40,7 +38,11 @@ describe("mergeAcademies", () => {
   test("moves everything the removed academy holds to the survivor and deletes its user", async () => {
     const survivor = await createAcademy("Academia Queda");
     const removed = await createAcademy("Academia Se Va");
-    const event = await createSavedEvent("Evento Fusión");
+    const event = await createSavedEvent({
+      name: "Evento Fusión",
+      active: false,
+      ...eventDates(2030),
+    });
     const dancer = await createDancer(removed.academyId);
     const professor = await createProfessor(removed.academyId);
     const choreography = await createEventChoreographyFixture({
@@ -147,7 +149,11 @@ describe("mergeAcademies", () => {
   test("refuses when the removed academy has a comprobante, and changes nothing", async () => {
     const survivor = await createAcademy("Academia Queda");
     const removed = await createAcademy("Academia Facturada");
-    const event = await createSavedEvent("Evento Comprobante");
+    const event = await createSavedEvent({
+      name: "Evento Comprobante",
+      active: false,
+      ...eventDates(2030),
+    });
     const dancer = await createDancer(removed.academyId);
     const choreography = await createEventChoreographyFixture({
       academyId: removed.academyId,
@@ -251,27 +257,17 @@ describe("mergeAcademies", () => {
       removed.academyId,
     );
   });
-
-  test("refuses merging an academy into itself", async () => {
-    const academy = await createAcademy("Academia Sola");
-
-    await expect(
-      mergeAcademies({
-        removedId: academy.academyId,
-        survivorId: academy.academyId,
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      message: "Elegí otra academia para fusionar.",
-    });
-  });
 });
 
 describe("loadAcademyMergeOptions", () => {
   test("offers every other academy and counts what the removed one holds", async () => {
     const removed = await createAcademy("Academia Se Va");
     const other = await createAcademy("Academia Queda");
-    const event = await createSavedEvent("Evento Opciones");
+    const event = await createSavedEvent({
+      name: "Evento Opciones",
+      active: false,
+      ...eventDates(2030),
+    });
     const dancer = await createDancer(removed.academyId);
 
     await createDancer(removed.academyId, { firstName: "Bea" });

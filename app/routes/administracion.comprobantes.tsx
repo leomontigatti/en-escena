@@ -22,8 +22,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   return await loadComprobantesList(request);
 }
 
-export { ComprobantesListRouteView };
-
 export default function ComprobantesListRoute({
   loaderData,
 }: ComprobantesListRouteProps) {

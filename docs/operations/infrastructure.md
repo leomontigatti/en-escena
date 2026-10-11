@@ -193,7 +193,7 @@ Two consequences worth stating, because both are easy to assume the other way:
 What a deploy does, for reference:
 
 - Builds from `/Dockerfile` (build pack: Dockerfile), then runs
-  `node node_modules/@react-router/serve/bin.js ./build/server/index.js` on port
+  `node node_modules/@react-router/serve/bin.cjs ./build/server/index.js` on port
   `3000`.
 - Runs migrations from the entrypoint before serving (above).
 - Gates on the healthcheck at `/internal/health`: HTTP `200`, 60s start period,
@@ -223,7 +223,7 @@ only; nothing is sent to the server yet.
 ## Database
 
 - Coolify-managed Postgres, image `postgres:17-alpine`, co-located with the app
-  on the same VPS (#267) — app↔database latency is loopback.
+  on the same VPS — app↔database latency is loopback.
 - Database name: `enescena`. Every schema lives in it, including `public` and
   `drizzle`.
 - `is_public: false`, with **no published port**: there is no route from a
@@ -236,7 +236,7 @@ only; nothing is sent to the server yet.
 ## Storage
 
 - The live byte store is a persistent Coolify volume on the VPS, at
-  `STORAGE_VOLUME_DIR` (`/var/lib/en-escena/storage` in production), since #399.
+  `STORAGE_VOLUME_DIR` (`/var/lib/en-escena/storage` in production).
 - Bucket directories under it keep the original object keys
   (`academies/...`), so the layout is identical to what B2 held.
 - Backblaze B2 is a **backup destination only**. It is not the live store.
@@ -257,7 +257,7 @@ only; nothing is sent to the server yet.
   key fields only say whether a photo was kept or removed; a kept photo keeps
   the key already on the row.
 - There is **one** storage backend in the app. The Supabase and Backblaze
-  in-app adapters were deleted in #571: they had no production caller and only
+  in-app adapters were deleted: they had no production caller and only
   made the storage layer read as though a live provider choice existed. The
   adapter seam ADR-0008 asked for is kept, with the filesystem store as its one
   implementation, so a future provider is a new implementation rather than a
@@ -272,7 +272,7 @@ bucket directory, accepted content types with their extensions, size ceiling,
 signed-URL lifetime, and the Spanish labels the user copy is built from. The
 server validation, the browser `accept` attribute and the messages a user reads
 are all **derived** from that declaration, so raising a ceiling is one edit and
-cannot leave a surface stating the old number (#571).
+cannot leave a surface stating the old number.
 
 Policy violations leave the storage layer as typed rejections
 (`unsupported-content-type`, `file-too-large`), not exceptions with matchable

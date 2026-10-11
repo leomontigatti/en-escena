@@ -9,14 +9,9 @@ import {
   createSubmodality,
 } from "@/lib/modalities/repository.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
-  createSavedEvent,
-  createSignedInRequest,
   expectCreated,
-  expectThrownResponse,
   formData,
   loader,
   renderCategoriaDetalleRoute,
@@ -27,13 +22,21 @@ import {
   renderPrecioNuevoRoute,
   renderRoute,
   routeArgs,
-} from "./event-bases.test-helpers";
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
 describe("`/administracion/bases-del-evento` routes", () => {
   test("requires admin access and renders direct administration section links", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
 
     await expectThrownResponse(
       loader(routeArgs(new Request("http://localhost/administracion/eventos"))),
@@ -125,9 +128,14 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("ignores non-active event query and keeps `Bases del evento` on the event active", async () => {
-    const activeEvent = await createSavedEvent("Regional 2026");
-    const inactiveEvent = await createSavedEvent("Nacional 2026", {
-      activate: false,
+    const activeEvent = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
+    const inactiveEvent = await createSavedEvent({
+      name: "Nacional 2026",
+      active: false,
+      ...eventDates(2030),
     });
 
     const request = await createSignedInRequest({
@@ -144,7 +152,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("renders the modalities list with submodality badges and dedicated create/detail routes", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -186,7 +197,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("creates modalities from the dedicated route and loads their detail route", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     await db
       .update(events)
       .set({ registrationReadinessDirty: false })
@@ -249,7 +263,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("edits modalities and manages submodalities from the detail route", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -361,7 +378,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("saves inline submodalities through the modality form", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -415,7 +435,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("renders the `Agregar` submodality editor on the modality `alta` route", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
 
     const request = await createSignedInRequest({
       email: "admin.alta.submodalidades@example.com",
@@ -430,7 +453,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("creates a modality with its submodalities from the `alta` route", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.submodalidades@example.com",
       role: "admin",
@@ -477,7 +503,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("creates a modality with zero submodalities from the `alta` route", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.sin.submodalidades@example.com",
       role: "admin",
@@ -504,7 +533,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("rejects duplicate submodality names server-side on modality creation", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.duplicada@example.com",
       role: "admin",
@@ -535,7 +567,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("rejects invalid submodality rows server-side when the client is bypassed", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.invalida@example.com",
       role: "admin",

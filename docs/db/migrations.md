@@ -139,7 +139,7 @@ contract, and it is correct once no running code reads the object any more.
 Mark the statement in the generated `.sql`:
 
 ```sql
--- reason: contract step of #123; no running code has read "nota" since #120.
+-- reason: contract step; no running code reads "nota" any more.
 -- squawk-ignore ban-drop-column
 ALTER TABLE "event" DROP COLUMN "nota";
 ```
@@ -202,8 +202,8 @@ healthcheck has to allow for that:
 | `health_check_enabled`      | `true`             | Was `false`, almost certainly because of the `/` |
 | `health_check_start_period` | `60`               | Must cover the migration plus the ~45s retries   |
 
-Set on the application (`x1383fsxfsixpgmvd9quv7tj`) before the first deploy of
-#613 and confirmed live. For reference, the probe around them is `GET` over
+Set on the application (`x1383fsxfsixpgmvd9quv7tj`) before the first deploy
+that applied migrations from the container entrypoint, and confirmed live. For reference, the probe around them is `GET` over
 `http` to `localhost`, every 5s, 5s timeout, 10 retries.
 
 `/internal/health` must not query Postgres. Migration success already gates
@@ -211,14 +211,15 @@ start-up, so the healthcheck's only job is "did the process come up". A
 DB-touching check would mark a healthy container unhealthy during a blip and
 restart it, reintroducing the crash-loop the retry budget exists to prevent.
 
-**Container command precedence.** The Coolify application has `start_command`
-populated with the server command, byte-identical to the image's `CMD`. That is
-why migrations hang off `ENTRYPOINT`: an `ENTRYPOINT` composes with whatever
-command arrives, whereas a chained `CMD` would be silently overridden and the
-migrations would never run — with no error, because the app would start
-normally.
+**Container command precedence.** The Coolify application's `start_command` is
+empty in production (as of 2026-10-11) and was never set in staging, so the
+container runs the image's `CMD`. Migrations still hang off `ENTRYPOINT`, not a
+chained `CMD`: `start_command` is one field in Coolify's settings, and filling
+it replaces `CMD` silently. An `ENTRYPOINT` composes with whatever command
+arrives; a chained `CMD` would be overridden and the migrations would never
+run, with no error, because the app would start normally.
 
-Answered on the first deploy, 2026-08-04 (#593):
+Answered on the first deploy, 2026-08-04:
 
 ```console
 $ docker inspect --format='{{json .Config.Entrypoint}} {{json .Config.Cmd}}' <app-container>
@@ -233,13 +234,10 @@ generates (`custom_docker_run_options` is unset), the entrypoint ran, and the
 migration exited 0 before the server was `exec`'d — the log line only exists on
 that path. That is the load-bearing answer.
 
-What the inspection _cannot_ tell you is whether `Cmd` arrived from Coolify's
-`start_command` or was inherited from the image's `CMD`: the two are
-byte-identical, which is exactly the coincidence that made a chained `CMD`
-unsafe to rely on. Settling it would mean reading the generated
-`docker-compose.yaml` for a `command:` key. It no longer matters — an
-`ENTRYPOINT` composes with either — so it is recorded as unresolved rather than
-chased.
+That inspection cannot tell whether its `Cmd` came from `start_command` or from
+the image's `CMD`, which were byte-identical then. It does not matter: an
+`ENTRYPOINT` composes with either. Today, with `start_command` empty, it is the
+image's `CMD`.
 
 ### Break-glass
 
@@ -272,5 +270,4 @@ nothing reads it anymore.
 - A CI drift-check (fails when `db:generate` produces an uncommitted migration)
   runs in the `checks` job of `.github/workflows/ci.yml`. `db:generate` is
   offline — it diffs `schema.ts` against `app/db/migrations/meta/` without a
-  database — so it needs no Postgres service. Decided in #305; deferred here
-  from the Fase 0 baseline (#391).
+  database — so it needs no Postgres service.

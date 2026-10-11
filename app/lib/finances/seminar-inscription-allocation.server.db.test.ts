@@ -9,7 +9,7 @@ import {
   seminarPrices,
   seminars,
 } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import {
   allocateToSeminarInscription,
   readSeminarInscriptionPriceOptions,
@@ -23,15 +23,13 @@ import {
 } from "@/lib/seminars/covered-inscriptions.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import {
   installDatabaseTestHooks,
   isPgliteTestBackend,
 } from "../../../tests/db/harness";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-} from "../admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 

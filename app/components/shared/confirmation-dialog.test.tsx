@@ -129,4 +129,42 @@ describe("ConfirmationDialog", () => {
 
     expect(document.body.textContent).toContain("Revisá las categorías");
   });
+
+  // With Cancelar live, the dialog could close, or the verb run again, while
+  // the first request is still running (style guide, Pending).
+  test("holds Cancelar and the verb while its request is in flight", async () => {
+    await renderDialog({ isPending: true });
+
+    expect(getButton("Cancelar").disabled).toBe(true);
+    expect(getButton("Archivar").disabled).toBe(true);
+    expect(
+      getButton("Archivar").querySelector('[data-slot="spinner"], svg'),
+    ).not.toBeNull();
+  });
+
+  // A dialog that waits on its request stays open on the click, so the
+  // pending state has somewhere to show; the caller closes it once settled.
+  test("stays open on the verb when it tracks a request", async () => {
+    const onOpenChange = vi.fn();
+    const onConfirm = vi.fn();
+
+    await renderDialog({ isPending: false, onConfirm, onOpenChange });
+    await clickReactDomButton("Archivar", { exact: true });
+
+    expect(onConfirm).toHaveBeenCalledOnce();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  test("ignores Escape while its request is in flight", async () => {
+    const onOpenChange = vi.fn();
+
+    await renderDialog({ isPending: true, onOpenChange });
+    document
+      .querySelector('[role="alertdialog"]')
+      ?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
 });

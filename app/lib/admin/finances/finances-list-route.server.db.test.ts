@@ -20,24 +20,23 @@ import {
   action as paymentCreateAction,
   loader as paymentCreateLoader,
 } from "@/routes/administracion.pagos_.nuevo";
+import {
+  buildGlobalPaymentRequest,
+  financesListRouteArgs,
+  financesListUrl,
+  renderFinanceAccountsRoute,
+  paymentCreateRouteArgs,
+} from "@/lib/admin/finances/finances.test-support";
+import { seedEventSeminarFinanceFixture } from "@/lib/admin/finances/seminar-finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   academiesRouteArgs,
   renderAcademiesRoute,
 } from "../academies/academies-route.test-support";
-import {
-  buildGlobalPaymentRequest,
-  createAcademyUser,
-  createInactiveEvent,
-  createSavedEvent,
-  createSignedInRequest,
-  financesListRouteArgs,
-  financesListUrl,
-  renderFinanceAccountsRoute,
-  paymentCreateRouteArgs,
-} from "./finances.test-support";
-import { seedEventSeminarFinanceFixture } from "./seminar-finances.test-support";
 
 installDatabaseTestHooks();
 
@@ -93,7 +92,11 @@ describe("`/administracion/finanzas`", () => {
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
     });
-    const otherEvent = await createInactiveEvent("En Escena 2027");
+    const otherEvent = await createSavedEvent({
+      name: "En Escena 2027",
+      active: false,
+      ...eventDates(2025),
+    });
     const academyNorth = await createAcademyUser({
       email: "academia.reporte.norte@example.com",
       academyName: "Academia Norte",

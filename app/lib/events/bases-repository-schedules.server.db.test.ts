@@ -22,18 +22,18 @@ import {
   createChoreographyOnBases,
   createEventModalitiesFixture,
   createSavedAcademy,
-  createSavedEvent,
   createSavedPrice,
   createSavedSchedule,
   expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import {
   createAcademySession,
   createDancer,
   createOpenEventCatalog,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import {
   installDatabaseTestHooks,
@@ -48,8 +48,16 @@ installDatabaseTestHooks();
 
 describe("`Bases del evento` repository", () => {
   test("validates schedule total capacity and accepted modalities by event", async () => {
-    const firstEvent = await createSavedEvent("Regional 2026");
-    const secondEvent = await createSavedEvent("Final 2026");
+    const firstEvent = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const secondEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const jazz = await expectCreated(
       createModality(firstEvent.id, { name: "Jazz" }),
     );
@@ -101,7 +109,11 @@ describe("`Bases del evento` repository", () => {
 
   test("accepts categories that share a modality with the schedule, and none at all", async () => {
     const { event, jazz, urbanas } = await createEventModalitiesFixture();
-    const otherEvent = await createSavedEvent("Final 2026");
+    const otherEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const otherEventModality = await expectCreated(
       createModality(otherEvent.id, { name: "Jazz" }),
     );
@@ -255,7 +267,7 @@ describe("`Bases del evento` repository", () => {
     await expect(deleteCategory(babyJazz.id)).resolves.toMatchObject({
       ok: false,
       error:
-        "No se puede borrar la categoría porque tiene cronogramas relacionados.",
+        "No se puede eliminar la categoría porque tiene cronogramas relacionados.",
     });
 
     await expectCreated(
@@ -350,7 +362,7 @@ describe("`Bases del evento` repository", () => {
       deleteSchedule(block.id, { hasDependencies: async () => true }),
     ).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error: "No se puede eliminar el cronograma porque tiene dependencias.",
     });
   });
 
@@ -788,7 +800,7 @@ describe("`Bases del evento` repository", () => {
       ok: false,
       code: "schedule-has-dependencies",
       error:
-        "No se puede borrar el cronograma porque tiene coreografías retiradas asignadas.",
+        "No se puede eliminar el cronograma porque tiene coreografías retiradas asignadas.",
     });
     await expect(deleteSchedule(freeBlock.id)).resolves.toEqual({ ok: true });
   });

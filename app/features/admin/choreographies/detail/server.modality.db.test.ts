@@ -13,18 +13,13 @@ import {
   schedules,
   submodalities,
 } from "@/db/schema";
-import {
-  handleChoreographyDetailAction,
-  loadChoreographyDetailRouteData,
-  type ChoreographyDetailActionData,
-} from "@/features/admin/choreographies/detail/server";
+import { loadChoreographyDetailRouteData } from "@/features/admin/choreographies/detail/server";
 import { toSavedChoreographyDraft } from "@/features/admin/choreographies/detail/draft-form";
 import {
   resolveChoreographyDraftIntent,
   saveChoreographyDraftIntent,
   toChoreographyDraftFormData,
   type ChoreographyDraft,
-  type ChoreographyDraftPreview,
 } from "@/features/admin/choreographies/detail/draft.shared";
 import {
   createAcademySession,
@@ -34,19 +29,22 @@ import {
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
-import {
   evaluatedChoreographyMessage,
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
-import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+
+import {
+  readDraftPreview,
+  submitDetailAction,
+} from "@/features/admin/choreographies/detail/server.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 
 // Reaching a real evaluation means a score on an assigned judge, which is not
 // this file's subject, so a test that needs a closed choreography declares it
@@ -548,7 +546,7 @@ async function createModalityScenario(input: {
   }
 
   async function readModalityDraft(modalityId: string) {
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       email: nextEmail("admin"),
       requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,
       role: "admin",
@@ -575,7 +573,7 @@ async function createModalityScenario(input: {
     event,
     owner,
     async loadDetail(role: "admin" | "auditor" = "admin") {
-      const { request } = await createSignedInAdminRequest({
+      const { request } = await createSignedInRequest({
         email: nextEmail(role),
         requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,
         role,
@@ -636,20 +634,6 @@ async function createModalityScenario(input: {
     },
     target,
   };
-}
-
-function readDraftPreview(
-  response: ChoreographyDetailActionData | Response,
-): ChoreographyDraftPreview {
-  if (
-    response instanceof Response ||
-    !("intent" in response) ||
-    response.intent !== resolveChoreographyDraftIntent
-  ) {
-    throw new Error("the action did not answer the draft preview");
-  }
-
-  return response.preview;
 }
 
 async function createTargetModality(input: {
@@ -735,23 +719,4 @@ async function createTargetModality(input: {
   }
 
   return { category, modality, schedule, scheduleCapacity, submodality };
-}
-
-async function submitDetailAction(input: {
-  body: FormData;
-  choreographyId: string;
-  email: string;
-  role: "admin" | "auditor";
-}) {
-  const { request } = await createSignedInAdminRequest({
-    body: input.body,
-    email: input.email,
-    requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
-    role: input.role,
-  });
-
-  return await handleChoreographyDetailAction({
-    params: { choreographyId: input.choreographyId },
-    request,
-  });
 }

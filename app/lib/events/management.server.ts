@@ -15,9 +15,9 @@ const ACTIVE_EVENT_EXISTS_ERROR =
   "Hay otro evento activo. Desactivá el evento activo antes de activar este.";
 const INVALID_EVENT_ERROR = "Revisá los datos del Evento.";
 const ACTIVE_EVENT_DELETION_ERROR =
-  "No se puede borrar un evento activo. Desactivalo primero.";
+  "No se puede eliminar un evento activo. Desactivalo primero.";
 const DEPENDENT_EVENT_DELETION_ERROR =
-  "No se puede borrar un evento con dependencias operativas.";
+  "No se puede eliminar un evento con dependencias operativas.";
 const DEPENDENT_EVENT_EDIT_ERROR =
   "No se pueden editar fechas ni seña con dependencias operativas.";
 

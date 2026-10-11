@@ -1,13 +1,11 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 import { academies, user } from "@/db/schema";
-import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
-import {
-  createAccessUser,
-  createSessionRequestCookie,
-} from "@/lib/auth/access-auth.test-support";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import {
   getLandingPathForSignedInUser,
   requireAdminPanelReader,
@@ -37,7 +35,7 @@ describe("internal navigation", () => {
   ] as const)(
     "lands %s users on the role-specific surface",
     async (role, path) => {
-      const { request } = await createSignedInRequest({
+      const { request } = await createSignedInNavigationRequest({
         email: `${role}@example.com`,
         role,
       });
@@ -47,15 +45,15 @@ describe("internal navigation", () => {
   );
 
   test("allows administrators to reach the admin panel but blocks other internal roles", async () => {
-    const { request: adminRequest } = await createSignedInRequest({
+    const { request: adminRequest } = await createSignedInNavigationRequest({
       email: "admin@example.com",
       role: "admin",
     });
-    const { request: auditorRequest } = await createSignedInRequest({
+    const { request: auditorRequest } = await createSignedInNavigationRequest({
       email: "auditor@example.com",
       role: "auditor",
     });
-    const { request: judgeRequest } = await createSignedInRequest({
+    const { request: judgeRequest } = await createSignedInNavigationRequest({
       email: "judge@example.com",
       role: "judge",
     });
@@ -83,7 +81,7 @@ describe("internal navigation", () => {
           password: "password-segura",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -110,7 +108,7 @@ describe("internal navigation", () => {
           password: "password-segura",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -137,7 +135,7 @@ describe("internal navigation", () => {
           password: "password-segura",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
     ).resolves.toEqual({
       status: "error",
@@ -170,7 +168,7 @@ describe("internal navigation", () => {
           password: "password-segura",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
     ).resolves.toEqual({
       status: "error",
@@ -205,7 +203,7 @@ describe("internal navigation", () => {
             "http://localhost/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Fnuevo%3Fquery%3Dada",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -237,7 +235,7 @@ describe("internal navigation", () => {
           requestUrl,
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -262,7 +260,7 @@ describe("internal navigation", () => {
   ] as const)(
     "redirects signed-in users away from the public %s page",
     async (_name, loader, requestUrl, pattern) => {
-      const { request } = await createSignedInRequest({
+      const { request } = await createSignedInNavigationRequest({
         email: `${_name.replace(/\s/g, "-")}@example.com`,
         role: "judge",
         requestUrl,
@@ -272,7 +270,7 @@ describe("internal navigation", () => {
         loader({
           request,
           params: {},
-          context: {},
+          context: new RouterContextProvider(),
           url: new URL(requestUrl),
           pattern,
         }),
@@ -288,7 +286,7 @@ describe("internal navigation", () => {
       indexLoader({
         request: new Request("http://localhost/"),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
         url: new URL("http://localhost/"),
         pattern: "/",
       }),
@@ -306,7 +304,7 @@ describe("internal navigation", () => {
   ] as const)(
     "redirects signed-in %s users from / to their landing route",
     async (role, path) => {
-      const { request } = await createSignedInRequest({
+      const { request } = await createSignedInNavigationRequest({
         email: `index-${role}@example.com`,
         role,
         requestUrl: "http://localhost/",
@@ -316,7 +314,7 @@ describe("internal navigation", () => {
         indexLoader({
           request,
           params: {},
-          context: {},
+          context: new RouterContextProvider(),
           url: new URL("http://localhost/"),
           pattern: "/",
         }),
@@ -328,7 +326,7 @@ describe("internal navigation", () => {
   );
 
   test("routes academy users without an academy to onboarding after login", async () => {
-    const { request } = await createSignedInRequest({
+    const { request } = await createSignedInNavigationRequest({
       email: "registro.pendiente@example.com",
       role: "academy",
       requestUrl: "http://localhost/registro",
@@ -339,7 +337,7 @@ describe("internal navigation", () => {
       registrationLoader({
         request,
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
         url: new URL("http://localhost/registro"),
         pattern: "/registro",
       }),
@@ -350,11 +348,11 @@ describe("internal navigation", () => {
   });
 
   test("admits administration readers to the panel and nobody else", async () => {
-    const { request: auditorRequest } = await createSignedInRequest({
+    const { request: auditorRequest } = await createSignedInNavigationRequest({
       email: "auditoria@example.com",
       role: "auditor",
     });
-    const { request: judgeRequest } = await createSignedInRequest({
+    const { request: judgeRequest } = await createSignedInNavigationRequest({
       email: "juzgamiento@example.com",
       role: "judge",
     });
@@ -373,41 +371,26 @@ describe("internal navigation", () => {
   });
 });
 
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | InternalUserRole;
-  requestUrl?: string;
-  withAcademy?: boolean;
-}) {
-  const credentialUser = await createCredentialUser(input);
+// The shared signed-in request, plus the academy row an academy user needs to
+// get past registration (`withAcademy: false` leaves it pending).
+async function createSignedInNavigationRequest(
+  input: Parameters<typeof createSignedInRequest>[0] & {
+    withAcademy?: boolean;
+  },
+) {
+  const signedIn = await createSignedInRequest(input);
 
   if (input.role === "academy" && input.withAcademy !== false) {
     await db.insert(academies).values({
-      id: `academy_${credentialUser.userId}`,
-      userId: credentialUser.userId,
+      id: `academy_${signedIn.userId}`,
+      userId: signedIn.userId,
       name: "Academia de Prueba",
       contactName: "Contacto",
       phone: "11 1234-5678",
     });
   }
 
-  return {
-    request: new Request(input.requestUrl ?? "http://localhost/protected", {
-      headers: {
-        cookie: createSessionRequestCookie(
-          (
-            await accessAuthProvider.signInCredentialUser({
-              email: input.email,
-              password: "password-segura",
-              request: new Request("http://localhost/ingresar", {
-                method: "POST",
-              }),
-            })
-          ).headers,
-        ),
-      },
-    }),
-  };
+  return signedIn;
 }
 
 async function createCredentialUser(input: {

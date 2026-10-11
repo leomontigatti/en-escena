@@ -10,6 +10,18 @@
 // - `actions-menu-text-only`: Actions menu, no icon inside the JSX of a
 //   `ResourceActionsMenu`. It reads one file: items a child component renders
 //   are out of its sight.
+// - `confirm-wording`: Destructive actions, a confirmation's title is a
+//   question and its verb is the title's, never `Confirmar` or `Aceptar`.
+// - `no-borrar`: Interface text, a delete says `eliminar`. It also reads the
+//   `.ts` files, where refusals and server messages live.
+// - `confirmation-shared`: Destructive actions, an `AlertDialog` is written
+//   once in app/components/shared, never inline in a view.
+// - `alert-structure`: Alerts, an `Alert` has a variant, that variant's one
+//   icon, an `AlertTitle` and an `AlertDescription`.
+// - `restricted-syntax`: single shapes the guide bans, each with its reason:
+//   `toast.info`, a `dark:` class, an `<h1>` under the admin or the portal,
+//   `FormEvent`, and a native `form.submit()`. oxlint has no
+//   `no-restricted-syntax`, so this is that block.
 //
 // `Trash2` over `Trash` (Buttons) is the built-in `no-restricted-imports`, in
 // `.oxlintrc.json`.
@@ -445,6 +457,470 @@ const actionsMenuTextOnly = {
   },
 };
 
+// The static start of what an element shows: its leading text, or `undefined`
+// when it starts with something the rule cannot read (a prop, a call).
+function leadingText(element) {
+  for (const child of element.children) {
+    if (child.type === "JSXText") {
+      if (child.value.trim() === "") continue;
+      return child.value.trim();
+    }
+    if (child.type === "JSXExpressionContainer") {
+      return staticString(child.expression);
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+// Every piece of static text an element shows, icons and props skipped.
+function staticText(element) {
+  return element.children
+    .flatMap((child) => {
+      if (child.type === "JSXText") return [child.value];
+      if (child.type === "JSXExpressionContainer") {
+        return [staticString(child.expression) ?? ""];
+      }
+      return [];
+    })
+    .join(" ")
+    .trim();
+}
+
+function staticString(expression) {
+  if (expression?.type === "Literal" && typeof expression.value === "string") {
+    return expression.value;
+  }
+  if (expression?.type === "TemplateLiteral") {
+    const start = expression.quasis[0]?.value.cooked ?? "";
+    // A template that opens with an expression starts with what it reads.
+    return start === "" && expression.expressions.length > 0
+      ? undefined
+      : start;
+  }
+  return undefined;
+}
+
+function attributeString(openingElement, name) {
+  const attribute = findAttribute(openingElement, name);
+  if (!attribute?.value) return undefined;
+  if (attribute.value.type === "Literal") return attribute.value.value;
+  return staticString(attribute.value.expression);
+}
+
+const GENERIC_VERB = /^(Confirmar|Aceptar)\b/;
+
+function genericVerb(text) {
+  return text?.replace(/^¿/, "").match(GENERIC_VERB)?.[1];
+}
+
+function isInside(openingElement, isAncestor) {
+  for (let node = openingElement.parent?.parent; node; node = node.parent) {
+    if (node.type === "JSXElement" && isAncestor(node.openingElement)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const confirmWording = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "A confirmation's title is a question and its verb repeats the title's.",
+    },
+    messages: {
+      question:
+        "Write a confirmation's title as a question naming the action and its object (`¿Eliminar la coreografía?`): it is what the buttons under it answer (style guide, Destructive actions).",
+      verb: "Name the action with the verb from the title (`Eliminar`, `Guardar`, `Anular`), not `{{verb}}`: a generic verb sends the user back to the question to learn what the button does (style guide, Destructive actions).",
+    },
+    schema: [],
+  },
+  create(context) {
+    const uiImports = trackUiImports(context);
+
+    function checkTitle(node, text) {
+      if (text === undefined) return;
+      if (!text.startsWith("¿")) {
+        context.report({ node, messageId: "question" });
+      }
+    }
+
+    function checkVerb(node, text) {
+      const verb = genericVerb(text);
+      if (verb) context.report({ node, messageId: "verb", data: { verb } });
+    }
+
+    return {
+      ImportDeclaration: uiImports.ImportDeclaration,
+      JSXElement(node) {
+        const opening = node.openingElement;
+        const component = uiImports.componentName(opening.name);
+
+        if (component === "AlertDialogTitle") {
+          const text = leadingText(node);
+          checkTitle(opening, text);
+          checkVerb(opening, text);
+          return;
+        }
+
+        if (
+          component === "AlertDialogAction" ||
+          (component === "Button" &&
+            isInside(
+              opening,
+              (ancestor) =>
+                uiImports.componentName(ancestor.name) === "AlertDialogFooter",
+            ))
+        ) {
+          checkVerb(opening, staticText(node));
+          return;
+        }
+
+        if (
+          opening.name.type === "JSXIdentifier" &&
+          opening.name.name === "ConfirmationDialog"
+        ) {
+          const title = attributeString(opening, "title");
+          checkTitle(opening, title);
+          checkVerb(opening, title);
+          checkVerb(opening, attributeString(opening, "confirmLabel"));
+        }
+      },
+    };
+  },
+};
+
+// Every word built on `borr-` (`borrar`, `borró`, `Borrá`, `borralo`,
+// `borremos`), with letter boundaries that know accents, since `\b` does
+// not. `borrador` is a draft, not a delete.
+const BORR_WORD = /(?<!\p{L})borr(?!ador)\p{L}*/giu;
+// A sentence that says a record is not deleted (`no se borra`, `Suspender no
+// borra datos`) describes the data, not an action the user takes. Only the
+// third person: `no borres` is still an instruction to delete.
+const NOT_DELETED = /(?<!\p{L})no (?:se )?$/iu;
+const DESCRIBING_FORMS = new Set(["borra", "borran"]);
+
+function borrarWord(text) {
+  for (const match of text.matchAll(BORR_WORD)) {
+    const word = match[0].toLowerCase();
+    const before = text.slice(0, match.index);
+    if (DESCRIBING_FORMS.has(word) && NOT_DELETED.test(before)) continue;
+    return word;
+  }
+  return undefined;
+}
+
+const noBorrar = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description: "A delete says eliminar, not borrar.",
+    },
+    messages: {
+      word: "Say `eliminar` (`elimina`, `eliminación`), not `{{word}}`: the button and the menu item say `Eliminar`, and a refusal or a confirmation that says `borrar` reads as another action. A file taken out of a field is `Quitar` (style guide, Interface text).",
+    },
+    schema: [],
+  },
+  create(context) {
+    function check(node, text) {
+      const word = text === undefined ? undefined : borrarWord(text);
+      if (word) {
+        context.report({
+          node,
+          messageId: "word",
+          data: { word },
+        });
+      }
+    }
+
+    return {
+      Literal(node) {
+        if (typeof node.value !== "string") return;
+        if (node.parent?.type === "ImportDeclaration") return;
+        check(node, node.value);
+      },
+      TemplateElement(node) {
+        check(node, node.value.cooked);
+      },
+      JSXText(node) {
+        check(node, node.value);
+      },
+    };
+  },
+};
+
+const SHARED_DIRECTORY_SEGMENT = `${path.sep}app${path.sep}components${path.sep}shared${path.sep}`;
+
+function importsUiModule(source, filename, module) {
+  if (source === `${UI_ALIAS_PREFIX}${module}`) return true;
+  if (!source.startsWith(".")) return false;
+  return path
+    .resolve(path.dirname(filename), source)
+    .endsWith(`${UI_DIRECTORY_SEGMENT}${module}`);
+}
+
+const confirmationShared = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "AlertDialog is used only by the shared confirmations in app/components/shared.",
+    },
+    messages: {
+      inline:
+        "Use a confirmation from app/components/shared (`ConfirmationDialog`, `DeleteDialog`, `WithdrawDialog`, `BlockedActionDialog`, `ArcaConfirmationDialog`) instead of an `AlertDialog` in a view: the shared one owns the question, the footer and the pending state, so every confirmation reads and behaves the same. A new kind of confirmation gets its own component there (style guide, Destructive actions).",
+    },
+    schema: [],
+  },
+  create(context) {
+    if (`${context.filename}`.includes(SHARED_DIRECTORY_SEGMENT)) return {};
+
+    return {
+      ImportDeclaration(node) {
+        if (
+          importsUiModule(node.source.value, context.filename, "alert-dialog")
+        ) {
+          context.report({ node, messageId: "inline" });
+        }
+      },
+    };
+  },
+};
+
+const ALERT_ICONS = new Map([
+  ["destructive", "CircleAlert"],
+  ["warning", "TriangleAlert"],
+  ["info", "Info"],
+  ["success", "CircleCheck"],
+]);
+const ALERT_PARTS = new Set(["AlertTitle", "AlertDescription", "AlertAction"]);
+
+// What an alert's children are, as far as one file shows: its icon, its
+// parts, or something the rule cannot see into (a prop, a wrapper component).
+// Whitespace and `{/* comments */}` render nothing.
+function isBlankChild(child) {
+  return (
+    (child.type === "JSXText" && child.value.trim() === "") ||
+    (child.type === "JSXExpressionContainer" &&
+      child.expression.type === "JSXEmptyExpression")
+  );
+}
+
+function alertChildren(node, uiImports, icons) {
+  return node.children
+    .filter((child) => !isBlankChild(child))
+    .map((child) => {
+      if (child.type !== "JSXElement") return { kind: "unknown" };
+      const name = child.openingElement.name;
+      if (name.type === "JSXIdentifier" && icons.has(name.name)) {
+        return { kind: "icon", element: child.openingElement };
+      }
+      const part = uiImports.componentName(name);
+      return ALERT_PARTS.has(part) ? { kind: part } : { kind: "unknown" };
+    });
+}
+
+function checkAlertParts(context, opening, children, variant, icon) {
+  // The rest needs every child in sight: a prop or a wrapper component may
+  // bring the icon or the parts.
+  if (children.some((child) => child.kind === "unknown")) return;
+  if (!icon) {
+    context.report({
+      node: opening,
+      messageId: "missingIcon",
+      data: { icon: ALERT_ICONS.get(variant), variant },
+    });
+  }
+  for (const part of ["AlertTitle", "AlertDescription"]) {
+    if (!children.some((child) => child.kind === part)) {
+      context.report({ node: opening, messageId: "part", data: { part } });
+    }
+  }
+}
+
+function checkAlertIcon(context, icon, variant) {
+  const canonical = ALERT_ICONS.get(variant);
+  if (icon.name.name !== canonical) {
+    context.report({
+      node: icon,
+      messageId: "icon",
+      data: { found: icon.name.name, icon: canonical, variant },
+    });
+  }
+  if (findAttribute(icon, "className")) {
+    context.report({ node: icon, messageId: "iconClass" });
+  }
+}
+
+const alertStructure = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "An Alert has a variant, that variant's icon, a title and a description.",
+    },
+    messages: {
+      variant:
+        "Give <Alert> a `variant` of `info`, `warning`, `destructive` or `success`: the variant says what kind of message it is, and `default` says nothing (style guide, Alerts).",
+      icon: "Draw `{{icon}}` in a `{{variant}}` alert, not `{{found}}`: each variant has one icon, so a message reads the same as an alert and as a toast (style guide, Alerts).",
+      missingIcon:
+        "Start a `{{variant}}` alert with `{{icon}}`: each variant has one icon, so a message reads the same as an alert and as a toast (style guide, Alerts).",
+      iconClass:
+        "Drop `className` from the alert's icon: `Alert` places it, beside the first line (style guide, Alerts).",
+      part: "Give the alert an `{{part}}`: the title says what is going on in a few words, the description the detail and what to do (style guide, Alerts).",
+    },
+    schema: [],
+  },
+  create(context) {
+    const uiImports = trackUiImports(context);
+    const icons = new Set();
+
+    return {
+      ImportDeclaration(node) {
+        uiImports.ImportDeclaration(node);
+        if (node.source.value !== ICON_PACKAGE) return;
+        for (const specifier of node.specifiers) {
+          icons.add(specifier.local.name);
+        }
+      },
+      JSXElement(node) {
+        const opening = node.openingElement;
+        if (uiImports.componentName(opening.name) !== "Alert") return;
+
+        const variantAttribute = findAttribute(opening, "variant");
+        if (variantAttribute && hasUnreadableValue(variantAttribute)) return;
+        const variant = stringAttribute(opening, "variant");
+        if (!ALERT_ICONS.has(variant)) {
+          context.report({ node: opening, messageId: "variant" });
+          return;
+        }
+
+        const children = alertChildren(node, uiImports, icons);
+        const icon = children.find((child) => child.kind === "icon");
+        if (icon) checkAlertIcon(context, icon.element, variant);
+
+        checkAlertParts(context, opening, children, variant, icon);
+      },
+    };
+  },
+};
+
+const PAGE_HEADER_SURFACES = ["admin", "portal"].flatMap((surface) => [
+  `${path.sep}app${path.sep}features${path.sep}${surface}${path.sep}`,
+  `${path.sep}app${path.sep}components${path.sep}${surface}${path.sep}`,
+]);
+// `dark:` as any of a class's variants: `dark:bg-x`, `md:dark:bg-x`.
+const DARK_CLASS = /(?:^|\s)(?:[\w-]+:)*dark:\S/;
+const FORM_EVENT_TYPES = new Set(["FormEvent", "FormEventHandler"]);
+
+function isMember(node, property) {
+  return (
+    node?.type === "MemberExpression" &&
+    !node.computed &&
+    node.property.name === property
+  );
+}
+
+// `HTMLFormElement.prototype.submit`.
+function isPrototypeSubmit(node) {
+  const prototype = node.object;
+  return (
+    isMember(prototype, "prototype") &&
+    prototype.object.type === "Identifier" &&
+    prototype.object.name === "HTMLFormElement"
+  );
+}
+
+function isNativeFormSubmit(node) {
+  const callee = node.callee;
+  // `form.submit()`: React Router's `submit` and a fetcher's always take what
+  // they send.
+  if (isMember(callee, "submit") && node.arguments.length === 0) return true;
+  // `HTMLFormElement.prototype.submit.call(form)`.
+  return isMember(callee?.object, "submit") && isPrototypeSubmit(callee.object);
+}
+
+const restrictedSyntax = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "Shapes the style guide bans outright, each with its reason.",
+    },
+    messages: {
+      toastInfo:
+        "Drop `toast.info`: a toast is a success or an error the server confirmed, and no product case has needed an informative one yet (style guide, Forms).",
+      dark: "Drop the `dark:` class: the theme's tokens already carry the dark mode, and a hand-tuned dark look drifts from it (style guide, Theme).",
+      h1: "Use the page header instead of an `<h1>`: `AdminResourceLayout` and `PortalPageHeader` title every page with an `h2` (style guide, Page header).",
+      formEvent:
+        "Type a submit handler with `React.SubmitEvent` (or `SubmitEventHandler`), not `FormEvent`: React 19 deprecates it because it does not describe a form's submit (style guide, Forms).",
+      formSubmit:
+        "Submit through React Router (`useSubmit`, a fetcher's `submit`, or `requestSubmit()`), not the native `form.submit()`: it skips the submit event, so React Hook Form's validation and the router never see it (style guide, Forms).",
+    },
+    schema: [],
+  },
+  create(context) {
+    const filename = `${context.filename}`;
+    const ownsPageHeader = PAGE_HEADER_SURFACES.some((segment) =>
+      filename.includes(segment),
+    );
+
+    function checkClasses(node, text) {
+      if (DARK_CLASS.test(text)) context.report({ node, messageId: "dark" });
+    }
+
+    return {
+      CallExpression(node) {
+        const callee = node.callee;
+        if (
+          callee.type === "MemberExpression" &&
+          callee.object.type === "Identifier" &&
+          callee.object.name === "toast" &&
+          callee.property.name === "info"
+        ) {
+          context.report({ node, messageId: "toastInfo" });
+        } else if (isNativeFormSubmit(node)) {
+          context.report({ node, messageId: "formSubmit" });
+        }
+      },
+      Literal(node) {
+        if (typeof node.value === "string") checkClasses(node, node.value);
+      },
+      TemplateElement(node) {
+        checkClasses(node, node.value.cooked ?? "");
+      },
+      JSXOpeningElement(node) {
+        if (
+          ownsPageHeader &&
+          node.name.type === "JSXIdentifier" &&
+          node.name.name === "h1"
+        ) {
+          context.report({ node, messageId: "h1" });
+        }
+      },
+      ImportSpecifier(node) {
+        if (
+          node.parent.source.value === "react" &&
+          FORM_EVENT_TYPES.has(node.imported.name)
+        ) {
+          context.report({ node, messageId: "formEvent" });
+        }
+      },
+      TSQualifiedName(node) {
+        if (
+          node.left.type === "Identifier" &&
+          node.left.name === "React" &&
+          FORM_EVENT_TYPES.has(node.right.name)
+        ) {
+          context.report({ node, messageId: "formEvent" });
+        }
+      },
+    };
+  },
+};
+
 export default {
   meta: { name: "ui" },
   rules: {
@@ -454,5 +930,10 @@ export default {
     "data-icon-position": dataIconPosition,
     "dialog-width": dialogWidth,
     "actions-menu-text-only": actionsMenuTextOnly,
+    "confirm-wording": confirmWording,
+    "no-borrar": noBorrar,
+    "confirmation-shared": confirmationShared,
+    "alert-structure": alertStructure,
+    "restricted-syntax": restrictedSyntax,
   },
 };

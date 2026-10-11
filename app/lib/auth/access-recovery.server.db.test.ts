@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -11,6 +12,7 @@ import {
   signInAccessUser,
 } from "@/lib/auth/access-auth.test-support";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
+import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 import {
   action as changePasswordAction,
   loader as changePasswordLoader,
@@ -170,13 +172,19 @@ describe("access recovery", () => {
           `http://localhost/cambiar-contrasena?code=${recoveryCode}`,
         ),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
     );
 
     expect(loaderResponse.headers.get("location")).toBe(
       "/cambiar-contrasena?recuperacion=1",
     );
+
+    // Every attribute pinned, so a `cookie` upgrade that drops or adds one
+    // shows up here (#976).
+    expect(
+      readRecoveryCookieAttributes(getSetCookieValues(loaderResponse.headers)),
+    ).toEqual(["HttpOnly", "Path=/", "SameSite=Lax"]);
 
     const recoveryCookie = createRecoveryCookie(loaderResponse.headers);
 
@@ -190,11 +198,14 @@ describe("access recovery", () => {
           requestUrl: "http://localhost/cambiar-contrasena?recuperacion=1",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
     );
 
     expect(response.headers.get("location")).toBe("/ingresar?recuperacion=ok");
+    expect(
+      readRecoveryCookieAttributes(getSetCookieValues(response.headers)),
+    ).toEqual(["HttpOnly", "Max-Age=0", "Path=/", "SameSite=Lax"]);
     await expect(findSessionsByUserId(userId)).resolves.toEqual([]);
     await expect(
       readAccessSession(new Headers({ cookie: sessionCookie })),
@@ -228,7 +239,7 @@ describe("access recovery", () => {
             `http://localhost/cambiar-contrasena?code=${recoveryCode}`,
           ),
           params: {},
-          context: {},
+          context: new RouterContextProvider(),
         }),
       );
       vi.spyOn(auth.api, "resetPassword").mockRejectedValue(
@@ -247,7 +258,7 @@ describe("access recovery", () => {
           requestUrl: "http://localhost/cambiar-contrasena?recuperacion=1",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       });
 
       expect(result).toMatchObject({
@@ -351,6 +362,20 @@ function createRecoveryCookie(headers: Headers) {
   }
 
   return `en_escena.recovery_token=${recoveryCookie}`;
+}
+
+// The attributes of the first recovery-token Set-Cookie, sorted so the
+// assertion does not depend on the order the serializer writes them in.
+function readRecoveryCookieAttributes(setCookies: string[]) {
+  const recoveryCookie = setCookies.find((value) =>
+    value.startsWith("en_escena.recovery_token="),
+  );
+
+  if (!recoveryCookie) {
+    throw new Error("Expected a recovery token Set-Cookie header.");
+  }
+
+  return recoveryCookie.split("; ").slice(1).sort();
 }
 
 function readSetCookieValue(headers: Headers, pattern: RegExp) {

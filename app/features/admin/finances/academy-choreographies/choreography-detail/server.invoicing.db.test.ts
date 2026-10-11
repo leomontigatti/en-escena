@@ -28,27 +28,25 @@ import {
   facturaCConsultada,
   facturaCRechazada,
   ultimoAutorizado,
-} from "@/lib/comprobantes/arca/fixtures";
+} from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 import type { FacturaCEmissionDeps } from "@/lib/comprobantes/emit-factura-c.server";
-
-import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-  createSignedInRequest,
-} from "../../../../../lib/admin/finances/finances.test-support";
-
-import {
-  handleChoreographyFinanceAction,
-  loadChoreographyFinanceDetail,
-} from "./server";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
   recheckComprobanteIntent,
 } from "@/features/admin/finances/comprobante-emission/shared";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
+
+import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
+
+import {
+  handleChoreographyFinanceAction,
+  loadChoreographyFinanceDetail,
+} from "./server";
 
 installDatabaseTestHooks();
 

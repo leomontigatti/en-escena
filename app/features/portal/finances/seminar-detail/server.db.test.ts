@@ -7,18 +7,16 @@ import { loadSeminarFinanceDetail } from "@/features/admin/finances/academy-semi
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/seminar-detail/server";
 import { createAcademySession } from "@/features/portal/test-support/db";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
+import { academyFinancesUrl } from "@/lib/admin/finances/finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import {
-  academyFinancesUrl,
-  createSavedEvent,
-  createSignedInRequest,
-} from "../../../../lib/admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 

@@ -4,19 +4,17 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { events } from "@/db/schema";
 
-import {
-  createSavedEvent,
-  createSignedInRequest,
-} from "@/lib/admin/finances/finances.test-support";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { listSeminarInscriptions } from "@/lib/seminars/inscription-rosters.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
-import { coverSeminarInscriptionDeposit } from "@/lib/seminars/test-fixtures.server.db";
-import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

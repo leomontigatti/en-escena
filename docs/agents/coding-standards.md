@@ -27,6 +27,35 @@ Avoid tests that simply restate trivial implementation details, such as a
 one-line string concatenation or direct mapping. These tests add little
 confidence and tend to break during harmless refactors.
 
+Every test names the bug it catches: the wrong implementation that would make
+it fail. The anti-patterns that cannot, and the rules on fixtures and on
+deleting redundant tests, are in the
+[`tdd` skill](../../.agents/skills/tdd/SKILL.md). A test never asserts that a
+document contains fixed text; it checks a doc's structure against something
+outside it (a link resolves, an index matches its files, a value matches the
+code that enforces it). `pnpm check:docs-tests` enforces that one.
+
+### Test support files
+
+A fixture, builder or render helper that tests under `app/` share lives in one
+of two places, chosen by who uses it:
+
+- **One domain's tests**: `<name>.test-support.ts` (`.tsx` when it renders),
+  beside the code it builds for: `app/lib/events/bases.test-support.ts`,
+  `app/lib/auth/access-auth.test-support.ts`.
+- **Tests across domains**: a module in a `test-support/` directory.
+  `app/lib/test-support/` holds what any test may want (signed-in requests,
+  saved events, academies, forms, the DOM); `app/features/<area>/test-support/` and
+  `app/lib/admin/test-support/` hold what one area's tests share.
+
+No other suffix (`*.test-helpers.ts`, `*-test-fixtures.server.db.ts`,
+`fixtures.ts`): the documentation gate recognises the `.test-support` suffix
+and the directory as test code, and a reader finds every fixture with one
+search. Identifiers are English like the rest of the code. Before adding a file, extend
+the one that already builds those rows or requests, as the
+[`tdd` skill](../../.agents/skills/tdd/SKILL.md) says; a fixture that a second
+domain starts importing moves to `app/lib/test-support/`.
+
 ### Component tests
 
 Test meaningful logic or observable behaviour. Do not render components to
@@ -64,7 +93,8 @@ that changes mapped code without changing its document:
 | `docs/domain/access.md`             | `app/lib/auth/**`                                                   |
 | `docs/operations/infrastructure.md` | `app/lib/storage/**`, `app/lib/portal/choreography-music.server.ts` |
 
-Test files (`*.test.ts`, `*.test.tsx`, `*.test-support.ts`) never fire it.
+Test files (`*.test.ts`, `*.test.tsx`, `*.test-support.ts(x)`, anything under a
+`test-support/` directory) never fire it.
 Deletions and renames of mapped code do.
 
 If your change touches mapped code, do one of two things **before committing**:
@@ -148,22 +178,17 @@ Route filenames are URLs, so they stay Spanish
 English (`loadAcademyFinances`). That mapping is intentional, not drift.
 
 "Docs" means every engineering doc, with no exceptions: ADRs, `docs/agents/`,
-`docs/domain/`, the glossary (`CONTEXT.md`), the repo index (`AGENTS.md`) and
+`docs/domain/`, the glossary (`GLOSSARY.md`), the repo index (`AGENTS.md`) and
 the style guide. No user reads these files, so the rule above already decides
 them. Being _about_ the product surface does not make a file part of it —
 otherwise ADRs would qualify too.
 
 ### The surrounding file does not decide the language
 
-The tree used to carry 2,198 lines of Spanish comments across 177 files, and the
-argument that kept adding to them was "consistent with the file": reviews of
-[#698](https://github.com/leomontigatti/en-escena/issues/698) and
-[#701](https://github.com/leomontigatti/en-escena/issues/701) both found new
-Spanish comments defended on exactly that ground. That debt is gone —
-[#592](https://github.com/leomontigatti/en-escena/issues/592) swept it, comments
-and test names alike — and `pnpm check:comment-language` now fails the commit and
-the build on Spanish prose in a comment, a test name or a thrown error message,
-so the argument no longer has anything to appeal to.
+"Consistent with the file" is not an argument for a Spanish comment: the tree's
+Spanish comments and test names were swept to zero, and `pnpm check:comment-language`
+fails the commit and the build on Spanish prose in a comment, a test name or a
+thrown error message.
 
 The converse still holds: **do not opportunistically translate** comments you are
 not otherwise touching. The sweep is done, so a stray Spanish line is now a bug
@@ -175,28 +200,26 @@ reaches what the others do. **Grammar**: Spanish function words, which only show
 up when the whole sentence is Spanish. **Morphology**: any word carrying an
 accent or `ñ`, whatever the sentence is doing — this is what catches
 `// ARCA respondió y no autorizó.`, a sentence with no function word in it at
-all. **Vocabulary**: every Spanish noun `CONTEXT.md` names. Measured over the
+all. **Vocabulary**: every Spanish noun `GLOSSARY.md` names. Measured over the
 tree, grammar and morphology overlap on 174 occurrences and are alone on 186 and
 749: drop any one and a clean run stops meaning what the gate says it means.
 
-[#792](https://github.com/leomontigatti/en-escena/issues/792) settled the licence
-the glossary grants, and settled it the strict way: **prose is governed exactly
-like an identifier.** A bare Spanish noun in an English comment is the same
+The glossary grants no licence: **prose is governed exactly like an identifier.** A bare Spanish noun in an English comment is the same
 choice the identifier rule forbids, so the only Spanish that survives bare is the
 reserved list below. Naming the Spanish term is still fine — it just has to be
 marked as the data it is, which is what the identifier rule always asked for.
 `// the cupo of the cronograma` is a violation; ``// the `Cupo de cronograma`
 column`` is not.
 
-It covers `.ts`, `.tsx`, `.mts` and `.mjs` under `.sandcastle/`, `app/`,
+It covers `.ts`, `.tsx`, `.mts` and `.mjs` under `.github/`, `app/`,
 `scripts/` and `tests/`, plus the config files at the repo root — that is every
 directory in the repo holding a file of those extensions, which is the point:
 `vitest.config.ts` was hiding seven lines of Spanish behind exactly such a gap,
-and `.sandcastle/` was the next one waiting. A test derives the expected roots
+and the runner's old `.sandcastle/` folder was the next one waiting. A test derives the expected roots
 from `git ls-files`, so the next gap of that shape fails rather than hides.
 
-**Markdown is covered too** (#792): `.md` under `.agents/`, `.claude/`, `.github/`,
-`.sandcastle/` and `docs/`, plus the repo root. Two directories are exempt, for one reason — a record
+**Markdown is covered too**: `.md` under `.agents/`, `.claude/`, `.github/`
+and `docs/`, plus the repo root. Two directories are exempt, for one reason — a record
 of something external may not be rewritten. `docs/adr/` is the decision as it was
 taken. `docs/research/` cites Argentine tax law by the titles the regulations
 actually carry, and `RG 1415/2003 — Régimen de emisión de comprobantes` is the
@@ -208,8 +231,7 @@ The guardrail does not read arbitrary string literals, and that is deliberate:
 Spanish UI copy lives in literals, so flagging them wholesale would be wrong.
 That left one gap wide enough to matter — a Spanish `throw new Error("…")` is
 engineering prose by this section's own test, since nobody but a developer or an
-operator ever reads it, and eleven of them were still in the tree after #592
-reported zero. **The argument of a `new …Error(…)` is checked like a comment.**
+operator ever reads it. **The argument of a `new …Error(…)` is checked like a comment.**
 
 The predicate is narrow on purpose, and both halves of it earn their place:
 
@@ -231,26 +253,21 @@ throw an `Error` at a user, that is the bug — not this rule.
 Marking still works the usual way, so ``throw new Error("Expected `Bases del
 evento` to exist.")`` is fine. What the gate cannot see is a message assembled
 from a fragment passed in as a variable: `decodePem(…, "El certificado")` fed a
-Spanish subject into an English sentence and survived #592's sweep untouched.
+Spanish subject into an English sentence and the gate never saw it.
 
-**YAML is covered too** (#793): `.yml` and `.yaml` under `.github/`, plus the
+**YAML is covered too**: `.yml` and `.yaml` under `.github/`, plus the
 repo root. A `#` opens a comment at line start or after whitespace and outside a
 quoted scalar, which is YAML's own rule, so a `#` inside a value — `#fff`, or the
-`#305` of an issue reference — is not one. A shell comment inside a `run: |`
+`#` of an issue reference — is not one. A shell comment inside a `run: |`
 block _is_ read, because the contributor reading it is the one reading the YAML
 comment above it. One exclusion: `pnpm-lock.yaml` is generated, not written.
 
-It was gated because leaving it on review is what let six Spanish comments across
-four workflow files outlive #592's sweep.
-
-**Shell is covered too** ([#947](https://github.com/leomontigatti/en-escena/issues/947)):
+**Shell is covered too**:
 `.sh` under `.agents/` and `scripts/`, plus the repo root. Its `#` comments are
 read by YAML's rule, the same one a `run: |` block already went through. Its
 **stderr is read like a thrown `Error`**, because that is what it is: an agent
 hook's stderr is the sentence the agent is handed back, so nobody but an
-agent or an operator ever reads it. `block-npx-tsc.sh` shipped that sentence in
-Spanish through #592's sweep and #793's, because the gate reached only the `.md`
-under `.claude/`, where the hooks lived then.
+agent or an operator ever reads it.
 
 The predicate reads the quoted strings on a line that redirects to `>&2`, and the
 literals assigned to a variable the file interpolates into one — `instruction="…"`
@@ -263,16 +280,31 @@ exists in the tree.
 One file type is exempt from every direction of this rule: **an applied migration under
 `app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole
 `.sql` file, so translating a comment inside one stops the production container
-from starting — which is exactly what
-[#762](https://github.com/leomontigatti/en-escena/pull/762) did. Leave its
+from starting. Leave its
 Spanish where it is, whatever this section says; `pnpm check:migration-immutability`
 enforces it, and `docs/db/migrations.md` explains why.
 
-`CONTEXT.md` is the mapping table, keyed on the code identifier: every entry is
+`GLOSSARY.md` is the mapping table, keyed on the code identifier: every entry is
 the canonical English identifier followed by `ui:`, the Spanish term the user
 sees. That direction matches how the table is used — you are writing code, you
 have the concept, you need the name and the copy. Reach for it before inventing
 a name, and cite it in review when a new identifier disagrees with the glossary.
+
+How to read it:
+
+- The identifier is the root, not the exact signature: decline it as needed
+  (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
+- `comprobante` is the only reserved Spanish term inside code (see
+  [Reserved Spanish Domain Terms](#reserved-spanish-domain-terms)).
+- **Prose is governed like an identifier**: the `ui:` terms are what the
+  user reads, not what a comment, a test name or a design doc says. Write the
+  English identifier in prose, and if the surface's own wording is the point,
+  mark the Spanish as data, as the next paragraph describes.
+- External-system adapters are the exception (see
+  [Why Adapters Are Exempt](#why-adapters-are-exempt)).
+- Where an existing symbol disagrees with the identifier in the glossary, the
+  glossary wins and the symbol is pending rename; renames are tracked separately.
+- Retired terms carry no identifier: they must not appear in new code.
 
 Docs quote UI copy verbatim. Spanish inside a quoted string, a route path or a
 glossary `ui:` value is data, not prose, and stays Spanish. **Which mark makes it
@@ -281,7 +313,7 @@ double quote marks Spanish copy and a backtick marks a name, because a name has
 to nest inside a double-quoted test title; in markdown it is the backtick and
 only the backtick, because a double quote there is ordinary punctuation around
 ordinary prose. One exception, which would otherwise be circular: the glossary
-row's own `— ui: "…"` value is the term the checker parses out of `CONTEXT.md`,
+row's own `— ui: "…"` value is the term the checker parses out of `GLOSSARY.md`,
 so it is data by definition.
 
 A name is not translated. `Factura C` and `Nota de crédito C` are what WSFEv1
@@ -292,7 +324,7 @@ Backtick them and move on.
 ### A `catch` rethrows what it does not expect, or logs before converting
 
 A catch that turns a failure into user copy hides it from everyone else, so it
-does one of two things ([#1514](https://github.com/leomontigatti/en-escena/issues/1514)).
+does one of two things.
 **It tests the condition it expects** — an error code, `instanceof`, a refusal
 class such as `RecoveryLinkRefusedError` — **and rethrows the rest**, so an
 unrelated failure reaches `handleError` and its `[server:unexpected]` line; or
@@ -300,7 +332,8 @@ unrelated failure reaches `handleError` and its `[server:unexpected]` line; or
 ids, error: describeServerError(thrown) })`, in the family of `[arca:unreachable]`
 and `[auth:provider:error]`, with ids and never a request body, document,
 email, password or token. A bare `catch {}` needs the expected condition in the
-code or a one-line reason above it.
+code or a one-line reason, inside the catch or right above its `try`; `pnpm
+lint` holds that part (`code/catch-reason`).
 
 ### Commits and pull requests are English
 
@@ -440,6 +473,25 @@ When a file grows past the soft limit and no clear module boundary exists yet,
 prefer tightening naming, removing dead branches, and clarifying sections before
 creating a forced abstraction.
 
-When validating work around a file-size refactor, use the current repo commands
-and order from `docs/agents/workflows.md`, including
-`pnpm check:file-tokens`, `pnpm typecheck`, and `pnpm test`.
+A file-size refactor validates with [validation.md](validation.md) plus
+`pnpm check:file-tokens` on the staged files.
+
+## Loaders and request performance
+
+A loader or action that calls the database or the service layer loads what its
+route renders, once:
+
+- Records the caller already loaded are passed in, not re-fetched; a layout loader
+  and its child do not both fetch the same event context.
+- A route that needs only ids, labels, status flags or counts gets a slim query
+  variant, not the full nested data.
+- Independent queries run in parallel.
+- An expensive helper says so in its name.
+
+When a route, form, table or navigation path feels slow, measure before
+diagnosing: time the loader or action at the real route seam, split into auth,
+event or context lookup, the main query or mutation, serialization, and
+revalidation. Record the route id, the intent, and whether the request came from a
+navigation, `useSubmit`, `fetcher.submit` or a native `<Form>`. A revalidation that
+follows an action is measured as its own loader, not blamed on the action. Postgres
+sits next to the app, so distance to the database is a poor first guess.

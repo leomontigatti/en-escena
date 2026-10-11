@@ -1,0 +1,714 @@
+import { eq } from "drizzle-orm";
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import {
+  createRoutesStub,
+  redirect,
+  RouterContextProvider,
+} from "react-router";
+import { expect } from "vitest";
+
+import { CategoryDetailView } from "@/features/admin/categories/detail/view";
+import { CategoryCreateView } from "@/features/admin/categories/create/view";
+import { CategoriesListView } from "@/features/admin/categories/list/view";
+import { handleCategoryAction } from "@/features/admin/categories/action.server";
+import type { CategoryDetailLoaderData } from "@/features/admin/categories/shared";
+import { handleEventModalityAction } from "@/features/admin/modalities/action.server";
+import { EventModalityCreateView } from "@/features/admin/modalities/create/view";
+import { EventModalityDetailView } from "@/features/admin/modalities/detail/view";
+import { EventModalitiesListView } from "@/features/admin/modalities/list/view";
+import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
+import { handleEventPriceAction } from "@/features/admin/prices/action.server";
+import { EventPriceCreateView } from "@/features/admin/prices/create/view";
+import { EventPriceDetailView } from "@/features/admin/prices/detail/view";
+import { EventPricesListView } from "@/features/admin/prices/list/view";
+import { handleEventScheduleAction } from "@/features/admin/schedules/action.server";
+import { EventScheduleCreateView } from "@/features/admin/schedules/create/view";
+import { EventScheduleDetailView } from "@/features/admin/schedules/detail/view";
+import type { ScheduleDependencySummary } from "@/lib/schedules/schedule-dependencies";
+import { EventSchedulesListView } from "@/features/admin/schedules/list/view";
+import { db } from "@/db";
+import type { categories, modalities, submodalities } from "@/db/schema";
+import { events, schedules, scheduleCapacities } from "@/db/schema";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
+import { loadEventContext } from "@/lib/admin/event-context.server";
+import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { createModality } from "@/lib/modalities/repository.server";
+import { getEventRegistrationOpenBlockers } from "@/lib/schedules/registration-open.server";
+import {
+  getEventBases,
+  type PriceListItem,
+  type ScheduleListItem,
+} from "@/lib/events/bases.server";
+import {
+  expectCreated,
+  fixedExperienceLevel,
+} from "@/lib/events/bases.test-support";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
+import { AdminShellRouteView } from "@/routes/administracion";
+import { handle as bloquesHorariosHandle } from "@/routes/administracion.cronogramas";
+import { handle as bloqueHorarioDetalleHandle } from "@/routes/administracion.cronogramas_.$scheduleId";
+import { handle as bloqueHorarioNuevoHandle } from "@/routes/administracion.cronogramas_.nuevo";
+import { handle as modalidadesHandle } from "@/routes/administracion.modalidades";
+import { handle as modalidadDetalleHandle } from "@/routes/administracion.modalidades_.$modalityId";
+import { handle as modalidadNuevaHandle } from "@/routes/administracion.modalidades_.nueva";
+import { handle as preciosHandle } from "@/routes/administracion.precios";
+import { handle as precioDetalleHandle } from "@/routes/administracion.precios_.$priceId";
+import { handle as precioNuevoHandle } from "@/routes/administracion.precios_.nuevo";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
+import { handle as categoriasHandle } from "../../../routes/administracion.categorias";
+import { handle as categoriaDetalleHandle } from "../../../routes/administracion.categorias_.$categoryId";
+import { handle as categoriaNuevaHandle } from "../../../routes/administracion.categorias_.nueva";
+
+type ModalityRow = typeof modalities.$inferSelect;
+type SubmodalityRow = typeof submodalities.$inferSelect;
+type CategoryRow = Omit<typeof categories.$inferSelect, "experienceLevels"> & {
+  modalityIds: string[];
+  experienceLevels: string[];
+};
+type ScheduleCapacityRow = typeof scheduleCapacities.$inferSelect;
+
+export type EventBasesLoaderData = {
+  selectedEventId: string | null;
+  requiredDepositPercentage: number | null;
+  modalities: ModalityRow[];
+  submodalities: SubmodalityRow[];
+  submodalityCriteria: EventModalitiesLoaderData["submodalityCriteria"];
+  lockedSubmodalityIds: string[];
+  modalitySheets: EventModalitiesLoaderData["modalitySheets"];
+  categories: CategoryRow[];
+  schedules: ScheduleListItem[];
+  prices: PriceListItem[];
+  registrationOpenBlockers: string[];
+};
+
+export function renderRoute(
+  loaderData: EventBasesLoaderData,
+  childRoute: ChildRouteFixture,
+) {
+  const RoutesStub = createRoutesStub([
+    {
+      id: "admin",
+      path: "/administracion",
+      Component: AdminShellRouteView,
+      children: [
+        {
+          id: childRoute.id,
+          path: childRoute.path,
+          Component: () => childRoute.element,
+          handle: childRoute.handle,
+        },
+      ],
+    },
+  ]);
+
+  return renderToStaticMarkup(
+    createElement(RoutesStub, {
+      initialEntries: [childRoute.url],
+      hydrationData: {
+        loaderData: {
+          admin: adminLoaderData(loaderData),
+          [childRoute.id]: childRoute.routeLoaderData ?? loaderData,
+        },
+      },
+    }),
+  );
+}
+
+type ChildRouteFixture = {
+  element: ReactElement;
+  handle?: unknown;
+  id: string;
+  path: string;
+  routeLoaderData?: unknown;
+  url: string;
+};
+
+function adminLoaderData(loaderData: EventBasesLoaderData) {
+  return {
+    account: {
+      name: "Ada Admin",
+      roleLabel: "Administrador",
+      username: "ada.admin",
+    },
+    canWrite: true,
+    events: [{ active: true, id: "event_1", name: "Evento 2026" }],
+    selectedEventId: loaderData.selectedEventId,
+  };
+}
+
+export function renderCategoriasRoute(loaderData: EventBasesLoaderData) {
+  return renderRoute(loaderData, {
+    id: "categories",
+    path: "categorias",
+    url: "/administracion/categorias",
+    handle: categoriasHandle,
+    element: createElement(CategoriesListView, { loaderData }),
+  });
+}
+
+export function renderCategoriaNuevaRoute(
+  loaderData: EventBasesLoaderData,
+  actionData?: ActionData,
+) {
+  return renderRoute(loaderData, {
+    id: "category-new",
+    path: "categorias/nueva",
+    url: "/administracion/categorias/nueva",
+    handle: categoriaNuevaHandle,
+    element: createElement(CategoryCreateView, {
+      loaderData,
+      actionData,
+    }),
+  });
+}
+
+export function renderCategoriaDetalleRoute(
+  loaderData: EventBasesLoaderData,
+  categoryId: string,
+) {
+  const routeLoaderData = buildCategoryDetailLoaderData(loaderData, categoryId);
+
+  return renderRoute(loaderData, {
+    id: "category-detail",
+    path: "categorias/:categoryId",
+    url: `/administracion/categorias/${categoryId}`,
+    handle: categoriaDetalleHandle,
+    element: createElement(CategoryDetailView, {
+      loaderData: routeLoaderData,
+    }),
+    routeLoaderData,
+  });
+}
+
+function buildCategoryDetailLoaderData(
+  loaderData: EventBasesLoaderData,
+  categoryId: string,
+): CategoryDetailLoaderData {
+  return {
+    selectedEventId: loaderData.selectedEventId,
+    category:
+      loaderData.categories.find((category) => category.id === categoryId) ??
+      null,
+    modalities: loaderData.modalities,
+  };
+}
+
+export function renderModalidadesRoute(loaderData: EventBasesLoaderData) {
+  return renderRoute(loaderData, {
+    id: "modalities",
+    path: "modalidades",
+    url: "/administracion/modalidades",
+    handle: modalidadesHandle,
+    element: createElement(EventModalitiesListView, {
+      loaderData,
+    }),
+  });
+}
+
+export function renderNuevaModalidadRoute(
+  loaderData: EventBasesLoaderData,
+  actionData?: ActionData,
+) {
+  return renderRoute(loaderData, {
+    id: "modality-new",
+    path: "modalidades/nueva",
+    url: "/administracion/modalidades/nueva",
+    handle: modalidadNuevaHandle,
+    element: createElement(EventModalityCreateView, {
+      loaderData,
+      actionData,
+    }),
+  });
+}
+
+export function renderModalidadDetalleRoute(
+  loaderData: EventBasesLoaderData,
+  modalityId: string,
+  actionData?: ActionData,
+) {
+  return renderRoute(loaderData, {
+    id: "modality-detail",
+    path: "modalidades/:modalityId",
+    url: `/administracion/modalidades/${modalityId}`,
+    handle: modalidadDetalleHandle,
+    element: createElement(EventModalityDetailView, {
+      loaderData,
+      modalityId,
+      actionData,
+    }),
+  });
+}
+
+export function renderBloquesHorariosRoute(loaderData: EventBasesLoaderData) {
+  return renderRoute(loaderData, {
+    id: "schedules",
+    path: "cronogramas",
+    url: "/administracion/cronogramas",
+    handle: bloquesHorariosHandle,
+    element: createElement(EventSchedulesListView, {
+      loaderData,
+    }),
+  });
+}
+
+export function renderNuevoBloqueHorarioRoute(
+  loaderData: EventBasesLoaderData,
+) {
+  return renderRoute(loaderData, {
+    id: "schedule-new",
+    path: "cronogramas/nuevo",
+    url: "/administracion/cronogramas/nuevo",
+    handle: bloqueHorarioNuevoHandle,
+    element: createElement(EventScheduleCreateView, {
+      loaderData,
+    }),
+  });
+}
+
+export function renderBloqueHorarioDetailRoute(
+  loaderData: EventBasesLoaderData,
+  scheduleId: string,
+  actionData?: ActionData,
+) {
+  return renderRoute(loaderData, {
+    id: "schedule-detail",
+    path: "cronogramas/:scheduleId",
+    url: `/administracion/cronogramas/${scheduleId}`,
+    handle: bloqueHorarioDetalleHandle,
+    element: createElement(EventScheduleDetailView, {
+      loaderData: { ...loaderData, scheduleDependencies: freeSchedule },
+      scheduleId,
+      actionData,
+    }),
+  });
+}
+
+export function renderPreciosRoute(loaderData: EventBasesLoaderData) {
+  return renderRoute(loaderData, {
+    id: "prices",
+    path: "precios",
+    url: "/administracion/precios",
+    handle: preciosHandle,
+    // The seminar tab of `Precios` has a list of its own, which these
+    // `Bases del evento` helpers never load: they render the choreography tab.
+    element: createElement(EventPricesListView, {
+      loaderData: { ...loaderData, seminarPrices: [], hasSeminars: false },
+    }),
+  });
+}
+
+export function renderPrecioNuevoRoute(loaderData: EventBasesLoaderData) {
+  return renderRoute(loaderData, {
+    id: "price-new",
+    path: "precios/nuevo",
+    url: "/administracion/precios/nuevo",
+    handle: precioNuevoHandle,
+    element: createElement(EventPriceCreateView, { loaderData }),
+  });
+}
+
+export function renderPrecioDetalleRoute(
+  loaderData: EventBasesLoaderData,
+  priceId: string,
+) {
+  return renderRoute(loaderData, {
+    id: "price-detail",
+    path: "precios/:priceId",
+    url: `/administracion/precios/${priceId}`,
+    handle: precioDetalleHandle,
+    element: createElement(EventPriceDetailView, {
+      loaderData,
+      priceId,
+    }),
+  });
+}
+
+export function formData(input: Record<string, string | string[]>) {
+  const form = new FormData();
+
+  for (const [key, value] of Object.entries(input)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        form.append(key, item);
+      }
+      continue;
+    }
+
+    form.set(key, value);
+  }
+
+  return form;
+}
+
+export function routeArgs(request: Request) {
+  return {
+    request,
+    params: {},
+    context: new RouterContextProvider(),
+    url: readRequestedUrl(request),
+    pattern: "/administracion/eventos",
+  };
+}
+
+export async function loader({ request }: { request: Request }) {
+  await requireAdminPanelUser(request);
+  const eventContext = await loadEventContext(request);
+
+  if (eventContext.redirectTo) {
+    throw redirect(eventContext.redirectTo);
+  }
+
+  const selectedEventId = eventContext.selectedEventId;
+  const [selectedEvent, eventBases] = selectedEventId
+    ? await Promise.all([
+        db.query.events.findFirst({
+          columns: { requiredDepositPercentage: true },
+          where: eq(events.id, selectedEventId),
+        }),
+        getEventBases(selectedEventId),
+      ])
+    : [
+        null,
+        {
+          categories: [],
+          modalities: [],
+          submodalities: [],
+          schedules: [],
+          prices: [],
+        },
+      ];
+
+  return {
+    selectedEventId,
+    requiredDepositPercentage: selectedEvent?.requiredDepositPercentage ?? null,
+    registrationOpenBlockers: selectedEventId
+      ? await getEventRegistrationOpenBlockers(selectedEventId)
+      : [],
+    submodalityCriteria: [],
+    lockedSubmodalityIds: [],
+    modalitySheets: {},
+    ...eventBases,
+  } satisfies EventBasesLoaderData;
+}
+
+export async function action({ request }: { request: Request }) {
+  const pathname = readRequestedUrl(request).pathname;
+
+  if (pathname.startsWith("/administracion/categorias")) {
+    return handleCategoryAction(request);
+  }
+
+  if (pathname.startsWith("/administracion/modalidades")) {
+    return handleEventModalityAction(request);
+  }
+
+  if (pathname.startsWith("/administracion/cronogramas")) {
+    return handleEventScheduleAction(request);
+  }
+
+  if (pathname.startsWith("/administracion/precios")) {
+    return handleEventPriceAction(request);
+  }
+
+  const intent = await readIntent(request);
+
+  if (isCategoryIntent(intent)) {
+    return handleCategoryAction(request);
+  }
+
+  if (isModalityIntent(intent)) {
+    return handleEventModalityAction(request);
+  }
+
+  if (isScheduleIntent(intent)) {
+    return handleEventScheduleAction(request);
+  }
+
+  return handleEventPriceAction(request);
+}
+
+export function renderPriceNewErrorRoute(
+  loaderData: EventBasesLoaderData,
+  actionData: ActionData,
+) {
+  return renderRoute(loaderData, {
+    id: "price-new-error",
+    path: "precios/nuevo",
+    url: "/administracion/precios/nuevo",
+    handle: precioNuevoHandle,
+    element: createElement(EventPriceCreateView, {
+      loaderData,
+      actionData,
+    }),
+  });
+}
+
+export function renderScheduleDetailErrorRoute(
+  loaderData: EventBasesLoaderData,
+  scheduleId: string,
+  actionData: ActionData,
+) {
+  return renderRoute(loaderData, {
+    id: "schedule-detail-error",
+    path: "cronogramas/:scheduleId",
+    url: `/administracion/cronogramas/${scheduleId}`,
+    handle: bloqueHorarioDetalleHandle,
+    element: createElement(EventScheduleDetailView, {
+      loaderData: { ...loaderData, scheduleDependencies: freeSchedule },
+      scheduleId,
+      actionData,
+    }),
+  });
+}
+
+/**
+ * The detail markup these helpers render is about the form, not about what
+ * holds the schedule: they render it as a schedule nothing holds. The locks
+ * themselves are covered by the detail view test and the repository test.
+ */
+const freeSchedule: ScheduleDependencySummary = {
+  coveringPriceNames: [],
+  occupyingChoreographyCount: 0,
+  withdrawnChoreographyCount: 0,
+};
+
+export { expectCreated };
+export { fixedExperienceLevel };
+
+type ScheduleCapacityDraft = {
+  id?: string;
+  groupType: string;
+  capacity: string;
+};
+
+type ScheduleDraft = {
+  name: string;
+  scheduledDate: string;
+  startTime: string;
+  /** Posted only when given, like a form that predates the ceremony. */
+  awardCeremonyDate?: string;
+  awardCeremonyTime?: string;
+  totalCapacity: string;
+  modalityIds: string[];
+  scheduleCapacities?: ScheduleCapacityDraft[];
+};
+
+type SignedInAdminRequestInput = Parameters<typeof createSignedInRequest>[0];
+
+export async function createEventScheduleAdminFixture(
+  modalityNames: string[] = ["Jazz", "Danzas urbanas"],
+) {
+  const event = await createSavedEvent({
+    name: "Regional 2026",
+    ...eventDates(2030),
+  });
+  const createdModalities: ModalityRow[] = await Promise.all(
+    modalityNames.map(async (name) => {
+      const result = await createModality(event.id, { name });
+
+      if (!result.ok || !result.record || !("eventId" in result.record)) {
+        throw new Error("Expected schedule modality fixture to be created.");
+      }
+
+      return result.record;
+    }),
+  );
+
+  return {
+    event,
+    modalities: createdModalities,
+    modalityIds: createdModalities.map((modality) => modality.id),
+  };
+}
+
+export function buildScheduleDraft(
+  overrides: Partial<ScheduleDraft> = {},
+): ScheduleDraft {
+  return {
+    name: "Sábado mañana",
+    scheduledDate: "2026-05-02",
+    startTime: "09:00",
+    totalCapacity: "24",
+    modalityIds: [],
+    scheduleCapacities: [],
+    ...overrides,
+  };
+}
+
+export function buildScheduleCapacityDraft(
+  overrides: Partial<ScheduleCapacityDraft> = {},
+): ScheduleCapacityDraft {
+  return {
+    groupType: "solo",
+    capacity: "8",
+    ...overrides,
+  };
+}
+
+function formDataWithSchedule(
+  intent: string,
+  schedule: ScheduleDraft,
+): FormData {
+  return formData({
+    intent,
+    name: schedule.name,
+    scheduledDate: schedule.scheduledDate,
+    startTime: schedule.startTime,
+    ...(schedule.awardCeremonyDate === undefined
+      ? {}
+      : { awardCeremonyDate: schedule.awardCeremonyDate }),
+    ...(schedule.awardCeremonyTime === undefined
+      ? {}
+      : { awardCeremonyTime: schedule.awardCeremonyTime }),
+    totalCapacity: schedule.totalCapacity,
+    modalityIds: schedule.modalityIds,
+    ...serializeScheduleCapacities(schedule.scheduleCapacities ?? []),
+  });
+}
+
+function formDataWithScheduleCapacity(
+  intent: string,
+  scheduleId: string,
+  capacity: ScheduleCapacityDraft,
+): FormData {
+  return formData({
+    intent,
+    scheduleId,
+    id: capacity.id ?? "",
+    groupType: capacity.groupType,
+    capacity: capacity.capacity,
+  });
+}
+
+export async function createScheduleAdminRequest(
+  input: Omit<SignedInAdminRequestInput, "body"> & {
+    intent: "create-schedule" | "update-schedule";
+    schedule: ScheduleDraft;
+    scheduleId?: string;
+  },
+) {
+  const body =
+    input.intent === "update-schedule"
+      ? appendScheduleId(
+          formDataWithSchedule(input.intent, input.schedule),
+          input.scheduleId ?? "",
+        )
+      : formDataWithSchedule(input.intent, input.schedule);
+
+  return createSignedInRequest({
+    ...input,
+    body,
+  });
+}
+
+export async function createScheduleCapacityAdminRequest(
+  input: Omit<SignedInAdminRequestInput, "body"> & {
+    intent:
+      | "create-schedule-capacity"
+      | "update-schedule-capacity"
+      | "delete-schedule-capacity";
+    scheduleId: string;
+    scheduleCapacity?: ScheduleCapacityDraft;
+    scheduleCapacityId?: string;
+  },
+) {
+  const body =
+    input.intent === "delete-schedule-capacity"
+      ? formData({
+          intent: input.intent,
+          id: input.scheduleCapacityId ?? "",
+        })
+      : formDataWithScheduleCapacity(
+          input.intent,
+          input.scheduleId,
+          input.scheduleCapacity ?? buildScheduleCapacityDraft(),
+        );
+
+  return createSignedInRequest({
+    ...input,
+    body,
+  });
+}
+
+export async function createDeleteScheduleAdminRequest(
+  input: Omit<SignedInAdminRequestInput, "body"> & { scheduleId: string },
+) {
+  return createSignedInRequest({
+    ...input,
+    body: formData({
+      intent: "delete-schedule",
+      id: input.scheduleId,
+    }),
+  });
+}
+
+export async function findSavedScheduleByName(name: string) {
+  return db.query.schedules.findFirst({
+    where: eq(schedules.name, name),
+  });
+}
+
+export async function findSavedScheduleById(scheduleId: string) {
+  return db.query.schedules.findFirst({
+    where: eq(schedules.id, scheduleId),
+  });
+}
+
+export async function listSavedScheduleCapacities(scheduleId: string) {
+  return db.query.scheduleCapacities.findMany({
+    where: eq(scheduleCapacities.scheduleId, scheduleId),
+  });
+}
+
+export function expectScheduleCapacityBreakdown(
+  entries: ScheduleCapacityRow[],
+  expected: Array<Pick<ScheduleCapacityRow, "groupType" | "capacity">>,
+) {
+  expect(entries).toEqual(
+    expect.arrayContaining(
+      expected.map((entry) => expect.objectContaining(entry)),
+    ),
+  );
+}
+
+async function readIntent(request: Request) {
+  const formData = await request.clone().formData();
+
+  return String(formData.get("intent") ?? "");
+}
+
+function isCategoryIntent(intent: string) {
+  return intent.endsWith("-category");
+}
+
+function isModalityIntent(intent: string) {
+  return intent.endsWith("-modality") || intent.endsWith("-submodality");
+}
+
+function isScheduleIntent(intent: string) {
+  return intent.endsWith("-schedule") || intent.endsWith("-schedule-capacity");
+}
+
+function serializeScheduleCapacities(
+  capacities: ScheduleCapacityDraft[],
+): Record<string, string> {
+  return Object.fromEntries(
+    capacities.flatMap((capacity, index) => {
+      const prefix = `scheduleCapacities.${index}`;
+
+      return [
+        ...(capacity.id ? [[`${prefix}.id`, capacity.id] as const] : []),
+        [`${prefix}.groupType`, capacity.groupType] as const,
+        [`${prefix}.capacity`, capacity.capacity] as const,
+      ];
+    }),
+  );
+}
+
+function appendScheduleId(form: FormData, scheduleId: string) {
+  form.set("id", scheduleId);
+
+  return form;
+}

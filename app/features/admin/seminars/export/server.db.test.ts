@@ -5,10 +5,8 @@ import { db } from "@/db";
 import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
 import { seedPeriodExportFixture } from "@/features/admin/period-export/period-export.test-support";
 import { readWorkbook } from "@/features/admin/period-export/workbook.test-support";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { listExportableSeminarIds, loadSeminarsExport } from "./server";
 import { buildSeminarExportHref, exportAllSeminars } from "./shared";
@@ -34,7 +32,7 @@ async function exportRequest(
   seminar: string,
   role: "academy" | "admin" | "auditor" | "judge" = "auditor",
 ) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost${buildSeminarExportHref(seminar)}`,
     role,

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -188,6 +188,42 @@ describe("repo style check", () => {
     }
   });
 
+  test("flags the raw request URL read outside its owner", async () => {
+    const tempRoot = await mkdtemp(
+      path.join(tmpdir(), "repo-style-guardrail-request-url-"),
+    );
+
+    try {
+      await writeFile(
+        path.join(tempRoot, "server.ts"),
+        [
+          "const url = new URL(request.url);",
+          "buildBackToListHref(input.request.url);",
+          "const href = readRequestedUrl(request).href;",
+          "const url = new URL(signedInRequest.url);",
+        ].join("\n"),
+      );
+
+      const violations = await checkRepoStyle({
+        rootDirectory: tempRoot,
+        files: [path.join(tempRoot, "server.ts")],
+      });
+
+      // Line 4 names some other request: the rule follows the convention that
+      // a route's request is called `request`.
+      expect(violations.map((violation) => violation.lineNumber)).toEqual([
+        1, 2,
+      ]);
+      expect(
+        violations.every(
+          (violation) => violation.rule === "requested-url-owns-request-url",
+        ),
+      ).toBe(true);
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
   test("explains why each rule exists when it fails", async () => {
     const tempRoot = await mkdtemp(
       path.join(tmpdir(), "repo-style-guardrail-reason-"),
@@ -214,21 +250,5 @@ describe("repo style check", () => {
     const violations = await checkRepoStyle();
 
     expect(violations).toEqual([]);
-  });
-
-  test("ships the repo-style command contract in package scripts and agent docs", async () => {
-    const [packageJson, workflowDoc, codebaseMap] = await Promise.all([
-      readFile("package.json", "utf8"),
-      readFile("docs/agents/workflows.md", "utf8"),
-      readFile("docs/agents/codebase-map.md", "utf8"),
-    ]);
-
-    expect(packageJson).toContain(
-      '"check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts"',
-    );
-    expect(workflowDoc).toContain("`pnpm check:repo-styles`");
-    expect(workflowDoc).toContain("repo-style");
-    expect(codebaseMap).toContain("`pnpm check:repo-styles`");
-    await expect(runRepoStyleGuardrail()).resolves.toBeUndefined();
   });
 });

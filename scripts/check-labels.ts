@@ -25,7 +25,7 @@ import { collectSourceFiles } from "./source-files";
 
 const scanned: { directory: string; keeps: RegExp }[] = [
   { directory: ".github/workflows", keeps: /\.ya?ml$/ },
-  { directory: ".sandcastle", keeps: /\.(ts|mts|md)$/ },
+  { directory: ".github/architecture-review", keeps: /\.(ts|mts|md)$/ },
   { directory: "scripts", keeps: /\.(ts|mts|mjs|sh)$/ },
   { directory: ".agents/skills", keeps: /\.md$/ },
   { directory: ".agents/agents", keeps: /\.md$/ },

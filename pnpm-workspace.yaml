@@ -1,14 +1,6 @@
 allowBuilds:
   esbuild: true
 
-# jsdom resolves its CSS selector engine to whatever `nwsapi@^2.2.x` gives it,
-# and 2.2.26 makes every jsdom React interaction test hang: the render never
-# settles inside `act()`, so the menu and dialog tests time out instead of
-# failing (#968). 2.2.25 is the last good version. jsdom is dev-only, so this
-# pin does not reach production. Drop it once nwsapi ships a fix.
-overrides:
-  nwsapi: 2.2.25
-
 # A published version has to sit in the registry for three days before this repo
 # will resolve it. Most recent npm supply-chain compromises were caught and
 # unpublished well inside that window, so waiting it out costs nothing and keeps
@@ -26,7 +18,7 @@ minimumReleaseAge: 4320
 # Advisories accepted rather than fixed: `pnpm check:dependency-audit` stops
 # failing on any GHSA listed here, on this branch and on the base ref alike.
 # Every entry needs a comment with the reason it is acceptable and when to
-# recheck it, in the style of the `nwsapi` override above.
+# recheck it.
 #
 # Empty, and meant to stay that way. `pnpm audit --prod` currently reports two
 # advisories, neither with a release to upgrade to: a moderate one in esbuild,
@@ -34,8 +26,5 @@ minimumReleaseAge: 4320
 # one in node-forge, reached through `@arcasdk/core` (#1466). The gate fails only
 # on a high or critical advisory a branch introduces, so the node-forge one is
 # reported as inherited and is tracked in its issue instead of listed here.
-#
-# `auditConfig.ignoreGhsas` is the spelling pnpm 11.9.0 reads. Once
-# `packageManager` reaches pnpm >= 11.16.0, this moves to `audit.ignore`.
-auditConfig:
-  ignoreGhsas: []
+audit:
+  ignore: []

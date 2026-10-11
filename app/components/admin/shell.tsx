@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import {
   CalendarDays,
-  Building2,
+  BuildingComplex,
   GraduationCap,
-  Home,
+  House,
   Settings,
   Users,
   AudioLines,
@@ -74,7 +74,7 @@ export type AdminShellBreadcrumbItem = {
   to?: string;
 };
 
-type AdminRouteMatch = Partial<Pick<UIMatch, "data" | "handle">> &
+type AdminRouteMatch = Partial<Pick<UIMatch, "loaderData" | "handle">> &
   Pick<UIMatch, "params">;
 
 type AdminBreadcrumbFactory = (
@@ -117,7 +117,7 @@ const contextNavigationItems = [
   {
     label: "Inicio",
     to: "/administracion",
-    icon: Home,
+    icon: House,
   },
   {
     label: "Eventos",
@@ -173,7 +173,7 @@ const accessNavigationItems = [
   {
     label: "Academias",
     to: "/administracion/academias",
-    icon: Building2,
+    icon: BuildingComplex,
   },
 ] satisfies SidebarNavigationItem[];
 

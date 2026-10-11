@@ -77,7 +77,7 @@ describe("the portal dancer detail as one draft", () => {
     await renderDancerPage();
 
     await pickFrontDocumentImage();
-    await clickReactDomButton("Borrar imagen");
+    await clickReactDomButton("Quitar imagen");
 
     expect(isSaveEnabled()).toBe(false);
   });

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -46,7 +47,7 @@ describe("logout route", () => {
           },
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -90,7 +91,7 @@ describe("logout route", () => {
           },
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -166,6 +167,6 @@ function submitSignInAction(email: string) {
     pattern: "/ingresar",
     request: createSignInRequest(email),
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
   });
 }

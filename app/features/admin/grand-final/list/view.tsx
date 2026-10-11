@@ -209,7 +209,7 @@ const destructiveVotingRoundMenuItems: {
   { action: "close", label: "Cerrar votación" },
 ];
 
-/** The round's state, in the words of CONTEXT.md `votingRound`. */
+/** The round's state, in the words of GLOSSARY.md `votingRound`. */
 function VotingRoundBadge({ state }: { state: VotingRoundListState }) {
   if (state.status === "open") {
     return <Badge variant="success">Votación abierta</Badge>;

@@ -10,17 +10,8 @@ import {
   createSubmodality,
 } from "@/lib/modalities/repository.server";
 import {
-  action as categoryDetailAction,
-  loader as categoryDetailLoader,
-} from "../../../routes/administracion.categorias_.$categoryId";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
-import {
   action,
-  createSavedEvent,
-  createSignedInRequest,
   expectCreated,
-  expectThrownResponse,
   fixedExperienceLevel,
   formData,
   loader,
@@ -29,13 +20,25 @@ import {
   renderCategoriaNuevaRoute,
   renderModalidadesRoute,
   routeArgs,
-} from "./event-bases.test-helpers";
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
+import {
+  action as categoryDetailAction,
+  loader as categoryDetailLoader,
+} from "../../../routes/administracion.categorias_.$categoryId";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
 describe("`/administracion/bases-del-evento` routes", () => {
   test("creates modalities, submodalities and categories from list actions", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modalityRequest = await createSignedInRequest({
       email: "admin.crea.modalidad@example.com",
       role: "admin",
@@ -107,7 +110,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("updates categories from list actions", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -151,7 +157,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("deletes submodalities from list actions", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -183,7 +192,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("uses dedicated category routes and fixed levels from the `Categoría` form", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -382,9 +394,14 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("loads `Categoría` detail data from the active event and route param", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const otherEvent = await createSavedEvent("Otra regional", {
-      activate: false,
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
+    const otherEvent = await createSavedEvent({
+      name: "Otra regional",
+      active: false,
+      ...eventDates(2030),
     });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -434,7 +451,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("uses the `Categoría` detail route param as the mutation id", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -494,9 +514,14 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("rejects `Categoría` detail mutations outside the active event", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const otherEvent = await createSavedEvent("Otra regional", {
-      activate: false,
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
+    const otherEvent = await createSavedEvent({
+      name: "Otra regional",
+      active: false,
+      ...eventDates(2030),
     });
     const otherModality = await expectCreated(
       createModality(otherEvent.id, { name: "Jazz" }),
@@ -545,7 +570,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("requires confirmation before deleting a `Categoría` from its detail route", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -572,10 +600,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
 
     await expect(action(routeArgs(request.request))).resolves.toEqual({
       status: "error",
-      message: "Confirmá el borrado de la categoría antes de continuar.",
+      message: "Confirmá la eliminación de la categoría antes de continuar.",
       fieldErrors: {
         confirmDelete:
-          "Confirmá el borrado de la categoría antes de continuar.",
+          "Confirmá la eliminación de la categoría antes de continuar.",
       },
       scope: {
         intent: "delete-category",
@@ -591,7 +619,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("deletes modalities only from detail with explicit confirmation", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -608,7 +639,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
 
     await expect(action(routeArgs(blockedRequest.request))).resolves.toEqual({
       status: "error",
-      message: "Confirmá el borrado de la modalidad.",
+      message: "Confirmá la eliminación de la modalidad.",
       fieldErrors: {},
       scope: {
         intent: "delete-modality",

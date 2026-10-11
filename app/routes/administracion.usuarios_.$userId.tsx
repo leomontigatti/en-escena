@@ -25,7 +25,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Usuarios", to: "/administracion/usuarios" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       return data ? { label: data.user.name } : null;
     },
   ],

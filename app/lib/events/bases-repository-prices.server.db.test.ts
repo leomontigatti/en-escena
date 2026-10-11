@@ -16,14 +16,14 @@ import {
 import { deleteSchedule } from "@/lib/schedules/repository.server";
 import {
   createEventPriceFixture,
-  createSavedEvent,
   createSavedPrice,
   createSavedSchedule,
   expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 
 import { insertTestPrice } from "@/lib/prices/price-rows.test-support";
 import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -40,8 +40,16 @@ afterEach(() => {
 
 describe("`Bases del evento` repository", () => {
   test("keeps prices unique by event and rejects schedules from another event", async () => {
-    const firstEvent = await createSavedEvent("Regional 2026");
-    const secondEvent = await createSavedEvent("Final 2026");
+    const firstEvent = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const secondEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const jazz = await expectCreated(
       createModality(firstEvent.id, { name: "Jazz" }),
     );
@@ -66,7 +74,7 @@ describe("`Bases del evento` repository", () => {
     });
     await expect(deleteSchedule(block.id)).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error: "No se puede eliminar el cronograma porque tiene dependencias.",
     });
     await expect(
       createPrice(secondEvent.id, {
@@ -381,7 +389,10 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("blocks structural price changes and deletion when an inscription froze the price", async () => {
-    const event = await createSavedEvent("Regional 2026", { activate: true });
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const { academy, choreography } =
       await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Congelado",
@@ -661,7 +672,10 @@ describe("`Bases del evento` repository", () => {
   });
 
   test("ignores inscriptions that did not freeze the price when changing it", async () => {
-    const event = await createSavedEvent("Regional 2027", { activate: true });
+    const event = await createSavedEvent({
+      name: "Regional 2027",
+      ...eventDates(2030),
+    });
     const { academy, choreography } =
       await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Sin Congelar",
@@ -868,12 +882,15 @@ describe("a special price covering several schedules", () => {
     });
     await expect(deleteSchedule(monday.id)).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error: "No se puede eliminar el cronograma porque tiene dependencias.",
     });
   });
 
   test("lets a price in use gain schedules and refuses dropping one its inscriptions sit on", async () => {
-    const event = await createSavedEvent("Regional 2026", { activate: true });
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const { academy, catalog, choreography } =
       await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Compartido",
@@ -975,7 +992,10 @@ async function createCoveredPathFixture(input: {
   eventName: string;
   liveRungDeadline?: string;
 }) {
-  const event = await createSavedEvent(input.eventName, { activate: true });
+  const event = await createSavedEvent({
+    name: input.eventName,
+    ...eventDates(2030),
+  });
   const { academy, catalog, choreography } =
     await createAcademyFinanceChoreographyFixture({
       academyName: input.academyName,

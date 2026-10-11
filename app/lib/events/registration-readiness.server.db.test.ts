@@ -15,21 +15,20 @@ import {
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
 import {
-  createEventFixtureDates,
-  createSavedEvent as createSavedEventFixture,
   expectCreated,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import {
   getEventRegistrationReadiness,
   getEventRegistrationReadinessByEventId,
   markEventRegistrationReadinessDirty,
 } from "@/lib/events/registration-readiness.server";
 
-import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -45,7 +44,10 @@ afterEach(() => {
 
 describe("event registration readiness", () => {
   test("reports missing compatible schedule capacities and applicable prices using the real `Bases del evento` rules", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+    });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -120,7 +122,10 @@ describe("event registration readiness", () => {
   });
 
   test("reports a category no schedule accepts, and stops once a schedule accepts it", async () => {
-    const event = await createSavedEvent("Funciones 2026");
+    const event = await createSavedEvent({
+      name: "Funciones 2026",
+      active: false,
+    });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -194,7 +199,7 @@ describe("event registration readiness", () => {
   });
 
   test("marks an event as ready when every registration path has schedule capacity and price, and keeps ignoring seminars", async () => {
-    const event = await createSavedEvent("Final 2026");
+    const event = await createSavedEvent({ name: "Final 2026", active: false });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -286,7 +291,10 @@ describe("event registration readiness", () => {
   });
 
   test("returns cached readiness until the event is marked dirty", async () => {
-    const event = await createSavedEvent("Cacheado 2026");
+    const event = await createSavedEvent({
+      name: "Cacheado 2026",
+      active: false,
+    });
 
     await db
       .update(events)
@@ -333,7 +341,10 @@ describe("event registration readiness", () => {
   });
 
   test("recalculates readiness cached on an earlier day even when it is not dirty", async () => {
-    const event = await createSavedEvent("Vencido por fecha 2026");
+    const event = await createSavedEvent({
+      name: "Vencido por fecha 2026",
+      active: false,
+    });
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     await db
@@ -361,7 +372,10 @@ describe("event registration readiness", () => {
   // the 31st is still in force: readiness cannot announce the expiry three hours
   // before it happens for the academy.
   test("does not report the day's price as expired at 23:30 in Córdoba", async () => {
-    const event = await createSavedEvent("Vence hoy 2026");
+    const event = await createSavedEvent({
+      name: "Vence hoy 2026",
+      active: false,
+    });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -424,7 +438,10 @@ describe("event registration readiness", () => {
   // at 23:00 on the 31st in Córdoba is already stale at 00:30 on the 1st, even
   // though both instants fall on the same UTC day.
   test("recomputes readiness sealed on the previous business day", async () => {
-    const event = await createSavedEvent("Sello de ayer 2026");
+    const event = await createSavedEvent({
+      name: "Sello de ayer 2026",
+      active: false,
+    });
 
     await db
       .update(events)
@@ -457,7 +474,10 @@ describe("event registration readiness", () => {
   });
 
   test("reports the last deadline and the affected path when no base price exists", async () => {
-    const event = await createSavedEvent("Precios vencidos 2026");
+    const event = await createSavedEvent({
+      name: "Precios vencidos 2026",
+      active: false,
+    });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -508,7 +528,10 @@ describe("event registration readiness", () => {
   });
 
   test("becomes ready once a base price covers each reachable group type, and keeps resolving a price at any date", async () => {
-    const event = await createSavedEvent("Precio base 2026");
+    const event = await createSavedEvent({
+      name: "Precio base 2026",
+      active: false,
+    });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -604,7 +627,10 @@ describe("event registration readiness", () => {
   });
 
   test("rejects a schedule-specific base price without a general one", async () => {
-    const event = await createSavedEvent("Precio base por cronograma 2026");
+    const event = await createSavedEvent({
+      name: "Precio base por cronograma 2026",
+      active: false,
+    });
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -675,7 +701,10 @@ describe("event registration readiness", () => {
   });
 
   test("refuses an event whose category ladder leaves an age band uncovered", async () => {
-    const event = await createSavedEvent("Escalera incompleta 2026");
+    const event = await createSavedEvent({
+      name: "Escalera incompleta 2026",
+      active: false,
+    });
     const acrobacias = await expectCreated(
       createModality(event.id, { name: "Acrobacias Aéreas" }),
     );
@@ -742,9 +771,15 @@ describe("event registration readiness", () => {
   });
 
   test("loads readiness for multiple events while recalculating dirty entries", async () => {
-    const cachedReadyEvent = await createSavedEvent("Cache listo 2026");
-    const dirtyEvent = await createSavedEvent("Dirty 2026");
-    await createSavedEvent("No solicitado 2026");
+    const cachedReadyEvent = await createSavedEvent({
+      name: "Cache listo 2026",
+      active: false,
+    });
+    const dirtyEvent = await createSavedEvent({
+      name: "Dirty 2026",
+      active: false,
+    });
+    await createSavedEvent({ name: "No solicitado 2026", active: false });
 
     await db
       .update(events)
@@ -792,9 +827,3 @@ describe("event registration readiness", () => {
     });
   });
 });
-
-async function createSavedEvent(name: string) {
-  return createSavedEventFixture(name, {
-    dates: createEventFixtureDates(2026),
-  });
-}

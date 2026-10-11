@@ -1,15 +1,13 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies, user } from "@/db/schema";
-import {
-  createAccessUser,
-  createSessionRequestCookie,
-} from "@/lib/auth/access-auth.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { user } from "@/db/schema";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   InternalUsersListRouteView,
@@ -26,33 +24,34 @@ describe("`/administracion/usuarios` route", () => {
       email: "admin.usuarios.lista@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Ada Admin",
+      name: "Ada Admin",
       internalUsername: "ada.admin",
     });
     const auditor = await createSignedInRequest({
       email: "auditor.usuarios.lista@example.com",
       role: "auditor",
       requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Ariel Auditor",
+      name: "Ariel Auditor",
       internalUsername: "ariel.auditor",
     });
     const academyUser = await createAcademyUser({
       email: "academia.usuarios@example.com",
       academyName: "Academia Norte",
       contactName: "Nora Norte",
+      name: "Nora Norte",
     });
     await createSignedInRequest({
       email: "judge.usuarios.lista@example.com",
       role: "judge",
       requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Joaquín Juez",
+      name: "Joaquín Juez",
       internalUsername: "joaquin.juez",
     });
     const suspendedUser = await createSignedInRequest({
       email: "suspendido.usuarios@example.com",
       role: "judge",
       requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Susana Suspendida",
+      name: "Susana Suspendida",
       internalUsername: "susana.suspendida",
     });
     await db
@@ -65,13 +64,22 @@ describe("`/administracion/usuarios` route", () => {
     });
     // Users are not reviewed for the auditor yet (PRD #1448).
     await expectThrownResponse(loader(routeArgs(auditor.request)), 403);
-    await expectThrownResponse(loader(routeArgs(academyUser.request)), 403);
+    await expectThrownResponse(
+      loader(
+        routeArgs(
+          new Request("http://localhost/administracion/usuarios", {
+            headers: { cookie: academyUser.cookie },
+          }),
+        ),
+      ),
+      403,
+    );
 
     const { request: judgeRequest } = await createSignedInRequest({
       email: "judge.bloqueado@example.com",
       role: "judge",
       requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Julia Juez",
+      name: "Julia Juez",
       internalUsername: "julia.juez",
     });
     await expectThrownResponse(loader(routeArgs(judgeRequest)), 403);
@@ -102,7 +110,7 @@ describe("`/administracion/usuarios` route", () => {
       email: "admin.busqueda.usuarios@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios?busqueda=ada.admin",
-      userName: "Admin Búsqueda",
+      name: "Admin Búsqueda",
       internalUsername: "admin.busqueda",
     });
     const byIdentifierData = await loader(
@@ -117,7 +125,7 @@ describe("`/administracion/usuarios` route", () => {
       email: "admin.legacy-query.usuarios@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios?q=ada.admin",
-      userName: "Admin Legacy",
+      name: "Admin Legacy",
       internalUsername: "admin.legacy",
     });
     const legacyQueryRedirect = await expectThrownResponse(
@@ -135,7 +143,7 @@ describe("`/administracion/usuarios` route", () => {
       role: "admin",
       requestUrl:
         "http://localhost/administracion/usuarios?busqueda=Nora+Norte",
-      userName: "Admin Nombre",
+      name: "Admin Nombre",
       internalUsername: "admin.nombre",
     });
     const byNameData = await loader(routeArgs(byNameRequest.request));
@@ -148,7 +156,7 @@ describe("`/administracion/usuarios` route", () => {
       email: "admin.tipo.usuarios@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios?tipo=academy",
-      userName: "Admin Tipo",
+      name: "Admin Tipo",
       internalUsername: "admin.tipo",
     });
     const byTypeData = await loader(routeArgs(byTypeRequest.request));
@@ -161,7 +169,7 @@ describe("`/administracion/usuarios` route", () => {
       email: "admin.estado.usuarios@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios?estado=suspended",
-      userName: "Admin Estado",
+      name: "Admin Estado",
       internalUsername: "admin.estado",
     });
     const byStatusData = await loader(routeArgs(byStatusRequest.request));
@@ -174,7 +182,7 @@ describe("`/administracion/usuarios` route", () => {
       email: "admin.rol.usuarios@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios?rol=auditor",
-      userName: "Admin Rol",
+      name: "Admin Rol",
       internalUsername: "admin.rol",
     });
     const byRoleData = await loader(routeArgs(byRoleRequest.request));
@@ -187,7 +195,7 @@ describe("`/administracion/usuarios` route", () => {
       email: "admin.suspendidos.usuarios@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios?estado=suspended",
-      userName: "Admin Suspendidos",
+      name: "Admin Suspendidos",
       internalUsername: "admin.suspendidos",
     });
     const bySuspendedStatusData = await loader(
@@ -204,13 +212,14 @@ describe("`/administracion/usuarios` route", () => {
       email: "juez.correo@enescena.com.ar",
       role: "judge",
       requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Juan Juez",
+      name: "Juan Juez",
       internalUsername: "juez.correo",
     });
     await createAcademyUser({
       email: "contacto@academia-sur.com",
       academyName: "Academia Sur",
       contactName: "Sara Sur",
+      name: "Sara Sur",
     });
 
     const byInternalEmail = await loader(
@@ -221,7 +230,7 @@ describe("`/administracion/usuarios` route", () => {
             role: "admin",
             requestUrl:
               "http://localhost/administracion/usuarios?busqueda=juez.correo%40enescena.com.ar",
-            userName: "Admin Correo Interno",
+            name: "Admin Correo Interno",
             internalUsername: "admin.correo.interno",
           })
         ).request,
@@ -238,7 +247,7 @@ describe("`/administracion/usuarios` route", () => {
             role: "admin",
             requestUrl:
               "http://localhost/administracion/usuarios?busqueda=contacto%40academia-sur.com",
-            userName: "Admin Correo Academia",
+            name: "Admin Correo Academia",
             internalUsername: "admin.correo.academia",
           })
         ).request,
@@ -285,66 +294,11 @@ function renderRoute(
   );
 }
 
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-  userName: string;
-  internalUsername?: string;
-}) {
-  const signUpResult = await createAccessUser({
-    email: input.email,
-    name: input.userName,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-      internalUsername: input.internalUsername ?? null,
-      name: input.userName,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    userId: signUpResult.response.user.id,
-    request: new Request(input.requestUrl, {
-      headers: {
-        cookie: createSessionRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
-async function createAcademyUser(input: {
-  email: string;
-  academyName: string;
-  contactName: string;
-}) {
-  const academyUser = await createSignedInRequest({
-    email: input.email,
-    role: "academy",
-    requestUrl: "http://localhost/administracion/usuarios",
-    userName: input.contactName,
-  });
-
-  await db.insert(academies).values({
-    userId: academyUser.userId,
-    name: input.academyName,
-    contactName: input.contactName,
-    phone: "1111-1111",
-  });
-
-  return academyUser;
-}
-
 function routeArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/usuarios",
   };

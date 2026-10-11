@@ -7,8 +7,8 @@ import { getEventRegistrationReadiness } from "@/lib/events/registration-readine
 import {
   createEventModalitiesFixture,
   createSavedSchedule,
-} from "@/lib/events/bases-test-fixtures.server.db";
-import { createOpenEventCatalog } from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
+import { createOpenEventCatalog } from "@/lib/choreographies/registration.test-support";
 import { eventEndedRegistrationOpenBlocker } from "@/lib/schedules/registration-open";
 import {
   closeScheduleRegistration,

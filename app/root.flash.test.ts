@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
@@ -8,7 +9,7 @@ function loaderArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
   } as unknown as Parameters<typeof loader>[0];
 }
 

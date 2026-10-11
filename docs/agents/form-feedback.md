@@ -2,8 +2,8 @@
 
 The single convention for feedback and redirection in form `action`s across En
 Escena: which channel carries each class of message (field error, alert, dialog
-or toast), and how a message reaches it. It answers #201 ("do we need the query
-param in the URL to show a toast?") and is the durable reference for PRD #409.
+or toast), and how a message reaches it. It answers whether a toast needs a query
+param in the URL: it does not.
 
 Base rule for any new form: **first decide whether the current view still makes
 sense after the submit**. That determines whether you stay or redirect, and by which
@@ -43,7 +43,7 @@ client validation, an alert, a dialog. The result of a submit is a toast.
 | Failure of an action with no form behind it (inline row delete, toggle, reorder, a `fetcher` button)                                      | `destructive` toast.                                                                                                                                                                                                                                    |
 | Unexpected failure (the generic `{ status: "error" }` from `recoverableClientAction`, a network drop)                                     | `destructive` toast.                                                                                                                                                                                                                                    |
 | Message that arrives after a redirect (flash session)                                                                                     | Toast: the view it belonged to is gone.                                                                                                                                                                                                                 |
-| Success                                                                                                                                   | Toast. A success that must stay on screen is a `success` `Alert` ([style-guide.md § Alert variants](style-guide.md#alert-variants)).                                                                                                                    |
+| Success                                                                                                                                   | Toast. A success that must stay on screen is a `success` `Alert` ([style-guide.md § Alerts](style-guide.md#alerts)).                                                                                                                                    |
 | Duplicate warning (`status: "warning"`)                                                                                                   | The confirmation `AlertDialog` ([A third answer](#a-third-answer-the-duplicate-warning)).                                                                                                                                                               |
 | Field locked by the record's state, conditionally or for good                                                                             | `info` `Alert` in the page's `AlertStack`, above the form card, listing every reason and what unlocks it, or saying nothing does. The field renders as a `ReadOnly*Field`. The lock icon alone explains nothing and is never the channel.               |
 | Action forbidden by the record's state                                                                                                    | `BlockedActionDialog`, opened by the click on a control that stays enabled, with every reason in its `info` `Alert` ([style-guide.md § Detail pages](style-guide.md#detail-pages)).                                                                     |
@@ -76,7 +76,7 @@ record, not the viewer. Suppressing the alert for a role is a defect.
 
 **Block reasons are a server-built array of `{ code, label }`**: every reason is
 listed, none takes precedence, and they render as the alert's list
-([style-guide.md § Alert content](style-guide.md#alert-content)) in the field
+([style-guide.md § Alerts](style-guide.md#alerts)) in the field
 lock alert or in `BlockedActionDialog`. The `label` is the copy, and the server
 builds it because the server owns the rule. A `code` is born consumed: it exists
 only if something reads it, a test asserting which reasons fired or a rendering
@@ -88,15 +88,15 @@ away; it is consumed or dropped when that code is next touched.
 **An action result's `status` names its outcome, not its channel**: an action
 answers with `"success"`, `"error"` or `"warning"`. The channel comes from the
 message class ([Which channel carries a message](#which-channel-carries-a-message)).
-`ToastVariant` also accepts `info`, which is reserved until a product case
-needs it ([style-guide.md § React Hook Form](style-guide.md#react-hook-form)).
+There is no `info` toast until a product case needs one; `pnpm lint` refuses
+`toast.info`.
 Anything a reader needs beyond the status travels as the answer's payload (the
 `contingency` the comprobante dialog renders, the `selectedMusicStorageKey` the
 music editor keeps), or as the `intent` the request carried when the question is
 which form the answer belongs to (how the payment delete dialog keys its
 re-open); the reader narrows on that field, never on a status of its own. A
 status no reader knows about is silently dropped, which is how the choreography
-detail's `"roster-error"` answers were lost (#661). The payload cases are the
+detail's `"roster-error"` answers were lost. The payload cases are the
 comprobante dialogs' `contingency` on a `"warning"`, the music editor's
 `selectedMusicStorageKey` on an `"error"`, and the moved presentation's
 `"success"` with no message at all; the intent case is the merge refusal, an
@@ -106,11 +106,11 @@ form beside it never reads it as a rejected edit.
 ### Testing and scope
 
 The seam is per feature: a view's interaction test asserts that a refusal reaches
-it as a toast, and #619's test is the model. The status contract is a type, so
+it as a toast. The status contract is a type, so
 `pnpm typecheck` holds it and no shared test is needed.
 
-#517 (rendering server `fieldErrors` on the fields) was decided against by this
-rule on 2026-10-07; views do not read `fieldErrors`.
+Rendering server `fieldErrors` on the fields is ruled out by this rule: views do
+not read `fieldErrors`.
 
 ## Behavior matrix
 
@@ -172,10 +172,10 @@ reload or back-navigation.
 This is React Router's idiomatic pattern. The project already has a session (Better
 Auth / cookies, see `app/lib/auth/access-auth-provider.betterauth.server.ts`), so the
 flash session helper reuses that infrastructure instead of introducing a new session.
-The helper is a single module in `app/lib/shared` (see #411); do not reinvent the
+The helper is a single module in `app/lib/shared`; do not reinvent the
 mechanism per feature.
 
-**Answer to #201:** the query param is **not** needed for edit-in-place (most cases);
+The query param is **not** needed for edit-in-place (most cases);
 for real redirects the correct transport is the flash session, **not** a URL param.
 The URL must never show a technical notification parameter.
 
@@ -183,9 +183,8 @@ The URL must never show a technical notification parameter.
 
 The only transport for a message across a `redirect` is the **flash session**
 (`app/lib/shared/flash-notification.server.ts`). The `?notificacion=` query param and
-the `RouteToasts` reader in `root.tsx` no longer exist: they were removed in the
-contract ticket (#416). The shared catalog of messages/variants with stable IDs lives
-in `app/lib/shared/notification-toasts.ts` and feeds both the flash flow and the direct
+the `RouteToasts` reader in `root.tsx` no longer exist. The shared catalog of
+messages/variants with stable IDs lives in `app/lib/shared/notification-toasts.ts` and feeds both the flash flow and the direct
 `actionData` one. For a new form: use the flash session (redirect) or direct
 `actionData` (stay), never a URL param.
 
@@ -196,7 +195,7 @@ second choreography with the same name and cast, a second academy with the same
 name: each is a duplicate often enough to raise, and a legitimate registration often
 enough that turning it away would be the worse bug. Those actions answer with a
 **warning** beside their existing `error` / `success` shapes, and one mechanism
-carries it (PRD #1090):
+carries it:
 
 - The action returns `{ status: "warning", warning: { kind, matches: [{ id, ... }] } }`
   with the values the user typed, and **writes nothing**. `DuplicateWarning` in
@@ -209,7 +208,7 @@ carries it (PRD #1090):
 - The form keeps the values, and the answer opens a confirmation:
   `DuplicateWarningDialog` (`app/components/shared/duplicate-warning-prompt.tsx`),
   an `AlertDialog` that reads like every other confirmation
-  ([style-guide.md § `AlertDialog` vs. `Dialog`](style-guide.md#alertdialog-vs-dialog)):
+  ([style-guide.md § Destructive actions](style-guide.md#destructive-actions)):
   a title naming the save the matches interrupted (`¿Guardar el bailarín?`,
   `¿Crear la academia?`), the matches, `Cancelar` back to the form, and
   the title's verb with its icon (`Guardar` with `Check`). Each new answer

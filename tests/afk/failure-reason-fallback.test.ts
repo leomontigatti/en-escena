@@ -184,11 +184,9 @@ interface RunnerStep {
 /**
  * Every step that launches an **agent** runner, with its guardrails. Steps are
  * 6-space indented `- name:` entries; an agent runner step is one whose `run:`
- * invokes a `.sandcastle/` entrypoint *and* hands it the Claude Code token —
- * that token is what makes a step an agent session, and the pair of ceilings
- * below only means anything for a step that starts one. Other `.sandcastle/`
- * entrypoints run in workflow steps too (`wait-for-ci.mts`, #966); they have no
- * agent to budget, so they are not held to this.
+ * invokes the runner entrypoint *and* hands it the Claude Code token — that
+ * token is what makes a step an agent session, and the pair of ceilings below
+ * only means anything for a step that starts one.
  */
 function runnerSteps(workflow: string): RunnerStep[] {
   const text = workflowText(workflow);
@@ -197,7 +195,7 @@ function runnerSteps(workflow: string): RunnerStep[] {
   return chunks
     .filter(
       (chunk) =>
-        /run: pnpm exec tsx \.sandcastle\//.test(chunk) &&
+        /run: pnpm exec tsx \.github\/architecture-review\//.test(chunk) &&
         /CLAUDE_CODE_OAUTH_TOKEN/.test(chunk),
     )
     .map((chunk) => ({

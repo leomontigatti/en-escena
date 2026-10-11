@@ -1,20 +1,19 @@
-import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, RouterProvider } from "react-router";
-
-import { db } from "@/db";
-import { academies, user } from "@/db/schema";
-import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import {
-  createAccessUser,
-  createSessionRequestCookie,
-} from "@/lib/auth/access-auth.test-support";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
+  createMemoryRouter,
+  RouterContextProvider,
+  RouterProvider,
+} from "react-router";
+
+import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 import {
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   AcademyFinancesRouteView,
   loader as academyFinancesLoader,
@@ -25,103 +24,7 @@ import {
 } from "@/routes/administracion.finanzas";
 import { date as choreographyDate } from "@/features/portal/choreographies/test-support/db";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
-
-export async function createSavedEvent(
-  overrides: Partial<Parameters<typeof createEvent>[0]> = {},
-) {
-  const result = await createEvent({
-    name: "En Escena 2026",
-    startsAt: choreographyDate("2026-05-01T12:00:00Z"),
-    endsAt: choreographyDate("2026-05-03T12:00:00Z"),
-    ...overrides,
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  await activateEvent(result.event.id);
-
-  return result.event;
-}
-
-export async function createInactiveEvent(name: string) {
-  const result = await createEvent({
-    name,
-    startsAt: choreographyDate("2025-05-01T12:00:00Z"),
-    endsAt: choreographyDate("2025-05-03T12:00:00Z"),
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  return result.event;
-}
-
-// fallow-ignore-next-line code-duplication
-export async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-}) {
-  const signUpResult = await createAccessUser({
-    email: input.email,
-    name: input.email,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    userId: signUpResult.response.user.id,
-    request: new Request(input.requestUrl, {
-      headers: {
-        cookie: createSessionRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
-export async function createAcademyUser(input: {
-  email: string;
-  academyName: string;
-}) {
-  const signIn = await createSignedInRequest({
-    email: input.email,
-    role: "academy",
-    requestUrl: "http://localhost/portal",
-  });
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signIn.userId,
-      name: input.academyName,
-      contactName: input.academyName,
-      phone: "11-5555-5555",
-    })
-    .returning();
-
-  if (!academy) {
-    throw new Error("Expected academy to be created.");
-  }
-
-  return {
-    academy,
-    /** The signed-in cookie, for a test that reaches a portal loader. */
-    cookie: signIn.request.headers.get("cookie") ?? "",
-    user: {
-      id: signIn.userId,
-    },
-  };
-}
+import { createSavedEvent } from "@/lib/test-support/events";
 
 export async function createAcademyFinanceChoreographyFixture(input: {
   academyName: string;
@@ -267,8 +170,8 @@ export function academyFinancesRouteArgs(request: Request, academyId: string) {
   return {
     request,
     params: { academyId },
-    context: {},
-    url: new URL(request.url),
+    context: new RouterContextProvider(),
+    url: readRequestedUrl(request),
     pattern: "/administracion/finanzas/:academyId",
   };
 }
@@ -277,8 +180,8 @@ export function financesListRouteArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
-    url: new URL(request.url),
+    context: new RouterContextProvider(),
+    url: readRequestedUrl(request),
     pattern: "/administracion/finanzas",
   };
 }
@@ -287,8 +190,8 @@ export function paymentCreateRouteArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
-    url: new URL(request.url),
+    context: new RouterContextProvider(),
+    url: readRequestedUrl(request),
     pattern: "/administracion/pagos/nuevo",
   };
 }

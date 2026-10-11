@@ -204,7 +204,7 @@ function getModalityConfirmationError(
     input.confirmDeletion !== input.id
   ) {
     return {
-      message: "Confirmá el borrado de la modalidad.",
+      message: "Confirmá la eliminación de la modalidad.",
       fieldErrors: {},
     };
   }

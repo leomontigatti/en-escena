@@ -3,8 +3,8 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { presentations, scores } from "@/db/schema";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { loadPresentationListRouteData } from "./server";
 
@@ -15,7 +15,7 @@ installDatabaseTestHooks();
 const listUrl = "http://localhost/administracion/presentaciones";
 
 async function loadTheList(email: string) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email,
     requestUrl: listUrl,
     role: "admin",

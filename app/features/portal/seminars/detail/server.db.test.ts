@@ -3,10 +3,9 @@ import { describe, expect, test } from "vitest";
 import {
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import { activateEvent } from "@/lib/events/management.server";
-import { createPortalSavedEvent } from "@/lib/events/saved-event-test-support.server";
-import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import {
@@ -22,6 +21,7 @@ import {
   registerPortalSeminarInscriptionIntent,
   toPortalSeminarPersonValue,
 } from "@/features/portal/seminars/shared";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -32,7 +32,10 @@ function detailUrl(seminarId: string) {
 }
 
 async function createActiveEventWithSeminar(quota = 5, withPrices = true) {
-  const event = await createPortalSavedEvent({ name: "Regional 2026" });
+  const event = await createSavedEvent({
+    active: false,
+    name: "Regional 2026",
+  });
   await activateEvent(event.id);
 
   if (withPrices) {
@@ -169,7 +172,10 @@ describe("portal seminar detail", () => {
       academyName: "Academia Otro Evento",
       email: "seminario.detalle.otro@example.com",
     });
-    const other = await createPortalSavedEvent({ name: "Regional 2025" });
+    const other = await createSavedEvent({
+      active: false,
+      name: "Regional 2025",
+    });
     const otherSeminar = await createSeminar(other.id, {
       instructorName: "Otro Instructor",
       scheduledDate: "2099-11-11",

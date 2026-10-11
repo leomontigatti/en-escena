@@ -146,6 +146,180 @@ export function Compliant(props: { end: boolean; className?: string }) {
 }
 `;
 
+const copyViolatingFixture = `
+import {
+  AlertDialogAction,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+
+export function Violating(props: { name: string }) {
+  return (
+    <div>
+      <AlertDialogTitle>Confirmar los cambios</AlertDialogTitle>
+      <AlertDialogTitle>¿Confirmar el envío?</AlertDialogTitle>
+      <AlertDialogFooter>
+        <Button>Aceptar</Button>
+      </AlertDialogFooter>
+      <AlertDialogAction>Confirmar y guardar</AlertDialogAction>
+      <ConfirmationDialog title="Anular comprobante" confirmLabel="Confirmar" />
+      <p>No se puede borrar la categoría.</p>
+      <p>{\`Esta acción borra \${props.name}.\`}</p>
+      <p>Se borró la categoría.</p>
+      <p>Borrá la modalidad o pedí que la borremos.</p>
+      <p>No borres el cronograma.</p>
+    </div>
+  );
+}
+`;
+
+const copyCompliantFixture = `
+import {
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+
+function FileField(props: { removeLabel: string }) {
+  return <span>{props.removeLabel}</span>;
+}
+
+export function Compliant(props: { name: string; title: string }) {
+  return (
+    <div>
+      <AlertDialogTitle>¿Guardar los cambios?</AlertDialogTitle>
+      <AlertDialogTitle>¿Suspender a {props.name}?</AlertDialogTitle>
+      <AlertDialogTitle>{props.title}</AlertDialogTitle>
+      <AlertDialogFooter>
+        <Button>Cancelar</Button>
+        <Button>Guardar</Button>
+      </AlertDialogFooter>
+      <Button>Confirmar voto</Button>
+      <ConfirmationDialog
+        title={\`¿Revocar el acceso de \${props.name}?\`}
+        confirmLabel="Revocar"
+      />
+      <p>Suspender no borra datos.</p>
+      <p>Esta inscripción no se borra: queda retirada.</p>
+      <p>Guardá el borrador.</p>
+      <FileField removeLabel="Quitar imagen" />
+      <label>Confirmar contraseña</label>
+      <ConfirmationDialog title={\`\${props.name}: ¿eliminar?\`} confirmLabel="Eliminar" />
+    </div>
+  );
+}
+`;
+
+// Server copy is a refusal the user reads too, so the rule reads `.ts`.
+const copyServerFixture = `
+// Borrar el evento también borra sus bases.
+export const refusal = "Confirmá el borrado del evento.";
+export const withdrawn = "La inscripción no se borra.";
+`;
+
+const structureViolatingFixture = `
+import { AlertTriangle, Info, Trophy } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertDialog } from "@/components/ui/alert-dialog";
+
+export function Violating() {
+  return (
+    <AlertDialog>
+      <Alert>
+        <Info />
+        <AlertTitle>Sin variante</AlertTitle>
+        <AlertDescription>Una alerta sin tipo.</AlertDescription>
+      </Alert>
+      <Alert variant="warning">
+        <AlertTriangle />
+        <AlertTitle>Alias</AlertTitle>
+        <AlertDescription>El icono con otro nombre.</AlertDescription>
+      </Alert>
+      <Alert variant="info">
+        <Trophy className="mt-1" />
+        <AlertDescription>Sin título, con icono del tema.</AlertDescription>
+      </Alert>
+      <Alert variant="success">
+        {/* Un comentario no esconde lo que falta. */}
+        <AlertTitle>Sin icono ni descripción</AlertTitle>
+      </Alert>
+    </AlertDialog>
+  );
+}
+`;
+
+const structureCompliantFixture = `
+import { CircleAlert, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+function Reasons() {
+  return <AlertDescription>Una razón.</AlertDescription>;
+}
+
+export function Compliant(props: { variant: "info" | "warning"; icon: React.ReactNode }) {
+  return (
+    <div>
+      <Alert variant="destructive">
+        <CircleAlert aria-hidden="true" />
+        <AlertTitle>No se pudo guardar</AlertTitle>
+        <AlertDescription>Revisá los campos.</AlertDescription>
+      </Alert>
+      <Alert variant={props.variant}>
+        <Info />
+        <AlertTitle>Variante elegida al vuelo</AlertTitle>
+      </Alert>
+      <Alert variant="info">
+        {props.icon}
+        <AlertTitle>Icono por prop</AlertTitle>
+      </Alert>
+      <Alert variant="info">
+        <Info />
+        <AlertTitle>Descripción de un componente</AlertTitle>
+        <Reasons />
+      </Alert>
+    </div>
+  );
+}
+`;
+
+const restrictedViolatingFixture = `
+import type { FormEvent } from "react";
+import { toast } from "sonner";
+
+export function Violating(props: { form: HTMLFormElement }) {
+  toast.info("Guardado");
+  props.form.submit();
+  HTMLFormElement.prototype.submit.call(props.form);
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => event;
+  return (
+    <div className="bg-card md:dark:bg-muted" onSubmit={onSubmit}>
+      <h1>Título</h1>
+    </div>
+  );
+}
+`;
+
+const restrictedCompliantFixture = `
+import { toast } from "sonner";
+
+export function Compliant(props: {
+  fetcher: { submit: (data: FormData) => void };
+  data: FormData;
+}) {
+  toast.success("Guardado");
+  props.fetcher.submit(props.data);
+  const onSubmit = (event: React.SubmitEvent<HTMLFormElement>) => event;
+  return (
+    <div className="bg-card darker:bg-muted" onSubmit={onSubmit}>
+      <h2>Título</h2>
+    </div>
+  );
+}
+`;
+
 type Diagnostic = {
   code: string;
   message: string;
@@ -178,6 +352,11 @@ describe("ui oxlint plugin", () => {
     ) as { rules: Record<string, unknown> };
     tempRoot = await mkdtemp(path.join(tmpdir(), "oxlint-ui-plugin-"));
     await mkdir(path.join(tempRoot, "app", "features"), { recursive: true });
+    // Fixtures that write an AlertDialog live where the shared confirmations
+    // do, the one place `ui/confirmation-shared` allows it.
+    await mkdir(path.join(tempRoot, "app", "components", "shared"), {
+      recursive: true,
+    });
     await writeFile(
       path.join(tempRoot, ".oxlintrc.json"),
       JSON.stringify({
@@ -191,6 +370,11 @@ describe("ui oxlint plugin", () => {
           "ui/data-icon-position": "error",
           "ui/dialog-width": "error",
           "ui/actions-menu-text-only": "error",
+          "ui/confirm-wording": "error",
+          "ui/no-borrar": "error",
+          "ui/confirmation-shared": "error",
+          "ui/alert-structure": "error",
+          "ui/restricted-syntax": "error",
           // The repo's own entry, so the test judges the config that ships.
           "no-restricted-imports": repoConfig.rules["no-restricted-imports"],
         },
@@ -205,12 +389,77 @@ describe("ui oxlint plugin", () => {
       compliantFixture,
     );
     await writeFile(
-      path.join(tempRoot, "app", "features", "conventions-violating.tsx"),
+      path.join(
+        tempRoot,
+        "app",
+        "components",
+        "shared",
+        "conventions-violating.tsx",
+      ),
       conventionsViolatingFixture,
     );
     await writeFile(
-      path.join(tempRoot, "app", "features", "conventions-compliant.tsx"),
+      path.join(
+        tempRoot,
+        "app",
+        "components",
+        "shared",
+        "conventions-compliant.tsx",
+      ),
       conventionsCompliantFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "components", "shared", "copy-violating.tsx"),
+      copyViolatingFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "components", "shared", "copy-compliant.tsx"),
+      copyCompliantFixture,
+    );
+    // An <h1> is the page header's business only in the admin and the portal.
+    await mkdir(path.join(tempRoot, "app", "features", "admin"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(
+        tempRoot,
+        "app",
+        "features",
+        "admin",
+        "restricted-violating.tsx",
+      ),
+      restrictedViolatingFixture,
+    );
+    await writeFile(
+      path.join(
+        tempRoot,
+        "app",
+        "features",
+        "admin",
+        "restricted-compliant.tsx",
+      ),
+      restrictedCompliantFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "public-page.tsx"),
+      "export function Page() {\n  return <h1>Programa</h1>;\n}\n",
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "copy-server.ts"),
+      copyServerFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "structure-violating.tsx"),
+      structureViolatingFixture,
+    );
+    await writeFile(
+      path.join(tempRoot, "app", "features", "structure-compliant.tsx"),
+      structureCompliantFixture,
+    );
+    // The same import is the shared confirmations' own business.
+    await writeFile(
+      path.join(tempRoot, "app", "components", "shared", "some-dialog.tsx"),
+      'import { AlertDialog } from "@/components/ui/alert-dialog";\nexport const Dialog = AlertDialog;\n',
     );
   });
 
@@ -289,7 +538,7 @@ describe("ui oxlint plugin", () => {
   test("flags tabs without the line variant, unpositioned button icons, dialog width overrides, the Trash icon and icons in an actions menu", () => {
     const diagnostics = lint(
       tempRoot,
-      "app/features/conventions-violating.tsx",
+      "app/components/shared/conventions-violating.tsx",
     );
 
     expect(diagnostics).toEqual([
@@ -352,9 +601,164 @@ describe("ui oxlint plugin", () => {
   });
 
   test("stays silent on line tabs, positioned and icon-only button icons, the wide alert dialog, dialog heights, dynamic classes, lookalike components, a text-only actions menu and an icon in another menu", () => {
-    expect(lint(tempRoot, "app/features/conventions-compliant.tsx")).toEqual(
+    expect(
+      lint(tempRoot, "app/components/shared/conventions-compliant.tsx"),
+    ).toEqual([]);
+  });
+
+  test("flags a confirmation that is not a question or answers with a generic verb, and delete copy that says borrar", () => {
+    expect(lint(tempRoot, "app/components/shared/copy-violating.tsx")).toEqual([
+      {
+        rule: "ui(confirm-wording)",
+        line: 13,
+        message: expect.stringContaining("as a question"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 13,
+        message: expect.stringContaining("not `Confirmar`"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 14,
+        message: expect.stringContaining("not `Confirmar`"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 16,
+        message: expect.stringContaining("not `Aceptar`"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 18,
+        message: expect.stringContaining("not `Confirmar`"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 19,
+        message: expect.stringContaining("as a question"),
+      },
+      {
+        rule: "ui(confirm-wording)",
+        line: 19,
+        message: expect.stringContaining("not `Confirmar`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 20,
+        message: expect.stringContaining("not `borrar`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 21,
+        message: expect.stringContaining("not `borra`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 22,
+        message: expect.stringContaining("not `borró`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 23,
+        message: expect.stringContaining("not `borrá`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 24,
+        message: expect.stringContaining("not `borres`"),
+      },
+    ]);
+    expect(lint(tempRoot, "app/features/copy-server.ts")).toEqual([
+      {
+        rule: "ui(no-borrar)",
+        line: 3,
+        message: expect.stringContaining("not `borrado`"),
+      },
+    ]);
+  });
+
+  test("stays silent on question titles, dynamic titles, verbs from the title, buttons outside a confirmation, copy that says a record is not deleted, a draft and comments", () => {
+    expect(lint(tempRoot, "app/components/shared/copy-compliant.tsx")).toEqual(
       [],
     );
+  });
+
+  test("flags an AlertDialog outside the shared confirmations, and alerts without a variant, with another icon, a moved icon or a missing part", () => {
+    expect(lint(tempRoot, "app/features/structure-violating.tsx")).toEqual([
+      {
+        rule: "ui(confirmation-shared)",
+        line: 4,
+        message: expect.stringContaining("ConfirmationDialog"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 9,
+        message: expect.stringContaining("`variant`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 15,
+        message: expect.stringContaining("Draw `TriangleAlert`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 19,
+        message: expect.stringContaining("`AlertTitle`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 20,
+        message: expect.stringContaining("Draw `Info`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 20,
+        message: expect.stringContaining("Drop `className`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 23,
+        message: expect.stringContaining("with `CircleCheck`"),
+      },
+      {
+        rule: "ui(alert-structure)",
+        line: 23,
+        message: expect.stringContaining("`AlertDescription`"),
+      },
+    ]);
+  });
+
+  test("stays silent on the shared confirmations, canonical alerts, a dynamic variant, and an icon or a part it cannot see", () => {
+    expect(lint(tempRoot, "app/components/shared/some-dialog.tsx")).toEqual([]);
+    expect(lint(tempRoot, "app/features/structure-compliant.tsx")).toEqual([]);
+  });
+
+  test("flags toast.info, a dark: class, an admin page's h1, FormEvent and a native form submit", () => {
+    const expected = [
+      [2, "`FormEvent`"],
+      [6, "`toast.info`"],
+      [7, "`form.submit()`"],
+      [8, "`form.submit()`"],
+      [9, "`FormEvent`"],
+      [11, "`dark:`"],
+      [12, "`<h1>`"],
+    ].map(([line, text]) => ({
+      rule: "ui(restricted-syntax)",
+      line,
+      message: expect.stringContaining(text as string),
+    }));
+
+    expect(
+      lint(tempRoot, "app/features/admin/restricted-violating.tsx"),
+    ).toEqual(expected);
+  });
+
+  test("stays silent on other toasts, a fetcher submit, SubmitEvent, a class that only starts with dark, an h2, and a public page's h1", () => {
+    expect(
+      lint(tempRoot, "app/features/admin/restricted-compliant.tsx"),
+    ).toEqual([]);
+    expect(lint(tempRoot, "app/features/public-page.tsx")).toEqual([]);
   });
 
   test("the repo config enables every rule the plugin defines, and only those", async () => {

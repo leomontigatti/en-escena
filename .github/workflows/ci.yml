@@ -10,7 +10,8 @@
 #                itself runs no tests: it is the aggregator that fails unless every shard
 #                succeeded, and it exists so the required-context name stays stable.
 #   - docs-gate: mapped code changed => its current-state document must change too (#630).
-#   - actions-gate: zizmor + actionlint over every workflow in this directory (#955).
+#   - actions-gate: zizmor + actionlint over every workflow in this directory, and
+#                   zizmor over .github/dependabot.yml (#955).
 # Branch protection on `master` is live: direct pushes are forbidden and `checks`,
 # `db-gate`, `docs-gate` and `actions-gate` are required contexts, with `strict: true`.
 # `pr-title`, from `pr-title.yml`, is required on `master` too, so the required list is five
@@ -79,7 +80,7 @@ jobs:
           # `origin/master` remote-tracking ref the log range is written against.
           git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
           /tmp/gitleaks git --no-banner --redact --verbose --log-opts="origin/master..HEAD"
-      # The pnpm version comes from the `packageManager` field (pnpm 11.9.0)
+      # The pnpm version comes from the `packageManager` field (pnpm 12.10.1)
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
@@ -96,6 +97,9 @@ jobs:
       # manifest does not keep it out, and typecheck has no opinion once it is
       # re-added. The rule carries its own reason and prints it on failure.
       - run: pnpm check:banned-imports
+      # No test asserts that a doc contains fixed text (#1571): such a test
+      # breaks on every rewording and catches no bug.
+      - run: pnpm check:docs-tests
       # Every label the automation names exists (#1116). The AFK state machine
       # runs on exact label strings, and a typo in an `--add-label` otherwise
       # surfaces only as a refused edit in the middle of the run that needs it.
@@ -165,15 +169,17 @@ jobs:
   # The Actions security gate (#955): every workflow in `.github/workflows/` goes
   # through zizmor (posture: pin freshness, trigger safety, permissions, template
   # injection) and actionlint (syntax, expressions, shellcheck over `run:` blocks).
+  # zizmor also reads `.github/dependabot.yml`, for its cooldown (#1564).
   # No `paths:` filter — like the other three it has to report on every PR to be a
   # required context, and it is seconds of runner time.
   # Online audits are on deliberately. `known-vulnerable-actions`, `impostor-commit`
   # and `ref-version-mismatch` only exist with a token, and they are how the SHA pins
-  # stay honest without a bot opening update PRs: a pin that goes stale or points at
-  # something that is no longer the tag it claims turns the gate red. `github.token`
+  # stay honest between Dependabot's minor and patch PRs, and for every major: a
+  # pin that goes stale or points at something that is no longer the tag it claims
+  # turns the gate red. `github.token`
   # is read-only here (see the top-level `permissions:`) and is used for nothing else.
   # Both tools are version-pinned; bumping them is a manual edit, documented in
-  # docs/agents/workflows.md alongside the `pinact run --update` pin bump.
+  # docs/operations/ci.md alongside the `pinact run --update` pin bump.
   # No pinact in CI: zizmor's `unpinned-uses` already fails on anything not SHA-pinned.
   actions-gate:
     name: actions-gate
@@ -190,7 +196,7 @@ jobs:
         # `pipx run`, not `uvx`: `uv` is not on the `ubuntu-latest` image and `uvx`
         # would exit 127 before auditing anything, while `pipx` is preinstalled. Same
         # shape either way — an ephemeral, exactly-pinned install with no setup action.
-        run: pipx run zizmor==1.30.1 --config .github/zizmor.yml --format plain .github/workflows/
+        run: pipx run zizmor==1.30.1 --config .github/zizmor.yml --format plain .github/workflows/ .github/dependabot.yml
       - name: actionlint (workflow syntax and expressions)
         env:
           # actionlint runs shellcheck over every `run:` block. Only `warning` and

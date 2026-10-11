@@ -70,6 +70,14 @@ export const accessSession = createTable(
     userId: varchar("user_id", { length: 255 })
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    // The admin plugin's impersonator. Better Auth 1.7's schema check requires
+    // the column, but the plugin's roles refuse impersonation (#984), so it
+    // stays null. Cascade, not set null, in case that changes: nulling it would
+    // turn a live impersonation into an ordinary session of the user.
+    impersonatedBy: varchar("impersonated_by", { length: 255 }).references(
+      () => user.id,
+      { onDelete: "cascade" },
+    ),
   },
   (table) => [index("access_session_user_id_idx").on(table.userId)],
 ).enableRLS();

@@ -1,14 +1,14 @@
 import { describe, expect, test } from "vitest";
 
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { activateEvent } from "@/lib/events/management.server";
-import { createPortalSavedEvent } from "@/lib/events/saved-event-test-support.server";
-import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademySession } from "@/features/portal/test-support/db";
 import { loadPortalSeminarsList } from "@/features/portal/seminars/list/server";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -17,7 +17,10 @@ installDatabaseTestHooks();
 const seminariosUrl = "http://localhost/portal/seminarios";
 
 async function createActiveEventWithSeminar(quota = 5) {
-  const event = await createPortalSavedEvent({ name: "Regional 2026" });
+  const event = await createSavedEvent({
+    active: false,
+    name: "Regional 2026",
+  });
   await activateEvent(event.id);
   await createSeminarRegistrationPrices(event.id);
 
@@ -88,7 +91,7 @@ describe("portal seminars list", () => {
       academyName: "Academia Sin Evento",
       email: "seminarios.sin-evento@example.com",
     });
-    await createPortalSavedEvent({ name: "Regional 2026" });
+    await createSavedEvent({ active: false, name: "Regional 2026" });
 
     await expect(loadList(session.cookie)).resolves.toEqual({
       hasActiveEvent: false,

@@ -1,4 +1,15 @@
 import {
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  tableFeatures,
+  type CellData,
   type ColumnDef,
   type ColumnFiltersState,
   type OnChangeFn,
@@ -6,6 +17,7 @@ import {
   type RowData,
   type RowSelectionState,
   type SortingState,
+  type TableFeatures,
 } from "@tanstack/react-table";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -31,13 +43,38 @@ import {
 } from "@/components/shared/data-table.shared";
 
 declare module "@tanstack/react-table" {
-  interface ColumnMeta<TData extends RowData, TValue> {
+  interface ColumnMeta<
+    in out TFeatures extends TableFeatures,
+    in out TData extends RowData,
+    TValue extends CellData = CellData,
+  > {
     className?: string;
     headerClassName?: string;
     cellClassName?: (row: TData) => string | undefined;
     width?: number;
   }
 }
+
+/**
+ * What both tables register with TanStack. Since v9 a table answers only to
+ * the features it is given, and the row models are slots here rather than
+ * table options. One set serves both: the server table switches the client
+ * row models off with its `manual*` flags, since the loader has already
+ * searched, sorted and paged the rows it sends.
+ */
+export const dataTableFeatures = tableFeatures({
+  columnFilteringFeature,
+  globalFilteringFeature,
+  columnVisibilityFeature,
+  rowSortingFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  filteredRowModel: createFilteredRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+});
+
+export type DataTableFeatures = typeof dataTableFeatures;
 
 export const emptyFacetedFilterValues: Record<
   string,
@@ -130,58 +167,60 @@ function createSortingState(
   return [{ id: columnId, desc: direction === "desc" }];
 }
 
-export function createDataTableColumns<TData>(
+export function createDataTableColumns<TData extends RowData>(
   columns: DataTableColumn<TData>[],
   options: { selectableRows?: boolean } = {},
 ) {
-  const tableColumns = columns.map<ColumnDef<TData>>((column) => ({
-    id: column.id,
-    header: column.header,
-    cell: ({ row }) => column.cell(row.original),
-    enableSorting: Boolean(column.sortValue),
-    accessorFn: (row) => column.sortValue?.(row) ?? column.filterValue?.(row),
-    filterFn: (row, _columnId, filterValue) => {
-      if (isFacetedFilterValue(filterValue)) {
-        const selectedValues = getActiveFacetedFilterValues(filterValue);
+  const tableColumns = columns.map<ColumnDef<DataTableFeatures, TData>>(
+    (column) => ({
+      id: column.id,
+      header: column.header,
+      cell: ({ row }) => column.cell(row.original),
+      enableSorting: Boolean(column.sortValue),
+      accessorFn: (row) => column.sortValue?.(row) ?? column.filterValue?.(row),
+      filterFn: (row, _columnId, filterValue) => {
+        if (isFacetedFilterValue(filterValue)) {
+          const selectedValues = getActiveFacetedFilterValues(filterValue);
 
-        if (selectedValues.length === 0) {
+          if (selectedValues.length === 0) {
+            return true;
+          }
+
+          const rowValues =
+            column.filterValues?.(row.original) ??
+            (column.filterValue ? [column.filterValue(row.original)] : []);
+
+          return selectedValues.every((selectedValue) =>
+            rowValues.some(
+              (rowValue) =>
+                foldSearchText(rowValue) === foldSearchText(selectedValue),
+            ),
+          );
+        }
+
+        const normalizedQuery = foldSearchText(String(filterValue));
+
+        if (normalizedQuery.length === 0) {
           return true;
         }
 
-        const rowValues =
-          column.filterValues?.(row.original) ??
-          (column.filterValue ? [column.filterValue(row.original)] : []);
+        const value = column.filterValue?.(row.original);
 
-        return selectedValues.every((selectedValue) =>
-          rowValues.some(
-            (rowValue) =>
-              foldSearchText(rowValue) === foldSearchText(selectedValue),
-          ),
-        );
-      }
-
-      const normalizedQuery = foldSearchText(String(filterValue));
-
-      if (normalizedQuery.length === 0) {
-        return true;
-      }
-
-      const value = column.filterValue?.(row.original);
-
-      return value ? foldSearchText(value).includes(normalizedQuery) : false;
-    },
-    sortingFn: (firstRow, secondRow) =>
-      compareSortValues(
-        column.sortValue?.(firstRow.original),
-        column.sortValue?.(secondRow.original),
-      ),
-    meta: {
-      className: column.className,
-      headerClassName: column.headerClassName,
-      cellClassName: column.cellClassName,
-      width: column.width,
-    },
-  }));
+        return value ? foldSearchText(value).includes(normalizedQuery) : false;
+      },
+      sortFn: (firstRow, secondRow) =>
+        compareSortValues(
+          column.sortValue?.(firstRow.original),
+          column.sortValue?.(secondRow.original),
+        ),
+      meta: {
+        className: column.className,
+        headerClassName: column.headerClassName,
+        cellClassName: column.cellClassName,
+        width: column.width,
+      },
+    }),
+  );
 
   // A leading column is drawn before the checkbox, and the views declare them
   // first, so the checkbox slots in after the run of them rather than opening
@@ -199,7 +238,7 @@ export function createDataTableColumns<TData>(
     return visibleTableColumns;
   }
 
-  const facetedColumn: ColumnDef<TData> = {
+  const facetedColumn: ColumnDef<DataTableFeatures, TData> = {
     id: dataTableFacetedFilterColumnId,
     header: "Filtros",
     cell: () => null,
@@ -255,8 +294,14 @@ function getFacetedRowValues<TData>(
   });
 }
 
-export function createGlobalFilterFn<TData>(columns: DataTableColumn<TData>[]) {
-  return (row: Row<TData>, _columnId: string, filterValue: unknown) =>
+export function createGlobalFilterFn<TData extends RowData>(
+  columns: DataTableColumn<TData>[],
+) {
+  return (
+    row: Row<DataTableFeatures, TData>,
+    _columnId: string,
+    filterValue: unknown,
+  ) =>
     columns.some((column) => {
       const normalizedQuery = foldSearchText(String(filterValue));
 
@@ -286,7 +331,10 @@ export function useDataTableRowSelection({
     useState<RowSelectionState>({});
   const isSelectionControlled = selectedRowIds !== undefined;
   const controlledRowSelection = useMemo(
-    () => Object.fromEntries((selectedRowIds ?? []).map((id) => [id, true])),
+    () =>
+      Object.fromEntries(
+        (selectedRowIds ?? []).map((id) => [id, true] as const),
+      ),
     [selectedRowIds],
   );
   const rowSelection = isSelectionControlled
@@ -318,7 +366,10 @@ export function useDataTableRowSelection({
   return { rowSelection, setRowSelection };
 }
 
-function createSelectionColumn<TData>(): ColumnDef<TData> {
+function createSelectionColumn<TData extends RowData>(): ColumnDef<
+  DataTableFeatures,
+  TData
+> {
   return {
     id: dataTableSelectionColumnId,
     header: ({ table }) => {

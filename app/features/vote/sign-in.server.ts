@@ -4,6 +4,7 @@ import { buildVoterCallbackUrl, votePath } from "@/lib/grand-final/vote-url";
 import { createDefaultVoterSignIn } from "@/lib/grand-final/voter-identity-providers.server";
 import type { VoterSignIn } from "@/lib/grand-final/voter-sign-in.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 /**
  * The two ends of a `voter`'s sign-in with Google, wired to the vote page:
@@ -20,7 +21,7 @@ const noStore = { "Cache-Control": "no-store" };
  */
 function readRedirectUri(request: Request) {
   return buildVoterCallbackUrl(
-    process.env.APP_URL || new URL(request.url).origin,
+    process.env.APP_URL || readRequestedUrl(request).origin,
   );
 }
 

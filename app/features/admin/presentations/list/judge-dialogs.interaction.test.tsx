@@ -98,13 +98,9 @@ describe("the bulk judge dialogs", () => {
     expect(document.body.textContent).toContain("Asignar jueces");
     expect(document.body.textContent).toContain("2 presentaciones elegidas.");
 
-    await clickReactDomButton("Elegí uno o más jueces");
-
     // Assigning needs no prior relation, so Bruno is on offer even though
     // nobody in the selection has him.
-    const options = [...document.querySelectorAll('[role="option"]')].map(
-      (option) => option.textContent,
-    );
+    const options = judgeRows().map((row) => row.textContent);
 
     expect(options).toContain(ana.name);
     expect(options).toContain(bruno.name);
@@ -116,11 +112,7 @@ describe("the bulk judge dialogs", () => {
       selectedRows: [buildItem({ assignedJudgeIds: [ana.id] })],
     });
 
-    await clickReactDomButton("Elegí uno o más jueces");
-
-    const options = [...document.querySelectorAll('[role="option"]')].map(
-      (option) => option.textContent,
-    );
+    const options = judgeRows().map((row) => row.textContent);
 
     expect(options).toEqual([ana.name]);
   });
@@ -187,10 +179,15 @@ describe("the bulk judge dialogs", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  async function pickJudge(name: string) {
-    await clickReactDomButton("Elegí uno o más jueces");
+  /** The judges the dialog's checklist offers, one row each. */
+  function judgeRows() {
+    return [
+      ...document.querySelectorAll<HTMLElement>('[data-slot="choice-card"]'),
+    ];
+  }
 
-    const option = [...document.querySelectorAll('[role="option"]')].find(
+  async function pickJudge(name: string) {
+    const option = judgeRows().find(
       (candidate) => candidate.textContent === name,
     );
 

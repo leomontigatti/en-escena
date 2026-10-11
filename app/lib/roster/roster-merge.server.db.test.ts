@@ -16,11 +16,8 @@ import {
   createAcademySession,
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
-import {
-  createEventChoreographyFixture,
-  createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
 import {
   loadRosterMergeOptions,
   mergeRosterPeople,
@@ -29,6 +26,7 @@ import {
   type DancerDocumentStorageAdapter,
   createDancerDocumentStorage,
 } from "@/lib/storage/dancer-documents.server";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -419,7 +417,11 @@ async function createRoster(academyName: string) {
     academyName: `Academia ${academyName}`,
     email: `${crypto.randomUUID()}@example.com`,
   });
-  const event = await createSavedEvent(`Evento ${academyName}`);
+  const event = await createSavedEvent({
+    name: `Evento ${academyName}`,
+    active: false,
+    ...eventDates(2030),
+  });
 
   return { academyId: academy.academyId, event };
 }

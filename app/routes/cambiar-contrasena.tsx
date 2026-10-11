@@ -28,6 +28,7 @@ import {
   getFieldErrors,
 } from "@/lib/shared/form-validation";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/cambiar-contrasena";
@@ -60,7 +61,7 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
   const recoveryCode = url.searchParams.get("code");
   const recoveryTokenHash = url.searchParams.get("token_hash");
   const recoveryType = url.searchParams.get("type");

@@ -7,8 +7,8 @@ Date: 2026-09-25
 Source: the browser-and-UI-verification investigation of 2026-09-25, in the
 T3 Code thread that produced this ADR.
 
-Between #319 and #1199 this repo built the AFK platform of
-[afk-agent-platform-spec.md](../agents/afk-agent-platform-spec.md): eight
+Between #319 and #1199 this repo built the AFK platform of the
+spec vendored from `mattpocock/course-video-manager` (deleted by the amendment of 2026-10-11): eight
 GitHub Actions workflows, four of which wrote or reviewed code without a human
 present. This ADR retires those four — Implement, Implement PRD, Implement PR
 and Review — and keeps the other four. It records **why**; the current setup
@@ -85,7 +85,7 @@ changing how the code is written.
 "What stays" kept **To Issues** as cheap work that needs no browser. It is
 retired the same day. A PRD is now sliced in a local session with the vendored
 `to-tickets` skill, after `to-spec` files it; the repo's additions to both are
-in [workflows.md](../agents/workflows.md#prd-workflow).
+in [issue-tracker.md](../agents/issue-tracker.md#prd-workflow).
 
 - **The slices were the part that most needed a human.** Granularity, order and
   blocking edges decide how many sessions and PRs the work costs and whether
@@ -128,3 +128,18 @@ Architecture Review is now the only AFK workflow. The other three are replaced a
 `.github/labels.json`, and `pnpm setup:secrets` no longer loads `AGENT_PAT`. The labels and the
 secret stay on GitHub until removed by hand. The Update Branch prompt skeleton stays under
 `docs/agents/prompts/` because the vendored spec links it.
+
+## Amendment (2026-10-11): the AFK spec and the retired prompts are deleted
+
+The vendored AFK platform spec (about 1,200 lines under `docs/agents/`), the
+nine runner prompt skeletons under `docs/agents/prompts/` and the vendoring record
+`afk-vendored-assets.md` are deleted (#1563). They described eight workflows of which one is left,
+and the two amendments above kept the skeletons only because the spec linked them. Nothing the
+Architecture Review workflow runs read any of them: its runner reads only
+`.github/architecture-review/prompt.md`.
+
+What was still true moved: the runner contract (inputs, output files, the two passes, the token-less
+agent, the single publisher), the secret and the permissions into
+[afk-setup.md](../agents/afk-setup.md), and where each skill came from into
+[vendored-skills.md](../agents/vendored-skills.md). The history of the retired workflows stays in
+this ADR, the issues it cites and git.

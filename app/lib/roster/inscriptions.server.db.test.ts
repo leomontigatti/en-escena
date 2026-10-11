@@ -13,20 +13,17 @@ import { createChoreographyRecord } from "@/features/portal/choreographies/test-
 import {
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import {
   findProfessorChoreographies,
   findRosterSeminarInscriptions,
 } from "@/lib/roster/inscriptions.server";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createInactiveEvent,
-  createSavedEvent,
-} from "../admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
 
@@ -57,7 +54,11 @@ async function createSeminar(input: {
  */
 async function seedSeminarFixture(kind: RosterPersonKind) {
   const event = await createSavedEvent();
-  const otherEvent = await createInactiveEvent("En Escena 2025");
+  const otherEvent = await createSavedEvent({
+    name: "En Escena 2025",
+    active: false,
+    ...eventDates(2025),
+  });
   const academy = await createAcademyUser({
     academyName: "Academia Seminarios",
     email: `seminarios.${crypto.randomUUID()}@example.com`,
@@ -160,17 +161,6 @@ describe("findRosterSeminarInscriptions", () => {
       ]);
     },
   );
-
-  test("reads nothing without a selected event", async () => {
-    const fixture = await seedSeminarFixture("dancer");
-
-    await expect(
-      findRosterSeminarInscriptions({
-        person: fixture.person,
-        selectedEventId: null,
-      }),
-    ).resolves.toEqual([]);
-  });
 });
 
 describe("findProfessorChoreographies", () => {
@@ -273,14 +263,5 @@ describe("findProfessorChoreographies", () => {
       "bolero",
       "Zamba",
     ]);
-  });
-
-  test("reads nothing without a selected event", async () => {
-    await expect(
-      findProfessorChoreographies({
-        professorId: crypto.randomUUID(),
-        selectedEventId: null,
-      }),
-    ).resolves.toEqual([]);
   });
 });

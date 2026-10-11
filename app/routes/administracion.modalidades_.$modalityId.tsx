@@ -20,7 +20,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Modalidades", to: "/administracion/modalidades" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       const modality = data?.modalities.find(
         (record) => record.id === match.params.modalityId,
       );

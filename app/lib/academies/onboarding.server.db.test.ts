@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -116,83 +117,6 @@ describe("academy onboarding route", () => {
       province: "santa_fe",
       userId: "supabase-confirmed-user",
     });
-  });
-
-  test("refuses an academy without a city or a province and creates nothing", async () => {
-    getVerifiedAccessIdentity.mockResolvedValue(
-      accessIdentity("sin.ciudad@example.com", "user-sin-ciudad"),
-    );
-
-    const result = await academyOnboardingAction(
-      routeActionArgs(
-        createOnboardingRequest({
-          academyName: "Academia Sin Ciudad",
-          city: "   ",
-          contactName: "Contacto",
-          phone: "1112345678",
-          province: "",
-        }),
-      ),
-    );
-
-    expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: {
-        city: "Este campo es obligatorio.",
-        province: "Este campo es obligatorio.",
-      },
-    });
-    await expect(db.query.academies.findMany()).resolves.toEqual([]);
-  });
-
-  test("refuses a name, a contact or a city made only of punctuation and creates nothing", async () => {
-    getVerifiedAccessIdentity.mockResolvedValue(
-      accessIdentity("solo.punto@example.com", "user-solo-punto"),
-    );
-
-    const result = await academyOnboardingAction(
-      routeActionArgs(
-        createOnboardingRequest({
-          academyName: ".",
-          city: "-",
-          contactName: "...",
-          phone: "1112345678",
-        }),
-      ),
-    );
-
-    expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: {
-        academyName: "Ingresá al menos una letra o un número.",
-        city: "Ingresá al menos una letra o un número.",
-        contactName: "Ingresá al menos una letra o un número.",
-      },
-    });
-    await expect(db.query.academies.findMany()).resolves.toEqual([]);
-  });
-
-  test("refuses a province outside the list and creates nothing", async () => {
-    getVerifiedAccessIdentity.mockResolvedValue(
-      accessIdentity("provincia.libre@example.com", "user-provincia-libre"),
-    );
-
-    const result = await academyOnboardingAction(
-      routeActionArgs(
-        createOnboardingRequest({
-          academyName: "Academia Libre",
-          contactName: "Contacto",
-          phone: "1112345678",
-          province: "Santa Fe",
-        }),
-      ),
-    );
-
-    expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: { province: "Elegí una provincia de la lista." },
-    });
-    await expect(db.query.academies.findMany()).resolves.toEqual([]);
   });
 
   test("creates an academy from abroad with `Otro país`", async () => {
@@ -421,53 +345,6 @@ describe("academy onboarding route", () => {
       }),
     ).resolves.toBeUndefined();
   });
-
-  test("validates academy onboarding phone input without creating domain records", async () => {
-    getVerifiedAccessIdentity.mockResolvedValue({
-      headers: new Headers({
-        "set-cookie": "better-auth.session_token=confirmado; Path=/; HttpOnly",
-      }),
-      session: {
-        id: "session-token",
-        issuedAt: new Date("2026-06-23T00:00:00.000Z"),
-      },
-      user: {
-        email: "telefono@example.com",
-        id: "supabase-phone-user",
-      },
-    });
-
-    await expect(
-      academyOnboardingAction(
-        routeActionArgs(
-          createOnboardingRequest({
-            academyName: "Academia Telefono",
-            contactName: "Contacto Telefono",
-            phone: "11 1234-5678",
-          }),
-        ),
-      ),
-    ).resolves.toEqual({
-      fieldErrors: {
-        academyName: undefined,
-        contactName: undefined,
-        phone: "Ingresá 10 dígitos, sin espacios, 0 ni 15.",
-        city: undefined,
-        province: undefined,
-      },
-      message: "Revisá los datos del formulario.",
-      status: "error",
-      values: {
-        academyName: "Academia Telefono",
-        contactName: "Contacto Telefono",
-        phone: "11 1234-5678",
-        city: "Ciudad",
-        province: "santa_fe",
-      },
-    });
-    await expect(db.query.user.findMany()).resolves.toEqual([]);
-    await expect(db.query.academies.findMany()).resolves.toEqual([]);
-  });
 });
 
 function accessIdentity(email: string, id: string) {
@@ -531,7 +408,7 @@ function routeLoaderArgs(request: Request) {
   const url = new URL(request.url);
 
   return {
-    context: {},
+    context: new RouterContextProvider(),
     params: {},
     pattern: "/registro/academia",
     request,

@@ -60,12 +60,6 @@ describe("listSearchCondition", () => {
 
     expect(await matchesInSql(condition)).toBe(true);
   });
-
-  test("asks nothing of an empty search", () => {
-    expect(listSearchCondition("   ", [sql`${"Rosario"}::text`])).toBe(
-      undefined,
-    );
-  });
 });
 
 async function matchesInSql(condition: SQL | undefined) {

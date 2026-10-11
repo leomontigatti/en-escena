@@ -187,7 +187,7 @@ function ModalityActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar la modalidad?"
-        description={`Esta acción borra ${modality.name} si no tiene submodalidades, categorías o cronogramas relacionados. No se puede deshacer.`}
+        description={`Esta acción elimina ${modality.name} si no tiene submodalidades, categorías o cronogramas relacionados. No se puede deshacer.`}
         intentValue="delete-modality"
         recordId={modality.id}
         open={deleteDialogOpen}

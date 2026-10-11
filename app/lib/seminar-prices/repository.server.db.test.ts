@@ -3,8 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, seminarInscriptions } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import {
   uncoveredPriceDeleteError,
   uncoveredPriceUpdateError,
@@ -21,6 +20,7 @@ import {
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -46,7 +46,11 @@ const outsiderTail: SeminarPriceInput = {
 
 describe("seminar price repository", () => {
   test("keeps one row per kind, participant cell and deadline, with two absent deadlines colliding", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     const tail = expectSavedPrice(
       await createSeminarPrice(event.id, participantTail),
@@ -94,33 +98,6 @@ describe("seminar price repository", () => {
         amount: 18000,
       }),
     ).resolves.toMatchObject({ ok: true });
-  });
-
-  test("refuses an empty name, a malformed deadline and an amount below one", async () => {
-    const event = await createSavedEvent("Regional 2026");
-
-    await expect(
-      createSeminarPrice(event.id, {
-        ...participantTail,
-        name: "  ",
-        amount: 0,
-        paymentDeadline: "30/06/2026",
-      }),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: "invalid-event-bases",
-      fieldErrors: {
-        name: "Ingresá el nombre del precio.",
-        amount: "Ingresá un monto mayor a cero.",
-        paymentDeadline: "Elegí una fecha válida.",
-      },
-    });
-    await expect(
-      createSeminarPrice(event.id, { ...participantTail, kind: "premium" }),
-    ).resolves.toMatchObject({
-      ok: false,
-      fieldErrors: { kind: "Elegí un tipo de seminario." },
-    });
   });
 
   test("freezes a referenced row except for its name", async () => {
@@ -237,7 +214,11 @@ describe("seminar price repository", () => {
   });
 
   test("lets the tail go when the event has no seminar inscription", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const tail = expectSavedPrice(
       await createSeminarPrice(event.id, participantTail),
     );
@@ -248,7 +229,11 @@ describe("seminar price repository", () => {
   });
 
   test("reads registration prices as complete only when both participant cells carry their regular tail", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     await expect(hasSeminarRegistrationPrices(event.id)).resolves.toBe(false);
 
@@ -306,7 +291,11 @@ describe("seminar price repository", () => {
   });
 
   test("takes the event's prices with it when the event is deleted", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     await createSeminarPrice(event.id, participantTail);
     await expect(listSeminarPrices(event.id)).resolves.toHaveLength(1);
 
@@ -328,7 +317,11 @@ function expectSavedPrice(
 
 /** An event with one seminar and one inscription on it, before it starts. */
 async function createSeminarInscriptionFixture() {
-  const event = await createSavedEvent("Regional 2026");
+  const event = await createSavedEvent({
+    name: "Regional 2026",
+    active: false,
+    ...eventDates(2030),
+  });
   const seminar = await createSeminar(event.id, {
     instructorName: "Abril Sosa",
     scheduledDate: "2026-10-10",

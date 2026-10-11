@@ -1,7 +1,7 @@
 /**
  * The `grandFinalResult` read off a closed `votingRound`'s tally: the ranking
  * by weighted points, each finalist's share of them, and who won. Pure, so the
- * rule reads in one place (CONTEXT.md `votingRound`):
+ * rule reads in one place (GLOSSARY.md `votingRound`):
  *
  * - Round 1 ranks by points. A tie for first place crowns nobody: it is what
  *   a `Desempate` round settles.

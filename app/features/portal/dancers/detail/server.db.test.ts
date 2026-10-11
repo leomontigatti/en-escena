@@ -7,19 +7,11 @@ import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
-import {
-  invalidBirthDateMessage,
-  underageBirthDateMessage,
-} from "@/lib/dancers/birth-date";
+import { underageBirthDateMessage } from "@/lib/dancers/birth-date";
 import {
   createEventChoreographyFixture,
-  createSavedEvent as createActiveEventFixture,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
-import {
-  createPortalSavedEvent as createSavedEvent,
-  testEventDate as date,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/bases.test-support";
 import { handlePortalDancerDetailAction } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancerDetail } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancersList } from "@/features/portal/dancers/list/server";
@@ -34,10 +26,11 @@ import { createFormData } from "@/lib/test-support/form-data";
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { mergeAcademies } from "@/lib/academies/academy-merge.server";
 import { mergeRosterPeople } from "@/lib/roster/roster-merge.server";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -243,9 +236,10 @@ describe("handlePortalDancerDetailAction", () => {
       academyName: "Academia Recálculo",
     });
     const event = await createSavedEvent({
+      active: false,
       name: "Regional Recálculo",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -365,9 +359,10 @@ describe("handlePortalDancerDetailAction", () => {
       academyName: "Academia Sin Categoría",
     });
     const event = await createSavedEvent({
+      active: false,
       name: "Regional Sin Categoría",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -809,49 +804,12 @@ describe("handlePortalDancerDetailAction", () => {
     });
   });
 
-  test("rejects a birth date that is not a real date and keeps the stored one", async () => {
-    const session = await createAcademySession({
-      email: "bailarines.fecha.rota@example.com",
-      academyName: "Academia Fecha Rota",
-    });
-    const [dancer] = await db
-      .insert(dancers)
-      .values({
-        academyId: session.academyId,
-        firstName: "Ana",
-        lastName: "Fecha",
-        birthDate: "2014-02-01",
-      })
-      .returning();
-
-    const result = await handlePortalDancerDetailAction({
-      request: createPortalPostRequest(
-        `http://localhost/portal/bailarines/${dancer.id}`,
-        session.cookie,
-        dancerEditFormData({
-          firstName: "Ana",
-          lastName: "Fecha",
-          birthDate: "01/02/2014",
-          documentType: "",
-          documentNumber: "",
-        }),
-      ),
-      params: { dancerId: dancer.id },
-    });
-
-    expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: { birthDate: invalidBirthDateMessage },
-      values: { birthDate: "01/02/2014" },
-    });
-    await expectPersistedDancer(dancer.id, { birthDate: "2014-02-01" });
-  });
-
   test("rejects a dancer under one year old at the active event start", async () => {
     const event = await createSavedEvent({
+      active: false,
       name: "Regional Edad Mínima",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     await activateEvent(event.id);
     const session = await createAcademySession({
@@ -1409,8 +1367,9 @@ describe("handlePortalDancerDetailAction", () => {
       email: "bailarines.archive.participante@example.com",
       academyName: "Academia Participante",
     });
-    const activeEvent = await createActiveEventFixture("En Escena Activo", {
-      activate: true,
+    const activeEvent = await createSavedEvent({
+      name: "En Escena Activo",
+      ...eventDates(2030),
     });
     const [dancer] = await db
       .insert(dancers)

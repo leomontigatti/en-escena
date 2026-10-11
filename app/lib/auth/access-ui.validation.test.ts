@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -39,7 +40,7 @@ describe("access UI validation", () => {
         body: formData,
       }),
       params: {},
-      context: {},
+      context: new RouterContextProvider(),
       url: new URL("http://localhost:3000/ingresar"),
       pattern: "/ingresar",
     });
@@ -84,7 +85,7 @@ describe("access UI validation", () => {
           body: formData,
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
         url: new URL("http://localhost:3000/ingresar"),
         pattern: "/ingresar",
       }),
@@ -121,7 +122,7 @@ describe("access UI validation", () => {
           body: formData,
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
         url: new URL("http://localhost:3000/ingresar"),
         pattern: "/ingresar",
       }),
@@ -152,7 +153,7 @@ describe("access UI validation", () => {
           body: formData,
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
         url: new URL("http://localhost:3000/ingresar"),
         pattern: "/ingresar",
       });

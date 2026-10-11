@@ -55,7 +55,7 @@ import {
   spyOnNativeFormSubmit,
 } from "@/lib/test-support/form-submit";
 import type { ScheduleDependencySummary } from "@/lib/schedules/schedule-dependencies";
-import type { EventBasesLoaderData } from "./event-bases.test-helpers";
+import type { EventBasesLoaderData } from "@/lib/admin/events/event-bases.test-support";
 
 let container: HTMLDivElement | null = null;
 let root: ReturnType<typeof createRoot> | null = null;

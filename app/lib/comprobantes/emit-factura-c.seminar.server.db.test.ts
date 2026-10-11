@@ -1,7 +1,6 @@
 import type {
   CreateVoucherResultDto,
   LastVoucherResultDto,
-  VoucherInfoResultDto,
 } from "@arcasdk/core";
 import { eq } from "drizzle-orm";
 import { describe, expect, test, vi } from "vitest";
@@ -15,53 +14,35 @@ import {
   seminarPrices,
   seminars,
 } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import {
-  ArcaClient,
-  type ArcaBillingPort,
-} from "@/lib/comprobantes/arca/client.server";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
+import { type ArcaBillingPort } from "@/lib/comprobantes/arca/client.server";
 import type { ArcaVoucher } from "@/lib/comprobantes/arca/factura-c";
 import {
   facturaCAprobada,
   notaCreditoCAprobada,
   ultimoAutorizado,
-} from "@/lib/comprobantes/arca/fixtures";
+} from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
 import {
   listAnchorComprobantes,
   recordComprobante,
   seminarHasComprobantes,
 } from "@/lib/comprobantes/comprobantes.server";
-import {
-  emitFacturaC,
-  type FacturaCEmissionDeps,
-} from "@/lib/comprobantes/emit-factura-c.server";
+import { emitFacturaC } from "@/lib/comprobantes/emit-factura-c.server";
 import { annulComprobante } from "@/lib/comprobantes/emit-nota-credito.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
 import { deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
+
+import {
+  emissionDeps,
+  fakeBilling,
+} from "@/lib/comprobantes/comprobante-emission.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
-
-function fakeBilling(
-  overrides: Partial<ArcaBillingPort> = {},
-): ArcaBillingPort {
-  return {
-    getLastVoucher: vi.fn(
-      async (): Promise<LastVoucherResultDto> => ultimoAutorizado,
-    ),
-    createVoucher: vi.fn(
-      async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
-    ),
-    getVoucherInfo: vi.fn(
-      async (): Promise<VoucherInfoResultDto | null> => null,
-    ),
-    ...overrides,
-  };
-}
 
 /**
  * ARCA approving the NEXT number of the series, so two emissions can run in one
@@ -99,26 +80,17 @@ function nextInSeries(cbteNro: number, cae: string): ArcaBillingPort {
   });
 }
 
-function emissionDeps(
-  billing: ArcaBillingPort,
-): FacturaCEmissionDeps & { billing: ArcaBillingPort } {
-  return {
-    billing,
-    client: new ArcaClient(billing),
-    ptoVta: 1,
-    issuerCuit: "30717611590",
-    receptorIvaConditionId: 5,
-    cbteFch: "20260722",
-  };
-}
-
 /**
  * One seminar of one event with two academies registered in it. Everything the
  * unit asserts needs the second academy: what makes `(seminar, academy)` the
  * obligation unit is precisely that the seminar alone is not one.
  */
 async function seedSeminarUnit() {
-  const event = await createSavedEvent(`Regional ${crypto.randomUUID()}`);
+  const event = await createSavedEvent({
+    name: `Regional ${crypto.randomUUID()}`,
+    active: false,
+    ...eventDates(2030),
+  });
 
   const [seminar] = await db
     .insert(seminars)
@@ -333,7 +305,11 @@ describe("emitFacturaC on a (seminar, academy) unit", () => {
 
   test("refuses an anchor that does not belong to the named event", async () => {
     const { first, seminar } = await seedSeminarUnit();
-    const other = await createSavedEvent(`Otro ${crypto.randomUUID()}`);
+    const other = await createSavedEvent({
+      name: `Otro ${crypto.randomUUID()}`,
+      active: false,
+      ...eventDates(2030),
+    });
 
     const outcome = await emitFacturaC(
       { anchor: seminarAnchor(seminar.id, first.academyId), eventId: other.id },
@@ -432,7 +408,11 @@ describe("the comprobante anchor", () => {
   });
 
   test("a choreography comprobante takes its academy from its choreography", async () => {
-    const event = await createSavedEvent(`Regional ${crypto.randomUUID()}`);
+    const event = await createSavedEvent({
+      name: `Regional ${crypto.randomUUID()}`,
+      active: false,
+      ...eventDates(2030),
+    });
     const { academy, choreography } =
       await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Coreografías",
@@ -489,7 +469,7 @@ describe("seminar deletion with fiscal history", () => {
       ok: false,
       code: "has-comprobantes",
       error:
-        "No se puede borrar el seminario porque tiene comprobantes emitidos.",
+        "No se puede eliminar el seminario porque tiene comprobantes emitidos.",
     });
   });
 });

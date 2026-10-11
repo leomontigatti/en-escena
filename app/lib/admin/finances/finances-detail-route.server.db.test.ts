@@ -21,24 +21,23 @@ import {
   loader as academyFinancesLoader,
 } from "@/routes/administracion.finanzas_.$academyId";
 import { action as paymentCreateAction } from "@/routes/administracion.pagos_.nuevo";
+import {
+  academyFinancesUrl,
+  buildGlobalPaymentRequest,
+  createAcademyFinanceChoreographyFixture,
+  academyFinancesRouteArgs,
+  paymentCreateRouteArgs,
+  renderAcademyFinancesRoute,
+} from "@/lib/admin/finances/finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   academiesRouteArgs,
   renderAcademiesRoute,
 } from "../academies/academies-route.test-support";
-import {
-  academyFinancesUrl,
-  buildGlobalPaymentRequest,
-  createAcademyUser,
-  createAcademyFinanceChoreographyFixture,
-  createInactiveEvent,
-  createSavedEvent,
-  createSignedInRequest,
-  academyFinancesRouteArgs,
-  paymentCreateRouteArgs,
-  renderAcademyFinancesRoute,
-} from "./finances.test-support";
 
 installDatabaseTestHooks();
 
@@ -473,7 +472,11 @@ describe("`/administracion/finanzas` academy", () => {
 
   test("registers event-scoped payment numbers, persists payments, and updates totals", async () => {
     const event = await createSavedEvent();
-    const otherEvent = await createInactiveEvent("Regional 2025");
+    const otherEvent = await createSavedEvent({
+      name: "Regional 2025",
+      active: false,
+      ...eventDates(2025),
+    });
     const academy = await createAcademyUser({
       email: "academia.pagos.finanzas@example.com",
       academyName: "Academia Pagos",

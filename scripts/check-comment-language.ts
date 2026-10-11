@@ -38,10 +38,10 @@ import { collectSourceFiles } from "./source-files";
 // `stderrMessagesIn` for why each predicate is exactly this narrow.
 
 // Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
-// root-level configs `collectScannedFiles` adds. `.sandcastle` is here because
-// the agent workflows are code the same way `scripts/` is: a prompt or a
+// root-level configs `collectScannedFiles` adds. `.github` is here because the
+// Architecture Review runner is code the same way `scripts/` is: a prompt or a
 // workflow step is read by a contributor, not by an end user.
-export const scannedDirectories = [".sandcastle", "app", "scripts", "tests"];
+export const scannedDirectories = [".github", "app", "scripts", "tests"];
 const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 
 // The docs are engineering prose too, and #592's argument does not stop at the
@@ -50,15 +50,11 @@ const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 // `.github` joined with the PR template (#1114): prose a contributor reads, on
 // the same rule as the rest.
 // `.agents` joined when the agent config moved there so Claude Code and Codex
-// share it: the local skills, the hooks and the research agent's instructions
-// are ours, and only the vendored skills below are exempt.
-export const scannedDocDirectories = [
-  ".agents",
-  ".claude",
-  ".github",
-  ".sandcastle",
-  "docs",
-];
+// share it: the skills, the hooks and the agents' instructions are ours. The
+// skills started from `mattpocock/skills` were exempt while they were pinned
+// byte-identical to upstream; they were unpinned and are now edited like any
+// other doc (#1563).
+export const scannedDocDirectories = [".agents", ".claude", ".github", "docs"];
 const docFilePattern = /\.md$/;
 
 // Records of something external, which a sweep may not rewrite. An ADR is the
@@ -66,26 +62,7 @@ const docFilePattern = /\.md$/;
 // Spanish titles the regulations actually carry — "RG 1415/2003 — Régimen de
 // emisión de comprobantes" is the name of the thing, and a translated citation
 // leads a reader nowhere (#792 Q7/Q8).
-// The vendored skills are the same argument one step further out: they are
-// copied verbatim from their upstream repo and pinned by content hash in
-// `skills-lock.json`, so a sweep may not rewrite them — editing one breaks the
-// hash and the next `skills add` discards the edit anyway. They scan clean
-// today; excluding them is about what happens when they do not, since the
-// remedy would have to be unpinning someone else's prose rather than fixing
-// ours. The list is read from the lockfile, so vendoring a skill exempts it.
-export const vendoredSkillDirectories = Object.keys(
-  (
-    JSON.parse(
-      readFileSync(new URL("../skills-lock.json", import.meta.url), "utf8"),
-    ) as { skills: Record<string, unknown> }
-  ).skills,
-).map((name) => `.agents/skills/${name}`);
-
-export const excludedDocDirectories = [
-  ...vendoredSkillDirectories,
-  "docs/adr",
-  "docs/research",
-];
+export const excludedDocDirectories = ["docs/adr", "docs/research"];
 
 // YAML is on the same rule and used to rest on review, which is how six Spanish
 // comments outlived #592 across four workflow files (#793). A `#` comment is
@@ -97,8 +74,9 @@ export const excludedDocDirectories = [
 // of this claimed `.github` was the whole surface; the scan-root test below
 // answered with `docker-compose.yml`, `pnpm-workspace.yaml` and `pnpm-lock.yaml`
 // — which is the same gap `vitest.config.ts` was hiding in before #791, found
-// the same way.
-export const scannedYamlDirectories = [".github"];
+// the same way. `.agents` holds the skills' `agents/openai.yaml`, scanned since
+// the skills stopped being pinned to upstream (#1563).
+export const scannedYamlDirectories = [".agents", ".github"];
 const yamlFilePattern = /\.(yml|yaml)$/;
 
 // Shell is on the rule for the same reason YAML is, and it drifted the same way:
@@ -116,17 +94,10 @@ const shellFilePattern = /\.sh$/;
 
 // Generated, not written: a lockfile is 330 KB of resolution output that no
 // contributor reads as prose, and nobody may rewrite by hand anyway.
-// The `agents/openai.y*ml` files are vendored with the skills under `.agents`,
-// on the same argument as `.agents` above. This list is file-by-file rather
-// than by directory on purpose: a newly vendored YAML should fail the scan-root
-// test on arrival and be recorded here deliberately, not be absorbed by a
-// prefix nobody revisits.
-export const excludedYamlFiles = [
-  ...vendoredSkillDirectories.map(
-    (directory) => `${directory}/agents/openai.yaml`,
-  ),
-  "pnpm-lock.yaml",
-];
+// This list is file-by-file rather than by directory on purpose: a new YAML
+// outside the scanned roots should fail the scan-root test on arrival and be
+// recorded here deliberately, not be absorbed by a prefix nobody revisits.
+export const excludedYamlFiles = ["pnpm-lock.yaml"];
 
 // Spanish function words with no English homograph. Deliberately absent:
 // `todo`/`todos` (the TODO comment marker), `sea`, `era`, `son`, `sin`, `solo`,
@@ -353,13 +324,16 @@ type SourceSpan = {
 };
 
 /**
- * The Spanish terms the glossary reserves, read from `CONTEXT.md` itself so the
+ * The Spanish terms the glossary reserves, read from `GLOSSARY.md` itself so the
  * two cannot drift apart. Some of them carry a function word — `Bases del
  * evento`, `Descuento por bailarín` — and naming one in an English sentence is
  * the glossary being used as intended, not a Spanish sentence.
  */
 export function readGlossaryTerms(rootDirectory: string): string[] {
-  const contents = readFileSync(path.join(rootDirectory, "CONTEXT.md"), "utf8");
+  const contents = readFileSync(
+    path.join(rootDirectory, "GLOSSARY.md"),
+    "utf8",
+  );
 
   return (
     Array.from(contents.matchAll(glossaryTermPattern))
@@ -912,7 +886,7 @@ export function findSpanishProseInMarkdown(input: {
  * Fenced blocks are code whatever language they carry, link targets are
  * addresses, and a backticked run is the name of something. The glossary row is
  * the one shape whose double-quoted value is data by definition: `ui: "Seña"` is
- * the UI term this very file parses out of `CONTEXT.md`, so it is blanked here
+ * the UI term this very file parses out of `GLOSSARY.md`, so it is blanked here
  * rather than rewritten into backticks that `readGlossaryTerms` would then have
  * to learn.
  */

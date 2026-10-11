@@ -10,6 +10,9 @@ import {
   readLatestBetterAuthResetToken,
 } from "@/lib/auth/access-auth-provider.betterauth.server";
 
+import { setInternalCredentialSuspendedState } from "@/lib/auth/internal-user-auth.server";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
@@ -129,6 +132,73 @@ describe("provider Better Auth", () => {
     expect(signInResponse.user.email).toBe("reset@example.com");
   });
 });
+
+// The admin plugin keeps the endpoints the panel uses and refuses
+// impersonation for every role (#984): 1.7 made it work, and no screen, policy
+// or audit trail accounts for a session opened as someone else.
+describe("Better Auth admin plugin", () => {
+  test("refuses impersonation to an administrator", async () => {
+    const admin = await createSignedInRequest({
+      email: "admin@example.com",
+      role: "admin",
+    });
+    const academy = await createSignedInRequest({
+      email: "academia@example.com",
+      role: "academy",
+    });
+
+    const response = await auth.handler(
+      new Request("http://localhost:5173/api/auth/admin/impersonate-user", {
+        method: "POST",
+        headers: {
+          cookie: admin.cookie,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ userId: academy.userId }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(
+      db.query.accessSession.findMany({
+        where: eq(accessSession.userId, academy.userId),
+      }),
+    ).resolves.toHaveLength(1);
+  });
+
+  test("lets an administrator suspend and reactivate an internal user", async () => {
+    const admin = await createSignedInRequest({
+      email: "admin@example.com",
+      role: "admin",
+    });
+    const judge = await createSignedInRequest({
+      email: "jurado@example.com",
+      role: "judge",
+      internalUsername: "jurado",
+    });
+
+    await setInternalCredentialSuspendedState(
+      { suspended: true, userId: judge.userId },
+      admin.request.headers,
+    );
+    await expect(readSuspended(judge.userId)).resolves.toBe(true);
+
+    await setInternalCredentialSuspendedState(
+      { suspended: false, userId: judge.userId },
+      admin.request.headers,
+    );
+    await expect(readSuspended(judge.userId)).resolves.toBe(false);
+  });
+});
+
+async function readSuspended(userId: string) {
+  const row = await db.query.user.findFirst({
+    columns: { suspended: true },
+    where: eq(user.id, userId),
+  });
+
+  return row?.suspended;
+}
 
 async function signUp(input: { email: string; password: string }) {
   return auth.api.signUpEmail({

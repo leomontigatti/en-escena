@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
+description: 'Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo''s documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".'
 ---
 
 Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
@@ -10,7 +10,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
-The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
+The issue tracker is `docs/agents/issue-tracker.md`.
 
 ## Process
 
@@ -33,14 +33,14 @@ Look for the originating spec, in this order:
 
 ### 3. Identify the standards sources
 
-Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
+Search the repo for every file that documents how code should be written. When `CODING_STANDARDS.md` or `CONTRIBUTING.md` exists, it must be on the list.
 
 On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 
 - **The repo overrides.** A documented repo standard always wins; where it endorses something the baseline would flag, suppress the smell.
 - **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never a hard violation. Like any standard here, skip anything tooling already enforces.
 
-Each smell reads *what it is* → *how to fix*; match it against the diff:
+Each smell reads _what it is_ → _how to fix_; match it against the diff:
 
 - **Mysterious Name**: a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
 - **Duplicated Code**: the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
@@ -57,11 +57,14 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
+Issue both sub-agent calls together, as [Spawning a reviewer](#spawning-a-reviewer) says, and aggregate the reports they return. Each starts from its prompt alone, so paste the spec's body and comments into the Spec prompt rather than a `gh` command for it to run.
+
 **Standards sub-agent prompt** should include:
 
 - The full diff command and commit list.
 - The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full (the sub-agent has no other access to it).
-- The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls: documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
+- The test rules: `.agents/skills/tdd/SKILL.md` (§ Anti-patterns, the "Name the bug first" rule, § Keeping the suite lean), on the list of standards sources.
+- The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Check every new or changed test against the test rules: name the bug it catches, or report it as an anti-pattern (tautological, pass-through, restating text, implementation-coupled); report every new test-support file an existing fixture could have absorbed, and older tests the new ones make redundant. Distinguish hard violations from judgement calls: documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
 
 **Spec sub-agent prompt** should include:
 
@@ -76,6 +79,39 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
 
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
+
+## Spawning a reviewer
+
+Every review role runs on a fixed model, at an effort picked for what the role does:
+
+| Role            | Model                         | Effort | Why that effort                                                                                                                        |
+| --------------- | ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Standards, Spec | Codex `gpt-6.1-sol`           | medium | breadth: every hunk matched against a list (the documented rules, the spec's lines); tracing a path in depth is the correctness axis's |
+| Readback        | Codex `gpt-6-luna`            | low    | restating a diff and flagging what jars needs little reasoning, and Luna spares the Sol quota                                          |
+| Correctness     | Opus, through `reviewer-opus` | -      | a second model family hunting bugs; it keeps the Claude agent's own effort                                                             |
+
+How the session reaches each model depends on where it runs:
+
+- **Claude Code in a T3 thread**: the main session calls `delegate_task` once per Codex role, all in
+  the message that spawns `reviewer-opus` with the Agent tool. Each call takes
+  `target: {providerInstanceId: "codex", model, options: {reasoningEffort}}` from the table,
+  `mode: "async"`, `role: "review"`, a `title` naming the axis and round, and a `clientRequestId`
+  of `<issue>-<axis>-r<round>`, the same on a retry of that round. The task opens with "Before
+  anything else, read `.agents/agents/reviewer.md` and follow it." and carries the brief. Each
+  child shows in the T3 app under this thread; its report arrives as a notification, and
+  `task_status` returns it as `summary`. Stop a stray one with `task_cancel`. A later round is a
+  new `delegate_task` carrying the prior findings and your answers to them, never a message to
+  the child thread. When a call refuses a model id, `orchestrator_capabilities` lists the live
+  ones. A Claude subagent can reach `delegate_task` too (measured on #1568), but spawning from
+  the main session keeps one hop and leaves each report with the session that judges it.
+- **Codex**: spawn the native agents, `reviewer` for Standards, Spec and correctness and
+  `reviewer-luna` for the readback; their `.codex/agents/*.toml` repeat the models above,
+  so a model change touches both.
+- **Claude Code outside T3** (no `delegate_task` tool): every axis goes to `reviewer-opus`.
+
+## The other review briefs
+
+`implement` step 5 picks the tier and uses two briefs kept beside this skill: [READBACK.md](READBACK.md), the one-agent tier for a diff outside the risky areas, and [CORRECTNESS.md](CORRECTNESS.md), the bug-hunting axis that runs beside either tier when the diff changes behaviour.
 
 ## Why two axes
 

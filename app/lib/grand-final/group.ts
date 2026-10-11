@@ -1,6 +1,6 @@
 /**
  * Which half of the `Gran final` requirement a category counts towards
- * (`grandFinalGroup` in `CONTEXT.md`), read off the first word of its name.
+ * (`grandFinalGroup` in `GLOSSARY.md`), read off the first word of its name.
  * The rule is fixed in code for this event: nothing configures it, no screen
  * shows it, and ages are never read.
  */

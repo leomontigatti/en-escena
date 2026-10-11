@@ -1,3 +1,5 @@
+import { RouterContextProvider } from "react-router";
+
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -12,13 +14,11 @@ import {
 } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-  createSignedInRequest,
-} from "../../../../../lib/admin/finances/finances.test-support";
 
 import { loadChoreographyFinanceDetail } from "./server";
 
@@ -552,7 +552,7 @@ function detailRouteArgs(input: {
   request: Request;
 }) {
   return {
-    context: {},
+    context: new RouterContextProvider(),
     params: {
       academyId: input.academyId,
       choreographyId: input.choreographyId,

@@ -3,13 +3,13 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { seminarInscriptions, seminars } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import {
   activeSeminarInscription,
   activeSeminarInscriptionSql,
 } from "@/lib/seminars/active-inscription";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -17,7 +17,11 @@ installDatabaseTestHooks();
 
 describe("active seminar inscription predicate", () => {
   test("agrees with its raw-SQL twin over a seminar that holds withdrawn rows", async () => {
-    const event = await createSavedEvent(`Regional ${crypto.randomUUID()}`);
+    const event = await createSavedEvent({
+      name: `Regional ${crypto.randomUUID()}`,
+      active: false,
+      ...eventDates(2030),
+    });
     const academy = await createAcademyUser({
       academyName: "Academia Predicado",
       email: `predicado.${crypto.randomUUID()}@example.com`,

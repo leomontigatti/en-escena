@@ -8,11 +8,4 @@ export default {
   // unless the host is allowed here: production and staging (see
   // docs/operations/staging.md). See react-router.config.test.ts.
   allowedActionOrigins: ["sistema.enescena.com.ar", "pruebas.enescena.com.ar"],
-  future: {
-    v8_middleware: false,
-    v8_splitRouteModules: false,
-    v8_viteEnvironmentApi: false,
-    v8_passThroughRequests: false,
-    v8_trailingSlashAwareDataRequests: false,
-  },
 } satisfies Config;

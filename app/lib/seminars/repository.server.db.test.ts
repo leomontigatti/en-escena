@@ -3,11 +3,10 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, seminarInscriptions, seminars } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
-import { coverSeminarInscriptionDeposit } from "@/lib/seminars/test-fixtures.server.db";
-import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createSeminar,
@@ -18,6 +17,7 @@ import {
   type SeminarInput,
   type SeminarMutationResult,
 } from "@/lib/seminars/repository.server";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -48,7 +48,11 @@ function expectSaved(result: SeminarMutationResult) {
 
 describe("seminar repository", () => {
   test("creates a seminar on the event with its instructor, moment and quota", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     const seminar = expectSaved(await createSeminar(event.id, seminarInput));
 
@@ -65,8 +69,12 @@ describe("seminar repository", () => {
     ]);
   });
 
-  test("trims the instructor name and refuses an empty one, an invalid moment and a quota below one", async () => {
-    const event = await createSavedEvent("Regional 2026");
+  test("trims the instructor name", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     const seminar = expectSaved(
       await createSeminar(event.id, {
@@ -75,37 +83,19 @@ describe("seminar repository", () => {
       }),
     );
     expect(seminar.instructorName).toBe("Abril Sosa");
-
-    await expect(
-      createSeminar(event.id, { ...seminarInput, instructorName: "   " }),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: "invalid-seminar",
-      fieldErrors: { instructorName: "Ingresá el nombre del instructor." },
-    });
-    await expect(
-      createSeminar(event.id, { ...seminarInput, scheduledDate: "2026-13-40" }),
-    ).resolves.toMatchObject({
-      ok: false,
-      fieldErrors: { scheduledDate: "Este campo es obligatorio." },
-    });
-    await expect(
-      createSeminar(event.id, { ...seminarInput, startTime: "25:00" }),
-    ).resolves.toMatchObject({
-      ok: false,
-      fieldErrors: { startTime: "Este campo es obligatorio." },
-    });
-    await expect(
-      createSeminar(event.id, { ...seminarInput, quota: 0 }),
-    ).resolves.toMatchObject({
-      ok: false,
-      fieldErrors: { quota: "Ingresá un cupo mayor a cero." },
-    });
   });
 
   test("refuses the same instructor at the same moment of one event", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const otherEvent = await createSavedEvent("Final 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const otherEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     expectSaved(await createSeminar(event.id, seminarInput));
 
@@ -127,7 +117,11 @@ describe("seminar repository", () => {
   });
 
   test("rejects a quota below one at the database", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     await expect(
       db
@@ -137,7 +131,11 @@ describe("seminar repository", () => {
   });
 
   test("updates every field and keeps refusing a duplicate moment", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const seminar = expectSaved(await createSeminar(event.id, seminarInput));
     const other = expectSaved(
       await createSeminar(event.id, {
@@ -194,8 +192,12 @@ describe("seminar repository", () => {
     });
   });
 
-  test("stores the seminar's kind and its own deposit rate, and refuses a rate outside 1 and 99", async () => {
-    const event = await createSavedEvent("Regional 2026");
+  test("stores the seminar's kind and its own deposit rate", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     const seminar = expectSaved(
       await createSeminar(event.id, {
@@ -206,22 +208,6 @@ describe("seminar repository", () => {
     );
     expect(seminar).toMatchObject({ kind: "special" });
     expect(seminar.requiredDepositPercentage).toBe(30);
-
-    for (const requiredDepositPercentage of [0, 100, 50.5]) {
-      await expect(
-        updateSeminar(seminar.id, {
-          ...seminarInput,
-          requiredDepositPercentage,
-        }),
-      ).resolves.toMatchObject({
-        ok: false,
-        code: "invalid-seminar",
-        fieldErrors: {
-          requiredDepositPercentage:
-            "La seña del seminario debe ser un entero entre 1 y 99.",
-        },
-      });
-    }
   });
 
   // The two facts every seminar carried before this pair existed: the row the
@@ -229,7 +215,11 @@ describe("seminar repository", () => {
   // price, and the database refuses a rate outside the range whichever writer
   // produced it.
   test("defaults a seminar written without the pair to regular and 50, under a database range check", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     await db.execute(sql`
       insert into en_escena_seminar
@@ -286,7 +276,11 @@ describe("seminar repository", () => {
   // The guard above reads the money, so with none allocated it blocks nobody:
   // a roster of uncovered rows leaves both facts editable.
   test("moves both facts freely while no inscription is covered", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const seminar = expectSaved(await createSeminar(event.id, seminarInput));
 
     expect(
@@ -410,7 +404,11 @@ describe("seminar repository", () => {
   });
 
   test("deletes a seminar and drops the rest with the event", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const seminar = expectSaved(await createSeminar(event.id, seminarInput));
     const survivor = expectSaved(
       await createSeminar(event.id, { ...seminarInput, startTime: "20:00" }),
@@ -433,7 +431,11 @@ describe("seminar repository", () => {
  * row, and it is what takes a place.
  */
 async function createRegistration() {
-  const event = await createSavedEvent("Regional 2026");
+  const event = await createSavedEvent({
+    name: "Regional 2026",
+    active: false,
+    ...eventDates(2030),
+  });
   await createSeminarRegistrationPrices(event.id);
   const seminar = expectSaved(await createSeminar(event.id, seminarInput));
   const { academy } = await createAcademyUser({

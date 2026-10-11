@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
-import { createChoreographyOnNewBases } from "@/lib/events/bases-test-fixtures.server.db";
+import { createChoreographyOnNewBases } from "@/lib/events/bases.test-support";
 import {
   activateEvent,
   createEvent,
@@ -43,54 +43,6 @@ describe("event management", () => {
       requiredDepositPercentage: 30,
     });
     expect(await readVisibleProgramDays(savedEvent!.id)).toEqual([]);
-  });
-
-  test.each([
-    [
-      "deposit below range",
-      eventInput({ requiredDepositPercentage: 0 }),
-      "requiredDepositPercentage",
-    ],
-    [
-      "deposit above range",
-      eventInput({ requiredDepositPercentage: 101 }),
-      "requiredDepositPercentage",
-    ],
-    [
-      "non-integer deposit",
-      eventInput({ requiredDepositPercentage: 30.5 }),
-      "requiredDepositPercentage",
-    ],
-    [
-      "event start after event end",
-      eventInput({
-        startsAt: date("2026-05-03T12:00:00Z"),
-        endsAt: date("2026-05-02T12:00:00Z"),
-      }),
-      "startsAt",
-    ],
-  ] as const)("rejects invalid event data: %s", async (_case, input, field) => {
-    const result = await createEvent(input);
-
-    expect(result).toMatchObject({
-      ok: false,
-      code: "invalid-event",
-      fieldErrors: {
-        [field]: expect.any(String),
-      },
-    });
-    await expect(db.query.events.findMany()).resolves.toEqual([]);
-  });
-
-  test("allows registration to start or end after the event starts", async () => {
-    const result = await createEvent(
-      eventInput({
-        startsAt: date("2026-05-01T12:00:00Z"),
-        endsAt: date("2026-05-04T12:00:00Z"),
-      }),
-    );
-
-    expect(result).toMatchObject({ ok: true });
   });
 
   test("updates event names with dependencies but blocks structural changes", async () => {

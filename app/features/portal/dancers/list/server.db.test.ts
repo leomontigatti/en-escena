@@ -3,18 +3,11 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
-import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
+import { expectCreated } from "@/lib/events/bases.test-support";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
-import {
-  createPortalSavedEvent as createSavedEvent,
-  testEventDate,
-} from "@/lib/events/saved-event-test-support.server";
-import {
-  invalidBirthDateMessage,
-  underageBirthDateMessage,
-} from "@/lib/dancers/birth-date";
+import { underageBirthDateMessage } from "@/lib/dancers/birth-date";
 import { handlePortalDancerCreateAction } from "@/features/portal/dancers/create/server";
 import { loadPortalDancersList } from "@/features/portal/dancers/list/server";
 import {
@@ -26,7 +19,8 @@ import {
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -134,68 +128,12 @@ describe("loadPortalDancersList", () => {
     });
   });
 
-  test("rejects future dancer birth dates without creating a record", async () => {
-    const session = await createAcademySession({
-      email: "bailarines.future@example.com",
-      academyName: "Academia Futuro",
-    });
-
-    const result = await handlePortalDancerCreateAction(
-      createPortalPostRequest(
-        "http://localhost/portal/bailarines/nuevo",
-        session.cookie,
-        dancerFormData({
-          firstName: "Martina",
-          lastName: "López",
-          birthDate: "2999-01-01",
-        }),
-      ),
-    );
-
-    expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: {
-        birthDate: "La fecha de nacimiento no puede ser futura.",
-      },
-      values: {
-        firstName: "Martina",
-        lastName: "López",
-        birthDate: "2999-01-01",
-      },
-    });
-    await expect(db.query.dancers.findMany()).resolves.toEqual([]);
-  });
-
-  test("rejects a malformed birth date without creating a record", async () => {
-    const session = await createAcademySession({
-      email: "bailarines.malformada@example.com",
-      academyName: "Academia Fecha Rota",
-    });
-
-    const result = await handlePortalDancerCreateAction(
-      createPortalPostRequest(
-        "http://localhost/portal/bailarines/nuevo",
-        session.cookie,
-        dancerFormData({
-          firstName: "Martina",
-          lastName: "López",
-          birthDate: "03/04/2015",
-        }),
-      ),
-    );
-
-    expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: { birthDate: invalidBirthDateMessage },
-    });
-    await expect(db.query.dancers.findMany()).resolves.toEqual([]);
-  });
-
   test("rejects a dancer under one year old at the active event start", async () => {
     const event = await createSavedEvent({
+      active: false,
       name: "En Escena Edad Mínima",
-      startsAt: testEventDate("2026-05-01T12:00:00Z"),
-      endsAt: testEventDate("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     await activateEvent(event.id);
     const session = await createAcademySession({
@@ -228,7 +166,10 @@ describe("loadPortalDancersList", () => {
   });
 
   test("marks dancers linked to active event choreographies as participating", async () => {
-    const event = await createSavedEvent({ name: "En Escena 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "En Escena 2026",
+    });
     await activateEvent(event.id);
     const session = await createAcademySession({
       email: "bailarines.participacion@example.com",

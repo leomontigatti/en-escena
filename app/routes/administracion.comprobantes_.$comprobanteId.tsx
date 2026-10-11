@@ -24,7 +24,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Comprobantes", to: "/administracion/comprobantes" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       return {
         label: data ? formatComprobanteNumber(data.comprobante) : "Comprobante",
       };

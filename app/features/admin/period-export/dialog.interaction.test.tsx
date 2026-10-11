@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  waitFor,
 } from "@/lib/test-support/react-dom";
 
 import { PeriodExportDialog } from "./dialog";
@@ -61,6 +62,9 @@ describe("the period export dialog", () => {
     await act(async () => {
       dayButton.click();
     });
+    // The closing popover hands focus back to the dialog after it unmounts;
+    // opening the next one before that lets the focus move dismiss it.
+    await waitFor(() => document.activeElement !== document.body);
   }
 
   test("downloads the whole event when both dates are left empty", async () => {

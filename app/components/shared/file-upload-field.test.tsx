@@ -136,7 +136,7 @@ describe("FileUploadField", () => {
     expect(container.textContent).toContain(
       "El archivo debe ser JPG, PNG o WEBP.",
     );
-    expect(container.textContent).toContain("Borrar imagen");
+    expect(container.textContent).toContain("Quitar imagen");
     expect(container.textContent).not.toContain("Reemplazar");
     expect(container.querySelector("img")).toBeNull();
     expect(
@@ -197,7 +197,7 @@ function TestMusicUploadField({
       downloadUrl={existingPreviewUrl}
       existingPreviewUrl={existingPreviewUrl}
       previewKind="audio"
-      removeLabel="Borrar música"
+      removeLabel="Quitar música"
       // As the portal form does: a picked file replaces the stored one on save,
       // so the stored key goes back into the form alongside it.
       onSelectedFileChange={(file) => {
@@ -277,7 +277,7 @@ describe("FileUploadField with an audio preview", () => {
       "Escuchar",
       "Posición",
       "Descargar música",
-      "Borrar música",
+      "Quitar música",
     ]);
   });
 
@@ -291,7 +291,7 @@ describe("FileUploadField with an audio preview", () => {
 
     await act(async () => {
       container
-        .querySelector<HTMLButtonElement>('button[aria-label="Borrar música"]')
+        .querySelector<HTMLButtonElement>('button[aria-label="Quitar música"]')
         ?.click();
     });
 
@@ -332,7 +332,7 @@ describe("FileUploadField with an audio preview", () => {
     expect(getPlayerControls()).toEqual([
       "Escuchar",
       "Posición",
-      "Borrar música",
+      "Quitar música",
     ]);
   });
 
@@ -352,7 +352,7 @@ describe("FileUploadField with an audio preview", () => {
 
     await act(async () => {
       container
-        .querySelector<HTMLButtonElement>('button[aria-label="Borrar música"]')
+        .querySelector<HTMLButtonElement>('button[aria-label="Quitar música"]')
         ?.click();
     });
 
@@ -372,7 +372,7 @@ describe("FileUploadField with an audio preview", () => {
     expect(getPlayerControls()).toEqual([
       "Escuchar",
       "Posición",
-      "Borrar música",
+      "Quitar música",
     ]);
   });
 

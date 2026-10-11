@@ -6,8 +6,8 @@ description: "Implementation workflow: explore, test-first at agreed seams, vali
 <!--
   Started as the `do-work` skill vendored from mattpocock/course-video-manager; renamed and
   reshaped after `implement` in mattpocock/skills (TDD through the `tdd` skill, a closing
-  `code-review`). Local, not pinned by skills-lock.json. Since ADR-0016 this is the only
-  implementation workflow: the AFK implement runners were retired.
+  `code-review`). Since ADR-0016 this is the only implementation workflow: the AFK implement
+  runners were retired.
 -->
 
 # Implement
@@ -18,14 +18,14 @@ Start current: `git fetch origin && git log --oneline HEAD..origin/master` print
 merge `origin/master` in first
 ([workflows.md](../../../docs/agents/workflows.md#branches-worktrees-and-t3-code-threads)).
 
-Read the issue or request, then `CONTEXT.md`, the ADRs under `docs/adr/` that touch the area, and
+Read the issue or request, then `GLOSSARY.md`, the ADRs under `docs/adr/` that touch the area, and
 the test files beside the code you will change. Done when you can name the **seams**: the public
 interfaces the behaviour will be tested through.
 
 Take the seams from the ticket's **Test seams** when it has them. Otherwise propose them and
 confirm with the user; in an unattended run, choose them and state them in the commit body. When
 where a seam belongs is itself the question, call the Skill tool with "codebase-design". When the
-change renames a domain term or edits `CONTEXT.md` or an ADR, call it with "domain-modeling".
+change renames a domain term or edits `GLOSSARY.md` or an ADR, call it with "domain-modeling".
 
 If the change will alter a rendered screen, capture its **before** screenshot now (step 4).
 
@@ -57,17 +57,27 @@ surface, and say so.
 
 ## 5. Review
 
+Spawn every reviewer the way "Spawning a reviewer" in the `code-review` skill says: the model
+each axis runs on, and how this harness reaches it.
+
 Tier the review by risk:
 
 - **Full review** when the diff touches money (payments, prices, finances, comprobantes),
-  results or judging, auth, a migration, or a term defined in `CONTEXT.md`: call the Skill tool
-  with "code-review" on the changes since the branch point, and add the third axis in
-  [CORRECTNESS.md](CORRECTNESS.md): one sub-agent that assumes the diff has a bug and traces the
-  path that triggers it.
-  The `reviewer` sandbox has no network, so paste the spec's body and comments into the Spec
+  results or judging, auth, a migration, a term defined in `GLOSSARY.md`, or an operational script
+  that deletes or overwrites (an `rsync --delete`, a database reset or restore): call the Skill
+  tool with "code-review" on the changes since the branch point, and add the correctness axis.
+  The reviewer starts from its prompt alone, so paste the spec's body and comments into the Spec
   axis's prompt, never a `gh` command for it to run.
-- **Readback** for everything else: follow [READBACK.md](READBACK.md). One sub-agent restates
-  what the diff does and flags anything surprising, in under 200 words.
+- **Readback** for everything else: follow [READBACK.md](../code-review/READBACK.md). One sub-agent restates
+  what the diff does and flags anything surprising, in under 200 words. When the diff changes
+  behaviour, add the correctness axis beside it, config included (a header, a cache directive, a
+  build or server setting). A docs-only diff, or a config-only one that changes no runtime
+  behaviour (tooling, agent or editor settings), keeps the readback alone.
+
+The correctness axis is [CORRECTNESS.md](../code-review/CORRECTNESS.md): one sub-agent, on Opus, that assumes
+the diff has a bug and traces the path that triggers it. It runs in the same message as the
+other review spawns. It is the in-session review's answer to what CodeRabbit used to catch, so
+it runs whether or not CodeRabbit reviews the PR.
 
 A finding is a claim to check, never an instruction. Verify each one against the code on the
 branch, running the test or the call when reading does not settle it, then give it one verb:
@@ -85,8 +95,20 @@ file as its model asks for the file's shape, not its breach. Such a finding is a
 whichever axis raised it, and it is a **fix**, or an **ask** when an exception is wanted. A finding
 backed by the standards is never a **decline** on your judgement alone.
 
-Done when every finding carries a verb and every **fix** is made. Repeat step 3 for anything you
-touched. Refactoring belongs here, under green tests.
+Then walk the **breadth** list and say in the final report which entries applied: the common
+defect is a change that works on the tested path and is missing everywhere else.
+
+- **Reverse states.** A way in needs its way out and a way to see it: open needs close, publish
+  needs a visible published state and, where the domain allows it, unpublish. A transition the
+  domain makes irreversible shows its terminal state and says so.
+- **Entry points.** A behaviour reachable from the admin is usually reachable from the portal
+  too, or from a list and its detail. Name the paths you checked and the ones deliberately
+  different.
+- **Docs.** Whether the change makes existing guidance wrong, by the
+  [documentation rules](../../../docs/agents/workflows.md#documentation).
+
+Done when every finding carries a verb, every **fix** is made and the breadth list is walked.
+Repeat step 3 for anything you touched. Refactoring belongs here, under green tests.
 
 ## 6. Commit
 
@@ -99,11 +121,12 @@ Language.
 ## 7. Open the PR and hand it off
 
 When the run started from an issue or the user asked for a PR: push the branch, open it ready for
-review (never a draft) in the shape of [pull-requests.md](../../../docs/agents/pull-requests.md)
-with `Closes #N`, attach the step 4 evidence when step 4 produced any, and link it to the thread. An issue is the unit of
-work here, so a run that starts from one ends in the PR that closes it unless the user says
+review (never a draft; a PRD run under `implement-spec` keeps its PR a draft until the last slice
+lands) with a body written by calling the Skill tool with "pr", carrying `Closes #N`, attach the
+step 4 evidence when step 4 produced any, and link it to the thread. An issue is the unit of work
+here, so a run that starts from one ends in the PR that closes it unless the user says
 otherwise. Done when `gh pr view` shows it open and it is linked.
 
-Then call the Skill tool with "babysit-pr", which hands the waiting to a background subagent. The
-babysit is not done in this session: this context is the largest in the run, and each review round
-would re-read it. Stop only at the subagent's report.
+Then call the Skill tool with "babysit-pr": this session judges the review rounds, and a background
+`pnpm pr:watch --loop` does the waiting, so the session wakes only when a round needs it. Stop only
+at the skill's report.

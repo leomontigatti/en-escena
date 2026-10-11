@@ -27,7 +27,21 @@ import { fileURLToPath } from "node:url";
 // of a merge from the base on a PR it already reviewed; on any other head the
 // verdict is NO_REVIEW, never READY (#1335).
 //
-// Usage: pnpm pr:watch [pr] [--once] [--interval <s>] [--timeout <s>]
+// With --loop it keeps going past the mechanical verdicts, so the session that
+// runs it in the background wakes only for what needs judgement: it waits out
+// WAITING, asks CodeRabbit to review once per head commit on NO_REVIEW (or when
+// its status stays pending), and updates a BEHIND branch, each once per run. Its
+// JSON line adds `nudged` (the heads it asked about) and `updatedBranch`. It exits
+// on any other verdict, when the same checks stay pending for STALL_SECONDS, or
+// at its timeout, which fits one background Bash command.
+//
+// With --no-coderabbit the round does not wait on CodeRabbit: its status is
+// neither pending nor failed, an unreviewed head is READY rather than
+// NO_REVIEW, and --loop never asks it to review. Threads and findings it did
+// leave still count. CodeRabbit is optional (docs/agents/pull-requests.md), and
+// a rate limit is never a reason to wait.
+//
+// Usage: pnpm pr:watch [pr] [--once] [--loop] [--no-coderabbit] [--interval <s>] [--timeout <s>]
 //
 // Exit codes: 0 READY or MERGED, 2 CONFLICTS, 3 THREADS or FINDINGS, 4 CHECKS,
 // 5 WAITING (timed out, or --once mid-round), 6 GATE or CLOSED, 7 `gh` kept
@@ -45,6 +59,9 @@ export const REQUIRED_CONTEXTS = [
   "pr-title",
 ];
 export const CODERABBIT_GRACE_SECONDS = 180;
+export const CODERABBIT_NUDGE_SECONDS = 15 * 60;
+export const STALL_SECONDS = 45 * 60;
+export const LOOP_TIMEOUT_SECONDS = 115 * 60;
 const CODERABBIT_CONTEXT = "CodeRabbit";
 const FINDING_LIMIT = 400;
 const MAX_GH_FAILURES = 3;
@@ -54,6 +71,9 @@ export type Options = {
   interval: number;
   timeout: number;
   once: boolean;
+  loop: boolean;
+  /** Whether the round waits on CodeRabbit and requires its review of the head. */
+  coderabbit: boolean;
 };
 
 type CheckRun = {
@@ -156,15 +176,21 @@ export function parseArgs(argv: string[]): Options {
     interval: 60,
     timeout: 540,
     once: false,
+    loop: false,
+    coderabbit: true,
   };
+  let timeoutPassed = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--once") options.once = true;
+    else if (arg === "--loop") options.loop = true;
+    else if (arg === "--no-coderabbit") options.coderabbit = false;
     else if (arg === "--interval")
       options.interval = positiveSeconds(arg, argv[(i += 1)]);
-    else if (arg === "--timeout")
+    else if (arg === "--timeout") {
       options.timeout = positiveSeconds(arg, argv[(i += 1)]);
-    else if (arg.startsWith("--"))
+      timeoutPassed = true;
+    } else if (arg.startsWith("--"))
       throw new UsageError(`unknown option ${arg}`);
     else {
       const pr = Number(arg);
@@ -173,6 +199,7 @@ export function parseArgs(argv: string[]): Options {
       options.pr = pr;
     }
   }
+  if (options.loop && !timeoutPassed) options.timeout = LOOP_TIMEOUT_SECONDS;
   return options;
 }
 
@@ -366,13 +393,14 @@ function isBotOrRequest(comment: { author: string; body: string }): boolean {
 }
 
 /**
- * Review-body findings on the head commit that nobody has answered yet. They
- * have no thread, so the answer is a top-level comment posted after the review.
+ * Review-body findings from CodeRabbit's latest review that nobody has answered
+ * yet. They have no thread, so the answer is a top-level comment posted after
+ * the review. The latest review counts whatever commit it covers: one that
+ * lands on an older head after a push, as it can under --no-coderabbit, would
+ * otherwise never surface.
  */
 function unansweredReviewFindings(pr: PrSnapshot): string | null {
-  const review = pr.coderabbitReviews
-    .filter((candidate) => candidate.commit === pr.head)
-    .at(-1);
+  const review = pr.coderabbitReviews.at(-1);
   if (review === undefined) return null;
   const findings = findingsFromReview(review.body);
   const answered = pr.comments.some(
@@ -396,9 +424,15 @@ function firstVerdict(
   return rules.find(([, holds]) => holds)?.[0] ?? "READY";
 }
 
-export function classify(pr: PrSnapshot, now: number): Verdict {
+export function classify(
+  pr: PrSnapshot,
+  now: number,
+  { coderabbit: required = true }: Pick<Partial<Options>, "coderabbit"> = {},
+): Verdict {
   const checks = summarizeChecks(pr.rollup, pr.base);
-  const coderabbit = coderabbitState(pr, now);
+  const coderabbit = required
+    ? coderabbitState(pr, now)
+    : { done: true, reviewed: true, failed: false };
   const pending = [...checks.pending];
   if (!coderabbit.done) pending.push(CODERABBIT_CONTEXT);
   if (pr.mergeState === "UNKNOWN") pending.push("merge-state");
@@ -454,6 +488,74 @@ export function classify(pr: PrSnapshot, now: number): Verdict {
     gate,
     coderabbitPasses: pr.coderabbitReviews.length,
   };
+}
+
+export type LoopState = {
+  nudged: string[];
+  updatedBranch: boolean;
+  /** The head and pending list last seen, and since when, to tell a stall. */
+  pendingKey: string;
+  pendingSince: number;
+  /** Since when CodeRabbit has been pending on the current head, or null. */
+  coderabbitSince: number | null;
+};
+
+export type LoopStep = "wait" | "nudge" | "update-branch" | "exit";
+
+export function initialLoopState(): LoopState {
+  return {
+    nudged: [],
+    updatedBranch: false,
+    pendingKey: "",
+    pendingSince: 0,
+    coderabbitSince: null,
+  };
+}
+
+/** What --loop does with a verdict: the mechanical moves, or exit to the session. */
+export function nextLoopStep(
+  verdict: Verdict,
+  state: LoopState,
+  now: number,
+): { step: LoopStep; state: LoopState } {
+  const canNudge = !state.nudged.includes(verdict.head);
+  const nudge = () => ({
+    step: "nudge" as const,
+    state: { ...state, nudged: [...state.nudged, verdict.head] },
+  });
+
+  if (verdict.verdict === "NO_REVIEW")
+    return canNudge ? nudge() : { step: "exit", state };
+  if (verdict.verdict === "BEHIND")
+    return state.updatedBranch
+      ? { step: "exit", state }
+      : { step: "update-branch", state: { ...state, updatedBranch: true } };
+  if (verdict.verdict !== "WAITING") return { step: "exit", state };
+
+  const pendingKey = `${verdict.head} ${[...verdict.pending].sort().join(",")}`;
+  const pendingSince =
+    pendingKey === state.pendingKey ? state.pendingSince : now;
+  if ((now - pendingSince) / 1000 >= STALL_SECONDS)
+    return { step: "exit", state };
+
+  const coderabbitPending = verdict.pending.includes(CODERABBIT_CONTEXT);
+  const sameHead = state.pendingKey.startsWith(`${verdict.head} `);
+  const coderabbitSince = coderabbitPending
+    ? sameHead && state.coderabbitSince !== null
+      ? state.coderabbitSince
+      : now
+    : null;
+  const next = { ...state, pendingKey, pendingSince, coderabbitSince };
+  if (
+    coderabbitSince !== null &&
+    (now - coderabbitSince) / 1000 >= CODERABBIT_NUDGE_SECONDS &&
+    canNudge
+  )
+    return {
+      step: "nudge",
+      state: { ...next, nudged: [...next.nudged, verdict.head] },
+    };
+  return { step: "wait", state: next };
 }
 
 function gh(args: string[]): string {
@@ -591,34 +693,89 @@ function currentBranchPr(): number {
   );
 }
 
+/** Carries out a --loop move on GitHub; false when it could not, so the loop exits. */
+function act(step: "nudge" | "update-branch", number: number, head: string) {
+  try {
+    if (step === "nudge")
+      gh(["pr", "comment", String(number), "--body", "@coderabbitai review"]);
+    else gh(["pr", "update-branch", String(number)]);
+    console.error(
+      `pr-watch: ${step === "nudge" ? "asked CodeRabbit to review" : "updated the branch from its base at"} ${head}`,
+    );
+    return true;
+  } catch (error) {
+    console.error(`pr-watch: ${step} failed: ${String(error)}`);
+    return false;
+  }
+}
+
+type Poll = { step: LoopStep; state: LoopState };
+
+/** This poll's step: --loop's own, or plain waiting; --once and the timeout turn any step into exit. */
+function pollStep(
+  verdict: Verdict,
+  state: LoopState,
+  options: Options,
+  now: number,
+  outOfTime: boolean,
+): Poll {
+  if (options.once || outOfTime) return { step: "exit", state };
+  if (options.loop) return nextLoopStep(verdict, state, now);
+  return { step: verdict.verdict === "WAITING" ? "wait" : "exit", state };
+}
+
+/** Prints the verdict, with what --loop did this run, and returns its exit code. */
+function report(verdict: Verdict, state: LoopState, options: Options): number {
+  const output = options.loop
+    ? { ...verdict, nudged: state.nudged, updatedBranch: state.updatedBranch }
+    : verdict;
+  console.log(JSON.stringify(output));
+  return verdict.exitCode;
+}
+
+function reportGhFailure(number: number, error: unknown): number {
+  console.log(
+    JSON.stringify({
+      verdict: "GH_FAILED",
+      exitCode: 7,
+      pr: number,
+      error: String(error),
+    }),
+  );
+  return 7;
+}
+
 async function watch(options: Options): Promise<number> {
   const number = options.pr ?? currentBranchPr();
   const started = Date.now();
   let failures = 0;
+  let loopState = initialLoopState();
   for (;;) {
     try {
-      const verdict = classify(readSnapshot(number), Date.now());
+      const now = Date.now();
+      const verdict = classify(readSnapshot(number), now, options);
       failures = 0;
       const outOfTime =
-        Date.now() - started + options.interval * 1000 > options.timeout * 1000;
-      if (verdict.verdict !== "WAITING" || options.once || outOfTime) {
-        console.log(JSON.stringify(verdict));
-        return verdict.exitCode;
-      }
+        now - started + options.interval * 1000 > options.timeout * 1000;
+      const { step, state } = pollStep(
+        verdict,
+        loopState,
+        options,
+        now,
+        outOfTime,
+      );
+      // The state moves on only once its move is made, so the printed record
+      // of what this run asked for never claims a request that was not sent.
+      if (
+        step === "exit" ||
+        (step !== "wait" && !act(step, number, verdict.head))
+      )
+        return report(verdict, loopState, options);
+      loopState = state;
       await delay(options.interval * 1000);
     } catch (error) {
       failures += 1;
-      if (failures >= MAX_GH_FAILURES) {
-        console.log(
-          JSON.stringify({
-            verdict: "GH_FAILED",
-            exitCode: 7,
-            pr: number,
-            error: String(error),
-          }),
-        );
-        return 7;
-      }
+      if (failures >= MAX_GH_FAILURES) return reportGhFailure(number, error);
       await delay(Math.min(options.interval * 2 ** failures, 300) * 1000);
     }
   }
@@ -633,7 +790,7 @@ async function main() {
     );
     if (error instanceof UsageError)
       console.error(
-        "usage: pnpm pr:watch [pr] [--once] [--interval <s>] [--timeout <s>]",
+        "usage: pnpm pr:watch [pr] [--once] [--loop] [--no-coderabbit] [--interval <s>] [--timeout <s>]",
       );
     process.exitCode = 1;
   }

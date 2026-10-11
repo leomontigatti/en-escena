@@ -693,7 +693,7 @@ describe("SeminarDetailView delete dialog", () => {
     // Nobody is left to remove: a withdrawn row keeps its money or its
     // comprobante, so the way out the other case names does not exist here.
     expect(dialog?.textContent).toContain(
-      "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
+      "Esas inscripciones no se pueden eliminar, así que el seminario ya no se va a poder eliminar.",
     );
     expect(dialog?.querySelector("form")).toBeNull();
   });
@@ -718,7 +718,7 @@ describe("SeminarDetailView delete dialog", () => {
     const dialog = document.querySelector('[role="alertdialog"]');
 
     expect(dialog?.textContent).toContain(
-      "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
+      "Esas inscripciones no se pueden eliminar, así que el seminario ya no se va a poder eliminar.",
     );
     expect(dialog?.textContent).not.toContain("seguir el orden");
   });

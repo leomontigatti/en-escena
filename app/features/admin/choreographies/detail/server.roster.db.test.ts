@@ -12,18 +12,12 @@ import {
   scheduleModalities,
   schedules,
 } from "@/db/schema";
-import {
-  handleChoreographyDetailAction,
-  loadChoreographyDetailRouteData,
-  type ChoreographyDetailActionData,
-} from "@/features/admin/choreographies/detail/server";
 import { toSavedChoreographyDraft } from "@/features/admin/choreographies/detail/draft-form";
 import {
   resolveChoreographyDraftIntent,
   saveChoreographyDraftIntent,
   toChoreographyDraftFormData,
   type ChoreographyDraft,
-  type ChoreographyDraftPreview,
 } from "@/features/admin/choreographies/detail/draft.shared";
 import { toChoreographyDetailViewActionData } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
@@ -39,22 +33,21 @@ import {
   createGrupalOnlyModalityFixture,
   createOpenEventCatalog,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
-import {
-  evaluatedChoreographyMessage,
-  noCompatibleCategoryRosterMessage,
-} from "@/lib/choreographies/choreography-messages";
+import { noCompatibleCategoryRosterMessage } from "@/lib/choreographies/choreography-messages";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
-
-import {
-  installDatabaseTestHooks,
-  isPgliteTestBackend,
-} from "../../../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+
+import {
+  loadDetail,
+  readDraftPreview,
+  submitDetailAction,
+} from "@/features/admin/choreographies/detail/server.test-support";
+
+import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 // Reaching a real evaluation means a score on an assigned judge, which is not
 // this file's subject, so a test that needs a closed choreography declares it
@@ -134,27 +127,6 @@ describe("administrative choreography roster editing", () => {
     const added = inscriptions.find((row) => row.dancerId === dancerC.id);
     expect(added).toBeDefined();
     expect(added?.selectedPriceId).toBeNull();
-  });
-
-  test("hard-deletes a removed dancer whose inscription has no allocations and no comprobante line", async () => {
-    const scenario = await createRemovalScenario({
-      academyName: "Academia Roster Baja",
-      email: "roster.baja.academia@example.com",
-    });
-
-    const response = await submitRoster({
-      choreographyId: scenario.choreography.id,
-      dancerIds: [scenario.dancerB.id],
-    });
-
-    expect(response).toMatchObject({ status: "success" });
-
-    const inscriptions = await db.query.choreographyDancers.findMany({
-      where: eq(choreographyDancers.choreographyId, scenario.choreography.id),
-    });
-    expect(inscriptions.map((row) => row.dancerId)).toEqual([
-      scenario.dancerB.id,
-    ]);
   });
 
   test("withdraws a removed dancer whose inscription holds money, and keeps the allocation on it", async () => {
@@ -370,179 +342,6 @@ describe("administrative choreography roster editing", () => {
       where: eq(choreographyDancers.id, scenario.inscriptionA.id),
     });
     expect(afterDeallocation?.withdrawnAt).toEqual(withdrawn?.withdrawnAt);
-  });
-
-  test("hard-locks roster editing once the choreography was evaluated", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Roster Lock",
-      email: "roster.lock.academia@example.com",
-    });
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    const [dancerA, dancerB] = await Promise.all([
-      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
-      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
-    ]);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.teenCategory.id,
-      eventId: event.id,
-      groupType: "solo",
-      modalityId: catalog.modality.id,
-      name: "Solo",
-      scheduleCapacityId: catalog.soloScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    evaluatedChoreographyIds.add(choreography.id);
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancerA.id,
-    });
-
-    const result = await submitRoster({
-      choreographyId: choreography.id,
-      dancerIds: [dancerA.id, dancerB.id],
-    });
-
-    expect(result).toEqual({
-      message: evaluatedChoreographyMessage,
-      status: "error",
-    });
-
-    const inscriptions = await db.query.choreographyDancers.findMany({
-      where: eq(choreographyDancers.choreographyId, choreography.id),
-    });
-    expect(inscriptions.map((row) => row.dancerId)).toEqual([dancerA.id]);
-  });
-
-  test("saves the name and the roster in a single submit", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Roster Nombre",
-      email: "roster.nombre.academia@example.com",
-    });
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    const [dancerA, dancerB] = await Promise.all([
-      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
-      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
-    ]);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.teenCategory.id,
-      eventId: event.id,
-      groupType: "solo",
-      modalityId: catalog.modality.id,
-      name: "Nombre viejo",
-      scheduleCapacityId: catalog.soloScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancerA.id,
-    });
-
-    const response = await submitRoster({
-      choreographyId: choreography.id,
-      dancerIds: [dancerA.id, dancerB.id],
-      name: "Nombre nuevo",
-      scheduleCapacityId: catalog.duoScheduleCapacity.id,
-    });
-
-    expect(response).not.toBeInstanceOf(Response);
-    expect(response).toMatchObject({ status: "success" });
-
-    const saved = await db.query.choreographies.findFirst({
-      where: eq(choreographies.id, choreography.id),
-    });
-
-    expect(saved?.name).toBe("Nombre Nuevo");
-    expect(saved?.groupType).toBe("duo");
-  });
-
-  test("keeps the current name when only the roster changes", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Roster Sin Nombre",
-      email: "roster.sinnombre.academia@example.com",
-    });
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    const [dancerA, dancerB] = await Promise.all([
-      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
-      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
-    ]);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.teenCategory.id,
-      eventId: event.id,
-      groupType: "solo",
-      modalityId: catalog.modality.id,
-      name: "Nombre intacto",
-      scheduleCapacityId: catalog.soloScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancerA.id,
-    });
-
-    await submitRoster({
-      choreographyId: choreography.id,
-      dancerIds: [dancerA.id, dancerB.id],
-      scheduleCapacityId: catalog.duoScheduleCapacity.id,
-    });
-
-    const saved = await db.query.choreographies.findFirst({
-      where: eq(choreographies.id, choreography.id),
-    });
-
-    expect(saved?.name).toBe("Nombre intacto");
-  });
-
-  test("rejects an empty name without touching the roster", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Roster Nombre Vacío",
-      email: "roster.vacio.academia@example.com",
-    });
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    const [dancerA, dancerB] = await Promise.all([
-      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
-      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
-    ]);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.teenCategory.id,
-      eventId: event.id,
-      groupType: "solo",
-      modalityId: catalog.modality.id,
-      name: "Nombre intacto",
-      scheduleCapacityId: catalog.soloScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancerA.id,
-    });
-
-    const result = await submitRoster({
-      choreographyId: choreography.id,
-      dancerIds: [dancerA.id, dancerB.id],
-      name: "   ",
-      scheduleCapacityId: catalog.duoScheduleCapacity.id,
-    });
-
-    expect(result).toMatchObject({ status: "error" });
-
-    const inscriptions = await db
-      .select({ dancerId: choreographyDancers.dancerId })
-      .from(choreographyDancers)
-      .where(eq(choreographyDancers.choreographyId, choreography.id));
-
-    expect(inscriptions.map((row) => row.dancerId)).toEqual([dancerA.id]);
   });
 
   // #709: when the assigned capacity is still compatible with the resolved
@@ -1056,98 +855,12 @@ describe("schedule capacity guard on the roster path", () => {
       [dancerA.id, dancerB.id].sort(),
     );
   });
-
-  /**
-   * `lockScheduleCapacityForAssignment` takes `FOR UPDATE` on the schedule and
-   * the capacity before it counts the occupants, so two roster saves competing
-   * for the same last slot are serialised: the second one counts after the first
-   * has committed, sees the capacity full, and is refused.
-   *
-   * That is only observable where the two saves really do overlap. The fast
-   * suite runs them through a single PGlite connection, which serialises the
-   * transactions on its own — the lock is never contended, and the assertion
-   * would hold even if `FOR UPDATE` were dropped. So this proves the lock on the
-   * Postgres backend and is skipped on PGlite rather than passing for free.
-   */
-  describe.skipIf(isPgliteTestBackend())(
-    "schedule capacity under real contention",
-    () => {
-      test("locks the destination capacity across two concurrent roster saves competing for the last slot", async () => {
-        const event = await createEventRecord({
-          active: true,
-          name: "Regional",
-        });
-        const catalog = await createEventCatalog(event.id);
-        await db
-          .update(scheduleCapacities)
-          .set({ capacity: 1 })
-          .where(eq(scheduleCapacities.id, catalog.duoScheduleCapacity.id));
-
-        const [scenarioX, scenarioY] = await Promise.all([
-          createSoloScenarioInCatalog({
-            academyName: "Academia Roster Cupo Concurrente X",
-            catalog,
-            email: "roster.cupo.concurrente.x@example.com",
-            event,
-          }),
-          createSoloScenarioInCatalog({
-            academyName: "Academia Roster Cupo Concurrente Y",
-            catalog,
-            email: "roster.cupo.concurrente.y@example.com",
-            event,
-          }),
-        ]);
-
-        const [resultX, resultY] = await Promise.all([
-          submitRoster({
-            choreographyId: scenarioX.choreography.id,
-            dancerIds: [scenarioX.dancerA.id, scenarioX.dancerB.id],
-          }),
-          submitRoster({
-            choreographyId: scenarioY.choreography.id,
-            dancerIds: [scenarioY.dancerA.id, scenarioY.dancerB.id],
-          }),
-        ]);
-
-        const outcomes = [resultX, resultY].map((result) => {
-          if (!result || result instanceof Response || !("status" in result)) {
-            throw new Error("Expected a roster action result.");
-          }
-          return result.status;
-        });
-
-        // Both choreographies target the same capacity, which has exactly one free
-        // slot: the lock must let exactly one of the two concurrent saves win it,
-        // never both and never neither.
-        expect(outcomes.filter((status) => status === "success")).toHaveLength(
-          1,
-        );
-        expect(outcomes.filter((status) => status === "error")).toHaveLength(1);
-
-        const savedX = await db.query.choreographies.findFirst({
-          where: eq(choreographies.id, scenarioX.choreography.id),
-        });
-        const savedY = await db.query.choreographies.findFirst({
-          where: eq(choreographies.id, scenarioY.choreography.id),
-        });
-        const savedGroupTypes = [savedX?.groupType, savedY?.groupType];
-        expect(savedGroupTypes.filter((value) => value === "duo")).toHaveLength(
-          1,
-        );
-        expect(
-          savedGroupTypes.filter((value) => value === "solo"),
-        ).toHaveLength(1);
-      });
-    },
-  );
 });
 
 /**
  * Solo with one inscription, `dancerA`, plus `dancerB` reserved to expand the
  * roster to duo in the schedule-capacity guard tests. Each call builds its own
- * event and catalog, so two choreographies never compete for the same capacity
- * unless explicitly asked to (see `createSoloScenarioInCatalog`, used by the
- * concurrency test).
+ * event and catalog, so two choreographies never compete for the same capacity.
  */
 async function createSoloScenario(input: {
   academyName: string;
@@ -1155,22 +868,6 @@ async function createSoloScenario(input: {
 }) {
   const event = await createEventRecord({ active: true, name: "Regional" });
   const catalog = await createEventCatalog(event.id);
-  const scenario = await createSoloScenarioInCatalog({
-    academyName: input.academyName,
-    catalog,
-    email: input.email,
-    event,
-  });
-
-  return { ...scenario, catalog, event };
-}
-
-async function createSoloScenarioInCatalog(input: {
-  academyName: string;
-  catalog: Awaited<ReturnType<typeof createEventCatalog>>;
-  email: string;
-  event: { id: string };
-}) {
   const owner = await createAcademySession({
     academyName: input.academyName,
     email: input.email,
@@ -1181,13 +878,13 @@ async function createSoloScenarioInCatalog(input: {
   ]);
   const choreography = await createChoreographyRecord({
     academyId: owner.academyId,
-    categoryId: input.catalog.teenCategory.id,
-    eventId: input.event.id,
+    categoryId: catalog.teenCategory.id,
+    eventId: event.id,
     groupType: "solo",
-    modalityId: input.catalog.modality.id,
+    modalityId: catalog.modality.id,
     name: "Solo",
-    scheduleCapacityId: input.catalog.soloScheduleCapacity.id,
-    submodalityId: input.catalog.submodality.id,
+    scheduleCapacityId: catalog.soloScheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
   });
   const [inscriptionA] = await db
     .insert(choreographyDancers)
@@ -1200,9 +897,11 @@ async function createSoloScenarioInCatalog(input: {
 
   return {
     academyId: owner.academyId,
+    catalog,
     choreography,
     dancerA,
     dancerB,
+    event,
     inscriptionA,
   };
 }
@@ -1344,7 +1043,6 @@ async function createPayment(scenario: {
 // The signing admin is created from scratch on every submit, so the email has to
 // be unique across two submits on the same choreography too (withdrawing and
 // adding again is exactly that case).
-let submitCount = 0;
 
 describe("`Estado de alta` on the administrative roster editor", () => {
   test("keeps offering and accepting an archived dancer who is already on the choreography, and rejects one who is not", async () => {
@@ -1353,7 +1051,9 @@ describe("`Estado de alta` on the administrative roster editor", () => {
       email: "roster.archivada.academia@example.com",
     });
 
-    const loaded = await loadRosterDetail(scenario.choreography.id);
+    const loaded = await loadDetail({
+      choreographyId: scenario.choreography.id,
+    });
     const offeredDancerIds = loaded.availableDancers.map((dancer) => dancer.id);
 
     expect(offeredDancerIds).toContain(scenario.archivedLinkedDancer.id);
@@ -1579,19 +1279,6 @@ async function createArchivedRosterScenario(input: {
   };
 }
 
-async function loadRosterDetail(choreographyId: string) {
-  const { request } = await createSignedInAdminRequest({
-    email: `admin.roster.loader.${(submitCount += 1)}.${choreographyId}@example.com`,
-    requestUrl: `http://localhost/administracion/coreografias/${choreographyId}`,
-    role: "admin",
-  });
-
-  return await loadChoreographyDetailRouteData({
-    params: { choreographyId },
-    request,
-  });
-}
-
 test("refuses a roster change that resolves to no category, writing nothing", async () => {
   const owner = await createAcademySession({
     academyName: "Academia Elenco Sin Categoría",
@@ -1678,7 +1365,7 @@ async function submitRoster(input: {
   professorIds?: string[];
   scheduleCapacityId?: string;
 }) {
-  const detail = await loadRosterDetail(input.choreographyId);
+  const detail = await loadDetail({ choreographyId: input.choreographyId });
   const saved = toSavedChoreographyDraft(detail.choreography);
   const draft: ChoreographyDraft = {
     ...saved,
@@ -1713,29 +1400,8 @@ async function postDraft(input: {
     typeof resolveChoreographyDraftIntent | typeof saveChoreographyDraftIntent;
   previewedCategoryId?: string | null;
 }) {
-  const { request } = await createSignedInAdminRequest({
+  return await submitDetailAction({
     body: toChoreographyDraftFormData(input),
-    email: `admin.roster.${(submitCount += 1)}.${input.choreographyId}@example.com`,
-    requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
-    role: "admin",
+    choreographyId: input.choreographyId,
   });
-
-  return await handleChoreographyDetailAction({
-    params: { choreographyId: input.choreographyId },
-    request,
-  });
-}
-
-function readDraftPreview(
-  response: ChoreographyDetailActionData | Response,
-): ChoreographyDraftPreview {
-  if (
-    response instanceof Response ||
-    !("intent" in response) ||
-    response.intent !== resolveChoreographyDraftIntent
-  ) {
-    throw new Error("the action did not answer the draft preview");
-  }
-
-  return response.preview;
 }

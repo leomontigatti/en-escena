@@ -22,7 +22,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Precios", to: seminarPricesListPath },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       const seminarPrice = data?.seminarPrices.find(
         (item) => item.id === match.params.seminarPriceId,
       );

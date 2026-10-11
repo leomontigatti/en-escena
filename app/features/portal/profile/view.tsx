@@ -7,25 +7,15 @@ import { Form, useNavigation, useSubmit } from "react-router";
 import { PortalPageHeader } from "@/components/portal/ui";
 import { FormActions } from "@/components/shared/form-actions";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
 import type { loadPortalProfile } from "@/features/portal/profile/server";
 import {
   academyProfileSchema,
@@ -267,39 +257,16 @@ function ProfileActionsMenu() {
           Cambiar contraseña
         </DropdownMenuItem>
       </ResourceActionsMenu>
-      <AlertDialog
-        open={isPasswordDialogOpen}
+      <ConfirmationDialog
+        confirmIcon={Check}
+        confirmLabel="Enviar email"
+        description="Te vamos a enviar un enlace al email de acceso de la academia para definir una nueva contraseña."
+        form={passwordRecoveryFormId}
+        isPending={isSending}
         onOpenChange={setIsPasswordDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              ¿Enviar email para cambiar contraseña?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Te vamos a enviar un enlace al email de acceso de la academia para
-              definir una nueva contraseña.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button" disabled={isSending}>
-              Cancelar
-            </AlertDialogCancel>
-            <Button
-              type="submit"
-              form={passwordRecoveryFormId}
-              disabled={isSending}
-            >
-              {isSending ? (
-                <Spinner aria-hidden="true" data-icon="inline-start" />
-              ) : (
-                <Check aria-hidden="true" data-icon="inline-start" />
-              )}
-              Enviar email
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        open={isPasswordDialogOpen}
+        title="¿Enviar email para cambiar contraseña?"
+      />
     </>
   );
 }

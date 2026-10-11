@@ -2,13 +2,13 @@ import {
   eventFormValues,
   type EventFormValues,
 } from "@/lib/admin/events/form-values";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
-import type { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import type { createSavedEvent } from "@/lib/test-support/events";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
-export type EventRow = Awaited<ReturnType<typeof createAdminSavedEvent>>;
+export type EventRow = Awaited<ReturnType<typeof createSavedEvent>>;
 
 export async function createAdminRequest(eventId: string, body?: FormData) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body,
     email: `evento.${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost/administracion/eventos/${eventId}`,

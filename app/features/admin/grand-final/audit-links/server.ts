@@ -15,6 +15,7 @@ import { isAuditLinkExpired } from "@/lib/grand-final/audit-totals.server";
 import { buildAuditLinkUrl } from "@/lib/grand-final/audit-url";
 import { formatLongBusinessDate } from "@/lib/shared/business-time-zone";
 import { readFormString } from "@/lib/shared/forms";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import type { GrandFinalListActionData } from "../list/shared";
 import { renderVoteCodeQrSvg } from "../vote-codes/sheet";
@@ -225,7 +226,7 @@ async function handOver(
   link: { label: string; message: string; token: string },
 ) {
   const url = buildAuditLinkUrl(
-    process.env.APP_URL || new URL(request.url).origin,
+    process.env.APP_URL || readRequestedUrl(request).origin,
     link.token,
   );
   const qrSvg = await renderVoteCodeQrSvg(url);

@@ -13,8 +13,8 @@ import {
   type EventRow,
 } from "@/features/admin/events/detail/server.test-support";
 import type { EventFormValues } from "@/lib/admin/events/form-values";
-import { createChoreographyOnNewBases } from "@/lib/events/bases-test-fixtures.server.db";
-import { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createChoreographyOnNewBases } from "@/lib/events/bases.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -26,28 +26,22 @@ const DEPENDENT_EDIT_ERROR =
 // The guard runs through the real action, with no injected double: the bug it
 // covers was a stub predicate that the production path silently took.
 describe("event dependencies on the event detail action", () => {
-  test.each([
-    ["startsAt", { startsAt: "2026-05-02" }],
-    ["endsAt", { endsAt: "2026-06-05" }],
-    ["requiredDepositPercentage", { requiredDepositPercentage: "45" }],
-  ] as const)(
-    "refuses a structural edit to %s on an event with choreographies",
-    async (_field, change) => {
-      const event = await createDependentEvent();
+  // `startsAt` and the deposit are refused by `updateEvent` itself
+  // (`management.server.db.test.ts`); the end date is the one only this path
+  // covers.
+  test("refuses a structural edit to endsAt on an event with choreographies", async () => {
+    const event = await createDependentEvent();
 
-      const result = await save(event, change);
+    const result = await save(event, { endsAt: "2026-06-05" });
 
-      expect(result).toMatchObject({
-        status: "error",
-        message: DEPENDENT_EDIT_ERROR,
-      });
-      await expect(readEvent(event.id)).resolves.toMatchObject({
-        startsAt: event.startsAt,
-        endsAt: event.endsAt,
-        requiredDepositPercentage: event.requiredDepositPercentage,
-      });
-    },
-  );
+    expect(result).toMatchObject({
+      status: "error",
+      message: DEPENDENT_EDIT_ERROR,
+    });
+    await expect(readEvent(event.id)).resolves.toMatchObject({
+      endsAt: event.endsAt,
+    });
+  });
 
   // The detail locks the dates and the deposit, and answers `Eliminar`, off
   // the same predicate the action refuses over.
@@ -99,7 +93,7 @@ describe("event dependencies on the event detail action", () => {
 
     expect(result).toMatchObject({
       status: "error",
-      message: "No se puede borrar un evento con dependencias operativas.",
+      message: "No se puede eliminar un evento con dependencias operativas.",
     });
     await expect(readEvent(event.id)).resolves.toBeDefined();
   });
@@ -112,7 +106,7 @@ describe("event dependencies on the event detail action", () => {
  * form writes it, which is what the guard has to be measured against.
  */
 async function createFormSavedEvent() {
-  const event = await createAdminSavedEvent();
+  const event = await createSavedEvent({ active: false });
 
   await save(event, {});
 

@@ -1,0 +1,192 @@
+import { and, eq, isNull } from "drizzle-orm";
+import { expect } from "vitest";
+
+import { db } from "@/db";
+import { prices } from "@/db/schema";
+import type { GroupType } from "@/lib/events/group-types";
+import { loadPriceRows } from "@/lib/prices/rows.server";
+import { readFlashNotification } from "@/lib/shared/flash-notification.server";
+import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
+
+import {
+  action,
+  buildScheduleDraft,
+  createEventScheduleAdminFixture,
+  createScheduleAdminRequest,
+  findSavedScheduleByName,
+  formData,
+  routeArgs,
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+
+type PriceDraft = {
+  amount: string;
+  groupType: string;
+  isSpecialPrice?: string;
+  name: string;
+  paymentDeadline: string;
+  scheduleIds: string[];
+};
+
+type SignedInAdminRequestInput = Parameters<typeof createSignedInRequest>[0];
+
+type CreatePriceAdminRequestInput = Omit<SignedInAdminRequestInput, "body"> & {
+  intent: "create-price";
+  price?: Partial<PriceDraft>;
+};
+
+type UpdatePriceAdminRequestInput = Omit<SignedInAdminRequestInput, "body"> & {
+  intent: "update-price";
+  price?: Partial<PriceDraft>;
+  priceId: string;
+};
+
+export async function createEventPriceAdminFixture() {
+  const { event, modalities } = await createEventScheduleAdminFixture(["Jazz"]);
+  const scheduleRequest = await createScheduleAdminRequest({
+    email: "admin.precio.cronograma.fixture@example.com",
+    role: "admin",
+    requestUrl: `http://localhost/administracion/cronogramas?evento=${event.id}`,
+    intent: "create-schedule",
+    schedule: buildScheduleDraft({
+      modalityIds: [modalities[0].id],
+    }),
+  });
+
+  await expectThrownResponse(action(routeArgs(scheduleRequest.request)), 302);
+
+  const schedule = await findSavedScheduleByName("Sábado Mañana");
+
+  if (!schedule) {
+    throw new Error("Expected price schedule fixture to be created.");
+  }
+
+  return { event, modality: modalities[0], schedule };
+}
+
+function buildPriceDraft(overrides: Partial<PriceDraft> = {}): PriceDraft {
+  return {
+    name: "Precio base",
+    isSpecialPrice: "",
+    groupType: "solo",
+    amount: "12000",
+    paymentDeadline: "2026-05-31",
+    scheduleIds: [],
+    ...overrides,
+  };
+}
+
+export async function createPriceAdminRequest(
+  input: CreatePriceAdminRequestInput | UpdatePriceAdminRequestInput,
+) {
+  const price = buildPriceDraft(input.price);
+  const body = formDataWithPrice(input.intent, price);
+
+  if (input.intent === "update-price") {
+    body.set("id", input.priceId);
+  }
+
+  return createSignedInRequest({
+    ...input,
+    body,
+  });
+}
+
+export async function createDeletePriceAdminRequest(
+  input: Omit<SignedInAdminRequestInput, "body"> & {
+    confirmDeletion?: string;
+    priceId: string;
+  },
+) {
+  const body = formData({
+    intent: "delete-price",
+    id: input.priceId,
+  });
+
+  if (input.confirmDeletion) {
+    body.set("confirmDeletion", input.confirmDeletion);
+  }
+
+  return createSignedInRequest({
+    ...input,
+    body,
+  });
+}
+
+export async function findSavedPriceById(priceId: string) {
+  return db.query.prices.findFirst({
+    where: eq(prices.id, priceId),
+  });
+}
+
+/**
+ * The saved price of a group type and deadline in one tier: the special price
+ * covering `scheduleId` when one is given, the general one otherwise.
+ */
+export async function findSavedPriceByScope(input: {
+  groupType: GroupType;
+  paymentDeadline: string | null;
+  scheduleId?: string | null;
+}) {
+  const rows = await loadPriceRows(
+    db,
+    and(
+      eq(prices.groupType, input.groupType),
+      input.paymentDeadline === null
+        ? isNull(prices.paymentDeadline)
+        : eq(prices.paymentDeadline, input.paymentDeadline),
+    ),
+  );
+  const { scheduleId } = input;
+
+  return scheduleId
+    ? rows.find((row) => row.scheduleIds.includes(scheduleId))
+    : rows.find((row) => row.scheduleIds.length === 0);
+}
+
+export async function expectPriceSavedRedirect(response: Response) {
+  const location = response.headers.get("location");
+
+  expect(location).toMatch(/^\/administracion\/precios\/[^?]+$/);
+
+  const setCookie = response.headers.get("set-cookie");
+
+  if (!setCookie) {
+    throw new Error("Expected a Set-Cookie header carrying the flash message.");
+  }
+
+  const [cookiePair] = setCookie.split(";");
+  const flash = await readFlashNotification(
+    new Request("http://localhost/", { headers: { cookie: cookiePair } }),
+  );
+
+  expect(flash?.toast).toEqual({
+    id: "route-notification:price-saved",
+    message: "Precio guardado.",
+    variant: "success",
+  });
+}
+
+export async function expectPriceDeletedRedirect(response: Response) {
+  await expectFlashRedirect(response, "/administracion/precios", {
+    id: "route-notification:price-deleted",
+    message: "Precio eliminado.",
+    variant: "success",
+  });
+}
+
+function formDataWithPrice(
+  intent: "create-price" | "update-price",
+  price: PriceDraft,
+): FormData {
+  return formData({
+    intent,
+    name: price.name,
+    isSpecialPrice: price.isSpecialPrice ?? "",
+    groupType: price.groupType,
+    amount: price.amount,
+    paymentDeadline: price.paymentDeadline,
+    scheduleIds: price.scheduleIds,
+  });
+}

@@ -11,8 +11,13 @@ import {
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { FormActions } from "@/components/shared/form-actions";
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
-import { FieldGroup } from "@/components/ui/field";
+import { ChecklistField } from "@/components/shared/checklist-field";
+import {
+  FieldDescription,
+  FieldGroup,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import {
   grandFinalBannerRuleLabel,
   grandFinalBannerSlotLabels,
@@ -225,27 +230,31 @@ function JudgesField({
   loaderData: AcademyGrandFinalLoaderData;
 }) {
   return (
-    <MultiComboboxField
-      className="md:col-span-2"
-      control={form.control}
-      description={
-        loaderData.eligible
-          ? undefined
-          : "Ya no cumple los requisitos en esta modalidad: solo se pueden quitar jueces."
-      }
-      emptyMessage="No hay más jueces en el evento."
-      inputName={judgeIdsFieldName}
-      label="Jueces que la eligieron"
-      name="judgeIds"
-      options={loaderData.judges
-        .filter(
-          (judge) =>
-            loaderData.eligible ||
-            loaderData.values.judgeIds.includes(judge.id),
-        )
-        .map((judge) => ({ label: judge.name, value: judge.id }))}
-      placeholder="Ningún juez"
-    />
+    <FieldSet className="gap-2 md:col-span-2">
+      <FieldLegend variant="label">Jueces que la eligieron</FieldLegend>
+      {loaderData.eligible ? null : (
+        <FieldDescription>
+          Ya no cumple los requisitos en esta modalidad: solo se pueden quitar
+          jueces.
+        </FieldDescription>
+      )}
+      <ChecklistField
+        control={form.control}
+        emptySelectionMessage="Ningún juez la eligió."
+        inputName={judgeIdsFieldName}
+        label="Jueces que la eligieron"
+        name="judgeIds"
+        noOptionsMessage="El evento todavía no tiene jueces."
+        options={loaderData.judges
+          .filter(
+            (judge) =>
+              loaderData.eligible ||
+              loaderData.values.judgeIds.includes(judge.id),
+          )
+          .map((judge) => ({ label: judge.name, value: judge.id }))}
+        searchLabel="Buscar jueces"
+      />
+    </FieldSet>
   );
 }
 

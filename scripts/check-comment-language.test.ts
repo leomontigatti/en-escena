@@ -82,7 +82,7 @@ describe("comment-language guardrail (#592)", () => {
     expect(kindsIn(`// ARCA respondió y no autorizó.`)).toEqual(["comment"]);
   });
 
-  // The other half of that disjointness: `Nota de crédito` has no `CONTEXT.md`
+  // The other half of that disjointness: `Nota de crédito` has no `GLOSSARY.md`
   // entry, so the vocabulary rule cannot name it and only morphology reaches it.
   test("catches an accented term the glossary never lists", () => {
     expect(
@@ -135,7 +135,7 @@ describe("comment-language guardrail (#592)", () => {
   });
 
   // The inflection the glossary does not list is the same violation as the
-  // headword it comes from: `profesor` has a row in CONTEXT.md, `profesores`
+  // headword it comes from: `profesor` has a row in GLOSSARY.md, `profesores`
   // does not, and nobody writing the second means anything different.
   test("catches a glossary noun in an inflection the glossary never lists", () => {
     expect(
@@ -216,7 +216,7 @@ describe("comment-language guardrail (#592)", () => {
   });
 
   // Without the glossary the vocabulary rule has nothing to match on, which is
-  // what keeps it honest: CONTEXT.md names the term, the checker does not guess.
+  // what keeps it honest: GLOSSARY.md names the term, the checker does not guess.
   test("the glossary is what makes a domain noun a violation", () => {
     expect(
       findSpanishProseInSource({
@@ -444,7 +444,7 @@ describe("comment-language guardrail, markdown (#792)", () => {
     );
   });
 
-  // The deliberate difference from a source file, and the reason CONTEXT.md's
+  // The deliberate difference from a source file, and the reason GLOSSARY.md's
   // quoted labels were rewritten into backticks: in markdown a double quote is
   // ordinary punctuation around ordinary prose, so it grants nothing.
   test("a double quote grants nothing in markdown", () => {
@@ -479,7 +479,7 @@ describe("comment-language guardrail, markdown (#792)", () => {
   });
 
   // The one shape whose double-quoted value is data by definition: it is the
-  // term this very script parses out of `CONTEXT.md`.
+  // term this very script parses out of `GLOSSARY.md`.
   test("the glossary row's own `ui:` value is data", () => {
     expect(
       docKindsIn(`**\`scheduleCapacity\`** — ui: "Cupo de cronograma"\n`),

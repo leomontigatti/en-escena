@@ -12,21 +12,12 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { ReasonList } from "@/components/shared/reason-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -271,7 +262,6 @@ function EditEventPanel({
         </AdminResourceFormCard>
       </form>
       <RemoveDocumentsDialog
-        isPending={eventForm.isPending}
         onConfirm={removal.confirm}
         onOpenChange={removal.setIsConfirmOpen}
         open={removal.isConfirmOpen}
@@ -421,51 +411,36 @@ function useDocumentRemovalConfirmation({
 }
 
 function RemoveDocumentsDialog({
-  isPending,
   onConfirm,
   onOpenChange,
   open,
   removedKinds,
 }: {
-  isPending: boolean;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   removedKinds: EventDocumentKind[];
 }) {
+  // Destructive, not the default: pressing this deletes the PDFs the academies
+  // download, even though the submission it triggers is the same "Guardar" the
+  // rest of the form uses.
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="sm:max-w-lg">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar los cambios</AlertDialogTitle>
-          <AlertDialogDescription>
-            Guardar elimina estos documentos. La acción no se puede deshacer y
-            las academias van a dejar de verlos.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <ul className="list-disc pl-5 text-sm text-muted-foreground">
-          {removedKinds.map((kind) => (
-            <li key={kind}>{eventDocumentDeclarations[kind].label}</li>
-          ))}
-        </ul>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          {/* Destructive, not the default: pressing this deletes the PDFs the
-              academies download, even though the submission it triggers is the
-              same "Guardar" the rest of the form uses. */}
-          <AlertDialogAction
-            disabled={isPending}
-            variant="destructive"
-            onClick={onConfirm}
-          >
-            {isPending ? (
-              <Spinner aria-hidden="true" data-icon="inline-start" />
-            ) : null}
-            Eliminar y guardar
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmationDialog
+      className="sm:max-w-lg"
+      confirmLabel="Eliminar y guardar"
+      description="Guardar elimina estos documentos. La acción no se puede deshacer y las academias van a dejar de verlos."
+      destructive
+      onConfirm={onConfirm}
+      onOpenChange={onOpenChange}
+      open={open}
+      title="¿Guardar los cambios?"
+    >
+      <ul className="list-disc pl-5 text-sm text-muted-foreground">
+        {removedKinds.map((kind) => (
+          <li key={kind}>{eventDocumentDeclarations[kind].label}</li>
+        ))}
+      </ul>
+    </ConfirmationDialog>
   );
 }
 

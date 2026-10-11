@@ -10,18 +10,18 @@ import {
   createAcademySession,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
-import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
+import { expectCreated } from "@/lib/events/bases.test-support";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
-import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import { createFormData } from "@/lib/test-support/form-data";
 import { handlePortalProfessorCreateAction } from "@/features/portal/professors/create/server";
 import { loadPortalProfessorsList } from "@/features/portal/professors/list/server";
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -105,7 +105,10 @@ describe("loadPortalProfessorsList", () => {
   });
 
   test("marks professors linked to active event choreographies as participating", async () => {
-    const event = await createSavedEvent({ name: "En Escena 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "En Escena 2026",
+    });
     await activateEvent(event.id);
     const session = await createAcademySession({
       email: "profesores.participacion@example.com",

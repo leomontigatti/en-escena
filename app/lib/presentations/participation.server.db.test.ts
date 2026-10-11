@@ -11,10 +11,6 @@ import {
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import {
-  createAcademyUser,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
-import {
   restoreChoreographyForTest,
   withdrawChoreographyForTest,
 } from "@/lib/choreographies/withdrawn-choreography.test-support";
@@ -27,6 +23,8 @@ import {
 } from "@/lib/presentations/participation.server";
 
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

@@ -8,8 +8,7 @@ import {
   seminarInscriptions,
   seminarPrices,
 } from "@/db/schema";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import {
   allocateToSeminarInscription,
   removeFromSeminarInscription,
@@ -28,6 +27,7 @@ import {
 import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
 import { createSeminar, deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

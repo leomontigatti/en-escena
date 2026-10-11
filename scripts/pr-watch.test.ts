@@ -2,12 +2,19 @@ import { describe, expect, test } from "vitest";
 
 import {
   CODERABBIT_GRACE_SECONDS,
+  CODERABBIT_NUDGE_SECONDS,
+  LOOP_TIMEOUT_SECONDS,
+  type LoopState,
   type PrSnapshot,
   REQUIRED_CONTEXTS,
+  STALL_SECONDS,
+  type Verdict,
   classify,
   coderabbitState,
   findingFromThread,
   findingsFromReview,
+  initialLoopState,
+  nextLoopStep,
   parseArgs,
   summarizeChecks,
 } from "./pr-watch";
@@ -110,8 +117,26 @@ describe("parseArgs", () => {
       interval: 30,
       timeout: 540,
       once: false,
+      loop: false,
+      coderabbit: true,
     });
     expect(parseArgs(["--once"])).toMatchObject({ pr: null, once: true });
+    expect(parseArgs(["7", "--loop", "--no-coderabbit"])).toMatchObject({
+      loop: true,
+      coderabbit: false,
+    });
+  });
+
+  test("gives --loop a timeout that fits one background command, unless one is passed", () => {
+    expect(parseArgs(["7", "--loop"])).toMatchObject({
+      loop: true,
+      timeout: LOOP_TIMEOUT_SECONDS,
+    });
+    expect(LOOP_TIMEOUT_SECONDS).toBeLessThan(7200);
+    expect(parseArgs(["--timeout", "900", "--loop"])).toMatchObject({
+      loop: true,
+      timeout: 900,
+    });
   });
 
   test("rejects an unknown option and a bad number", () => {
@@ -577,6 +602,68 @@ describe("classify", () => {
     );
   });
 
+  test("with CodeRabbit not required, is READY on an unreviewed head and never waits on it", () => {
+    const options = { coderabbit: false };
+    expect(
+      classify(snapshot({ coderabbitReviews: [] }), NOW, options),
+    ).toMatchObject({ verdict: "READY", exitCode: 0, pending: [] });
+    const pendingStatus = snapshot({
+      coderabbitReviews: [],
+      rollup: [...greenCi, coderabbitStatus("PENDING")],
+    });
+    expect(classify(pendingStatus, NOW, options)).toMatchObject({
+      verdict: "READY",
+      pending: [],
+    });
+    // A rate-limited CodeRabbit can leave its status red: not a failed check.
+    const failedStatus = snapshot({
+      coderabbitReviews: [],
+      rollup: [...greenCi, coderabbitStatus("FAILURE")],
+    });
+    expect(classify(failedStatus, NOW, options)).toMatchObject({
+      verdict: "READY",
+      failed: [],
+    });
+    expect(
+      classify(
+        snapshot({ coderabbitReviews: [], mergeState: "BEHIND" }),
+        NOW,
+        options,
+      ).verdict,
+    ).toBe("BEHIND");
+  });
+
+  test("with CodeRabbit not required, still reports the threads and findings it did leave", () => {
+    const body = fixPrompt("Outside diff comments:\n- Around line 3: Clarify.");
+    const reviewed = snapshot({
+      coderabbitReviews: [
+        { commit: HEAD, submittedAt: "2026-09-26T15:51:00Z", body },
+      ],
+    });
+    expect(classify(reviewed, NOW, { coderabbit: false }).verdict).toBe(
+      "FINDINGS",
+    );
+  });
+
+  test("reports review-body findings left on an older head until someone answers them", () => {
+    const late = {
+      commit: "a".repeat(40),
+      submittedAt: "2026-09-26T15:51:00Z",
+      body: fixPrompt("Outside diff comments:\n- Around line 3: Clarify."),
+    };
+    const pr = snapshot({ coderabbitReviews: [late] });
+    expect(classify(pr, NOW, { coderabbit: false }).verdict).toBe("FINDINGS");
+    const answer = {
+      author: "leomontigatti",
+      body: "Declined: the row is correct.",
+      createdAt: "2026-09-26T15:52:00Z",
+    };
+    expect(
+      classify({ ...pr, comments: [answer] }, NOW, { coderabbit: false })
+        .verdict,
+    ).toBe("READY");
+  });
+
   test("counts CodeRabbit's passes, for the triage rubric", () => {
     const reviews = [
       { commit: "a", submittedAt: "2026-09-26T15:00:00Z", body: "" },
@@ -585,5 +672,114 @@ describe("classify", () => {
     expect(
       classify(snapshot({ coderabbitReviews: reviews }), NOW).coderabbitPasses,
     ).toBe(2);
+  });
+});
+
+describe("nextLoopStep", () => {
+  function verdict(overrides: Partial<Verdict> = {}): Verdict {
+    return { ...classify(snapshot(), NOW), ...overrides };
+  }
+  const minutes = (n: number) => NOW + n * 60_000;
+
+  /** Runs the steps in order, carrying the state, and returns each step. */
+  function run(
+    steps: [Verdict, number][],
+    state: LoopState = initialLoopState(),
+  ) {
+    return steps.map(([v, at]) => {
+      const next = nextLoopStep(v, state, at);
+      state = next.state;
+      return next.step;
+    });
+  }
+
+  test("exits on every verdict that needs judgement", () => {
+    for (const name of [
+      "READY",
+      "MERGED",
+      "THREADS",
+      "FINDINGS",
+      "CHECKS",
+      "CONFLICTS",
+      "GATE",
+      "CLOSED",
+    ] as const) {
+      expect(run([[verdict({ verdict: name }), NOW]])).toEqual(["exit"]);
+    }
+  });
+
+  test("keeps waiting while the round runs", () => {
+    const waiting = verdict({ verdict: "WAITING", pending: ["checks"] });
+    expect(
+      run([
+        [waiting, NOW],
+        [waiting, minutes(10)],
+      ]),
+    ).toEqual(["wait", "wait"]);
+  });
+
+  test("asks CodeRabbit to review once per head on NO_REVIEW, and exits when it still has not", () => {
+    const noReview = verdict({ verdict: "NO_REVIEW" });
+    expect(
+      run([
+        [noReview, NOW],
+        [noReview, minutes(5)],
+      ]),
+    ).toEqual(["nudge", "exit"]);
+    expect(
+      run([
+        [noReview, NOW],
+        [verdict({ verdict: "NO_REVIEW", head: "fff0000" }), minutes(5)],
+      ]),
+    ).toEqual(["nudge", "nudge"]);
+  });
+
+  test("nudges a CodeRabbit that stays pending, once per head", () => {
+    const stuck = verdict({ verdict: "WAITING", pending: ["CodeRabbit"] });
+    const late = minutes(CODERABBIT_NUDGE_SECONDS / 60);
+    expect(
+      run([
+        [stuck, NOW],
+        [stuck, late],
+        [stuck, late + 60_000],
+      ]),
+    ).toEqual(["wait", "nudge", "wait"]);
+  });
+
+  test("nudges an unreviewed head once by default, and never when CodeRabbit is not required", () => {
+    const unreviewed = snapshot({ coderabbitReviews: [] });
+    expect(run([[classify(unreviewed, NOW), NOW]])).toEqual(["nudge"]);
+    expect(
+      run([[classify(unreviewed, NOW, { coderabbit: false }), NOW]]),
+    ).toEqual(["exit"]);
+  });
+
+  test("updates a branch behind its base once per run, then exits", () => {
+    const behind = verdict({ verdict: "BEHIND" });
+    expect(
+      run([
+        [behind, NOW],
+        [behind, minutes(20)],
+      ]),
+    ).toEqual(["update-branch", "exit"]);
+  });
+
+  test("exits when the same checks stay pending too long, but not while they change", () => {
+    const stall = STALL_SECONDS / 60;
+    const ci = verdict({ verdict: "WAITING", pending: ["checks", "db-gate"] });
+    expect(
+      run([
+        [ci, NOW],
+        [ci, minutes(stall)],
+      ]),
+    ).toEqual(["wait", "exit"]);
+    const moved = verdict({ verdict: "WAITING", pending: ["db-gate"] });
+    expect(
+      run([
+        [ci, NOW],
+        [moved, minutes(stall / 2)],
+        [moved, minutes(stall)],
+      ]),
+    ).toEqual(["wait", "wait", "wait"]);
   });
 });

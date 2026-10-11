@@ -4,7 +4,10 @@
     "correctness": "off"
   },
   "plugins": ["react", "import", "typescript"],
-  "jsPlugins": ["./scripts/oxlint-ui-plugin.mjs"],
+  "jsPlugins": [
+    "./scripts/oxlint-ui-plugin.mjs",
+    "./scripts/oxlint-code-plugin.mjs"
+  ],
   "options": {
     "typeAware": true
   },
@@ -76,7 +79,25 @@
         "ui/tabs-line-variant": "error",
         "ui/data-icon-position": "error",
         "ui/dialog-width": "error",
-        "ui/actions-menu-text-only": "error"
+        "ui/actions-menu-text-only": "error",
+        "ui/confirm-wording": "error",
+        "ui/confirmation-shared": "error",
+        "ui/alert-structure": "error"
+      }
+    },
+    {
+      "files": ["app/**/*.ts", "app/**/*.tsx"],
+      "excludeFiles": ["app/components/ui/**", "**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "ui/no-borrar": "error",
+        "ui/restricted-syntax": "error"
+      }
+    },
+    {
+      "files": ["app/**/*.ts", "app/**/*.tsx"],
+      "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "code/catch-reason": "error"
       }
     }
   ]

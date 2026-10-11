@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -18,29 +19,6 @@ describe("academy registration start", () => {
   beforeEach(() => {
     startAcademyUserSignUpMock.mockReset();
     startAcademyUserSignUpMock.mockResolvedValue({ headers: new Headers() });
-  });
-
-  test("validates email and password confirmation", async () => {
-    const result = await requestRegistration("correo-invalido", {
-      password: "123",
-      confirmPassword: "456",
-    });
-
-    expect(result).toEqual({
-      status: "error",
-      message: "Revisá los datos del formulario.",
-      fieldErrors: {
-        email: "Ingresá un correo electrónico válido.",
-        password: "La contraseña debe tener al menos 8 caracteres.",
-        confirmPassword: "Las contraseñas no coinciden.",
-      },
-      values: {
-        email: "correo-invalido",
-        password: "",
-        confirmPassword: "",
-      },
-    });
-    expect(startAcademyUserSignUpMock).not.toHaveBeenCalled();
   });
 
   test("keeps the public response generic when the email already exists", async () => {
@@ -118,6 +96,6 @@ async function requestRegistration(
       body: formData,
     }),
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
   });
 }

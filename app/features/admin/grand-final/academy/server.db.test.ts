@@ -4,10 +4,6 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { setAcademyFinalistPicks } from "@/lib/grand-final/finalist-pick.server";
 import { seedEligibilityFixture } from "@/lib/grand-final/grand-final.test-support";
 import { readGrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
@@ -22,6 +18,8 @@ import {
   type GrandFinalBannerStorage,
 } from "@/lib/storage/grand-final-banners.server";
 import { pngFile } from "@/lib/test-support/images";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import {
   handleAcademyGrandFinalAction,

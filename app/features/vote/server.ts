@@ -24,6 +24,7 @@ import {
   type VotingRoundFinalist,
 } from "@/lib/grand-final/voting-round.server";
 import { readFormString } from "@/lib/shared/forms";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   createDefaultGrandFinalBannerStorage,
   loadGrandFinalBannerUrl,
@@ -124,7 +125,7 @@ function readSignInPage(
     inAppBrowser: signIn
       ? readInAppBrowser(
           request.headers.get("User-Agent"),
-          buildVoteUrl(process.env.APP_URL || new URL(request.url).origin),
+          buildVoteUrl(process.env.APP_URL || readRequestedUrl(request).origin),
         )
       : null,
     state: "sign-in",
@@ -200,7 +201,9 @@ async function readVisitor(
 }
 
 function readVoteCodeToken(request: Request) {
-  return new URL(request.url).searchParams.get(voteCodeParam)?.trim() || null;
+  return (
+    readRequestedUrl(request).searchParams.get(voteCodeParam)?.trim() || null
+  );
 }
 
 /** The finalist the code or voter already voted for in this round. */

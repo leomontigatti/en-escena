@@ -3,14 +3,12 @@ import { payments, seminarInscriptions, seminarPrices } from "@/db/schema";
 import {
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 
-import {
-  createAcademyUser,
-  createSavedEvent,
-  createSignedInRequest,
-} from "./finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 /**
  * Two academies with seminar inscriptions and nothing else in the active event:
