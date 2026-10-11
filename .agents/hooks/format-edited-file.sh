@@ -22,7 +22,7 @@
 # - The matcher is exact-string alternation, not a regex, so it does not cover
 #   `NotebookEdit`. Intended: this repo has no notebooks.
 #
-# See docs/agents/workflows.md.
+# See docs/agents/agent-configuration.md.
 
 set -uo pipefail
 

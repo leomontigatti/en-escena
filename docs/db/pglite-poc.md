@@ -54,7 +54,7 @@ expects.
 - In the current workflow, PGlite is the default route for the full DB suite
   with `pnpm test:db` (part of `pnpm test`), and for focused runs with
   `pnpm test:db <file>`. Real Postgres remains the high-fidelity route in
-  `pnpm test:db:postgres`, reserved for the CI gate (#305).
+  `pnpm test:db:postgres`, reserved for the CI gate.
 - It is still not a transparent replacement for the current stack, because the
   schema bootstrap, the error shape compatibility and initialization stability
   in parallel mode would all still need to be resolved.

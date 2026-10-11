@@ -10,8 +10,8 @@ for _why_; read this for _what_. The identifier → UI term mapping is in
 
 ## How to read this document
 
-Map #547 settled a model larger than what is built. Half of it shipped (#676,
-#710, #689); the invoicing half and the refund are specified and not implemented.
+The settled model is larger than what is built. Half of it shipped; the invoicing half
+and the refund are specified and not implemented.
 Every statement here is therefore one of three things, and they are never mixed
 silently:
 
@@ -66,9 +66,7 @@ every figure re-derives from money and can move in both directions.
 The `Inscripción` has a **second kind**. The `seminarInscription`
 (`docs/domain/seminars.md`) is an allocation target in the same academy pool,
 with the same `Pago`, the same `Asignación de pago`, the same `Saldo disponible`
-invariant and the same `Comprobante`; there is no separate seminar payment
-(map [#884](https://github.com/leomontigatti/en-escena/issues/884),
-[#886](https://github.com/leomontigatti/en-escena/issues/886)). `inscription` is
+invariant and the same `Comprobante`; there is no separate seminar payment. `inscription` is
 therefore the umbrella term and the choreography–dancer link is the
 **choreography inscription**. The seminar inscription carries the same two fields
 and nothing else financial — `selectedPriceId`, referencing a `seminarPrice`, and
@@ -231,14 +229,13 @@ requested academies, and the admin finances list requests **every academy of the
 event**. A dancer registered by two academies of the same event is therefore
 pooled in that list and not at the write, so the list can display a discount the
 write will refuse to grant. The single-academy readers pass one academy id and
-are unaffected. This is [#584](https://github.com/leomontigatti/en-escena/issues/584)
-item 2 and it is a **bug, not a documented rule**; the owner of the shared
+are unaffected. It is a **bug, not a documented rule**; the owner of the shared
 predicate is [#489](https://github.com/leomontigatti/en-escena/issues/489).
 
 ## `Descuento administrativo`
 
-`Descuento administrativo` is **reserved and deliberately undefined**. Map #547
-ruled it out of scope, which is a scoping act and not an answer: its own
+`Descuento administrativo` is **reserved and deliberately undefined**. It was
+ruled out of scope, which is a scoping act and not an answer: its own
 questions — scope, place in `totalAmount`, whether it fixes, persistence,
 authority — are left standing.
 
@@ -378,8 +375,7 @@ type)` among the special ones, enforced by `price_general_unique` and
   creation, and presets can leave a row holding money and storing no price.
 
 **A seminar inscription is priced the same way**
-([#904](https://github.com/leomontigatti/en-escena/issues/904), which superseded
-#885). `seminarInscription.selectedPriceId` is nullable, references a
+`seminarInscription.selectedPriceId` is nullable, references a
 `seminarPrice` row, is written only by the allocation dialog, and the effective
 row is `crossed ? stored : (current ?? stored)` through the same owner,
 `resolveEffectiveBasePriceRow`, fed the seminar's own
@@ -950,8 +946,7 @@ settled model:
   span; a seminar is taught on one day, so both ends read the seminar's date.
   `FchVtoPago` is the comprobante's own date on both, because what is billed was
   already collected.
-- **The anchor reads as one of two units on every surface**
-  ([#926](https://github.com/leomontigatti/en-escena/issues/926)). A
+- **The anchor reads as one of two units on every surface.** A
   choreography reads as its name; a seminar reads
   `Seminario {instructor}, {fecha}`, because a seminar has no name of its own.
   The printed receptor block is `{academia} — {unidad}` and the single detail
@@ -968,8 +963,8 @@ settled model:
 > **Specified, not built.** This is the largest gap in the document, and it is
 > the whole of ADR-0014 §5, §6 and §7 **minus the one piece already built**: the
 > deletion of `porcion` — column, enum, derivation and every reader — landed
-> ahead of the rest, because the field asserted something untrue the moment #676
-> replaced the ladder with two thresholds. What is still specified only:
+> ahead of the rest, because the field asserted something untrue the moment the
+> ladder was replaced with two thresholds. What is still specified only:
 >
 > - An invoice is emitted once the choreography is **`Señada` and `total > 0`**,
 >   per choreography, **all-or-nothing**, and it bills the **full price** rather
@@ -996,9 +991,9 @@ settled model:
 > - Two races get two mechanisms: an advisory lock per choreography for the
 >   delta, and a correlative reservation in its own table for the series.
 >
-> Owner: [#657](https://github.com/leomontigatti/en-escena/issues/657);
-> [#686](https://github.com/leomontigatti/en-escena/issues/686) already proved
-> `Nota de crédito C` and `Nota de débito C` against ARCA's homologation environment.
+> Owner: [#657](https://github.com/leomontigatti/en-escena/issues/657).
+> `Nota de crédito C` and `Nota de débito C` are already verified against ARCA's
+> homologation environment.
 
 ## Roster editing and deletion
 
@@ -1155,7 +1150,7 @@ the difference matters to anyone about to delete something:
   (`app/features/portal/finances/view.tsx`), and the card that links to it from
   `app/routes/portal._index.tsx` still describes it as their cuenta corriente.
 - **`Fecha de referencia financiera`** retires the _per-inscription column_; both
-  reference-date columns were dropped in #689. The words no longer appear in
+  reference-date columns were dropped. The words no longer appear in
   code either: the read path takes the shared business date as a `businessDate`
   parameter of `selectApplicableInscriptionPrice`, which is not a financial
   concept and needs no term.

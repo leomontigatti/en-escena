@@ -5,8 +5,8 @@ Fallow is both a commit gate and an investigation tool.
 **As a gate**, `pnpm check:fallow` (`fallow audit --quiet --gate-marker agent`)
 runs in the pre-commit hook and in the `checks` job of CI. This reverses the
 earlier decision that Fallow was audit-only: an audit nobody was obliged to run
-kept filing its findings as issues after the merge — #757, #758, #765, #766 are
-all findings a gate would have raised while the branch was still open. The audit
+kept filing its findings as issues after the merge, when a gate would have raised
+them while the branch was still open. The audit
 takes roughly a second and a half on a normal changeset, which is noise next to the
 `pnpm typecheck` already in the hook.
 
@@ -22,7 +22,7 @@ change; CI has none, on purpose.
 
 Read the gate by its **exit code**, unpiped: `pnpm check:fallow; echo $?`. A pipe
 into `grep` or `tail` reports that command's status in Fallow's place, which is
-how a session chased a failure that was not one (#1340). With exit 0, whatever
+how a session chased a failure that was not one. With exit 0, whatever
 it printed is informational: the metrics line, functions over a threshold that
 `master` already had, and clone groups. With exit 1, the findings it lists are
 what this branch added. Exit 2 is not a verdict: Fallow could not run (a bad
@@ -44,8 +44,8 @@ absence of findings means nothing.
 merge base with `origin/<current-branch>` — the branch's own last pushed commit —
 so the first `git merge master` into an open branch re-attributes everything
 master merged meanwhile to whoever ran the merge. On this repo that meant 12
-clone groups and 2 complexity findings from #787 failing an unrelated branch's
-hook. Pinning the base to the default branch keeps "introduced" meaning what the
+clone groups and 2 complexity findings inherited from master failing an unrelated
+branch's hook. Pinning the base to the default branch keeps "introduced" meaning what the
 gate says it means: what this branch adds on top of master.
 
 ## Fallow task map

@@ -1,7 +1,7 @@
 # Dependabot version updates: minor and patch only, one grouped PR per
 # ecosystem a week. A major stays a hand-written issue, because it needs its
-# release notes read against this repo; see "Dependency updates" in
-# docs/agents/workflows.md and ADR-0015 §5.
+# release notes read against this repo; see "Dependencies" in
+# docs/operations/ci.md and ADR-0015 §5.
 #
 # `cooldown` keeps a release out of a PR until it is seven days old. It has to
 # be at least the three days of `minimumReleaseAge: 4320` in

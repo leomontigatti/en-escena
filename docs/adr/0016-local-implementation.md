@@ -85,7 +85,7 @@ changing how the code is written.
 "What stays" kept **To Issues** as cheap work that needs no browser. It is
 retired the same day. A PRD is now sliced in a local session with the vendored
 `to-tickets` skill, after `to-spec` files it; the repo's additions to both are
-in [workflows.md](../agents/workflows.md#prd-workflow).
+in [issue-tracker.md](../agents/issue-tracker.md#prd-workflow).
 
 - **The slices were the part that most needed a human.** Granularity, order and
   blocking edges decide how many sessions and PRs the work costs and whether

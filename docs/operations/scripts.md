@@ -16,13 +16,11 @@ any time: it reads the working tree and writes nothing but its own output.
 | `pnpm dev:stop` | Stop this worktree's dev server: the process listening on `.env.local`'s `PORT` that runs from inside the worktree. Prints `stopped <pid> on <port>` or `nothing listening on <port>`; a listener from another directory is left alone and reported, with exit 1.                              |
 | `pnpm dev:info` | Print this worktree's setup state, dev port, database with its `pnpm db:sql` and `docker exec … psql` lines and the `en_escena_` table prefix, and which of node, pnpm, codex (logged in), playwright-cli, gitleaks and docker the shell reaches. Prints no secret; read it instead of `.env`. |
 | `pnpm build`    | Build the app for production.                                                                                                                                                                                                                                                                  |
-| `pnpm start`    | Serve the built app with `@react-router/serve`.                                                                                                                                                                                                                                                |
 
 ## Validation
 
-None of these reach outside the repo; only `pnpm format` writes to it. The
-recommended order for a final pass is in
-[Workflows](../agents/workflows.md#command-guardrail).
+None of these reach outside the repo; only `pnpm format` writes to it. What a
+session runs, and when, is [Validation](../agents/validation.md).
 
 | Script                              | Purpose                                                                                                                                                                                                                      |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -32,7 +30,6 @@ recommended order for a final pass is in
 | `pnpm typecheck`                    | Generate React Router route types and run TypeScript. Use this instead of `pnpm exec tsc`.                                                                                                                                   |
 | `pnpm test`                         | Run the full pre-commit suite: unit/react plus the DB suite on in-process PGlite. No local Postgres.                                                                                                                         |
 | `pnpm test:unit`                    | Run only the non-database (unit/react) Vitest suite.                                                                                                                                                                         |
-| `pnpm test:watch`                   | Run Vitest in watch mode. Stays up until you quit it.                                                                                                                                                                        |
 | `pnpm check:repo-styles`            | Enforce app UI style guardrails.                                                                                                                                                                                             |
 | `pnpm check:file-tokens`            | Check staged application source file size before commit or PR handoff.                                                                                                                                                       |
 | `pnpm check:comment-language`       | Fail on Spanish in engineering prose — comments and test names. See [Coding Standards](../agents/coding-standards.md). Runs in the pre-commit hook.                                                                          |
@@ -63,12 +60,12 @@ recommended order for a final pass is in
 
 ## Database Tests
 
-| Script                            | Purpose                                                                                                                                                          |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm test:db`                    | Run the full DB suite on the in-process PGlite harness. No local Postgres. Included in `pnpm test`.                                                              |
-| `pnpm test:db <archivo>`          | Run one focused DB test file on the PGlite harness.                                                                                                              |
-| `pnpm test:db:postgres`           | Push schema to `TEST_DATABASE_URL` and run the DB Vitest suite against real Postgres. The local high-fidelity path; CI runs the same suite sharded (#305, #962). |
-| `pnpm test:db:postgres <archivo>` | Run one focused DB test file against real Postgres.                                                                                                              |
+| Script                            | Purpose                                                                                                                                             |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:db`                    | Run the full DB suite on the in-process PGlite harness. No local Postgres. Included in `pnpm test`.                                                 |
+| `pnpm test:db <archivo>`          | Run one focused DB test file on the PGlite harness.                                                                                                 |
+| `pnpm test:db:postgres`           | Push schema to `TEST_DATABASE_URL` and run the DB Vitest suite against real Postgres. The local high-fidelity path; CI runs the same suite sharded. |
+| `pnpm test:db:postgres <archivo>` | Run one focused DB test file against real Postgres.                                                                                                 |
 
 ## Backups
 
@@ -125,5 +122,4 @@ workflow, never by hand.
 
 Not `pnpm` scripts — `.sql` files under `scripts/`, run with `psql`. They are
 read-only checks tied to a specific migration and are deleted once it has
-shipped. There are none right now: `scripts/verify-555.sql` shipped with #632
-and was deleted with the migration it guarded (#689).
+shipped. There are none right now.
