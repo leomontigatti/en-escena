@@ -79,7 +79,7 @@ jobs:
           # `origin/master` remote-tracking ref the log range is written against.
           git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
           /tmp/gitleaks git --no-banner --redact --verbose --log-opts="origin/master..HEAD"
-      # The pnpm version comes from the `packageManager` field (pnpm 11.9.0)
+      # The pnpm version comes from the `packageManager` field (pnpm 12.10.1)
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:

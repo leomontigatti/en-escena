@@ -597,11 +597,10 @@ Hook guidance:
   read is an error, because a run that compared nothing must not read as clean.
   Locally, where a clone may have no remote, that case just says so and passes.
   - **To accept an advisory** — no fix published, and the vulnerable path is
-    unreachable from this app — add its GHSA to `auditConfig.ignoreGhsas` in
+    unreachable from this app — add its GHSA to `audit.ignore` in
     `pnpm-workspace.yaml`, with a comment giving the reason and when to
     recheck, in the style of the `nwsapi` override. Both runs read that file,
-    so the entry applies to the base side too. (The key becomes `audit.ignore`
-    once `packageManager` reaches pnpm >= 11.16.0.)
+    so the entry applies to the base side too.
   - **`minimumReleaseAge: 4320`**, also in `pnpm-workspace.yaml`, makes a
     published version wait three days before this repo will resolve it — the
     window most recent npm supply-chain compromises were caught and unpublished
