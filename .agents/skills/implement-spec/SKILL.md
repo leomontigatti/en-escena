@@ -79,8 +79,9 @@ For each report with `status: done`:
 4. Remove the implementer's worktree and branch (`git worktree remove <path>`,
    `git branch -d <branch>`).
 5. Recompute the frontier from what has merged onto the integration branch, never from GitHub's
-   `blockedBy`, which drops only when a blocker closes, at the end. Spawn the new frontier as in
-   step 2.
+   `blockedBy`, which drops only when a blocker closes, at the end. Spawn, as in step 2, only
+   the tickets on it that are not already running: keep the merged and running tickets in the
+   notes file, so neither starts twice.
 
 A `blocked` report carries a question: answer it from the PRD if it settles it and send it back
 with SendMessage; otherwise bring it to the user, and keep the rest of the graph running.
@@ -89,14 +90,16 @@ with SendMessage; otherwise bring it to the user, and keep the rest of the graph
 
 When every ticket has merged:
 
-1. Run `implement` step 3 (the validation list) and step 4 (the **after** screenshots, attached
-   with `pnpm pr:evidence`) on the integration branch.
+1. Run `implement` step 3, the validation list, on the integration branch.
 2. Run `implement` step 5's review over the whole chain, once, since the branch point. Paste the
    PRD and every sub-issue into the Spec axis's prompt. Reviewing earlier reads every unbuilt
    ticket as a finding.
 3. Send every **fix** to one `implementer`, spawned as in step 2 with the findings in place of
-   the ticket number, and merge it as in step 3. Then re-run only the checks the findings named:
-   no second broad review.
-4. `gh pr ready <n>`, then call the Skill tool with "babysit-pr".
-5. Remove any implementer worktree still listed in `git worktree list`, and
+   the ticket number. Land it with step 3's fast-forward, push and worktree removal; there is no
+   sub-issue to comment on or tick. Then re-run only the checks the findings named: no second
+   broad review.
+4. Run `implement` step 4 now that the code is final: the **after** screenshots, attached with
+   `pnpm pr:evidence`.
+5. `gh pr ready <n>`, then call the Skill tool with "babysit-pr".
+6. Remove any implementer worktree still listed in `git worktree list`, and
    `/tmp/implement-spec-<PRD>/`.
