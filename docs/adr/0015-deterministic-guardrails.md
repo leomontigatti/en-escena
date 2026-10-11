@@ -1,6 +1,6 @@
 # ADR-0015: Deterministic guardrails before judgement
 
-**Status**: accepted
+**Status**: amended (§5, 2026-10-11)
 
 Date: 2026-09-19
 
@@ -101,6 +101,24 @@ gate stops a branch from adding a known-vulnerable dependency; `minimumReleaseAg
 covers the window in which a compromised release is discovered. Bumps themselves
 stay a deliberate act.
 
+**Amendment on 2026-10-11**
+
+Dependabot version updates are on, for minor and patch releases only
+(`.github/dependabot.yml`, #1564). Hand-written bumps had fallen weeks behind:
+the audit of 2026-10-11 found a dozen packages to bump, and most of them were
+plain minor or patch releases nobody had got round to. The objection above
+was to a queue of unreviewable PRs, and the config keeps that queue from forming:
+
+- one grouped PR per ecosystem a week (npm and GitHub Actions), at most five open;
+- majors ignored, so each one is still a hand-written issue whose release notes
+  are read against this repo;
+- a seven-day `cooldown`, which is longer than `minimumReleaseAge`'s three days,
+  so a bump PR never proposes a release the lockfile would refuse.
+
+Each PR goes through the same required CI as any other branch, and merging one
+is still a deliberate act. Alerts, the audit gate and `minimumReleaseAge` keep
+the roles described above.
+
 ## Considered and rejected
 
 Each of these was investigated against this repo, not dismissed in the abstract.
@@ -151,4 +169,4 @@ The ticket carries the evidence.
 - size-limit and coverage diffs — Out of scope: both gate a number that moves for
   legitimate reasons on most PRs, which makes them §4 violations in practice —
   red for reasons the PR did not cause.
-- Renovate, and Dependabot version PRs — §5 above.
+- Renovate, and Dependabot major-version PRs — §5 above.

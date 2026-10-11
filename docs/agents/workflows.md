@@ -405,7 +405,10 @@ together.
 
 #### Bumping the pins
 
-All of it is a manual edit; nothing here opens update PRs.
+`pinact run --update` is the manual path. Dependabot also opens a weekly
+grouped PR for minor and patch action releases (see "Dependency updates" under
+the dependency audit); the zizmor and actionlint versions below are not
+Dependabot's and stay manual.
 
 1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
    newest release of that action, SHA plus a `# vN` comment.
@@ -589,8 +592,7 @@ Hook guidance:
   information and inherited. Auditing the whole tree would instead redden every
   open PR — AFK branches included — the day a CVE is disclosed against a
   dependency nobody touched, which is what Dependabot alerts are on for
-  (security update PRs off, and there is deliberately no
-  `.github/dependabot.yml`). Along with `check:migration-safety` it is one of
+  (security update PRs off). Along with `check:migration-safety` it is one of
   the two `check:*` scripts that reach the network, and a registry failure
   fails the check rather than passing silently. The base ref is read with
   `git show`, so CI has to have fetched it: under Actions a base ref it cannot
@@ -609,6 +611,16 @@ Hook guidance:
     escape hatch for an urgent patch is a `minimumReleaseAgeExclude` entry for
     that one package, with a reason and a date to remove it — never a lower
     `minimumReleaseAge`.
+  - **Dependency updates.** Dependabot opens version-update PRs for minor
+    and patch releases only (`.github/dependabot.yml`): weekly, one grouped
+    PR per ecosystem (npm, GitHub Actions), at most five open. Its `cooldown`
+    of seven days stays above `minimumReleaseAge`, so a bump PR never asks
+    for a release pnpm refuses, and seven is the floor zizmor's
+    `dependabot-cooldown` audit enforces. Majors are ignored on purpose: each
+    is a hand-written issue whose release notes are checked against this repo.
+    A major, or any bump done by hand, targets the newest release that is at
+    least three days old, not the version an issue's title names. Why the bot
+    covers only minor and patch: ADR-0015 §5.
 - `pnpm check:file-tokens` is a staged-source commit gate, not a required
   validation command after every implementation. Run it before committing
   staged application source, before a PR handoff that depends on staged files,
