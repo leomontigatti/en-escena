@@ -10,21 +10,24 @@ all findings a gate would have raised while the branch was still open. The audit
 takes roughly a second and a half on a normal changeset, which is noise next to the
 `pnpm typecheck` already in the hook.
 
-What the gate costs is worth knowing before it fires on you: the `new-only`
-attribution means a _new_ file that copies an idiom already repeated across the
-tree introduces a clone group, even though it changed nothing about the
-duplication that was already there. That is the gate working, but the fix is
-usually to extract the idiom (as `scripts/source-files.ts` did for the guardrails'
-directory walk), not to suppress it. `git commit --no-verify` is the escape hatch
-for a hook that fires on something genuinely unrelated to your change; CI has
-none, on purpose.
+Duplication does not fail the gate. With no duplication `threshold` in
+`.fallowrc.json`, a clone group the branch introduces turns the verdict to `warn`
+and still exits 0. The `new-only` attribution means a _new_ file that copies an
+idiom already repeated across the tree introduces a clone group, even though it
+changed nothing about the duplication that was already there. Read that warning
+anyway: the fix is usually to extract the idiom (as `scripts/source-files.ts` did
+for the guardrails' directory walk), not to suppress it. `git commit --no-verify`
+is the escape hatch for a hook that fails on something genuinely unrelated to your
+change; CI has none, on purpose.
 
 Read the gate by its **exit code**, unpiped: `pnpm check:fallow; echo $?`. A pipe
 into `grep` or `tail` reports that command's status in Fallow's place, which is
 how a session chased a failure that was not one (#1340). With exit 0, whatever
-it printed is informational: the metrics line, and functions over a threshold
-that `master` already had. With exit 1, the findings it lists are what this
-branch added.
+it printed is informational: the metrics line, functions over a threshold that
+`master` already had, and clone groups. With exit 1, the findings it lists are
+what this branch added. Exit 2 is not a verdict: Fallow could not run (a bad
+config, or a base ref git cannot resolve, as in a shallow clone), so the branch
+was never checked. Fix the cause; never treat it as a pass, in CI or locally.
 
 **As an investigation tool**, run `pnpm exec fallow audit --format json --quiet
 --explain --gate-marker agent` when auditing a changeset, preparing a PR handoff
@@ -33,8 +36,9 @@ surface.
 
 The audit defaults to `gate=new-only`: only the findings introduced by the current
 changeset affect the verdict. Inherited findings in touched files are reported
-under `attribution` and annotated with `introduced: false`. Treat runtime JSON
-errors such as `{ "error": true, ... }` as non-blocking.
+under `attribution` and annotated with `introduced: false`. A JSON body of
+`{ "error": true, ... }` is the exit 2 above: the audit did not run, and its
+absence of findings means nothing.
 
 `--base origin/master` is not decoration. Left to itself the audit bases on the
 merge base with `origin/<current-branch>` — the branch's own last pushed commit —
