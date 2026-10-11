@@ -142,6 +142,16 @@ pnpm dev
 
 Then sign in at `/ingresar` with one of the demo accounts below.
 
+Agents verify the UI with the Playwright CLI, installed once per machine:
+
+```sh
+npm i -g @playwright/cli
+playwright-cli install-browser chromium
+```
+
+`pnpm ui:session <role> <path>` then does the start, seed and sign-in above in
+one step ([UI verification](agents/workflows.md#ui-verification)).
+
 ### Demo data
 
 `pnpm db:seed` (`scripts/seed-dev.ts`, logic in `app/lib/dev-seed/`) is the

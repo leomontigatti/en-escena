@@ -65,6 +65,9 @@ files holds instructions of its own.
 
 Hooks are configuration, not a terminal feature, so they run in a headless session too.
 
+- **`SessionStart`**: `check-tool-path.sh` adds a warning to the session's context when
+  its shell cannot find `node`, `pnpm` or `playwright-cli`, pointing at
+  [the agent shell's PATH](#the-agent-shells-path). It never edits PATH itself.
 - **`PreToolUse` on Bash**: `block-npx-tsc.sh` blocks `npx tsc`, `pnpm exec tsc` and
   `pnpm dlx tsc`, because `pnpm typecheck` generates the React Router route types first;
   `block-pkill-f.sh` blocks `pkill -f` and `pkill --full`, whose pattern matches the
@@ -82,6 +85,20 @@ Hooks are configuration, not a terminal feature, so they run in a headless sessi
 `codex`, or exported for the session). The gate keeps blocking while the failure persists;
 Claude Code force-closes the turn after 8 consecutive blocks, so the wording of the last
 instruction is all `stop_hook_active` decides.
+
+## The agent shell's PATH
+
+T3 Code, and the Claude Code and Codex sessions it starts, inherit PATH from the desktop
+login session. That session reads `~/.profile`, not `~/.bashrc`, so a tool directory added
+only in `~/.bashrc` is on PATH in a terminal and missing in an agent's shell. This machine
+needs two directories there: fnm's default Node (`~/.local/share/fnm/aliases/default/bin`,
+which holds `node` and `pnpm`) and pnpm's global bin (`$PNPM_HOME/bin`, which holds
+`playwright-cli` and `codex`). Both lines live in `~/.profile`; a change there takes
+effect at the next login, not in a running T3 Code.
+
+When the `SessionStart` warning fires, or `pnpm dev:info` shows a tool `MISSING`, the fix
+is that profile line, made by the user. A session does not prefix its commands with
+`export PATH=…`: that hides the cause from the next session, which then pays for it again.
 
 ## Delegating to subagents
 

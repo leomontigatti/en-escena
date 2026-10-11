@@ -30,6 +30,14 @@ import {
 } from "@/lib/comprobantes/arca/client.server";
 import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
 import { emitFacturaC } from "@/lib/comprobantes/emit-factura-c.server";
+import {
+  DEV_SEED_ACADEMY_EMAIL,
+  DEV_SEED_ADMIN_EMAIL,
+  DEV_SEED_AUDITOR_EMAIL,
+  DEV_SEED_JUDGE_EMAIL,
+  DEV_SEED_LEGACY_ACADEMY_EMAIL,
+  DEV_SEED_PASSWORD,
+} from "@/lib/dev-seed/accounts";
 import { deleteSeededRows } from "@/lib/dev-seed/delete-seeded-rows.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
@@ -49,13 +57,6 @@ import { createAcademyProfessor } from "@/lib/portal/professors.server";
 // Re-running it resets the demo: every row hanging off the seeded accounts and
 // the seeded event names is deleted first, including whatever was created on
 // them through the UI since the last run.
-
-export const DEV_SEED_ADMIN_EMAIL = "admin@enescena.local";
-export const DEV_SEED_ACADEMY_EMAIL = "academia@enescena.local";
-export const DEV_SEED_AUDITOR_EMAIL = "auditoria@enescena.local";
-export const DEV_SEED_JUDGE_EMAIL = "jurado@enescena.local";
-export const DEV_SEED_LEGACY_ACADEMY_EMAIL = "academia.antigua@enescena.local";
-export const DEV_SEED_PASSWORD = "demo-en-escena";
 
 const seededEmails = [
   DEV_SEED_ADMIN_EMAIL,

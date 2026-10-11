@@ -1,13 +1,13 @@
 import { client } from "@/db";
-import { assertLocalDatabaseUrl } from "@/lib/dev-seed/local-database-url";
 import {
   DEV_SEED_ACADEMY_EMAIL,
   DEV_SEED_ADMIN_EMAIL,
   DEV_SEED_AUDITOR_EMAIL,
   DEV_SEED_JUDGE_EMAIL,
   DEV_SEED_PASSWORD,
-  seedDevData,
-} from "@/lib/dev-seed/seed.server";
+} from "@/lib/dev-seed/accounts";
+import { assertLocalDatabaseUrl } from "@/lib/dev-seed/local-database-url";
+import { seedDevData } from "@/lib/dev-seed/seed.server";
 
 // `pnpm db:seed`: resets the demo accounts and events on the local database.
 // Runbook: docs/local-auth.md, "Demo data".
