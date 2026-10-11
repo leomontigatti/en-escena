@@ -244,6 +244,16 @@
 }
 
 /*
+ * A form's pinned actions (`PinnedActions`) cover the bottom of the viewport
+ * while the card runs past it. A browser scrolls a focused field into view
+ * without knowing that, so tabbing could stop on a field under them: the page
+ * leaves their height out of the area it scrolls focus into.
+ */
+:root:has([data-pinned-actions]) {
+  scroll-padding-bottom: 5rem;
+}
+
+/*
  * The record title (`app/components/shared/record-title.ts`): a record's name
  * morphs between its row in a list and its detail page's title. A marked page
  * title gives way to a marked link on the same page, as a detail page can list
