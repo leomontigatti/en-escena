@@ -6,9 +6,9 @@ than what its author thinks it does.
 
 1. Pin the fixed point: the branch point against the base branch. Confirm the diff
    (`git diff <base>...HEAD`) is non-empty and note `git log <base>..HEAD --oneline`.
-2. Spawn **one** `reviewer` sub-agent with the diff command and the commit list, and this brief,
-   in the same message as the correctness axis when the diff changes behaviour (step 5 of
-   `implement`):
+2. Spawn **one** readback reviewer, as [Spawning a reviewer](SKILL.md#spawning-a-reviewer) says,
+   with the diff command and the commit list, and this brief, in the same message as the
+   correctness axis when the diff changes behaviour (step 5 of `implement`):
 
    > Read the diff. Restate in plain words what it does, as a reviewer would explain it to the
    > author. Then list anything surprising: behaviour the commit messages do not mention, a

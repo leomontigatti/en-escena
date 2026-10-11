@@ -39,12 +39,9 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   judge — and is not a formatter; formatting is
   Prettier's, unused code is `tsc`'s, and repo conventions belong to the
   `check:*` scripts.
-- **Subagents**: spawn `code-review`'s Standards and Spec axes and the readback as the
-  `reviewer` agent, and research as the `research` agent; both run on Codex's gpt-6.1-sol.
-  Run `scripts/agents/sol.sh doctor` once before the first of those spawns, and fix
-  what it fails. Spawn the correctness axis as `reviewer-opus`, which runs on Opus for a second model
-  family; Codex has no Opus, so under Codex it stays on `reviewer` (see "Agent
-  configuration" in [docs/agents/workflows.md](docs/agents/workflows.md)).
+- **Subagents**: review axes spawn as "Spawning a reviewer" in the `code-review` skill says,
+  research as "Delegating to subagents" in [docs/agents/workflows.md](docs/agents/workflows.md)
+  says; both pick the model and the route for your harness.
 - **Coding standards**: [docs/agents/coding-standards.md](docs/agents/coding-standards.md),
   including the code language convention (Spanish for what the user reads, English for
   everything else; `comprobante` as the only reserved term). The identifier → UI term
