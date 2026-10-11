@@ -1,11 +1,11 @@
 import {
-  getCoreRowModel,
   type ColumnDef,
   type ColumnFiltersState,
   type OnChangeFn,
+  type RowData,
   type RowSelectionState,
   type SortingState,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
 import {
   useEffect,
@@ -31,11 +31,13 @@ import {
   createColumnVisibility,
   createDataTableColumns,
   createGlobalFilterFn,
+  dataTableFeatures,
   emptyFacetedFilters,
   emptyFacetedFilterValues,
   useDataTableColumnFiltersState,
   useDataTableRowSelection,
   useDataTableSortingState,
+  type DataTableFeatures,
 } from "@/components/shared/data-table-core";
 import { DataTableShell } from "@/components/shared/data-table-shell";
 import { useDataTableHeadingSearch } from "@/components/shared/data-table-url-state";
@@ -50,7 +52,9 @@ import {
 } from "@/components/shared/data-table.shared";
 import { useOptionalNavigation } from "@/lib/shared/forms";
 
-export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
+export function ServerDataTable<TData extends RowData>(
+  props: ServerDataTableProps<TData>,
+) {
   const location = useLocation();
   const navigate = useNavigate();
   const navigation = useOptionalNavigation();
@@ -184,7 +188,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
  * sit outside the component: read together they say what the table falls back
  * to, and read inside they were only noise between the hooks.
  */
-function resolveServerDataTableDefaults<TData>(
+function resolveServerDataTableDefaults<TData extends RowData>(
   props: ServerDataTableProps<TData>,
   currentPathname: string,
 ) {
@@ -201,7 +205,7 @@ function resolveServerDataTableDefaults<TData>(
   };
 }
 
-function useServerDataTableColumns<TData>(
+function useServerDataTableColumns<TData extends RowData>(
   columns: ServerDataTableProps<TData>["columns"],
   selectableRows: boolean,
 ) {
@@ -217,7 +221,7 @@ function useServerDataTableColumns<TData>(
   return { columnVisibility, tableColumns };
 }
 
-function useServerReactTable<TData>({
+function useServerReactTable<TData extends RowData>({
   canSelectRow,
   columnVisibility,
   columns,
@@ -243,10 +247,11 @@ function useServerReactTable<TData>({
   setRowSelection: OnChangeFn<RowSelectionState>;
   setSorting: Dispatch<SetStateAction<SortingState>>;
   sorting: SortingState;
-  tableColumns: ColumnDef<TData>[];
+  tableColumns: ColumnDef<DataTableFeatures, TData>[];
   totalPages: number;
 }) {
-  return useReactTable({
+  return useTable({
+    features: dataTableFeatures,
     data: rows,
     columns: tableColumns,
     state: {
@@ -269,8 +274,10 @@ function useServerReactTable<TData>({
       selectableRows && canSelectRow
         ? (row) => canSelectRow(row.original)
         : selectableRows,
-    getCoreRowModel: getCoreRowModel(),
     getRowId: getRowKey,
+    // The loader has already searched, filtered, sorted and paged these rows,
+    // so the client row models the features register pass them through.
+    manualFiltering: true,
     manualSorting: true,
     manualPagination: true,
     pageCount: totalPages,
