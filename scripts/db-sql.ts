@@ -19,11 +19,18 @@ import { git } from "./worktree-db";
 // The database is the one the other `db:*` scripts use: `DATABASE_URL` as
 // `.env` and the worktree's `.env.local` leave it. A worktree with no
 // `.env.local` would get the main checkout's database from `.env`, so it is
-// refused instead. The session opens read-only and the query runs inside a
-// read-only transaction that is always rolled back, so a write fails in
-// Postgres itself.
+// refused instead.
+//
+// The URL's superuser could still write through a statement Postgres counts as
+// a read (`copy … to program` runs a shell in the container), so the query
+// runs as `en_escena_sql`, a login role holding only `pg_read_all_data` and
+// bypassing row-level security, created on first use. Its session and
+// transaction are read-only too, and the transaction is always rolled back.
 
 const ROW_CAP = 50;
+const READER = "en_escena_sql";
+// Only this machine's Postgres gets the reader role and its published password.
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export type Target = { url: string; database: string };
 export type Result = { columns: string[]; rows: unknown[][] };
@@ -54,7 +61,43 @@ export function resolveTarget(input: {
     throw new Error("The database URL names no database.");
   }
 
+  const host = new URL(url).hostname;
+
+  if (!LOCAL_HOSTS.has(host)) {
+    throw new Error(
+      `Refusing ${host}: pnpm db:sql only reads a database on this machine.`,
+    );
+  }
+
   return { url, database };
+}
+
+/** The target's URL with the reader role's credentials in place of its own. */
+export function readerUrl(url: string): string {
+  const reader = new URL(url);
+  reader.username = READER;
+  reader.password = READER;
+  return reader.toString();
+}
+
+async function ensureReader(url: string) {
+  const admin = postgres(url, { max: 1, onnotice: () => {} });
+
+  try {
+    await admin.unsafe(
+      `do $$ begin
+        if not exists (select from pg_roles where rolname = '${READER}') then
+          create role ${READER} login password '${READER}';
+        end if;
+      end $$`,
+    );
+    // The app's tables enable row-level security, which hides every row from a
+    // role that does not bypass it.
+    await admin.unsafe(`alter role ${READER} bypassrls`);
+    await admin.unsafe(`grant pg_read_all_data to ${READER}`);
+  } finally {
+    await admin.end();
+  }
 }
 
 export async function readOnlyQuery(
@@ -124,7 +167,9 @@ async function main(args: string[]) {
       path.resolve(root, git(["rev-parse", "--git-common-dir"])),
     hasEnvLocal: existsSync(path.join(root, ".env.local")),
   });
-  const sql = postgres(target.url, {
+  await ensureReader(target.url);
+
+  const sql = postgres(readerUrl(target.url), {
     max: 1,
     onnotice: () => {},
     connection: {

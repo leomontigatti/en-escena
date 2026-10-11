@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   readOnlyQuery,
+  readerUrl,
   renderTable,
   resolveTarget,
   type Session,
@@ -69,6 +70,17 @@ describe("resolveTarget", () => {
     ).toBe("en-escena-test");
   });
 
+  it("refuses a database on another machine", () => {
+    expect(() =>
+      resolveTarget({
+        env: { DATABASE_URL: "postgres://postgres:x@db.example.com/en-escena" },
+        test: false,
+        mainCheckout: true,
+        hasEnvLocal: false,
+      }),
+    ).toThrow(/db\.example\.com/);
+  });
+
   it("fails when DATABASE_URL is missing", () => {
     expect(() =>
       resolveTarget({
@@ -78,6 +90,16 @@ describe("resolveTarget", () => {
         hasEnvLocal: false,
       }),
     ).toThrow(/DATABASE_URL/);
+  });
+});
+
+describe("readerUrl", () => {
+  it("swaps the superuser's credentials for the read-only role's", () => {
+    expect(
+      readerUrl("postgres://postgres:s3cret@localhost:5433/en-escena-wt-x"),
+    ).toBe(
+      "postgres://en_escena_sql:en_escena_sql@localhost:5433/en-escena-wt-x",
+    );
   });
 });
 
