@@ -1,7 +1,6 @@
 import type {
   CreateVoucherResultDto,
   LastVoucherResultDto,
-  VoucherInfoResultDto,
 } from "@arcasdk/core";
 import { eq } from "drizzle-orm";
 import { describe, expect, test, vi } from "vitest";
@@ -16,10 +15,7 @@ import {
   seminars,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import {
-  ArcaClient,
-  type ArcaBillingPort,
-} from "@/lib/comprobantes/arca/client.server";
+import { type ArcaBillingPort } from "@/lib/comprobantes/arca/client.server";
 import type { ArcaVoucher } from "@/lib/comprobantes/arca/factura-c";
 import {
   facturaCAprobada,
@@ -32,36 +28,21 @@ import {
   recordComprobante,
   seminarHasComprobantes,
 } from "@/lib/comprobantes/comprobantes.server";
-import {
-  emitFacturaC,
-  type FacturaCEmissionDeps,
-} from "@/lib/comprobantes/emit-factura-c.server";
+import { emitFacturaC } from "@/lib/comprobantes/emit-factura-c.server";
 import { annulComprobante } from "@/lib/comprobantes/emit-nota-credito.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
+import {
+  emissionDeps,
+  fakeBilling,
+} from "@/lib/comprobantes/comprobante-emission.test-support";
+
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
-
-function fakeBilling(
-  overrides: Partial<ArcaBillingPort> = {},
-): ArcaBillingPort {
-  return {
-    getLastVoucher: vi.fn(
-      async (): Promise<LastVoucherResultDto> => ultimoAutorizado,
-    ),
-    createVoucher: vi.fn(
-      async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
-    ),
-    getVoucherInfo: vi.fn(
-      async (): Promise<VoucherInfoResultDto | null> => null,
-    ),
-    ...overrides,
-  };
-}
 
 /**
  * ARCA approving the NEXT number of the series, so two emissions can run in one
@@ -97,19 +78,6 @@ function nextInSeries(cbteNro: number, cae: string): ArcaBillingPort {
       cbteNro: cbteNro - 1,
     })),
   });
-}
-
-function emissionDeps(
-  billing: ArcaBillingPort,
-): FacturaCEmissionDeps & { billing: ArcaBillingPort } {
-  return {
-    billing,
-    client: new ArcaClient(billing),
-    ptoVta: 1,
-    issuerCuit: "30717611590",
-    receptorIvaConditionId: 5,
-    cbteFch: "20260722",
-  };
 }
 
 /**
