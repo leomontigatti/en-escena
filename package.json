@@ -14,6 +14,8 @@
     "ui:session": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/ui-session.ts",
     "typecheck": "react-router typegen && tsc --noEmit",
     "lint": "oxlint",
+    "gate": "node --import tsx scripts/gate.ts",
+    "ci:fail": "node --import tsx scripts/ci-fail.ts",
     "test": "pnpm test:unit && pnpm test:db",
     "test:unit": "vitest --run",
     "test:db": "vitest --config vitest.db.fast.config.ts --run",
