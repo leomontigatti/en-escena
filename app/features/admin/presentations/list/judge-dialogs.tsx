@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import { ChecklistField } from "@/components/shared/checklist-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FieldGroup } from "@/components/ui/field";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
 import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
@@ -56,7 +56,7 @@ import {
  */
 const judgeDialogCopy = {
   assign: {
-    emptyMessage: "No hay jueces disponibles",
+    emptyMessage: "No hay jueces disponibles.",
     intent: assignJudgesIntent,
     note: "Los jueces elegidos se agregan a cada una; las que ya los tenían quedan igual.",
     submitLabel: "Asignar",
@@ -64,7 +64,7 @@ const judgeDialogCopy = {
     title: "Asignar jueces",
   },
   remove: {
-    emptyMessage: "Las presentaciones elegidas no tienen jueces asignados",
+    emptyMessage: "Las presentaciones elegidas no tienen jueces asignados.",
     intent: removeJudgesIntent,
     note: "Los jueces elegidos se quitan de cada una que los tenga.",
     submitLabel: "Quitar",
@@ -176,18 +176,19 @@ export function JudgeAssignmentDialog({
           )}
           className="flex flex-col gap-4"
         >
-          <FieldGroup>
-            <MultiComboboxField
+          <FieldSet className="gap-2">
+            <FieldLegend variant="label">Jueces</FieldLegend>
+            <ChecklistField
               control={form.control}
               disabled={isSaving}
-              emptyMessage={copy.emptyMessage}
+              emptySelectionMessage="Todavía no seleccionaste jueces."
               label="Jueces"
               name={judgeIdFieldName}
+              noOptionsMessage={copy.emptyMessage}
               options={options}
-              placeholder="Elegí uno o más jueces"
-              searchable
+              searchLabel="Buscar jueces"
             />
-          </FieldGroup>
+          </FieldSet>
 
           <DialogFooter>
             <DialogClose asChild>
