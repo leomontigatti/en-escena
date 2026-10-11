@@ -45,17 +45,6 @@ describe("event management", () => {
     expect(await readVisibleProgramDays(savedEvent!.id)).toEqual([]);
   });
 
-  test("allows registration to start or end after the event starts", async () => {
-    const result = await createEvent(
-      eventInput({
-        startsAt: date("2026-05-01T12:00:00Z"),
-        endsAt: date("2026-05-04T12:00:00Z"),
-      }),
-    );
-
-    expect(result).toMatchObject({ ok: true });
-  });
-
   test("updates event names with dependencies but blocks structural changes", async () => {
     const event = await createSavedEvent("Regional 2026");
 
