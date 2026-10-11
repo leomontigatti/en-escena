@@ -15,9 +15,8 @@ You own one PR from its last push to **ready to merge**: checks green, the in-se
 
 CodeRabbit is optional (see "Babysitting a PR" in
 [pull-requests.md](../../../docs/agents/pull-requests.md)). Ask it for a review only when the PR is
-in the full-review tier of `implement` step 5 (money, results or judging, auth, a migration, a
-`CONTEXT.md` term, a destructive operational script), and only once, on the head the PR was
-opened with. A rate limit, a skipped review or a silent CodeRabbit is never a reason to wait.
+in the full-review tier of `implement` step 5, and only once, on the head the PR was opened with. A
+rate limit, a skipped review or a silent CodeRabbit is never a reason to wait.
 
 The session that opened the PR babysits it: it wrote the change, so it is the one that can judge
 whether a finding holds. The waiting costs it nothing, because a script does the waiting and the
@@ -32,9 +31,14 @@ Done when `git status` is clean and `HEAD` is the PR head.
 
 Run `pnpm pr:watch <n> --loop --no-coderabbit` with Bash, `run_in_background: true` and a timeout
 of 7200000 ms, then end your turn. No subagent, no `sleep`: the command re-invokes you when it
-exits. The one exception is the first round of a full-review-tier PR: drop `--no-coderabbit`, so
-the watcher asks CodeRabbit for its review of that head; every later round, after a fix push or a
-branch update, passes the flag again.
+exits. The one exception is the first round of a full-review-tier PR: run
+`pnpm pr:watch <n> --loop --timeout 1500` instead, so the watcher asks CodeRabbit for its review of
+that head and gives it 25 minutes, past the 15 the watcher waits before nudging a pending status.
+Every later run, whatever ended that round, passes `--no-coderabbit`. When that round ends on
+CodeRabbit (`NO_REVIEW`; `WAITING` with `CodeRabbit` in `pending`; `CHECKS` whose only entry in
+`failed` is `CodeRabbit`), read CodeRabbit's latest comment for the reason (a rate limit, "Review
+limit reached", a skip), note it for the report, and start the watcher with `--no-coderabbit`. It
+is never a NEEDS YOU.
 
 The watcher does the mechanical moves itself, each once per run: it waits while anything on the
 head commit runs, asks CodeRabbit to review the head (only without `--no-coderabbit`: on
@@ -58,17 +62,11 @@ it printed; its exit code is the verdict:
 | 5    | `WAITING`                     | See below.                                                           |
 | 6, 7 | `GATE`, `CLOSED`, `GH_FAILED` | Step 5 as BLOCKED, with `gate` or the error.                         |
 
-`NO_REVIEW` comes only from a run without `--no-coderabbit`. Check `nudged`. Without the head in
-it, the request was never sent (the run timed out, or the comment failed, which its stderr names):
-start the watcher again, once. With it, the watcher asked and still has no review: read
-CodeRabbit's latest comment for the reason (a rate limit, "Review limit reached", a skip), then
-start the watcher again with `--no-coderabbit` and carry on without it. Note the reason for the
-report; it is not a NEEDS YOU.
+`NO_REVIEW` comes only from the first round of a full-review-tier PR, and is handled above.
 
 `WAITING` means the same `pending` sat unchanged for 45 minutes, or the run reached its timeout.
-When `CodeRabbit` is what is pending, start the watcher again with `--no-coderabbit`. Otherwise
-start it once more; a second `WAITING` on the same head is step 5 as BLOCKED, naming what is
-stuck.
+Start the watcher once more; a second `WAITING` on the same head is step 5 as BLOCKED, naming what
+is stuck.
 
 ## 3. Triage the round
 
@@ -82,6 +80,8 @@ returns, run the call and read the real output before deciding.
 
 A red check is triaged from its log: `gh run view --job <job-id> --log-failed`, both ids read from
 its `link` (`…/runs/<run-id>/job/<job-id>`).
+A `CodeRabbit` entry in `failed` is not a check to triage: it is CodeRabbit declining to review,
+handled as in step 2.
 
 - Caused by the diff: **fix**.
 - A flake (a timeout, a runner or network error): `gh run rerun <run-id> --failed`, once per head

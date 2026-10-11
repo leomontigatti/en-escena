@@ -224,9 +224,8 @@ relay to Codex.
   (pingdotgg/t3code#2829), the relays are what would change.
 - **The correctness axis runs on Opus** under Claude Code, through `reviewer-opus`: the
   same instructions as `reviewer`, run natively rather than relayed, so the axis that
-  hunts for bugs is a second model family beside the Sol axes. Its tools are `Read`,
-  `Grep`, `Glob` and `Bash` for `git`. Codex cannot run Opus, so under Codex the axis is
-  spawned as `reviewer`, on Sol like the rest.
+  hunts for bugs is a second model family beside the Sol axes. Codex cannot run Opus, so
+  under Codex the axis is spawned as `reviewer`, on Sol like the rest.
 - **Codex reads `.codex/` from the main checkout, even in a worktree** (verified on
   codex-cli 0.159): a T3 worktree gets the hooks and the `research` and `reviewer`
   agents only once they are on the branch the main checkout has out, while `AGENTS.md`
