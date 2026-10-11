@@ -28,3 +28,11 @@ minimumReleaseAge: 4320
 # reported as inherited and is tracked in its issue instead of listed here.
 audit:
   ignore: []
+
+# `@react-router/dev` 7 loads `react-router.config.ts` through `vite-node` 3, which
+# lists `vite` up to 7 as a dependency (not a peer), so without this the tree
+# keeps a second, older Vite beside the app's. The vite-node server it builds runs
+# on the app's Vite anyway; from `vite` it reads only `version`. Remove with the
+# React Router 8 upgrade (#969), whose `@react-router/dev` drops vite-node.
+overrides:
+  vite-node>vite: $vite
