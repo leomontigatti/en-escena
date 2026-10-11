@@ -2,7 +2,10 @@ FROM node:22.23.2-bookworm-slim AS base
 
 WORKDIR /app
 ENV NODE_ENV=production
+# Two package managers, two switches: npm's covers corepack's own npm, pnpm's
+# keeps its "new version available" notice out of the Coolify build log.
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false
+ENV PNPM_CONFIG_UPDATE_NOTIFIER=false
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 

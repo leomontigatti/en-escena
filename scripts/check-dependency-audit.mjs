@@ -149,7 +149,7 @@ for (const advisory of introduced) {
     `${errorPrefix}${formatAdvisory(advisory)} ` +
       `This branch adds it and ${baseRef} does not. Upgrade the package, or — ` +
       `if there is no fix and the path is unreachable — add the GHSA to ` +
-      `auditConfig.ignoreGhsas in pnpm-workspace.yaml with a comment giving ` +
+      `audit.ignore in pnpm-workspace.yaml with a comment giving ` +
       `the reason and when to recheck. See docs/agents/workflows.md.`,
   );
 }

@@ -34,8 +34,5 @@ minimumReleaseAge: 4320
 # one in node-forge, reached through `@arcasdk/core` (#1466). The gate fails only
 # on a high or critical advisory a branch introduces, so the node-forge one is
 # reported as inherited and is tracked in its issue instead of listed here.
-#
-# `auditConfig.ignoreGhsas` is the spelling pnpm 11.9.0 reads. Once
-# `packageManager` reaches pnpm >= 11.16.0, this moves to `audit.ignore`.
-auditConfig:
-  ignoreGhsas: []
+audit:
+  ignore: []
