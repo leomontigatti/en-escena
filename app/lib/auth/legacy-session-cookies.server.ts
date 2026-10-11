@@ -1,4 +1,4 @@
-import { parse, serialize } from "cookie";
+import { parseCookie, stringifySetCookie } from "cookie";
 
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
@@ -28,7 +28,9 @@ export function createLegacySessionCookieClearHeaders(request: Request) {
   for (const name of getLegacySessionCookieNames(request)) {
     headers.append(
       "set-cookie",
-      serialize(name, "", {
+      stringifySetCookie({
+        name,
+        value: "",
         expires: new Date(0),
         maxAge: 0,
         path: "/",
@@ -65,7 +67,7 @@ function getLegacySessionCookieNames(request: Request) {
     return [];
   }
 
-  return Object.keys(parse(cookieHeader)).filter((name) =>
+  return Object.keys(parseCookie(cookieHeader)).filter((name) =>
     name.startsWith(LEGACY_SESSION_COOKIE_PREFIX),
   );
 }

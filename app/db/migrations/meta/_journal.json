@@ -393,6 +393,13 @@
       "when": 1791589456149,
       "tag": "0055_audit_link",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1791715255671,
+      "tag": "0056_add_access_session_impersonated_by",
+      "breakpoints": true
     }
   ]
 }

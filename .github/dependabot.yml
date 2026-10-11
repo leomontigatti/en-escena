@@ -29,6 +29,10 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: [version-update:semver-major]
+      # A better-auth minor can carry a schema migration (1.7 needed
+      # `impersonated_by`, #984), so it stays a hand-written issue; patches flow.
+      - dependency-name: better-auth
+        update-types: [version-update:semver-minor]
 
   - package-ecosystem: github-actions
     directory: /
