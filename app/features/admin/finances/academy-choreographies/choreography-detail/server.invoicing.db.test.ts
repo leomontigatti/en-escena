@@ -31,10 +31,7 @@ import {
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 import type { FacturaCEmissionDeps } from "@/lib/comprobantes/emit-factura-c.server";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
@@ -42,6 +39,7 @@ import {
 } from "@/features/admin/finances/comprobante-emission/shared";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 

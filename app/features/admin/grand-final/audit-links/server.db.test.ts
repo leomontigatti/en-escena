@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
 
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { openAuditLink } from "@/lib/grand-final/audit-link.server";
 import {
   closeCurrentVotingRound,
@@ -10,6 +9,7 @@ import { openVotingRound } from "@/lib/grand-final/voting-round.server";
 import { readAuditLinkToken } from "@/lib/grand-final/audit-url";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import {
   handleGrandFinalListAction,

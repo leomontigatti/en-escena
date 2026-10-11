@@ -19,10 +19,10 @@ import { action as choreographyDetailAction } from "@/routes/administracion.fina
 import { targetKindFieldName } from "@/features/admin/finances/inscription-money/intents";
 import {
   createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
   registerPaymentForTest,
 } from "@/lib/admin/finances/finances.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 

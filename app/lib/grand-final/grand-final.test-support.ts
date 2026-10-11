@@ -12,18 +12,20 @@ import {
   user,
 } from "@/db/schema";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 /**
- * One active event a `Gran final` test registers choreographies into by
+ * One event (active unless `active: false`, for a second one) a `Gran final` test registers choreographies into by
  * category name: a category is created the first time its name is used, so a
  * test reads as the names the rule is about. Each modality dances on a
  * schedule of its own, whose day `danceOn` sets.
  */
-export async function seedEligibilityFixture() {
-  const event = await createSavedEvent();
+export async function seedEligibilityFixture(
+  options: { active?: boolean } = {},
+) {
+  const event = await createSavedEvent(options);
   const categoryIds = new Map<string, string>();
   const scheduleIds = new Map<string, string>();
   let lastOrderNumber = 0;

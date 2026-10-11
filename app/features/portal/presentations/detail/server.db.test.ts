@@ -137,7 +137,7 @@ describe("an academy's evaluation detail", () => {
     });
     await publishResults(fixture.event.id);
 
-    const stranger = await seedJudgingFixture();
+    const stranger = await seedJudgingFixture({ active: false });
 
     await expect(
       loadEvaluation(stranger, presentation.choreographyId),

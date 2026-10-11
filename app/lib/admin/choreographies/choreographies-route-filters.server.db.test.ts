@@ -17,11 +17,7 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
-import {
-  createEventFixtureDates,
-  createSavedEvent as createSavedEventFixture,
-  fixedExperienceLevel,
-} from "@/lib/events/bases.test-support";
+import { fixedExperienceLevel } from "@/lib/events/bases.test-support";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import {
@@ -34,6 +30,7 @@ import {
   readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -41,8 +38,12 @@ installDatabaseTestHooks();
 
 describe("`/administracion/coreografias` route filters", () => {
   test("supports operational filters, event-wide facets, and invalid URL canonicalization", async () => {
-    const event = await createSavedEvent();
-    const otherEvent = await createInactiveEvent("Regional 2025");
+    const event = await createSavedEvent({ name: "Regional 2026" });
+    const otherEvent = await createSavedEvent({
+      name: "Regional 2025",
+      active: false,
+      ...eventDates(2025),
+    });
     const academyNorth = await createAcademyUser({
       email: "academia.norte.filtros@example.com",
       academyName: "Academia Norte",
@@ -268,19 +269,6 @@ async function createProfessor(academyId: string) {
     .returning();
 
   return professor;
-}
-
-async function createSavedEvent() {
-  return createSavedEventFixture("Regional 2026", {
-    activate: true,
-    dates: createEventFixtureDates(2026),
-  });
-}
-
-async function createInactiveEvent(name: string) {
-  return createSavedEventFixture(name, {
-    dates: createEventFixtureDates(2025),
-  });
 }
 
 async function createEventCatalog(

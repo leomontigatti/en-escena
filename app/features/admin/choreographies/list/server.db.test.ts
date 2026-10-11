@@ -3,7 +3,6 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { categories, choreographyProfessors, schedules } from "@/db/schema";
 import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
-import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   loadChoreographies,
   loadChoreographyListRouteData,
@@ -15,6 +14,7 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -24,7 +24,11 @@ describe("loadChoreographyListRouteData", () => {
   // `evento` is the selectable-event residue: the active event is resolved
   // without it, so it is a stale parameter and the canonical URL drops it.
   test("redirects invalid filters and stale parameters to the canonical list URL", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({
+      name: "Nacional 2026",
+      startsAt: new Date("2026-10-01T12:00:00Z"),
+      endsAt: new Date("2026-10-10T12:00:00Z"),
+    });
     const { request } = await createSignedInRequest({
       email: "admin.coreografias.feature@example.com",
       role: "admin",
@@ -267,7 +271,11 @@ function buildFilters(
 }
 
 async function seedChoreographiesByDay() {
-  const event = await createSavedEvent();
+  const event = await createSavedEvent({
+    name: "Nacional 2026",
+    startsAt: new Date("2026-10-01T12:00:00Z"),
+    endsAt: new Date("2026-10-10T12:00:00Z"),
+  });
   const catalog = await createEventCatalog(event.id);
   const academy = await createAcademyRecord({
     academyName: "Academia del Día",
@@ -321,7 +329,11 @@ async function seedChoreographiesByDay() {
  * holding a third.
  */
 async function seedSameNamedCategories() {
-  const event = await createSavedEvent();
+  const event = await createSavedEvent({
+    name: "Nacional 2026",
+    startsAt: new Date("2026-10-01T12:00:00Z"),
+    endsAt: new Date("2026-10-10T12:00:00Z"),
+  });
   const catalog = await createEventCatalog(event.id);
   const academy = await createAcademyRecord({
     academyName: "Academia Homónima",
@@ -370,7 +382,11 @@ async function seedSameNamedCategories() {
  * admit, and one that still fits and has everything else loaded.
  */
 async function seedMisfiledChoreographies() {
-  const event = await createSavedEvent();
+  const event = await createSavedEvent({
+    name: "Nacional 2026",
+    startsAt: new Date("2026-10-01T12:00:00Z"),
+    endsAt: new Date("2026-10-10T12:00:00Z"),
+  });
   const catalog = await createEventCatalog(event.id);
   const academy = await createAcademyRecord({
     academyName: "Academia Mal Ubicada",
@@ -421,7 +437,11 @@ async function seedMisfiledChoreographies() {
  * two axes of the `Estado` filter are told apart by the withdrawal alone.
  */
 async function seedWithdrawnChoreography() {
-  const event = await createSavedEvent();
+  const event = await createSavedEvent({
+    name: "Nacional 2026",
+    startsAt: new Date("2026-10-01T12:00:00Z"),
+    endsAt: new Date("2026-10-10T12:00:00Z"),
+  });
   const catalog = await createEventCatalog(event.id);
   const academy = await createAcademyRecord({
     academyName: "Academia Retirada",
@@ -483,22 +503,6 @@ async function createScheduledChoreography(input: {
     scheduleId: input.scheduleId,
     name: input.name,
   });
-}
-
-async function createSavedEvent() {
-  const result = await createEvent({
-    name: "Nacional 2026",
-    startsAt: new Date("2026-10-01T12:00:00Z"),
-    endsAt: new Date("2026-10-10T12:00:00Z"),
-  });
-
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-
-  await activateEvent(result.event.id);
-
-  return result.event;
 }
 
 async function expectThrownResponse<T>(

@@ -18,9 +18,9 @@ import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operati
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import {
   createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
   registerPaymentForTest,
 } from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

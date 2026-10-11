@@ -22,8 +22,6 @@ import {
 } from "@/routes/administracion.pagos_.nuevo";
 import {
   buildGlobalPaymentRequest,
-  createInactiveEvent,
-  createSavedEvent,
   financesListRouteArgs,
   financesListUrl,
   renderFinanceAccountsRoute,
@@ -32,6 +30,7 @@ import {
 import { seedEventSeminarFinanceFixture } from "@/lib/admin/finances/seminar-finances.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -93,7 +92,11 @@ describe("`/administracion/finanzas`", () => {
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
     });
-    const otherEvent = await createInactiveEvent("En Escena 2027");
+    const otherEvent = await createSavedEvent({
+      name: "En Escena 2027",
+      active: false,
+      ...eventDates(2025),
+    });
     const academyNorth = await createAcademyUser({
       email: "academia.reporte.norte@example.com",
       academyName: "Academia Norte",

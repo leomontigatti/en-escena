@@ -8,17 +8,14 @@ import { dancers, professors } from "@/db/schema";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { createAcademyUser } from "@/lib/test-support/academies";
-import {
-  createEventChoreographyFixture,
-  createEventFixtureDates,
-  createSavedEvent,
-} from "@/lib/events/bases.test-support";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
 import {
   DancersListRouteView,
   loader as dancersLoader,
 } from "@/routes/administracion.bailarines";
 import { loader as professorsLoader } from "@/routes/administracion.profesores";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -151,9 +148,9 @@ describe("`Estado de alta` on the two administrative lists", () => {
   });
 
   test("keeps `Estado de alta` independent from `Participación` and from `Verificación`", async () => {
-    const event = await createSavedEvent("Regional Ejes", {
-      activate: true,
-      dates: createEventFixtureDates(2026),
+    const event = await createSavedEvent({
+      name: "Regional Ejes",
+      ...eventDates(2026),
     });
     const academy = await createAcademyUser({
       academyName: "Academia Ejes",

@@ -6,9 +6,9 @@ import {
 } from "@/lib/choreographies/registration.test-support";
 import { createSeminar } from "@/lib/seminars/repository.server";
 
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 /**
  * Two academies with seminar inscriptions and nothing else in the active event:

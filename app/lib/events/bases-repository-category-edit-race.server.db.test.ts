@@ -12,9 +12,9 @@ import type { CategoryInput } from "@/lib/events/bases-repository/shared.server"
 import {
   createChoreographyOnBases,
   createSavedAcademy,
-  createSavedEvent,
   expectCreated,
 } from "@/lib/events/bases.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -67,7 +67,11 @@ beforeEach(() => {
 });
 
 async function arrangeCategory() {
-  const event = await createSavedEvent("Regional 2026");
+  const event = await createSavedEvent({
+    name: "Regional 2026",
+    active: false,
+    ...eventDates(2030),
+  });
   const jazz = await expectCreated(createModality(event.id, { name: "Jazz" }));
   const category = await expectCreated(
     createCategory(event.id, {

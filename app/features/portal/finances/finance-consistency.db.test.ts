@@ -19,10 +19,10 @@ import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academyFinancesLoader } from "@/routes/administracion.finanzas_.$academyId";
 import {
   academyFinancesUrl,
-  createSavedEvent,
   academyFinancesRouteArgs,
 } from "@/lib/admin/finances/finances.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

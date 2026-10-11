@@ -14,10 +14,10 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 const paidInFullAmount = 100000;
 
@@ -28,8 +28,11 @@ const paidInFullAmount = 100000;
  * hangs off a fully inscribed choreography, so a test that only wants to insert
  * a score would otherwise spend twenty lines reaching it.
  */
-export async function seedJudgingFixture() {
-  const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+export async function seedJudgingFixture(options: { active?: boolean } = {}) {
+  const event = await createSavedEvent({
+    requiredDepositPercentage: 30,
+    ...options,
+  });
   const academy = await createAcademyUser({
     // Fixed and digit-free: a search by number also matches the academy name,
     // so a random one would make those tests flaky (#1423).

@@ -11,7 +11,6 @@ import {
   fixedExperienceLevel,
 } from "@/lib/events/bases.test-support";
 import { activateEvent } from "@/lib/events/management.server";
-import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
 import {
   createModality,
   createSubmodality,
@@ -24,6 +23,7 @@ import {
 import { openScheduleRegistration } from "@/lib/schedules/registration-open.server";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createAcademySession } from "@/features/portal/test-support/db";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 // Offset from the moment the test runs, so the event window never ages out.
 function daysFromNow(days: number): Date {
@@ -43,6 +43,7 @@ export async function createChoreographyRegistrationScenario(session: {
   const ownerSession = await createAcademySession(session);
   // Event dates anchored to the run, so the fixture never ages out.
   const event = await createSavedEvent({
+    active: false,
     name: "Regional 2026",
     startsAt: daysFromNow(2),
     endsAt: daysFromNow(4),

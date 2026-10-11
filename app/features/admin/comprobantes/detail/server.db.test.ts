@@ -33,12 +33,10 @@ import { seminarAnchor } from "@/lib/comprobantes/anchor";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import type { FacturaCEmissionDeps } from "@/lib/comprobantes/emit-factura-c.server";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

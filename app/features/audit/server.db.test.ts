@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import {
   createAuditLink,
   revokeAuditLink,
 } from "@/lib/grand-final/audit-link.server";
 import type { AuditTotals } from "@/lib/grand-final/audit-totals.server";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import { handleAuditAction, loadAuditPage, type AuditPageDeps } from "./server";

@@ -8,7 +8,7 @@ import {
 } from "@/features/portal/test-support/db";
 import { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
 import { activateEvent, updateEvent } from "@/lib/events/management.server";
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

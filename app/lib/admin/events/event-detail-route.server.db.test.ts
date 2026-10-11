@@ -12,7 +12,6 @@ import { db } from "@/db";
 import { events } from "@/db/schema";
 import { activateEvent } from "@/lib/events/management.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
-import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
 import {
   action,
   EventDetailRouteView,
@@ -20,6 +19,7 @@ import {
 } from "@/routes/administracion.eventos_.$eventId";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -27,7 +27,10 @@ installDatabaseTestHooks();
 
 describe("`/administracion/eventos/:eventId` route", () => {
   test("loads an event detail screen governed by the event URL", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "Regional 2026",
+    });
     const { request } = await createSignedInRequest({
       email: "admin.detalle@example.com",
       role: "admin",
@@ -55,7 +58,10 @@ describe("`/administracion/eventos/:eventId` route", () => {
   });
 
   test("updates event editable fields from the detail screen", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "Regional 2026",
+    });
     const { request } = await createSignedInRequest({
       email: "admin.editar@example.com",
       role: "admin",
@@ -89,7 +95,10 @@ describe("`/administracion/eventos/:eventId` route", () => {
   });
 
   test("returns the field error message when the event detail form fails validation", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "Regional 2026",
+    });
     const { request } = await createSignedInRequest({
       email: "admin.editar.validacion@example.com",
       role: "admin",
@@ -113,8 +122,14 @@ describe("`/administracion/eventos/:eventId` route", () => {
   });
 
   test("reports activation conflicts without changing the selected event", async () => {
-    const activeEvent = await createSavedEvent({ name: "Activo" });
-    const inactiveEvent = await createSavedEvent({ name: "Inactivo" });
+    const activeEvent = await createSavedEvent({
+      active: false,
+      name: "Activo",
+    });
+    const inactiveEvent = await createSavedEvent({
+      active: false,
+      name: "Inactivo",
+    });
     await activateEvent(activeEvent.id);
     const { request } = await createSignedInRequest({
       email: "admin.activar@example.com",
@@ -139,7 +154,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
   });
 
   test("requires confirmation before deactivating an active event", async () => {
-    const event = await createSavedEvent({ name: "Activo" });
+    const event = await createSavedEvent({ active: false, name: "Activo" });
     await activateEvent(event.id);
     const blockedRequest = await createSignedInRequest({
       email: "admin.desactivar.bloqueado@example.com",
@@ -174,7 +189,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
   });
 
   test("deletes only after explicit confirmation and returns to the events list", async () => {
-    const event = await createSavedEvent({ name: "Borrable" });
+    const event = await createSavedEvent({ active: false, name: "Borrable" });
     const blockedRequest = await createSignedInRequest({
       email: "admin.borrar.bloqueado@example.com",
       role: "admin",
@@ -212,7 +227,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
   });
 
   test("posts event mutations to the clean event URL", async () => {
-    const event = await createSavedEvent({ name: "Activo" });
+    const event = await createSavedEvent({ active: false, name: "Activo" });
     await activateEvent(event.id);
     const { request } = await createSignedInRequest({
       email: "admin.evento.accion@example.com",

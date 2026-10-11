@@ -2,10 +2,10 @@ import {
   eventFormValues,
   type EventFormValues,
 } from "@/lib/admin/events/form-values";
-import type { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
+import type { createSavedEvent } from "@/lib/test-support/events";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 
-export type EventRow = Awaited<ReturnType<typeof createAdminSavedEvent>>;
+export type EventRow = Awaited<ReturnType<typeof createSavedEvent>>;
 
 export async function createAdminRequest(eventId: string, body?: FormData) {
   const { request } = await createSignedInRequest({

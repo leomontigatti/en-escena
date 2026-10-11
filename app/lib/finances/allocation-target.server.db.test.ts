@@ -13,12 +13,12 @@ import {
   seminars,
 } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
-import { createSavedEvent } from "@/lib/events/bases.test-support";
 import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
 import { applyAllocationDelta } from "@/lib/finances/choreography-cobro-allocations.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -36,7 +36,11 @@ async function seedSeminarTarget(
     seminarDepositPercentage?: number;
   } = {},
 ) {
-  const event = await createSavedEvent(`Regional ${crypto.randomUUID()}`);
+  const event = await createSavedEvent({
+    name: `Regional ${crypto.randomUUID()}`,
+    active: false,
+    ...eventDates(2030),
+  });
   await db
     .update(events)
     .set({

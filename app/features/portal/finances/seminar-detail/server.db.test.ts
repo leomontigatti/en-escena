@@ -12,11 +12,9 @@ import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
-import {
-  academyFinancesUrl,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { academyFinancesUrl } from "@/lib/admin/finances/finances.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

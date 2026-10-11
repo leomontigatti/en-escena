@@ -5,12 +5,12 @@ import { describe, expect, test } from "vitest";
 
 import { createOpenEventCatalog } from "@/lib/choreographies/registration.test-support";
 import { activateEvent } from "@/lib/events/management.server";
-import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
 import { DashboardRouteView, loader } from "@/routes/administracion._index";
 
 import { db } from "@/db";
 import { schedules } from "@/db/schema";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -18,7 +18,10 @@ installDatabaseTestHooks();
 
 describe("`/administracion` index route", () => {
   test("shows an alert when the active event is not ready for choreography registration", async () => {
-    const event = await createSavedEvent({ name: "En Escena 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "En Escena 2026",
+    });
     await activateEvent(event.id);
     const { request } = await createSignedInRequest({
       email: "admin.dashboard.readiness@example.com",
@@ -58,7 +61,10 @@ describe("`/administracion` index route", () => {
   });
 
   test("warns when a schedule takes inscriptions while the event is not ready", async () => {
-    const event = await createSavedEvent({ name: "En Escena 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "En Escena 2026",
+    });
     await activateEvent(event.id);
     // Opened before the bases lost an item: nothing auto-closes it, so the two
     // facts have to read together on the dashboard.
@@ -99,7 +105,10 @@ describe("`/administracion` index route", () => {
   });
 
   test("does not warn when the event is not ready and every schedule is closed", async () => {
-    const event = await createSavedEvent({ name: "En Escena 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "En Escena 2026",
+    });
     await activateEvent(event.id);
     const { request } = await createSignedInRequest({
       email: "admin.dashboard.closed.unready@example.com",
@@ -116,7 +125,10 @@ describe("`/administracion` index route", () => {
   });
 
   test("shows an auditor only their sections' cards and no readiness alert", async () => {
-    const event = await createSavedEvent({ name: "En Escena 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "En Escena 2026",
+    });
     await activateEvent(event.id);
     await insertOpenSchedule(event.id);
     const { request } = await createSignedInRequest({

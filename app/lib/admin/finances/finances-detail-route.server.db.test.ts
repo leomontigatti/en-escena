@@ -25,14 +25,13 @@ import {
   academyFinancesUrl,
   buildGlobalPaymentRequest,
   createAcademyFinanceChoreographyFixture,
-  createInactiveEvent,
-  createSavedEvent,
   academyFinancesRouteArgs,
   paymentCreateRouteArgs,
   renderAcademyFinancesRoute,
 } from "@/lib/admin/finances/finances.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
@@ -473,7 +472,11 @@ describe("`/administracion/finanzas` academy", () => {
 
   test("registers event-scoped payment numbers, persists payments, and updates totals", async () => {
     const event = await createSavedEvent();
-    const otherEvent = await createInactiveEvent("Regional 2025");
+    const otherEvent = await createSavedEvent({
+      name: "Regional 2025",
+      active: false,
+      ...eventDates(2025),
+    });
     const academy = await createAcademyUser({
       email: "academia.pagos.finanzas@example.com",
       academyName: "Academia Pagos",

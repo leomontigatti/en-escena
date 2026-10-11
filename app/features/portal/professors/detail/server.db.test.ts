@@ -16,10 +16,8 @@ import {
 import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createFormData } from "@/lib/test-support/form-data";
-import {
-  createEventChoreographyFixture,
-  createSavedEvent,
-} from "@/lib/events/bases.test-support";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -471,8 +469,9 @@ describe("handlePortalProfessorDetailAction", () => {
       email: "profesores.archive.participante@example.com",
       academyName: "Academia Participante",
     });
-    const activeEvent = await createSavedEvent("En Escena Activo", {
-      activate: true,
+    const activeEvent = await createSavedEvent({
+      name: "En Escena Activo",
+      ...eventDates(2030),
     });
     const [professor] = await db
       .insert(professors)

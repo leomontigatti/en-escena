@@ -38,9 +38,9 @@ import {
 } from "@/lib/comprobantes/emit-factura-c.server";
 import { annulComprobante } from "@/lib/comprobantes/emit-nota-credito.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
-import { createSavedEvent } from "@/lib/events/bases.test-support";
 import { deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -118,7 +118,11 @@ function emissionDeps(
  * obligation unit is precisely that the seminar alone is not one.
  */
 async function seedSeminarUnit() {
-  const event = await createSavedEvent(`Regional ${crypto.randomUUID()}`);
+  const event = await createSavedEvent({
+    name: `Regional ${crypto.randomUUID()}`,
+    active: false,
+    ...eventDates(2030),
+  });
 
   const [seminar] = await db
     .insert(seminars)
@@ -333,7 +337,11 @@ describe("emitFacturaC on a (seminar, academy) unit", () => {
 
   test("refuses an anchor that does not belong to the named event", async () => {
     const { first, seminar } = await seedSeminarUnit();
-    const other = await createSavedEvent(`Otro ${crypto.randomUUID()}`);
+    const other = await createSavedEvent({
+      name: `Otro ${crypto.randomUUID()}`,
+      active: false,
+      ...eventDates(2030),
+    });
 
     const outcome = await emitFacturaC(
       { anchor: seminarAnchor(seminar.id, first.academyId), eventId: other.id },
@@ -432,7 +440,11 @@ describe("the comprobante anchor", () => {
   });
 
   test("a choreography comprobante takes its academy from its choreography", async () => {
-    const event = await createSavedEvent(`Regional ${crypto.randomUUID()}`);
+    const event = await createSavedEvent({
+      name: `Regional ${crypto.randomUUID()}`,
+      active: false,
+      ...eventDates(2030),
+    });
     const { academy, choreography } =
       await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Coreografías",

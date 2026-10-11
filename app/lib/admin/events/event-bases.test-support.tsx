@@ -42,7 +42,6 @@ import {
   type ScheduleListItem,
 } from "@/lib/events/bases.server";
 import {
-  createSavedEvent as createEventFixture,
   expectCreated,
   fixedExperienceLevel,
 } from "@/lib/events/bases.test-support";
@@ -57,6 +56,7 @@ import { handle as modalidadNuevaHandle } from "@/routes/administracion.modalida
 import { handle as preciosHandle } from "@/routes/administracion.precios";
 import { handle as precioDetalleHandle } from "@/routes/administracion.precios_.$priceId";
 import { handle as precioNuevoHandle } from "@/routes/administracion.precios_.nuevo";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 import { handle as categoriasHandle } from "../../../routes/administracion.categorias";
 import { handle as categoriaDetalleHandle } from "../../../routes/administracion.categorias_.$categoryId";
 import { handle as categoriaNuevaHandle } from "../../../routes/administracion.categorias_.nueva";
@@ -82,15 +82,6 @@ export type EventBasesLoaderData = {
   prices: PriceListItem[];
   registrationOpenBlockers: string[];
 };
-
-export async function createSavedEvent(
-  name: string,
-  options: { activate?: boolean } = {},
-) {
-  const { activate = true } = options;
-
-  return createEventFixture(name, { activate });
-}
 
 export function renderRoute(
   loaderData: EventBasesLoaderData,
@@ -509,7 +500,10 @@ type SignedInAdminRequestInput = Parameters<typeof createSignedInRequest>[0];
 export async function createEventScheduleAdminFixture(
   modalityNames: string[] = ["Jazz", "Danzas urbanas"],
 ) {
-  const event = await createSavedEvent("Regional 2026");
+  const event = await createSavedEvent({
+    name: "Regional 2026",
+    ...eventDates(2030),
+  });
   const createdModalities: ModalityRow[] = await Promise.all(
     modalityNames.map(async (name) => {
       const result = await createModality(event.id, { name });
