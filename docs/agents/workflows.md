@@ -152,7 +152,7 @@ agent starts. The worktree's own database and dev port come later, on its first
 Actions → Import from t3.json), once per T3 install. `pnpm dev:info` reports
 that state without opening `.env`, which agents are denied: no `.env` means the
 script was never imported; `.env` but no `node_modules` means the install step
-failed. It also prints the dev port, the database with a ready `psql` line, and
+failed. It also prints the dev port, the database with the `pnpm db:sql` and `psql` lines, and
 which tools the shell reaches. The main checkout stays on
 `master` and is nobody's working directory.
 
@@ -236,8 +236,11 @@ relay to Codex.
   `codex exec` and returns the final message verbatim. The script names the model for
   Claude Code and the two `.toml` wrappers name it for Codex, so a model change touches
   all three. The script needs the `codex` CLI installed and logged in; without it the
-  relay reports `blocked` rather than doing the work on Haiku. The `code-review` skill
-  and its readback and correctness briefs name the agent to spawn. When T3 Code ships its orchestrator's `delegate_task`
+  relay reports `blocked` rather than doing the work on Haiku. `scripts/agents/sol.sh doctor`
+  checks that before any spawn, along with the `gh` login and `repo` scope the caller fetches
+  the spec with and the model answering a one-word prompt, and prints the fix for each failure.
+  The `code-review` skill and its readback and correctness briefs name the agent to spawn. When
+  T3 Code ships its orchestrator's `delegate_task`
   (pingdotgg/t3code#2829), the relays are what would change.
 - **The correctness axis runs on Opus** under Claude Code, through `reviewer-opus`: the
   same instructions as `reviewer`, run natively rather than relayed, so the axis that
@@ -404,7 +407,10 @@ together.
 
 #### Bumping the pins
 
-All of it is a manual edit; nothing here opens update PRs.
+`pinact run --update` is the manual path. Dependabot also opens a weekly
+grouped PR for minor and patch action releases (see "Dependency updates" under
+the dependency audit); the zizmor and actionlint versions below are not
+Dependabot's and stay manual.
 
 1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
    newest release of that action, SHA plus a `# vN` comment.
@@ -587,19 +593,17 @@ Hook guidance:
   information and inherited. Auditing the whole tree would instead redden every
   open PR — AFK branches included — the day a CVE is disclosed against a
   dependency nobody touched, which is what Dependabot alerts are on for
-  (security update PRs off, and there is deliberately no
-  `.github/dependabot.yml`). Along with `check:migration-safety` it is one of
+  (security update PRs off). Along with `check:migration-safety` it is one of
   the two `check:*` scripts that reach the network, and a registry failure
   fails the check rather than passing silently. The base ref is read with
   `git show`, so CI has to have fetched it: under Actions a base ref it cannot
   read is an error, because a run that compared nothing must not read as clean.
   Locally, where a clone may have no remote, that case just says so and passes.
   - **To accept an advisory** — no fix published, and the vulnerable path is
-    unreachable from this app — add its GHSA to `auditConfig.ignoreGhsas` in
+    unreachable from this app — add its GHSA to `audit.ignore` in
     `pnpm-workspace.yaml`, with a comment giving the reason and when to
     recheck, in the style of the `nwsapi` override. Both runs read that file,
-    so the entry applies to the base side too. (The key becomes `audit.ignore`
-    once `packageManager` reaches pnpm >= 11.16.0.)
+    so the entry applies to the base side too.
   - **`minimumReleaseAge: 4320`**, also in `pnpm-workspace.yaml`, makes a
     published version wait three days before this repo will resolve it — the
     window most recent npm supply-chain compromises were caught and unpublished
@@ -608,6 +612,16 @@ Hook guidance:
     escape hatch for an urgent patch is a `minimumReleaseAgeExclude` entry for
     that one package, with a reason and a date to remove it — never a lower
     `minimumReleaseAge`.
+  - **Dependency updates.** Dependabot opens version-update PRs for minor
+    and patch releases only (`.github/dependabot.yml`): weekly, one grouped
+    PR per ecosystem (npm, GitHub Actions), at most five open per ecosystem.
+    Its `cooldown` of seven days stays above `minimumReleaseAge`, so a bump PR
+    never asks for a release pnpm refuses, and seven is the floor zizmor's
+    `dependabot-cooldown` audit enforces. Majors are ignored on purpose: each
+    is a hand-written issue whose release notes are checked against this repo.
+    A major, or any bump done by hand, targets the newest release that is at
+    least three days old, not the version an issue's title names. Why the bot
+    covers only minor and patch: ADR-0015 §5.
 - `pnpm check:file-tokens` is a staged-source commit gate, not a required
   validation command after every implementation. Run it before committing
   staged application source, before a PR handoff that depends on staged files,

@@ -57,6 +57,10 @@ surface, and say so.
 
 ## 5. Review
 
+Run `scripts/agents/sol.sh doctor` once before the first review spawn. Each `FAIL` line carries
+its fix: run it, or bring it to the user when it needs a login, and spawn only once the doctor
+passes.
+
 Tier the review by risk:
 
 - **Full review** when the diff touches money (payments, prices, finances, comprobantes),
