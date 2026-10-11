@@ -131,8 +131,25 @@ function main(args: string[]) {
       return [title, "(not a GitHub Actions job: open the link)"].join("\n");
     }
 
-    const log = gh(["run", "view", "--job", job.jobId, "--log-failed"]);
-    return [title, ...logTail(log, lines)].join("\n");
+    // One job's log failing to load (expired, or its run still in progress)
+    // must not cost the other jobs their tails.
+    let tail: string[];
+    try {
+      tail = logTail(
+        gh(["run", "view", "--job", job.jobId, "--log-failed"]),
+        lines,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return [title, `(no log: ${message})`].join("\n");
+    }
+
+    return [
+      title,
+      ...(tail.length > 0
+        ? tail
+        : ["(no failed step in the log: a cancelled job has none)"]),
+    ].join("\n");
   });
 
   console.log(sections.join("\n\n"));

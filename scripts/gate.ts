@@ -41,8 +41,13 @@ type VitestReport = {
   }[];
 };
 
-const TSC_ERROR = /^\S.*\(\d+,\d+\): error TS\d+:/;
-const LINT_ERROR = /^\S+:\d+:\d+: .* \[Error\//;
+// With a location (`app/a.ts(1,14): error TS2322: …`) or without one, as for
+// a missing type definition file (`error TS2688: …`).
+const TSC_ERROR = /^(\S.*\(\d+,\d+\): )?error TS\d+:/;
+// `[Error/rule]`, or `[Error]` alone for a parse error, which has no rule.
+const LINT_ERROR = /^\S+:\d+:\d+: .* \[Error[\]/]/;
+const UNHANDLED_HEADER = /^⎯+ Unhandled Errors? ⎯+$/;
+const SUMMARY_START = /^\s*Test Files\s/;
 const STACK_FRAME = /^\s+at /;
 
 export function typecheckFailures(output: string): string[] {
@@ -65,6 +70,30 @@ export function typecheckFailures(output: string): string[] {
 
 export function lintFailures(output: string): string[] {
   return output.split("\n").filter((line) => LINT_ERROR.test(line));
+}
+
+/**
+ * The "Unhandled Errors" block of vitest's console report. The JSON report
+ * leaves those errors out, though they fail the run.
+ */
+export function unhandledErrors(output: string): {
+  lines: string[];
+  count: number;
+} {
+  const lines = output.split("\n");
+  const start = lines.findIndex((line) => UNHANDLED_HEADER.test(line));
+
+  if (start === -1) return { lines: [], count: 0 };
+
+  const end = lines.findIndex(
+    (line, index) => index > start && SUMMARY_START.test(line),
+  );
+  const block = lines.slice(start, end === -1 ? undefined : end);
+
+  while (block.length > 0 && block.at(-1)?.trim() === "") block.pop();
+
+  const count = Number(/^\s*Errors\s+(\d+) errors?/m.exec(output)?.[1] ?? 1);
+  return { lines: block, count };
 }
 
 function relative(text: string, root: string): string {
@@ -161,19 +190,24 @@ function run(args: string[]): { ok: boolean; output: string } {
   };
 }
 
+/** Failures that start at column 0; their detail lines are indented. */
+function countHeads(failures: string[]): number {
+  return failures.filter((line) => line && !/^\s/.test(line)).length;
+}
+
 /** A step that failed with nothing parsed shows its whole output. */
 function result(
   name: string,
   ok: boolean,
   output: string,
   failures: string[],
+  count = countHeads(failures),
 ): StepResult {
   if (ok) return { name, ok, failures: [], count: 0 };
   if (failures.length === 0) {
     return { name, ok, failures: output.trimEnd().split("\n"), count: null };
   }
 
-  const count = failures.filter((line) => !/^\s/.test(line) && line).length;
   return { name, ok, failures, count };
 }
 
@@ -198,10 +232,12 @@ function main() {
   const reportFile = path.join(dir, "vitest.json");
 
   try {
+    // The dot reporter is there for its "Unhandled Errors" block.
     const test = run([
       "test:unit",
       "--reporter=json",
-      `--outputFile=${reportFile}`,
+      `--outputFile.json=${reportFile}`,
+      "--reporter=dot",
     ]);
     let report: VitestReport | null = null;
 
@@ -211,12 +247,20 @@ function main() {
       // No report: vitest died before writing one, so its output is shown.
     }
 
+    const failed = report ? testFailures(report, root) : [];
+    const unhandled = unhandledErrors(test.output);
+    const failures =
+      unhandled.lines.length > 0 && failed.length > 0
+        ? [...failed, "", ...unhandled.lines]
+        : [...failed, ...unhandled.lines];
+
     steps.push({
       ...result(
         "test:unit",
         test.ok,
         test.output,
-        report ? testFailures(report, root) : [],
+        failures,
+        countHeads(failed) + unhandled.count,
       ),
       ...(report ? { passed: report.numPassedTests } : {}),
     });

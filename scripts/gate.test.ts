@@ -5,6 +5,7 @@ import {
   renderGate,
   testFailures,
   typecheckFailures,
+  unhandledErrors,
 } from "./gate";
 
 const ROOT = "/wt";
@@ -27,7 +28,39 @@ describe("typecheckFailures", () => {
   });
 });
 
+describe("typecheckFailures without a location", () => {
+  it("keeps an error tsc reports for no file", () => {
+    expect(
+      typecheckFailures(
+        [
+          "error TS2688: Cannot find type definition file for 'gone'.",
+          "  The file is in the program because:",
+          "app/a.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      "error TS2688: Cannot find type definition file for 'gone'.",
+      "  The file is in the program because:",
+      "app/a.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.",
+    ]);
+  });
+});
+
 describe("lintFailures", () => {
+  it("keeps a parse error, which has no rule, beside a rule's error", () => {
+    expect(
+      lintFailures(
+        [
+          "app/a.ts:1:19: Unexpected token [Error]",
+          "app/b.ts:3:23: Promises must be awaited. [Error/typescript(no-floating-promises)]",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      "app/a.ts:1:19: Unexpected token [Error]",
+      "app/b.ts:3:23: Promises must be awaited. [Error/typescript(no-floating-promises)]",
+    ]);
+  });
+
   it("keeps the errors of oxlint's unix format and leaves the warnings out", () => {
     const output = [
       "$ oxlint --format unix",
@@ -132,6 +165,44 @@ describe("testFailures", () => {
       "app/d.test.ts › times out",
       "  Error: Test timed out in 5000ms.",
     ]);
+  });
+});
+
+describe("unhandledErrors", () => {
+  it("copies vitest's unhandled-error block up to the summary, with its count", () => {
+    const output = [
+      " FAIL  |unit-shared| app/a.test.ts > fails",
+      "⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯",
+      "",
+      "Vitest caught 2 unhandled errors during the test run.",
+      "⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯",
+      "Error: late boom",
+      " ❯ Timeout._onTimeout app/a.test.ts:2:52",
+      "",
+      "",
+      " Test Files  1 failed (1)",
+      "      Tests  1 failed | 1 passed (2)",
+      "     Errors  2 errors",
+    ].join("\n");
+
+    expect(unhandledErrors(output)).toEqual({
+      lines: [
+        "⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯",
+        "",
+        "Vitest caught 2 unhandled errors during the test run.",
+        "⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯",
+        "Error: late boom",
+        " ❯ Timeout._onTimeout app/a.test.ts:2:52",
+      ],
+      count: 2,
+    });
+  });
+
+  it("is empty when the run had none", () => {
+    expect(unhandledErrors(" Test Files  1 passed (1)")).toEqual({
+      lines: [],
+      count: 0,
+    });
   });
 });
 
