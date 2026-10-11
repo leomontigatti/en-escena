@@ -25,7 +25,7 @@ export const handle = {
   portalBreadcrumbs: [
     { label: "Coreografías", to: "/portal/coreografias" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
 
       return data?.choreography ? { label: data.choreography.name } : null;
     },

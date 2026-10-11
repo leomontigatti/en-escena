@@ -22,7 +22,7 @@ import {
   createSavedEvent,
   expectCreated,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -93,7 +93,7 @@ describe("`Bases del evento` repository", () => {
     await expect(deleteModality(modality.id)).resolves.toMatchObject({
       ok: false,
       error:
-        "No se puede borrar la modalidad porque tiene submodalidades relacionadas.",
+        "No se puede eliminar la modalidad porque tiene submodalidades relacionadas.",
     });
 
     await expect(deleteSubmodality(submodality.id)).resolves.toEqual({
@@ -310,7 +310,7 @@ describe("`Bases del evento` repository", () => {
     await expect(deleteModality(modality.id)).resolves.toMatchObject({
       ok: false,
       error:
-        "No se puede borrar la modalidad porque tiene categorías relacionadas.",
+        "No se puede eliminar la modalidad porque tiene categorías relacionadas.",
     });
     await expect(deleteCategory(category.id)).resolves.toEqual({ ok: true });
     await expect(deleteModality(modality.id)).resolves.toEqual({
@@ -616,7 +616,7 @@ describe("`Bases del evento` repository", () => {
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se puede borrar la categoría porque tiene coreografías relacionadas.",
+        "No se puede eliminar la categoría porque tiene coreografías relacionadas.",
     });
 
     await db

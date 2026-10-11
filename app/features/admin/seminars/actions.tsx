@@ -50,7 +50,7 @@ export function SeminarActions({
         description={
           blockedDeletion
             ? blockedDeletion.wayOut
-            : `Esta acción borra el seminario de ${seminar.instructorName}. No se puede deshacer.`
+            : `Esta acción elimina el seminario de ${seminar.instructorName}. No se puede deshacer.`
         }
         isBlocked={blockedDeletion !== null}
         blockedDescription={
@@ -113,6 +113,6 @@ function describeBlockedDeletion({
     wayOut:
       seminar.registeredCount > 0 && !hasWithdrawnInscriptions
         ? "Importante: seguir el orden para eliminarlo correctamente. Quitar el dinero de todas las inscripciones y después eliminarlas desde la lista de inscriptos."
-        : "Esas inscripciones no se pueden borrar, así que el seminario ya no se va a poder eliminar.",
+        : "Esas inscripciones no se pueden eliminar, así que el seminario ya no se va a poder eliminar.",
   };
 }

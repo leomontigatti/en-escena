@@ -55,7 +55,7 @@ export function PrivacyPolicyView() {
 
           <Section title="Contacto">
             <p>
-              Para consultar tus datos o pedir que los borremos, escribinos a{" "}
+              Para consultar tus datos o pedir que los eliminemos, escribinos a{" "}
               <a
                 className="font-medium underline underline-offset-4"
                 href={`mailto:${contactEmail}`}

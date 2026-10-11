@@ -1,5 +1,6 @@
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 
 import { db } from "@/db";
 import {
@@ -19,13 +20,13 @@ import {
   createAccessUser,
   createSessionRequestCookie,
 } from "@/lib/auth/access-auth.test-support";
-import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { activateEvent } from "@/lib/events/management.server";
 import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate as date,
-} from "@/lib/events/saved-event-test-support.server";
+} from "@/lib/events/saved-event.test-support";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
@@ -137,7 +138,7 @@ export function adminLoaderArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: new URL(request.url).pathname,
   };
@@ -147,7 +148,7 @@ export function portalLayoutArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/portal",
   };
@@ -157,7 +158,7 @@ export function adminDetailArgs(request: Request, eventId: string) {
   return {
     request,
     params: { eventId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/eventos/:eventId",
   };

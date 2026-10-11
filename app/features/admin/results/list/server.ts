@@ -23,6 +23,7 @@ import { readParticipationRows } from "@/lib/presentations/participation.server"
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import {
   hideResultsIntent,
@@ -58,7 +59,7 @@ export async function loadResultsListRouteData(request: Request) {
 
   const result = await loadResultsList({
     canPublish: user.role === "admin",
-    filters: readResultsFilters(new URL(request.url).searchParams),
+    filters: readResultsFilters(readRequestedUrl(request).searchParams),
     selectedEventId: eventContext.selectedEventId,
   });
 

@@ -6,7 +6,7 @@ import { prices } from "@/db/schema";
 import {
   createEventPriceFixture,
   createSavedPrice,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { createPrice, updatePrice } from "@/lib/prices/repository.server";
 

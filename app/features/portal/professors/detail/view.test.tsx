@@ -1,14 +1,20 @@
+/** @vitest-environment jsdom */
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import { PortalProfessorDetailRouteView } from "@/features/portal/professors/detail/view";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 type ProfessorDetailViewProps = Parameters<
   typeof PortalProfessorDetailRouteView
 >[0];
 
 describe("PortalProfessorDetailRouteView", () => {
+  const renderer = createReactDomTestRenderer();
+  afterEach(renderer.cleanup);
+
   test("renders the editable ficha", () => {
     const markup = renderProfessorDetail({
       loaderData: {
@@ -164,29 +170,38 @@ describe("PortalProfessorDetailRouteView", () => {
     expect(markup).not.toContain("Archivar Profesor");
   });
 
-  test("shows the reactivation confirmation", () => {
-    const markup = renderProfessorDetail({
-      loaderData: {
-        choreographies: [],
-        isParticipatingInActiveEvent: false,
-        selectedEventId: null,
-        seminarInscriptions: [],
-        professor: professorListItem({
-          active: false,
-        }),
-      },
-      initialStatusDialogIntent: "reactivate-professor",
-    });
+  // The confirmation renders in a portal, which server markup leaves out.
+  test("shows the reactivation confirmation", async () => {
+    await renderer.renderAsync(
+      professorDetailRouter({
+        loaderData: {
+          choreographies: [],
+          isParticipatingInActiveEvent: false,
+          selectedEventId: null,
+          seminarInscriptions: [],
+          professor: professorListItem({
+            active: false,
+          }),
+        },
+        initialStatusDialogIntent: "reactivate-professor",
+      }),
+    );
 
-    expect(markup).toContain("Acciones");
-    expect(markup).toContain("¿Reactivar profesor?");
-    expect(markup).toContain(
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(document.body.textContent).toContain("Acciones");
+    expect(dialog?.textContent).toContain("¿Reactivar profesor?");
+    expect(dialog?.textContent).toContain(
       "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
     );
   });
 });
 
 function renderProfessorDetail(input: Partial<ProfessorDetailViewProps> = {}) {
+  return renderToStaticMarkup(professorDetailRouter(input));
+}
+
+function professorDetailRouter(input: Partial<ProfessorDetailViewProps> = {}) {
   const router = createMemoryRouter(
     [
       {
@@ -212,7 +227,7 @@ function renderProfessorDetail(input: Partial<ProfessorDetailViewProps> = {}) {
     { initialEntries: ["/portal/profesores/profesor_1"] },
   );
 
-  return renderToStaticMarkup(<RouterProvider router={router} />);
+  return <RouterProvider router={router} />;
 }
 
 function professorListItem(

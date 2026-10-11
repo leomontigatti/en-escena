@@ -16,7 +16,7 @@ export const handle = {
   portalBreadcrumbs: [
     { label: "Resultados", to: "/portal/resultados" },
     (match) => {
-      const data = match.data as
+      const data = match.loaderData as
         PortalPresentationEvaluationRouteProps["loaderData"] | undefined;
 
       return data ? { label: data.title } : null;

@@ -11,12 +11,12 @@ import {
   createAcademySession,
   createDancer,
   createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import {
   createEventChoreographyFixture,
   createSavedEvent,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";

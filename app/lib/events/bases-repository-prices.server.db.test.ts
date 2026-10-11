@@ -20,7 +20,7 @@ import {
   createSavedPrice,
   createSavedSchedule,
   expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 
 import { insertTestPrice } from "@/lib/prices/price-rows.test-support";
 import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
@@ -66,7 +66,7 @@ describe("`Bases del evento` repository", () => {
     });
     await expect(deleteSchedule(block.id)).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error: "No se puede eliminar el cronograma porque tiene dependencias.",
     });
     await expect(
       createPrice(secondEvent.id, {
@@ -868,7 +868,7 @@ describe("a special price covering several schedules", () => {
     });
     await expect(deleteSchedule(monday.id)).resolves.toMatchObject({
       ok: false,
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error: "No se puede eliminar el cronograma porque tiene dependencias.",
     });
   });
 

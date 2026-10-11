@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -205,7 +206,7 @@ function routeArgs<TParams extends Record<string, string>>(
   params: TParams,
 ) {
   return {
-    context: {},
+    context: new RouterContextProvider(),
     params,
     pattern: new URL(request.url).pathname,
     request,

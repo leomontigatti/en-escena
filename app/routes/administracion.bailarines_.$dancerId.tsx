@@ -34,7 +34,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Bailarines", to: "/administracion/bailarines" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       const dancer = data?.dancer;
       return dancer
         ? { label: `${dancer.firstName} ${dancer.lastName}` }

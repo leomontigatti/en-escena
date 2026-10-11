@@ -1,18 +1,8 @@
 import { Info } from "lucide-react";
 import { Form } from "react-router";
 
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   formatEvaluatedPresentations,
   formatPendingEvaluations,
@@ -71,6 +61,8 @@ export function ResultsPublicationAlert({
   );
 }
 
+const resultsPublicationFormId = "results-publication-form";
+
 export type ResultsAction = "hide-results" | "show-results" | "update-results";
 
 /**
@@ -105,47 +97,28 @@ export function ResultsPublicationDialog({
   }
 
   return (
-    <AlertDialog
-      open
+    <ConfirmationDialog
+      confirmLabel={isHiding ? "Ocultar resultados" : "Publicar resultados"}
+      description={getResultsDialogDescription(action, {
+        evaluatedCount,
+        pendingCount,
+      })}
+      destructive={isHiding}
+      form={resultsPublicationFormId}
+      isPending={isPending}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
         }
       }}
+      open
+      title={getResultsDialogTitle(action)}
     >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{getResultsDialogTitle(action)}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {getResultsDialogDescription(action, {
-              evaluatedCount,
-              pendingCount,
-            })}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <Form method="post">
-            <input type="hidden" name="intent" value={intent} />
-            <input
-              type="hidden"
-              name={resultsEventIdFieldName}
-              value={eventId}
-            />
-            <Button
-              type="submit"
-              disabled={isPending}
-              variant={isHiding ? "destructive" : "default"}
-            >
-              {isPending ? (
-                <Spinner aria-hidden="true" data-icon="inline-start" />
-              ) : null}
-              {isHiding ? "Ocultar resultados" : "Publicar resultados"}
-            </Button>
-          </Form>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      <Form id={resultsPublicationFormId} method="post">
+        <input type="hidden" name="intent" value={intent} />
+        <input type="hidden" name={resultsEventIdFieldName} value={eventId} />
+      </Form>
+    </ConfirmationDialog>
   );
 }
 

@@ -10,7 +10,7 @@ import {
   createEventRecord,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import { hasPriceDivergentInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 import { insertTestPrice } from "@/lib/prices/price-rows.test-support";
 

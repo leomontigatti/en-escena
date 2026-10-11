@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterContextProvider,
+  RouterProvider,
+} from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -12,7 +16,7 @@ import {
 } from "@/lib/admin/test-support/db";
 import { activateEvent } from "@/lib/events/management.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
-import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createAdminSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
 import {
   action,
   EventDetailRouteView,
@@ -184,7 +188,7 @@ describe("`/administracion/eventos/:eventId` route", () => {
       action(routeArgs(blockedRequest.request, event.id)),
     ).resolves.toMatchObject({
       status: "error",
-      message: "Confirmá el borrado del evento.",
+      message: "Confirmá la eliminación del evento.",
     });
 
     const confirmedRequest = await createSignedInRequest({
@@ -262,7 +266,7 @@ function routeArgs(request: Request, eventId: string) {
   return {
     request,
     params: { eventId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/eventos/:eventId",
   };

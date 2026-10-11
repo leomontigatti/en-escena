@@ -28,7 +28,7 @@ import {
   facturaCConsultada,
   facturaCRechazada,
   ultimoAutorizado,
-} from "@/lib/comprobantes/arca/fixtures";
+} from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 import type { FacturaCEmissionDeps } from "@/lib/comprobantes/emit-factura-c.server";
 

@@ -402,7 +402,7 @@ describe("EventDetailView form", () => {
     await submitEventForm();
 
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
-    expect(document.body.textContent).toContain("Confirmar los cambios");
+    expect(document.body.textContent).toContain("¿Guardar los cambios?");
   });
 
   function getInput(name: string) {

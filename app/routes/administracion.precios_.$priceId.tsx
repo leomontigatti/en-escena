@@ -21,7 +21,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Precios", to: "/administracion/precios" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       const price = data?.prices.find(
         (item) => item.id === match.params.priceId,
       );

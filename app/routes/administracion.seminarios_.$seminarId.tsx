@@ -18,7 +18,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Seminarios", to: "/administracion/seminarios" },
     (match) => {
-      const data = match.data as SeminarDetailLoaderData | undefined;
+      const data = match.loaderData as SeminarDetailLoaderData | undefined;
 
       return { label: data?.seminar.instructorName ?? "Seminario" };
     },

@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -118,6 +119,6 @@ async function requestRegistration(
       body: formData,
     }),
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
   });
 }

@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterContextProvider,
+  RouterProvider,
+} from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -28,7 +32,7 @@ function routeArgs(request: Request, academyId: string) {
   return {
     request,
     params: { academyId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/academias/:academyId",
   };

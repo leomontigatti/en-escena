@@ -27,7 +27,7 @@ import {
   notaCreditoCConsultada,
   ultimoAutorizado,
   ultimoNotaCreditoAutorizado,
-} from "@/lib/comprobantes/arca/fixtures";
+} from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import {
   listAnchorComprobantes,
   recordComprobante,

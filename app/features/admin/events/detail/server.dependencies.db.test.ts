@@ -13,8 +13,8 @@ import {
   type EventRow,
 } from "@/features/admin/events/detail/server.test-support";
 import type { EventFormValues } from "@/lib/admin/events/form-values";
-import { createChoreographyOnNewBases } from "@/lib/events/bases-test-fixtures.server.db";
-import { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createChoreographyOnNewBases } from "@/lib/events/bases.test-support";
+import { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -99,7 +99,7 @@ describe("event dependencies on the event detail action", () => {
 
     expect(result).toMatchObject({
       status: "error",
-      message: "No se puede borrar un evento con dependencias operativas.",
+      message: "No se puede eliminar un evento con dependencias operativas.",
     });
     await expect(readEvent(event.id)).resolves.toBeDefined();
   });

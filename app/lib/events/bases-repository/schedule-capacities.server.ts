@@ -134,7 +134,7 @@ export async function deleteScheduleCapacity(
       ok: false,
       code: "invalid-schedule-capacity",
       error:
-        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
+        "No se puede eliminar el cupo de cronograma porque tiene dependencias.",
     };
   }
 
@@ -398,7 +398,7 @@ export async function validateInlineScheduleCapacityDependencies({
           ok: false,
           code: "invalid-schedule-capacity",
           error:
-            "No se puede borrar el cupo de cronograma porque tiene dependencias.",
+            "No se puede eliminar el cupo de cronograma porque tiene dependencias.",
         };
       }
 

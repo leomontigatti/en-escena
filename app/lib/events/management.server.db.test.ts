@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
-import { createChoreographyOnNewBases } from "@/lib/events/bases-test-fixtures.server.db";
+import { createChoreographyOnNewBases } from "@/lib/events/bases.test-support";
 import {
   activateEvent,
   createEvent,

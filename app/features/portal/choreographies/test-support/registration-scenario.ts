@@ -9,9 +9,9 @@ import { createCategory } from "@/lib/categories/repository.server";
 import {
   expectCreated,
   fixedExperienceLevel,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import { activateEvent } from "@/lib/events/management.server";
-import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
 import {
   createModality,
   createSubmodality,

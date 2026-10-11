@@ -7,21 +7,12 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { FormActions } from "@/components/shared/form-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -229,32 +220,20 @@ function RestoreChoreographyDialog({
   const submit = useSubmit();
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Restaurar coreografía</AlertDialogTitle>
-          <AlertDialogDescription>
-            {restoreChoreographyDescription}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              onOpenChange(false);
+    <ConfirmationDialog
+      confirmLabel="Restaurar"
+      description={restoreChoreographyDescription}
+      onConfirm={() => {
+        const formData = new FormData();
+        formData.set("intent", restoreChoreographyIntent);
+        formData.set("recordId", choreographyId);
 
-              const formData = new FormData();
-              formData.set("intent", restoreChoreographyIntent);
-              formData.set("recordId", choreographyId);
-
-              void submit(formData, { method: "post" });
-            }}
-          >
-            Restaurar coreografía
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        void submit(formData, { method: "post" });
+      }}
+      onOpenChange={onOpenChange}
+      open={open}
+      title="¿Restaurar la coreografía?"
+    />
   );
 }
 
@@ -339,7 +318,7 @@ function ChoreographyMusicField({
       name="musicStorageKey"
       previewKind="audio"
       previewSelectedFile={false}
-      removeLabel="Borrar música"
+      removeLabel="Quitar música"
       uploadedLabel="Archivo de música cargado"
       variant="compact"
     />

@@ -1,3 +1,5 @@
+import { RouterContextProvider } from "react-router";
+
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -125,7 +127,7 @@ async function postDetailAction(input: {
         academyId: input.academyId,
         choreographyId: input.choreographyId,
       },
-      context: {},
+      context: new RouterContextProvider(),
     } as never);
   } catch (thrown) {
     // Redirects are thrown as a `Response` (React Router's convention).

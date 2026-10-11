@@ -1,5 +1,3 @@
-import { useActionData } from "react-router";
-
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import {
   handleAcademyGrandFinalAction,
@@ -19,7 +17,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Gran final", to: "/administracion/gran-final" },
     (match) => {
-      const data = match.data as AcademyGrandFinalLoaderData | undefined;
+      const data = match.loaderData as AcademyGrandFinalLoaderData | undefined;
 
       return { label: data?.academyName ?? "Academia" };
     },
@@ -39,10 +37,9 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function AcademyGrandFinalRoute({
+  actionData,
   loaderData,
 }: Route.ComponentProps) {
-  const actionData = useActionData<typeof action>();
-
   return (
     <AcademyGrandFinalView
       actionData={actionData && "status" in actionData ? actionData : undefined}

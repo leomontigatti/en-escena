@@ -8,7 +8,7 @@ import {
   createSavedEvent,
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
-import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar, getSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";

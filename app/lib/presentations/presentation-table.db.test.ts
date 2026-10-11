@@ -7,7 +7,7 @@ import {
   allocateChoreographyNumberForTest,
   createAcademySession,
   createOpenEventCatalog,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

@@ -10,18 +10,18 @@ import {
   createAcademySession,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
-import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
+import { expectCreated } from "@/lib/events/bases.test-support";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
-import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event.test-support";
 import { createFormData } from "@/lib/test-support/form-data";
 import { handlePortalProfessorCreateAction } from "@/features/portal/professors/create/server";
 import { loadPortalProfessorsList } from "@/features/portal/professors/list/server";
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+} from "@/lib/choreographies/registration.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

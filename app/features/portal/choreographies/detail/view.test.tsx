@@ -22,8 +22,8 @@ describe("PortalChoreographyDetailRouteView", () => {
 
     // A disabled upload hides the actions on the stored file, so the choreography
     // that is taking part is the one offering them.
-    expect(takingPart).toContain("Borrar música");
-    expect(withdrawn).not.toContain("Borrar música");
+    expect(takingPart).toContain("Quitar música");
+    expect(withdrawn).not.toContain("Quitar música");
     expect(withdrawn).toContain("Archivo de música");
   });
 

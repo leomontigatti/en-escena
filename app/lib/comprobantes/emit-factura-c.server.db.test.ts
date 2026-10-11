@@ -32,7 +32,7 @@ import {
   facturaCConsultada,
   facturaCRechazada,
   ultimoAutorizado,
-} from "@/lib/comprobantes/arca/fixtures";
+} from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import {
   emitFacturaC,
   readFacturaCEmissionConfig,

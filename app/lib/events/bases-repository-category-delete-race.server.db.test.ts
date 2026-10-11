@@ -13,7 +13,7 @@ import {
   createSavedAcademy,
   createSavedEvent,
   expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -70,7 +70,7 @@ describe("deleting a category under a racing choreography", () => {
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se puede borrar la categoría porque tiene coreografías relacionadas.",
+        "No se puede eliminar la categoría porque tiene coreografías relacionadas.",
     });
     await expect(
       db.query.categories.findFirst({ where: eq(categories.id, category.id) }),

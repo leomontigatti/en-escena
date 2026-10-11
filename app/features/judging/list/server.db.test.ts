@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -87,7 +88,7 @@ describe("the `/juzgamiento` route", () => {
       loader({
         request: auditor.request,
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
         url: new URL("http://localhost/juzgamiento"),
         pattern: "/juzgamiento",
       }),

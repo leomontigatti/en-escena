@@ -114,7 +114,7 @@ describe("replacing a choreography's music", () => {
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await clickReactDomButton("Borrar música");
+    await clickReactDomButton("Quitar música");
     const input = document.querySelector<HTMLInputElement>(
       'input[name="musicFile"]',
     );
@@ -167,7 +167,7 @@ describe("replacing a choreography's music", () => {
     expect(getButton("Guardar").disabled).toBe(true);
     expect(document.body.textContent).not.toContain("Descartar cambios");
 
-    await clickReactDomButton("Borrar música");
+    await clickReactDomButton("Quitar música");
 
     expect(getButton("Guardar").disabled).toBe(false);
 
@@ -263,7 +263,7 @@ describe("replacing a choreography's music", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await toggleProfessionalEvaluation();
-    await clickReactDomButton("Borrar música");
+    await clickReactDomButton("Quitar música");
     await clickReactDomButton("Guardar");
     await updateReactDomForm(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));

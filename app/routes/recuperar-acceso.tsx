@@ -19,6 +19,7 @@ import {
   parsePublicAccessForm,
 } from "@/lib/auth/public-access-route.shared";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/recuperar-acceso";
@@ -55,7 +56,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   const result = await requestAccessRecoveryEmail({
     email: formResult.data.email,
-    requestUrl: request.url,
+    requestUrl: readRequestedUrl(request).href,
     request,
   });
 

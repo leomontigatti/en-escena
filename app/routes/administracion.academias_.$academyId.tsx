@@ -27,7 +27,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Academias", to: "/administracion/academias" },
     (match) => {
-      const data = match.data as AcademyDetailLoaderData | undefined;
+      const data = match.loaderData as AcademyDetailLoaderData | undefined;
       return data?.academy ? { label: data.academy.name } : null;
     },
   ],

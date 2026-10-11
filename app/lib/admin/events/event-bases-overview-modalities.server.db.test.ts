@@ -27,7 +27,7 @@ import {
   renderPrecioNuevoRoute,
   renderRoute,
   routeArgs,
-} from "./event-bases.test-helpers";
+} from "./event-bases.test-support";
 
 installDatabaseTestHooks();
 

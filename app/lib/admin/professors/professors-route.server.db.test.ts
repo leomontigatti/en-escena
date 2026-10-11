@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -19,7 +20,7 @@ import {
   createEventChoreographyFixture,
   createEventFixtureDates,
   createSavedEvent as createSavedEventFixture,
-} from "@/lib/events/bases-test-fixtures.server.db";
+} from "@/lib/events/bases.test-support";
 import {
   ProfessorsListRouteView,
   handle as profesoresHandle,
@@ -1298,7 +1299,7 @@ function routeArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/profesores",
   };
@@ -1308,7 +1309,7 @@ function detailRouteArgs(request: Request, professorId: string) {
   return {
     request,
     params: { professorId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/profesores/:professorId",
   };
@@ -1318,7 +1319,7 @@ function detailActionArgs(request: Request, professorId: string) {
   return {
     request,
     params: { professorId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/profesores/:professorId",
   };

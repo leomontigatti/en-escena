@@ -10,6 +10,7 @@ import {
 } from "@/lib/admin/events/bases-action/shared.server";
 import { markEventRegistrationReadinessDirty } from "@/lib/events/registration-readiness.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 type EventBasesActionHandler<
   TInput extends EventBasesActionBaseInput = EventBasesActionBaseInput,
@@ -68,12 +69,13 @@ async function runEventBasesActionWithHandler<
     handler,
     recordId,
   });
+  const requestUrl = readRequestedUrl(request).href;
   const preflightError = getEventBasesActionPreflightError({
     allowedIntents,
     formData,
     handler,
     input,
-    requestUrl: request.url,
+    requestUrl,
   });
 
   if (preflightError) {
@@ -94,7 +96,7 @@ async function runEventBasesActionWithHandler<
     );
   }
 
-  const target = handler.buildRedirectUrl(request.url, input, result);
+  const target = handler.buildRedirectUrl(requestUrl, input, result);
 
   if (target.transport === "flash") {
     throw await redirectWithFlashNotification(target.url, target.notification);

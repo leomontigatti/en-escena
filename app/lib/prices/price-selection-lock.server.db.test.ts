@@ -14,7 +14,7 @@ import {
   createSavedEvent,
   registerPaymentForTest,
 } from "@/lib/admin/finances/finances.test-support";
-import { createSavedSchedule } from "@/lib/events/bases-test-fixtures.server.db";
+import { createSavedSchedule } from "@/lib/events/bases.test-support";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
 import type { Transaction } from "@/lib/finances/choreography-cobro-support.server";
 import { allocateToInscription } from "@/lib/finances/inscription-allocation.server";

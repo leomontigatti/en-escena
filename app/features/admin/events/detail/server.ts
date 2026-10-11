@@ -105,7 +105,7 @@ export async function updateAdministrativeEvent(
 
     case "delete":
       if (formData.get("confirmDeletion") !== eventId) {
-        return actionError("Confirmá el borrado del evento.");
+        return actionError("Confirmá la eliminación del evento.");
       }
 
       return redirectAfterDeletion(await deleteEvent(eventId));
