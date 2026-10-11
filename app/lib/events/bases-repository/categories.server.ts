@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 
 import { formatChoreographyReferences } from "@/lib/choreographies/choreography-messages";
+import { experienceLevelValues } from "@/lib/events/experience-levels";
 import { isForeignKeyViolation } from "@/lib/shared/error-properties.server";
 import {
   categories,
@@ -10,7 +11,6 @@ import {
   choreographies,
   created,
   db,
-  experienceLevelOrder,
   groupRelationIdsByCategory,
   groupTypeOrder,
   hasReferencingChoreographies,
@@ -333,7 +333,7 @@ function describeAgeOrLevelEdit(
 ): AgeOrLevelEdit | null {
   const changesAgeRange =
     category.minAge !== input.minAge || category.maxAge !== input.maxAge;
-  // Both sides are sorted by `experienceLevelOrder` — the stored set because
+  // Both sides are sorted by `experienceLevelValues` — the stored set because
   // `validateCategoryInput` sorted it on the way in, the input because it is
   // sorting it right now — so an order-sensitive comparison is an equality of
   // sets here. A write that stored the set unsorted would break that.
@@ -514,11 +514,14 @@ async function validateCategoryInput(
     };
   }
 
+  // Stored in the enum's declaration order, not the presentation order of
+  // `experienceLevelOrder`: the stored sets already follow it, and
+  // `describeAgeOrLevelEdit` compares them in order.
   const experienceLevels = uniqueValues(input.experienceLevels)
     .filter(isExperienceLevel)
     .sort(
       (a, b) =>
-        experienceLevelOrder.indexOf(a) - experienceLevelOrder.indexOf(b),
+        experienceLevelValues.indexOf(a) - experienceLevelValues.indexOf(b),
     );
 
   if (experienceLevels.length !== uniqueValues(input.experienceLevels).length) {

@@ -10,7 +10,10 @@
     "tests/db/setup.ts",
     "tests/setup/react-test-env.ts"
   ],
-  "ignoreDependencies": ["isbot"],
+  // `shadcn` is a devDependency on purpose: its only production use is the
+  // `@import "shadcn/tailwind.css"` in `app/app.css`, which Tailwind inlines at
+  // build time, so nothing resolves it at runtime.
+  "ignoreDependencies": ["shadcn"],
   "ignoreExports": [
     {
       "file": "tests/db/fast-db.ts",

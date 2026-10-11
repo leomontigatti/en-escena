@@ -35,7 +35,7 @@ export const shouldRevalidate = createDataTableShouldRevalidate({
   filterParamNames: [...priceFacetedFilterIds],
 });
 
-export function PricesListRouteView({
+function PricesListRouteView({
   loaderData,
   actionData,
 }: EventPricesListViewProps) {

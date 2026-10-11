@@ -176,5 +176,4 @@ export {
   IntegerInputField,
   getIntegerInputValue,
   type IntegerInputFieldProps,
-  type IntegerInputProps,
 };

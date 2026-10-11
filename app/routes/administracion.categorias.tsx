@@ -21,7 +21,7 @@ export const shouldRevalidate = createDataTableShouldRevalidate({
   filterParamNames: [...categoryFacetedFilterIds],
 });
 
-export function CategoriesRouteView({ loaderData }: CategoriesListViewProps) {
+function CategoriesRouteView({ loaderData }: CategoriesListViewProps) {
   return <CategoriesListView loaderData={loaderData} />;
 }
 

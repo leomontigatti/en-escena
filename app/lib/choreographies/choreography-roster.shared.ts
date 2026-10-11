@@ -3,7 +3,6 @@ import type {
   ChoreographyRegistrationOperationResolution,
   ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
-import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
 
 export type ChoreographyProfessorOption = {
   id: string;
@@ -19,9 +18,9 @@ export type ChoreographyDancerOption = {
   active: boolean;
 };
 
-export type DancerEditingBlockReason = "evaluated";
+type DancerEditingBlockReason = "evaluated";
 
-export type DancerEditingEligibility =
+type DancerEditingEligibility =
   | {
       canEdit: true;
       reasonCode: null;
@@ -33,51 +32,7 @@ export type DancerEditingEligibility =
       reasonText: string;
     };
 
-export type UpdateChoreographyProfessorsResult =
-  | { ok: true }
-  | {
-      ok: false;
-      message: string;
-    };
-
-/**
- * `code` marks the dancers-section failures that must reach the page: the two
- * guards on the capacity axis (capacity lock, price-divergence guard) and the
- * refusal of a roster that resolves to no category. Unlike the other
- * dancers-section failures, they are not swallowed behind the roster section's
- * own error channel — the route surfaces them as a plain `status: "error"`
- * instead. Visibility is decided by code, not by the failure being a roster
- * failure. See `updateChoreographyRosterAction` in `server.ts`.
- */
-export type ChoreographyRosterFailureCode =
-  "schedule-capacity" | "no-compatible-category";
-
-export type UpdateChoreographyDancersResult =
-  | { ok: true }
-  | {
-      ok: false;
-      message: string;
-      code?: ChoreographyRosterFailureCode;
-      fieldErrors?: {
-        experienceLevelId?: string;
-        scheduleCapacityId?: string;
-      };
-    };
-
-export type UpdateChoreographyResult =
-  | { ok: true }
-  | {
-      ok: false;
-      message: string;
-      section: "dancers" | "professors";
-      code?: ChoreographyRosterFailureCode;
-      fieldErrors?: {
-        experienceLevelId?: string;
-        scheduleCapacityId?: string;
-      };
-    };
-
-export type ChoreographyDancerScheduleOption =
+type ChoreographyDancerScheduleOption =
   ChoreographyRegistrationOperationResolution["schedule"] extends {
     options: infer TOptions;
   }
@@ -92,12 +47,12 @@ export type ChoreographyDancerScheduleOption =
  * `ChoreographyDancerScheduleOption` flattens every variant and loses
  * `label`/`isFull`; this one keeps them.
  */
-export type ChoreographyDancerScheduleChoice = Extract<
+type ChoreographyDancerScheduleChoice = Extract<
   ChoreographyRegistrationOperationResolution["schedule"],
   { status: "multiple" }
 >["options"][number];
 
-export type ChoreographyDancerScheduleResolution =
+type ChoreographyDancerScheduleResolution =
   | {
       status: "none";
       canSave: false;
@@ -125,33 +80,6 @@ export type ChoreographyDancerScheduleResolution =
       canSave: true;
       options: ChoreographyDancerScheduleChoice[];
       selectedScheduleCapacityId: null;
-    };
-
-export type ChoreographyCategoryCalculationMode =
-  ChoreographyRegistrationOperationResolution["categoryCalculationMode"];
-
-export type ResolveChoreographyDancersResult =
-  | {
-      ok: true;
-      resolution: {
-        groupType: PortalChoreographyListItem["groupType"];
-        categoryId: string | null;
-        categoryName: string | null;
-        categoryCalculationMode?: ChoreographyCategoryCalculationMode;
-        categoryAgeBasis?: ChoreographyRegistrationOperationResolution["categoryAgeBasis"];
-        experienceLevel: {
-          required: boolean;
-          options: Array<{
-            id: string;
-            name: string;
-          }>;
-        };
-        schedule: ChoreographyDancerScheduleResolution;
-      };
-    }
-  | {
-      ok: false;
-      message: string;
     };
 
 export type ResolvedChoreographyDancerUpdateContext =
