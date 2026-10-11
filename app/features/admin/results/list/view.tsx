@@ -228,10 +228,7 @@ export function ResultsListView({
                 <ResultsPublicationAlert publication={loaderData.publication} />
               </AlertStack>
             ) : null}
-            {/* `gap-3` and the tab row's `pb-1` add up to the 16px every list
-              keeps between its tabs and its search. */}
-            <div className="flex flex-col gap-3">
-              <ScheduleDayTabs days={loaderData.days} tab={tab} />
+            <ScheduleDayTabs days={loaderData.days} tab={tab}>
               <ServerDataTable
                 rows={loaderData.results}
                 columns={resultsColumns}
@@ -245,7 +242,7 @@ export function ResultsListView({
                 totalPages={loaderData.totalPages}
                 totalRows={loaderData.totalCount}
               />
-            </div>
+            </ScheduleDayTabs>
           </div>
         </TooltipProvider>
       ) : (

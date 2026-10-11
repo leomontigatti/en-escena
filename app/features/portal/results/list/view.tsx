@@ -128,9 +128,7 @@ function PortalResultsList({ rows }: { rows: PortalResultRow[] }) {
       : rows.filter((row) => row.scheduledDate === tab.value);
 
   return (
-    <div className="flex flex-col gap-3">
-      <ScheduleDayTabs days={days} tab={tab} />
-
+    <ScheduleDayTabs days={days} tab={tab}>
       <ClientDataTable
         rows={visibleRows}
         columns={resultsColumns}
@@ -148,7 +146,7 @@ function PortalResultsList({ rows }: { rows: PortalResultRow[] }) {
         initialSort={{ columnId: "orden", direction: "asc" }}
         emptyMessage="No hay resultados que coincidan con la búsqueda."
       />
-    </div>
+    </ScheduleDayTabs>
   );
 }
 
