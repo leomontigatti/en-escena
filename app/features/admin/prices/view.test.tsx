@@ -527,15 +527,15 @@ function readInputTypes(container: HTMLElement, name: string) {
 }
 
 function readSchedulesFieldDisabled(container: HTMLElement) {
-  const trigger = container.querySelector<HTMLElement>(
-    '[id^="price-schedules-"]',
+  const checkboxes = container.querySelectorAll<HTMLElement>(
+    '[role="group"][aria-label="Cronogramas"] [role="checkbox"]',
   );
 
-  if (!trigger) {
+  if (checkboxes.length === 0) {
     throw new Error("Could not find the schedules field.");
   }
 
-  return trigger.hasAttribute("disabled");
+  return [...checkboxes].some((checkbox) => checkbox.hasAttribute("disabled"));
 }
 
 function readInputValues(container: HTMLElement, name: string) {

@@ -14,7 +14,12 @@ import { CardFooter } from "@/components/ui/card";
 export function PinnedActions({ children }: { children: ReactNode }) {
   return (
     // Opaque, where `CardFooter` is translucent: the fields scroll under it.
-    <CardFooter className="sticky bottom-0 z-10 justify-between gap-3 bg-card">
+    // `data-pinned-actions` keeps a focused field from scrolling in there
+    // (app.css).
+    <CardFooter
+      data-pinned-actions=""
+      className="sticky bottom-0 z-10 justify-between gap-3 bg-card"
+    >
       {children}
     </CardFooter>
   );

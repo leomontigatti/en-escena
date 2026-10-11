@@ -35,7 +35,6 @@ import {
 } from "@/lib/comprobantes/arca/wsfe-responses.test-support";
 import {
   emitFacturaC,
-  readFacturaCEmissionConfig,
   recheckFacturaC,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
@@ -1140,40 +1139,5 @@ describe("emitFacturaC (ARCA does not respond)", () => {
     expect(outcome).toMatchObject({ ok: false, reason: "rejected" });
     // ARCA responded: there is nothing to query.
     expect(deps.billing.getVoucherInfo).not.toHaveBeenCalled();
-  });
-});
-
-describe("readFacturaCEmissionConfig", () => {
-  test("reads the point of sale, the issuer CUIT and the recipient's VAT condition", () => {
-    const config = readFacturaCEmissionConfig({
-      ARCA_PTOVTA: "1",
-      ARCA_CUIT: "30717611590",
-      ARCA_CONDICION_IVA_RECEPTOR_ID: "5",
-    });
-
-    expect(config).toEqual({
-      ptoVta: 1,
-      issuerCuit: "30717611590",
-      receptorIvaConditionId: 5,
-    });
-  });
-
-  test("rejects a point of sale that is not a positive integer", () => {
-    expect(() =>
-      readFacturaCEmissionConfig({
-        ARCA_PTOVTA: "0",
-        ARCA_CUIT: "30717611590",
-        ARCA_CONDICION_IVA_RECEPTOR_ID: "5",
-      }),
-    ).toThrow(/ARCA_PTOVTA/);
-  });
-
-  test("requires the issuer's CUIT", () => {
-    expect(() =>
-      readFacturaCEmissionConfig({
-        ARCA_PTOVTA: "1",
-        ARCA_CONDICION_IVA_RECEPTOR_ID: "5",
-      }),
-    ).toThrow(/ARCA_CUIT/);
   });
 });

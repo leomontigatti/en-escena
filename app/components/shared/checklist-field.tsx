@@ -26,8 +26,12 @@ type ChecklistFieldProps<
   control: Control<TFieldValues>;
   disabled?: boolean;
   emptySelectionMessage: string;
+  /** Posts each checked option as a hidden input, for a form that submits its own fields. */
+  inputName?: string;
   label: string;
   name: TName;
+  /** What an empty list says: there is nothing to pick yet. */
+  noOptionsMessage?: string;
   onValueChange?: () => void;
   options: ChecklistOption[];
   searchLabel: string;
@@ -35,12 +39,18 @@ type ChecklistFieldProps<
 
 type ChecklistTab = "all" | "selected";
 
+// Eight rows fit under the list's `max-h-80` even in one column, so a list
+// this short never scrolls: a search would find nothing hidden, and every
+// checked row is already in sight.
+const SEARCHABLE_OPTION_COUNT = 9;
+
 /**
  * Picks options from a list shown in place, not in a popover: a long list —
  * an academy's dancers, an event's schedules — scrolls inside itself, so
  * nothing covers the actions below it. The rows sit in two columns once the
  * list's own width allows, so the same field reads well on a page and in a
- * dialog.
+ * dialog. A short list is a plain checkbox group, without the search and the
+ * `Todos | Seleccionados` tabs.
  */
 function ChecklistField<
   TFieldValues extends FieldValues,
@@ -49,14 +59,24 @@ function ChecklistField<
   control,
   disabled = false,
   emptySelectionMessage,
+  inputName,
   label,
   name,
+  noOptionsMessage = "Sin opciones.",
   onValueChange,
   options,
   searchLabel,
 }: ChecklistFieldProps<TFieldValues, TName>) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<ChecklistTab>("all");
+  const searchable = options.length >= SEARCHABLE_OPTION_COUNT;
+
+  // A list that shrinks below the threshold drops its search and tabs, and
+  // with them whatever they were narrowing it to: grown back, it starts over.
+  if (!searchable && (query !== "" || tab !== "all")) {
+    setQuery("");
+    setTab("all");
+  }
 
   return (
     <Controller
@@ -87,28 +107,40 @@ function ChecklistField<
             aria-label={label}
             className="@container flex flex-col gap-4"
           >
-            <div className="flex flex-col gap-2 @md:flex-row @md:items-center @md:gap-4">
-              <SearchInput
-                aria-label={searchLabel}
-                className="@md:w-64"
-                placeholder="Buscar por nombre"
-                value={query}
-                onValueChange={setQuery}
-              />
-              <Tabs
-                value={tab}
-                onValueChange={(value) => setTab(value as ChecklistTab)}
-              >
-                <TabsList variant="line">
-                  <TabsTrigger value="all">Todos</TabsTrigger>
-                  <TabsTrigger value="selected">
-                    Seleccionados
-                    <span className="sr-only">, </span>
-                    <Badge variant="secondary">{selected.length}</Badge>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+            {inputName
+              ? selected.map((value) => (
+                  <input
+                    key={value}
+                    type="hidden"
+                    name={inputName}
+                    value={value}
+                  />
+                ))
+              : null}
+            {searchable ? (
+              <div className="flex flex-col gap-2 @md:flex-row @md:items-center @md:gap-4">
+                <SearchInput
+                  aria-label={searchLabel}
+                  className="@md:w-64"
+                  placeholder="Buscar por nombre"
+                  value={query}
+                  onValueChange={setQuery}
+                />
+                <Tabs
+                  value={tab}
+                  onValueChange={(value) => setTab(value as ChecklistTab)}
+                >
+                  <TabsList variant="line">
+                    <TabsTrigger value="all">Todos</TabsTrigger>
+                    <TabsTrigger value="selected">
+                      Seleccionados
+                      <span className="sr-only">, </span>
+                      <Badge variant="secondary">{selected.length}</Badge>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            ) : null}
             <div
               // Grows with the rows up to a ceiling, then scrolls inside, its
               // edges fading while there is more to scroll to.
@@ -116,9 +148,11 @@ function ChecklistField<
             >
               {rows.length === 0 ? (
                 <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  {tab === "selected" && query.length === 0
-                    ? emptySelectionMessage
-                    : "Sin resultados."}
+                  {options.length === 0
+                    ? noOptionsMessage
+                    : tab === "selected" && query.length === 0
+                      ? emptySelectionMessage
+                      : "Sin resultados."}
                 </p>
               ) : null}
               <div className="grid gap-2 @lg:grid-cols-2">
