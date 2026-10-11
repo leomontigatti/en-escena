@@ -3,14 +3,12 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, presentations, scores } from "@/db/schema";
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { publishResults } from "@/lib/judging/results.server";
 import { activateEvent, deactivateEvent } from "@/lib/events/management.server";
-import { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { handleResultsListAction, loadResultsListRouteData } from "./server";
 import {
@@ -264,7 +262,10 @@ describe("the results list route", () => {
       orderNumber: 1,
     });
     await score(fixture, presentation.presentationId, ["75"]);
-    const other = await createAdminSavedEvent({ name: "Otro evento" });
+    const other = await createSavedEvent({
+      active: false,
+      name: "Otro evento",
+    });
     // Another administrator switches the active event while the confirmation
     // for the first one is still open.
     await deactivateEvent(fixture.event.id);

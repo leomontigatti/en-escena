@@ -5,11 +5,9 @@ import { createRoutesStub, RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { academies, accessSession, user } from "@/db/schema";
-import {
-  createAccessRequestCookie,
-  createAccessUser,
-} from "@/lib/auth/access-auth.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { accessSession, user } from "@/db/schema";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   loader as listLoader,
@@ -32,14 +30,14 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "usuario.suspendible@example.com",
       role: "judge",
       requestUrl: "http://localhost/juzgamiento",
-      userName: "Julia Suspendible",
+      name: "Julia Suspendible",
       internalUsername: "julia.suspendible",
     });
     const adminUser = await createSignedInRequest({
       email: "admin.suspende@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
-      userName: "Ada Suspende",
+      name: "Ada Suspende",
       internalUsername: "ada.suspende",
     });
     const adminRequest = adminUser.request;
@@ -144,7 +142,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "admin.self.suspension@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios/self-admin",
-      userName: "Admin Self Suspension",
+      name: "Admin Self Suspension",
       internalUsername: "admin.self.suspension",
     });
 
@@ -170,14 +168,14 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "usuario.interno.original@example.com",
       role: "judge",
       requestUrl: "http://localhost/juzgamiento",
-      userName: "Julia Original",
+      name: "Julia Original",
       internalUsername: "julia.original",
     });
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.editor@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
-      userName: "Ada Editora",
+      name: "Ada Editora",
       internalUsername: "ada.editora",
     });
 
@@ -229,7 +227,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "usuario.restablecer@example.com",
       role: "judge",
       requestUrl: "http://localhost/juzgamiento",
-      userName: "Julia Restablecida",
+      name: "Julia Restablecida",
       internalUsername: "julia.restablecida",
       password: "password-anterior",
     });
@@ -237,7 +235,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "admin.restablece@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
-      userName: "Ada Restablece",
+      name: "Ada Restablece",
       internalUsername: "ada.restablece",
     });
 
@@ -304,7 +302,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "usuario.bloqueado@example.com",
       role: "judge",
       requestUrl: "http://localhost/juzgamiento",
-      userName: "Julia Bloqueada",
+      name: "Julia Bloqueada",
       internalUsername: "julia.bloqueada",
     });
 
@@ -319,7 +317,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
         email: `${role}.sin-permiso@example.com`,
         role,
         requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}`,
-        userName: `${role} sin permiso`,
+        name: `${role} sin permiso`,
         internalUsername:
           role === "academy" ? undefined : `${role}.sin.permiso`,
       });
@@ -348,7 +346,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "admin.self@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios/self-admin",
-      userName: "Admin Self",
+      name: "Admin Self",
       internalUsername: "admin.self",
     });
 
@@ -388,7 +386,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "admin.otro@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Admin Otro",
+      name: "Admin Otro",
       internalUsername: "admin.otro",
     });
     const craftedResult = await detailAction(
@@ -424,39 +422,41 @@ describe("`/administracion/usuarios/:userId` route", () => {
       email: "admin.detalle.usuario@example.com",
       role: "admin",
       requestUrl: "http://localhost/administracion/usuarios",
-      userName: "Ada Admin",
+      name: "Ada Admin",
       internalUsername: "ada.admin",
     });
     const academyUser = await createAcademyUser({
       email: "academia.detalle.usuario@example.com",
       academyName: "Academia Norte",
       contactName: "Nora Norte",
+      name: "Nora Norte",
     });
 
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.viewer@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/usuarios/${internalUser.userId}`,
-      userName: "Admin Viewer",
+      name: "Admin Viewer",
       internalUsername: "admin.viewer",
     });
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.viewer@example.com",
       role: "auditor",
       requestUrl: `http://localhost/administracion/usuarios/${internalUser.userId}`,
-      userName: "Ariel Auditor",
+      name: "Ariel Auditor",
       internalUsername: "ariel.auditor",
     });
     const academyViewer = await createAcademyUser({
       email: "academy.viewer@example.com",
       academyName: "Academia Visora",
       contactName: "Amalia Visora",
+      name: "Amalia Visora",
     });
     const { request: judgeRequest } = await createSignedInRequest({
       email: "judge.viewer@example.com",
       role: "judge",
       requestUrl: `http://localhost/administracion/usuarios/${internalUser.userId}`,
-      userName: "Julia Juez",
+      name: "Julia Juez",
       internalUsername: "julia.juez",
     });
 
@@ -492,7 +492,14 @@ describe("`/administracion/usuarios/:userId` route", () => {
       403,
     );
     await expectThrownResponse(
-      detailLoader(detailRouteArgs(academyViewer.request, internalUser.userId)),
+      detailLoader(
+        detailRouteArgs(
+          new Request("http://localhost/portal", {
+            headers: { cookie: academyViewer.cookie },
+          }),
+          internalUser.userId,
+        ),
+      ),
       403,
     );
     await expectThrownResponse(
@@ -566,14 +573,14 @@ describe("`/administracion/usuarios/:userId` route", () => {
       role: "judge",
       requestUrl:
         "http://localhost/administracion/usuarios/placeholder?query=ada&estado=active",
-      userName: "Julia Ruta",
+      name: "Julia Ruta",
       internalUsername: "julia.ruta",
     });
     const { request: adminRequest } = await createSignedInRequest({
       email: "admin.ruta.detalle@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/usuarios/${targetUser.userId}?query=ada&estado=active&guardado=si&tipoGuardado=manual`,
-      userName: "Ada Ruta",
+      name: "Ada Ruta",
       internalUsername: "ada.ruta",
     });
 
@@ -657,85 +664,6 @@ function renderDetailRoute(
       },
     }),
   );
-}
-
-async function createSignedInRequest(input: {
-  email: string;
-  role: "academy" | "admin" | "auditor" | "judge";
-  requestUrl: string;
-  userName: string;
-  internalUsername?: string;
-  password?: string;
-}) {
-  const signUpResult = await createAccessUser({
-    email: input.email,
-    name: input.userName,
-    password: input.password ?? "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: input.role,
-      internalUsername: input.internalUsername ?? null,
-      name: input.userName,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  return {
-    userId: signUpResult.response.user.id,
-    request: new Request(input.requestUrl, {
-      headers: {
-        cookie: createAccessRequestCookie(signUpResult.headers),
-      },
-    }),
-  };
-}
-
-async function createAcademyUser(input: {
-  academyName: string;
-  contactName: string;
-  email: string;
-}) {
-  const signUpResult = await createAccessUser({
-    email: input.email,
-    name: input.contactName,
-    password: "password-segura",
-  });
-
-  await db
-    .update(user)
-    .set({
-      emailVerified: true,
-      role: "academy",
-      name: input.contactName,
-    })
-    .where(eq(user.id, signUpResult.response.user.id));
-
-  const [academy] = await db
-    .insert(academies)
-    .values({
-      userId: signUpResult.response.user.id,
-      name: input.academyName,
-      contactName: input.contactName,
-      phone: "1111-1111",
-    })
-    .returning();
-
-  if (!academy) {
-    throw new Error("Expected academy to be created.");
-  }
-
-  return {
-    academy,
-    request: new Request("http://localhost/portal", {
-      headers: {
-        cookie: createAccessRequestCookie(signUpResult.headers),
-      },
-    }),
-    userId: signUpResult.response.user.id,
-  };
 }
 
 function listRouteArgs(request: Request) {

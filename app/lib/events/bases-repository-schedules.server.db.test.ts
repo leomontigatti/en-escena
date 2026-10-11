@@ -22,7 +22,6 @@ import {
   createChoreographyOnBases,
   createEventModalitiesFixture,
   createSavedAcademy,
-  createSavedEvent,
   createSavedPrice,
   createSavedSchedule,
   expectCreated,
@@ -34,6 +33,7 @@ import {
   createOpenEventCatalog,
   createProfessor,
 } from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import {
   installDatabaseTestHooks,
@@ -48,8 +48,16 @@ installDatabaseTestHooks();
 
 describe("`Bases del evento` repository", () => {
   test("validates schedule total capacity and accepted modalities by event", async () => {
-    const firstEvent = await createSavedEvent("Regional 2026");
-    const secondEvent = await createSavedEvent("Final 2026");
+    const firstEvent = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const secondEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const jazz = await expectCreated(
       createModality(firstEvent.id, { name: "Jazz" }),
     );
@@ -101,7 +109,11 @@ describe("`Bases del evento` repository", () => {
 
   test("accepts categories that share a modality with the schedule, and none at all", async () => {
     const { event, jazz, urbanas } = await createEventModalitiesFixture();
-    const otherEvent = await createSavedEvent("Final 2026");
+    const otherEvent = await createSavedEvent({
+      name: "Final 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const otherEventModality = await expectCreated(
       createModality(otherEvent.id, { name: "Jazz" }),
     );

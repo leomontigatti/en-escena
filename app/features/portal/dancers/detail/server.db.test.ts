@@ -13,13 +13,8 @@ import {
 } from "@/lib/dancers/birth-date";
 import {
   createEventChoreographyFixture,
-  createSavedEvent as createActiveEventFixture,
   fixedExperienceLevel,
 } from "@/lib/events/bases.test-support";
-import {
-  createPortalSavedEvent as createSavedEvent,
-  testEventDate as date,
-} from "@/lib/events/saved-event.test-support";
 import { handlePortalDancerDetailAction } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancerDetail } from "@/features/portal/dancers/detail/server";
 import { loadPortalDancersList } from "@/features/portal/dancers/list/server";
@@ -38,6 +33,7 @@ import {
 
 import { mergeAcademies } from "@/lib/academies/academy-merge.server";
 import { mergeRosterPeople } from "@/lib/roster/roster-merge.server";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -243,9 +239,10 @@ describe("handlePortalDancerDetailAction", () => {
       academyName: "Academia Recálculo",
     });
     const event = await createSavedEvent({
+      active: false,
       name: "Regional Recálculo",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -365,9 +362,10 @@ describe("handlePortalDancerDetailAction", () => {
       academyName: "Academia Sin Categoría",
     });
     const event = await createSavedEvent({
+      active: false,
       name: "Regional Sin Categoría",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -849,9 +847,10 @@ describe("handlePortalDancerDetailAction", () => {
 
   test("rejects a dancer under one year old at the active event start", async () => {
     const event = await createSavedEvent({
+      active: false,
       name: "Regional Edad Mínima",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     await activateEvent(event.id);
     const session = await createAcademySession({
@@ -1409,8 +1408,9 @@ describe("handlePortalDancerDetailAction", () => {
       email: "bailarines.archive.participante@example.com",
       academyName: "Academia Participante",
     });
-    const activeEvent = await createActiveEventFixture("En Escena Activo", {
-      activate: true,
+    const activeEvent = await createSavedEvent({
+      name: "En Escena Activo",
+      ...eventDates(2030),
     });
     const [dancer] = await db
       .insert(dancers)

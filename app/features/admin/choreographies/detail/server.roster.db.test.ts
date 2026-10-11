@@ -46,15 +46,15 @@ import {
   noCompatibleCategoryRosterMessage,
 } from "@/lib/choreographies/choreography-messages";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import {
   installDatabaseTestHooks,
   isPgliteTestBackend,
 } from "../../../../../tests/db/harness";
-import { choreographyAnchor } from "@/lib/comprobantes/anchor";
-import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 
 // Reaching a real evaluation means a score on an assigned judge, which is not
 // this file's subject, so a test that needs a closed choreography declares it
@@ -1580,7 +1580,7 @@ async function createArchivedRosterScenario(input: {
 }
 
 async function loadRosterDetail(choreographyId: string) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `admin.roster.loader.${(submitCount += 1)}.${choreographyId}@example.com`,
     requestUrl: `http://localhost/administracion/coreografias/${choreographyId}`,
     role: "admin",
@@ -1713,7 +1713,7 @@ async function postDraft(input: {
     typeof resolveChoreographyDraftIntent | typeof saveChoreographyDraftIntent;
   previewedCategoryId?: string | null;
 }) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body: toChoreographyDraftFormData(input),
     email: `admin.roster.${(submitCount += 1)}.${input.choreographyId}@example.com`,
     requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,

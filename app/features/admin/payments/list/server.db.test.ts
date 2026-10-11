@@ -3,11 +3,9 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { choreographyDancers, paymentAllocations, payments } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-  createSignedInRequest,
-} from "@/lib/admin/finances/finances.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 

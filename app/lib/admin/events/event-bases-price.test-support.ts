@@ -13,12 +13,12 @@ import {
   buildScheduleDraft,
   createEventScheduleAdminFixture,
   createScheduleAdminRequest,
-  createSignedInRequest,
-  expectThrownResponse,
   findSavedScheduleByName,
   formData,
   routeArgs,
-} from "./event-bases.test-support";
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 type PriceDraft = {
   amount: string;

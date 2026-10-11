@@ -17,12 +17,10 @@ import {
   createEventCatalog,
   createProfessor,
 } from "@/features/portal/choreographies/test-support/db";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
-import {
-  createAcademyUser,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
 import type { Province } from "@/lib/academies/provinces";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { buildPeriodExportHref, type ExportPeriod } from "./shared";
 
@@ -203,7 +201,7 @@ export async function periodExportRequest(
   period: ExportPeriod,
   role: "academy" | "admin" | "auditor" | "judge" = "auditor",
 ) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost${buildPeriodExportHref(path, period)}`,
     role,

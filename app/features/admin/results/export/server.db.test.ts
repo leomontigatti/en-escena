@@ -8,11 +8,9 @@ import {
   buildExportHref,
   exportAllDays,
 } from "@/features/admin/day-export/shared";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { loadResultsExport } from "./server";
 import { resultsExportPath } from "./shared";
@@ -25,7 +23,7 @@ async function signedInRequest(
   day: string,
   role: "admin" | "auditor" = "admin",
 ) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost${buildExportHref(resultsExportPath, day)}`,
     role,

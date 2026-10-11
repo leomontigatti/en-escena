@@ -10,13 +10,13 @@ import {
 } from "@/lib/finances/allocation-pool.server";
 import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
-
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import {
   createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
   registerPaymentForTest,
-} from "../admin/finances/finances.test-support";
+} from "@/lib/admin/finances/finances.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
+
+import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

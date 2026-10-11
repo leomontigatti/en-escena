@@ -1,14 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
-import {
-  createInactiveEvent,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
 import { createVoteCodeBatch } from "@/lib/grand-final/vote-codes.server";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import {
   handleGrandFinalListAction,
@@ -126,7 +121,11 @@ describe("the QR code batches of the `Gran final` list", () => {
   });
 
   test("leaves a batch of an event that is not the active one alone", async () => {
-    const past = await createInactiveEvent("En Escena 2025");
+    const past = await createSavedEvent({
+      name: "En Escena 2025",
+      active: false,
+      ...eventDates(2025),
+    });
     const batch = await createVoteCodeBatch({ count: 1, eventId: past.id });
     await createSavedEvent();
 

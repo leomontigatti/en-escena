@@ -10,10 +10,6 @@ import {
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import {
-  createAcademyUser,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
-import {
   restoreChoreographyForTest,
   withdrawChoreographyForTest,
 } from "@/lib/choreographies/withdrawn-choreography.test-support";
@@ -22,6 +18,8 @@ import {
   readEventProgram,
 } from "@/lib/presentations/event-program.server";
 import { setVisibleProgramDays } from "@/lib/presentations/program-visibility.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

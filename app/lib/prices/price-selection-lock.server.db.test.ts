@@ -11,7 +11,6 @@ import {
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import {
   createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
   registerPaymentForTest,
 } from "@/lib/admin/finances/finances.test-support";
 import { createSavedSchedule } from "@/lib/events/bases.test-support";
@@ -25,6 +24,7 @@ import {
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { deletePrice, updatePrice } from "@/lib/prices/repository.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import {
   installDatabaseTestHooks,

@@ -12,8 +12,6 @@ import {
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
   buildScheduleCapacityDraft,
@@ -22,13 +20,10 @@ import {
   createEventScheduleAdminFixture,
   createScheduleAdminRequest,
   createScheduleCapacityAdminRequest,
-  createSavedEvent,
-  createSignedInRequest,
   expectCreated,
   expectScheduleCapacityBreakdown,
   findSavedScheduleById,
   findSavedScheduleByName,
-  expectThrownResponse,
   listSavedScheduleCapacities,
   loader,
   renderBloqueHorarioDetailRoute,
@@ -37,7 +32,12 @@ import {
   renderPriceNewErrorRoute,
   renderScheduleDetailErrorRoute,
   routeArgs,
-} from "./event-bases.test-support";
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
@@ -595,7 +595,10 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("does not leak schedule capacity field errors into unrelated forms", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -667,7 +670,10 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("returns inline capacity required errors from the schedule action", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -723,7 +729,10 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("rejects duplicate capacity group types server-side on schedule creation", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -767,7 +776,10 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
   });
 
   test("rejects invalid capacity rows server-side when the client is bypassed", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );

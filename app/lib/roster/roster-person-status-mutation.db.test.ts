@@ -15,13 +15,11 @@ import {
   createProfessor,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import {
-  createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { listDancerOptionsForChoreography } from "@/lib/choreographies/choreography-roster-options.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

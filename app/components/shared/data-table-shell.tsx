@@ -3,6 +3,7 @@ import {
   type Column,
   type Header,
   type Row,
+  type RowData,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
 import {
@@ -33,6 +34,7 @@ import {
   SortIcon,
 } from "@/components/shared/data-table-controls";
 import { DataTableCardList } from "@/components/shared/data-table-card-list";
+import type { DataTableFeatures } from "@/components/shared/data-table-core";
 import { DataTableFilters } from "@/components/shared/data-table-filters";
 import { toSortDirection } from "@/components/shared/data-table-helpers";
 import { DataTableTruncatedText } from "@/components/shared/data-table-truncated-text";
@@ -116,7 +118,7 @@ type DataTableServerSortProps = {
  * each one is about, and a caller that fills in `serverSort` is answering one
  * question rather than remembering two prefixes.
  */
-type DataTableShellProps<TData> = {
+type DataTableShellProps<TData extends RowData> = {
   emptyMessage: string;
   filters: DataTableFiltersProps;
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
@@ -127,7 +129,7 @@ type DataTableShellProps<TData> = {
   reorder?: DataTableReorder;
   search: DataTableSearchProps;
   serverSort?: DataTableServerSortProps;
-  table: TanStackTable<TData>;
+  table: TanStackTable<DataTableFeatures, TData>;
 };
 
 type DataTableSortableRowHandle = Pick<
@@ -172,14 +174,14 @@ export function DataTableDragHandle({ label }: { label: string }) {
  * hydratable; the keyboard sensor is what makes a move reachable without a
  * pointer at all.
  */
-function DataTableReorderProvider<TData>({
+function DataTableReorderProvider<TData extends RowData>({
   children,
   reorder,
   table,
 }: {
   children: ReactNode;
   reorder: DataTableReorder;
-  table: TanStackTable<TData>;
+  table: TanStackTable<DataTableFeatures, TData>;
 }) {
   const id = useId();
   const sensors = useSensors(
@@ -224,7 +226,7 @@ function DataTableReorderProvider<TData>({
  * rather than four stretches of one return, so each can be read against the one
  * question it answers instead of against the table as a whole.
  */
-export function DataTableShell<TData>({
+export function DataTableShell<TData extends RowData>({
   emptyMessage,
   filters,
   getRowProps,
@@ -308,10 +310,10 @@ export function DataTableShell<TData>({
  * A column with no weight is left to the browser, which under a fixed layout
  * means it shares whatever the weighted columns did not claim.
  */
-function DataTableColumnGroup<TData>({
+function DataTableColumnGroup<TData extends RowData>({
   table,
 }: {
-  table: TanStackTable<TData>;
+  table: TanStackTable<DataTableFeatures, TData>;
 }) {
   const columns = table.getVisibleLeafColumns();
   const totalWeight = columns.reduce(
@@ -338,17 +340,19 @@ function DataTableColumnGroup<TData>({
  * what the view declared. Sharing the row by weight alone is what keeps each
  * width a plain percentage — see `dataTableSelectionColumnWeight`.
  */
-function resolveDataTableColumnWeight<TData>(column: Column<TData, unknown>) {
+function resolveDataTableColumnWeight<TData extends RowData>(
+  column: Column<DataTableFeatures, TData>,
+) {
   return column.id === dataTableSelectionColumnId
     ? dataTableSelectionColumnWeight
     : (column.columnDef.meta?.width ?? 0);
 }
 
-function resolveDataTableColumnWidth<TData>({
+function resolveDataTableColumnWidth<TData extends RowData>({
   column,
   totalWeight,
 }: {
-  column: Column<TData, unknown>;
+  column: Column<DataTableFeatures, TData>;
   totalWeight: number;
 }) {
   const weight = resolveDataTableColumnWeight(column);
@@ -427,14 +431,14 @@ function DataTableSearchField({
  * these tables have one group each, and the loop is here so that stays true by
  * construction rather than by assumption.
  */
-function DataTableHead<TData>({
+function DataTableHead<TData extends RowData>({
   isFit,
   serverSort,
   table,
 }: {
   isFit: boolean;
   serverSort?: DataTableServerSortProps;
-  table: TanStackTable<TData>;
+  table: TanStackTable<DataTableFeatures, TData>;
 }) {
   return (
     <TableHeader>
@@ -467,12 +471,12 @@ function DataTableHead<TData>({
  * navigable and shareable— and on the client table by button, where it is view
  * state. A column that cannot be sorted is neither, and renders bare.
  */
-function DataTableHeaderContent<TData>({
+function DataTableHeaderContent<TData extends RowData>({
   header,
   isFit,
   serverSort,
 }: {
-  header: Header<TData, unknown>;
+  header: Header<DataTableFeatures, TData>;
   isFit: boolean;
   serverSort?: DataTableServerSortProps;
 }) {
@@ -526,7 +530,7 @@ function DataTableHeaderContent<TData>({
 }
 
 /** The rows, or the one cell that says why there are none. */
-function DataTableBody<TData>({
+function DataTableBody<TData extends RowData>({
   emptyMessage,
   getRowProps,
   isReorderable,
@@ -535,7 +539,7 @@ function DataTableBody<TData>({
   emptyMessage: string;
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
   isReorderable: boolean;
-  table: TanStackTable<TData>;
+  table: TanStackTable<DataTableFeatures, TData>;
 }) {
   const visibleRows = table.getRowModel().rows;
 
@@ -564,14 +568,14 @@ function DataTableBody<TData>({
   );
 }
 
-function DataTableBodyRow<TData>({
+function DataTableBodyRow<TData extends RowData>({
   getRowProps,
   isReorderable,
   row,
 }: {
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
   isReorderable: boolean;
-  row: Row<TData>;
+  row: Row<DataTableFeatures, TData>;
 }) {
   if (isReorderable) {
     return <DataTableSortableBodyRow getRowProps={getRowProps} row={row} />;
@@ -590,12 +594,12 @@ function DataTableBodyRow<TData>({
  * the handle reaches its row's sortable through a context rather than through
  * a prop every column would have to carry.
  */
-function DataTableSortableBodyRow<TData>({
+function DataTableSortableBodyRow<TData extends RowData>({
   getRowProps,
   row,
 }: {
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
-  row: Row<TData>;
+  row: Row<DataTableFeatures, TData>;
 }) {
   const sortable = useSortable({ id: row.id });
   const rowProps = getRowProps?.(row.original) ?? {};
@@ -627,11 +631,11 @@ function DataTableSortableBodyRow<TData>({
   );
 }
 
-function DataTableBodyRowCells<TData>({
+function DataTableBodyRowCells<TData extends RowData>({
   row,
   rowProps,
 }: {
-  row: Row<TData>;
+  row: Row<DataTableFeatures, TData>;
   rowProps: React.ComponentProps<"tr"> & { "data-dragging"?: boolean };
 }) {
   return (

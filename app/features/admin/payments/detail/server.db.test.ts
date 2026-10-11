@@ -9,13 +9,11 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import {
-  createAcademyUser,
-  createSavedEvent,
-  createSignedInRequest,
-} from "@/lib/admin/finances/finances.test-support";
 
 import { handlePaymentDetailAction } from "./server";
 import { deletePaymentIntent, updatePaymentIntent } from "./shared";

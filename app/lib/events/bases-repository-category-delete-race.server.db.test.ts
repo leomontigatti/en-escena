@@ -11,9 +11,9 @@ import { createModality } from "@/lib/modalities/repository.server";
 import {
   createChoreographyOnBases,
   createSavedAcademy,
-  createSavedEvent,
   expectCreated,
 } from "@/lib/events/bases.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -43,7 +43,11 @@ installDatabaseTestHooks();
 
 describe("deleting a category under a racing choreography", () => {
   test("refuses the delete with the same dependency failure a seen choreography gets", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const academy = await createSavedAcademy();
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),

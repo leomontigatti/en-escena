@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { createAcademyUser } from "@/lib/admin/finances/finances.test-support";
 import {
   closeCurrentVotingRound,
   seedFinalistsFixture,
 } from "@/lib/grand-final/voting.test-support";
 import { openVotingRound } from "@/lib/grand-final/voting-round.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { loadPortalHome } from "./server";
 

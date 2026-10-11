@@ -1,4 +1,4 @@
-import { Building2, Presentation } from "lucide-react";
+import { BuildingComplex, Presentation } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -232,7 +232,7 @@ function buildFacetedFilters(
   return [
     {
       id: "academia",
-      icon: Building2,
+      icon: BuildingComplex,
       label: "Academia",
       options: distinctOptions(
         inscriptions.map((inscription) => ({

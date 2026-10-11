@@ -3,6 +3,17 @@ import { describe, expect, test } from "vitest";
 import { createSelectedPriceInscriptionForTest } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
+import {
+  action,
+  loader,
+  renderPrecioDetalleRoute,
+  renderPrecioNuevoRoute,
+  renderPreciosRoute,
+  routeArgs,
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   createDeletePriceAdminRequest,
@@ -13,23 +24,15 @@ import {
   findSavedPriceById,
   findSavedPriceByScope,
 } from "./event-bases-price.test-support";
-import {
-  action,
-  createSavedEvent,
-  createSignedInRequest,
-  expectThrownResponse,
-  loader,
-  renderPrecioDetalleRoute,
-  renderPrecioNuevoRoute,
-  renderPreciosRoute,
-  routeArgs,
-} from "./event-bases.test-support";
 
 installDatabaseTestHooks();
 
 describe("`/administracion/bases-del-evento` routes", () => {
   test("renders prices without the event deposit percentage form", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const listRequest = await createSignedInRequest({
       email: "admin.precios.sin.sena@example.com",
       role: "admin",
@@ -316,7 +319,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("shows a frozen inscription validation when structural changes or deletion are blocked", async () => {
-    const event = await createSavedEvent("Regional 2032");
+    const event = await createSavedEvent({
+      name: "Regional 2032",
+      ...eventDates(2030),
+    });
     const { academy, choreography } =
       await createAcademyFinanceChoreographyFixture({
         academyName: "Academia Precio Historial",

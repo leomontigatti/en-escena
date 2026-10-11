@@ -7,20 +7,12 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { choreographyProfessors, professors } from "@/db/schema";
 import { buildProfessorListSearch } from "@/lib/admin/professors/professors.shared";
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createAcademyUser } from "@/lib/test-support/academies";
-import {
-  createEventChoreographyFixture,
-  createEventFixtureDates,
-  createSavedEvent as createSavedEventFixture,
-} from "@/lib/events/bases.test-support";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
 import {
   ProfessorsListRouteView,
   handle as profesoresHandle,
@@ -32,6 +24,9 @@ import {
   handle as profesorDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.profesores_.$professorId";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -56,7 +51,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("allows auditor access and blocks academy and judge users", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.profesores@example.com",
       role: "auditor",
@@ -83,7 +78,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("uses the admin resource list behavior for participation, search, filters, and pagination", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const northAcademy = await createAcademyUser({
       email: "academia.norte@example.com",
       academyName: "Academia Norte",
@@ -258,8 +253,9 @@ describe("`/administracion/profesores` route", () => {
       contactName: "Diego Base",
       phone: "4444-4444",
     });
-    const event = await createInactiveEvent({
+    const event = await createSavedEvent({
       name: "Evento histórico profesores",
+      active: false,
     });
     const participatingProfessor = await createProfessor({
       academyId: participatingAcademy.academy.id,
@@ -306,7 +302,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("renders a readonly professor detail with the single-card administrative layout", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "ficha.academia@example.com",
       academyName: "Academia Ficha",
@@ -368,7 +364,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("renders migrated professors list and detail screens inside the shared administration shell", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "layout.academia@example.com",
       academyName: "Academia Layout",
@@ -534,7 +530,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("keeps the submitted values in the form after a correction-reason error", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.dialogo.profesores.academia@example.com",
       academyName: "Academia Dialogo",
@@ -587,7 +583,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("updates a professor in explicit edit mode", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.mutacion.academia@example.com",
       academyName: "Academia Mutacion",
@@ -674,7 +670,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("saves a participating professor without a correction reason", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.motivo.evento.academia@example.com",
       academyName: "Academia Motivo Evento",
@@ -719,7 +715,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("saves a professor who participated in any event without a correction reason", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.motivo.historial.academia@example.com",
       academyName: "Academia Motivo Historial",
@@ -947,7 +943,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("refuses to archive a professor participating in the active event, as action data rather than a 404", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.archivo.academia@example.com",
       academyName: "Academia Archivo Admin",
@@ -996,7 +992,7 @@ describe("`/administracion/profesores` route", () => {
   });
 
   test("archives and reactivates a professor with no live commitment in the active event", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.archivo.libre.academia@example.com",
       academyName: "Academia Archivo Libre",
@@ -1350,19 +1346,6 @@ async function createProfessor(input: {
     .returning();
 
   return professor;
-}
-
-async function createSavedEvent() {
-  return createSavedEventFixture("Regional 2026", {
-    activate: true,
-    dates: createEventFixtureDates(2026),
-  });
-}
-
-async function createInactiveEvent(input: { name: string }) {
-  return createSavedEventFixture(input.name, {
-    dates: createEventFixtureDates(2026),
-  });
 }
 
 async function linkProfessorToEventChoreography(input: {

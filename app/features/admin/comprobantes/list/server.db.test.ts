@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { seminars } from "@/db/schema";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import {
   createChoreographyRecord,
   createEventCatalog,
@@ -14,9 +13,10 @@ import {
   recordComprobante,
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
+import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
 
@@ -109,7 +109,7 @@ async function seedChoreography(input: {
 }
 
 async function signedInAdminRequest(search = "") {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `comprobantes.list.${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost/administracion/comprobantes${search}`,
     role: "admin",

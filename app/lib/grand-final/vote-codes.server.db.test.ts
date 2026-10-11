@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
 
-import { createSavedEvent } from "@/lib/admin/finances/finances.test-support";
 import {
   createVoteCodeBatch,
   listVoteCodeBatches,
@@ -8,6 +7,7 @@ import {
   readVoteCodeBatch,
   voidVoteCodeBatch,
 } from "@/lib/grand-final/vote-codes.server";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -32,7 +32,7 @@ describe("`createVoteCodeBatch`", () => {
 
   test("numbers each event's batches on their own, and two issued at once never share a number", async () => {
     const event = await createSavedEvent();
-    const other = await createSavedEvent();
+    const other = await createSavedEvent({ active: false });
 
     await createVoteCodeBatch({ count: 1, eventId: event.id });
     await Promise.all([
@@ -50,7 +50,7 @@ describe("`createVoteCodeBatch`", () => {
 
   test("gives every code a distinct 128-bit random token, across batches and events", async () => {
     const event = await createSavedEvent();
-    const other = await createSavedEvent();
+    const other = await createSavedEvent({ active: false });
     const batches = await Promise.all([
       createVoteCodeBatch({ count: 200, eventId: event.id }),
       createVoteCodeBatch({ count: 200, eventId: other.id }),
@@ -73,7 +73,7 @@ describe("`createVoteCodeBatch`", () => {
 describe("`readVoteCodeBatch`", () => {
   test("reads nothing of another event's batch", async () => {
     const event = await createSavedEvent();
-    const other = await createSavedEvent();
+    const other = await createSavedEvent({ active: false });
     const batch = await createVoteCodeBatch({ count: 1, eventId: other.id });
 
     await expect(
@@ -136,7 +136,7 @@ describe("`voidVoteCodeBatch`", () => {
 
   test("refuses another event's batch and leaves it valid", async () => {
     const event = await createSavedEvent();
-    const other = await createSavedEvent();
+    const other = await createSavedEvent({ active: false });
     const batch = await createVoteCodeBatch({ count: 1, eventId: other.id });
 
     await expect(

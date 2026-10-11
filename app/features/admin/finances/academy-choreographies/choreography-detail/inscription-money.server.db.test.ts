@@ -17,14 +17,14 @@ import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
 import { targetKindFieldName } from "@/features/admin/finances/inscription-money/intents";
-
-import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 import {
   createAcademyFinanceChoreographyFixture,
-  createSavedEvent,
-  createSignedInRequest,
   registerPaymentForTest,
-} from "../../../../../lib/admin/finances/finances.test-support";
+} from "@/lib/admin/finances/finances.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { createSavedEvent } from "@/lib/test-support/events";
+
+import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 
 import { loadChoreographyFinanceDetail } from "./server";
 

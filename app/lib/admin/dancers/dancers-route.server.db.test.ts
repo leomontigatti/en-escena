@@ -24,10 +24,6 @@ import {
 } from "@/lib/events/experience-levels";
 import { buildDancerListSearch } from "@/lib/admin/dancers/dancers.shared";
 import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
-import {
   getInitialDialogIntent,
   type DancerActionError,
 } from "@/features/admin/dancers/detail/shared";
@@ -38,8 +34,6 @@ import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-asser
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createEventChoreographyFixture,
-  createEventFixtureDates,
-  createSavedEvent as createSavedEventFixture,
   expectCreated,
 } from "@/lib/events/bases.test-support";
 import {
@@ -57,6 +51,9 @@ import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -101,7 +98,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("allows auditor access and blocks academy and judge users", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "academia.detail.access@example.com",
       academyName: "Academia Acceso",
@@ -148,7 +145,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("uses the admin resource list behavior for participation, identification, search, filters, and pagination", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const northAcademy = await createAcademyUser({
       email: "academia.dancers.norte@example.com",
       academyName: "Academia Norte",
@@ -359,8 +356,9 @@ describe("`/administracion/bailarines` route", () => {
       contactName: "Diego Base",
       phone: "4444-4444",
     });
-    const event = await createInactiveEvent({
+    const event = await createSavedEvent({
       name: "Evento histórico bailarines",
+      active: false,
     });
     const participatingDancer = await createDancer({
       academyId: participatingAcademy.academy.id,
@@ -414,7 +412,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("renders a readonly dancer ficha with alerts, base context, tabs, and active-event inscriptions", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "ficha.dancer.academia@example.com",
       academyName: "Academia Ficha",
@@ -491,9 +489,10 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("scopes inscription loader data to the active event and prices it through the finance read model", async () => {
-    const activeEvent = await createSavedEvent();
-    const historicalEvent = await createInactiveEvent({
+    const activeEvent = await createSavedEvent({ name: "Regional 2026" });
+    const historicalEvent = await createSavedEvent({
       name: "Regional histórico 2026",
+      active: false,
     });
     const academy = await createAcademyUser({
       email: "inscripciones.detalle.academia@example.com",
@@ -569,7 +568,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("returns empty inscription loader data when the dancer has no active-event inscriptions", async () => {
-    const activeEvent = await createSavedEvent();
+    const activeEvent = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "sin.inscripciones.academia@example.com",
       academyName: "Academia Vacía",
@@ -669,7 +668,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("renders migrated dancers list and detail screens inside the shared administration shell", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "layout.bailarines.academia@example.com",
       academyName: "Academia Layout",
@@ -731,7 +730,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("updates a dancer in explicit edit mode", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.mutacion.bailarines.academia@example.com",
       academyName: "Academia Mutacion",
@@ -781,7 +780,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("refuses a birth date that leaves the dancer under one when the event starts", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.bebe.bailarines.academia@example.com",
       academyName: "Academia Bebe",
@@ -869,7 +868,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("saves a participating dancer without a correction reason", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.motivo.evento.bailarines.academia@example.com",
       academyName: "Academia Motivo Evento",
@@ -919,7 +918,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("saves a dancer who participated in any event without a correction reason", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.motivo.historial.bailarines.academia@example.com",
       academyName: "Academia Motivo Historial",
@@ -1164,7 +1163,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("keeps birth date recalculation warning out of the inline edit form", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.advertencia.bailarines.academia@example.com",
       academyName: "Academia Advertencia",
@@ -1201,7 +1200,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("recalculates eligible linked choreographies after a birth date correction", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.fecha.bailarines.academia@example.com",
       academyName: "Academia Fecha",
@@ -1301,7 +1300,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("refuses a birth date correction that leaves a linked choreography without a category", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.sincategoria.bailarines.academia@example.com",
       academyName: "Academia Sin Categoría",
@@ -1370,7 +1369,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("leaves persisted choreography data unchanged when a birth date correction does not move the competitive placement", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.fecha.sin-cambios.academia@example.com",
       academyName: "Academia Fecha Sin Cambios",
@@ -1454,7 +1453,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("verifies an unverified dancer and returns it to unverified after an administrative edit", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.verificacion.bailarines.academia@example.com",
       academyName: "Academia Verificable",
@@ -1562,7 +1561,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("rejects verifying a dancer whose identity is already verified", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.verificacion.repetida.bailarines.academia@example.com",
       academyName: "Academia Verificada",
@@ -1600,7 +1599,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("refuses to archive a dancer participating in the active event, as action data rather than a 404", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.archivo.bailarines.academia@example.com",
       academyName: "Academia Archivo Admin",
@@ -1659,7 +1658,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("archives and reactivates a dancer with no live commitment in the active event", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.archivo.libre.academia@example.com",
       academyName: "Academia Archivo Libre",
@@ -1715,7 +1714,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("merges a dancer into another of the academy and redirects to the survivor", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.fusion.bailarines.academia@example.com",
       academyName: "Academia Fusión Bailarines",
@@ -1784,7 +1783,7 @@ describe("`/administracion/bailarines` route", () => {
   });
 
   test("offers no merge to an auditor and refuses the intent with a 403", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "auditor.fusion.bailarines.academia@example.com",
       academyName: "Academia Fusión Auditor",
@@ -1959,19 +1958,6 @@ async function createDancer(input: {
     .returning();
 
   return dancer;
-}
-
-async function createSavedEvent() {
-  return createSavedEventFixture("Regional 2026", {
-    activate: true,
-    dates: createEventFixtureDates(2026),
-  });
-}
-
-async function createInactiveEvent(input: { name: string }) {
-  return createSavedEventFixture(input.name, {
-    dates: createEventFixtureDates(2026),
-  });
 }
 
 async function linkDancerToEventChoreography(input: {

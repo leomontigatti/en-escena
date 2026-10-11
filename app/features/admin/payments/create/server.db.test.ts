@@ -5,11 +5,9 @@ import { db } from "@/db";
 import { payments } from "@/db/schema";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
-import {
-  buildGlobalPaymentRequest,
-  createAcademyUser,
-  createSavedEvent,
-} from "@/lib/admin/finances/finances.test-support";
+import { buildGlobalPaymentRequest } from "@/lib/admin/finances/finances.test-support";
+import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 import { handlePaymentCreateAction } from "./server";

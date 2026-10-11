@@ -14,16 +14,13 @@ import {
   createSessionRequestCookie,
 } from "@/lib/auth/access-auth.test-support";
 import { activateEvent } from "@/lib/events/management.server";
-import {
-  createPortalSavedEvent as createSavedEvent,
-  testEventDate as date,
-} from "@/lib/events/saved-event.test-support";
 import { loader as portalIndexLoader } from "@/routes/portal._index";
 import { loader as bailarinesLoader } from "@/routes/portal.bailarines";
 import { loader as coreografiasLoader } from "@/routes/portal.coreografias";
 import { loader as finanzasLoader } from "@/routes/portal.finanzas";
 import { loader as perfilLoader } from "@/routes/portal.perfil";
 import { loader as profesoresLoader } from "@/routes/portal.profesores";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -32,14 +29,16 @@ installDatabaseTestHooks();
 describe("portal loader event active", () => {
   test("uses the active event in the shell summary", async () => {
     await createSavedEvent({
+      active: false,
       name: "Regional 2025",
-      startsAt: date("2025-05-01T12:00:00Z"),
-      endsAt: date("2025-05-03T12:00:00Z"),
+      startsAt: new Date("2025-05-01T12:00:00Z"),
+      endsAt: new Date("2025-05-03T12:00:00Z"),
     });
     const activeEvent = await createSavedEvent({
+      active: false,
       name: "Regional 2026",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     await activateEvent(activeEvent.id);
 
@@ -53,11 +52,15 @@ describe("portal loader event active", () => {
   });
 
   test("ignores the event URL query and keeps using the active event", async () => {
-    const selectedEvent = await createSavedEvent({ name: "Seleccionado" });
+    const selectedEvent = await createSavedEvent({
+      active: false,
+      name: "Seleccionado",
+    });
     const activeEvent = await createSavedEvent({
+      active: false,
       name: "Activo",
-      startsAt: date("2027-05-01T12:00:00Z"),
-      endsAt: date("2027-05-03T12:00:00Z"),
+      startsAt: new Date("2027-05-01T12:00:00Z"),
+      endsAt: new Date("2027-05-03T12:00:00Z"),
     });
     await activateEvent(activeEvent.id);
 
@@ -74,14 +77,16 @@ describe("portal loader event active", () => {
 
   test("does not fall back to the most recent event when no event is active", async () => {
     await createSavedEvent({
+      active: false,
       name: "Regional 2025",
-      startsAt: date("2025-05-01T12:00:00Z"),
-      endsAt: date("2025-05-03T12:00:00Z"),
+      startsAt: new Date("2025-05-01T12:00:00Z"),
+      endsAt: new Date("2025-05-03T12:00:00Z"),
     });
     await createSavedEvent({
+      active: false,
       name: "Regional 2026",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
 
     const loaderData = await loadPortal("http://localhost/portal");
