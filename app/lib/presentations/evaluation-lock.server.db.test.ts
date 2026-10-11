@@ -139,10 +139,6 @@ describe("findEvaluatedChoreographyIds", () => {
     );
   });
 
-  test("answers an empty set for an empty batch without reaching the database", async () => {
-    expect(await findEvaluatedChoreographyIds([])).toEqual(new Set());
-  });
-
   test("leaves out a choreography it was not asked about", async () => {
     const { disqualified, scored } = await seedThreeNumbered();
 

@@ -1,7 +1,9 @@
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
 import { startAcademyRegistration } from "@/lib/academies/registration.server";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
+import { action as requestRegistrationAction } from "@/routes/registro";
 
 describe("academy registration helpers", () => {
   test("normalizes email input", () => {
@@ -86,3 +88,53 @@ describe("academy registration helpers", () => {
     });
   });
 });
+
+// Refused before the sign-up starts: an action that reached it would throw here,
+// where no database is configured.
+describe("academy registration start", () => {
+  test("validates email and password confirmation", async () => {
+    const result = await requestRegistration("correo-invalido", {
+      password: "123",
+      confirmPassword: "456",
+    });
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Revisá los datos del formulario.",
+      fieldErrors: {
+        email: "Ingresá un correo electrónico válido.",
+        password: "La contraseña debe tener al menos 8 caracteres.",
+        confirmPassword: "Las contraseñas no coinciden.",
+      },
+      values: {
+        email: "correo-invalido",
+        password: "",
+        confirmPassword: "",
+      },
+    });
+  });
+});
+
+async function requestRegistration(
+  email: string,
+  overrides: { password?: string; confirmPassword?: string } = {},
+) {
+  const formData = new FormData();
+  formData.set("email", email);
+  formData.set("password", overrides.password ?? "password-segura");
+  formData.set(
+    "confirmPassword",
+    overrides.confirmPassword ?? overrides.password ?? "password-segura",
+  );
+
+  return await requestRegistrationAction({
+    url: new URL("http://localhost/registro"),
+    pattern: "/registro",
+    request: new Request("http://localhost/registro", {
+      method: "POST",
+      body: formData,
+    }),
+    params: {},
+    context: new RouterContextProvider(),
+  });
+}

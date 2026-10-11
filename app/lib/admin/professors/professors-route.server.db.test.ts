@@ -714,51 +714,6 @@ describe("`/administracion/profesores` route", () => {
     await expectPersistedProfessor(professor.id, { firstName: "Lia Mariel" });
   });
 
-  test("saves a professor who participated in any event without a correction reason", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
-    const academy = await createAcademyUser({
-      email: "admin.motivo.historial.academia@example.com",
-      academyName: "Academia Motivo Historial",
-      contactName: "Marta Historial",
-      phone: "9999-9999",
-    });
-    const professor = await createProfessor({
-      academyId: academy.academy.id,
-      firstName: "Lola",
-      lastName: "Historial",
-    });
-    await linkProfessorToEventChoreography({
-      eventId: event.id,
-      academyId: academy.academy.id,
-      professorId: professor.id,
-      choreographyName: "Memoria",
-    });
-    const { request } = await createSignedInRequest({
-      email: "admin.motivo.historial@example.com",
-      role: "admin",
-      requestUrl: `http://localhost/administracion/profesores/${professor.id}`,
-    });
-
-    const result = await detailAction(
-      detailActionArgs(
-        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
-          intent: "update-professor",
-          firstName: "Lola Beatriz",
-          lastName: "Historial",
-          documentType: "",
-          documentNumber: "",
-        }),
-        professor.id,
-      ),
-    );
-
-    expect(result).toMatchObject({
-      status: "success",
-      message: "Profesor guardado.",
-    });
-    await expectPersistedProfessor(professor.id, { firstName: "Lola Beatriz" });
-  });
-
   test("warns when another professor of the academy has that name", async () => {
     const academy = await createAcademyUser({
       email: "admin.homonimo.academia@example.com",

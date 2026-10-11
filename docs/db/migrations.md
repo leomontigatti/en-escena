@@ -211,12 +211,13 @@ start-up, so the healthcheck's only job is "did the process come up". A
 DB-touching check would mark a healthy container unhealthy during a blip and
 restart it, reintroducing the crash-loop the retry budget exists to prevent.
 
-**Container command precedence.** The Coolify application has `start_command`
-populated with the server command, byte-identical to the image's `CMD`. That is
-why migrations hang off `ENTRYPOINT`: an `ENTRYPOINT` composes with whatever
-command arrives, whereas a chained `CMD` would be silently overridden and the
-migrations would never run — with no error, because the app would start
-normally.
+**Container command precedence.** The Coolify application's `start_command` is
+empty in production (as of 2026-10-11) and was never set in staging, so the
+container runs the image's `CMD`. Migrations still hang off `ENTRYPOINT`, not a
+chained `CMD`: `start_command` is one field in Coolify's settings, and filling
+it replaces `CMD` silently. An `ENTRYPOINT` composes with whatever command
+arrives; a chained `CMD` would be overridden and the migrations would never
+run, with no error, because the app would start normally.
 
 Answered on the first deploy, 2026-08-04:
 
@@ -233,13 +234,10 @@ generates (`custom_docker_run_options` is unset), the entrypoint ran, and the
 migration exited 0 before the server was `exec`'d — the log line only exists on
 that path. That is the load-bearing answer.
 
-What the inspection _cannot_ tell you is whether `Cmd` arrived from Coolify's
-`start_command` or was inherited from the image's `CMD`: the two are
-byte-identical, which is exactly the coincidence that made a chained `CMD`
-unsafe to rely on. Settling it would mean reading the generated
-`docker-compose.yaml` for a `command:` key. It no longer matters — an
-`ENTRYPOINT` composes with either — so it is recorded as unresolved rather than
-chased.
+That inspection cannot tell whether its `Cmd` came from `start_command` or from
+the image's `CMD`, which were byte-identical then. It does not matter: an
+`ENTRYPOINT` composes with either. Today, with `start_command` empty, it is the
+image's `CMD`.
 
 ### Break-glass
 

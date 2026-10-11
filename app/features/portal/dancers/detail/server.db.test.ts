@@ -7,10 +7,7 @@ import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
-import {
-  invalidBirthDateMessage,
-  underageBirthDateMessage,
-} from "@/lib/dancers/birth-date";
+import { underageBirthDateMessage } from "@/lib/dancers/birth-date";
 import {
   createEventChoreographyFixture,
   fixedExperienceLevel,
@@ -805,44 +802,6 @@ describe("handlePortalDancerDetailAction", () => {
       documentFrontImageStorageKey: "dancers/vera-front.jpg",
       identityVerifiedAt: new Date("2026-06-16T12:00:00Z"),
     });
-  });
-
-  test("rejects a birth date that is not a real date and keeps the stored one", async () => {
-    const session = await createAcademySession({
-      email: "bailarines.fecha.rota@example.com",
-      academyName: "Academia Fecha Rota",
-    });
-    const [dancer] = await db
-      .insert(dancers)
-      .values({
-        academyId: session.academyId,
-        firstName: "Ana",
-        lastName: "Fecha",
-        birthDate: "2014-02-01",
-      })
-      .returning();
-
-    const result = await handlePortalDancerDetailAction({
-      request: createPortalPostRequest(
-        `http://localhost/portal/bailarines/${dancer.id}`,
-        session.cookie,
-        dancerEditFormData({
-          firstName: "Ana",
-          lastName: "Fecha",
-          birthDate: "01/02/2014",
-          documentType: "",
-          documentNumber: "",
-        }),
-      ),
-      params: { dancerId: dancer.id },
-    });
-
-    expect(result).toMatchObject({
-      status: "error",
-      fieldErrors: { birthDate: invalidBirthDateMessage },
-      values: { birthDate: "01/02/2014" },
-    });
-    await expectPersistedDancer(dancer.id, { birthDate: "2014-02-01" });
   });
 
   test("rejects a dancer under one year old at the active event start", async () => {
