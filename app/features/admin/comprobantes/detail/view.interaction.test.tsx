@@ -63,8 +63,6 @@ function comprobanteFixture(
   };
 }
 
-// A route with a real loader, so the fetcher's revalidation shows up in the view.
-// The detail shows its data as locked inputs, whose value is not text content.
 /** The dialog's verb, apart from the page's own `Anular comprobante`. */
 function voidButton() {
   const button = findButton("Anular", {
@@ -79,6 +77,8 @@ function voidButton() {
   return button;
 }
 
+// A route with a real loader, so the fetcher's revalidation shows up in the view.
+// The detail shows its data as locked inputs, whose value is not text content.
 function lockedFieldValue(label: string) {
   const labelElement = Array.from(document.querySelectorAll("label")).find(
     (element) => element.textContent === label,

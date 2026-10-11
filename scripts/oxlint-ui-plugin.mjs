@@ -484,7 +484,11 @@ function staticString(expression) {
     return expression.value;
   }
   if (expression?.type === "TemplateLiteral") {
-    return expression.quasis[0]?.value.cooked ?? undefined;
+    const start = expression.quasis[0]?.value.cooked ?? "";
+    // A template that opens with an expression starts with what it reads.
+    return start === "" && expression.expressions.length > 0
+      ? undefined
+      : start;
   }
   return undefined;
 }
@@ -580,12 +584,25 @@ const confirmWording = {
   },
 };
 
-// `borrar` and its forms, unless the sentence says a record is not deleted
-// (`no se borra`, `Suspender no borra datos`): that describes the data, not
-// an action the user takes. `borrador` is a draft, and the word boundary
-// keeps it out.
-const BORRAR =
-  /(?<!\bno (?:se )?)\b(borr(?:ar|ado|ada|ados|adas|a|an|e|en|ás|ó))\b/i;
+// Every word built on `borr-` (`borrar`, `borró`, `Borrá`, `borralo`,
+// `borremos`), with letter boundaries that know accents, since `\b` does
+// not. `borrador` is a draft, not a delete.
+const BORR_WORD = /(?<!\p{L})borr(?!ador)\p{L}*/giu;
+// A sentence that says a record is not deleted (`no se borra`, `Suspender no
+// borra datos`) describes the data, not an action the user takes. Only the
+// third person: `no borres` is still an instruction to delete.
+const NOT_DELETED = /(?<!\p{L})no (?:se )?$/iu;
+const DESCRIBING_FORMS = new Set(["borra", "borran"]);
+
+function borrarWord(text) {
+  for (const match of text.matchAll(BORR_WORD)) {
+    const word = match[0].toLowerCase();
+    const before = text.slice(0, match.index);
+    if (DESCRIBING_FORMS.has(word) && NOT_DELETED.test(before)) continue;
+    return word;
+  }
+  return undefined;
+}
 
 const noBorrar = {
   meta: {
@@ -600,12 +617,12 @@ const noBorrar = {
   },
   create(context) {
     function check(node, text) {
-      const word = text?.match(BORRAR)?.[1];
+      const word = text === undefined ? undefined : borrarWord(text);
       if (word) {
         context.report({
           node,
           messageId: "word",
-          data: { word: word.toLowerCase() },
+          data: { word },
         });
       }
     }

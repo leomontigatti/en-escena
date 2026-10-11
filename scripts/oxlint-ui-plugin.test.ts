@@ -167,6 +167,9 @@ export function Violating(props: { name: string }) {
       <ConfirmationDialog title="Anular comprobante" confirmLabel="Confirmar" />
       <p>No se puede borrar la categoría.</p>
       <p>{\`Esta acción borra \${props.name}.\`}</p>
+      <p>Se borró la categoría.</p>
+      <p>Borrá la modalidad o pedí que la borremos.</p>
+      <p>No borres el cronograma.</p>
     </div>
   );
 }
@@ -204,6 +207,7 @@ export function Compliant(props: { name: string; title: string }) {
       <p>Guardá el borrador.</p>
       <FileField removeLabel="Quitar imagen" />
       <label>Confirmar contraseña</label>
+      <ConfirmationDialog title={\`\${props.name}: ¿eliminar?\`} confirmLabel="Eliminar" />
     </div>
   );
 }
@@ -487,6 +491,21 @@ describe("ui oxlint plugin", () => {
         rule: "ui(no-borrar)",
         line: 21,
         message: expect.stringContaining("not `borra`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 22,
+        message: expect.stringContaining("not `borró`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 23,
+        message: expect.stringContaining("not `borrá`"),
+      },
+      {
+        rule: "ui(no-borrar)",
+        line: 24,
+        message: expect.stringContaining("not `borres`"),
       },
     ]);
     expect(lint(tempRoot, "app/features/copy-server.ts")).toEqual([
