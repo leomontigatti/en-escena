@@ -40,7 +40,15 @@ export function ListTabs({
           ))}
         </TabsList>
       </div>
-      <TabsContent value={value}>{children}</TabsContent>
+      {/* The list sets its own text size, and opens on its search, so the
+          panel is neither a type scale nor a tab stop of its own. */}
+      <TabsContent
+        className="text-[length:inherit]"
+        tabIndex={-1}
+        value={value}
+      >
+        {children}
+      </TabsContent>
     </Tabs>
   );
 }
