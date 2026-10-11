@@ -153,7 +153,12 @@ wrong without it. If reading the relevant code answers the question, leave it ou
 A change to anything the dev server renders — a route, a component, a loader's output, an
 action's feedback — is checked in a real browser before it is reviewed. The browser is the
 Playwright CLI (`@playwright/cli`, the `playwright-cli` binary), installed globally with a
-headless Chromium (`playwright-cli install-browser chromium`). It keeps its scratch files —
+headless Chromium ([local-auth.md](../local-auth.md#running-locally) has the two commands).
+
+Use `playwright-cli` only, never a browser the harness ships, such as T3 Code's preview
+(`mcp__t3-code__preview_*`): its screenshots blur mid-animation, it resizes itself off the
+design width, and its clicks fail when a menu closes in between. If `playwright-cli` is
+missing, stop and tell the user; do not fall back to another browser. It keeps its scratch files —
 snapshots, console logs, default screenshots — in `.playwright-cli/` under the current
 directory, which is gitignored. Skip this for what the browser cannot exercise: types, tests,
 tooling, docs, server code with no rendered surface.
@@ -165,27 +170,23 @@ creates.
 
 The loop:
 
-1. Start the dev server in the background: `pnpm dev`. It serves on the worktree's own port,
-   which the first run picks along with its database; `pnpm dev:info` prints both. The examples
-   below say 5173; use yours. A
-   "Port … is already in use" error usually means your own earlier server is still up:
-   `pnpm dev:stop`. It stops only listeners running from this worktree; one from another directory
-   is left alone and reported, with exit 1.
-2. **Log in once per account and keep the session.** Open `/ingresar` in a named session,
-   `snapshot` to get the field refs, `fill` the email and password, `click` the button, then
-   `state-save` into `.playwright-cli/`:
+1. **Get a signed-in session:** `pnpm ui:session <role> <path>`, with `admin`, `academy`,
+   `auditor` or `judge`. It starts `pnpm dev` in the background when nothing answers on the
+   worktree's port (its log goes to `.playwright-cli/dev.log`), runs `pnpm db:seed` on a database
+   with no users (one that has users but not the role's demo account, such as a production
+   refresh, is refused, never seeded over), signs in through `/ingresar` in a `playwright-cli` session
+   named for the role, sized 1440×900, and opens the path. Every later command names that
+   session: `playwright-cli -s=academy snapshot`. The session's login is also saved to
+   `.playwright-cli/<role>-state.json`, for `state-load`.
 
-   ```sh
-   playwright-cli -s=academy open http://localhost:5173/ingresar
-   playwright-cli -s=academy snapshot
-   playwright-cli -s=academy fill e15 "academia@enescena.local"
-   playwright-cli -s=academy fill e20 "<seed password>"
-   playwright-cli -s=academy click e21
-   playwright-cli -s=academy state-save .playwright-cli/academy-state.json
-   ```
+   The worktree has its own port, which `pnpm dev:info` prints; the examples below say 5173. A
+   "Port … is already in use" error from `pnpm dev` usually means your own earlier server is
+   still up: `pnpm dev:stop`. It stops only listeners running from this worktree; one from
+   another directory is left alone and reported, with exit 1.
 
-   A later session starts from `state-load .playwright-cli/academy-state.json` instead of the
-   form. Refs (`e15`) change between snapshots; read them from the latest one.
+2. **Another account** than the four is signed in by hand: `open` `/ingresar` in a named
+   session, `snapshot` for the field refs (they change between snapshots), `fill` the email and
+   password, `click` the button.
 
 3. **Capture the before** during exploration, before editing: `resize 1440 900`, `goto` the
    screen and `screenshot --filename=.playwright-cli/<what>-before.png`. After the edit there is no before left

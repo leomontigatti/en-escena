@@ -40,8 +40,8 @@ import {
   DEV_SEED_JUDGE_EMAIL,
   DEV_SEED_LEGACY_ACADEMY_EMAIL,
   DEV_SEED_PASSWORD,
-  seedDevData,
-} from "@/lib/dev-seed/seed.server";
+} from "@/lib/dev-seed/accounts";
+import { seedDevData } from "@/lib/dev-seed/seed.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
