@@ -26,6 +26,7 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import {
   buildBackToListHref,
@@ -74,7 +75,7 @@ export async function loadProfessorDetail(input: {
     professor,
     choreographies,
     seminarInscriptions,
-    backToList: buildBackToListHref(input.request.url),
+    backToList: buildBackToListHref(readRequestedUrl(input.request).href),
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "professor",
       personId: professorId,

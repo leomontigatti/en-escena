@@ -6,6 +6,7 @@ import {
   readProfessorFilters,
 } from "@/lib/admin/professors/professors.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import { professorAccreditationIdParam } from "./shared";
 import { renderProfessorAccreditationsDocument } from "./view";
@@ -20,7 +21,7 @@ export async function loadProfessorAccreditationsPrint(
 ): Promise<Response> {
   await requireInternalUser(request, ["admin"]);
 
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
   const { selectedEventId } = await loadEventContext(request);
   const professorIds = url.searchParams.getAll(professorAccreditationIdParam);
   const accreditations = await listProfessorAccreditations({

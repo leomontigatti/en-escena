@@ -80,10 +80,21 @@ const listQueryParameterPattern = new RegExp(
   "g",
 );
 
+/**
+ * A loader or action is handed the raw HTTP request, whose URL on a client
+ * navigation or a submit is React Router's data request (`/x.data?_routes=…`),
+ * not the address the reader asked for. `readRequestedUrl` in
+ * `app/lib/shared/requested-url.server.ts` reads the latter, and is the only
+ * reader of `request.url`: a list once redirected client navigations to its own
+ * `.data` path.
+ */
+const rawRequestUrlPattern = /\b(?<match>request\.url)\b/g;
+
 type RepoStyleRule =
   | "list-query-owns-parameter-names"
   | "no-tailwind-hardcoded-colors"
   | "prefer-gap-over-space"
+  | "requested-url-owns-request-url"
   | "roster-person-status-owns-active-column"
   | "roster-person-status-owns-selectable-rule";
 
@@ -95,6 +106,8 @@ const repoStyleRuleReasons: Record<RepoStyleRule, string> = {
     "Colors come from the theme tokens, not from the Tailwind palette.",
   "prefer-gap-over-space":
     "Spacing between siblings is `gap-*` on the flex or grid parent.",
+  "requested-url-owns-request-url":
+    "A loader or action reads the address through `readRequestedUrl` in `app/lib/shared/requested-url.server.ts`: on a client navigation `request.url` is React Router's `.data` request.",
   "roster-person-status-owns-active-column":
     "Estado de alta is read through `app/lib/roster/roster-person-status.server.ts` (`activeRosterPerson`, `rosterPersonStatusCondition`), never by comparing the `active` column here.",
   "roster-person-status-owns-selectable-rule":
@@ -136,6 +149,33 @@ const rosterPersonStatusOwnerDirectory = path.join("app", "lib", "roster");
 
 const repoStyleExceptions: RepoStyleException[] = [
   {
+    filePath: path.join("app", "lib", "shared", "requested-url.server.ts"),
+    reason: "The requested URL module is the owner of `request.url`.",
+    rule: "requested-url-owns-request-url",
+  },
+  {
+    filePath: path.join("app", "entry.server.tsx"),
+    reason:
+      "The document render is never a data request, and the router renders the URL as received.",
+    rule: "requested-url-owns-request-url",
+  },
+  ...[
+    path.join(
+      "app",
+      "lib",
+      "admin",
+      "academies",
+      "academies-route.test-support.ts",
+    ),
+    path.join("app", "lib", "admin", "events", "event-bases.test-helpers.tsx"),
+    path.join("app", "lib", "admin", "finances", "finances.test-support.ts"),
+  ].map((filePath): RepoStyleException => ({
+    filePath,
+    reason:
+      "Test support builds a loader's `url` argument from a document request it made itself.",
+    rule: "requested-url-owns-request-url",
+  })),
+  {
     filePath: path.join("app", "components", "ui", "avatar.tsx"),
     match: "-space-x-2",
     reason: "AvatarGroup uses negative overlap spacing intentionally.",
@@ -174,6 +214,10 @@ const repoStyleRuleChecks: RepoStyleRuleCheck[] = [
   {
     pattern: spaceUtilityPattern,
     rule: "prefer-gap-over-space",
+  },
+  {
+    pattern: rawRequestUrlPattern,
+    rule: "requested-url-owns-request-url",
   },
   {
     pattern: rosterPersonActiveComparisonPattern,

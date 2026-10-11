@@ -4,6 +4,7 @@ import { grandFinalEligibility } from "@/lib/grand-final/eligibility.server";
 import { buildVoteUrl } from "@/lib/grand-final/vote-url";
 import { readCurrentVotingRound } from "@/lib/grand-final/voting-round.server";
 import { getPortalShellEventContext } from "@/lib/portal/event-context.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 /** `grandFinal` is `null` without an active event. */
 export type PortalHomeLoaderData = {
@@ -37,7 +38,7 @@ export async function loadPortalHome(
       isRegistrationOpen,
       // On `APP_URL`, the address the public knows, as the printed QR codes.
       voteUrl: isOpenRoundFinalist
-        ? buildVoteUrl(process.env.APP_URL || new URL(request.url).origin)
+        ? buildVoteUrl(process.env.APP_URL || readRequestedUrl(request).origin)
         : null,
     },
   };

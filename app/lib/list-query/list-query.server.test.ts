@@ -50,4 +50,36 @@ describe("redirectToCanonicalListUrl", () => {
       "/lista?busqueda=Ana&estado=archivados&tipo=duo&pagina=2",
     );
   });
+
+  // A client navigation reaches the loader as React Router's data request; the
+  // redirect must send the reader to the page, not to that request.
+  test("redirects a client navigation to the list's page, not its data request", () => {
+    let thrown: unknown;
+
+    try {
+      redirectToCanonicalListUrl(
+        new Request(
+          "http://localhost/lista.data?busqueda=Ana&estado=archivados&tipo=duo&pagina=2&_routes=root%2Clista",
+        ),
+        appliedQuery,
+      );
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeUndefined();
+
+    try {
+      redirectToCanonicalListUrl(
+        new Request("http://localhost/lista.data?busqueda=Ana&pagina=2"),
+        appliedQuery,
+      );
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect((thrown as Response).headers.get("Location")).toBe(
+      "/lista?busqueda=Ana&estado=archivados&tipo=duo&pagina=2",
+    );
+  });
 });

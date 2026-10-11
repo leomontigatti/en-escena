@@ -9,6 +9,7 @@ import {
   requestPasswordRecoveryIntent,
   updateAcademyProfileIntent,
 } from "@/features/portal/profile/shared";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 export async function loadPortalProfile(request: Request) {
   const { user, academy } = await requireAcademyUser(request);
@@ -27,7 +28,7 @@ export async function handlePortalProfileAction(request: Request) {
   if (intent === requestPasswordRecoveryIntent) {
     const result = await requestAccessRecoveryEmail({
       email: user.email,
-      requestUrl: request.url,
+      requestUrl: readRequestedUrl(request).href,
       request,
     });
 

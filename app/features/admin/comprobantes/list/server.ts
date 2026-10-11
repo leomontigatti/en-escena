@@ -22,6 +22,7 @@ import {
   listSearchCondition,
   redirectToCanonicalListUrl,
 } from "@/lib/list-query/list-query.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import {
   comprobanteStatusSearchValues,
@@ -92,7 +93,7 @@ export async function loadComprobantesList(
   await requireInternalUser(request, ["admin"]);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
   const filters = readComprobantesListFilters(url.searchParams);
 
   if (selectedEventId === null) {
