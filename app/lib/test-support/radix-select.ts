@@ -65,18 +65,12 @@ export async function selectRadixOption(text: string) {
   });
 }
 
-/**
- * A mouse pointer event jsdom will build. `PointerEvent` is not implemented, and
- * Radix ignores anything whose `pointerType` is not a real one, so the property
- * is defined onto a `MouseEvent`.
- */
+/** A mouse pointer event: Radix ignores one whose `pointerType` is not real. */
 function radixPointerEvent(type: string) {
-  const event = new MouseEvent(type, {
+  return new PointerEvent(type, {
     bubbles: true,
     button: 0,
     cancelable: true,
+    pointerType: "mouse",
   });
-  Object.defineProperty(event, "pointerType", { value: "mouse" });
-
-  return event;
 }

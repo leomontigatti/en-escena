@@ -601,7 +601,7 @@ Hook guidance:
   - **To accept an advisory** — no fix published, and the vulnerable path is
     unreachable from this app — add its GHSA to `audit.ignore` in
     `pnpm-workspace.yaml`, with a comment giving the reason and when to
-    recheck, in the style of the `nwsapi` override. Both runs read that file,
+    recheck. Both runs read that file,
     so the entry applies to the base side too.
   - **`minimumReleaseAge: 4320`**, also in `pnpm-workspace.yaml`, makes a
     published version wait three days before this repo will resolve it — the
