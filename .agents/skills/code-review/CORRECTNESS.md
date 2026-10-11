@@ -1,14 +1,12 @@
 <!--
-  Local, not vendored. The vendored `code-review` skill takes no local edits
-  (docs/agents/afk-vendored-assets.md) and its two axes check conventions and requirements,
-  so the axis that hunts for bugs is defined here. The brief follows the reviewer prompt and
-  rubric of `interrogate` in cursor/plugins (pstack/skills/interrogate), cut to one model.
+  The brief follows the reviewer prompt and rubric of `interrogate` in cursor/plugins
+  (pstack/skills/interrogate), cut to one model.
 -->
 
 # Correctness
 
-The bug-hunting axis of step 5 of the skill. It runs on every diff that changes behaviour:
-beside the readback, or as the third axis of the full review. Standards asks whether the code
+The bug-hunting axis of step 5 of the `implement` skill. It runs on every diff that changes
+behaviour: beside the readback, or as the third axis of the full review. Standards asks whether the code
 follows the repo's conventions and Spec whether it does what the issue asked; this one asks
 whether it is **wrong**. It took over the job CodeRabbit did on every PR: the bugs it caught
 that the in-session review missed fell in the areas the brief now names.

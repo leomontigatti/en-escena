@@ -2,29 +2,9 @@
 
 Domain glossary for dance competitions. Defines canonical terms; the detailed rules live in [docs/domain/](docs/domain/).
 
-## How to read the glossary
-
-Each entry is keyed on the canonical English identifier —the name to use in
-code— followed by `ui:`, the canonical Spanish term the user sees in the
-interface and in URLs. It is the mapping table for the code language convention
-documented in [docs/agents/coding-standards.md](docs/agents/coding-standards.md).
-
-Reading rules:
-
-- The identifier is the root, not the exact signature: decline it as needed
-  (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
-- `comprobante` is the only reserved Spanish term inside code; adding another
-  requires an ADR. See [ADR-0011](docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md).
-- **Prose is governed like an identifier** (#792): the terms below are what the
-  user reads, not what a comment, a test name or a design doc says. Write the
-  English identifier in prose, and if the surface's own wording is the point,
-  mark the Spanish as data — a backtick in markdown, a double quote for copy and
-  a backtick for a name in code.
-- External-system adapters are the exception: `app/lib/comprobantes/arca` speaks
-  WSFEv1 (`ArcaVoucher`, `createVoucher`), not the glossary.
-- Where an existing symbol disagrees with the identifier here, the glossary wins
-  and the symbol is pending rename; renames are tracked separately.
-- Retired terms carry no identifier: they must not appear in new code.
+Each entry is the canonical English identifier, the name to use in code, followed
+by `ui:`, the Spanish term the user sees. How to read it is in
+[docs/agents/coding-standards.md](docs/agents/coding-standards.md#code-language).
 
 ## Vocabulary
 

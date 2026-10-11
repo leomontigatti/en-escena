@@ -27,7 +27,7 @@ export type EventDocumentDeclaration = {
    * The name the browser saves the file under. ASCII on purpose: a non-ASCII
    * `filename=` needs the RFC 5987 `filename*` encoding to survive, and none of
    * these names need an accent to be readable. It is a download name, not UI
-   * copy, so it does not follow the `CONTEXT.md` label.
+   * copy, so it does not follow the `GLOSSARY.md` label.
    */
   downloadFileName: string;
   /** Spanish label the administration and the academies read. */

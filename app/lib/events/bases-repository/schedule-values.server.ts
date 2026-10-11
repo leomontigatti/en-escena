@@ -12,7 +12,7 @@ import {
 /**
  * The columns the schedule repository writes from a validated input, the
  * same on every create and edit, and the validation of the award ceremony
- * pair among them. See CONTEXT.md `awardCeremony`.
+ * pair among them. See GLOSSARY.md `awardCeremony`.
  */
 
 /**

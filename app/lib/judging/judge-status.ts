@@ -4,7 +4,7 @@ import { formatScoreFieldValue } from "@/lib/judging/score-value";
  * How one judge's own work on a presentation stands, shown only to that judge.
  * It is not the presentation's `Estado de participación`, which administration
  * reads and which answers for the whole panel — both use the word "Pendiente"
- * and they mean different things. See CONTEXT.md and docs/domain/judging.md.
+ * and they mean different things. See GLOSSARY.md and docs/domain/judging.md.
  */
 
 export type JudgeScoreStatus =

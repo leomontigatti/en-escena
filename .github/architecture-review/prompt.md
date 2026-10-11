@@ -1,6 +1,6 @@
 <!--
-  Runtime prompt for the **architecture-review** runner (spec §4.8). Derived from
-  the vendored skeleton docs/agents/prompts/architecture-review.prompt.md.
+  Runtime prompt for the **architecture-review** runner; its contract is in
+  docs/agents/afk-setup.md.
   Two-pass: the produce pass explores read-only; a separate extract pass emits the
   <output> block. Unattended scheduled run — no user to ask. The runner embeds the
   prior proposals below so the tokenless agent can dedupe.
@@ -22,7 +22,7 @@ This is an unattended run — there is no user to grill. Your job:
 
 # CONTEXT
 
-Read the repo's domain/architecture docs and ADRs before proposing: `CONTEXT.md`, `docs/adr/`,
+Read the repo's domain/architecture docs and ADRs before proposing: `GLOSSARY.md`, `docs/adr/`,
 `docs/agents/domain.md`, and `docs/agents/coding-standards.md`. Treat recorded decisions (the
 ADRs) as **binding** — do not propose anything that contradicts one.
 
@@ -45,7 +45,7 @@ Prior `source:architecture-review` proposals (do not re-propose these):
 - Make the call yourself — there is no user to consult.
 - **Report documentation drift you run into.** While exploring you read docs and code side by
   side. When a current-state document (`docs/domain/`, `docs/operations/`, `docs/agents/`,
-  `CONTEXT.md`, `docs/local-auth.md`) states something the code you read contradicts, list it —
+  `GLOSSARY.md`, `docs/local-auth.md`) states something the code you read contradicts, list it —
   document, the claim, the file that contradicts it — under a `### Documentation drift` heading
   at the end of **Further Notes**, or appended to `reason` on a `skipped` run. Do not go hunting
   for it, and do not let it displace the PRD. ADRs, superseded ADRs and finished plans are

@@ -5,11 +5,11 @@ set -eo pipefail
 # AFK — loading the GitHub Actions secrets
 # ============================================================
 #
-# Loads the secret the AFK workflow consumes (spec §3.1).
+# Loads the secret the AFK workflow consumes.
 # Idempotent: if a secret already exists, it asks before overwriting.
 # The full runbook lives in docs/agents/afk-setup.md.
 #
-# Our model is orchestrator↔runner (spec §3.9): the runner holds NO
+# Our model is orchestrator↔runner: the runner holds NO
 # GitHub token. That is why there is NO read-only PAT for reading issues
 # inside the runner (the orchestrator prefetches and passes the context
 # through env/files). The secret is:

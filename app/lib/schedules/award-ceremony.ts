@@ -3,7 +3,7 @@
  * time: the schedule either has both or neither. The admin form and the
  * repository refuse a half-set pair with the same message, from here, and the
  * database refuses it again (`schedule_award_ceremony_both_or_neither`).
- * See CONTEXT.md `awardCeremony`.
+ * See GLOSSARY.md `awardCeremony`.
  */
 
 export const halfSetAwardCeremonyMessage =

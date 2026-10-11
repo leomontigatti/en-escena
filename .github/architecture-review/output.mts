@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Architecture-review structured output (spec §4.8): a discriminated union on
+// Architecture-review structured output (docs/agents/afk-setup.md): a discriminated union on
 // `status`. Either a fully-specified PRD to publish, or a skip with a reason.
 
 const proposed = z.object({

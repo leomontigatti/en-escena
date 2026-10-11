@@ -309,7 +309,7 @@ The following are not required for local operation or implementation:
 When changing auth, registration or recovery behavior, keep this
 reference order:
 
-1. `CONTEXT.md`, the domain glossary and repo workflows are authoritative.
+1. `GLOSSARY.md`, the domain glossary and repo workflows are authoritative.
 2. ADR [0013: Exit Supabase](adr/0013-exit-supabase.md) is the accepted
    decision record: Better Auth is the credential provider. ADRs 0001 and 0006
    are historical and superseded.
