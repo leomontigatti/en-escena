@@ -11,7 +11,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
-import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
+import { ChecklistField } from "@/components/shared/checklist-field";
+import { cn } from "@/lib/shared/utils";
 import {
   ReadOnlyDateField,
   ReadOnlyField,
@@ -20,7 +21,12 @@ import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { TimeOnlyField } from "@/components/shared/time-only-field";
 import { Button } from "@/components/ui/button";
-import { FieldGroup, FieldSet } from "@/components/ui/field";
+import {
+  FieldDescription,
+  FieldGroup,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import {
   Tooltip,
   TooltipContent,
@@ -48,7 +54,7 @@ import {
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
   getScheduleCategoryOptions,
-  scheduleCategoriesPlaceholder,
+  scheduleCategoriesEmptyMeaning,
   scheduleFormSchema,
   toScheduleCapacityFormValues,
   type ScheduleFormValues,
@@ -224,6 +230,7 @@ export function ScheduleForm({
           className="md:col-span-2"
           form={form}
           name="modalityIds"
+          onValueChange={() => dropUnofferedCategories(form, categories)}
           options={modalityOptions}
           title="Modalidades"
         />
@@ -513,7 +520,7 @@ function ScheduleCapacityInlineFields({
 
 /**
  * The categories the schedule accepts. Optional: leaving it empty is the
- * schedule accepting every category, which is what the placeholder says. Only
+ * schedule accepting every category, which the description says. Only
  * the categories sharing a modality with the modalities currently selected are
  * offered, so the field follows the modalities field as it changes.
  */
@@ -536,43 +543,80 @@ function ScheduleCategoriesField({
   );
 
   return (
-    <MultiComboboxField
-      className={className}
-      control={form.control}
-      emptyMessage="Sin categorías disponibles"
-      inputName="categoryIds"
-      label="Categorías"
-      name="categoryIds"
-      options={categoryOptions}
-      placeholder={scheduleCategoriesPlaceholder}
-    />
+    <FieldSet className={cn("gap-2", className)}>
+      <FieldLegend variant="label">Categorías</FieldLegend>
+      <FieldDescription>{scheduleCategoriesEmptyMeaning}</FieldDescription>
+      <ChecklistField
+        control={form.control}
+        emptySelectionMessage="Todavía no seleccionaste categorías."
+        inputName="categoryIds"
+        label="Categorías"
+        name="categoryIds"
+        noOptionsMessage={
+          selectedModalityIds?.length
+            ? "Ninguna categoría comparte una modalidad con las elegidas."
+            : "Elegí una modalidad para ver sus categorías."
+        }
+        options={categoryOptions}
+        searchLabel="Buscar categorías"
+      />
+    </FieldSet>
   );
+}
+
+/**
+ * Unchecks the categories no checked modality offers any more. The checklist
+ * only draws the offered ones, so a category left behind would post with no
+ * row to uncheck it, and the server refuses a category that shares no
+ * modality with the schedule.
+ */
+function dropUnofferedCategories(
+  form: ScheduleFormController,
+  categories: EventScheduleCategoryRow[],
+) {
+  const offered = new Set(
+    getScheduleCategoryOptions(categories, form.getValues("modalityIds")).map(
+      (option) => option.value,
+    ),
+  );
+  const categoryIds = form.getValues("categoryIds");
+  const kept = categoryIds.filter((categoryId) => offered.has(categoryId));
+
+  if (kept.length !== categoryIds.length) {
+    form.setValue("categoryIds", kept, { shouldDirty: true });
+  }
 }
 
 function ScheduleMultipleSelectField({
   className,
   form,
   name,
+  onValueChange,
   options,
   title,
 }: {
   className?: string;
   form: ScheduleFormController;
   name: "modalityIds";
+  onValueChange?: () => void;
   options: Array<{ value: string; label: string }>;
   title: string;
 }) {
   return (
-    <MultiComboboxField
-      className={className}
-      control={form.control}
-      emptyMessage="Sin modalidades disponibles"
-      inputName={name}
-      label={title}
-      name={name}
-      options={options}
-      placeholder="Seleccioná modalidades"
-    />
+    <FieldSet className={cn("gap-2", className)}>
+      <FieldLegend variant="label">{title}</FieldLegend>
+      <ChecklistField
+        control={form.control}
+        emptySelectionMessage="Todavía no seleccionaste modalidades."
+        inputName={name}
+        label={title}
+        name={name}
+        noOptionsMessage="El evento todavía no tiene modalidades."
+        onValueChange={onValueChange}
+        options={options}
+        searchLabel="Buscar modalidades"
+      />
+    </FieldSet>
   );
 }
 
