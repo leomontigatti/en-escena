@@ -11,6 +11,7 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { readEventProgram } from "@/lib/presentations/event-program.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import { programExportColumns, type ProgramExportRow } from "./sheet";
 
@@ -33,7 +34,7 @@ export async function readProgramExport(request: Request): Promise<{
 }> {
   await requireInternalUser(request, ["admin"]);
   const { selectedEventId } = await loadEventContext(request);
-  const day = new URL(request.url).searchParams.get(exportDayParam);
+  const day = readRequestedUrl(request).searchParams.get(exportDayParam);
 
   if (selectedEventId === null || !day) {
     throw new Response("Día no encontrado", { status: 404 });

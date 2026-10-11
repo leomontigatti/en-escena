@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
@@ -186,7 +186,7 @@ function routeArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion",
   };

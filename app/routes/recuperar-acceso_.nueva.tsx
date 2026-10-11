@@ -1,6 +1,7 @@
 import { redirect } from "react-router";
 
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import type { Route } from "./+types/recuperar-acceso_.nueva";
 
@@ -21,8 +22,8 @@ export default function RecuperarAccesoNuevaRedirectRoute() {
 }
 
 function redirectToChangePassword(request: Request) {
-  const url = new URL(request.url);
-  const nextUrl = new URL("/cambiar-contrasena", request.url);
+  const url = readRequestedUrl(request);
+  const nextUrl = new URL("/cambiar-contrasena", url);
 
   if (url.search) {
     nextUrl.search = url.search;

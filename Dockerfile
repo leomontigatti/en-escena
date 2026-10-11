@@ -58,4 +58,4 @@ EXPOSE 3000
 
 # ENTRYPOINT, not a chained CMD — see the note in scripts/docker-entrypoint.sh.
 ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
-CMD ["node", "node_modules/@react-router/serve/bin.js", "./build/server/index.js"]
+CMD ["node", "node_modules/@react-router/serve/bin.cjs", "./build/server/index.js"]

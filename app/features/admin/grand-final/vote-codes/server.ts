@@ -11,6 +11,7 @@ import {
 } from "@/lib/grand-final/vote-codes.server";
 import { formatLongBusinessDate } from "@/lib/shared/business-time-zone";
 import { readFormString } from "@/lib/shared/forms";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import type { GrandFinalListActionData } from "../list/shared";
 import { renderVoteCodeQrSvg, renderVoteCodeSheet } from "./sheet";
@@ -167,7 +168,7 @@ export async function loadVoteCodeSheet(
   }
 
   const html = await renderVoteCodeSheet({
-    origin: process.env.APP_URL || new URL(request.url).origin,
+    origin: process.env.APP_URL || readRequestedUrl(request).origin,
     renderQr: renderVoteCodeQrSvg,
     sheet,
   });

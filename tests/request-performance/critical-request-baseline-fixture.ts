@@ -1,5 +1,6 @@
 import { insertTestPrices } from "@/lib/prices/price-rows.test-support";
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 
 import { db } from "@/db";
 import {
@@ -137,7 +138,7 @@ export function adminLoaderArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: new URL(request.url).pathname,
   };
@@ -147,7 +148,7 @@ export function portalLayoutArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/portal",
   };
@@ -157,7 +158,7 @@ export function adminDetailArgs(request: Request, eventId: string) {
   return {
     request,
     params: { eventId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/eventos/:eventId",
   };

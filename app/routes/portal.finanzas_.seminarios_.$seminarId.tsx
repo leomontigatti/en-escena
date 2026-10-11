@@ -18,7 +18,7 @@ export const handle = {
     // The instructor alone, exactly as the page titles itself: a seminar is
     // named by who teaches it on every surface of both sides.
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
 
       return data?.seminar ? { label: data.seminar.instructorName } : null;
     },

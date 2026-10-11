@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -83,7 +84,7 @@ describe("internal navigation", () => {
           password: "password-segura",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -110,7 +111,7 @@ describe("internal navigation", () => {
           password: "password-segura",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -137,7 +138,7 @@ describe("internal navigation", () => {
           password: "password-segura",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
     ).resolves.toEqual({
       status: "error",
@@ -170,7 +171,7 @@ describe("internal navigation", () => {
           password: "password-segura",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
     ).resolves.toEqual({
       status: "error",
@@ -205,7 +206,7 @@ describe("internal navigation", () => {
             "http://localhost/ingresar?redirectTo=%2Fadministracion%2Fusuarios%2Fnuevo%3Fquery%3Dada",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -237,7 +238,7 @@ describe("internal navigation", () => {
           requestUrl,
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
       302,
     );
@@ -272,7 +273,7 @@ describe("internal navigation", () => {
         loader({
           request,
           params: {},
-          context: {},
+          context: new RouterContextProvider(),
           url: new URL(requestUrl),
           pattern,
         }),
@@ -288,7 +289,7 @@ describe("internal navigation", () => {
       indexLoader({
         request: new Request("http://localhost/"),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
         url: new URL("http://localhost/"),
         pattern: "/",
       }),
@@ -316,7 +317,7 @@ describe("internal navigation", () => {
         indexLoader({
           request,
           params: {},
-          context: {},
+          context: new RouterContextProvider(),
           url: new URL("http://localhost/"),
           pattern: "/",
         }),
@@ -339,7 +340,7 @@ describe("internal navigation", () => {
       registrationLoader({
         request,
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
         url: new URL("http://localhost/registro"),
         pattern: "/registro",
       }),

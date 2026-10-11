@@ -24,6 +24,7 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   createDefaultDancerDocumentStorage,
   loadDancerDocumentImageUrls,
@@ -69,7 +70,7 @@ export async function loadDancerDetail(input: {
       documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
       storage: createDefaultDancerDocumentStorage(),
     }),
-    backToList: buildBackToListHref(input.request.url),
+    backToList: buildBackToListHref(readRequestedUrl(input.request).href),
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "dancer",
       personId: dancerId,

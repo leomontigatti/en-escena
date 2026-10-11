@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -58,8 +59,10 @@ function scoreRequest(
       method: "POST",
     }),
     params: {},
-    context: {},
-  } as Parameters<typeof action>[0];
+    context: new RouterContextProvider(),
+    url: new URL("http://localhost/juzgamiento"),
+    pattern: "/juzgamiento",
+  };
 }
 
 async function seedOpenPresentation() {

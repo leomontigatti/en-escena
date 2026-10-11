@@ -25,7 +25,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Eventos", to: "/administracion/eventos" },
     (match) => {
-      const data = match.data as
+      const data = match.loaderData as
         EventDetailRouteProps["loaderData"] | undefined;
       return data ? { label: data.event.name } : null;
     },

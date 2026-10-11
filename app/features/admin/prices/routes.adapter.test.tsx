@@ -40,7 +40,7 @@ function resolveDetailBreadcrumb({
   }
 
   return breadcrumbResolver({
-    data: loaderData,
+    loaderData,
     params: { priceId },
   });
 }

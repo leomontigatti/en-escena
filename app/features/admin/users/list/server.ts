@@ -5,10 +5,11 @@ import {
 import { toUserAppliedListQuery } from "@/lib/admin/users/users-list.shared";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 export async function loader({ request }: { request: Request }) {
   const appUser = await requireInternalUser(request, ["admin"]);
-  const filters = readUserFilters(new URL(request.url).searchParams);
+  const filters = readUserFilters(readRequestedUrl(request).searchParams);
   const listResult = await listUsers({ filters });
 
   redirectToCanonicalListUrl(

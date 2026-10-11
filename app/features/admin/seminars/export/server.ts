@@ -16,6 +16,7 @@ import { sumKnown } from "@/features/admin/day-export/sheet";
 import { readPeriodExport } from "@/features/admin/period-export/server";
 import { resolveSeminarInscriptions } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { listSeminars } from "@/lib/seminars/repository.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import {
   buildSeminarsExportFileName,
@@ -58,7 +59,7 @@ export async function listExportableSeminarIds(
 export async function loadSeminarsExport(request: Request): Promise<Response> {
   const { eventId, eventName } = await readPeriodExport(request);
   const chosen =
-    new URL(request.url).searchParams.get(exportSeminarParam) ??
+    readRequestedUrl(request).searchParams.get(exportSeminarParam) ??
     exportAllSeminars;
   const exportable = await listExportableSeminarIds(eventId);
   const eventSeminars = (await listSeminars(eventId)).filter(({ id }) =>

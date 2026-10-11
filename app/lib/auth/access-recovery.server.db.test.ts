@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -170,7 +171,7 @@ describe("access recovery", () => {
           `http://localhost/cambiar-contrasena?code=${recoveryCode}`,
         ),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
     );
 
@@ -190,7 +191,7 @@ describe("access recovery", () => {
           requestUrl: "http://localhost/cambiar-contrasena?recuperacion=1",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       }),
     );
 
@@ -228,7 +229,7 @@ describe("access recovery", () => {
             `http://localhost/cambiar-contrasena?code=${recoveryCode}`,
           ),
           params: {},
-          context: {},
+          context: new RouterContextProvider(),
         }),
       );
       vi.spyOn(auth.api, "resetPassword").mockRejectedValue(
@@ -247,7 +248,7 @@ describe("access recovery", () => {
           requestUrl: "http://localhost/cambiar-contrasena?recuperacion=1",
         }),
         params: {},
-        context: {},
+        context: new RouterContextProvider(),
       });
 
       expect(result).toMatchObject({

@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -36,7 +37,7 @@ async function adminRouteArgs(input: { pattern: string; search: string }) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: input.pattern,
   };

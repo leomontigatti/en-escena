@@ -3,8 +3,11 @@ import { describe, expect, test } from "vitest";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
-function redirectFor(cookie: string | null): Response {
-  const request = new Request("http://localhost/panel", {
+function redirectFor(
+  cookie: string | null,
+  url = "http://localhost/panel",
+): Response {
+  const request = new Request(url, {
     headers: cookie ? { cookie } : undefined,
   });
 
@@ -33,6 +36,21 @@ function motivoFor(cookie: string | null): string | null {
 }
 
 describe("redirectToLoginForRequest", () => {
+  // A session that lapses during a client navigation is caught by the loader of
+  // React Router's data request; signing in must return to the page.
+  test("returns a client navigation to the page it was headed for", () => {
+    const location = redirectFor(
+      null,
+      "http://localhost/administracion/academias.data?pagina=2&_routes=root",
+    ).headers.get("location");
+
+    expect(
+      new URL(location ?? "", "http://localhost").searchParams.get(
+        "redirectTo",
+      ),
+    ).toBe("/administracion/academias?pagina=2");
+  });
+
   test("marks `expirada` when there is an unprefixed session cookie (http baseURL)", () => {
     expect(motivoFor("better-auth.session_token=signed.token")).toBe(
       "expirada",

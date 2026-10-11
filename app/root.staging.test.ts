@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { loader } from "./root";
@@ -6,7 +7,7 @@ function loaderArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
   } as unknown as Parameters<typeof loader>[0];
 }
 

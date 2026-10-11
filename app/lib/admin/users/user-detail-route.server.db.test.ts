@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -290,7 +290,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
         }),
       }),
       params: {},
-      context: {},
+      context: new RouterContextProvider(),
     });
 
     expect(oldPasswordResponse).toMatchObject({
@@ -742,7 +742,7 @@ function listRouteArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/usuarios",
   };
@@ -752,7 +752,7 @@ function detailRouteArgs(request: Request, userId: string) {
   return {
     request,
     params: { userId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/usuarios/:userId",
   };
@@ -762,7 +762,7 @@ function detailActionArgs(request: Request, userId: string) {
   return {
     request,
     params: { userId },
-    context: {},
+    context: new RouterContextProvider(),
     url: new URL(request.url),
     pattern: "/administracion/usuarios/:userId",
   };
@@ -799,6 +799,6 @@ function submitSignInAction(identifier: string, password: string) {
       body: formData,
     }),
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
   });
 }

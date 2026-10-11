@@ -29,6 +29,7 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 type LoaderArgs = {
   request: Request;
@@ -54,7 +55,7 @@ export async function loader({
   }
 
   return {
-    backToList: buildBackToListHref(request.url),
+    backToList: buildBackToListHref(readRequestedUrl(request).href),
     canManage: appUser.role === "admin",
     user: buildDetailUser(savedUser),
   };

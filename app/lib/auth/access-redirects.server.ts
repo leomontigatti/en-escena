@@ -4,6 +4,7 @@ import {
   createLegacySessionCookieClearHeaders,
   LEGACY_SESSION_COOKIE_PREFIX,
 } from "@/lib/auth/legacy-session-cookies.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 const LOGIN_PATH = "/ingresar";
 const CONTINUE_REASON = "continuar";
@@ -36,7 +37,7 @@ export function redirectToLoginForRequest(request: Request): never {
 }
 
 export function getSafeRedirectTo(request: Request) {
-  const redirectTo = new URL(request.url).searchParams.get("redirectTo");
+  const redirectTo = readRequestedUrl(request).searchParams.get("redirectTo");
 
   return isSafeInternalRedirect(redirectTo) ? redirectTo : null;
 }
@@ -52,7 +53,7 @@ function isSafeInternalRedirect(value: string | null) {
 }
 
 function buildLoginRedirectUrl(request: Request, reason: LoginRedirectReason) {
-  const loginUrl = new URL(LOGIN_PATH, request.url);
+  const loginUrl = new URL(LOGIN_PATH, readRequestedUrl(request));
   loginUrl.searchParams.set("redirectTo", getRequestPath(request));
   loginUrl.searchParams.set("motivo", reason);
 
@@ -60,7 +61,7 @@ function buildLoginRedirectUrl(request: Request, reason: LoginRedirectReason) {
 }
 
 function getRequestPath(request: Request) {
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
 
   return `${url.pathname}${url.search}`;
 }

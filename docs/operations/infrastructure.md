@@ -193,7 +193,7 @@ Two consequences worth stating, because both are easy to assume the other way:
 What a deploy does, for reference:
 
 - Builds from `/Dockerfile` (build pack: Dockerfile), then runs
-  `node node_modules/@react-router/serve/bin.js ./build/server/index.js` on port
+  `node node_modules/@react-router/serve/bin.cjs ./build/server/index.js` on port
   `3000`.
 - Runs migrations from the entrypoint before serving (above).
 - Gates on the healthcheck at `/internal/health`: HTTP `200`, 60s start period,

@@ -1,9 +1,9 @@
 import { PassThrough } from "node:stream";
 
 import type {
-  AppLoadContext,
   EntryContext,
   HandleErrorFunction,
+  RouterContextProvider,
 } from "react-router";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { ServerRouter } from "react-router";
@@ -44,7 +44,7 @@ export default function handleRequest(
   responseStatusCode: number,
   responseHeaders: Headers,
   routerContext: EntryContext,
-  loadContext: AppLoadContext,
+  loadContext: RouterContextProvider,
 ) {
   // https://httpwg.org/specs/rfc9110.html#HEAD
   if (request.method.toUpperCase() === "HEAD") {

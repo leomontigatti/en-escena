@@ -34,6 +34,7 @@ import {
   type ListQuerySpec,
 } from "@/lib/list-query/list-query";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 type ChoreographyRow = {
   academyName: string;
@@ -253,7 +254,7 @@ export async function loadChoreographyListRouteData(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
   const filters = readChoreographyFilters(url.searchParams);
   const listResult = await loadChoreographies({
     filters,

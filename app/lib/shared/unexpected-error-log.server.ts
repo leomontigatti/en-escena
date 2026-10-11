@@ -5,6 +5,7 @@ import type { Params, ServerInstrumentation } from "react-router";
 
 import { readRelease } from "@/lib/shared/app-environment.server";
 import { readErrorProperty } from "@/lib/shared/error-properties.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   describeErrorStack,
   isDeliberateRefusal,
@@ -95,17 +96,7 @@ function readRoutePattern(request: Request, params: Params) {
     return "unknown";
   }
 
-  return stripDataSuffix(new URL(request.url).pathname);
-}
-
-// A client navigation fetches loader data from `<path>.data`, and the root's
-// from `/_root.data`.
-function stripDataSuffix(pathname: string) {
-  if (pathname === "/_root.data") {
-    return "/";
-  }
-
-  return pathname.replace(/\.data$/, "");
+  return readRequestedUrl(request).pathname;
 }
 
 // The session lookup reads the database, which may be the very thing that

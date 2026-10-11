@@ -1,6 +1,7 @@
 import { data } from "react-router";
 
 import { client } from "@/db";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import type { Route } from "./+types/internal.perf.db-latency";
 
@@ -20,7 +21,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
   const sampleCount = readSampleCount(url.searchParams.get("samples"));
   const samples = [];
 

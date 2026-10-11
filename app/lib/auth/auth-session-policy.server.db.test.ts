@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -262,7 +263,7 @@ function submitSignInAction(identifier: string) {
     pattern: "/ingresar",
     request: createSignInRequest(identifier),
     params: {},
-    context: {},
+    context: new RouterContextProvider(),
   });
 }
 

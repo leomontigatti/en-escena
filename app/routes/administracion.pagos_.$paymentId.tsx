@@ -29,7 +29,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Pagos", to: "/administracion/pagos" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
 
       return { label: getPaymentDisplayName(data?.payment) };
     },

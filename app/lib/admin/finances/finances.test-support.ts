@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterContextProvider,
+  RouterProvider,
+} from "react-router";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
@@ -15,6 +19,7 @@ import {
   createChoreographyRecord,
   createEventCatalog,
 } from "@/features/portal/choreographies/test-support/db";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   AcademyFinancesRouteView,
   loader as academyFinancesLoader,
@@ -267,8 +272,8 @@ export function academyFinancesRouteArgs(request: Request, academyId: string) {
   return {
     request,
     params: { academyId },
-    context: {},
-    url: new URL(request.url),
+    context: new RouterContextProvider(),
+    url: readRequestedUrl(request),
     pattern: "/administracion/finanzas/:academyId",
   };
 }
@@ -277,8 +282,8 @@ export function financesListRouteArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
-    url: new URL(request.url),
+    context: new RouterContextProvider(),
+    url: readRequestedUrl(request),
     pattern: "/administracion/finanzas",
   };
 }
@@ -287,8 +292,8 @@ export function paymentCreateRouteArgs(request: Request) {
   return {
     request,
     params: {},
-    context: {},
-    url: new URL(request.url),
+    context: new RouterContextProvider(),
+    url: readRequestedUrl(request),
     pattern: "/administracion/pagos/nuevo",
   };
 }

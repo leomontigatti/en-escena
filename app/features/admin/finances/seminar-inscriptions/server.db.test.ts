@@ -1,3 +1,4 @@
+import { RouterContextProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -135,7 +136,7 @@ async function allocate(
 
 function routeArgs(request: Request) {
   return {
-    context: {},
+    context: new RouterContextProvider(),
     params: {},
     pattern: "/administracion/finanzas/seminarios",
     request,

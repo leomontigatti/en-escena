@@ -24,7 +24,7 @@ export const handle = {
   portalBreadcrumbs: [
     { label: "Seminarios", to: "/portal/seminarios" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
 
       return data?.seminar ? { label: data.seminar.instructorName } : null;
     },

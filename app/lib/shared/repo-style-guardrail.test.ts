@@ -188,6 +188,42 @@ describe("repo style check", () => {
     }
   });
 
+  test("flags the raw request URL read outside its owner", async () => {
+    const tempRoot = await mkdtemp(
+      path.join(tmpdir(), "repo-style-guardrail-request-url-"),
+    );
+
+    try {
+      await writeFile(
+        path.join(tempRoot, "server.ts"),
+        [
+          "const url = new URL(request.url);",
+          "buildBackToListHref(input.request.url);",
+          "const href = readRequestedUrl(request).href;",
+          "const url = new URL(signedInRequest.url);",
+        ].join("\n"),
+      );
+
+      const violations = await checkRepoStyle({
+        rootDirectory: tempRoot,
+        files: [path.join(tempRoot, "server.ts")],
+      });
+
+      // Line 4 names some other request: the rule follows the convention that
+      // a route's request is called `request`.
+      expect(violations.map((violation) => violation.lineNumber)).toEqual([
+        1, 2,
+      ]);
+      expect(
+        violations.every(
+          (violation) => violation.rule === "requested-url-owns-request-url",
+        ),
+      ).toBe(true);
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
   test("explains why each rule exists when it fails", async () => {
     const tempRoot = await mkdtemp(
       path.join(tmpdir(), "repo-style-guardrail-reason-"),

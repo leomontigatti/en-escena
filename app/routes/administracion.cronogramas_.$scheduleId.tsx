@@ -20,7 +20,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Cronogramas", to: "/administracion/cronogramas" },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       const schedule = data?.schedules.find(
         (block) => block.id === match.params.scheduleId,
       );

@@ -18,6 +18,7 @@ import {
   listSearchCondition,
   redirectToCanonicalListUrl,
 } from "@/lib/list-query/list-query.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 type PaymentsListMethod = PaymentsListRow["paymentMethod"];
 type PaymentsListOrder = {
@@ -90,7 +91,7 @@ export async function loadPaymentsList(
   const canWrite = canWriteInAdminPanel(user.role);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
-  const url = new URL(request.url);
+  const url = readRequestedUrl(request);
   const filters = readPaymentsListFilters(url.searchParams);
 
   if (selectedEventId === null) {

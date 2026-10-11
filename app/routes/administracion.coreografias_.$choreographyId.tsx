@@ -33,7 +33,7 @@ export const handle = {
   adminBreadcrumbs: [
     { label: "Coreografías", to: choreographiesPath },
     (match) => {
-      const data = match.data as LoaderData | undefined;
+      const data = match.loaderData as LoaderData | undefined;
       return data?.choreography ? { label: data.choreography.name } : null;
     },
   ],

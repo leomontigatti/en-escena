@@ -16,6 +16,7 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
+import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import { getAssetKindPolicy } from "@/lib/storage/asset-kinds";
 import {
   fsLocateObject,
@@ -109,7 +110,7 @@ export async function loadMusicDownload(
 ): Promise<Response> {
   await requireInternalUser(request, ["admin"]);
   const { selectedEventId } = await loadEventContext(request);
-  const day = new URL(request.url).searchParams.get(musicDownloadDayParam);
+  const day = readRequestedUrl(request).searchParams.get(musicDownloadDayParam);
 
   if (selectedEventId === null || !day) {
     throw new Response("Día no encontrado", { status: 404 });
