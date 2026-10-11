@@ -14,7 +14,11 @@ import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summa
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import type { ResolvedInscription } from "@/lib/finances/operational-summary-calculations.server";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
-import { paySeminarsPreset } from "@/lib/finances/seminar-cobro-presets.server";
+import {
+  paySeminarsPreset,
+  readSeminarCobroPreviews,
+  type SeminarCobroPreview,
+} from "@/lib/finances/seminar-cobro-presets.server";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -45,6 +49,7 @@ export async function loadAcademyFinances(input: {
     financeDetail,
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
+    seminarPresetPreviews,
   ] =
     eventContext.selectedEventId === null
       ? [
@@ -56,6 +61,7 @@ export async function loadAcademyFinances(input: {
           },
           {} as Record<string, PresetPriceOption[]>,
           {} as Record<string, string | null>,
+          {} as Record<string, SeminarCobroPreview>,
         ]
       : await Promise.all([
           readAcademyEventOperationalFinanceDetail({
@@ -64,6 +70,10 @@ export async function loadAcademyFinances(input: {
           }),
           readPresetPriceOptions(eventContext.selectedEventId),
           readPricingScheduleIdByChoreography({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
+          readSeminarCobroPreviews({
             academyId: academy.id,
             eventId: eventContext.selectedEventId,
           }),
@@ -80,6 +90,9 @@ export async function loadAcademyFinances(input: {
     // They are a second list and not a second summary: the tabs split the
     // tables, and the figures the summary carries are one debt against one pool.
     seminarFinanceRows: financeDetail.seminarFinanceRows,
+    // What either seminar preset would charge, per seminar: the dialog reads the
+    // selection's seminars out of it, from the plan the write itself runs.
+    seminarPresetPreviews,
     summary: financeDetail.summary,
   };
 }

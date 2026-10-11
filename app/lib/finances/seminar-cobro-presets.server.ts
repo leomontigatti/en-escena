@@ -18,14 +18,17 @@
  * disagree on who is charged, at which price, or how many places it takes.
  */
 
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
+import { db } from "@/db";
 import {
   dancers,
   professors,
   seminarInscriptions,
   seminarPrices,
+  seminars,
 } from "@/db/schema";
+import { formatDancerName } from "@/lib/finances/formatters";
 import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
 import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
 import {
@@ -33,6 +36,7 @@ import {
   type ResolvedSeminarInscription,
   type SeminarFinancePriceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
+import { countCoveredSeminarInscriptionsBySeminar } from "@/lib/seminars/covered-inscriptions.server";
 
 import { spreadFromPool } from "./allocation-pool.server";
 import type { CobroStage } from "./choreography-cobro-presets.server";
@@ -52,7 +56,9 @@ const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 type ActiveSeminarInscription = {
   dancerId: string | null;
+  firstName: string;
   id: string;
+  lastName: string;
   professorId: string | null;
   selectedPriceId: string | null;
   seminarId: string;
@@ -60,15 +66,17 @@ type ActiveSeminarInscription = {
 
 /**
  * One inscription the charge reaches: it owes something for the stage. `priceRow`
- * is the row it is charged at — the one it holds once its deposit is covered,
- * and otherwise the one that applies to the person today, which is what the
- * write stores on an inscription that holds none. `owedAmount` is `null` only
- * when no row prices it at all, which refuses the charge.
+ * is the row its owed figure is derived from — the one it holds once its deposit
+ * is covered, and otherwise the one that applies to the person today.
+ * `storedPriceRow` is the row it holds once the write is done: the one it
+ * already held, or, when it held none, the one the write stores. `owedAmount`
+ * is `null` only when no row prices it at all, which refuses the charge.
  */
 type SeminarCobroLine = ActiveSeminarInscription & {
   crossesDeposit: boolean;
   owedAmount: number | null;
   priceRow: SeminarFinancePriceRow | null;
+  storedPriceRow: SeminarFinancePriceRow | null;
 };
 
 type SeminarCobroPlan = {
@@ -126,18 +134,15 @@ async function readSeminarCobroPlan(
       }),
     }),
     executor.query.seminarPrices.findMany({
-      columns: { amount: true, id: true },
       where: eq(seminarPrices.eventId, input.eventId),
     }),
   ]);
-  const priceAmountById = new Map(
-    priceRows.map((price) => [price.id, price.amount]),
-  );
+  const priceById = new Map(priceRows.map((price) => [price.id, price]));
   const lines = rows.flatMap((row) => {
     const resolution = resolutions.get(row.id);
     const line = resolution
       ? planLine({
-          priceAmountById,
+          priceById,
           requiredDepositPercentage: seminarsById.get(row.seminarId)!
             .requiredDepositPercentage,
           resolution,
@@ -171,7 +176,9 @@ async function readActiveSeminarInscriptions(
   return await executor
     .select({
       dancerId: seminarInscriptions.dancerId,
+      firstName: sql<string>`coalesce(${dancers.firstName}, ${professors.firstName})`,
       id: seminarInscriptions.id,
+      lastName: sql<string>`coalesce(${dancers.lastName}, ${professors.lastName})`,
       professorId: seminarInscriptions.professorId,
       seminarId: seminarInscriptions.seminarId,
       selectedPriceId: seminarInscriptions.selectedPriceId,
@@ -189,7 +196,12 @@ async function readActiveSeminarInscriptions(
         ),
       ),
     )
-    .orderBy(seminarInscriptions.seminarId, seminarInscriptions.id);
+    .orderBy(
+      seminarInscriptions.seminarId,
+      sql`coalesce(${dancers.lastName}, ${professors.lastName})`,
+      sql`coalesce(${dancers.firstName}, ${professors.firstName})`,
+      seminarInscriptions.id,
+    );
 }
 
 /**
@@ -201,7 +213,7 @@ async function readActiveSeminarInscriptions(
  * write is about to store — today's, its effective row.
  */
 function planLine(input: {
-  priceAmountById: ReadonlyMap<string, number>;
+  priceById: ReadonlyMap<string, SeminarFinancePriceRow>;
   requiredDepositPercentage: number;
   resolution: ResolvedSeminarInscription;
   row: ActiveSeminarInscription;
@@ -217,17 +229,17 @@ function planLine(input: {
     return null;
   }
 
-  const storedPriceAmount =
+  const storedPriceRow =
     row.selectedPriceId === null
-      ? (resolution.priceRow?.amount ?? null)
-      : (input.priceAmountById.get(row.selectedPriceId) ?? null);
+      ? resolution.priceRow
+      : (input.priceById.get(row.selectedPriceId) ?? null);
   const crossesDeposit =
     owedAmount !== null &&
     !resolution.covered &&
     hasCrossedDepositThreshold({
       allocatedAmount: resolution.allocatedAmount + owedAmount,
       depositAmount: deriveSeminarInscriptionThresholds({
-        priceAmount: storedPriceAmount,
+        priceAmount: storedPriceRow?.amount ?? null,
         requiredDepositPercentage: input.requiredDepositPercentage,
       }).depositAmount,
     });
@@ -237,6 +249,7 @@ function planLine(input: {
     crossesDeposit,
     owedAmount,
     priceRow: resolution.priceRow,
+    storedPriceRow,
   };
 }
 
@@ -252,6 +265,122 @@ function countCrossingsBySeminar(
   }
 
   return needed;
+}
+
+/** One person a stage of the preset reaches, as the preset dialog lists them. */
+type SeminarCobroPreviewPerson = {
+  /** What the charge allocates to them; `null` when nothing prices them, which
+   * the write refuses. */
+  amount: number | null;
+  inscriptionId: string;
+  personName: string;
+  /** The row they hold once the charge is written. */
+  priceName: string | null;
+};
+
+/** What one stage of the preset would do in one seminar. */
+type SeminarCobroPreviewStage = {
+  /** The places the charge would take: the people it carries across their
+   * deposit. */
+  neededCount: number;
+  people: SeminarCobroPreviewPerson[];
+};
+
+/**
+ * One seminar of the event as the preset dialog previews it, for both stages,
+ * so the dialog can read any selection without asking the server again.
+ */
+export type SeminarCobroPreview = {
+  /** The places already taken, by every academy. */
+  coveredCount: number;
+  instructorName: string;
+  quota: number;
+  scheduledDate: string;
+  seminarId: string;
+  stages: Record<CobroStage, SeminarCobroPreviewStage>;
+};
+
+/**
+ * The preview of both presets over every seminar of the event, keyed by
+ * seminar. It reads `readSeminarCobroPlan`, the plan the write runs under its
+ * locks, so the people, the prices and the places it shows are the ones the
+ * write would act on as long as nothing moves in between; when something does,
+ * the write's own checks are the last word.
+ *
+ * A seminar's plan does not depend on the other seminars of a selection, so
+ * one plan over all of them answers any selection the dialog is opened on.
+ */
+export async function readSeminarCobroPreviews(input: {
+  academyId: string;
+  eventId: string;
+}): Promise<Record<string, SeminarCobroPreview>> {
+  const eventSeminars = await db
+    .select({
+      id: seminars.id,
+      instructorName: seminars.instructorName,
+      kind: seminars.kind,
+      quota: seminars.quota,
+      requiredDepositPercentage: seminars.requiredDepositPercentage,
+      scheduledDate: seminars.scheduledDate,
+    })
+    .from(seminars)
+    .where(eq(seminars.eventId, input.eventId))
+    .orderBy(asc(seminars.id));
+
+  if (eventSeminars.length === 0) {
+    return {};
+  }
+
+  const [coveredBySeminarId, deposit, balance] = await Promise.all([
+    countCoveredSeminarInscriptionsBySeminar(
+      eventSeminars.map((seminar) => seminar.id),
+      db,
+    ),
+    readSeminarCobroPlan(db, {
+      ...input,
+      seminars: eventSeminars,
+      stage: "deposit",
+    }),
+    readSeminarCobroPlan(db, {
+      ...input,
+      seminars: eventSeminars,
+      stage: "balance",
+    }),
+  ]);
+
+  return Object.fromEntries(
+    eventSeminars.map((seminar) => [
+      seminar.id,
+      {
+        coveredCount: coveredBySeminarId.get(seminar.id) ?? 0,
+        instructorName: seminar.instructorName,
+        quota: seminar.quota,
+        scheduledDate: seminar.scheduledDate,
+        seminarId: seminar.id,
+        stages: {
+          balance: previewStage(balance, seminar.id),
+          deposit: previewStage(deposit, seminar.id),
+        },
+      } satisfies SeminarCobroPreview,
+    ]),
+  );
+}
+
+function previewStage(
+  plan: SeminarCobroPlan,
+  seminarId: string,
+): SeminarCobroPreviewStage {
+  return {
+    neededCount: plan.neededBySeminarId.get(seminarId) ?? 0,
+    people: plan.lines
+      .filter((line) => line.seminarId === seminarId)
+      .map((line) => ({
+        amount: line.owedAmount,
+        inscriptionId: line.id,
+        personName: formatDancerName(line),
+        priceName: line.storedPriceRow?.name ?? null,
+      })),
+  };
 }
 
 /**

@@ -235,11 +235,7 @@ export function AcademyFinancesRouteView({
         <SeminarPresetDialog
           availableBalanceAmount={loaderData.summary.availableBalanceAmount}
           onOpenChange={handlePresetOpenChange}
-          owedAmount={
-            preset.stage === "deposit"
-              ? seminarTotals.owedDepositAmount
-              : seminarTotals.owedBalanceAmount
-          }
+          previews={loaderData.seminarPresetPreviews}
           selectedSeminarIds={seminarTotals.selectedRows.map((row) => row.id)}
           stage={preset.stage}
         />

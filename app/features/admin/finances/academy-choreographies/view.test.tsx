@@ -369,9 +369,29 @@ describe("AcademyFinancesRouteView", () => {
           seminarFinanceRowFixture({
             id: "seminar_2",
             instructorName: "Nicolás Prado",
-            owedDepositAmount: { amount: 7000, status: "complete" },
           }),
         ],
+        seminarPresetPreviews: {
+          seminar_1: seminarPresetPreviewFixture({ seminarId: "seminar_1" }),
+          seminar_2: seminarPresetPreviewFixture({
+            instructorName: "Nicolás Prado",
+            seminarId: "seminar_2",
+            stages: {
+              ...seminarPresetPreviewFixture().stages,
+              deposit: {
+                neededCount: 1,
+                people: [
+                  {
+                    amount: 7000,
+                    inscriptionId: "seminar_inscription_2",
+                    personName: "Bruno Mirando",
+                    priceName: "Exclusivo",
+                  },
+                ],
+              },
+            },
+          }),
+        },
         summary: {
           ...academyFinancesLoaderDataFixture().summary,
           availableBalanceAmount: 40000,
@@ -405,6 +425,133 @@ describe("AcademyFinancesRouteView", () => {
       ["seminarId", "seminar_1"],
       ["seminarId", "seminar_2"],
     ]);
+  });
+
+  test("lists each selected seminar with the people it reaches, their price and amount, and its places", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "balance",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [
+          seminarFinanceRowFixture({ id: "seminar_1" }),
+          seminarFinanceRowFixture({
+            id: "seminar_2",
+            instructorName: "Nicolás Prado",
+          }),
+        ],
+        seminarPresetPreviews: {
+          seminar_1: seminarPresetPreviewFixture({
+            coveredCount: 12,
+            seminarId: "seminar_1",
+            stages: {
+              ...seminarPresetPreviewFixture().stages,
+              balance: {
+                neededCount: 2,
+                people: [
+                  {
+                    amount: 40000,
+                    inscriptionId: "seminar_inscription_1",
+                    personName: "Ana Bailando",
+                    priceName: "Exclusivo participante",
+                  },
+                  {
+                    amount: 22000,
+                    inscriptionId: "seminar_inscription_2",
+                    personName: "Bruno Mirando",
+                    priceName: "Preventa exclusiva",
+                  },
+                ],
+              },
+            },
+          }),
+          seminar_2: seminarPresetPreviewFixture({
+            instructorName: "Nicolás Prado",
+            scheduledDate: "2026-10-11",
+            seminarId: "seminar_2",
+          }),
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 100000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await clickCheckbox(getRenderedCheckboxes()[2]);
+
+    const sections = [
+      ...document.querySelectorAll('[role="dialog"] section'),
+    ].map((section) => section.textContent ?? "");
+
+    expect(sections).toHaveLength(2);
+    expect(sections[0]).toContain("Abril Sosa · 10 de octubre de 2026");
+    expect(sections[0]).toContain("Lugares libres: 8 · Ocupa: 2");
+    expect(sections[0]).toContain("Ana Bailando");
+    expect(sections[0]).toContain("Exclusivo participante");
+    expect(sections[0]).toContain("$ 40.000");
+    expect(sections[0]).toContain("Bruno Mirando");
+    expect(sections[0]).toContain("Preventa exclusiva");
+    expect(sections[0]).toContain("$ 22.000");
+    expect(sections[1]).toContain("Nicolás Prado · 11 de octubre de 2026");
+    expect(sections[1]).toContain("Lugares libres: 20 · Ocupa: 1");
+    // The owed figure is the people's amounts summed.
+    expect(dialogText()).toContain("$ 70.000");
+    expect(findButton("Guardar")?.disabled).toBe(false);
+  });
+
+  test("disables `Guardar` and names the seminar and the shortfall when places fall short", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+        seminarPresetPreviews: {
+          seminar_1: seminarPresetPreviewFixture({
+            coveredCount: 20,
+            seminarId: "seminar_1",
+          }),
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 100000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Guardar")?.disabled).toBe(true);
+    expect(dialogText()).toContain("No alcanzan los lugares");
+    expect(dialogText()).toContain(
+      "No quedan lugares suficientes en el seminario de Abril Sosa del 10 de octubre de 2026: falta 1.",
+    );
+  });
+
+  test("disables `Guardar` with its reason when the owed figure exceeds `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?tipo=seminarios",
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [seminarFinanceRowFixture({ id: "seminar_1" })],
+        seminarPresetPreviews: {
+          seminar_1: seminarPresetPreviewFixture({ seminarId: "seminar_1" }),
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 3000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Guardar")?.disabled).toBe(true);
+    expect(dialogText()).toContain("No alcanza el saldo disponible");
+    expect(dialogText()).toContain(
+      "La academia adeuda $ 5.000 y tiene $ 3.000 disponibles.",
+    );
+    expect(dialogText()).not.toContain("No alcanzan los lugares");
   });
 
   test("shows a refused seminar charge as an alert in the dialog", async () => {
@@ -1141,6 +1288,7 @@ function academyFinancesLoaderDataFixture(
     },
     selectedEventId: "event_1",
     seminarFinanceRows: [],
+    seminarPresetPreviews: {},
     summary: {
       availableBalanceAmount: 0,
       depositAmount: { amount: 18000, status: "complete" },
@@ -1201,6 +1349,50 @@ function seminarFinanceRowFixture(
     registrationCount: 2,
     scheduledDate: "2026-10-10",
     totalAmount: { amount: 20000, status: "complete" },
+    ...overrides,
+  };
+}
+
+/**
+ * What the seminar presets would charge in one seminar, as the loader reads it
+ * off the write's plan: by default one person owing 5000 of deposit and 8000
+ * of balance, needing one place out of twenty with none taken.
+ */
+function seminarPresetPreviewFixture(
+  overrides: Partial<
+    AcademyFinancesLoaderData["seminarPresetPreviews"][string]
+  > = {},
+): AcademyFinancesLoaderData["seminarPresetPreviews"][string] {
+  return {
+    coveredCount: 0,
+    instructorName: "Abril Sosa",
+    quota: 20,
+    scheduledDate: "2026-10-10",
+    seminarId: "seminar",
+    stages: {
+      balance: {
+        neededCount: 1,
+        people: [
+          {
+            amount: 8000,
+            inscriptionId: "seminar_inscription_1",
+            personName: "Ana Bailando",
+            priceName: "Regular",
+          },
+        ],
+      },
+      deposit: {
+        neededCount: 1,
+        people: [
+          {
+            amount: 5000,
+            inscriptionId: "seminar_inscription_1",
+            personName: "Ana Bailando",
+            priceName: "Regular",
+          },
+        ],
+      },
+    },
     ...overrides,
   };
 }

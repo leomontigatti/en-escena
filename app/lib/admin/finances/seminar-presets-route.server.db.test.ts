@@ -19,7 +19,10 @@ import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createSavedEvent } from "@/lib/test-support/events";
-import { action as academyFinancesAction } from "@/routes/administracion.finanzas_.$academyId";
+import {
+  action as academyFinancesAction,
+  loader as academyFinancesLoader,
+} from "@/routes/administracion.finanzas_.$academyId";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -225,6 +228,19 @@ async function postPreset(
   );
 }
 
+async function loadPreviews(fixture: Fixture) {
+  const { request } = await createSignedInRequest({
+    email: `admin.${crypto.randomUUID()}@example.com`,
+    role: "admin",
+    requestUrl: academyFinancesUrl(fixture.academyId, fixture.eventId),
+  });
+  const loaderData = await academyFinancesLoader(
+    academyFinancesRouteArgs(request, fixture.academyId),
+  );
+
+  return loaderData.seminarPresetPreviews;
+}
+
 async function readAllocatedByInscription(fixture: Fixture) {
   const ids = Object.values(fixture.inscriptions).map((row) => row.id);
   const rows = await db
@@ -244,6 +260,24 @@ async function readAllocatedByInscription(fixture: Fixture) {
   }
 
   return allocated;
+}
+
+async function readStoredPriceNames(fixture: Fixture) {
+  const rows = await db
+    .select({ id: seminarInscriptions.id, name: seminarPrices.name })
+    .from(seminarInscriptions)
+    .innerJoin(
+      seminarPrices,
+      eq(seminarPrices.id, seminarInscriptions.selectedPriceId),
+    )
+    .where(
+      inArray(
+        seminarInscriptions.id,
+        Object.values(fixture.inscriptions).map((row) => row.id),
+      ),
+    );
+
+  return new Map(rows.map((row) => [row.id, row.name]));
 }
 
 async function readStoredPriceIds(fixture: Fixture) {
@@ -427,5 +461,139 @@ describe("the seminar presets on the academy's finance page", () => {
         (amount) => amount === 0,
       ),
     ).toBe(true);
+  });
+});
+
+describe("the seminar preset preview in the academy's finance loader", () => {
+  test("`Pagar seña`: the people, prices and amounts it lists are what the action then writes", async () => {
+    const fixture = await seedFixture({ paymentAmount: 100000 });
+    const { inscriptions } = fixture;
+
+    const previews = await loadPreviews(fixture);
+    const special = previews[fixture.special.id]!;
+    const regular = previews[fixture.regular.id]!;
+
+    // The withdrawn person and the other academy's person are not listed.
+    expect(special).toMatchObject({
+      coveredCount: 0,
+      instructorName: "Abril Sosa",
+      quota: 20,
+      scheduledDate: "2030-10-10",
+    });
+    expect(special.stages.deposit).toEqual({
+      neededCount: 2,
+      people: [
+        {
+          amount: 20000,
+          inscriptionId: inscriptions.specialParticipant.id,
+          personName: "Ana Bailando",
+          priceName: "special participante",
+        },
+        {
+          amount: 22000,
+          inscriptionId: inscriptions.specialOutsider.id,
+          personName: "Bruno Mirando",
+          priceName: "Preventa exclusiva",
+        },
+      ],
+    });
+    expect(
+      regular.stages.deposit.people.map((person) => person.inscriptionId),
+    ).toEqual([
+      inscriptions.regularParticipant.id,
+      inscriptions.regularOutsider.id,
+    ]);
+
+    expect(
+      await postPreset(fixture, {
+        intent: "pay-seminar-deposit-preset",
+        seminarIds: [fixture.special.id, fixture.regular.id],
+      }),
+    ).toMatchObject({ status: "success" });
+
+    const allocated = await readAllocatedByInscription(fixture);
+    const storedNames = await readStoredPriceNames(fixture);
+    const previewed = [
+      ...special.stages.deposit.people,
+      ...regular.stages.deposit.people,
+    ];
+
+    for (const person of previewed) {
+      expect(allocated.get(person.inscriptionId)).toBe(person.amount);
+      expect(storedNames.get(person.inscriptionId)).toBe(person.priceName);
+    }
+
+    // The places the preview said the charge needs are the places it took.
+    const after = await loadPreviews(fixture);
+
+    expect(after[fixture.special.id]!.coveredCount).toBe(
+      special.stages.deposit.neededCount,
+    );
+    expect(after[fixture.regular.id]!.coveredCount).toBe(
+      regular.stages.deposit.neededCount,
+    );
+    // Nothing is left owing for the deposit, so the preview lists nobody.
+    expect(after[fixture.special.id]!.stages.deposit).toEqual({
+      neededCount: 0,
+      people: [],
+    });
+  });
+
+  test("`Pagar saldo` lists a covered person at the price they hold, for the rest only, and needs no place for them", async () => {
+    const fixture = await seedFixture({ paymentAmount: 200000 });
+    const { inscriptions } = fixture;
+    const chosen = fixture.priceId("special", false);
+
+    expect(
+      await allocateToSeminarInscription({
+        academyId: fixture.academyId,
+        amount: 25000,
+        eventId: fixture.eventId,
+        inscriptionId: inscriptions.specialOutsider.id,
+        priceId: chosen,
+        seminarId: fixture.special.id,
+      }),
+    ).toEqual({ ok: true });
+
+    const special = (await loadPreviews(fixture))[fixture.special.id]!;
+
+    expect(special.coveredCount).toBe(1);
+    expect(special.stages.deposit.people.map((p) => p.inscriptionId)).toEqual([
+      inscriptions.specialParticipant.id,
+    ]);
+    expect(special.stages.balance).toEqual({
+      neededCount: 1,
+      people: [
+        {
+          amount: 40000,
+          inscriptionId: inscriptions.specialParticipant.id,
+          personName: "Ana Bailando",
+          priceName: "special participante",
+        },
+        {
+          amount: 25000,
+          inscriptionId: inscriptions.specialOutsider.id,
+          personName: "Bruno Mirando",
+          priceName: "special no participante",
+        },
+      ],
+    });
+
+    expect(
+      await postPreset(fixture, {
+        intent: "pay-seminar-balance-preset",
+        seminarIds: [fixture.special.id],
+      }),
+    ).toMatchObject({ status: "success" });
+
+    const allocated = await readAllocatedByInscription(fixture);
+
+    expect(allocated.get(inscriptions.specialParticipant.id)).toBe(40000);
+    expect(allocated.get(inscriptions.specialOutsider.id)).toBe(50000);
+    expect(
+      (await readStoredPriceNames(fixture)).get(
+        inscriptions.specialOutsider.id,
+      ),
+    ).toBe("special no participante");
   });
 });

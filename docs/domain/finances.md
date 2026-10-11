@@ -749,6 +749,15 @@ nothing the second time.
   who is charged, at which price and how much (`seminar-cobro-presets.server.ts`).
   A refusal shows as an alert inside the dialog, since it names the part of the
   selection that blocked it; a success closes the dialog with a toast.
+- **The dialog previews the write.** Per selected seminar it lists the people
+  the charge reaches, with the price each will hold and the amount, and the
+  places left against the places the charge takes; the owed figure is those
+  amounts summed. The loader reads it from the same plan the write runs
+  (`readSeminarCobroPreviews`), so preview and write cannot disagree on who,
+  at which price or how many places. `Guardar` is disabled, with the reason
+  stated, when a seminar is short of places (named, with the shortfall) or
+  the owed figure exceeds `Saldo disponible`; the server's checks stay the
+  last word for a state that moved after the dialog opened.
 
 Invoicing stays `Emitir factura` on each `(seminar, academy)` detail.
 
