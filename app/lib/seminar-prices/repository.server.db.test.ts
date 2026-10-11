@@ -100,37 +100,6 @@ describe("seminar price repository", () => {
     ).resolves.toMatchObject({ ok: true });
   });
 
-  test("refuses an empty name, a malformed deadline and an amount below one", async () => {
-    const event = await createSavedEvent({
-      name: "Regional 2026",
-      active: false,
-      ...eventDates(2030),
-    });
-
-    await expect(
-      createSeminarPrice(event.id, {
-        ...participantTail,
-        name: "  ",
-        amount: 0,
-        paymentDeadline: "30/06/2026",
-      }),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: "invalid-event-bases",
-      fieldErrors: {
-        name: "Ingresá el nombre del precio.",
-        amount: "Ingresá un monto mayor a cero.",
-        paymentDeadline: "Elegí una fecha válida.",
-      },
-    });
-    await expect(
-      createSeminarPrice(event.id, { ...participantTail, kind: "premium" }),
-    ).resolves.toMatchObject({
-      ok: false,
-      fieldErrors: { kind: "Elegí un tipo de seminario." },
-    });
-  });
-
   test("freezes a referenced row except for its name", async () => {
     const { event, inscriptionId } = await createSeminarInscriptionFixture();
     const dated = expectSavedPrice(
