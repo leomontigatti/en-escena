@@ -14,7 +14,7 @@ import {
 } from "@/features/admin/events/detail/server.test-support";
 import type { EventFormValues } from "@/lib/admin/events/form-values";
 import { createChoreographyOnNewBases } from "@/lib/events/bases.test-support";
-import { createAdminSavedEvent } from "@/lib/events/saved-event.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -112,7 +112,7 @@ describe("event dependencies on the event detail action", () => {
  * form writes it, which is what the guard has to be measured against.
  */
 async function createFormSavedEvent() {
-  const event = await createAdminSavedEvent();
+  const event = await createSavedEvent({ active: false });
 
   await save(event, {});
 

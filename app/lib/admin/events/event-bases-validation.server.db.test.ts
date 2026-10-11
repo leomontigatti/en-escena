@@ -3,8 +3,6 @@ import { describe, expect, test } from "vitest";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { createSchedule } from "@/lib/schedules/repository.server";
-
-import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import {
   action,
   buildScheduleCapacityDraft,
@@ -12,23 +10,28 @@ import {
   createEventScheduleAdminFixture,
   createScheduleAdminRequest,
   createScheduleCapacityAdminRequest,
-  createSavedEvent,
-  createSignedInRequest,
   expectCreated,
-  expectThrownResponse,
   formData,
   loader,
   renderModalidadDetalleRoute,
   renderNuevaModalidadRoute,
   routeArgs,
-} from "./event-bases.test-support";
+} from "@/lib/admin/events/event-bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
+
+import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 import { createPriceAdminRequest } from "./event-bases-price.test-support";
 
 installDatabaseTestHooks();
 
 describe("`/administracion/bases-del-evento` routes", () => {
   test("returns duplicate modality errors from `Bases del evento` actions", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     await createModality(event.id, { name: "Jazz" });
     const duplicateRequest = await createSignedInRequest({
       email: "admin.duplicado@example.com",
@@ -51,7 +54,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("returns category validation errors from `Bases del evento` actions", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
@@ -135,7 +141,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("returns price validation errors from `Bases del evento` actions", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const createPriceRequest = await createPriceAdminRequest({
       email: "admin.precio.base@example.com",
       role: "admin",
@@ -307,7 +316,10 @@ describe("`/administracion/bases-del-evento` routes", () => {
   });
 
   test("routes modality and submodality field errors to the correct form", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );

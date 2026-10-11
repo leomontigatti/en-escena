@@ -6,14 +6,6 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
-import {
-  createAdminSavedEvent as createSavedEvent,
-  testEventDate as date,
-} from "@/lib/events/saved-event.test-support";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
   AdminShellRouteView,
@@ -30,6 +22,9 @@ import {
 } from "@/routes/administracion.eventos_.$eventId";
 import { handle as eventoNuevoHandle } from "@/routes/administracion.eventos_.nuevo";
 import { action as createAction } from "@/routes/administracion.eventos_.nuevo";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -56,20 +51,22 @@ describe("`/administracion/eventos` route", () => {
   test("lists events with name, registration dates, event dates and state", async () => {
     const finalEvent = await createSavedEvent({
       name: "Regional 2026",
-      startsAt: date("2026-05-01T12:00:00Z"),
-      endsAt: date("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
       active: true,
     });
     await createSavedEvent({
+      active: false,
       name: "Final 2027",
-      startsAt: date("2027-05-01T12:00:00Z"),
-      endsAt: date("2027-05-03T12:00:00Z"),
+      startsAt: new Date("2027-05-01T12:00:00Z"),
+      endsAt: new Date("2027-05-03T12:00:00Z"),
       requiredDepositPercentage: 45,
     });
     await createSavedEvent({
+      active: false,
       name: "Regional 2025",
-      startsAt: date("2025-05-01T12:00:00Z"),
-      endsAt: date("2025-05-03T12:00:00Z"),
+      startsAt: new Date("2025-05-01T12:00:00Z"),
+      endsAt: new Date("2025-05-03T12:00:00Z"),
     });
 
     const { request } = await createSignedInRequest({
@@ -112,9 +109,10 @@ describe("`/administracion/eventos` route", () => {
       active: true,
     });
     await createSavedEvent({
+      active: false,
       name: "Final 2027",
-      startsAt: date("2027-05-01T12:00:00Z"),
-      endsAt: date("2027-05-03T12:00:00Z"),
+      startsAt: new Date("2027-05-01T12:00:00Z"),
+      endsAt: new Date("2027-05-03T12:00:00Z"),
     });
     const { request } = await createSignedInRequest({
       email: "admin.shell.eventos@example.com",
@@ -138,7 +136,10 @@ describe("`/administracion/eventos` route", () => {
   });
 
   test("keeps events child route data focused on resource content", async () => {
-    const event = await createSavedEvent({ name: "Regional 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "Regional 2026",
+    });
     const { request: listRequest } = await createSignedInRequest({
       email: "admin.route-contract.list@example.com",
       role: "admin",

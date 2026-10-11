@@ -23,12 +23,9 @@ import {
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { activateEvent } from "@/lib/events/management.server";
-import {
-  createPortalSavedEvent as createSavedEvent,
-  testEventDate as date,
-} from "@/lib/events/saved-event.test-support";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 let nextIdentity = 0;
 
@@ -37,19 +34,22 @@ export async function seedBaselineFixture() {
   const academy = await createAcademySession();
 
   const activeEvent = await createSavedEvent({
+    active: false,
     name: "Evento Activo",
-    startsAt: date("2026-05-01T12:00:00Z"),
-    endsAt: date("2026-05-03T12:00:00Z"),
+    startsAt: new Date("2026-05-01T12:00:00Z"),
+    endsAt: new Date("2026-05-03T12:00:00Z"),
   });
   const futureEvent = await createSavedEvent({
+    active: false,
     name: "Evento Futuro",
-    startsAt: date("2027-05-01T12:00:00Z"),
-    endsAt: date("2027-05-03T12:00:00Z"),
+    startsAt: new Date("2027-05-01T12:00:00Z"),
+    endsAt: new Date("2027-05-03T12:00:00Z"),
   });
   await createSavedEvent({
+    active: false,
     name: "Evento Finalizado",
-    startsAt: date("2024-05-01T12:00:00Z"),
-    endsAt: date("2024-05-03T12:00:00Z"),
+    startsAt: new Date("2024-05-01T12:00:00Z"),
+    endsAt: new Date("2024-05-03T12:00:00Z"),
   });
   await activateEvent(activeEvent.id);
 

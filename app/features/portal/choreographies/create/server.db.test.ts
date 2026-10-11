@@ -10,10 +10,6 @@ import {
   professors,
 } from "@/db/schema";
 import { activateEvent } from "@/lib/events/management.server";
-import {
-  createPortalSavedEvent as createSavedEvent,
-  testEventDate as date,
-} from "@/lib/events/saved-event.test-support";
 import { CREATE_CHOREOGRAPHY_INTENT } from "@/features/portal/choreographies/create/flow";
 import {
   handleCreateChoreographyAction,
@@ -30,6 +26,7 @@ import {
 } from "@/features/portal/test-support/db";
 import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -122,9 +119,10 @@ describe("the create choreography page loader", () => {
       email: "crear.coreografia.cerrada@example.com",
     });
     const event = await createSavedEvent({
+      active: false,
       name: "Regional Sin Bases",
-      startsAt: date("2026-07-01T12:00:00Z"),
-      endsAt: date("2026-07-03T12:00:00Z"),
+      startsAt: new Date("2026-07-01T12:00:00Z"),
+      endsAt: new Date("2026-07-03T12:00:00Z"),
     });
     await activateEvent(event.id);
     await db.insert(dancers).values({

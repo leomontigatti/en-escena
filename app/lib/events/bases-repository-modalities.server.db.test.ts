@@ -6,10 +6,8 @@ import {
   listModalities,
   listSubmodalities,
 } from "@/lib/modalities/repository.server";
-import {
-  createSavedEvent,
-  expectCreated,
-} from "@/lib/events/bases.test-support";
+import { expectCreated } from "@/lib/events/bases.test-support";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -17,7 +15,11 @@ installDatabaseTestHooks();
 
 describe("`Bases del evento` modalities repository", () => {
   test("creates a modality together with its submodalities in one transaction", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     const modality = await expectCreated(
       createModalityWithSubmodalities(event.id, {
@@ -46,7 +48,11 @@ describe("`Bases del evento` modalities repository", () => {
   });
 
   test("creates a modality with zero submodalities", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     const modality = await expectCreated(
       createModalityWithSubmodalities(event.id, {
@@ -62,7 +68,11 @@ describe("`Bases del evento` modalities repository", () => {
   });
 
   test("surfaces the unique submodality name conflict and rolls back the whole insert", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
 
     await expect(
       createModalityWithSubmodalities(event.id, {
@@ -76,7 +86,11 @@ describe("`Bases del evento` modalities repository", () => {
   });
 
   test("rejects an existing modality name without persisting submodalities", async () => {
-    const event = await createSavedEvent("Regional 2026");
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
     const existing = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );

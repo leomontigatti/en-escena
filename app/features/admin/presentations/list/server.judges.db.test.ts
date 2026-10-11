@@ -2,8 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { scores } from "@/db/schema";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import {
   handlePresentationListAction,
@@ -37,7 +37,7 @@ async function removeThroughTheAction(input: {
     body.append(judgeIdFieldName, judgeId);
   }
 
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body,
     email: input.email,
     requestUrl: listUrl,
@@ -116,7 +116,7 @@ describe("the participation list's missing judges warning", () => {
       orderNumber: 2,
     });
     await fixture.assignJudge(judged.presentationId);
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       email: `presentacion.jurado.${crypto.randomUUID()}@example.com`,
       requestUrl: listUrl,
       role: "admin",

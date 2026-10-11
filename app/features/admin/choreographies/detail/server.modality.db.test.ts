@@ -34,19 +34,17 @@ import {
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
-import {
   evaluatedChoreographyMessage,
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration.test-support";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 
 // Reaching a real evaluation means a score on an assigned judge, which is not
 // this file's subject, so a test that needs a closed choreography declares it
@@ -548,7 +546,7 @@ async function createModalityScenario(input: {
   }
 
   async function readModalityDraft(modalityId: string) {
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       email: nextEmail("admin"),
       requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,
       role: "admin",
@@ -575,7 +573,7 @@ async function createModalityScenario(input: {
     event,
     owner,
     async loadDetail(role: "admin" | "auditor" = "admin") {
-      const { request } = await createSignedInAdminRequest({
+      const { request } = await createSignedInRequest({
         email: nextEmail(role),
         requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,
         role,
@@ -743,7 +741,7 @@ async function submitDetailAction(input: {
   email: string;
   role: "admin" | "auditor";
 }) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     body: input.body,
     email: input.email,
     requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,

@@ -7,10 +7,6 @@ import {
   choreographyProfessors,
   professors,
 } from "@/db/schema";
-import {
-  createSignedInAdminRequest as createSignedInRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createCategory } from "@/lib/categories/repository.server";
 import {
@@ -21,11 +17,7 @@ import {
   createSchedule,
   createScheduleCapacity,
 } from "@/lib/schedules/repository.server";
-import {
-  createEventFixtureDates,
-  createSavedEvent as createSavedEventFixture,
-  fixedExperienceLevel,
-} from "@/lib/events/bases.test-support";
+import { fixedExperienceLevel } from "@/lib/events/bases.test-support";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import {
@@ -37,6 +29,9 @@ import {
   allocateChoreographyNumberForTest,
   readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -44,7 +39,7 @@ installDatabaseTestHooks();
 
 describe("`/administracion/coreografias` route", () => {
   test("allows auditor access and blocks academy and judge users", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const { request: auditorRequest } = await createSignedInRequest({
       email: "auditor.coreografias@example.com",
       role: "auditor",
@@ -71,8 +66,12 @@ describe("`/administracion/coreografias` route", () => {
   });
 
   test("renders the active-event choreography operational list with the approved columns and badges", async () => {
-    const event = await createSavedEvent();
-    const otherEvent = await createInactiveEvent("Regional 2025");
+    const event = await createSavedEvent({ name: "Regional 2026" });
+    const otherEvent = await createSavedEvent({
+      name: "Regional 2025",
+      active: false,
+      ...eventDates(2025),
+    });
     const archivedAcademy = await createAcademyUser({
       email: "academia.archivada@example.com",
       academyName: "Academia Archivo",
@@ -187,7 +186,7 @@ describe("`/administracion/coreografias` route", () => {
   });
 
   test("uses server-side search by choreography and academy name and keeps filtered empties inside the table", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academyNorth = await createAcademyUser({
       email: "academia.norte.busqueda@example.com",
       academyName: "Academia Norte",
@@ -286,7 +285,7 @@ describe("`/administracion/coreografias` route", () => {
   });
 
   test("sorts by number by default and supports academy and name", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academyNorth = await createAcademyUser({
       email: "academia.norte.orden@example.com",
       academyName: "Academia Norte",
@@ -406,7 +405,7 @@ describe("`/administracion/coreografias` route", () => {
   });
 
   test("redirects invalid sort and out-of-range pagination to the canonical URL", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "academia.canonica@example.com",
       academyName: "Academia Canonica",
@@ -457,7 +456,7 @@ describe("`/administracion/coreografias` route", () => {
   });
 
   test("preserves busqueda when changing page or sort and resets pagina on sort links", async () => {
-    const event = await createSavedEvent();
+    const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "academia.urls@example.com",
       academyName: "Academia URL",
@@ -582,19 +581,6 @@ async function createProfessor(academyId: string) {
     .returning();
 
   return professor;
-}
-
-async function createSavedEvent() {
-  return createSavedEventFixture("Regional 2026", {
-    activate: true,
-    dates: createEventFixtureDates(2026),
-  });
-}
-
-async function createInactiveEvent(name: string) {
-  return createSavedEventFixture(name, {
-    dates: createEventFixtureDates(2025),
-  });
 }
 
 async function createEventCatalog(eventId: string, modalityName: string) {

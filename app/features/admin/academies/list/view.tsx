@@ -1,4 +1,4 @@
-import { Building2 } from "lucide-react";
+import { BuildingComplex } from "lucide-react";
 
 import {
   AdminEmptyState,
@@ -142,7 +142,7 @@ export function AcademiesListRouteView({
         />
       ) : (
         <AdminEmptyState
-          icon={Building2}
+          icon={BuildingComplex}
           title={emptyAcademyList.nothingYet}
           description="Cuando exista al menos una academia, va a aparecer en este listado."
         />

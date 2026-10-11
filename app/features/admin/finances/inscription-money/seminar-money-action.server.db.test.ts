@@ -6,15 +6,15 @@ import { db } from "@/db";
 import { paymentAllocations } from "@/db/schema";
 import { action as seminarInscriptionFinancesAction } from "@/routes/administracion.finanzas_.seminarios";
 import { action as seminarFinanceDetailAction } from "@/routes/administracion.finanzas_.$academyId_.seminarios_.$seminarId";
-
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 import {
   buildSeminarMoneyPostRequest,
   seedEventSeminarFinanceFixture,
   seminarFinanceDetailRequestUrl,
   seminarInscriptionFinancesUrl,
   type EventSeminarFinanceFixture,
-} from "../../../../lib/admin/finances/seminar-finances.test-support";
+} from "@/lib/admin/finances/seminar-finances.test-support";
+
+import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 

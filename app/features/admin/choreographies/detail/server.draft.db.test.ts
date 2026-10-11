@@ -31,7 +31,6 @@ import {
   createChoreographyRecord,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-name.test-support";
 import {
   evaluatedChoreographyMessage,
@@ -54,6 +53,7 @@ import {
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -718,7 +718,7 @@ async function createDraftScenario(input: {
   });
 
   async function submit(body: FormData) {
-    const { request } = await createSignedInAdminRequest({
+    const { request } = await createSignedInRequest({
       body,
       email: nextEmail(),
       requestUrl: `http://localhost/administracion/coreografias/${choreography.id}`,

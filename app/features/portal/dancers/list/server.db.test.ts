@@ -8,10 +8,6 @@ import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
 import {
-  createPortalSavedEvent as createSavedEvent,
-  testEventDate,
-} from "@/lib/events/saved-event.test-support";
-import {
   invalidBirthDateMessage,
   underageBirthDateMessage,
 } from "@/lib/dancers/birth-date";
@@ -27,6 +23,7 @@ import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
 } from "@/lib/choreographies/registration.test-support";
+import { createSavedEvent } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -193,9 +190,10 @@ describe("loadPortalDancersList", () => {
 
   test("rejects a dancer under one year old at the active event start", async () => {
     const event = await createSavedEvent({
+      active: false,
       name: "En Escena Edad Mínima",
-      startsAt: testEventDate("2026-05-01T12:00:00Z"),
-      endsAt: testEventDate("2026-05-03T12:00:00Z"),
+      startsAt: new Date("2026-05-01T12:00:00Z"),
+      endsAt: new Date("2026-05-03T12:00:00Z"),
     });
     await activateEvent(event.id);
     const session = await createAcademySession({
@@ -228,7 +226,10 @@ describe("loadPortalDancersList", () => {
   });
 
   test("marks dancers linked to active event choreographies as participating", async () => {
-    const event = await createSavedEvent({ name: "En Escena 2026" });
+    const event = await createSavedEvent({
+      active: false,
+      name: "En Escena 2026",
+    });
     await activateEvent(event.id);
     const session = await createAcademySession({
       email: "bailarines.participacion@example.com",

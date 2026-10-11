@@ -3,17 +3,12 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
-import {
-  createSignedInAdminRequest,
-  expectThrownResponse,
-} from "@/lib/admin/test-support/db";
 import { createProfessor } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
-import {
-  createEventChoreographyFixture,
-  createEventFixtureDates,
-  createSavedEvent,
-} from "@/lib/events/bases.test-support";
+import { createEventChoreographyFixture } from "@/lib/events/bases.test-support";
+import { createSignedInRequest } from "@/lib/test-support/auth";
+import { expectThrownResponse } from "@/lib/test-support/http";
+import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -131,10 +126,7 @@ describe("the `Día` filter", () => {
 });
 
 async function seedActiveEvent() {
-  return await createSavedEvent("Regional Días", {
-    activate: true,
-    dates: createEventFixtureDates(2026),
-  });
+  return await createSavedEvent({ name: "Regional Días", ...eventDates(2026) });
 }
 
 async function seedAcademy() {
@@ -145,7 +137,7 @@ async function seedAcademy() {
 }
 
 async function listRequest(search: string) {
-  const { request } = await createSignedInAdminRequest({
+  const { request } = await createSignedInRequest({
     email: `profesores.lista.admin.${crypto.randomUUID()}@example.com`,
     requestUrl: `http://localhost/administracion/profesores${search}`,
     role: "admin",

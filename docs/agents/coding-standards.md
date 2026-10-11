@@ -44,8 +44,8 @@ of two places, chosen by who uses it:
   beside the code it builds for: `app/lib/events/bases.test-support.ts`,
   `app/lib/auth/access-auth.test-support.ts`.
 - **Tests across domains**: a module in a `test-support/` directory.
-  `app/lib/test-support/` holds what any test may want (requests, forms,
-  academies, the DOM); `app/features/<area>/test-support/` and
+  `app/lib/test-support/` holds what any test may want (signed-in requests,
+  saved events, academies, forms, the DOM); `app/features/<area>/test-support/` and
   `app/lib/admin/test-support/` hold what one area's tests share.
 
 No other suffix (`*.test-helpers.ts`, `*-test-fixtures.server.db.ts`,
