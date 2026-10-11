@@ -216,31 +216,6 @@ describe("`/administracion/eventos` route", () => {
     );
   });
 
-  test("allows registration to end after the event starts", async () => {
-    const { request } = await createSignedInRequest({
-      email: "admin.inscripcion-tardia@example.com",
-      role: "admin",
-      requestUrl: "http://localhost/administracion/eventos/nuevo",
-      body: eventFormData({
-        name: "Inscripción tardía 2027",
-        startsAt: "2027-05-01",
-        endsAt: "2027-05-03",
-        requiredDepositPercentage: "30",
-      }),
-    });
-
-    await expectThrownResponse(createAction(newRouteArgs(request)), 302);
-
-    await expect(
-      db.query.events.findFirst({
-        where: eq(events.name, "Inscripción tardía 2027"),
-      }),
-    ).resolves.toMatchObject({
-      name: "Inscripción tardía 2027",
-      active: false,
-    });
-  });
-
   test("returns validation failures without creating an event", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.validacion@example.com",

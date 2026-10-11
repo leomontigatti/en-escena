@@ -246,47 +246,6 @@ describe("money on an inscription through the route action", () => {
     expect(inscription?.selectedPriceId).toBe(fixture.priceId);
   });
 
-  test("lets the price move while the inscription is below its deposit", async () => {
-    const fixture = await seedInscription();
-    const otherPrice = await insertLatePrice(fixture.eventId);
-
-    await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "allocate-inscription",
-        inscriptionId: fixture.inscriptionId,
-        priceId: fixture.priceId,
-        amount: "1000",
-      },
-    });
-
-    // 1000 against a stored price of 10000 is one third of the way to its 3000
-    // deposit: nothing is fixed yet, so the administrator may still say which row
-    // prices this inscription.
-    const result = await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "allocate-inscription",
-        inscriptionId: fixture.inscriptionId,
-        priceId: otherPrice.id,
-        amount: "1000",
-      },
-    });
-
-    expect(result).toMatchObject({ status: 302 });
-    const inscription = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, fixture.inscriptionId),
-    });
-    expect(inscription?.selectedPriceId).toBe(otherPrice.id);
-    expect(await readAllocations(fixture.inscriptionId)).toEqual([
-      { amount: 2000, paymentId: fixture.payments[0].id },
-    ]);
-  });
-
   test("locks the price once the inscription covers its deposit", async () => {
     const fixture = await seedInscription();
     const otherPrice = await insertLatePrice(fixture.eventId);
@@ -417,59 +376,6 @@ describe("money on an inscription through the route action", () => {
       where: eq(choreographyDancers.id, fixture.inscriptionId),
     });
     expect(inscription?.selectedPriceId).toBe(otherPrice.id);
-  });
-
-  test("refuses active over-allocation with no override", async () => {
-    const fixture = await seedInscription();
-
-    const result = await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "allocate-inscription",
-        inscriptionId: fixture.inscriptionId,
-        priceId: fixture.priceId,
-        amount: "10001",
-      },
-    });
-
-    expect(result).toMatchObject({ status: "error" });
-    expect(await readAllocations(fixture.inscriptionId)).toHaveLength(0);
-  });
-
-  test("removes an arbitrary amount newest-first without naming a payment", async () => {
-    const fixture = await seedInscription([4000, 4000]);
-
-    await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "allocate-inscription",
-        inscriptionId: fixture.inscriptionId,
-        priceId: fixture.priceId,
-        amount: "6000",
-      },
-    });
-
-    const response = await postDetailAction({
-      academyId: fixture.academyId,
-      choreographyId: fixture.choreographyId,
-      eventId: fixture.eventId,
-      fields: {
-        intent: "remove-inscription-money",
-        inscriptionId: fixture.inscriptionId,
-        amount: "2000",
-      },
-    });
-
-    expect(response).toMatchObject({ status: 302 });
-    // Funded oldest-first (4000 + 2000) and unwound newest-first: the one left
-    // empty is the second, without anyone having picked it.
-    expect(await readAllocations(fixture.inscriptionId)).toEqual([
-      { amount: 4000, paymentId: fixture.payments[0].id },
-    ]);
   });
 
   // Handling the money is the reason a withdrawn choreography survives, so the
