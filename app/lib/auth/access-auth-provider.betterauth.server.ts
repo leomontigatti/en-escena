@@ -9,18 +9,12 @@ import {
 } from "better-auth/crypto";
 import { APIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
-import { defaultAc } from "better-auth/plugins/admin/access";
 import { desc, eq } from "drizzle-orm";
 import { parseCookie, stringifySetCookie } from "cookie";
 
 import { db } from "@/db";
-import {
-  account,
-  accessSession,
-  user,
-  type userRole,
-  verification,
-} from "@/db/schema";
+import { account, accessSession, user, verification } from "@/db/schema";
+import { ADMIN_PLUGIN_ROLES } from "@/lib/auth/admin-plugin-roles";
 import {
   buildAccessRecoveryLink,
   buildAcademySignUpConfirmationLink,
@@ -68,31 +62,6 @@ export const SESSION_UPDATE_AGE_SECONDS = 30 * 60;
 // reassigns the real role. `sendResetPassword` sends the real recovery email in
 // Spanish (Resend, #424); the token also lands in the `verification` table,
 // where tests read it without depending on delivery.
-// The admin plugin's default `admin` role minus `impersonate`: 1.7 made
-// impersonation work, and nothing in the app accounts for a session opened as
-// someone else (#984). The other roles get no plugin permission, as before;
-// they are listed because a `roles` map also bounds the roles the plugin may
-// assign.
-const ADMIN_PLUGIN_ROLES = {
-  admin: defaultAc.newRole({
-    user: [
-      "create",
-      "list",
-      "set-role",
-      "ban",
-      "delete",
-      "set-password",
-      "set-email",
-      "get",
-      "update",
-    ],
-    session: ["list", "revoke", "delete"],
-  }),
-  academy: defaultAc.newRole({ user: [], session: [] }),
-  auditor: defaultAc.newRole({ user: [], session: [] }),
-  judge: defaultAc.newRole({ user: [], session: [] }),
-} satisfies Record<(typeof userRole.enumValues)[number], unknown>;
-
 export const auth = betterAuth({
   appName: "En Escena",
   secret: getBetterAuthSecret(),
