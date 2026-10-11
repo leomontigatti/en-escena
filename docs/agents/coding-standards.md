@@ -134,6 +134,11 @@ Scrutinize optional parameters. They are a common source of bugs by omission.
 Prefer a smaller, explicit interface over broad backwards-compatible parameter
 bags when correctness is at stake.
 
+A new service that can refuse returns `{ ok: true, … }` or `{ ok: false, reason }`,
+with `reason` a short code (`"not-assigned"`, `"format"`) that the caller maps to
+user copy; the service itself says nothing a user reads. Existing services keep
+the shape they have: this is the convention for new code, not a migration.
+
 Design for testability:
 
 - Accept dependencies instead of constructing external dependencies internally.
