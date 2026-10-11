@@ -147,8 +147,8 @@ repo's deltas are in [workflows.md](./workflows.md#prd-workflow).
 --label ready-for-agent --label priority:<p> --label <type>`, body per the `to-spec` template.
 - **Tickets** are native sub-issues of the PRD, created in implementation order:
   `gh issue create --parent <PRD> ...`, with the PRD's priority, type and milestone plus
-  `ready-for-agent` ([triage-labels.md](./triage-labels.md)). One session works them in
-  order.
+  `ready-for-agent` ([triage-labels.md](./triage-labels.md)). One session works them with
+  `/implement-spec`, every unblocked one at once.
 - **Blocking** is GitHub's native dependency relation:
   `gh issue edit <ticket> --add-blocked-by <other>`, never only a "Blocked by #N" line in the
   body. The template's `## Blocked by` section still lists the same issues for the reader.
@@ -224,7 +224,7 @@ when one diff would be too big to review well. The PRD is written per the
 
 ### Driving what the map produced
 
-A session implements the PRD's sub-issues in list order onto one branch, or a chain of
+A session implements the PRD's sub-issues with `/implement-spec` onto one branch, or a chain of
 standalone issues one PR at a time. Either way, the map issue is the durable state: post a
 two-line "State" comment on it at each merge (what landed, what is next and its label) so a
 fresh session, on any machine, starts from the record instead of from a summary.

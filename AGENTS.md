@@ -21,7 +21,8 @@ with X" means open `.agents/skills/X/SKILL.md` and follow it.
   this run.
 - **Implementing** (a feature, a fix, any code change) happens in a local session: call the
   Skill tool with "implement" before editing. Why local and not on GitHub Actions is ADR-0016.
-  Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets`: see
+  Work too big for one issue becomes a PRD with `/to-spec`, sliced with `/to-tickets` and built
+  with `/implement-spec`: see
   "Where work starts" in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Investigate before implementing**: see the section of the same name in
   [docs/agents/workflows.md](docs/agents/workflows.md).

@@ -106,7 +106,8 @@ Language.
 ## 7. Open the PR and hand it off
 
 When the run started from an issue or the user asked for a PR: push the branch, open it ready for
-review (never a draft) in the shape of [pull-requests.md](../../../docs/agents/pull-requests.md)
+review (never a draft; a PRD run under `implement-spec` keeps its PR a draft until the last slice
+lands) in the shape of [pull-requests.md](../../../docs/agents/pull-requests.md)
 with `Closes #N`, attach the step 4 evidence when step 4 produced any, and link it to the thread. An issue is the unit of
 work here, so a run that starts from one ends in the PR that closes it unless the user says
 otherwise. Done when `gh pr view` shows it open and it is linked.

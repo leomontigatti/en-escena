@@ -17,11 +17,13 @@ none of those. Three entry points, by how much is still unknown:
 - **Clear but big** (known shape, several slices): `/grilling` until the shape
   and the test seams are agreed, `/to-spec` to file the PRD
   ([PRD workflow](#prd-workflow)), `/to-tickets` to slice it into sub-issues
-  ([Issue breakdown workflow](#issue-breakdown-workflow)), then `implement`. A
-  session implements the sub-issues in order onto one branch and one PR,
+  ([Issue breakdown workflow](#issue-breakdown-workflow)), then
+  `/implement-spec <PRD>`. The session runs every unblocked sub-issue at once in
+  `implementer` subagents, merges each onto its branch and one draft PR,
   ticking each in the PR body's `## Sub-issues` list as it lands
-  ([pull-requests.md](./pull-requests.md#prd-prs)): a resumed session reads the
-  list, never the scrollback.
+  ([pull-requests.md](./pull-requests.md#prd-prs)), and reviews and babysits
+  the chain once at the end: a resumed session reads the list, never the
+  scrollback.
 - **Foggy** (decisions nobody has made yet): `/wayfinder`. The map's tickets
   are grilling, research, prototype or task; a prototype is a throwaway
   artifact whose result is a decision on its ticket, never another PRD. The map
@@ -165,7 +167,10 @@ Rules for a session:
   Never `git checkout` or `git switch` in the main checkout, and never create a
   worktree of your own (`git worktree add`, Claude's `EnterWorktree`): T3 only
   tracks the branch and pull request of the worktree it created, so a private
-  worktree loses the PR badge and the automatic settling of the thread.
+  worktree loses the PR badge and the automatic settling of the thread. The one
+  exception is `implement-spec`'s implementer subagents, each in an Agent-tool
+  worktree under `.claude/worktrees/`: their branches merge into the thread's,
+  which keeps the PR, and the skill removes them.
 - **Branch prefixes.** T3 names the worktree's branch when it creates the
   thread and renames it once the thread starts, so read it with
   `git branch --show-current`, never from the `t3code/<id>` worktree name; when a session renames it or creates one, human-driven work uses
@@ -197,14 +202,15 @@ insists on reading from its own directory is kept per harness, and each of those
 files holds no instructions of its own beyond, for the Claude Code subagents, how to
 relay to Codex.
 
-| What                | The one copy                 | Claude Code reads it through                                      | Codex reads it through                |
-| ------------------- | ---------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
-| Repo instructions   | `AGENTS.md`                  | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly                  |
-| Skills              | `.agents/skills/<name>/`     | `.claude/skills`, a symlink to `.agents/skills`                   | `.agents/skills` directly             |
-| Hooks               | `.agents/hooks/*.sh`         | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`                   |
-| `research` subagent | `.agents/agents/research.md` | `.claude/agents/research.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/research.toml` (model) |
-| `reviewer` subagent | `.agents/agents/reviewer.md` | `.claude/agents/reviewer.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/reviewer.toml` (model) |
-| `reviewer-opus`     | `.agents/agents/reviewer.md` | `.claude/agents/reviewer-opus.md`, on Opus, read-only             | none: Codex uses `reviewer`           |
+| What                   | The one copy                    | Claude Code reads it through                                      | Codex reads it through                   |
+| ---------------------- | ------------------------------- | ----------------------------------------------------------------- | ---------------------------------------- |
+| Repo instructions      | `AGENTS.md`                     | `AGENTS.md` directly (2.1.277+, only while no `CLAUDE.md` exists) | `AGENTS.md` directly                     |
+| Skills                 | `.agents/skills/<name>/`        | `.claude/skills`, a symlink to `.agents/skills`                   | `.agents/skills` directly                |
+| Hooks                  | `.agents/hooks/*.sh`            | the `hooks` block of `.claude/settings.json`                      | `.codex/hooks.json`                      |
+| `research` subagent    | `.agents/agents/research.md`    | `.claude/agents/research.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/research.toml` (model)    |
+| `reviewer` subagent    | `.agents/agents/reviewer.md`    | `.claude/agents/reviewer.md`, a relay to `scripts/agents/sol.sh`  | `.codex/agents/reviewer.toml` (model)    |
+| `implementer` subagent | `.agents/agents/implementer.md` | `.claude/agents/implementer.md`, pinned to Opus                   | `.codex/agents/implementer.toml` (model) |
+| `reviewer-opus`        | `.agents/agents/reviewer.md`    | `.claude/agents/reviewer-opus.md`, on Opus, read-only             | none: Codex uses `reviewer`              |
 
 - **Do not add a `CLAUDE.md`**, here or in a parent directory: Claude Code reads
   `AGENTS.md` only as a fallback, when no `CLAUDE.md`, `.claude/CLAUDE.md` or
@@ -220,7 +226,11 @@ relay to Codex.
   its `apply_patch` tool). The scripts read either payload: Claude Code's
   `tool_input.file_path` or a Codex patch in `tool_input.command`, and
   `$CLAUDE_PROJECT_DIR` or, when Codex leaves it unset, the checkout the hook runs in.
-- **Both subagents run on Codex's gpt-6.1-sol at medium effort**, whichever harness
+- **`implementer` is no relay**: it edits, tests and commits in its own worktree, so each
+  harness runs it on its own model. Claude Code's wrapper pins Opus in its frontmatter, since a
+  subagent left to the user's default (`CLAUDE_CODE_SUBAGENT_MODEL`) may run on Haiku; Codex's
+  names gpt-6.1-sol.
+- **`research` and `reviewer` run on Codex's gpt-6.1-sol at medium effort**, whichever harness
   orchestrates. A Claude Code subagent can only run a Claude model, so the Claude wrappers
   are Haiku relays: they hand the prompt to `scripts/agents/sol.sh`, which runs
   `codex exec` and returns the final message verbatim. The script names the model for
@@ -1131,7 +1141,10 @@ about this repo:
 - Sub-issues stay **flat and ordered**: publish them in the order a session will implement them.
 - Every sub-issue carries a `## Test seams` section, taken from the PRD's **Testing
   Decisions**. The skill's issue template lacks it; add it after `## Acceptance criteria`.
-- A session then implements the sub-issues in order onto one PR, per
+- Two slices that each add a migration get a blocking edge between them: run in parallel they
+  would take the same migration number. `implement-spec` serialises them even when the edge is
+  missing.
+- A session then implements the sub-issues with `/implement-spec`, onto one PR, per
   [pull-requests.md](./pull-requests.md#prd-prs).
 
 ## Architecture Review Workflow

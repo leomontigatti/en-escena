@@ -152,3 +152,4 @@ found clean. Report CodeRabbit as `skipped` when the PR was not in the full-revi
 was asked and never reviewed (name the reason: a rate limit, a skip); `READY` stands either way.
 
 Nothing here merges, marks a PR draft or ready, rebases or force-pushes: those are the user's.
+`implement-spec` marks its own draft ready before it calls this skill.
