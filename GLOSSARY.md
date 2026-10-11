@@ -386,7 +386,7 @@ How one judge's own work on a `presentation` stands, shown in that judge's list 
 _Avoid_: `participationStatus`, `choreographyOperationalStatus`, score completeness
 
 **`feedbackAudio`** — ui: "Devolución"
-The optional private audio a judge records for the academy, one per `score`, saved by the same save that carries the score and replaced or removed by it. It is allowed on a disqualified presentation, where it is stored with no value, so the academy still hears why. It is `audio/webm` from the browser recorder, capped at three minutes, kept in its own private bucket and served by signed URL (`app/lib/storage/feedback-audio.server.ts`, `app/lib/storage/asset-kinds.ts`). **`Devolución` is reserved for it**: a returned amount of money is a **`refund`** (`Reembolso`), never a `devolución`.
+The optional private audio a judge records for the academy, one per `score`, saved by the same save that carries the score and replaced or removed by it. It is allowed on a disqualified presentation, where it is stored with no value, so the academy still hears why. It is `audio/webm` from the browser recorder, capped at five minutes, kept in its own private bucket and served by signed URL (`app/lib/storage/feedback-audio.server.ts`, `app/lib/storage/asset-kinds.ts`). **`Devolución` is reserved for it**: a returned amount of money is a **`refund`** (`Reembolso`), never a `devolución`.
 _Avoid_: numeric score, `presentation`, refund, money returned
 
 **`grandFinal`** — ui: "Gran final"
