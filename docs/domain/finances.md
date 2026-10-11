@@ -732,6 +732,10 @@ partway through, or any inscription is refused, the whole charge rolls back and
 the administrator who sees an error can trust that nothing moved. A preset
 selects and stores a price row only for inscriptions that have not covered their
 deposit yet; anything already past that threshold keeps the price it holds.
+The dialog's owed figure follows its price pickers, and when it exceeds
+`Saldo disponible` `Asignar` is disabled with the reason stated, as on the
+seminar side. An owed figure missing a price counts only when its known part
+already exceeds the balance; the server's refusal stays the last word.
 
 The presets act on **the open tab's selection**: the choreographies on the
 `Coreografías` tab, the `(seminar, academy)` rows on the `Seminarios` tab. A

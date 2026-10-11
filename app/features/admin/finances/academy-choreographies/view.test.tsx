@@ -807,6 +807,10 @@ describe("AcademyFinancesRouteView", () => {
             },
           ],
         },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 6000,
+        },
       }),
       submissions,
     });
@@ -827,6 +831,120 @@ describe("AcademyFinancesRouteView", () => {
       ["intent", "pay-deposit-preset"],
       ["price-solo", "price_2"],
     ]);
+  });
+
+  /**
+   * The preset is all-or-nothing and the money comes out of `Saldo disponible`,
+   * so an owed figure above it is a refusal the dialog can already see.
+   */
+  test("disables `Asignar` with its reason when the owed figure exceeds `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 2000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(true);
+    expect(dialogText()).toContain("No alcanza el saldo disponible");
+    expect(dialogText()).toContain(
+      "La academia adeuda $ 3.000 y tiene $ 2.000 disponibles.",
+    );
+  });
+
+  test("re-enables `Asignar` when a cheaper price brings the owed figure within `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        priceOptionsByGroupType: {
+          solo: [
+            {
+              amount: 10000,
+              depositAmount: 3000,
+              id: "price_1",
+              name: "Primera fecha",
+              paymentDeadline: null,
+              scheduleIds: [],
+            },
+            {
+              amount: 6000,
+              depositAmount: 1500,
+              id: "price_2",
+              name: "Promoción",
+              paymentDeadline: null,
+              scheduleIds: [],
+            },
+          ],
+        },
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 2000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(true);
+
+    await openRadixSelect(
+      document.querySelector('[data-slot="select-trigger"]'),
+    );
+    await selectRadixOption("Promoción · $ 6.000");
+
+    expect(findButton("Asignar")?.disabled).toBe(false);
+    expect(dialogText()).not.toContain("No alcanza el saldo disponible");
+  });
+
+  test("keeps `Asignar` enabled when the owed figure equals `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        summary: {
+          ...academyFinancesLoaderDataFixture().summary,
+          availableBalanceAmount: 3000,
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(findButton("Asignar")?.disabled).toBe(false);
+    expect(dialogText()).not.toContain("No alcanza el saldo disponible");
+  });
+
+  /**
+   * With an inscription that has no price, the known part of the debt is a lower
+   * bound: above the balance the charge cannot fit, below it the dialog cannot
+   * tell, and `Deuda incompleta` already says why.
+   */
+  test("blocks an incomplete owed figure whose known part already exceeds `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: incompleteOwedLoaderDataFixture(2000),
+    });
+    await clickCheckbox(getRenderedCheckboxes()[0]);
+
+    expect(dialogText()).toContain("Deuda incompleta");
+    expect(dialogText()).toContain("No alcanza el saldo disponible");
+    expect(findButton("Asignar")?.disabled).toBe(true);
+  });
+
+  test("does not block an incomplete owed figure whose known part fits `Saldo disponible`", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: incompleteOwedLoaderDataFixture(5000),
+    });
+    await clickCheckbox(getRenderedCheckboxes()[0]);
+
+    expect(dialogText()).toContain("Deuda incompleta");
+    expect(dialogText()).not.toContain("No alcanza el saldo disponible");
+    expect(findButton("Asignar")?.disabled).toBe(false);
   });
 
   /**
@@ -1301,6 +1419,35 @@ function academyFinancesLoaderDataFixture(
     },
     ...overrides,
   };
+}
+
+/**
+ * Both fixture choreographies, the second with no price at all: the deposit
+ * owed is known only in part, 3000, which is a lower bound.
+ */
+function incompleteOwedLoaderDataFixture(availableBalanceAmount: number) {
+  return academyFinancesLoaderDataFixture({
+    inscriptions: [
+      presetInscriptionFixture({
+        choreographyId: "choreography_1",
+        id: "inscription_1",
+      }),
+      presetInscriptionFixture({
+        basePriceAmount: null,
+        basePriceId: null,
+        choreographyId: "choreography_2",
+        depositAmount: null,
+        id: "inscription_2",
+        owedBalanceAmount: null,
+        owedDepositAmount: null,
+      }),
+    ],
+    priceOptionsByGroupType: {},
+    summary: {
+      ...academyFinancesLoaderDataFixture().summary,
+      availableBalanceAmount,
+    },
+  });
 }
 
 /**

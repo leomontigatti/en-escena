@@ -26,7 +26,11 @@ import {
 import { useOptionalFormAction } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { PresetTotals } from "./preset-dialog";
+import {
+  isPresetBalanceShort,
+  PresetBalanceShortAlert,
+  PresetTotals,
+} from "./preset-dialog";
 import {
   financePresetIntent,
   financePresetLabels,
@@ -158,13 +162,10 @@ export function SeminarPresetDialog({
               </Alert>
             ) : null}
             {summary.isBalanceShort ? (
-              <Alert variant="warning">
-                <TriangleAlert aria-hidden="true" />
-                <AlertTitle>No alcanza el saldo disponible</AlertTitle>
-                <AlertDescription>
-                  {`La academia adeuda ${formatAmount(summary.owedAmount.amount)} y tiene ${formatAmount(availableBalanceAmount)} disponibles. Registrá el pago antes de asignar.`}
-                </AlertDescription>
-              </Alert>
+              <PresetBalanceShortAlert
+                availableBalanceAmount={availableBalanceAmount}
+                owedAmount={summary.owedAmount}
+              />
             ) : null}
           </AlertStack>
 
@@ -294,7 +295,10 @@ function summarizeSeminarPreset(input: {
       : { amount, missingPriceCount, status: "incomplete" };
 
   return {
-    isBalanceShort: amount > input.availableBalanceAmount,
+    isBalanceShort: isPresetBalanceShort({
+      availableBalanceAmount: input.availableBalanceAmount,
+      owedAmount,
+    }),
     owedAmount,
     seminars,
     shortfalls,
