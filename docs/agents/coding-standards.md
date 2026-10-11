@@ -27,6 +27,14 @@ Avoid tests that simply restate trivial implementation details, such as a
 one-line string concatenation or direct mapping. These tests add little
 confidence and tend to break during harmless refactors.
 
+Every test names the bug it catches: the wrong implementation that would make
+it fail. The anti-patterns that cannot, and the rules on fixtures and on
+deleting redundant tests, are in the
+[`tdd` skill](../../.agents/skills/tdd/SKILL.md). A test never asserts that a
+document contains fixed text; it checks a doc's structure against something
+outside it (a link resolves, an index matches its files, a value matches the
+code that enforces it). `pnpm check:docs-tests` enforces that one.
+
 ### Component tests
 
 Test meaningful logic or observable behaviour. Do not render components to

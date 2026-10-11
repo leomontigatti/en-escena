@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "off"
+  },
+  "plugins": [],
+  "jsPlugins": ["./scripts/oxlint-docs-tests-plugin.mjs"],
+  "ignorePatterns": ["build/**", ".react-router/**", "coverage/**"],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "docs-tests/no-fixed-text": "error"
+      }
+    }
+  ]
+}

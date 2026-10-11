@@ -6,7 +6,6 @@ import type {
 import { describe, expect, test, vi } from "vitest";
 
 import {
-  ARCA_TIMEOUTS,
   ArcaClient,
   readArcaClientConfig,
   type ArcaBillingPort,
@@ -230,10 +229,6 @@ describe("ArcaClient (timeouts)", () => {
     await expect(client.getLastFacturaCNumber(1)).resolves.toMatchObject({
       nextCbteNro: 43,
     });
-  });
-
-  test("the default timeouts are 15s for lookup and 30s for authorization", () => {
-    expect(ARCA_TIMEOUTS).toEqual({ lookup: 15_000, authorization: 30_000 });
   });
 });
 
