@@ -104,6 +104,6 @@ with `Closes #N`, attach the step 4 evidence when step 4 produced any, and link 
 work here, so a run that starts from one ends in the PR that closes it unless the user says
 otherwise. Done when `gh pr view` shows it open and it is linked.
 
-Then call the Skill tool with "babysit-pr", which hands the waiting to a background subagent. The
-babysit is not done in this session: this context is the largest in the run, and each review round
-would re-read it. Stop only at the subagent's report.
+Then call the Skill tool with "babysit-pr": this session judges the review rounds, and a background
+`pnpm pr:watch --loop` does the waiting, so the session wakes only when a round needs it. Stop only
+at the skill's report.

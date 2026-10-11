@@ -38,7 +38,8 @@ and the PR is ready to merge. Stop only if the seams are unclear.
 ```
 
 The PR is reviewed in the session before it is opened (`implement` step 5) and
-babysat afterwards by a background subagent (`implement` step 7, per
+babysat afterwards by the same session, with the waiting done by a background
+`pnpm pr:watch --loop` (`implement` step 7, per
 [pull-requests.md](./pull-requests.md#babysitting-a-pr)).
 
 ## Investigate before implementing

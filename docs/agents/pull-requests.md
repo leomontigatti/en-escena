@@ -124,9 +124,10 @@ change to motion or interaction carries a short GIF instead.
 
 ## Babysitting a PR
 
-Seeing a PR through CI and review is the `babysit-pr` skill: a background
-subagent waits on `pnpm pr:watch`, fixes the findings that hold, answers the
-rest with the reason, and stops at ready to merge. The merge stays the user's.
+Seeing a PR through CI and review is the `babysit-pr` skill: the session that
+opened the PR runs `pnpm pr:watch --loop` in the background, wakes when a round
+needs judgement, fixes the findings that hold, answers the rest with the
+reason, and stops at ready to merge. The merge stays the user's.
 In a stack, babysit once the whole stack is open: a babysit per layer spends
 checks on commits the next layer's push restarts.
 

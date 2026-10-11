@@ -95,10 +95,10 @@ workflow, never by hand.
 
 ## Pull Requests
 
-| Script                | Purpose                                                                                                                                                                                                                                           |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ⚠️ `pnpm pr:evidence` | `pnpm pr:evidence <pr> <image>...` uploads screenshots or GIFs to the public `pr-assets` prerelease and prints the markdown to paste in the PR body. Publishes to a public repo: seed data only. See [Pull requests](../agents/pull-requests.md). |
-| ⚠️ `pnpm pr:watch`    | `pnpm pr:watch [pr] [--once]` blocks until nothing on the PR's head commit is still running (checks, CodeRabbit), then prints one JSON verdict and exits with it as the code. Reads only. See the `babysit-pr` skill.                             |
+| Script                | Purpose                                                                                                                                                                                                                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ⚠️ `pnpm pr:evidence` | `pnpm pr:evidence <pr> <image>...` uploads screenshots or GIFs to the public `pr-assets` prerelease and prints the markdown to paste in the PR body. Publishes to a public repo: seed data only. See [Pull requests](../agents/pull-requests.md).                                                                          |
+| ⚠️ `pnpm pr:watch`    | `pnpm pr:watch [pr] [--once] [--loop]` blocks until nothing on the PR's head commit is still running (checks, CodeRabbit), then prints one JSON verdict and exits with it as the code. Reads only, except `--loop`, which also comments `@coderabbitai review` and runs `gh pr update-branch`. See the `babysit-pr` skill. |
 
 ## Labels
 
