@@ -31,7 +31,7 @@ function reExportPattern(name: string): RegExp {
   return new RegExp(`^export\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*;`, "m");
 }
 
-// The four declared exceptions, all resource routes with no mounted view, so
+// The five declared exceptions, all resource routes with no mounted view, so
 // there is nowhere for a returned error result to go:
 // - `$`: the catch-all, whose `action` returns a plain 404 `Response`.
 // - `api.auth.$`: Better Auth's own handler, hit by its client and not by a
@@ -39,9 +39,12 @@ function reExportPattern(name: string): RegExp {
 // - `salir`: signing out always throws a `redirect`, which is rethrown anyway.
 // - `votar_.google`: a voter's Google sign-in starts from a plain document
 //   form post, not a React Router submit, and always answers a redirect.
+// - `internal.client-error`: `fetch` from `entry.client.tsx` posts a browser's
+//   unexpected error, and nothing renders its answer.
 const routesWithoutClientAction = [
   "$.tsx",
   "api.auth.$.tsx",
+  "internal.client-error.ts",
   "salir.tsx",
   "votar_.google.tsx",
 ];
