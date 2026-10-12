@@ -100,6 +100,8 @@ export const eventBaseCopy = {
       "No se puede eliminar la modalidad porque tiene categorías relacionadas.",
     hasSchedulesError:
       "No se puede eliminar la modalidad porque tiene Cronogramas relacionados.",
+    hasChoreographiesError:
+      "No se puede eliminar la modalidad porque tiene coreografías relacionadas.",
   },
   submodality: {
     invalidError: "Revisá los datos de la submodalidad.",
@@ -149,6 +151,7 @@ export const eventBaseCopy = {
       hasSubmodalitiesError: string;
       hasCategoriesError: string;
       hasSchedulesError: string;
+      hasChoreographiesError: string;
     };
   submodality: EventBaseGenericCopy & EventBaseNameCopy;
   category: EventBaseGenericCopy & {

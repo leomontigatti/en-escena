@@ -5,9 +5,10 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { EventModalityDetailView } from "@/features/admin/modalities/detail/view";
-import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
+import type { EventModalityDetailLoaderData } from "@/features/admin/modalities/shared";
 import {
   createReactDomTestRenderer,
+  findButton,
   getButton,
 } from "@/lib/test-support/react-dom";
 
@@ -37,6 +38,26 @@ describe("EventModalityDetailView delete", () => {
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
     expect(document.body.textContent).toContain("¿Eliminar la modalidad?");
     expect(getButton("Eliminar").disabled).toBe(false);
+  });
+
+  test("explains what blocks the delete instead of confirming it", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: true,
+      loaderData: buildLoaderData({
+        deleteBlockers: ["submodalities", "schedules"],
+      }),
+    });
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("No se puede eliminar la modalidad");
+    expect(dialog?.textContent).toContain("Tiene submodalidades.");
+    expect(dialog?.textContent).toContain("La usan cronogramas.");
+    expect(dialog?.textContent).not.toContain("La usan categorías.");
+    expect(findButton("Cerrar")).toBeDefined();
+    expect(findButton("Eliminar")).toBeUndefined();
   });
 
   test("disables the destructive action while its delete submission is pending", async () => {
@@ -117,8 +138,8 @@ async function renderDetail(
 }
 
 function buildLoaderData(
-  overrides: Partial<EventModalitiesLoaderData> = {},
-): EventModalitiesLoaderData {
+  overrides: Partial<EventModalityDetailLoaderData> = {},
+): EventModalityDetailLoaderData {
   return {
     selectedEventId: "event_1",
     modalities: [
@@ -133,6 +154,7 @@ function buildLoaderData(
     submodalityCriteria: [],
     lockedSubmodalityIds: [],
     modalitySheets: {},
+    deleteBlockers: [],
     ...overrides,
   };
 }

@@ -50,7 +50,7 @@ export function PriceActions({
         description={
           deletionBlock
             ? deletionBlock.wayOut
-            : `Esta acción elimina ${getPriceDisplayName(price)}. No se puede deshacer.`
+            : `Esta acción elimina ${getPriceDisplayName(price)}.`
         }
         blockedTitle="No se puede eliminar el precio"
         isBlocked={deletionBlock !== null}

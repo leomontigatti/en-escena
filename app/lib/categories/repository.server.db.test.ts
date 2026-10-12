@@ -2,10 +2,11 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographies } from "@/db/schema";
+import { choreographies, scheduleCategories, schedules } from "@/db/schema";
 import {
   createCategory,
   deleteCategory,
+  findCategoryDeleteBlockers,
   updateCategory,
 } from "@/lib/categories/repository.server";
 import {
@@ -505,6 +506,40 @@ describe("category repository", () => {
       .where(eq(choreographies.id, choreography.id));
 
     await expect(deleteCategory(category.id)).resolves.toEqual({ ok: true });
+  });
+
+  test("names every relation that blocks deleting a category", async () => {
+    const { academy, category, event, jazz } = await createOccupiableCategory({
+      groupTypes: ["solo"],
+    });
+
+    await expect(findCategoryDeleteBlockers(category.id)).resolves.toEqual([]);
+
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      categoryId: category.id,
+      inscriptions: "none",
+    });
+    const [schedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Función 2",
+        scheduledDate: "2030-05-02",
+        startTime: "16:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db
+      .insert(scheduleCategories)
+      .values({ scheduleId: schedule.id, categoryId: category.id });
+
+    await expect(findCategoryDeleteBlockers(category.id)).resolves.toEqual([
+      "choreographies",
+      "schedules",
+    ]);
   });
 });
 

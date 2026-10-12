@@ -189,6 +189,7 @@ function buildCategoryDetailLoaderData(
     category:
       loaderData.categories.find((category) => category.id === categoryId) ??
       null,
+    deleteBlockers: [],
     modalities: loaderData.modalities,
   };
 }
@@ -232,7 +233,7 @@ export function renderModalidadDetalleRoute(
     url: `/administracion/modalidades/${modalityId}`,
     handle: modalidadDetalleHandle,
     element: createElement(EventModalityDetailView, {
-      loaderData,
+      loaderData: { ...loaderData, deleteBlockers: [] },
       modalityId,
       actionData,
     }),

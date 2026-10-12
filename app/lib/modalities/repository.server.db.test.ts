@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
 
+import { db } from "@/db";
+import { scheduleModalities, schedules } from "@/db/schema";
+import { createCategory } from "@/lib/categories/repository.server";
+import { findModalityDeleteBlockers } from "@/lib/modalities/delete-blockers.server";
 import {
   createModality,
   createModalityWithSubmodalities,
@@ -196,6 +200,57 @@ describe("`Bases del evento` modalities repository", () => {
       ok: true,
     });
     await expect(deleteModality(modality.id)).resolves.toEqual({ ok: true });
+  });
+
+  test("names every relation that blocks deleting a modality", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    await expect(findModalityDeleteBlockers(modality.id)).resolves.toEqual([]);
+
+    await expectCreated(
+      createSubmodality(event.id, { modalityId: modality.id, name: "Lírico" }),
+    );
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: [],
+      }),
+    );
+    const [schedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Función 1",
+        scheduledDate: "2030-05-01",
+        startTime: "16:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db
+      .insert(scheduleModalities)
+      .values({ scheduleId: schedule.id, modalityId: modality.id });
+
+    await expect(findModalityDeleteBlockers(modality.id)).resolves.toEqual([
+      "submodalities",
+      "categories",
+      "schedules",
+    ]);
+    await expect(deleteModality(modality.id)).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se puede eliminar la modalidad porque tiene submodalidades relacionadas.",
+    });
   });
 
   test("rejects a submodality assigned to a modality from another event", async () => {

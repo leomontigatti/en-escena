@@ -1,12 +1,7 @@
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  categoryModalities,
-  modalities,
-  scheduleModalities,
-  submodalities,
-} from "@/db/schema";
+import { modalities, submodalities } from "@/db/schema";
 import {
   created,
   eventBaseCopy,
@@ -17,7 +12,15 @@ import {
   normalizeEventBaseName,
   validateEventBaseName,
 } from "@/lib/events/bases-kernel.server";
-import { isUniqueViolation } from "@/lib/shared/error-properties.server";
+import {
+  findModalityDeleteBlockers,
+  modalityDeleteBlockerErrors,
+  type ModalityDeleteBlocker,
+} from "@/lib/modalities/delete-blockers.server";
+import {
+  isForeignKeyViolation,
+  isUniqueViolation,
+} from "@/lib/shared/error-properties.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
@@ -302,15 +305,42 @@ export async function deleteModality(
     return eventBaseEntityNotFound("modality");
   }
 
-  const dependencyCheck = await modalityHasEventBaseDependencies(modalityId);
+  const [blocker] = await findModalityDeleteBlockers(modalityId);
 
-  if (!dependencyCheck.ok) {
-    return dependencyCheck;
+  if (blocker) {
+    return modalityHasDependencies(blocker);
   }
 
-  await db.delete(modalities).where(eq(modalities.id, modalityId));
+  try {
+    await db.delete(modalities).where(eq(modalities.id, modalityId));
+  } catch (error) {
+    if (!isForeignKeyViolation(error)) {
+      throw error;
+    }
+
+    // The check above runs outside this delete, so a relation created in
+    // between is invisible to it and the foreign key is what refuses. That
+    // relation is committed by now, so a second look names it.
+    const [racingBlocker] = await findModalityDeleteBlockers(modalityId);
+
+    if (!racingBlocker) {
+      throw error;
+    }
+
+    return modalityHasDependencies(racingBlocker);
+  }
 
   return { ok: true };
+}
+
+function modalityHasDependencies(
+  blocker: ModalityDeleteBlocker,
+): EventBaseFailure {
+  return {
+    ok: false,
+    code: "event-bases-has-dependencies",
+    error: modalityDeleteBlockerErrors[blocker],
+  };
 }
 
 export async function createSubmodality(
@@ -532,49 +562,4 @@ async function findDuplicateSubmodalityName(input: {
         (record) => normalizeEventBaseName(record.name) === normalizedName,
       ),
     );
-}
-
-async function modalityHasEventBaseDependencies(
-  modalityId: string,
-): Promise<EventBasesDeleteResult> {
-  const submodality = await db.query.submodalities.findFirst({
-    columns: { id: true },
-    where: eq(submodalities.modalityId, modalityId),
-  });
-
-  if (submodality) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: eventBaseCopy.modality.hasSubmodalitiesError,
-    };
-  }
-
-  const categoryRelation = await db.query.categoryModalities.findFirst({
-    columns: { categoryId: true },
-    where: eq(categoryModalities.modalityId, modalityId),
-  });
-
-  if (categoryRelation) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: eventBaseCopy.modality.hasCategoriesError,
-    };
-  }
-
-  const scheduleRelation = await db.query.scheduleModalities.findFirst({
-    columns: { scheduleId: true },
-    where: eq(scheduleModalities.modalityId, modalityId),
-  });
-
-  if (scheduleRelation) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: eventBaseCopy.modality.hasSchedulesError,
-    };
-  }
-
-  return { ok: true };
 }

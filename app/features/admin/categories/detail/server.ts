@@ -1,4 +1,7 @@
-import { getCategory } from "@/lib/categories/repository.server";
+import {
+  findCategoryDeleteBlockers,
+  getCategory,
+} from "@/lib/categories/repository.server";
 import { listModalities } from "@/lib/modalities/repository.server";
 
 import { handleCategoryAction } from "../action.server";
@@ -12,6 +15,7 @@ async function loadCategoryDetail(request: Request, categoryId: string) {
     return {
       selectedEventId,
       category: null,
+      deleteBlockers: [],
       modalities: [],
     };
   }
@@ -24,6 +28,9 @@ async function loadCategoryDetail(request: Request, categoryId: string) {
   return {
     selectedEventId,
     category,
+    deleteBlockers: category
+      ? await findCategoryDeleteBlockers(category.id)
+      : [],
     modalities,
   };
 }

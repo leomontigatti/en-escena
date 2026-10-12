@@ -9,12 +9,12 @@ import {
   EventModalityDetailView,
   type EventModalityDetailViewProps,
 } from "@/features/admin/modalities/detail/view";
-import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
+import type { EventModalityDetailLoaderData } from "@/features/admin/modalities/shared";
 import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.modalidades_.$modalityId";
 
-type LoaderData = EventModalitiesLoaderData;
+type LoaderData = EventModalityDetailLoaderData;
 
 export const handle = {
   adminBreadcrumbs: [
@@ -29,8 +29,8 @@ export const handle = {
   ],
 } satisfies AdminRouteHandle;
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return loadEventModalityDetail(request);
+export async function loader({ request, params }: Route.LoaderArgs) {
+  return loadEventModalityDetail(request, params.modalityId ?? "");
 }
 
 export async function action({ request }: Route.ActionArgs) {

@@ -222,7 +222,7 @@ describe("PortalSeminarDetailRouteView", () => {
 
     expect(dialog?.textContent).toContain("Ana Paz");
     expect(dialog?.textContent).toContain("libera su lugar");
-    expect(dialog?.textContent).toContain("No se puede deshacer.");
+    expect(dialog?.textContent).toContain("Esta acción es irreversible.");
   });
 
   test("confirms a funded inscription as a withdrawal, without naming an amount", async () => {
