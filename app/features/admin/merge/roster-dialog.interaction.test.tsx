@@ -35,7 +35,7 @@ const candidates: RosterMergeCandidate[] = [
   },
 ];
 
-async function renderDialog() {
+async function renderDialog({ isIdentityVerified = false } = {}) {
   const submissions: FormData[] = [];
   const router = createMemoryRouter(
     [
@@ -60,6 +60,7 @@ async function renderDialog() {
               documentNumber: "30111223",
               firstName: "Anita",
               id: "dancer-removed",
+              isIdentityVerified,
               lastName: "Paz",
             }}
           />
@@ -120,10 +121,31 @@ describe("RosterMergeDialog", () => {
     await pickSurvivor("Sosa, Bea · sin documento · archivado");
 
     expect(document.body.textContent).toContain(
-      "El documento 30111223, sus imágenes y su verificación pasan a Bea Sosa, que no tiene documento.",
+      "El documento 30111223 y sus imágenes pasan a Bea Sosa, que no tiene documento.",
     );
     expect(document.body.textContent).toContain(
       "Anita Paz: nombre, fecha de nacimiento, estado de alta.",
+    );
+    expect(document.body.textContent).not.toContain("verifica");
+  });
+
+  // The merge leaves the survivor with a name the document was never checked
+  // against, so the verification does not travel with it.
+  test("warns that a verified document arrives unverified", async () => {
+    await renderDialog({ isIdentityVerified: true });
+    await pickSurvivor("Sosa, Bea · sin documento · archivado");
+
+    expect(document.body.textContent).toContain(
+      "La identidad de Anita Paz está verificada, pero la verificación no pasa: Bea Sosa queda sin verificar y hay que volver a verificarla.",
+    );
+  });
+
+  test("warns that a verified document is discarded with its verification", async () => {
+    await renderDialog({ isIdentityVerified: true });
+    await pickSurvivor("Paz, Ana · 30111222");
+
+    expect(document.body.textContent).toContain(
+      "Anita Paz: nombre, fecha de nacimiento, estado de alta y documento, con su verificación.",
     );
   });
 

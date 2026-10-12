@@ -406,7 +406,9 @@ async function replaceRemovedPerson(
           documentFrontImageStorageKey: removed.documentFrontImageStorageKey,
           documentNumber: removed.documentNumber,
           documentType: removed.documentType,
-          identityVerifiedAt: removed.identityVerifiedAt,
+          // The survivor keeps its own name and birth date, which this
+          // document was never checked against: it has to be verified again.
+          identityVerifiedAt: null,
           updatedAt,
         })
         .where(eq(dancers.id, input.survivorId));

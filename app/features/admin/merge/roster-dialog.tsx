@@ -33,6 +33,8 @@ export function RosterMergeDialog({
     documentNumber: string | null;
     firstName: string;
     id: string;
+    /** Only a dancer can be verified; a professor is always `false`. */
+    isIdentityVerified: boolean;
     lastName: string;
   };
 }) {
@@ -67,7 +69,11 @@ export function RosterMergeDialog({
             {...describeRosterMerge({
               inscriptionsByEvent,
               kind,
-              removed: { documentNumber: person.documentNumber, name },
+              removed: {
+                documentNumber: person.documentNumber,
+                isIdentityVerified: person.isIdentityVerified,
+                name,
+              },
               survivor,
             })}
           />

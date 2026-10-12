@@ -182,7 +182,7 @@ export function ProfessorDetailRouteView({
       <RosterMergeDialog
         kind="professor"
         merge={loaderData.merge}
-        person={professor}
+        person={{ ...professor, isIdentityVerified: false }}
         {...mergeDialog}
       />
     </AdminResourceLayout>

@@ -174,7 +174,10 @@ export function DancerDetailRouteView({
       <RosterMergeDialog
         kind="dancer"
         merge={loaderData.merge}
-        person={dancer}
+        person={{
+          ...dancer,
+          isIdentityVerified: dancer.verificationStatus.code === "verified",
+        }}
         {...mergeDialog}
       />
     </AdminResourceLayout>
