@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { ReasonList } from "@/components/shared/reason-list";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -27,15 +28,16 @@ import {
   useEventModalityForm,
   ModalityFormPanel,
 } from "../form";
-import type {
-  EventModalitiesLoaderData,
-  EventModalityActionData,
-  EventModalityRow,
-  EventSubmodalityRow,
+import {
+  getModalityDeleteBlockReasons,
+  type EventModalityActionData,
+  type EventModalityDetailLoaderData,
+  type EventModalityRow,
+  type EventSubmodalityRow,
 } from "../shared";
 
 export type EventModalityDetailViewProps = {
-  loaderData: EventModalitiesLoaderData;
+  loaderData: EventModalityDetailLoaderData;
   actionData?: EventModalityActionData;
   modalityId: string;
   initialDeleteDialogOpen?: boolean;
@@ -82,6 +84,9 @@ export function EventModalityDetailView({
       headerAction={
         modality ? (
           <ModalityActions
+            deleteBlockReasons={getModalityDeleteBlockReasons(
+              loaderData.deleteBlockers,
+            )}
             modality={modality}
             initialDeleteDialogOpen={initialDeleteDialogOpen}
           />
@@ -163,9 +168,11 @@ function IncompleteSheetsAlert({
 }
 
 function ModalityActions({
+  deleteBlockReasons,
   modality,
   initialDeleteDialogOpen = false,
 }: {
+  deleteBlockReasons: string[];
   modality: EventModalityRow;
   initialDeleteDialogOpen?: boolean;
 }) {
@@ -187,7 +194,14 @@ function ModalityActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="¿Eliminar la modalidad?"
-        description={`Esta acción elimina ${modality.name} si no tiene submodalidades, categorías o cronogramas relacionados. No se puede deshacer.`}
+        blockedTitle="No se puede eliminar la modalidad"
+        description={
+          deleteBlockReasons.length > 0
+            ? "Se puede eliminar cuando no tenga submodalidades ni coreografías y ninguna categoría o cronograma la use."
+            : `Esta acción elimina ${modality.name}.`
+        }
+        isBlocked={deleteBlockReasons.length > 0}
+        blockedDescription={<ReasonList reasons={deleteBlockReasons} />}
         intentValue="delete-modality"
         recordId={modality.id}
         open={deleteDialogOpen}

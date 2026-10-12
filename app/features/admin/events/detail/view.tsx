@@ -486,7 +486,7 @@ function EventActions({
         description={
           deleteBlockReasons.length > 0
             ? "Se puede eliminar cuando no sea el evento activo y no tenga coreografías inscriptas."
-            : `Esta acción no se puede deshacer. Se va a eliminar ${event.name}.`
+            : `Esta acción elimina ${event.name}.`
         }
         isBlocked={deleteBlockReasons.length > 0}
         blockedDescription={<ReasonList reasons={deleteBlockReasons} />}

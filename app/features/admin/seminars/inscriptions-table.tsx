@@ -120,7 +120,7 @@ function RemovalDialog({
   return (
     <DeleteDialog
       title="¿Eliminar la inscripción?"
-      description={`Esta acción da de baja la inscripción de ${inscription.fullName} del seminario y libera su lugar. No se puede deshacer.`}
+      description={`Esta acción da de baja la inscripción de ${inscription.fullName} del seminario y libera su lugar.`}
       intentValue={deleteSeminarInscriptionIntent}
       recordId={inscription.id}
       open

@@ -239,18 +239,13 @@ export async function deleteCategory(
   // no `on delete` behaviour, so the foreign key refuses the delete under any
   // choreography. Reporting that as a typed failure is what this check adds;
   // the refusal itself is the database's.
-  if (
-    await hasReferencingChoreographies(
-      eq(choreographies.categoryId, categoryId),
-    )
-  ) {
+  const [blocker] = await findCategoryDeleteBlockers(categoryId);
+
+  if (blocker === "choreographies") {
     return categoryHasChoreographies();
   }
 
-  // A cascade here would quietly empty a schedule's accepted categories and
-  // turn a schedule that takes one show's categories into one that takes every
-  // category, so the delete is refused while any schedule lists it.
-  if (await categoryIsAcceptedBySchedule(categoryId)) {
+  if (blocker === "schedules") {
     return categoryHasSchedules();
   }
 
@@ -273,6 +268,31 @@ export async function deleteCategory(
   }
 
   return { ok: true };
+}
+
+export type CategoryDeleteBlocker = "choreographies" | "schedules";
+
+/**
+ * Every relation that keeps the category from being deleted, in the order
+ * `deleteCategory` reports them. The detail page reads it to open the blocked
+ * dialog instead of a confirmation the server would refuse. Empty means the
+ * delete can run.
+ */
+export async function findCategoryDeleteBlockers(
+  categoryId: string,
+): Promise<CategoryDeleteBlocker[]> {
+  const [hasChoreographies, isAcceptedBySchedule] = await Promise.all([
+    hasReferencingChoreographies(eq(choreographies.categoryId, categoryId)),
+    // A cascade here would quietly empty a schedule's accepted categories and
+    // turn a schedule that takes one show's categories into one that takes
+    // every category, so the delete is refused while any schedule lists it.
+    categoryIsAcceptedBySchedule(categoryId),
+  ]);
+
+  return [
+    ...(hasChoreographies ? (["choreographies"] as const) : []),
+    ...(isAcceptedBySchedule ? (["schedules"] as const) : []),
+  ];
 }
 
 async function categoryIsAcceptedBySchedule(categoryId: string) {

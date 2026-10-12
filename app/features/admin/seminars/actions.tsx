@@ -50,7 +50,7 @@ export function SeminarActions({
         description={
           blockedDeletion
             ? blockedDeletion.wayOut
-            : `Esta acción elimina el seminario de ${seminar.instructorName}. No se puede deshacer.`
+            : `Esta acción elimina el seminario de ${seminar.instructorName}.`
         }
         isBlocked={blockedDeletion !== null}
         blockedDescription={

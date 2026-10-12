@@ -34,6 +34,7 @@ const loaderData = {
     modalityIds: ["modality_1"],
     name: "Infantil",
   },
+  deleteBlockers: [],
   modalities: [{ id: "modality_1", name: "Jazz" }],
   selectedEventId: "event_1",
 } as unknown as CategoryDetailLoaderData;
@@ -109,9 +110,41 @@ describe("the category detail as one draft", () => {
   });
 });
 
+describe("the category delete", () => {
+  test("confirms the delete when nothing holds the category", async () => {
+    await renderPage({ initialDeleteDialogOpen: true });
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("¿Eliminar la categoría?");
+    expect(findButton("Eliminar")).toBeDefined();
+  });
+
+  test("explains what blocks the delete instead of confirming it", async () => {
+    await renderPage({
+      initialDeleteDialogOpen: true,
+      overrides: { deleteBlockers: ["choreographies", "schedules"] },
+    });
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("No se puede eliminar la categoría");
+    expect(dialog?.textContent).toContain("Tiene coreografías.");
+    expect(dialog?.textContent).toContain("La usan cronogramas.");
+    expect(findButton("Cerrar")).toBeDefined();
+    expect(findButton("Eliminar")).toBeUndefined();
+  });
+});
+
 async function renderPage({
   actionData,
-}: { actionData?: CategoryActionData } = {}) {
+  initialDeleteDialogOpen = false,
+  overrides = {},
+}: {
+  actionData?: CategoryActionData;
+  initialDeleteDialogOpen?: boolean;
+  overrides?: Partial<CategoryDetailLoaderData>;
+} = {}) {
   let saves = 0;
 
   // The form posts to the URL the document says, which the memory router does
@@ -128,7 +161,11 @@ async function renderPage({
           return null;
         },
         element: (
-          <CategoryDetailView actionData={actionData} loaderData={loaderData} />
+          <CategoryDetailView
+            actionData={actionData}
+            initialDeleteDialogOpen={initialDeleteDialogOpen}
+            loaderData={{ ...loaderData, ...overrides }}
+          />
         ),
         path: detailPath,
       },

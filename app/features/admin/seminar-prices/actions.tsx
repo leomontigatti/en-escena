@@ -42,7 +42,7 @@ export function SeminarPriceActions({
         description={
           deletionBlock
             ? deletionBlock.wayOut
-            : `Esta acción elimina ${seminarPrice.name}. No se puede deshacer.`
+            : `Esta acción elimina ${seminarPrice.name}.`
         }
         blockedTitle="No se puede eliminar el precio de seminario"
         isBlocked={deletionBlock !== null}

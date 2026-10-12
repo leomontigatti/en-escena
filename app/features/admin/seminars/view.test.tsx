@@ -597,7 +597,7 @@ describe("SeminarDetailView `Inscriptos`", () => {
 
     expect(dialog?.textContent).toContain("Abril Sosa");
     expect(dialog?.textContent).toContain(
-      "Esta acción da de baja la inscripción de Abril Sosa del seminario y libera su lugar. No se puede deshacer.",
+      "Esta acción da de baja la inscripción de Abril Sosa del seminario y libera su lugar.",
     );
     expect(
       dialog?.querySelector('input[name="intent"]')?.getAttribute("value"),

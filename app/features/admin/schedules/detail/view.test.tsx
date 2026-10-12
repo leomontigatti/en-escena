@@ -401,9 +401,7 @@ describe("EventScheduleDetailView", () => {
     expect(dialog?.querySelector("h2")?.textContent).toBe(
       "¿Eliminar el cronograma?",
     );
-    expect(dialog?.textContent).toContain(
-      "Esta acción elimina Mañana. No se puede deshacer.",
-    );
+    expect(dialog?.textContent).toContain("Esta acción elimina Mañana.");
   });
 
   async function openScheduleActionsMenu() {

@@ -88,7 +88,7 @@ describe("Event bases migrated forms", () => {
       formId: "update-modality-form",
       renderView: () => (
         <EventModalityDetailView
-          loaderData={buildLoaderData()}
+          loaderData={{ ...buildLoaderData(), deleteBlockers: [] }}
           modalityId="modality_1"
         />
       ),
@@ -171,7 +171,7 @@ describe("Event bases migrated forms", () => {
 
     render(
       <EventModalityDetailView
-        loaderData={buildLoaderData()}
+        loaderData={{ ...buildLoaderData(), deleteBlockers: [] }}
         modalityId="modality_1"
       />,
     );
@@ -295,7 +295,7 @@ describe("Event bases migrated forms", () => {
 
     render(
       <EventModalityDetailView
-        loaderData={buildLoaderData()}
+        loaderData={{ ...buildLoaderData(), deleteBlockers: [] }}
         modalityId="modality_1"
         actionData={actionData}
       />,
@@ -325,6 +325,7 @@ function buildCategoryDetailLoaderData() {
     category:
       loaderData.categories.find((category) => category.id === "category_1") ??
       null,
+    deleteBlockers: [],
     modalities: loaderData.modalities,
   };
 }

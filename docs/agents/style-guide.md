@@ -205,6 +205,8 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
 - **The verb is `destructive` only when the action destroys or reverses.**
 - **A destructive action is confirmed in a dialog**, never by a checkbox on a
   form, and complex forms stay out of a confirmation.
+- **A `DeleteDialog`'s description says what goes, not that it is for good**:
+  its alert already says the action is irreversible.
 
 ## Navigation
 

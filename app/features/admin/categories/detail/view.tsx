@@ -6,6 +6,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { EmptyResourceState } from "@/components/shared/empty-resource-state";
+import { ReasonList } from "@/components/shared/reason-list";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   DropdownMenuGroup,
@@ -19,20 +20,23 @@ import {
   getCategorySubmittedValues,
   useCategoryForm,
 } from "../form";
-import type {
-  CategoryActionData,
-  CategoryDetailLoaderData,
-  CategoryRow,
+import {
+  getCategoryDeleteBlockReasons,
+  type CategoryActionData,
+  type CategoryDetailLoaderData,
+  type CategoryRow,
 } from "../shared";
 
 type CategoryDetailViewProps = {
   loaderData: CategoryDetailLoaderData;
   actionData?: CategoryActionData;
+  initialDeleteDialogOpen?: boolean;
 };
 
 function CategoryDetailView({
   loaderData,
   actionData,
+  initialDeleteDialogOpen = false,
 }: CategoryDetailViewProps) {
   useServerActionToast(actionData);
 
@@ -60,7 +64,17 @@ function CategoryDetailView({
           ? "Editá el rango de edad, los tipos de grupo y las modalidades de la categoría."
           : "No encontramos esa categoría dentro del evento activo."
       }
-      headerAction={category ? <CategoryActions category={category} /> : null}
+      headerAction={
+        category ? (
+          <CategoryActions
+            category={category}
+            deleteBlockReasons={getCategoryDeleteBlockReasons(
+              loaderData.deleteBlockers,
+            )}
+            initialDeleteDialogOpen={initialDeleteDialogOpen}
+          />
+        ) : null
+      }
     >
       {category ? (
         <>
@@ -92,8 +106,18 @@ function CategoryDetailView({
   );
 }
 
-function CategoryActions({ category }: { category: CategoryRow }) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+function CategoryActions({
+  category,
+  deleteBlockReasons,
+  initialDeleteDialogOpen,
+}: {
+  category: CategoryRow;
+  deleteBlockReasons: string[];
+  initialDeleteDialogOpen: boolean;
+}) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(
+    initialDeleteDialogOpen,
+  );
 
   return (
     <>
@@ -108,7 +132,14 @@ function CategoryActions({ category }: { category: CategoryRow }) {
         </DropdownMenuGroup>
       </ResourceActionsMenu>
       <DeleteDialog
-        description={`La categoría ${category.name} se elimina del evento. No se puede deshacer.`}
+        blockedTitle="No se puede eliminar la categoría"
+        description={
+          deleteBlockReasons.length > 0
+            ? "Se puede eliminar cuando no tenga coreografías y ningún cronograma la use."
+            : `La categoría ${category.name} se elimina del evento.`
+        }
+        isBlocked={deleteBlockReasons.length > 0}
+        blockedDescription={<ReasonList reasons={deleteBlockReasons} />}
         intentValue="delete-category"
         title="¿Eliminar la categoría?"
         recordId={category.id}
