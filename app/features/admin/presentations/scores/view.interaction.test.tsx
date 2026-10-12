@@ -1,7 +1,11 @@
 /** @vitest-environment jsdom */
 
 import { act } from "react";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useLoaderData,
+} from "react-router";
 import { beforeEach, afterEach, describe, expect, test } from "vitest";
 
 import { PresentationScoresView } from "@/features/admin/presentations/scores/view";
@@ -11,6 +15,10 @@ import type {
   PresentationScoresView as PresentationScores,
 } from "@/lib/judging/presentation-scores.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
+import {
+  discardChangesConfirmLabel,
+  discardChangesTitle,
+} from "@/lib/shared/discard-guard";
 import {
   createReactDomTestRenderer,
   findButton,
@@ -35,27 +43,63 @@ describe("correcting the panel's scores", () => {
 
   afterEach(renderer.cleanup);
 
+  /**
+   * The page as the route serves it: a save is stored, as the server stores
+   * it, and the loader hands the page what is saved now. A save for
+   * `heldScoreId` never answers, as one a later save interrupts.
+   */
   async function mount(
     overrides: Partial<PresentationScores> = {},
-    options: { canEdit?: boolean } = {},
+    options: { canEdit?: boolean; heldScoreId?: string } = {},
   ) {
-    const loaderData: PresentationScoresLoaderData = {
+    let loaderData: PresentationScoresLoaderData = {
       canEdit: options.canEdit ?? true,
       presentation: buildPresentation(overrides),
     };
     const router = createMemoryRouter(
       [
         {
+          id: "scores",
           path: "/administracion/presentaciones/presentation-1/puntajes",
           action: async ({ request }) => {
-            submitted.push(await request.formData());
+            const body = await request.formData();
+            const scoreId = body.get("scoreId");
+            const value = body.get("value");
 
-            return { message: "Guardaste el puntaje.", status: "success" };
+            submitted.push(body);
+
+            if (scoreId === options.heldScoreId) {
+              await new Promise(() => {});
+            }
+
+            if (typeof value === "string") {
+              loaderData = {
+                ...loaderData,
+                presentation: {
+                  ...loaderData.presentation,
+                  judges: loaderData.presentation.judges.map((judge) =>
+                    judge.scoreId === scoreId
+                      ? { ...judge, value: Number(value).toFixed(1) }
+                      : judge,
+                  ),
+                },
+              };
+            }
+
+            return typeof scoreId === "string"
+              ? { message: "Guardaste el puntaje.", scoreId, status: "success" }
+              : { message: "Listo.", status: "success" };
           },
-          element: <PresentationScoresView loaderData={loaderData} />,
+          loader: () => loaderData,
+          element: <ScoresPage />,
+        },
+        {
+          path: "/administracion/presentaciones",
+          element: <p>Presentaciones</p>,
         },
       ],
       {
+        hydrationData: { loaderData: { scores: loaderData } },
         initialEntries: [
           "/administracion/presentaciones/presentation-1/puntajes",
         ],
@@ -140,6 +184,29 @@ describe("correcting the panel's scores", () => {
     return [
       ...document.querySelectorAll("form legend, form [data-sheet-total]"),
     ].map((element) => element.textContent);
+  }
+
+  function dialogTitle() {
+    return document.querySelector("[role='alertdialog'] h2")?.textContent;
+  }
+
+  async function selectTab(label: string) {
+    const trigger = [...document.querySelectorAll("[role='tab']")].find(
+      (candidate) => candidate.textContent === label,
+    );
+
+    // Radix activates a trigger on `mousedown`, not on the click after it.
+    await act(async () => {
+      trigger?.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+    });
+  }
+
+  async function leave(router: Awaited<ReturnType<typeof mount>>) {
+    await act(async () => {
+      await router.navigate("/administracion/presentaciones");
+    });
   }
 
   async function type(id: string, value: string) {
@@ -385,6 +452,144 @@ describe("correcting the panel's scores", () => {
     expect(discardButton()).toBeUndefined();
   });
 
+  test("asks before leaving a judge's unsaved sheet, even from another judge's tab", async () => {
+    const router = await mount({
+      criteria: [
+        {
+          experienceLevel: null,
+          id: "technique",
+          kind: "adds",
+          maximum: 100,
+          name: "Técnica",
+        },
+      ],
+      judges: [
+        buildJudge({ criteriaValues: { technique: "90.0" } }),
+        buildJudge({
+          criteriaValues: { technique: "80.0" },
+          judgeAssignmentId: "assignment-2",
+          judgeName: "Zulema Juez",
+          scoreId: "score-2",
+        }),
+      ],
+    });
+
+    await selectTab("Zulema Juez");
+    await type("criterio-score-2-technique", "70");
+    await selectTab("Ana Juez");
+    await leave(router);
+
+    expect(dialogTitle()).toBe(discardChangesTitle);
+    expect(router.state.location.pathname).toBe(
+      "/administracion/presentaciones/presentation-1/puntajes",
+    );
+
+    await act(async () => {
+      dialogButton(discardChangesConfirmLabel)?.click();
+      await Promise.resolve();
+    });
+
+    expect(router.state.location.pathname).toBe(
+      "/administracion/presentaciones",
+    );
+  });
+
+  test("asks before leaving an unsaved single score", async () => {
+    const router = await mount({
+      judges: [buildJudge({ scoreId: "score-1" })],
+    });
+
+    await type("puntaje-score-1", "70");
+    await leave(router);
+
+    expect(dialogTitle()).toBe(discardChangesTitle);
+  });
+
+  test("lets a clean page go, and never asks about its own save", async () => {
+    const router = await mount({
+      judges: [buildJudge({ scoreId: "score-1" })],
+    });
+
+    await type("puntaje-score-1", "70");
+    await updateReactDomForm(() => {
+      saveButtons()[0]?.click();
+    });
+
+    expect(submitted).toHaveLength(1);
+    expect(dialogTitle()).toBeUndefined();
+
+    await leave(router);
+
+    expect(dialogTitle()).toBeUndefined();
+    expect(router.state.location.pathname).toBe(
+      "/administracion/presentaciones",
+    );
+  });
+
+  test("takes what was saved as the new starting point", async () => {
+    const router = await mount({
+      judges: [buildJudge({ scoreId: "score-1" })],
+    });
+
+    await type("puntaje-score-1", "70");
+    await updateReactDomForm(() => {
+      saveButtons()[0]?.click();
+    });
+    // The number the judge gave before the correction is now a change.
+    await type("puntaje-score-1", "90");
+    await leave(router);
+
+    expect(dialogTitle()).toBe(discardChangesTitle);
+  });
+
+  test("keeps a draft whose save another judge's save cut short", async () => {
+    const router = await mount(
+      {
+        judges: [
+          buildJudge({ scoreId: "score-1", value: "90.0" }),
+          buildJudge({
+            judgeAssignmentId: "assignment-2",
+            judgeName: "Zulema Juez",
+            scoreId: "score-2",
+            value: "80.0",
+          }),
+        ],
+      },
+      { heldScoreId: "score-1" },
+    );
+
+    await type("puntaje-score-1", "70");
+    await updateReactDomForm(() => {
+      saveButtons()[0]?.click();
+    });
+    await type("puntaje-score-2", "75");
+    await updateReactDomForm(() => {
+      saveButtons()[1]?.click();
+    });
+
+    expect(input("puntaje-score-1")?.value).toBe("70");
+
+    await leave(router);
+
+    expect(dialogTitle()).toBe(discardChangesTitle);
+  });
+
+  test("lets the page go after a save that only rewrote how the number is written", async () => {
+    const router = await mount({
+      judges: [buildJudge({ scoreId: "score-1", value: "90.0" })],
+    });
+
+    // The field opens on `90`; `90.0` saves the same number, so the loader
+    // hands back the same saved value and nothing on the page is a draft.
+    await type("puntaje-score-1", "90.0");
+    await updateReactDomForm(() => {
+      saveButtons()[0]?.click();
+    });
+    await leave(router);
+
+    expect(dialogTitle()).toBeUndefined();
+  });
+
   test("keeps a line within its own criterion's maximum", async () => {
     await mount({
       criteria: [
@@ -456,4 +661,12 @@ function buildPresentation(
     submodalityName: "Acrobacia",
     ...overrides,
   };
+}
+
+function ScoresPage() {
+  return (
+    <PresentationScoresView
+      loaderData={useLoaderData<PresentationScoresLoaderData>()}
+    />
+  );
 }

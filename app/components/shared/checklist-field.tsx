@@ -184,8 +184,10 @@ function Checklist({
       ) : null}
       <div
         // Grows with the rows up to a ceiling, then scrolls inside, its
-        // edges fading while there is more to scroll to.
-        className="max-h-80 scroll-fade overflow-y-auto"
+        // edges fading while there is more to scroll to. The fade is the
+        // cue, so no scrollbar narrows the rows out of line with the
+        // fields around the list.
+        className="no-scrollbar max-h-80 scroll-fade overflow-y-auto"
       >
         {rows.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
