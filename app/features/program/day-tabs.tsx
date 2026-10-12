@@ -12,23 +12,25 @@ import { dayTabParam, useUrlTab } from "@/lib/shared/url-tab";
  * design.
  */
 
-export const allDaysTabValue = "todos";
-
 /**
  * The chosen day, kept in the URL. Another day is another list, so the page
- * read on the day being left is dropped with it. The page opens on `Todos`
- * unless it names another tab: the public program's day being danced.
+ * read on the day being left is dropped with it. There is no tab for every
+ * day: the page opens on the first unless it names another tab, the public
+ * program's day being danced.
  */
 export function useScheduleDayTab(
   days: readonly string[],
-  openingValue: string = allDaysTabValue,
+  openingValue?: string,
 ) {
+  // A list with no day has no rows either, and so no tab to choose.
+  const firstDay = days[0] ?? "";
+
   return useUrlTab({
-    defaultValue: allDaysTabValue,
-    openingValue,
+    defaultValue: firstDay,
+    openingValue: openingValue ?? firstDay,
     param: dayTabParam,
     resets: [listQueryParamNames.page],
-    values: [allDaysTabValue, ...days],
+    values: days,
   });
 }
 
@@ -48,18 +50,15 @@ export function ScheduleDayTabs({
   return (
     <ListTabs
       onValueChange={tab.onValueChange}
-      tabs={[
-        { label: "Todos", value: allDaysTabValue },
-        ...days.map((day) => ({
-          label: (
-            <>
-              {formatScheduleDayTabLabel(day)}
-              {day === liveDay ? <LiveBadge /> : null}
-            </>
-          ),
-          value: day,
-        })),
-      ]}
+      tabs={days.map((day) => ({
+        label: (
+          <>
+            {formatScheduleDayTabLabel(day)}
+            {day === liveDay ? <LiveBadge /> : null}
+          </>
+        ),
+        value: day,
+      }))}
       value={tab.value}
     >
       {children}
@@ -69,9 +68,9 @@ export function ScheduleDayTabs({
 
 /**
  * Red and pulsing like a broadcast's, so it reads from a tab that is not
- * chosen: a reader on `Todos` or on another day is sent back to the day being
- * danced. `destructive` is borrowed for its red, not for a
- * negative state — a design decision of #1421, not the style guide's rule.
+ * chosen: a reader on another day is sent back to the day being danced.
+ * `destructive` is borrowed for its red, not for a negative state — a design
+ * decision of #1421, not the style guide's rule.
  */
 function LiveBadge() {
   return (

@@ -92,6 +92,17 @@ describe("PresentationsListView", () => {
     ).toContain("—");
   });
 
+  // Every row of the day is on screen, but the count still says how much of
+  // the day the search left: against the day, not the rows on screen.
+  test("counts the rows on screen against the whole day", () => {
+    const markup = renderView({
+      dayRowCount: 3,
+      presentations: [buildItem()],
+    });
+
+    expect(markup).toContain("1 de 3 registros");
+  });
+
   test("locks the number and hides the grip of a frozen row", () => {
     const markup = renderView({
       frozenDays: ["2026-05-01"],
@@ -152,6 +163,7 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
     assignableJudges: [],
     assignedJudges: [],
     canOrder: true,
+    dayRowCount: 1,
     days: ["2026-05-01"],
     filters: {
       day: null,

@@ -804,6 +804,25 @@ describe("ClientDataTable without page controls", () => {
     expect(document.body.textContent).not.toContain("registros");
     expect(document.body.textContent).not.toContain("Siguiente");
   });
+
+  // A whole list still says how much of its set the search left.
+  test("keeps the count, without page controls, when the loader names the set", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter>
+        <ServerDataTable
+          rows={rows.slice(0, 3)}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          hidePagination
+          totalRows={25}
+          searchPlaceholder="Buscar coreografía"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(document.body.textContent).toContain("3 de 25 registros");
+    expect(document.querySelector('[aria-label="pagination"]')).toBeNull();
+  });
 });
 
 describe("ClientDataTable filtered summary", () => {

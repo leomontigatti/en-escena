@@ -33,7 +33,7 @@ import { showToastMessage } from "@/lib/shared/toasts";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { PresentationListActions } from "./actions-menu";
-import { JudgeAssignmentDialog } from "./judge-dialogs";
+import { JudgeEditDialog } from "./judge-dialogs";
 import { AutomaticOrderingDialogs } from "./ordering-dialogs";
 import { readPresentationStatusBadge } from "./status-badge";
 import {
@@ -394,9 +394,7 @@ export function PresentationsListView({
   loaderData,
 }: PresentationsListViewProps) {
   const [isOrderingDialogOpen, setIsOrderingDialogOpen] = useState(false);
-  const [judgeDialogMode, setJudgeDialogMode] = useState<
-    "assign" | "remove" | null
-  >(null);
+  const [isJudgeDialogOpen, setIsJudgeDialogOpen] = useState(false);
   const [outputDialog, setOutputDialog] = useState<OutputDialog | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const { isSortedByNumberAscending, moving, rows } =
@@ -426,7 +424,7 @@ export function PresentationsListView({
           hasSelection={selectedRows.length > 0}
           onDownloadMusic={() => setOutputDialog("musicDownload")}
           onExportProgram={() => setOutputDialog("programExport")}
-          onJudges={setJudgeDialogMode}
+          onJudges={() => setIsJudgeDialogOpen(true)}
           onOrder={() => setIsOrderingDialogOpen(true)}
           onProgramVisibility={() => setOutputDialog("programVisibility")}
           canSetProgramVisibility={
@@ -474,8 +472,10 @@ export function PresentationsListView({
                 initialSort={loaderData.filters.order}
                 emptyMessage={emptyPresentationList.nothingMatched}
                 // The whole order on one screen: a row is dragged to any
-                // place in it, and a selection reaches every row.
+                // place in it, and a selection reaches every row. The count
+                // stays, against the whole day.
                 hidePagination
+                totalRows={loaderData.dayRowCount}
               />
             </PresentationDayTabs>
           </div>
@@ -499,17 +499,12 @@ export function PresentationsListView({
         loaderData={loaderData}
         onClose={() => setOutputDialog(null)}
       />
-      {loaderData.canOrder && judgeDialogMode !== null ? (
-        <JudgeAssignmentDialog
+      {loaderData.canOrder && isJudgeDialogOpen ? (
+        <JudgeEditDialog
           assignableJudges={loaderData.assignableJudges}
           assignedJudges={loaderData.assignedJudges}
-          mode={judgeDialogMode}
           open
-          onOpenChange={(next) => {
-            if (!next) {
-              setJudgeDialogMode(null);
-            }
-          }}
+          onOpenChange={setIsJudgeDialogOpen}
           selectedRows={selectedRows}
         />
       ) : null}

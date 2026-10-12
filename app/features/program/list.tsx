@@ -17,7 +17,7 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { matchesPresentationSearch } from "@/lib/presentations/search";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
-import { allDaysTabValue, ScheduleDayTabs } from "./day-tabs";
+import { ScheduleDayTabs } from "./day-tabs";
 import type { ProgramLive } from "./live-day";
 import { ProgramRowCard, ProgramRowName } from "./row-card";
 import {
@@ -54,8 +54,8 @@ export type ProgramListProps = {
    */
   showLevel?: boolean;
   /**
-   * What goes right under the tabs while one day is chosen, never on `Todos`:
-   * the public program's award ceremonies of that day. The portal has none.
+   * What goes right under the tabs for the chosen day: the public program's
+   * award ceremonies of that day. The portal has none.
    */
   renderDayNotice?: (day: string) => ReactNode;
 };
@@ -81,15 +81,12 @@ export function ProgramList({
     rows,
   });
   const { tab } = liveView;
-  const visibleRows =
-    tab.value === allDaysTabValue
-      ? rows
-      : rows.filter((row) => row.scheduledDate === tab.value);
+  const visibleRows = rows.filter((row) => row.scheduledDate === tab.value);
 
   return (
     <ScheduleDayTabs days={days} liveDay={liveView.liveBadgeDay} tab={tab}>
       <div className="flex flex-col gap-3">
-        {tab.value === allDaysTabValue ? null : renderDayNotice?.(tab.value)}
+        {renderDayNotice?.(tab.value)}
 
         <ClientDataTable
           rows={visibleRows}

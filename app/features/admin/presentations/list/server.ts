@@ -40,17 +40,18 @@ import {
 } from "@/lib/presentations/warnings";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
+import { namedListDay, selectListDay } from "@/lib/shared/url-tab";
 
 import { readMusicDownloadDays } from "../music-download/server";
 
 import {
-  assignJudgesIntent,
   automaticOrderingSchema,
+  editJudgesIntent,
   formatAutomaticOrderingMessage,
-  formatJudgeAssignmentMessage,
   formatProgramVisibilityMessage,
-  judgeAssignmentSchema,
-  judgeIdFieldName,
+  judgeEditSchema,
+  judgeToAddFieldName,
+  judgeToRemoveFieldName,
   movePresentationIntent,
   orderAutomaticallyIntent,
   orderDayFieldName,
@@ -58,8 +59,9 @@ import {
   programEventIdFieldName,
   programVisibilitySchema,
   programVisibleDayFieldName,
-  removeJudgesIntent,
+  readJudgeEditOutcome,
   setProgramVisibilityIntent,
+  type JudgeEditSubmissionValues,
   type PresentationListActionData,
   type PresentationListFilters,
   type PresentationListItem,
@@ -97,7 +99,7 @@ export async function loadPresentationListRouteData(request: Request) {
 
   redirectToCanonicalListUrl(request, {
     facets: {
-      dia: result.filters.day,
+      dia: namedListDay(result.days, result.filters.day),
       evaluacion: result.filters.evaluation,
       advertencias: result.filters.warnings,
     },
@@ -123,6 +125,7 @@ async function loadPresentationList(input: {
       assignableJudges: [],
       assignedJudges: [],
       canOrder: input.canOrder,
+      dayRowCount: 0,
       days: [],
       filters: input.filters,
       frozenDays: [],
@@ -178,16 +181,18 @@ async function loadPresentationList(input: {
   const days = [...new Set(items.map((item) => item.scheduledDate))].sort();
   const filters = {
     ...input.filters,
-    day: days.includes(input.filters.day ?? "") ? input.filters.day : null,
+    day: selectListDay(days, input.filters.day),
   };
+  const dayItems = items.filter((item) => item.scheduledDate === filters.day);
   const filteredItems = sortPresentations(
-    items.filter((item) => matchesPresentationFilters(item, filters)),
+    dayItems.filter((item) => matchesPresentationFilters(item, filters)),
     filters.order,
   );
   return {
     assignableJudges,
     assignedJudges: assigned.judges,
     canOrder: input.canOrder,
+    dayRowCount: dayItems.length,
     days,
     filters,
     frozenDays: [
@@ -213,7 +218,9 @@ async function loadPresentationList(input: {
     programVisibleDays,
     selectedEventId: input.selectedEventId,
     unorderedCount: items.filter((item) => item.orderNumber === null).length,
-    warnedCount: items.filter((item) => item.warnings.length > 0).length,
+    // The day on screen only: the notice's `Ver` narrows that day, so an
+    // event-wide count could send the reader to an empty list.
+    warnedCount: dayItems.filter((item) => item.warnings.length > 0).length,
   };
 }
 
@@ -244,8 +251,8 @@ export async function handlePresentationListAction(
     return await runMovePresentation(eventContext.selectedEventId, formData);
   }
 
-  if (intent === assignJudgesIntent || intent === removeJudgesIntent) {
-    return await runJudgeAssignment(intent, formData);
+  if (intent === editJudgesIntent) {
+    return await runJudgeEdit(formData);
   }
 
   if (intent === setProgramVisibilityIntent) {
@@ -372,24 +379,23 @@ async function areEventDays(eventId: string, days: readonly string[]) {
 }
 
 /**
- * The two bulk dialogs, which differ only in which way the pair goes. Both
- * answer with what they reached and not with what was asked for: an already
- * assigned pair is skipped and a judge nobody in the selection has is a
- * removal of nothing, so the counts name presentations actually touched.
+ * The judge dialog: the judges it adds to every chosen row, and the ones it
+ * takes off every chosen row that has them. Each half answers with what it
+ * reached and not with what was asked for: an already assigned pair is skipped
+ * and a judge nobody in the selection has is a removal of nothing, so the
+ * counts name presentations actually touched.
  *
- * A removal also reports the scored pairs it refused to take apart, and comes
- * back an error when that is everything it was asked about.
+ * The removal also reports the scored pairs it refused to take apart, and the
+ * edit comes back an error when that is everything it reached.
  */
-async function runJudgeAssignment(
-  intent: typeof assignJudgesIntent | typeof removeJudgesIntent,
-  formData: FormData,
-) {
-  const parsed = judgeAssignmentSchema.safeParse({
-    intent,
+async function runJudgeEdit(formData: FormData) {
+  const parsed = judgeEditSchema.safeParse({
+    intent: editJudgesIntent,
     [presentationChoreographyIdFieldName]: formData.getAll(
       presentationChoreographyIdFieldName,
     ),
-    [judgeIdFieldName]: formData.getAll(judgeIdFieldName),
+    [judgeToAddFieldName]: formData.getAll(judgeToAddFieldName),
+    [judgeToRemoveFieldName]: formData.getAll(judgeToRemoveFieldName),
   });
 
   if (!parsed.success) {
@@ -397,35 +403,41 @@ async function runJudgeAssignment(
     // a request the form never made: a toast, not a field error.
     return data(
       {
-        message: "Elegí al menos una presentación y un juez.",
+        message: "Elegí al menos una presentación y cambiá un juez.",
         status: "error" as const,
       },
       { status: 400 },
     );
   }
 
-  const choreographyIds = parsed.data[presentationChoreographyIdFieldName];
-  const judgeIds = parsed.data[judgeIdFieldName];
+  const outcome = readJudgeEditOutcome(await applyJudgeEdit(parsed.data));
 
-  const result =
-    intent === assignJudgesIntent
-      ? { ...(await assignJudges({ choreographyIds, judgeIds })), keptCount: 0 }
-      : await removeJudges({ choreographyIds, judgeIds });
-  const message = formatJudgeAssignmentMessage({
-    intent,
-    judgeCount: result.judgeCount,
-    keptCount: result.keptCount,
-    presentationCount: result.presentationCount,
-  });
-
-  // A removal that reached nothing because every chosen pair already has a
-  // score is a refusal, not a quiet success: the message is all the
-  // administrator gets, so it has to arrive in the tone of one.
-  if (result.keptCount > 0 && result.judgeCount === 0) {
-    return data({ message, status: "error" as const }, { status: 409 });
+  if (outcome.refused) {
+    return data(
+      { message: outcome.message, status: "error" as const },
+      { status: 409 },
+    );
   }
 
-  return { message, status: "success" as const };
+  return { message: outcome.message, status: "success" as const };
+}
+
+/** Each half of the edit that has judges to move, each in its own write. */
+async function applyJudgeEdit(edit: JudgeEditSubmissionValues) {
+  const choreographyIds = edit[presentationChoreographyIdFieldName];
+  const toAdd = edit[judgeToAddFieldName];
+  const toRemove = edit[judgeToRemoveFieldName];
+
+  return {
+    assigned:
+      toAdd.length > 0
+        ? await assignJudges({ choreographyIds, judgeIds: toAdd })
+        : null,
+    removed:
+      toRemove.length > 0
+        ? await removeJudges({ choreographyIds, judgeIds: toRemove })
+        : null,
+  };
 }
 
 /**
@@ -538,10 +550,6 @@ function matchesPresentationFilters(
   item: PresentationListItem,
   filters: PresentationListFilters,
 ) {
-  if (filters.day !== null && item.scheduledDate !== filters.day) {
-    return false;
-  }
-
   if (filters.warnings === "con" && item.warnings.length === 0) {
     return false;
   }

@@ -187,9 +187,34 @@ describe("the results list", () => {
       `${listUrl}?busqueda=primer`,
     );
 
+    const opening = await loadTheList("admin.resultados.apertura@example.com");
+
     expect(byDay.days).toEqual(["2026-11-20", "2026-11-21"]);
     expect(byDay.results.map((row) => row.name)).toEqual(["Segundo día"]);
     expect(bySearch.results.map((row) => row.name)).toEqual(["Primer día"]);
+    // No tab lists every day: a URL naming none is the first day's list.
+    expect(opening.filters.day).toBe("2026-11-20");
+    expect(opening.results.map((row) => row.name)).toEqual(["Primer día"]);
+  });
+
+  test("sends a link naming the first day to the URL that names none", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({
+      name: "Primer día",
+      orderNumber: 1,
+      scheduledDate: "2026-11-20",
+    });
+
+    const response = await expectThrownResponse(
+      loadTheList(
+        "admin.resultados.primer-dia@example.com",
+        "admin",
+        `${listUrl}?dia=2026-11-20`,
+      ),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe("/administracion/resultados");
   });
 });
 

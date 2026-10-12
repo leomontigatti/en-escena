@@ -45,17 +45,16 @@ describe("PresentationDayTabs", () => {
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
-    await selectTab(2);
     await selectTab(1);
 
     expect(router.state.location.search).toBe(
-      "?advertencias=con&dia=2026-05-01",
+      "?advertencias=con&dia=2026-05-02",
     );
-    expect(
-      document
-        .querySelector('[role="tab"][aria-selected="true"]')
-        ?.textContent?.trim(),
-    ).not.toBe("Todos");
+
+    // The first day is the one a URL naming none opens on.
+    await selectTab(0);
+
+    expect(router.state.location.search).toBe("?advertencias=con");
 
     await act(async () => {
       await router.navigate(-1);

@@ -101,10 +101,14 @@ describe("PublicProgramView", () => {
       expect(text).not.toContain("Bloque tarde");
     });
 
-    test("shows no ceremonies on `Todos`", () => {
+    // There is no tab for the whole program: a URL naming no day is the
+    // first day's, ceremonies included.
+    test("lists the first day's ceremonies on a URL naming no day", () => {
       const markup = renderView({ rows, schedules }, "/programa");
 
-      expect(readScreenText(markup)).not.toContain("Entrega de premios");
+      expect(readScreenText(markup)).toContain(
+        "Bloque mañana · Entrega de premios 13:30 hs",
+      );
     });
 
     test("shows no card on a day without ceremonies", () => {
