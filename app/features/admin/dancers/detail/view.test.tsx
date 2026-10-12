@@ -9,6 +9,7 @@ import { renderInDataRouter } from "@/lib/test-support/data-router";
 import {
   createReactDomTestRenderer,
   findButton,
+  getTitleBadgeTexts,
 } from "@/lib/test-support/react-dom";
 import { DancerDetailRouteView } from "@/routes/administracion.bailarines_.$dancerId";
 
@@ -31,6 +32,24 @@ describe("DancerDetailRouteView", () => {
   afterEach(() => {
     renderer.cleanup();
     toastError.mockClear();
+  });
+
+  // Only the verification: whether the dancer is archived or taking part stays
+  // on the list.
+  test("draws the verification status beside the title, alone", () => {
+    const loaderData = createLoaderData();
+    const markup = renderDetailView({
+      loaderData: {
+        ...loaderData,
+        dancer: {
+          ...loaderData.dancer,
+          active: false,
+          verificationStatus: { code: "verified", pendingItems: [] },
+        },
+      },
+    });
+
+    expect(getTitleBadgeTexts(markup)).toEqual(["Verificado"]);
   });
 
   // Taking part in the active event is the normal state of most of the roster,

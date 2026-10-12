@@ -9,6 +9,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ListTabs } from "@/components/shared/list-tabs";
+import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/features/admin/schedules/view-shared";
 import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
@@ -22,7 +23,10 @@ import {
   waivedStatusFilterOption,
   withdrawnStatusFilterOption,
 } from "@/lib/finances/choreography-financial-status";
-import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
+import {
+  resolveInscriptionStatusBadge,
+  resolvePortalChoreographyStatusBadge,
+} from "@/lib/finances/inscription-financial-status";
 import { renderInscriptionStatusFilterValue } from "@/lib/finances/inscription-finance-columns";
 import {
   choreographiesTabValue,
@@ -119,32 +123,18 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
   {
     id: "financialStatus",
     header: "Estado",
-    cell: (row) => {
-      const badge = formatChoreographyStatusBadge(row);
-
-      return <Badge variant={badge.variant}>{badge.label}</Badge>;
-    },
+    cell: (row) => (
+      <FinancialStatusBadge
+        status={resolvePortalChoreographyStatusBadge(row)}
+      />
+    ),
     // The filter comes from the same badge the cell shows, for the same reason
     // it does on the seminar tab.
-    filterValue: (row) => formatChoreographyStatusBadge(row).value,
+    filterValue: (row) =>
+      formatInscriptionStatusBadge(resolvePortalChoreographyStatusBadge(row))
+        .value,
   },
 ];
-
-/**
- * `Retirada` **replaces** the financial status, it does not accompany it: a
- * withdrawn choreography is not taking part, and the two badges side by side
- * would read as two facts of equal weight. The anomalies are left out on
- * purpose — the academy is not shown `Sobreasignada`.
- */
-function formatChoreographyStatusBadge(row: ChoreographyFinanceRow) {
-  return formatInscriptionStatusBadge(
-    resolveInscriptionStatusBadge({
-      anomalies: [],
-      financialStatus: row.financialStatus,
-      withdrawn: row.withdrawn,
-    }),
-  );
-}
 
 /**
  * The `Seminarios` tab's rows: one `(seminar, academy)` unit each, the same
@@ -184,24 +174,19 @@ const seminarFinanceColumns: DataTableColumn<SeminarFinanceRow>[] = [
   {
     id: "financialStatus",
     header: "Estado",
-    cell: (row) => {
-      const badge = formatSeminarStatusBadge(row);
-
-      return <Badge variant={badge.variant}>{badge.label}</Badge>;
-    },
+    cell: (row) => <FinancialStatusBadge status={resolveSeminarStatus(row)} />,
     // The filter comes from the same badge the cell shows, so a row can never
     // turn up under an option it does not display.
-    filterValue: (row) => formatSeminarStatusBadge(row).value,
+    filterValue: (row) =>
+      formatInscriptionStatusBadge(resolveSeminarStatus(row)).value,
   },
 ];
 
-function formatSeminarStatusBadge(row: SeminarFinanceRow) {
-  return formatInscriptionStatusBadge(
-    resolveInscriptionStatusBadge({
-      anomalies: row.anomalies,
-      financialStatus: row.financialStatus,
-    }),
-  );
+function resolveSeminarStatus(row: SeminarFinanceRow) {
+  return resolveInscriptionStatusBadge({
+    anomalies: row.anomalies,
+    financialStatus: row.financialStatus,
+  });
 }
 
 export function PortalAcademyFinancesRouteView({

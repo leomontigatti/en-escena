@@ -20,7 +20,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { formatDancerName } from "@/lib/finances/formatters";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 
 import {
   inscriptionFinanceColumns,
@@ -71,6 +73,14 @@ export function ChoreographyFinanceDetailView({
               choreography.choreographyNumber,
             )}`
           : "Coreografía no encontrada"
+      }
+      // The badge the academy's list draws for this row, anomaly included.
+      titleBadge={
+        choreography ? (
+          <FinancialStatusBadge
+            status={resolveInscriptionStatusBadge(choreography)}
+          />
+        ) : undefined
       }
       description={
         choreography

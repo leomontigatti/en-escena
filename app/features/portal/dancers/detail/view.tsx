@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { Form, useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState, PortalPageHeader } from "@/components/portal/ui";
+import { DancerVerificationBadge } from "@/components/shared/dancer-verification-badge";
 import { FormActions } from "@/components/shared/form-actions";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -125,6 +126,9 @@ export function PortalDancerDetailRouteView({
         <PortalPageHeader
           titleId="dancer-detail-title"
           title={viewModel.title}
+          titleBadge={
+            <DancerVerificationBadge code={viewModel.verificationStatus.code} />
+          }
           description="Actualizá los datos de este bailarín."
           action={
             <ResourceActionsMenu contentClassName="w-40">

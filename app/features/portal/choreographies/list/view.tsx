@@ -12,13 +12,13 @@ import {
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ReasonList } from "@/components/shared/reason-list";
+import { ChoreographyStatusBadge } from "@/components/shared/choreography-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
   getChoreographyStatusFilterBadgeVariant,
   notWithdrawnChoreographyStatusFilterValue,
-  resolveChoreographyStatusBadge,
   withdrawnChoreographyStatusFilterValue,
   withdrawnChoreographyStatusLabel,
 } from "@/lib/choreographies/operational-status";
@@ -299,22 +299,6 @@ function getUniqueSortedOptions(
   ).sort((firstOption, secondOption) =>
     firstOption.label.localeCompare(secondOption.label, "es-AR"),
   );
-}
-
-/**
- * `Retirada` **replaces** the readiness badge rather than sitting next to it: a
- * choreography that is not taking part is not half-loaded, it is out, and what
- * it still lacks is no longer anyone's task. Which of the two it is comes from
- * the shared resolver, so this cell and the administrator's read the same way.
- */
-function ChoreographyStatusBadge({
-  choreography,
-}: {
-  choreography: PortalChoreographyListItem;
-}) {
-  const badge = resolveChoreographyStatusBadge(choreography);
-
-  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }
 
 function getChoreographiesEmptyTitle(

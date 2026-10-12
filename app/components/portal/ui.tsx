@@ -98,6 +98,8 @@ type PortalPageHeaderProps = {
   titleId: string;
   /** A node, not a string: a title can carry a badge beside it. */
   title: ReactNode;
+  /** A badge for the record's state, drawn beside the title on a detail page. */
+  titleBadge?: ReactNode;
   description: ReactNode;
   action?: ReactNode;
 };
@@ -109,6 +111,7 @@ type PortalPageHeaderProps = {
 export function PortalPageHeader({
   titleId,
   title,
+  titleBadge,
   description,
   action,
 }: PortalPageHeaderProps) {
@@ -117,9 +120,12 @@ export function PortalPageHeader({
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
-        <h2 id={titleId} className="text-xl font-semibold" {...recordTitle}>
-          {title}
-        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 id={titleId} className="text-xl font-semibold" {...recordTitle}>
+            {title}
+          </h2>
+          {titleBadge}
+        </div>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           {description}
         </p>
@@ -133,6 +139,7 @@ type PortalListPageProps = {
   titleId: string;
   /** A node, not a string: a title can carry a badge beside it. */
   title: ReactNode;
+  titleBadge?: ReactNode;
   description: ReactNode;
   action?: ReactNode;
   children: ReactNode;
@@ -141,6 +148,7 @@ type PortalListPageProps = {
 export function PortalListPage({
   titleId,
   title,
+  titleBadge,
   description,
   action,
   children,
@@ -150,6 +158,7 @@ export function PortalListPage({
       <PortalPageHeader
         titleId={titleId}
         title={title}
+        titleBadge={titleBadge}
         description={description}
         action={action}
       />

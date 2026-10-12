@@ -7,6 +7,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
+import { ChoreographyStatusBadge } from "@/components/shared/choreography-status-badge";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
@@ -75,6 +76,9 @@ export function ChoreographyDetailRouteView({
       title={`${loaderData.choreography.name} # ${formatEventSequenceNumber(
         loaderData.choreography.choreographyNumber,
       )}`}
+      titleBadge={
+        <ChoreographyStatusBadge choreography={loaderData.choreography} />
+      }
       description="Revisá y/o modificá la información y el elenco de la coreografía registrada."
       headerAction={
         // The menu survives the withdrawal even though `canEdit` does not: it

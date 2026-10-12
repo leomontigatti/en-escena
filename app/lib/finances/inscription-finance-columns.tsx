@@ -3,6 +3,7 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import type { DataTableFacetedFilterOption } from "@/components/shared/data-table.shared";
+import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
   formatInscriptionStatusBadge,
@@ -119,7 +120,9 @@ export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[]
       // The filter comes from the same badge the cell shows and not from
       // `financialStatus`: a row badged `Retirada` that showed up when filtering
       // by `Pagada` would contradict itself on screen.
-      filterValue: (inscription) => resolveStatusBadge(inscription).value,
+      filterValue: (inscription) =>
+        formatInscriptionStatusBadge(resolveInscriptionStatus(inscription))
+          .value,
     },
   ];
 
@@ -129,14 +132,12 @@ export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[]
  * cell. The retained amount is not repeated in it: for a withdrawn row the
  * `Total` column **is** what is allocated, so the row already says how much.
  */
-function resolveStatusBadge(inscription: InscriptionFinanceRow) {
-  return formatInscriptionStatusBadge(
-    resolveInscriptionStatusBadge({
-      anomalies: inscription.anomalies,
-      financialStatus: inscription.financialStatus,
-      withdrawn: inscription.withdrawn,
-    }),
-  );
+function resolveInscriptionStatus(inscription: InscriptionFinanceRow) {
+  return resolveInscriptionStatusBadge({
+    anomalies: inscription.anomalies,
+    financialStatus: inscription.financialStatus,
+    withdrawn: inscription.withdrawn,
+  });
 }
 
 function InscriptionStatusCell({
@@ -144,9 +145,9 @@ function InscriptionStatusCell({
 }: {
   inscription: InscriptionFinanceRow;
 }) {
-  const badge = resolveStatusBadge(inscription);
-
-  return <Badge variant={badge.variant}>{badge.label}</Badge>;
+  return (
+    <FinancialStatusBadge status={resolveInscriptionStatus(inscription)} />
+  );
 }
 
 /** `null` is the absence of a price and not a zero, so it is named and not `$ 0`. */

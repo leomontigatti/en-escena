@@ -15,6 +15,7 @@ import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographi
 import {
   createReactDomTestRenderer,
   findButton,
+  getTitleBadgeTexts,
 } from "@/lib/test-support/react-dom";
 
 type DetailViewProps = Parameters<typeof ChoreographyDetailRouteView>[0];
@@ -23,6 +24,17 @@ describe("ChoreographyDetailRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(renderer.cleanup);
+
+  // The withdrawal replaces the readiness answer, as it does in the list.
+  test("draws a withdrawn choreography as withdrawn, not by its readiness", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ isWithdrawn: true }),
+      }),
+    });
+
+    expect(getTitleBadgeTexts(markup)).toEqual(["Retirada"]);
+  });
 
   test("announces the evaluation lock", () => {
     const markup = renderDetail({

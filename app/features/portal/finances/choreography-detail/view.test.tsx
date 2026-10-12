@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
+import { getTitleBadgeTexts } from "@/lib/test-support/react-dom";
+
 import { PortalChoreographyFinanceDetailRouteView } from "./view";
 import type { loadPortalChoreographyFinanceDetail } from "./server";
 
@@ -13,6 +15,18 @@ type LoaderData = Awaited<
 type InscriptionRow = LoaderData["inscriptions"][number];
 
 describe("PortalChoreographyFinanceDetailRouteView", () => {
+  // The badge the academy's list draws for the row: `Sobreasignada` is the
+  // administrator's to see, and the withdrawal replaces the status.
+  test("draws the financial status beside the title, as the list does", () => {
+    const badgeFor = (overrides: Partial<LoaderData["choreography"]>) =>
+      getTitleBadgeTexts(
+        renderDetail({ choreography: choreographyFixture(overrides) }),
+      );
+
+    expect(badgeFor({ anomalies: ["overAllocated"] })).toEqual(["Señada"]);
+    expect(badgeFor({ withdrawn: true })).toEqual(["Retirada"]);
+  });
+
   // The number the academy quotes when it asks about a choreography, titled the
   // same way the administrator's finance detail titles it.
   test("titles the detail with the choreography name and number", () => {
@@ -104,6 +118,7 @@ function choreographyFixture(
     owedBalanceAmount: { amount: 7000, status: "complete" },
     owedDepositAmount: { amount: 0, status: "complete" },
     totalAmount: { amount: 10000, status: "complete" },
+    withdrawn: false,
     ...overrides,
   };
 }

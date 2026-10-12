@@ -9,6 +9,7 @@ import {
   clickReactDomButton,
   createReactDomTestRenderer,
   findButton,
+  getTitleBadgeTexts,
 } from "@/lib/test-support/react-dom";
 
 import { ChoreographyFinanceDetailView } from "./view";
@@ -27,6 +28,16 @@ type ChoreographyRow = NonNullable<
 >;
 
 describe("ChoreographyFinanceDetailView", () => {
+  // The badge the academy's list draws for the row, which the administrator
+  // sees with its anomaly: unlike the portal's, it is not left out.
+  test("draws the financial status beside the title, anomaly included", () => {
+    const markup = renderDetail({
+      choreography: choreographyFixture({ anomalies: ["overAllocated"] }),
+    });
+
+    expect(getTitleBadgeTexts(markup)).toEqual(["Sobreasignada"]);
+  });
+
   test("identifies the choreography in the title and drops the readonly data card", () => {
     const markup = renderDetail();
 
@@ -394,6 +405,7 @@ function choreographyFixture(
     owedBalanceAmount: { amount: 7000, status: "complete" },
     owedDepositAmount: { amount: 0, status: "complete" },
     totalAmount: { amount: 10000, status: "complete" },
+    withdrawn: false,
     ...overrides,
   };
 }

@@ -1,15 +1,29 @@
+/** @vitest-environment jsdom */
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { PortalChoreographyDetailRouteView } from "@/features/portal/choreographies/detail/view";
 import type { PortalEventContext } from "@/lib/portal/event-context";
+import { getTitleBadgeTexts } from "@/lib/test-support/react-dom";
 
 type ChoreographyDetailViewProps = Parameters<
   typeof PortalChoreographyDetailRouteView
 >[0];
 
 describe("PortalChoreographyDetailRouteView", () => {
+  // The withdrawal replaces the readiness answer, as it does in the list.
+  test("draws a withdrawn choreography as withdrawn, not by its readiness", () => {
+    const withdrawn = renderChoreographyDetail({
+      loaderData: choreographyDetailLoaderData({
+        choreography: choreographyDetailRow({ isWithdrawn: true }),
+      }),
+    });
+
+    expect(getTitleBadgeTexts(withdrawn)).toEqual(["Retirada"]);
+  });
+
   // The academy sees a withdrawn choreography and edits nothing on it, music
   // included: only an administrator brings it back.
   test("keeps the music field disabled while the choreography is withdrawn", () => {

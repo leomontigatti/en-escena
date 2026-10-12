@@ -1,5 +1,6 @@
 import { PortalPageHeader } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ChoreographyStatusBadge } from "@/components/shared/choreography-status-badge";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { OperationalStatusSummary } from "@/features/portal/choreographies/detail/operational-status-summary";
 import { ChoreographyMusicEditorForm } from "@/features/portal/choreographies/detail/music-editor-form";
@@ -33,6 +34,9 @@ export function PortalChoreographyDetailRouteView({
         title={`${loaderData.choreography.name} # ${formatEventSequenceNumber(
           loaderData.choreography.choreographyNumber,
         )}`}
+        titleBadge={
+          <ChoreographyStatusBadge choreography={loaderData.choreography} />
+        }
         description="Actualizá la música de esta coreografía o cómo se evalúa. El resto de los datos se editan desde administración."
       />
 

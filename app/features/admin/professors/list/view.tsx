@@ -186,7 +186,7 @@ function ProfessorTable({
       className: "w-1/4",
       headerClassName: "w-1/4",
       cell: (professor) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           {professor.participationStatus !== "no-event" ? (
             <ParticipationBadge
               participationStatus={professor.participationStatus}
