@@ -202,7 +202,8 @@ What the dialog announced is advisory.
   **always** shown in the admin and portal financial lists, with the badge and
   the same filter option. Never shown in presentations or the program.
 - The admin instance view is **read-only** — rename, roster, modality, level,
-  schedule capacity and `Archivo de música` — and offers no action at all; the
+  schedule capacity and `Archivo de música`. `Eliminar` stays in its menu and
+  opens the blocked dialog that says the withdrawal is final; the
   portal is read-only too, music included. A refused write reads
   `Esta coreografía está retirada y no se puede modificar. Para que vuelva a participar, registrá una nueva.`
 - **Financial actions keep working**, because handling the money is why it
@@ -235,8 +236,8 @@ What the dialog announced is advisory.
   choreographies of the `Evento activo`.
 - In the administrative instance view, only the name and the removal are
   mutable within this scope; dancers, professors and `Archivo de música` are shown
-  read-only. A withdrawn choreography is read-only throughout and offers no
-  action (see "Removing a choreography").
+  read-only. A withdrawn choreography is read-only throughout, and its
+  `Eliminar` only explains why it is blocked (see "Removing a choreography").
 - The `Archivo de música` in the administrative instance view uses the same visual
   upload field as the `Portal de academias`, but disabled; if a file already
   exists, it allows downloading it.

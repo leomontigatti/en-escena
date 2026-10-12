@@ -1,4 +1,13 @@
-import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  countDistinct,
+  eq,
+  inArray,
+  isNull,
+  ne,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -274,6 +283,12 @@ async function lockPeople(
     .for("update");
 }
 
+/**
+ * Where the two people would end up as two active rows, which is the only
+ * clash: a withdrawal is final and the unique indexes count only rows on the
+ * roster, so a withdrawn row moves beside the other person's active one as it
+ * would sit after a re-registration.
+ */
 async function findSharedChoreographies(
   tx: Transaction,
   input: RosterMergePair,
@@ -295,6 +310,8 @@ async function findSharedChoreographies(
         and(
           eq(choreographyDancers.dancerId, input.removedId),
           eq(other.dancerId, input.survivorId),
+          isNull(choreographyDancers.withdrawnAt),
+          isNull(other.withdrawnAt),
         ),
       )
       .orderBy(...orderByChoreographyName(choreographies.name));
@@ -341,6 +358,8 @@ async function findSharedSeminars(tx: Transaction, input: RosterMergePair) {
       and(
         eq(seminarInscriptions[personColumn], input.removedId),
         eq(other[personColumn], input.survivorId),
+        isNull(seminarInscriptions.withdrawnAt),
+        isNull(other.withdrawnAt),
       ),
     )
     .orderBy(asc(seminars.scheduledDate), asc(seminars.instructorName));
@@ -451,7 +470,9 @@ async function countInscriptionsByEvent(input: {
           .select({
             eventId: events.id,
             eventName: events.name,
-            total: count(),
+            // Distinct: a dancer added again after a withdrawal holds two rows
+            // in one choreography.
+            total: countDistinct(choreographies.id),
           })
           .from(choreographyDancers)
           .innerJoin(
@@ -476,7 +497,11 @@ async function countInscriptionsByEvent(input: {
           .where(eq(choreographyProfessors.professorId, input.personId))
           .groupBy(events.id, events.name);
   const seminarRows = await db
-    .select({ eventId: events.id, eventName: events.name, total: count() })
+    .select({
+      eventId: events.id,
+      eventName: events.name,
+      total: countDistinct(seminars.id),
+    })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
     .innerJoin(events, eq(events.id, seminars.eventId))

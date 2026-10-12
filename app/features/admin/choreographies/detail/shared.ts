@@ -120,13 +120,39 @@ export type ChoreographyModalityBlocker = {
 };
 
 // A comprobante no longer refuses the removal — it is a reason to withdraw,
-// not a blocker (#340 reversed). The evaluated presentation is the only lock
-// left, and it blocks the withdrawal too.
-export type ChoreographyDeleteBlockerCode = "evaluated-presentation";
+// not a blocker (#340 reversed). The evaluated presentation blocks both
+// outcomes, and a withdrawn choreography has none left: its withdrawal is
+// final (#1496).
+export type ChoreographyDeleteBlockerCode =
+  "evaluated-presentation" | "withdrawn";
 
 export type ChoreographyDeleteBlocker = {
   code: ChoreographyDeleteBlockerCode;
   label: string;
+};
+
+/**
+ * What the blocked `Eliminar` says, by the one blocker that applies: the two
+ * never meet, because a withdrawal deletes the presentation an evaluation
+ * would need. Each has a single reason, so it is a sentence rather than a
+ * one-item list repeating the title.
+ */
+export const choreographyDeleteBlockedCopy: Record<
+  ChoreographyDeleteBlockerCode,
+  { description: string; reason: string; reasonsTitle: string }
+> = {
+  "evaluated-presentation": {
+    description:
+      "Una coreografía con la presentación evaluada no se puede eliminar ni retirar.",
+    reason: "La evaluación no se puede anular.",
+    reasonsTitle: "La presentación ya fue evaluada",
+  },
+  withdrawn: {
+    description: "Una coreografía retirada no se puede eliminar.",
+    reason:
+      "El retiro es definitivo: para que vuelva a participar, registrá una coreografía nueva.",
+    reasonsTitle: "La coreografía está retirada",
+  },
 };
 
 /**

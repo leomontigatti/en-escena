@@ -29,6 +29,7 @@ import {
 } from "./draft-fields";
 import type { ChoreographyDetailLoaderData } from "./server";
 import {
+  choreographyDeleteBlockedCopy,
   deleteChoreographyIntent,
   describeChoreographyRemoval,
   type ChoreographyViewActionData,
@@ -59,6 +60,7 @@ export function ChoreographyDetailRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  const deleteBlocker = loaderData.deletion.blockers.at(0)?.code;
 
   return (
     <AdminResourceLayout
@@ -72,9 +74,10 @@ export function ChoreographyDetailRouteView({
       }
       description="Revisá y/o modificá la información y el elenco de la coreografía registrada."
       headerAction={
-        // A withdrawn choreography offers no action: the withdrawal is final,
-        // and `canEdit` is false for the whole page while the stamp is there.
-        loaderData.canEdit ? (
+        // Offered on a withdrawn choreography too, where `canEdit` is false
+        // for the whole page: `Eliminar` then opens the blocked dialog that
+        // says the withdrawal is final.
+        loaderData.deletion.isOffered ? (
           <ChoreographyDetailActionsMenu
             onDelete={() => setIsDeleteDialogOpen(true)}
           />
@@ -91,15 +94,15 @@ export function ChoreographyDetailRouteView({
         />
       ) : null}
 
-      {loaderData.canEdit && !loaderData.deletion.canDelete ? (
+      {deleteBlocker ? (
         <BlockedActionDialog
-          description="Una coreografía con la presentación evaluada no se puede eliminar ni retirar."
+          description={choreographyDeleteBlockedCopy[deleteBlocker].description}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
-          // The only blocker is the evaluation, so the reason is a sentence
-          // rather than a one-item list repeating the title.
-          reasons="La evaluación no se puede anular."
-          reasonsTitle="La presentación ya fue evaluada"
+          reasons={choreographyDeleteBlockedCopy[deleteBlocker].reason}
+          reasonsTitle={
+            choreographyDeleteBlockedCopy[deleteBlocker].reasonsTitle
+          }
           title="No se puede eliminar la coreografía"
         />
       ) : null}

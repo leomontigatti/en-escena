@@ -265,6 +265,49 @@ describe("mergeRosterPeople", () => {
     });
   });
 
+  // #1496: a withdrawal is final and the unique indexes count only rows on the
+  // roster, so a withdrawn row beside the other person's active one is no
+  // clash: it moves, and the two rows sit together as they would after a
+  // re-registration.
+  test("merges when the only overlap is a withdrawn row, in a choreography or a seminar", async () => {
+    const { academyId, event } = await createRoster("Retirada");
+    const survivor = await createDancer(academyId);
+    const removed = await createDancer(academyId);
+    const choreography = await createEventChoreographyFixture({
+      academyId,
+      dancerIds: [survivor.id, removed.id],
+      eventId: event.id,
+      name: "Dúo Retirado",
+    });
+    const seminar = await createEventSeminar(event.id, "Abril Sosa");
+    const withdrawnAt = new Date("2030-04-01T12:00:00Z");
+
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt })
+      .where(eq(choreographyDancers.dancerId, removed.id));
+    await db.insert(seminarInscriptions).values([
+      { dancerId: survivor.id, seminarId: seminar.id },
+      { dancerId: removed.id, seminarId: seminar.id, withdrawnAt },
+    ]);
+
+    await expect(
+      mergeRosterPeople({
+        kind: "dancer",
+        removedId: removed.id,
+        survivorId: survivor.id,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(
+      db
+        .select({ withdrawnAt: choreographyDancers.withdrawnAt })
+        .from(choreographyDancers)
+        .where(eq(choreographyDancers.choreographyId, choreography.id)),
+    ).resolves.toEqual(
+      expect.arrayContaining([{ withdrawnAt: null }, { withdrawnAt }]),
+    );
+  });
+
   test("refuses a survivor of another academy", async () => {
     const { academyId } = await createRoster("Una");
     const other = await createRoster("Otra");
@@ -391,6 +434,44 @@ describe("loadRosterMergeOptions", () => {
           lastName: "Archivada",
         },
       ],
+      inscriptionsByEvent: [
+        { choreographies: 1, eventName: event.name, seminars: 1 },
+      ],
+    });
+  });
+
+  // #1496: a dancer added again after a withdrawal holds two rows in one
+  // choreography and one seminar; each is still one choreography and one
+  // seminar to the person reading the merge dialog.
+  test("counts a choreography and a seminar once when the dancer was added again after a withdrawal", async () => {
+    const { academyId, event } = await createRoster("Vuelve");
+    const person = await createDancer(academyId);
+    const choreography = await createEventChoreographyFixture({
+      academyId,
+      dancerIds: [person.id],
+      eventId: event.id,
+      name: "Una",
+    });
+    const seminar = await createEventSeminar(event.id);
+    const withdrawnAt = new Date("2030-04-01T12:00:00Z");
+
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt })
+      .where(eq(choreographyDancers.dancerId, person.id));
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: person.id,
+    });
+    await db.insert(seminarInscriptions).values([
+      { dancerId: person.id, seminarId: seminar.id, withdrawnAt },
+      { dancerId: person.id, seminarId: seminar.id },
+    ]);
+
+    await expect(
+      loadRosterMergeOptions({ kind: "dancer", personId: person.id }),
+    ).resolves.toMatchObject({
       inscriptionsByEvent: [
         { choreographies: 1, eventName: event.name, seminars: 1 },
       ],

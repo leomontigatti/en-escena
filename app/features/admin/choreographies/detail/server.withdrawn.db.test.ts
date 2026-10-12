@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, choreographyDancers } from "@/db/schema";
@@ -17,7 +17,6 @@ import {
   createEventRecord,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   loadDetail,
@@ -26,20 +25,6 @@ import {
 } from "@/features/admin/choreographies/detail/server.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-
-// The evaluated lock is the seam the judging effort will fill; until then it
-// answers `false` for everything, so a test that needs a closed choreography
-// declares it here.
-vi.mock(
-  "@/lib/presentations/evaluation-lock.server",
-  async () =>
-    (await import("@/lib/presentations/evaluation-lock.test-support"))
-      .evaluationLockStub,
-);
-
-beforeEach(() => {
-  evaluatedChoreographyIds.clear();
-});
 
 installDatabaseTestHooks();
 
@@ -93,8 +78,14 @@ describe("administrative choreography detail: a withdrawn choreography", () => {
       email: "admin.coreografias.retirada.solo-lectura.detalle@example.com",
       role: "admin",
     });
-    // Every field of the form goes read-only with `canEdit`.
+    // Every field of the form goes read-only with `canEdit`, and `Eliminar`
+    // is offered only to say why it is blocked: the withdrawal is final.
     expect(detail.canEdit).toBe(false);
+    expect(detail.deletion).toMatchObject({
+      blockers: [{ code: "withdrawn" }],
+      canDelete: false,
+      isOffered: true,
+    });
 
     const saved = toSavedChoreographyDraft(detail.choreography);
     const draftBody = (

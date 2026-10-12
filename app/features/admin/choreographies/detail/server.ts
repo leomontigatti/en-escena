@@ -63,6 +63,9 @@ export type ChoreographyDetailLoaderData = {
   deletion: {
     blockers: ChoreographyDeleteBlocker[];
     canDelete: boolean;
+    /** Whether the page offers `Eliminar` at all, open or blocked: it is an
+     * administrator's action, and the auditor gets no menu. */
+    isOffered: boolean;
     outcome: ChoreographyRemovalPreview;
   };
   /**
@@ -168,6 +171,7 @@ export async function loadChoreographyDetailRouteData(input: {
     deletion: {
       blockers,
       canDelete: blockers.length === 0,
+      isOffered: user.role === "admin",
       // What the dialog announces, and only that: the write re-decides under
       // the choreography's row lock, so money landing between the render and
       // the click still leads to a withdrawal.
@@ -299,8 +303,12 @@ function evaluatedPresentationResponse() {
 }
 
 function getChoreographyDeleteBlockers(
-  choreography: Pick<ChoreographyDetail, "isEvaluated">,
+  choreography: Pick<ChoreographyDetail, "isEvaluated" | "isWithdrawn">,
 ): ChoreographyDeleteBlocker[] {
+  if (choreography.isWithdrawn) {
+    return [{ code: "withdrawn", label: "La coreografía está retirada." }];
+  }
+
   if (!choreography.isEvaluated) {
     return [];
   }

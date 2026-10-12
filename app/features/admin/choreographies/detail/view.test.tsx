@@ -401,7 +401,12 @@ describe("ChoreographyDetailRouteView", () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
-        deletion: { blockers: [], canDelete: true, outcome: "withdrawn" },
+        deletion: {
+          blockers: [],
+          canDelete: true,
+          isOffered: true,
+          outcome: "withdrawn",
+        },
       }),
     });
 
@@ -415,7 +420,12 @@ describe("ChoreographyDetailRouteView", () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
-        deletion: { blockers: [], canDelete: true, outcome: "deleted" },
+        deletion: {
+          blockers: [],
+          canDelete: true,
+          isOffered: true,
+          outcome: "deleted",
+        },
       }),
     });
 
@@ -471,18 +481,41 @@ describe("ChoreographyDetailRouteView", () => {
     ]);
   });
 
-  // #1496: a withdrawal is final. The page offers no action at all, so there is
-  // no way back from it and no second removal.
-  test("offers no actions menu while the choreography is withdrawn", async () => {
+  // #1496: a withdrawal is final. There is no way back from it, and `Eliminar`
+  // stays offered to answer why it cannot go further (style guide, Actions
+  // menu).
+  test("answers Eliminar on a withdrawn choreography with why, and offers no restore", async () => {
     await renderDetailIntoDocument({
       loaderData: buildLoaderData({
         canEdit: false,
         choreography: buildChoreography({ isWithdrawn: true }),
+        deletion: withdrawnDeletion,
+      }),
+    });
+
+    await openActionsMenu();
+    expect(document.body.textContent).not.toContain("Restaurar");
+    await clickMenuItem("Eliminar");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se puede eliminar la coreografía",
+    );
+    expect(dialog?.textContent).toContain("La coreografía está retirada");
+    expect(dialog?.textContent).not.toContain("La evaluación");
+    expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
+  });
+
+  test("offers no actions to an auditor", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        deletion: { ...withdrawnDeletion, isOffered: false },
       }),
     });
 
     expect(findButton("Acciones", { exact: true })).toBeFalsy();
-    expect(document.body.textContent).not.toContain("Restaurar");
   });
 
   async function renderDetailIntoDocument(
@@ -558,7 +591,15 @@ const evaluatedDeletion: ChoreographyDetailLoaderData["deletion"] = {
     },
   ],
   canDelete: false,
+  isOffered: true,
   outcome: "deleted",
+};
+
+const withdrawnDeletion: ChoreographyDetailLoaderData["deletion"] = {
+  blockers: [{ code: "withdrawn", label: "La coreografía está retirada." }],
+  canDelete: false,
+  isOffered: true,
+  outcome: "withdrawn",
 };
 
 function buildLoaderData(
@@ -579,6 +620,7 @@ function buildLoaderData(
     deletion: {
       canDelete: true,
       blockers: [],
+      isOffered: true,
       outcome: "deleted",
     },
     draft: buildSavedPreview(choreography),

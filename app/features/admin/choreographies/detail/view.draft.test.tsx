@@ -578,7 +578,12 @@ function buildLoaderData(
       submodalityId: "submodality_1",
       submodalityName: "Lyrical",
     },
-    deletion: { blockers: [], canDelete: true, outcome: "deleted" },
+    deletion: {
+      blockers: [],
+      canDelete: true,
+      isOffered: true,
+      outcome: "deleted",
+    },
     draft: input.draft ?? buildPreview(),
     modality: {
       blockers: [],
