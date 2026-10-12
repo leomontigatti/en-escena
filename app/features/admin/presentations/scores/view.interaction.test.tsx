@@ -154,6 +154,19 @@ describe("correcting the panel's scores", () => {
     return document.querySelector("[role='alertdialog'] h2")?.textContent;
   }
 
+  async function selectTab(label: string) {
+    const trigger = [...document.querySelectorAll("[role='tab']")].find(
+      (candidate) => candidate.textContent === label,
+    );
+
+    // Radix activates a trigger on `mousedown`, not on the click after it.
+    await act(async () => {
+      trigger?.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+      );
+    });
+  }
+
   async function leave(router: Awaited<ReturnType<typeof mount>>) {
     await act(async () => {
       await router.navigate("/administracion/presentaciones");
@@ -425,8 +438,9 @@ describe("correcting the panel's scores", () => {
       ],
     });
 
-    // The second judge's tab is the hidden one: the first opens on its own.
+    await selectTab("Zulema Juez");
     await type("criterio-score-2-technique", "70");
+    await selectTab("Ana Juez");
     await leave(router);
 
     expect(dialogTitle()).toBe(discardChangesTitle);
@@ -475,6 +489,22 @@ describe("correcting the panel's scores", () => {
     expect(router.state.location.pathname).toBe(
       "/administracion/presentaciones",
     );
+  });
+
+  test("lets the page go after a save that only rewrote how the number is written", async () => {
+    const router = await mount({
+      judges: [buildJudge({ scoreId: "score-1", value: "90.0" })],
+    });
+
+    // The field opens on `90`; `90.0` saves the same number, so the loader
+    // hands back the same saved value and nothing on the page is a draft.
+    await type("puntaje-score-1", "90.0");
+    await updateReactDomForm(() => {
+      saveButtons()[0]?.click();
+    });
+    await leave(router);
+
+    expect(dialogTitle()).toBeUndefined();
   });
 
   test("keeps a line within its own criterion's maximum", async () => {

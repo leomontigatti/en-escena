@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info, Undo2, UsersRound } from "lucide-react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useForm, useFormState } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
 
@@ -12,10 +12,7 @@ import {
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
-import {
-  DiscardChangesDialog,
-  useUnsavedChangesGuard,
-} from "@/components/shared/discard-guard";
+import { DiscardChangesDialog } from "@/components/shared/discard-guard";
 import { MetricCard } from "@/components/shared/metric-card";
 import { PinnedActions } from "@/components/shared/pinned-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -62,6 +59,12 @@ import {
 } from "@/lib/judging/score-value";
 import { isRouteFormPending, useSavedFormValues } from "@/lib/shared/forms";
 
+import {
+  useReportDraft,
+  useScoreDraftsGuard,
+  useSettleAfterSave,
+  type DraftChangeHandler,
+} from "./drafts";
 import type { PresentationScoresLoaderData } from "./server";
 
 /**
@@ -256,13 +259,7 @@ function PanelScores({
   return <JudgeScores canEdit={canEdit} presentation={presentation} />;
 }
 
-/**
- * A correction typed and not saved is a draft the page asks about before it is
- * left. The router holds one blocker at a time, while every judge's row or tab
- * holds a form of its own, so the guard sits here, once, over every judge's
- * draft — a hidden tab's included. A save posts to this same page and never
- * looks like leaving.
- */
+/** The page's one leave guard, over every judge's form ({@link useScoreDraftsGuard}). */
 function JudgeScores({
   canEdit,
   presentation,
@@ -270,18 +267,7 @@ function JudgeScores({
   canEdit: boolean;
   presentation: Presentation;
 }) {
-  const [draftScoreIds, setDraftScoreIds] = useState<string[]>([]);
-  const discardDialog = useUnsavedChangesGuard({
-    isDirty: draftScoreIds.length > 0,
-    isSaving: false,
-  });
-  const onDraftChange = useCallback((scoreId: string, isDraft: boolean) => {
-    setDraftScoreIds((current) =>
-      isDraft
-        ? [...new Set([...current, scoreId])]
-        : current.filter((id) => id !== scoreId),
-    );
-  }, []);
+  const { discardDialog, onDraftChange } = useScoreDraftsGuard();
 
   return (
     <>
@@ -301,24 +287,6 @@ function JudgeScores({
       )}
       <DiscardChangesDialog {...discardDialog} />
     </>
-  );
-}
-
-type DraftChangeHandler = (scoreId: string, isDraft: boolean) => void;
-
-/** Tells the page's guard whether this judge's form holds a draft. */
-function useReportDraft(
-  scoreId: string,
-  isDraft: boolean,
-  onDraftChange: DraftChangeHandler,
-) {
-  useEffect(() => {
-    onDraftChange(scoreId, isDraft);
-  }, [isDraft, onDraftChange, scoreId]);
-
-  useEffect(
-    () => () => onDraftChange(scoreId, false),
-    [onDraftChange, scoreId],
   );
 }
 
@@ -514,12 +482,14 @@ function SingleScoreForm({
   // A saved correction is the row's new starting point, so `Guardar` waits for
   // the next change instead of offering to post the same number again.
   useSavedFormValues(form, saved);
+  const markSaving = useSettleAfterSave(form, saved);
 
   return (
     <form
       className="flex items-start gap-2"
       method="post"
       onSubmit={form.handleSubmit((values) => {
+        markSaving();
         void submit(
           { intent: "edit-score", scoreId, value: values.value },
           { method: "post" },
@@ -592,10 +562,13 @@ function SheetForm({
     fields: { scoreId },
     intent: "edit-score",
   });
+  const markSaving = useSettleAfterSave(form, saved);
+
   return (
     <form
       method="post"
       onSubmit={form.handleSubmit((values) => {
+        markSaving();
         void submit(buildSheetEditSubmission({ scoreId, values }), {
           method: "post",
         });
@@ -604,7 +577,7 @@ function SheetForm({
       <AdminResourceFormCard
         footer={
           // `FormActions` without its own leave guard: the page holds the one
-          // guard over every judge's tab (`JudgeScores`).
+          // guard over every judge's tab (`useScoreDraftsGuard`).
           <PinnedActions>
             <BackButton to="/administracion/presentaciones" />
             <div className="flex items-center gap-3">
