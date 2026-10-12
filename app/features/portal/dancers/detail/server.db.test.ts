@@ -135,6 +135,53 @@ describe("handlePortalDancerDetailAction", () => {
     });
   });
 
+  // A verification left over a document that is no longer complete does not
+  // lock the dancer, and the same rule as the panel's clears it on an edit.
+  test("clears a stale verification when the academy edits an incomplete dancer", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.verificacion.vieja@example.com",
+      academyName: "Academia Verificación Vieja",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Alvarez",
+        birthDate: "2014-02-01",
+        identityVerifiedAt: new Date("2026-06-16T12:00:00Z"),
+      })
+      .returning();
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Ana",
+          lastName: "Alvarez",
+          birthDate: "2014-02-01",
+          documentType: "dni",
+          documentNumber: "12345678",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+    await expect(
+      loadPortalDancerDetail({
+        request: new Request(
+          `http://localhost/portal/bailarines/${dancer.id}`,
+          {
+            headers: { cookie: session.cookie },
+          },
+        ),
+        params: { dancerId: dancer.id },
+      }),
+    ).resolves.toMatchObject({ dancer: { identityVerifiedAt: null } });
+  });
+
   test("warns when another dancer of the academy has that name and birth date", async () => {
     const session = await createAcademySession({
       email: "bailarines.edit.samename@example.com",

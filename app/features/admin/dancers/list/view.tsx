@@ -11,10 +11,16 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
   buildDancerListSearch,
-  getDancerIdentificationBadgeVariant,
   toDancerListFacets,
-  type DancerIdentificationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
+import {
+  formatDancerVerificationStatusLabel,
+  toDancerVerificationStatusSearchValue,
+} from "@/lib/dancers/verification";
+import {
+  buildDancerVerificationFacet,
+  DancerVerificationBadge,
+} from "@/components/shared/dancer-verification-badge";
 import {
   activeListFacets,
   describeEmptyList,
@@ -121,9 +127,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
           <RosterPersonStatusBadge
             status={toRosterPersonStatus(dancer.active)}
           />
-          <IdentificationBadge
-            identificationStatus={dancer.identificationStatus}
-          />
+          <DancerVerificationBadge code={dancer.verificationStatus} />
         </div>
       ),
       filterValue: (dancer) => buildDancerStatusSummary(dancer),
@@ -158,45 +162,6 @@ function ParticipationBadge({
       {getParticipationLabel(participationStatus)}
     </Badge>
   );
-}
-
-function IdentificationBadge({
-  identificationStatus,
-}: {
-  identificationStatus: DancerIdentificationStatus;
-}) {
-  return (
-    <Badge variant={getDancerIdentificationBadgeVariant(identificationStatus)}>
-      {getGroupedDancerIdentificationLabel(identificationStatus)}
-    </Badge>
-  );
-}
-
-/** The status a value of the `Verificación` filter narrows to. */
-function toIdentificationStatus(
-  filterValue: string,
-): DancerIdentificationStatus {
-  switch (filterValue) {
-    case "verificados":
-      return "verified";
-    case "sin-verificar":
-      return "unverified";
-    default:
-      return "incomplete";
-  }
-}
-
-function getGroupedDancerIdentificationLabel(
-  identificationStatus: DancerIdentificationStatus,
-) {
-  switch (identificationStatus) {
-    case "unverified":
-      return "Sin verificar";
-    case "verified":
-      return "Verificado";
-    default:
-      return "Incompleto";
-  }
 }
 
 function buildDancerFacetedFilters(
@@ -235,18 +200,8 @@ function buildDancerFacetedFilters(
 
   groups.push(
     {
-      id: "identificacion",
-      label: "Verificación",
-      options: [
-        { label: "Incompleto", value: "incompleta" },
-        { label: "Sin verificar", value: "sin-verificar" },
-        { label: "Verificado", value: "verificados" },
-      ],
-      renderValue: (option) => (
-        <IdentificationBadge
-          identificationStatus={toIdentificationStatus(option.value)}
-        />
-      ),
+      id: "verificacion",
+      ...buildDancerVerificationFacet(toDancerVerificationStatusSearchValue),
     },
     {
       id: "estado",
@@ -279,7 +234,7 @@ function buildDancerStatusSummary(dancer: DancerRow) {
     values.push(getRosterPersonStatusLabel("archived"));
   }
 
-  values.push(getGroupedDancerIdentificationLabel(dancer.identificationStatus));
+  values.push(formatDancerVerificationStatusLabel(dancer.verificationStatus));
 
   return values.join(" ");
 }

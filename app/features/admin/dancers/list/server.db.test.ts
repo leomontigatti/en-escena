@@ -68,7 +68,7 @@ describe("loadDancersList", () => {
     const response = await expectThrownResponse(
       loadDancersList(
         await listRequest(
-          "?evento=abc&identificacion=todos&estado=archivados&pagina=3",
+          "?evento=abc&verificacion=todos&estado=archivados&pagina=3",
         ),
       ),
       302,

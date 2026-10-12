@@ -13,9 +13,6 @@ import {
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
-type DancerEditConsequence =
-  DancerDetailRouteViewProps["loaderData"]["dancer"]["editConsequence"];
-
 type DancerDetailRouteViewComponent =
   typeof import("@/routes/administracion.bailarines_.$dancerId").DancerDetailRouteView;
 type DancerDetailRouteViewProps = Parameters<DancerDetailRouteViewComponent>[0];
@@ -109,7 +106,7 @@ describe("DancerDetailRouteView dialogs", () => {
         <DancerDetailRouteView
           loaderData={createLoaderData({
             active: false,
-            editConsequence: "participated",
+            editAffectsParticipation: true,
           })}
         />,
       ),
@@ -127,11 +124,7 @@ describe("DancerDetailRouteView dialogs", () => {
     await renderer.renderAsync(
       renderInDataRouter(
         "/administracion/bailarines/dancer-1",
-        <DancerDetailRouteView
-          loaderData={createLoaderData({
-            editConsequence: null,
-          })}
-        />,
+        <DancerDetailRouteView loaderData={createLoaderData()} />,
       ),
     );
 
@@ -200,9 +193,7 @@ describe("DancerDetailRouteView dialogs", () => {
       renderInDataRouter(
         "/administracion/bailarines/dancer-1",
         <DancerDetailRouteView
-          loaderData={createLoaderData({
-            editConsequence: "verified",
-          })}
+          loaderData={createLoaderData({ verified: true })}
         />,
       ),
     );
@@ -216,14 +207,29 @@ describe("DancerDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });
 
+  // Re-casing is normalized away by the save, so it clears nothing.
+  test("re-casing a verified dancer's name saves without a confirmation dialog", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
+        <DancerDetailRouteView
+          loaderData={createLoaderData({ verified: true })}
+        />,
+      ),
+    );
+
+    await changeFirstName("JULIA");
+    await clickReactDomButton("Guardar", { exact: true });
+
+    expect(document.body.textContent).not.toContain("¿Guardar los cambios?");
+  });
+
   test("editing a participating dancer confirms with the participation message", async () => {
     await renderer.renderAsync(
       renderInDataRouter(
         "/administracion/bailarines/dancer-1",
         <DancerDetailRouteView
-          loaderData={createLoaderData({
-            editConsequence: "participated",
-          })}
+          loaderData={createLoaderData({ editAffectsParticipation: true })}
         />,
       ),
     );
@@ -251,10 +257,12 @@ async function changeFirstName(value: string) {
 
 function createLoaderData({
   active = true,
-  editConsequence = null,
+  editAffectsParticipation = false,
+  verified = false,
 }: {
   active?: boolean;
-  editConsequence?: DancerEditConsequence;
+  editAffectsParticipation?: boolean;
+  verified?: boolean;
 } = {}): DancerDetailRouteViewProps["loaderData"] {
   return {
     activeEventStartDate: "2026-09-25",
@@ -271,7 +279,7 @@ function createLoaderData({
       active,
       birthDate: "2012-07-12",
       choreographyNames: [],
-      editConsequence,
+      editAffectsParticipation,
       createdAt: new Date("2026-01-10T12:00:00.000Z"),
       documentBackImageStorageKey: "document-back",
       documentFrontImageStorageKey: "document-front",
@@ -279,14 +287,19 @@ function createLoaderData({
       documentType: "dni",
       firstName: "Julia",
       id: "dancer-1",
-      identificationStatus: "unverified",
-      identityVerifiedAt: null,
+      identityVerifiedAt: verified
+        ? new Date("2026-03-01T12:00:00.000Z")
+        : null,
       inscriptions: [],
       seminarInscriptions: [],
       lastName: "Detalle",
       participatedInAnyEvent: false,
       participationStatus: "not-participating",
       updatedAt: new Date("2026-01-10T12:00:00.000Z"),
+      verificationStatus: {
+        code: verified ? "verified" : "unverified",
+        pendingItems: [],
+      },
     },
     documentImageUrls: {
       back: null,

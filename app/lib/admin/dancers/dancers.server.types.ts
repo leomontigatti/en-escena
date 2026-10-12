@@ -2,11 +2,11 @@ import type { dancers } from "@/db/schema";
 import type { ChoreographyDayOption } from "@/lib/choreographies/choreography-days.server";
 import type { DancerBirthDateScheduleMove } from "@/lib/choreographies/dancer-birthdate-messages";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
-import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
+import type { DancerListFilters } from "@/lib/admin/dancers/dancers.shared";
 import type {
-  DancerIdentificationStatus,
-  DancerListFilters,
-} from "@/lib/admin/dancers/dancers.shared";
+  DancerVerificationStatus,
+  DancerVerificationStatusCode,
+} from "@/lib/dancers/verification";
 import type { ParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
@@ -22,7 +22,7 @@ export type DancerListItem = {
   active: boolean;
   academyName: string;
   participationStatus: ParticipationStatus;
-  identificationStatus: DancerIdentificationStatus;
+  verificationStatus: DancerVerificationStatusCode;
 };
 
 export type DancerListResult = {
@@ -56,9 +56,14 @@ export type DancerDetail = {
     phone: string;
   };
   participationStatus: ParticipationStatus;
-  identificationStatus: DancerIdentificationStatus;
+  verificationStatus: DancerVerificationStatus;
   participatedInAnyEvent: boolean;
-  editConsequence: DancerEditConsequence;
+  /**
+   * Whether an edit may affect records of an event the dancer took part in:
+   * the participation half of the save confirmation. The verification half
+   * depends on what the edit changes, so the form decides it.
+   */
+  editAffectsParticipation: boolean;
   inscriptions: DancerInscription[];
   seminarInscriptions: RosterSeminarInscription[];
   choreographyNames: string[];

@@ -21,11 +21,8 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - The dancer creation dialog asks for the document pair too, optionally.
 - A second dancer of the same academy with the same name **and** the same birth date is a **warning**, not a refusal: two children of one academy may share both. See "Duplicate warnings" below.
 - A dancer participating with another academy is a different domain entity.
-- Dancer verification states are: incompleto, no verificado, verificado.
-- If any document field or image is missing, the dancer verification status is incompleto.
-- A partial document pair is not a saved state: it is a form validation error.
-- Dancer verification does not block participation and does not affect choreography operational state.
-- Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
+- A partial document pair is not a saved state: it is a form validation error. The portal and panel forms report it, an invalid type and a `DNI` with anything but digits on the field before saving, with the same messages the save refuses with.
+- Dancer verification: see "`Estado de verificación de bailarín`" below.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies until they are evaluated; it does not change financial state.
 - A birth-date correction is refused when it would leave a linked choreography without a category: nothing is written, and the message names each choreography by number and name.
 - A birth-date correction also re-resolves each linked choreography's schedule with its new category. The choreography stays where it is when its schedule still accepts the category; when it does not, and exactly one schedule of the event accepts it, has room and does not change the price of money already assigned, the choreography moves there in the same transaction.
@@ -84,6 +81,37 @@ activo.`) and no confirm-anyway escape hatch. Participating means, for the
 - An archived person is still found by name search. Search is a lookup, not an
   offer: what may be added to a roster is governed by the eligibility rule
   above, and the person's badge reads `Archivado`.
+
+### `Estado de verificación de bailarín`
+
+- A dancer's verification status has three values, shown as `Incompleto`,
+  `Sin verificar` and `Verificado`:
+  - `Incompleto` when any of document type, document number, front image or
+    back image is missing. The portal lists exactly the missing ones.
+  - `Sin verificar` when all four are loaded and administration has not
+    verified the identity.
+  - `Verificado` when all four are loaded and administration verified the
+    identity against them.
+- The status is derived, never stored: the only stored fact is when the
+  identity was verified. A dancer verified once and whose document later went
+  missing reads `Incompleto`, not `Verificado`.
+- Only administration verifies, and only a `Sin verificar` dancer: the action is
+  offered exactly when it would be accepted.
+- Everything the document shows is **attested**: first name, last name, birth
+  date, document type, document number and both images. Any change to an
+  attested value clears the verification, a name typo fix included, on either
+  surface. Values are compared after the save's own normalization, so a save
+  that changes nothing, or only re-cases a name or re-formats a `DNI`, keeps
+  it. Archiving and reactivating attest nothing and keep it.
+- The panel's save confirmation warns that verification will be lost only when
+  the edit about to be saved would clear it; the participation warning stands
+  on its own beside it.
+- An academy cannot edit a `Verificado` dancer's identity or document images;
+  later corrections are administrative, and the portal says so.
+- Verification does not block participation and does not affect the
+  `Estado operativo de coreografía`.
+- There is no explicit unverify action, no record of who verified, and no
+  document expiry.
 
 ## Choreographies
 

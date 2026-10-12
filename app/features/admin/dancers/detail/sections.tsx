@@ -107,18 +107,18 @@ export function DancerDetailAlerts({
   active,
   canEdit,
   canVerifyIdentity,
-  identificationAlert,
-  identificationAlertTitle,
-  identificationAlertVariant,
+  verificationAlert,
+  verificationAlertTitle,
+  verificationAlertVariant,
   onSelectIntent,
   recategorisedChoreographies,
 }: {
   active: boolean;
   canEdit: boolean;
   canVerifyIdentity: boolean;
-  identificationAlert: string | null;
-  identificationAlertTitle: string;
-  identificationAlertVariant: "info" | "warning";
+  verificationAlert: string;
+  verificationAlertTitle: string;
+  verificationAlertVariant: "info" | "warning";
   onSelectIntent: (intent: DancerDialogIntent) => void;
   recategorisedChoreographies: RecategorisedChoreography[];
 }) {
@@ -144,15 +144,13 @@ export function DancerDetailAlerts({
           onReactivate={onReactivate}
         />
       ) : null}
-      {identificationAlert ? (
-        <DancerAlert
-          action={verifyAction}
-          title={identificationAlertTitle}
-          variant={identificationAlertVariant}
-        >
-          {identificationAlert}
-        </DancerAlert>
-      ) : null}
+      <DancerAlert
+        action={verifyAction}
+        title={verificationAlertTitle}
+        variant={verificationAlertVariant}
+      >
+        {verificationAlert}
+      </DancerAlert>
     </AlertStack>
   );
 }

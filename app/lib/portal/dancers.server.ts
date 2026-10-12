@@ -3,17 +3,21 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import {
-  getDancerVerificationStatus,
-  type DancerVerificationStatus,
+  deriveDancerVerificationStatus,
+  invalidatesDancerVerification,
+  isDancerIdentityLockedForAcademy,
+  type DancerVerificationStatusCode,
 } from "@/lib/dancers/verification";
 import {
   findDancerDocumentConflict,
+  writeDancerGuardingDocument,
+} from "@/lib/dancers/dancer-records.server";
+import {
   normalizeDancerDocumentPair,
   normalizeDancerValues,
-  writeDancerGuardingDocument,
   type DancerDocumentType,
   type DancerNameInput,
-} from "@/lib/dancers/dancer-records.server";
+} from "@/lib/dancers/dancer-records";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import {
   applyDancerBirthDateCorrection,
@@ -40,7 +44,7 @@ export type PortalDancerListItem = {
   birthDate: string;
   documentType: string | null;
   documentNumber: string | null;
-  verificationStatus: DancerVerificationStatus;
+  verificationStatus: DancerVerificationStatusCode;
   participationStatus: ParticipationStatus;
 };
 
@@ -155,7 +159,7 @@ export async function listDancersForAcademy(
     birthDate: dancer.birthDate,
     documentType: dancer.documentType,
     documentNumber: dancer.documentNumber,
-    verificationStatus: getDancerVerificationStatus(dancer),
+    verificationStatus: deriveDancerVerificationStatus(dancer).code,
     participationStatus: toParticipationStatus(
       selectedEventId,
       dancer.isParticipating,
@@ -303,6 +307,13 @@ export async function updateDancerForAcademy(
   }
 
   const birthDateChanged = dancer.birthDate !== validation.input.birthDate;
+  // A verified dancer never gets here, but a stale verification over an
+  // incomplete document does, and so can one an administrator adds after the
+  // read: the same rule as the panel's clears either.
+  const attestedChange = invalidatesDancerVerification(
+    dancer,
+    validation.input,
+  );
   // Read before the transaction opens: the correction requires the bases, and
   // reading them from the pool inside its transaction would hold two
   // connections at once.
@@ -334,7 +345,7 @@ export async function updateDancerForAcademy(
               validation.input.documentFrontImageStorageKey,
             documentBackImageStorageKey:
               validation.input.documentBackImageStorageKey,
-            identityVerifiedAt: null,
+            identityVerifiedAt: attestedChange ? null : undefined,
             updatedAt: new Date(),
           })
           .where(
@@ -485,7 +496,9 @@ async function validateUpdateDancerInput(
     ...normalizedValues.fieldErrors,
   };
 
-  if (getDancerVerificationStatus(dancer) === "verified") {
+  if (
+    isDancerIdentityLockedForAcademy(deriveDancerVerificationStatus(dancer))
+  ) {
     return {
       ok: false,
       error:

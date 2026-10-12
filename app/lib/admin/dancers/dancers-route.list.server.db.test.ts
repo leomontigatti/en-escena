@@ -209,7 +209,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
 
     expect(defaultData.filters.participation).toBe("all");
     expect(defaultData.filters.status).toBe("active");
-    expect(defaultData.filters.identification).toBe("all");
+    expect(defaultData.filters.verification).toBe("all");
     expect(defaultData.totalCount).toBe(54);
     expect(defaultData.dancers.map((dancer) => dancer.id)).toContain(
       identifiedDancer.id,
@@ -227,12 +227,12 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     const { request: searchRequest } = await createSignedInRequest({
       email: "admin.search.dancers@example.com",
       role: "admin",
-      requestUrl: `http://localhost/administracion/bailarines?participando=no&estado=todos&identificacion=incompleta&busqueda=Academia+Sur`,
+      requestUrl: `http://localhost/administracion/bailarines?participando=no&estado=todos&verificacion=incompleta&busqueda=Academia+Sur`,
     });
     const searchData = await loader(listRouteArgs(searchRequest));
     const searchMarkup = renderRoute(searchData);
 
-    expect(searchData.filters.identification).toBe("incomplete");
+    expect(searchData.filters.verification).toBe("incomplete");
     expect(searchData.dancers.map((dancer) => dancer.id)).toEqual([
       identifiedDancer.id,
     ]);
@@ -244,7 +244,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     );
     expect(searchMarkup).toContain("participando=no");
     expect(searchMarkup).toContain("estado=todos");
-    expect(searchMarkup).not.toContain("identificacion=todos");
+    expect(searchMarkup).not.toContain("verificacion=todos");
     expect(searchMarkup).toContain("busqueda=Academia+Sur");
     // "Todos" for the status is an applied filter now, shown as its own group.
     expect(searchMarkup).toContain('aria-label="Estado de alta: Todos"');
@@ -374,7 +374,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
 
     expect(loaderData.selectedEventId).toBeNull();
     expect(loaderData.filters.participation).toBe("all");
-    expect(loaderData.filters.identification).toBe("all");
+    expect(loaderData.filters.verification).toBe("all");
     expect(loaderData.dancers.map((item) => item.id)).toEqual([
       participatingDancer.id,
       activeDancer.id,
@@ -416,7 +416,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     const { request } = await createSignedInRequest({
       email: "auditor.detail.dancers@example.com",
       role: "auditor",
-      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&estado=todos&participando=todos&identificacion=todos&pagina=2&busqueda=Julia`,
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&estado=todos&participando=todos&verificacion=todos&pagina=2&busqueda=Julia`,
     });
 
     const loaderData = await detailLoader(detailRouteArgs(request, dancer.id));
@@ -455,7 +455,7 @@ describe("`/administracion/bailarines` route: list and detail", () => {
     expect(markup).not.toContain(`evento=${event.id}`);
     expect(markup).toContain("estado=todos");
     expect(markup).toContain("participando=todos");
-    expect(markup).toContain("identificacion=todos");
+    expect(markup).toContain("verificacion=todos");
     expect(markup).toContain("pagina=2");
     expect(markup).toContain("busqueda=Julia");
     expect(markup).not.toContain("Editar");

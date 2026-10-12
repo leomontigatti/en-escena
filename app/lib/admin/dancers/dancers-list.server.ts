@@ -5,7 +5,7 @@ import { academies, dancers } from "@/db/schema";
 import type { DancerListFilters } from "@/lib/admin/dancers/dancers.shared";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import { paginateList } from "@/lib/list-query/list-query";
-import { toIdentificationStatus } from "@/lib/admin/dancers/dancers.server.shared";
+import { deriveDancerVerificationStatus } from "@/lib/dancers/verification";
 import { toParticipationStatus } from "@/lib/participation/participation.shared";
 import { buildDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
 import type { DancerListResult } from "@/lib/admin/dancers/dancers.server.types";
@@ -105,13 +105,7 @@ async function listDancers(input: {
         input.selectedEventId,
         row.isParticipating,
       ),
-      identificationStatus: toIdentificationStatus({
-        documentType: row.documentType,
-        documentNumber: row.documentNumber,
-        documentFrontImageStorageKey: row.documentFrontImageStorageKey,
-        documentBackImageStorageKey: row.documentBackImageStorageKey,
-        identityVerifiedAt: row.identityVerifiedAt,
-      }),
+      verificationStatus: deriveDancerVerificationStatus(row).code,
     })),
     totalCount,
     totalPages,

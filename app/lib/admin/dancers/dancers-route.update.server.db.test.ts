@@ -738,7 +738,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     });
   });
 
-  test("verifies an unverified dancer and returns it to unverified after an administrative edit", async () => {
+  test("verifies an unverified dancer, keeps it through a save that changes nothing it attests", async () => {
     const event = await createSavedEvent({ name: "Regional 2026" });
     const academy = await createAcademyUser({
       email: "admin.verificacion.bailarines.academia@example.com",
@@ -815,18 +815,20 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     );
     expect(verifiedMarkup).toContain("Abrir imagen");
 
-    const editResult = await detailAction(
+    // The panel ignores submitted image keys, so this save changes nothing
+    // the document attests.
+    const noOpResult = await detailAction(
       detailRouteArgs(
         createPostRequest(
           verifiedRequestUrl,
           request.headers.get("cookie") ?? "",
           {
             intent: "update-dancer",
-            firstName: "Paula",
+            firstName: "PAULA",
             lastName: "Pendiente",
             birthDate: "2012-06-12",
             documentType: "dni",
-            documentNumber: "12345678",
+            documentNumber: "12.345.678",
             documentFrontImageStorageKey: "dancers/paula-front-v2.jpg",
             documentBackImageStorageKey: "dancers/paula-back-v2.jpg",
           },
@@ -834,16 +836,89 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
         dancer.id,
       ),
     );
-    expect(editResult).toMatchObject({
+    expect(noOpResult).toMatchObject({
       status: "success",
-      message: "Bailarín guardado. La identidad volvió a no verificado.",
+      message: "Bailarín guardado.",
     });
 
-    await expectPersistedDancer(dancer.id, {
-      documentFrontImageStorageKey: "dancers/paula-front.jpg",
-      documentBackImageStorageKey: "dancers/paula-back.jpg",
+    await expect(
+      readVerificationCode(
+        verifiedRequestUrl,
+        request.headers.get("cookie") ?? "",
+        dancer.id,
+      ),
+    ).resolves.toBe("verified");
+  });
+
+  test.each([
+    ["first name", { firstName: "Paulina" }],
+    ["last name", { lastName: "Pérez" }],
+    ["birth date", { birthDate: "2012-06-13" }],
+    ["document type", { documentType: "passport" }],
+    ["document number", { documentNumber: "12345679" }],
+  ])(
+    "clears a verified dancer's verification when the %s changes",
+    async (_field, change) => {
+      const { cookie, dancer, requestUrl } = await seedVerifiedDancer();
+
+      const result = await detailAction(
+        detailRouteArgs(
+          createPostRequest(requestUrl, cookie, {
+            intent: "update-dancer",
+            ...verifiedDancerValues,
+            ...change,
+          }),
+          dancer.id,
+        ),
+      );
+
+      expect(result).toMatchObject({
+        status: "success",
+        message: "Bailarín guardado. La identidad quedó sin verificar.",
+      });
+      await expect(
+        readVerificationCode(requestUrl, cookie, dancer.id),
+      ).resolves.toBe("unverified");
+    },
+  );
+
+  test("keeps a verified dancer's verification through archiving and reactivating", async () => {
+    const { cookie, dancer, requestUrl } = await seedVerifiedDancer();
+
+    for (const intent of ["archive-dancer", "reactivate-dancer"]) {
+      await detailAction(
+        detailRouteArgs(
+          createPostRequest(requestUrl, cookie, { intent }),
+          dancer.id,
+        ),
+      );
+    }
+
+    await expect(
+      readVerificationCode(requestUrl, cookie, dancer.id),
+    ).resolves.toBe("verified");
+  });
+
+  test("rejects verifying a dancer whose document is incomplete", async () => {
+    const { cookie, dancer, requestUrl } = await seedVerifiedDancer({
+      documentBackImageStorageKey: null,
       identityVerifiedAt: null,
     });
+
+    await expectThrownResponse(
+      detailAction(
+        detailRouteArgs(
+          createPostRequest(requestUrl, cookie, {
+            intent: "verify-dancer-identity",
+          }),
+          dancer.id,
+        ),
+      ),
+      400,
+    );
+    await expect(
+      readVerificationCode(requestUrl, cookie, dancer.id),
+    ).resolves.toBe("incomplete");
   });
 
   test("rejects verifying a dancer whose identity is already verified", async () => {
@@ -884,6 +959,60 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
     );
   });
 });
+
+const verifiedDancerValues = {
+  firstName: "Paula",
+  lastName: "Pendiente",
+  birthDate: "2012-06-12",
+  documentType: "dni",
+  documentNumber: "12345678",
+  documentFrontImageStorageKey: "dancers/paula-front.jpg",
+  documentBackImageStorageKey: "dancers/paula-back.jpg",
+};
+
+/** The status the panel's detail shows, read through its loader. */
+async function readVerificationCode(
+  requestUrl: string,
+  cookie: string,
+  dancerId: string,
+) {
+  const loaderData = await detailLoader(
+    detailRouteArgs(new Request(requestUrl, { headers: { cookie } }), dancerId),
+  );
+
+  return loaderData.dancer.verificationStatus.code;
+}
+
+async function seedVerifiedDancer(
+  overrides: Partial<Parameters<typeof createDancer>[0]> = {},
+) {
+  const unique = crypto.randomUUID();
+  const academy = await createAcademyUser({
+    email: `verificada.${unique}@example.com`,
+    academyName: `Academia ${unique}`,
+    contactName: "Vera Verificada",
+    phone: "1616-1616",
+  });
+  const dancer = await createDancer({
+    academyId: academy.academy.id,
+    ...verifiedDancerValues,
+    documentType: "dni",
+    identityVerifiedAt: new Date("2026-04-10T10:00:00Z"),
+    ...overrides,
+  });
+  const requestUrl = `http://localhost/administracion/bailarines/${dancer.id}`;
+  const { request } = await createSignedInRequest({
+    email: `admin.${unique}@example.com`,
+    role: "admin",
+    requestUrl,
+  });
+
+  return {
+    cookie: request.headers.get("cookie") ?? "",
+    dancer,
+    requestUrl,
+  };
+}
 
 async function createAdministrativeCorrectionCatalog(
   eventId: string,

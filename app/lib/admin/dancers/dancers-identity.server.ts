@@ -6,6 +6,7 @@ import {
   findDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
+import { canVerifyDancerIdentity } from "@/lib/dancers/verification";
 
 export async function verifyDancerIdentity(input: {
   dancerId: string;
@@ -20,7 +21,7 @@ export async function verifyDancerIdentity(input: {
     throw new Response("No encontramos ese Bailarín.", { status: 404 });
   }
 
-  if (existingDancer.identificationStatus !== "unverified") {
+  if (!canVerifyDancerIdentity(existingDancer.verificationStatus)) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 

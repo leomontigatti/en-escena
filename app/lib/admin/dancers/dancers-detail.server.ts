@@ -2,10 +2,8 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, dancers, user } from "@/db/schema";
-import {
-  getEditConsequence,
-  toIdentificationStatus,
-} from "@/lib/admin/dancers/dancers.server.shared";
+import { editAffectsParticipation } from "@/lib/admin/dancers/dancers.server.shared";
+import { deriveDancerVerificationStatus } from "@/lib/dancers/verification";
 import { toParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerDetail } from "@/lib/admin/dancers/dancers.server.types";
 import { findDancerInscriptions } from "@/lib/dancers/inscriptions.server";
@@ -92,19 +90,12 @@ export async function findDancer(input: {
       input.selectedEventId,
       row.isParticipating,
     ),
-    identificationStatus: toIdentificationStatus({
-      documentType: row.documentType,
-      documentNumber: row.documentNumber,
-      documentFrontImageStorageKey: row.documentFrontImageStorageKey,
-      documentBackImageStorageKey: row.documentBackImageStorageKey,
-      identityVerifiedAt: row.identityVerifiedAt,
-    }),
+    verificationStatus: deriveDancerVerificationStatus(row),
     participatedInAnyEvent: row.hasParticipatedInAnyEvent,
-    editConsequence: getEditConsequence({
+    editAffectsParticipation: editAffectsParticipation({
       selectedEventId: input.selectedEventId,
       isParticipating: row.isParticipating,
       hasParticipatedInAnyEvent: row.hasParticipatedInAnyEvent,
-      isVerified: row.identityVerifiedAt !== null,
     }),
     inscriptions,
     seminarInscriptions,

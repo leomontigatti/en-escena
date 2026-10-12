@@ -14,9 +14,9 @@ import type {
 } from "@/lib/portal/dancers.server";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
 import type { RosterSeminarInscription } from "@/lib/roster/inscriptions";
-import type {
-  DancerIdentificationPendingItem,
-  DancerVerificationStatus,
+import {
+  isDancerIdentityLockedForAcademy,
+  type DancerVerificationStatus,
 } from "@/lib/dancers/verification";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import {
@@ -24,7 +24,7 @@ import {
   isRosterPersonArchiveBlocked,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
+import { refineDancerDocumentPair } from "@/lib/dancers/dancer-records";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import {
   withDancerBirthDateScheduleMoveFeedback,
@@ -45,7 +45,7 @@ export function buildPortalDancerSchema(eventStartDate: string | null) {
       ...rosterDocumentPairFields,
       ...rosterDocumentImageFields,
     })
-    .superRefine(refineDocumentPair);
+    .superRefine(refineDancerDocumentPair);
 }
 
 export type PortalDancerDetailLoaderData = {
@@ -118,7 +118,6 @@ export type PortalDancerDocumentImageUrls = {
 };
 export type PortalDancerStatusIntent = "archive-dancer" | "reactivate-dancer";
 export type PortalDancerDetailViewModel = {
-  identificationPendingItems: DancerIdentificationPendingItem[];
   identityFieldValues: Pick<
     PortalDancerFormValues,
     | "birthDate"
@@ -129,7 +128,7 @@ export type PortalDancerDetailViewModel = {
     | "firstName"
     | "lastName"
   >;
-  isIdentityVerified: boolean;
+  isIdentityLocked: boolean;
   showsIdentificationAlert: boolean;
   showsPendingVerificationAlert: boolean;
   showsVerifiedIdentityAlert: boolean;
@@ -297,18 +296,16 @@ function getPortalDancerStatusAction({
 export function buildPortalDancerDetailViewModel(input: {
   dancer: PortalDancerDetailLoaderData["dancer"];
   formValues: PortalDancerFormValues;
-  identificationPendingItems: PortalDancerDetailViewModel["identificationPendingItems"];
   isParticipatingInActiveEvent: boolean;
   verificationStatus: PortalDancerDetailViewModel["verificationStatus"];
 }): PortalDancerDetailViewModel {
   const {
     dancer,
     formValues,
-    identificationPendingItems,
     isParticipatingInActiveEvent,
     verificationStatus,
   } = input;
-  const isIdentityVerified = verificationStatus === "verified";
+  const isIdentityLocked = isDancerIdentityLockedForAcademy(verificationStatus);
   const statusAction = getPortalDancerStatusAction({
     isActive: dancer.active,
     isArchiveBlocked: isRosterPersonArchiveBlocked({
@@ -318,8 +315,7 @@ export function buildPortalDancerDetailViewModel(input: {
   });
 
   return {
-    identificationPendingItems,
-    identityFieldValues: isIdentityVerified
+    identityFieldValues: isIdentityLocked
       ? {
           firstName: dancer.firstName,
           lastName: dancer.lastName,
@@ -339,10 +335,10 @@ export function buildPortalDancerDetailViewModel(input: {
           documentFrontImageStorageKey: formValues.documentFrontImageStorageKey,
           documentBackImageStorageKey: formValues.documentBackImageStorageKey,
         },
-    isIdentityVerified,
-    showsIdentificationAlert: verificationStatus === "incomplete",
-    showsPendingVerificationAlert: verificationStatus === "unverified",
-    showsVerifiedIdentityAlert: verificationStatus === "verified",
+    isIdentityLocked,
+    showsIdentificationAlert: verificationStatus.code === "incomplete",
+    showsPendingVerificationAlert: verificationStatus.code === "unverified",
+    showsVerifiedIdentityAlert: verificationStatus.code === "verified",
     statusAction,
     title: `${dancer.firstName} ${dancer.lastName}`,
     verificationStatus,
