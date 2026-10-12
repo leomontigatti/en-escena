@@ -385,6 +385,11 @@ describe("seminar repository", () => {
     const { seminarId } = registration;
 
     await coverPlaces(registration, 1);
+    // A seminar still ahead: one that has started holds no reservation.
+    await db
+      .update(seminars)
+      .set({ scheduledDate: "2099-10-10" })
+      .where(eq(seminars.id, seminarId));
     for (const inscriptionId of registration.inscriptionIds) {
       await reserveForHours(inscriptionId, 10);
     }
@@ -400,6 +405,24 @@ describe("seminar repository", () => {
 
     await expect(getSeminar(seminarId)).resolves.toMatchObject({
       availablePlaces: 19,
+    });
+  });
+
+  test("ends a stored reservation at the seminar's start when the seminar is moved earlier", async () => {
+    const registration = await createRegistration();
+    const { seminarId } = registration;
+
+    for (const inscriptionId of registration.inscriptionIds) {
+      await reserveForHours(inscriptionId, 10);
+    }
+    // The seminar was moved to a start that has already passed.
+    await db
+      .update(seminars)
+      .set({ scheduledDate: "2020-01-01" })
+      .where(eq(seminars.id, seminarId));
+
+    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+      availablePlaces: 20,
     });
   });
 

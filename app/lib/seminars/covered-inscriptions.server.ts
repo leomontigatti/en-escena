@@ -10,6 +10,10 @@ import {
 import { isSeminarInscriptionCovered } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
+import {
+  hasSeminarStarted,
+  type SeminarMoment,
+} from "@/lib/seminars/registration-window";
 import { isSeminarReservationLive } from "@/lib/seminars/seminar-reservations";
 
 /**
@@ -115,7 +119,12 @@ export async function readSeminarPlaces(
 
     if (row.covered) {
       seminarPlaces.coveredIds.push(row.id);
-    } else if (isSeminarReservationLive(row.reservedUntil, now)) {
+    } else if (
+      isSeminarReservationLive(row.reservedUntil, now) &&
+      // The stored end was capped at the start the seminar had at
+      // registration; a seminar moved earlier ends it sooner.
+      !hasSeminarStarted(row.seminar, now)
+    ) {
       seminarPlaces.reservedIds.push(row.id);
     }
 
@@ -151,6 +160,7 @@ type SeminarPlaceRow = {
   covered: boolean;
   id: string;
   reservedUntil: Date | null;
+  seminar: SeminarMoment;
   seminarId: string;
 };
 
@@ -179,6 +189,8 @@ async function readActiveSeminarPlaceRows(
         where ${paymentAllocations.seminarInscriptionId} = ${seminarInscriptions.id}
       ), 0)`,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
+      scheduledDate: seminars.scheduledDate,
+      startTime: seminars.startTime,
       storedPriceAmount: seminarPrices.amount,
     })
     .from(seminarInscriptions)
@@ -207,6 +219,7 @@ async function readActiveSeminarPlaceRows(
       }),
     id: row.id,
     reservedUntil: row.reservedUntil,
+    seminar: { scheduledDate: row.scheduledDate, startTime: row.startTime },
     seminarId: row.seminarId,
   }));
 }

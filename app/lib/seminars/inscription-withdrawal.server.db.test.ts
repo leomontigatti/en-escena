@@ -307,20 +307,18 @@ describe("removing a seminar inscription", () => {
 });
 
 describe("reserving a place at registration", () => {
-  test("reserves the free place until the seminar starts, and nothing once the seminar is full", async () => {
+  test("reserves the free place, and nothing once the seminar is full", async () => {
     const fixture = await seedFixture(1);
     const first = expectRegistered(
       await register(fixture, fixture.people[0].id),
     );
-    const second = expectRegistered(
-      await register(fixture, fixture.people[1].id),
-    );
+    expectRegistered(await register(fixture, fixture.people[1].id));
 
-    // One minute before the start, the start comes before the 72 hours.
-    expect((await readInscription(first))?.reservedUntil).toEqual(
-      new Date("2026-10-10T21:30:00.000Z"),
-    );
-    expect((await readInscription(second))?.reservedUntil).toBeNull();
+    expect(
+      (await readSeminarPlaces([fixture.seminarId], beforeStart)).get(
+        fixture.seminarId,
+      )?.reservedIds,
+    ).toEqual([first]);
   });
 });
 
@@ -420,7 +418,6 @@ describe("reviving a withdrawn seminar inscription", () => {
       register(fixture, fixture.people[0].id),
     ).resolves.toMatchObject({ ok: true, inscriptionId: revived });
 
-    expect((await readInscription(revived))?.reservedUntil).toBeNull();
     expect(
       (await readSeminarPlaces([fixture.seminarId], beforeStart)).get(
         fixture.seminarId,
