@@ -12,6 +12,10 @@ import type {
 } from "@/lib/judging/presentation-scores.server";
 import { scoreValueMessage } from "@/lib/judging/score-value";
 import {
+  discardChangesConfirmLabel,
+  discardChangesTitle,
+} from "@/lib/shared/discard-guard";
+import {
   createReactDomTestRenderer,
   findButton,
   setInputValue,
@@ -53,6 +57,10 @@ describe("correcting the panel's scores", () => {
             return { message: "Guardaste el puntaje.", status: "success" };
           },
           element: <PresentationScoresView loaderData={loaderData} />,
+        },
+        {
+          path: "/administracion/presentaciones",
+          element: <p>Presentaciones</p>,
         },
       ],
       {
@@ -140,6 +148,16 @@ describe("correcting the panel's scores", () => {
     return [
       ...document.querySelectorAll("form legend, form [data-sheet-total]"),
     ].map((element) => element.textContent);
+  }
+
+  function dialogTitle() {
+    return document.querySelector("[role='alertdialog'] h2")?.textContent;
+  }
+
+  async function leave(router: Awaited<ReturnType<typeof mount>>) {
+    await act(async () => {
+      await router.navigate("/administracion/presentaciones");
+    });
   }
 
   async function type(id: string, value: string) {
@@ -383,6 +401,80 @@ describe("correcting the panel's scores", () => {
     expect(input("criterio-score-1-technique")?.value).toBe("90");
     expect(saveButtons()[0]?.disabled).toBe(true);
     expect(discardButton()).toBeUndefined();
+  });
+
+  test("asks before leaving a judge's unsaved sheet, even from another judge's tab", async () => {
+    const router = await mount({
+      criteria: [
+        {
+          experienceLevel: null,
+          id: "technique",
+          kind: "adds",
+          maximum: 100,
+          name: "Técnica",
+        },
+      ],
+      judges: [
+        buildJudge({ criteriaValues: { technique: "90.0" } }),
+        buildJudge({
+          criteriaValues: { technique: "80.0" },
+          judgeAssignmentId: "assignment-2",
+          judgeName: "Zulema Juez",
+          scoreId: "score-2",
+        }),
+      ],
+    });
+
+    // The second judge's tab is the hidden one: the first opens on its own.
+    await type("criterio-score-2-technique", "70");
+    await leave(router);
+
+    expect(dialogTitle()).toBe(discardChangesTitle);
+    expect(router.state.location.pathname).toBe(
+      "/administracion/presentaciones/presentation-1/puntajes",
+    );
+
+    await act(async () => {
+      dialogButton(discardChangesConfirmLabel)?.click();
+      await Promise.resolve();
+    });
+
+    expect(router.state.location.pathname).toBe(
+      "/administracion/presentaciones",
+    );
+  });
+
+  test("asks before leaving an unsaved single score", async () => {
+    const router = await mount({
+      judges: [buildJudge({ scoreId: "score-1" })],
+    });
+
+    await type("puntaje-score-1", "70");
+    await leave(router);
+
+    expect(dialogTitle()).toBe(discardChangesTitle);
+  });
+
+  test("lets a clean page go, and never asks about its own save", async () => {
+    const router = await mount({
+      judges: [buildJudge({ scoreId: "score-1" })],
+    });
+
+    await type("puntaje-score-1", "70");
+    await updateReactDomForm(() => {
+      saveButtons()[0]?.click();
+    });
+
+    expect(submitted).toHaveLength(1);
+    expect(dialogTitle()).toBeUndefined();
+
+    await type("puntaje-score-1", "90");
+    await leave(router);
+
+    expect(dialogTitle()).toBeUndefined();
+    expect(router.state.location.pathname).toBe(
+      "/administracion/presentaciones",
+    );
   });
 
   test("keeps a line within its own criterion's maximum", async () => {

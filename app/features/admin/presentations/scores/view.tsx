@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info, Undo2, UsersRound } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useForm, useFormState } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
 
@@ -12,6 +12,10 @@ import {
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import {
+  DiscardChangesDialog,
+  useUnsavedChangesGuard,
+} from "@/components/shared/discard-guard";
 import { MetricCard } from "@/components/shared/metric-card";
 import { PinnedActions } from "@/components/shared/pinned-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -249,25 +253,83 @@ function PanelScores({
     );
   }
 
-  if (presentation.criteria.length === 0) {
-    return <SingleScoresTable canEdit={canEdit} judges={presentation.judges} />;
-  }
+  return <JudgeScores canEdit={canEdit} presentation={presentation} />;
+}
+
+/**
+ * A correction typed and not saved is a draft the page asks about before it is
+ * left. The router holds one blocker at a time, while every judge's row or tab
+ * holds a form of its own, so the guard sits here, once, over every judge's
+ * draft — a hidden tab's included. A save posts to this same page and never
+ * looks like leaving.
+ */
+function JudgeScores({
+  canEdit,
+  presentation,
+}: {
+  canEdit: boolean;
+  presentation: Presentation;
+}) {
+  const [draftScoreIds, setDraftScoreIds] = useState<string[]>([]);
+  const discardDialog = useUnsavedChangesGuard({
+    isDirty: draftScoreIds.length > 0,
+    isSaving: false,
+  });
+  const onDraftChange = useCallback((scoreId: string, isDraft: boolean) => {
+    setDraftScoreIds((current) =>
+      isDraft
+        ? [...new Set([...current, scoreId])]
+        : current.filter((id) => id !== scoreId),
+    );
+  }, []);
 
   return (
-    <JudgeSheets
-      canEdit={canEdit}
-      criteria={presentation.criteria}
-      judges={presentation.judges}
-    />
+    <>
+      {presentation.criteria.length === 0 ? (
+        <SingleScoresTable
+          canEdit={canEdit}
+          judges={presentation.judges}
+          onDraftChange={onDraftChange}
+        />
+      ) : (
+        <JudgeSheets
+          canEdit={canEdit}
+          criteria={presentation.criteria}
+          judges={presentation.judges}
+          onDraftChange={onDraftChange}
+        />
+      )}
+      <DiscardChangesDialog {...discardDialog} />
+    </>
+  );
+}
+
+type DraftChangeHandler = (scoreId: string, isDraft: boolean) => void;
+
+/** Tells the page's guard whether this judge's form holds a draft. */
+function useReportDraft(
+  scoreId: string,
+  isDraft: boolean,
+  onDraftChange: DraftChangeHandler,
+) {
+  useEffect(() => {
+    onDraftChange(scoreId, isDraft);
+  }, [isDraft, onDraftChange, scoreId]);
+
+  useEffect(
+    () => () => onDraftChange(scoreId, false),
+    [onDraftChange, scoreId],
   );
 }
 
 function SingleScoresTable({
   canEdit,
   judges,
+  onDraftChange,
 }: {
   canEdit: boolean;
   judges: readonly PresentationJudgeScore[];
+  onDraftChange: DraftChangeHandler;
 }) {
   return (
     <ScoresTable>
@@ -284,7 +346,11 @@ function SingleScoresTable({
             <TableCell>{judge.judgeName}</TableCell>
             <TableCell>
               {canEdit && judge.scoreId ? (
-                <SingleScoreForm scoreId={judge.scoreId} value={judge.value} />
+                <SingleScoreForm
+                  onDraftChange={onDraftChange}
+                  scoreId={judge.scoreId}
+                  value={judge.value}
+                />
               ) : (
                 <ScoreValue value={judge.value} />
               )}
@@ -320,10 +386,12 @@ function JudgeSheets({
   canEdit,
   criteria,
   judges,
+  onDraftChange,
 }: {
   canEdit: boolean;
   criteria: readonly JudgeSheetCriterion[];
   judges: readonly PresentationJudgeScore[];
+  onDraftChange: DraftChangeHandler;
 }) {
   const [first] = judges;
 
@@ -354,6 +422,7 @@ function JudgeSheets({
             <SheetForm
               criteria={criteria}
               judge={judge}
+              onDraftChange={onDraftChange}
               scoreId={judge.scoreId}
             />
           ) : (
@@ -421,9 +490,11 @@ function JudgeSheets({
  * number, rather than after a round trip.
  */
 function SingleScoreForm({
+  onDraftChange,
   scoreId,
   value,
 }: {
+  onDraftChange: DraftChangeHandler;
   scoreId: string;
   value: string | null;
 }) {
@@ -433,6 +504,7 @@ function SingleScoreForm({
     resolver: zodResolver(judgeScoreFormSchema),
   });
   const { isDirty } = useFormState({ control: form.control });
+  useReportDraft(scoreId, isDirty, onDraftChange);
   const submit = useSubmit();
   const isSubmitting = isRouteFormPending(useNavigation(), {
     fields: { scoreId },
@@ -485,10 +557,12 @@ function SingleScoreForm({
 function SheetForm({
   criteria,
   judge,
+  onDraftChange,
   scoreId,
 }: {
   criteria: readonly JudgeSheetCriterion[];
   judge: PresentationJudgeScore;
+  onDraftChange: DraftChangeHandler;
   scoreId: string;
 }) {
   // Exactly what the judge stored, and empty where they stored nothing:
@@ -507,6 +581,7 @@ function SheetForm({
     resolver: zodResolver(buildJudgeSheetFormSchema(criteria)),
   });
   const { isDirty } = useFormState({ control: form.control });
+  useReportDraft(scoreId, isDirty, onDraftChange);
 
   // A save starts a clean draft from what was saved; a refused one keeps what
   // was typed, which still differs from it.
@@ -528,8 +603,8 @@ function SheetForm({
     >
       <AdminResourceFormCard
         footer={
-          // `FormActions` without its leave guard: a guard sits on the router
-          // and the router holds one, while every judge's tab holds a form.
+          // `FormActions` without its own leave guard: the page holds the one
+          // guard over every judge's tab (`JudgeScores`).
           <PinnedActions>
             <BackButton to="/administracion/presentaciones" />
             <div className="flex items-center gap-3">
