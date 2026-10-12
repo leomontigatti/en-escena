@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { modalities } from "@/db/schema";
+import { findModalityDeleteBlockers } from "@/lib/modalities/delete-blockers.server";
 import {
   createModality,
   createSubmodality,
@@ -56,6 +57,9 @@ describe("deleting a modality under a racing submodality", () => {
       error:
         "No se puede eliminar la modalidad porque tiene submodalidades relacionadas.",
     });
+    // The blinded check and the second look after the foreign key refused: a
+    // single call would mean the pre-check saw the submodality, not the race.
+    expect(findModalityDeleteBlockers).toHaveBeenCalledTimes(2);
     await expect(
       db.query.modalities.findFirst({ where: eq(modalities.id, modality.id) }),
     ).resolves.toMatchObject({ id: modality.id });

@@ -24,9 +24,11 @@ export const modalityDeleteBlockerErrors = {
 
 /**
  * Every relation that keeps the modality from being deleted, in the order
- * `deleteModality` reports them: one per foreign key into `modality`, none of
- * which cascades. The detail page reads it to open the blocked dialog instead
- * of a confirmation the server would refuse. Empty means the delete can run.
+ * `deleteModality` reports them: one per foreign key into `modality` that
+ * refuses the delete. The finalist picks cascade, and only exist under
+ * choreographies, which already block it. The detail page reads the list to
+ * open the blocked dialog instead of a confirmation the server would refuse.
+ * Empty means the delete can run.
  */
 export async function findModalityDeleteBlockers(
   modalityId: string,
