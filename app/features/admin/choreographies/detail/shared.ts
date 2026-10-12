@@ -6,7 +6,6 @@ import {
 } from "./draft.shared";
 
 export const deleteChoreographyIntent = "delete-choreography";
-export const restoreChoreographyIntent = "restore-choreography";
 
 /**
  * `resolve-draft` only asks what the draft would make of the choreography: it
@@ -62,30 +61,6 @@ export type ChoreographySuccessData = {
 export function choreographySavedSuccess(): ChoreographySuccessData {
   return {
     message: notificationToasts["choreography-saved"].message,
-    status: "success",
-  };
-}
-
-/**
- * Restoring is the one thing a withdrawn choreography still accepts, and it is
- * an administrative correction: `admin` only, and only while the choreography is
- * actually withdrawn. The auditor sees the state and never undoes it.
- *
- * It is asked of the role and not of `canEdit`, which is false for the whole
- * page while the choreography is withdrawn — that is the point of the state.
- */
-export function canRestoreChoreography(input: {
-  isAdmin: boolean;
-  isWithdrawn: boolean;
-}) {
-  return input.isAdmin && input.isWithdrawn;
-}
-
-// Restoring reports back in place, like every other correction on the detail:
-// the choreography is still the page the admin is on, only no longer withdrawn.
-export function choreographyRestoredSuccess(): ChoreographySuccessData {
-  return {
-    message: notificationToasts["choreography-restored"].message,
     status: "success",
   };
 }
@@ -162,15 +137,6 @@ export type ChoreographyDeleteBlocker = {
 export type ChoreographyRemovalPreview = "deleted" | "withdrawn";
 
 /**
- * What restoring does, said before the admin confirms: it is the withdrawal
- * undone, not a re-registration. The place in the schedule is the one thing that
- * may refuse it, and it is asked for again at the click, so the dialog announces
- * it as a condition rather than as a certainty.
- */
-export const restoreChoreographyDescription =
-  "Vuelve a la lista con las inscripciones que tenía al retirarse y ocupa de nuevo su cupo de cronograma. Los bailarines dados de baja antes del retiro siguen de baja.";
-
-/**
  * The two outcomes are two dialogs, because they are not the same act: one
  * leaves nothing behind, the other keeps the choreography with its money
  * exactly where it was allocated, so it asks to withdraw rather than delete.
@@ -191,7 +157,9 @@ export function describeChoreographyRemoval(input: {
 
   return input.outcome === "withdrawn"
     ? {
-        consequence: `Al retirarla también libera su cupo del cronograma${ending}`,
+        // A withdrawal is final (#1496), so the dialog says so before the
+        // admin confirms it.
+        consequence: `Al retirarla también libera su cupo del cronograma${ending} El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.`,
         description:
           "Al tener dinero asignado o comprobantes emitidos, no puede eliminarse. Podés revisarla desde la lista de finanzas.",
         outcome: input.outcome,

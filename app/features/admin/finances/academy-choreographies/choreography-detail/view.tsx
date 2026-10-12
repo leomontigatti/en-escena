@@ -357,28 +357,32 @@ function InscriptionsTable({
   inscriptions: InscriptionRow[];
   priceOptions: PriceOption[];
 }) {
-  const [openDancerId, setOpenDancerId] = useState<string | null>(null);
+  const [openInscriptionId, setOpenInscriptionId] = useState<string | null>(
+    null,
+  );
   const waiverConfirmation = useWaiverConfirmation();
   const waiverFetcher = useWaiverFetcher();
   // Stable, so the columns are not rebuilt — and the rows not remounted — by a
   // re-render of the view.
-  const openMoneyDialog = useCallback((dancerId: string) => {
-    setOpenDancerId(dancerId);
+  const openMoneyDialog = useCallback((inscriptionId: string) => {
+    setOpenInscriptionId(inscriptionId);
   }, []);
   const closeMoneyDialog = useCallback((open: boolean) => {
     if (!open) {
-      setOpenDancerId(null);
+      setOpenInscriptionId(null);
     }
   }, []);
   const columns = useMemo(
     () => buildInscriptionColumns(openMoneyDialog),
     [openMoneyDialog],
   );
+  // By inscription and not by dancer: a dancer added again after a withdrawal
+  // holds two rows, the withdrawn one and the new one.
   const openInscription =
     inscriptions.find(
       (inscription) =>
-        inscription.dancerId === openDancerId &&
-        inscription.inscriptionId !== null,
+        inscription.inscriptionId !== null &&
+        inscription.inscriptionId === openInscriptionId,
     ) ?? null;
 
   return (
@@ -387,14 +391,16 @@ function InscriptionsTable({
         rows={inscriptions}
         columns={columns}
         facetedFilters={inscriptionFinanceFacetedFilters}
-        getRowKey={(inscription) => inscription.dancerId}
+        getRowKey={(inscription) =>
+          inscription.inscriptionId ?? inscription.dancerId
+        }
         searchPlaceholder="Buscar por bailarín"
         textFilterColumnId="dancer"
         emptyMessage="No hay inscripciones para mostrar."
       />
       {openInscription ? (
         <InscriptionMoneyDialog
-          key={openDancerId}
+          key={openInscriptionId}
           inscription={openInscription}
           onOpenChange={closeMoneyDialog}
           priceOptions={priceOptions}
@@ -406,14 +412,14 @@ function InscriptionsTable({
               ? null
               : {
                   onUnwaive: () => {
-                    setOpenDancerId(null);
+                    setOpenInscriptionId(null);
                     waiverConfirmation.show({
                       inscription: openInscription,
                       kind: "unwaiveInscription",
                     });
                   },
                   onWaive: () => {
-                    setOpenDancerId(null);
+                    setOpenInscriptionId(null);
                     waiverConfirmation.show({
                       inscription: openInscription,
                       kind: "waiveInscription",
@@ -435,7 +441,7 @@ function InscriptionsTable({
 }
 
 function buildInscriptionColumns(
-  onOpenMoneyDialog: (dancerId: string) => void,
+  onOpenMoneyDialog: (inscriptionId: string) => void,
 ): DataTableColumn<InscriptionRow>[] {
   return [
     {
@@ -467,9 +473,11 @@ function DancerNameCell({
   onOpenMoneyDialog,
 }: {
   inscription: InscriptionRow;
-  onOpenMoneyDialog: (dancerId: string) => void;
+  onOpenMoneyDialog: (inscriptionId: string) => void;
 }) {
-  if (inscription.inscriptionId === null) {
+  const { inscriptionId } = inscription;
+
+  if (inscriptionId === null) {
     return <>{formatDancerName(inscription)}</>;
   }
 
@@ -478,7 +486,7 @@ function DancerNameCell({
       type="button"
       variant="link"
       className="h-auto p-0 text-left font-medium"
-      onClick={() => onOpenMoneyDialog(inscription.dancerId)}
+      onClick={() => onOpenMoneyDialog(inscriptionId)}
     >
       {formatDancerName(inscription)}
     </Button>

@@ -414,6 +414,13 @@
       "when": 1791770766766,
       "tag": "0058_seminar_inscription_reserved_until",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1791810197407,
+      "tag": "0059_withdrawal_is_final",
+      "breakpoints": true
     }
   ]
 }

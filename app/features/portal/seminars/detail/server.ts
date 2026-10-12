@@ -110,7 +110,8 @@ export async function loadPortalSeminarDetail(input: {
       status: toStatusBadge(financeRowsById.get(inscription.id)),
     })),
     // A person the academy already has actively registered is off the picker;
-    // one whose row was withdrawn is offered, and registering them revives it.
+    // one whose row was withdrawn is offered, and registering them inserts a
+    // new row beside the withdrawn one.
     people: people.filter((person) => !registeredPersonIds.has(person.id)),
   };
 }

@@ -403,22 +403,21 @@ export const seminarInscriptions = createTable(
     selectedPriceId: varchar("selected_price_id", { length: 255 }),
     // When the inscription was withdrawn, which is what tells a row that keeps
     // its money apart from one that never had any. A withdrawn row holds no
-    // place and appears on no roster; the removal chooser stamps it, and
-    // reviving the person on re-registration clears it.
+    // place and appears on no roster; the removal chooser stamps it and
+    // nothing clears it: registering the person again inserts a new row.
     withdrawnAt: timestamp("withdrawn_at", {
       mode: "date",
       withTimezone: true,
     }),
     // Until when the inscription holds a reserved place without having covered
     // its deposit (`seminarReservation`). Written once, at the insert, and only
-    // when the seminar had a place free; a revival clears it, so a restored row
-    // never reserves. Null is no reservation.
+    // when the seminar had a place free. Null is no reservation.
     reservedUntil: timestamp("reserved_until", {
       mode: "date",
       withTimezone: true,
     }),
-    // When the person was first registered, kept across a withdrawal and its
-    // revival so that the row's age survives a change of plans.
+    // When the person was registered. A registration after a withdrawal is a
+    // new row with its own date.
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,
@@ -454,10 +453,14 @@ export const seminarInscriptions = createTable(
     index("seminar_inscription_professor_id_idx").on(table.professorId),
     uniqueIndex("seminar_inscription_seminar_dancer_unique")
       .on(table.seminarId, table.dancerId)
-      .where(sql`${table.dancerId} is not null`),
+      .where(
+        sql`${table.dancerId} is not null and ${table.withdrawnAt} is null`,
+      ),
     uniqueIndex("seminar_inscription_seminar_professor_unique")
       .on(table.seminarId, table.professorId)
-      .where(sql`${table.professorId} is not null`),
+      .where(
+        sql`${table.professorId} is not null and ${table.withdrawnAt} is null`,
+      ),
     check(
       "seminar_inscription_exactly_one_person",
       sql`num_nonnulls(${table.dancerId}, ${table.professorId}) = 1`,

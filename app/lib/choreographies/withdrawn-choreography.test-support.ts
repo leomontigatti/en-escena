@@ -38,30 +38,3 @@ export async function withdrawChoreographyForTest(
       );
   });
 }
-
-/**
- * The other half, for the read tests that check a restored choreography shows
- * up again: `restoreChoreography` revives the inscriptions the withdrawal took
- * along with the choreography, so a test that cleared only the choreography's
- * stamp would be asserting on a shape the write path never produces.
- */
-export async function restoreChoreographyForTest(
-  choreographyId: string,
-  withdrawnAt: Date = testWithdrawalDate,
-) {
-  await db.transaction(async (tx) => {
-    await tx
-      .update(choreographies)
-      .set({ withdrawnAt: null })
-      .where(eq(choreographies.id, choreographyId));
-    await tx
-      .update(choreographyDancers)
-      .set({ withdrawnAt: null })
-      .where(
-        and(
-          eq(choreographyDancers.choreographyId, choreographyId),
-          eq(choreographyDancers.withdrawnAt, withdrawnAt),
-        ),
-      );
-  });
-}

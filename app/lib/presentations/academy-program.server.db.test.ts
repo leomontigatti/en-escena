@@ -8,10 +8,7 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import {
-  restoreChoreographyForTest,
-  withdrawChoreographyForTest,
-} from "@/lib/choreographies/withdrawn-choreography.test-support";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import {
   hasPublishedPresentations,
   readAcademyPresentations,
@@ -183,19 +180,6 @@ describe("readAcademyPresentations", () => {
     });
 
     expect(rows.map((row) => row.choreographyId)).toEqual([performing.id]);
-
-    await restoreChoreographyForTest(withdrawnLate.id);
-
-    const restored = await readAcademyPresentations({
-      academyId: academy.id,
-      eventId: event.id,
-      visibleDays: everyDay,
-    });
-
-    expect(restored.map((row) => row.choreographyId)).toEqual([
-      performing.id,
-      withdrawnLate.id,
-    ]);
   });
 
   test("names the dancers of a solo and a duo and of nothing else", async () => {

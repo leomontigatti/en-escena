@@ -1,13 +1,10 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographyDancers } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { refreshActiveInscriptionAges } from "@/lib/choreographies/inscription-age.server";
-import {
-  removeInscriptionsFromRoster,
-  reviveWithdrawnInscriptions,
-} from "@/lib/choreographies/inscription-withdrawal.server";
+import { removeInscriptionsFromRoster } from "@/lib/choreographies/inscription-withdrawal.server";
 import type { ResolvedRegistrationDancer } from "@/lib/choreographies/registration-resolution.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -17,8 +14,10 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * wholesale replacement, the inscriptions that stay are left untouched
  * (watermark: a `señada` does not fall back to `impaga`): a dancer who left is
  * deleted without evidence and withdrawn with it
- * (`removeInscriptionsFromRoster`), a dancer who comes back revives the
- * withdrawn inscription, and the rest are inserted. Money moves in no case.
+ * (`removeInscriptionsFromRoster`), and a dancer who joins is inserted. A dancer
+ * who comes back after a withdrawal joins like anybody else: the withdrawal is
+ * final, so the withdrawn row stays as it is and the new one starts with no
+ * money. Money moves in no case.
  *
  * It runs inside the caller's transaction, after the capacity guard, so a
  * rejected move leaves none of it persisted.
@@ -31,38 +30,19 @@ export async function syncRosterInscriptions(input: {
 }) {
   const { requestedDancerIds, resolvedDancers, tx } = input;
 
-  const [currentLinks, withdrawnLinks] = await Promise.all([
-    tx
-      .select({
-        id: choreographyDancers.id,
-        dancerId: choreographyDancers.dancerId,
-      })
-      .from(choreographyDancers)
-      .where(
-        and(
-          eq(choreographyDancers.choreographyId, input.choreographyId),
-          activeInscription(),
-        ),
+  const currentLinks = await tx
+    .select({
+      id: choreographyDancers.id,
+      dancerId: choreographyDancers.dancerId,
+    })
+    .from(choreographyDancers)
+    .where(
+      and(
+        eq(choreographyDancers.choreographyId, input.choreographyId),
+        activeInscription(),
       ),
-    // The withdrawn ones are read on purpose: they are the candidates for
-    // revival, and until they are revived they take part in nothing else.
-    tx
-      .select({
-        id: choreographyDancers.id,
-        dancerId: choreographyDancers.dancerId,
-      })
-      .from(choreographyDancers)
-      .where(
-        and(
-          eq(choreographyDancers.choreographyId, input.choreographyId),
-          isNotNull(choreographyDancers.withdrawnAt),
-        ),
-      ),
-  ]);
+    );
   const currentDancerIds = new Set(currentLinks.map((row) => row.dancerId));
-  const withdrawnInscriptionIdByDancerId = new Map(
-    withdrawnLinks.map((row) => [row.dancerId, row.id]),
-  );
 
   await removeInscriptionsFromRoster(
     tx,
@@ -75,24 +55,9 @@ export async function syncRosterInscriptions(input: {
     (dancer) => !currentDancerIds.has(dancer.id),
   );
 
-  await reviveWithdrawnInscriptions(
-    tx,
-    addedDancers.flatMap((dancer) => {
-      const inscriptionId = withdrawnInscriptionIdByDancerId.get(dancer.id);
-
-      return inscriptionId
-        ? [{ ageAtEventStart: dancer.ageAtEventStart, id: inscriptionId }]
-        : [];
-    }),
-  );
-
-  const insertedDancers = addedDancers.filter(
-    (dancer) => !withdrawnInscriptionIdByDancerId.has(dancer.id),
-  );
-
-  if (insertedDancers.length > 0) {
+  if (addedDancers.length > 0) {
     await tx.insert(choreographyDancers).values(
-      insertedDancers.map((dancer) => ({
+      addedDancers.map((dancer) => ({
         choreographyId: input.choreographyId,
         dancerId: dancer.id,
         ageAtEventStart: dancer.ageAtEventStart,

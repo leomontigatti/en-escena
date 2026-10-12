@@ -9,10 +9,7 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import {
-  restoreChoreographyForTest,
-  withdrawChoreographyForTest,
-} from "@/lib/choreographies/withdrawn-choreography.test-support";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import {
   findPublishedProgramEvent,
   readEventProgram,
@@ -140,7 +137,7 @@ describe("readEventProgram", () => {
     ]);
   });
 
-  test("leaves out a withdrawn choreography, and lists it again once restored", async () => {
+  test("leaves out a withdrawn choreography", async () => {
     const { addAcademy, event } = await seedEvent();
     const { addChoreography } = await addAcademy("Academia Norte");
     const performing = await addChoreography({
@@ -159,12 +156,6 @@ describe("readEventProgram", () => {
     expect(
       (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),
     ).toEqual([performing.id]);
-
-    await restoreChoreographyForTest(withdrawn.id);
-
-    expect(
-      (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),
-    ).toEqual([performing.id, withdrawn.id]);
   });
 
   test("names the dancers of a solo and a duo and of nothing else", async () => {

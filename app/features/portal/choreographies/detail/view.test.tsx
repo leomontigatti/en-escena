@@ -58,7 +58,7 @@ describe("PortalChoreographyDetailRouteView", () => {
 
     expect(withdrawn).toContain("Esta coreografía está retirada");
     expect(withdrawn).toContain(
-      "No puede modificarse hasta que administración la restaure.",
+      "Un retiro es definitivo, así que no puede modificarse. Para que vuelva a participar, registrá una coreografía nueva.",
     );
     expect(evaluated).toContain("Esta coreografía ya fue evaluada");
     expect(evaluated).toContain("No puede modificarse.");

@@ -252,7 +252,7 @@ describe("PortalSeminarDetailRouteView", () => {
       "El dinero que la inscripción tiene asignado queda como está y, si ya tenía la seña cubierta, su lugar se libera.",
     );
     expect(dialog?.textContent).toContain(
-      "Si volvés a inscribir a la persona, la inscripción vuelve con su dinero.",
+      "El retiro es definitivo: si volvés a inscribir a la persona, se crea una inscripción nueva, sin dinero.",
     );
     expect(dialog?.textContent).toContain("¿Retirar la inscripción?");
     expect(

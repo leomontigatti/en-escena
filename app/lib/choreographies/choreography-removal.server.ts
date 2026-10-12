@@ -70,9 +70,9 @@ export async function removeChoreography(
     }
 
     // One timestamp value for the choreography and for every inscription still
-    // active, including those holding no money: it is what restoring reads to
-    // revive exactly the inscriptions this withdrawal took, and not the dancers
-    // removed individually beforehand — those keep their own earlier stamp.
+    // active, including those holding no money: it tells the inscriptions this
+    // withdrawal took from the dancers removed individually beforehand, who keep
+    // their own earlier stamp. The withdrawal is final.
     const withdrawnAt = new Date();
 
     await tx

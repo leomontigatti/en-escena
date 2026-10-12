@@ -9,7 +9,6 @@ import {
   previewChoreographyRemovalOutcome,
   removeChoreography,
 } from "@/lib/choreographies/choreography-removal.server";
-import { restoreChoreography } from "@/lib/choreographies/choreography-restoration.server";
 import { choreographiesPath } from "@/lib/choreographies/admin-paths";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
@@ -42,10 +41,7 @@ import {
   type ChoreographyModalityOption,
 } from "./modality.server";
 import {
-  canRestoreChoreography,
-  choreographyRestoredSuccess,
   deleteChoreographyIntent,
-  restoreChoreographyIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyFieldUpdateErrorData,
   type ChoreographyModalityBlocker,
@@ -78,9 +74,6 @@ export type ChoreographyDetailLoaderData = {
     blockers: ChoreographyModalityBlocker[];
     options: ChoreographyModalityOption[];
   };
-  restoration: {
-    canRestore: boolean;
-  };
   scheduleCapacity: {
     blockers: ChoreographyScheduleCapacityBlocker[];
   };
@@ -90,22 +83,18 @@ export type ChoreographyDetailLoaderData = {
 const unsupportedActionMessage = "Acción no soportada.";
 
 const withdrawnChoreographyIsReadOnlyMessage =
-  "Esta coreografía está retirada: restaurala para poder editarla.";
+  "Esta coreografía está retirada y no se puede modificar. Para que vuelva a participar, registrá una nueva.";
 
 /**
  * The hidden controls are not the rule: a withdrawn choreography accepts
- * nothing but being restored, whoever posts to it. Its money is handled from
- * the finance surfaces, which write against the inscriptions and not here.
+ * nothing, whoever posts to it, because the withdrawal is final. Its money is
+ * handled from the finance surfaces, which write against the inscriptions and
+ * not here.
  */
 function assertChoreographyAcceptsIntent(input: {
   choreography: ChoreographyDetail;
-  intent: FormDataEntryValue | null;
 }) {
   if (!input.choreography.isWithdrawn) {
-    return;
-  }
-
-  if (input.intent === restoreChoreographyIntent) {
     return;
   }
 
@@ -135,12 +124,10 @@ export async function loadChoreographyDetailRouteData(input: {
   });
   const choreographyId = choreography.id;
 
-  // Two different questions on a withdrawn choreography: who the user is, and
-  // whether the choreography accepts edits at all. `canEdit` answers the second,
-  // so every field the view gates on it goes read-only while the stamp is there;
-  // restoring is asked of the first, because it is the one action left.
-  const isAdmin = user.role === "admin";
-  const canEdit = isAdmin && !choreography.isWithdrawn;
+  // A withdrawn choreography accepts no edit whoever the user is: the
+  // withdrawal is final, so every field the view gates on `canEdit` goes
+  // read-only while the stamp is there.
+  const canEdit = user.role === "admin" && !choreography.isWithdrawn;
   const [
     blockers,
     availableDancers,
@@ -194,14 +181,6 @@ export async function loadChoreographyDetailRouteData(input: {
       blockers: modalityBlockers,
       options: modalityOptions,
     },
-    restoration: {
-      // The only action a withdrawn choreography still offers. Everything else
-      // on the page is read-only while the stamp is there.
-      canRestore: canRestoreChoreography({
-        isAdmin,
-        isWithdrawn: choreography.isWithdrawn,
-      }),
-    },
     scheduleCapacity: {
       // What the price filter did to the capacities the saved choreography
       // could move to, read off the ones it left. The reasons go to the view
@@ -247,7 +226,7 @@ export async function handleChoreographyDetailAction(input: {
   const formData = await input.request.formData();
   const intent = formData.get("intent");
 
-  assertChoreographyAcceptsIntent({ choreography, intent });
+  assertChoreographyAcceptsIntent({ choreography });
 
   if (intent === resolveChoreographyDraftIntent) {
     const resolution = await resolveChoreographyDraft({
@@ -278,10 +257,6 @@ export async function handleChoreographyDetailAction(input: {
         ? "choreography-withdrawn"
         : "choreography-deleted",
     );
-  }
-
-  if (intent === restoreChoreographyIntent) {
-    return await restoreChoreographyAction(choreography);
   }
 
   throw new Response(unsupportedActionMessage, { status: 400 });
@@ -315,28 +290,6 @@ async function deleteChoreography(choreography: ChoreographyDetail) {
   }
 
   return outcome;
-}
-
-/**
- * Restoring answers in place: on success the loader revalidates and the page the
- * admin is already on stops being read-only, so there is nothing to redirect to.
- * A refusal —the capacity filled up while the choreography was out, or the
- * capacity it pointed at was deleted— comes back as a plain `error` so the reason
- * actually reaches the page instead of being swallowed.
- */
-async function restoreChoreographyAction(
-  choreography: ChoreographyDetail,
-): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  const result = await restoreChoreography(choreography.id);
-
-  if (!result.ok) {
-    return {
-      message: result.error,
-      status: "error",
-    };
-  }
-
-  return choreographyRestoredSuccess();
 }
 
 function evaluatedPresentationResponse() {

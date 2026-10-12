@@ -465,6 +465,78 @@ describe("`/administracion/finanzas` choreography detail", () => {
     });
   });
 
+  // #1496: a withdrawal is final, so a dancer added again holds a withdrawn row
+  // and a new one in the same choreography. Each keeps its own money.
+  test("lists a withdrawn row and the dancer's new row apart, each with its own money", async () => {
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academy, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Vuelve",
+        email: "academia.vuelve.detalle@example.com",
+        choreographyName: "Detalle vuelve",
+        event,
+      });
+    const priceId = await readSoloPriceId(event.id);
+    const dancer = await createDancer(academy.academy.id, {
+      firstName: "Ivo",
+      lastName: "Vuelve",
+    });
+    const [withdrawnInscription, newInscription] = await db
+      .insert(choreographyDancers)
+      .values([
+        {
+          ageAtEventStart: 14,
+          choreographyId: choreography.id,
+          dancerId: dancer.id,
+          selectedPriceId: priceId,
+          withdrawnAt: new Date("2026-04-01T12:00:00Z"),
+        },
+        {
+          ageAtEventStart: 14,
+          choreographyId: choreography.id,
+          dancerId: dancer.id,
+        },
+      ])
+      .returning();
+    const payment = await seedPayment({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      paymentNumber: 1,
+    });
+    await db.insert(paymentAllocations).values({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      choreographyInscriptionId: withdrawnInscription.id,
+      paymentId: payment.id,
+    });
+
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      email: "admin.vuelve.detalle@example.com",
+      eventId: event.id,
+    });
+
+    expect(
+      loaderData.inscriptions.filter((row) => row.dancerId === dancer.id),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          allocatedAmount: 3000,
+          inscriptionId: withdrawnInscription.id,
+          withdrawn: true,
+        }),
+        expect.objectContaining({
+          allocatedAmount: 0,
+          inscriptionId: newInscription.id,
+          withdrawn: false,
+        }),
+      ]),
+    );
+  });
+
   test("shows incomplete amounts and `Sin precio` when no applicable price exists", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",

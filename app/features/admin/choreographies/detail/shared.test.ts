@@ -89,7 +89,8 @@ describe("describeChoreographyRemoval", () => {
         presentationOrderNumber: null,
       }),
     ).toEqual({
-      consequence: "Al retirarla también libera su cupo del cronograma.",
+      consequence:
+        "Al retirarla también libera su cupo del cronograma. El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.",
       description:
         "Al tener dinero asignado o comprobantes emitidos, no puede eliminarse. Podés revisarla desde la lista de finanzas.",
       outcome: "withdrawn",
@@ -122,7 +123,7 @@ describe("describeChoreographyRemoval", () => {
     });
 
     expect(withdrawal.outcome === "withdrawn" && withdrawal.consequence).toBe(
-      "Al retirarla también libera su cupo del cronograma y pierde el número de orden.",
+      "Al retirarla también libera su cupo del cronograma y pierde el número de orden. El retiro es definitivo: para que vuelva a participar hay que registrar una coreografía nueva.",
     );
     expect(deletion.description).toMatch(
       /cupo del cronograma y pierde el número de orden\.$/,

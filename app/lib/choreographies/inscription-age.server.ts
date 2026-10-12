@@ -18,7 +18,7 @@ type Executor = Transaction | typeof db;
 
 /**
  * Writes a freshly derived `ageAtEventStart` onto the inscriptions that are on
- * the roster. Insertion and revival already store the age they computed; this
+ * the roster. Insertion already stores the age it computed; this
  * is the same write for the rows a save keeps, so that no active inscription
  * survives a save carrying an age the choreography's own placement no longer
  * agrees with.

@@ -206,8 +206,8 @@ describe("seminar price repository", () => {
       .where(eq(seminarInscriptions.id, inscriptionId));
 
     // A withdrawn row resolves no price: it holds its money against the row it
-    // already stored, so the cell's coverage protects nobody until a revival
-    // puts the person back on the roster.
+    // already stored, so the cell's coverage protects nobody: registering the
+    // person again would insert a new row.
     await expect(deleteSeminarPrice(tail.id)).resolves.toMatchObject({
       ok: true,
     });

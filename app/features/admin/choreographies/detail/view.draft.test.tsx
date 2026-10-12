@@ -591,7 +591,6 @@ function buildLoaderData(
         },
       ],
     },
-    restoration: { canRestore: false },
     scheduleCapacity: { blockers: [] },
     selectedEventId: "event_1",
   };

@@ -78,8 +78,9 @@ export const choreographies = createTable(
     // Soft withdrawal of the whole choreography: it is withdrawn if and only if
     // this is set. Stamped when removal finds evidence to preserve —allocated
     // money or a comprobante— together with every inscription still active, all
-    // carrying this very value so that restoring revives exactly what the
-    // withdrawal took. It is roster state, not financial state, so the
+    // carrying this very value, which is what tells the inscriptions the
+    // withdrawal took from the ones withdrawn individually before it. It is
+    // final, and it is roster state, not financial state, so the
     // inscription-based finances model (ADR-0009) is untouched.
     withdrawnAt: timestamp("withdrawn_at", {
       mode: "date",
@@ -150,9 +151,8 @@ export const choreographyDancers = createTable(
     // that week, and counting by the parent choreography's date credited every
     // such row to the original registration.
     //
-    // Reviving a withdrawn inscription keeps it. Revival undoes the withdrawal
-    // rather than registering again — same row, same `id`, same money and same
-    // comprobante line — so the registration date stays the original one.
+    // A withdrawn inscription keeps it: re-adding the dancer inserts a new row
+    // with a new date, and the withdrawn one stays as the record of the drop.
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,
@@ -165,9 +165,10 @@ export const choreographyDancers = createTable(
     selectedPriceId: varchar("selected_price_id", { length: 255 }),
     // Soft withdrawal. Written once, when the inscription is taken off the
     // roster, and only when there is evidence to preserve: allocated money or
-    // a comprobante line. Without evidence the row is deleted physically, so
-    // `choreography_dancer_unique` still holds and re-adding the same dancer
-    // revives this row instead of inserting another.
+    // a comprobante line. Without evidence the row is deleted physically. It
+    // is final: re-adding the same dancer inserts a new row beside this one,
+    // which `choreography_dancer_unique` allows because it only counts the
+    // rows on the roster.
     withdrawnAt: timestamp("withdrawn_at", {
       mode: "date",
       withTimezone: true,
@@ -196,10 +197,9 @@ export const choreographyDancers = createTable(
       foreignColumns: [prices.id],
       name: "choreography_dancer_selected_price_fk",
     }),
-    uniqueIndex("choreography_dancer_unique").on(
-      table.choreographyId,
-      table.dancerId,
-    ),
+    uniqueIndex("choreography_dancer_unique")
+      .on(table.choreographyId, table.dancerId)
+      .where(sql`${table.withdrawnAt} is null`),
     index("choreography_dancer_dancer_id_idx").on(table.dancerId),
     index("choreography_dancer_selected_price_idx").on(table.selectedPriceId),
   ],

@@ -282,8 +282,8 @@ async function removesNeverExpiringCoverage(
  * Whether the event carries a seminar inscription that is still on a roster.
  * Withdrawn rows are out, exactly as the choreography twin leaves out a
  * withdrawn `choreographyDancer`: the coverage this guard protects is the one a
- * future price resolution needs, and a withdrawn row resolves nothing until it
- * is revived — at which point it is a registration and the guard sees it again.
+ * future price resolution needs, and a withdrawn row resolves nothing ever
+ * again: registering the person anew inserts a row the guard sees.
  */
 async function hasActiveSeminarInscriptions(eventId: string) {
   const [inscription] = await db

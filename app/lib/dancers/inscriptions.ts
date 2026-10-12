@@ -11,6 +11,9 @@ import type { RosterChoreography } from "@/lib/roster/inscriptions";
  */
 export type DancerInscription = RosterChoreography & {
   basePriceAmount: number | null;
+  /** The row's own identity: `id` is the choreography's, and a dancer added
+   * again after a withdrawal holds two inscriptions in one choreography. */
+  inscriptionId: string;
   dancerDiscountAmount: number;
   totalAmount: number | null;
 };

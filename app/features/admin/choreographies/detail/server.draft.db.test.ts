@@ -440,10 +440,10 @@ describe("saving a draft of the choreography detail", () => {
     });
   });
 
-  test("withdraws a removed dancer holding money, deletes one without, and revives one re-added", async () => {
+  test("withdraws a removed dancer holding money, deletes one without, and inserts one re-added beside the withdrawn row (#1496)", async () => {
     const scenario = await createDraftScenario({
       allocatedAmount: 3000,
-      slug: "retira-revive",
+      slug: "retira-vuelve",
     });
     const [anaInscription] = await scenario.readInscriptions();
 
@@ -465,13 +465,22 @@ describe("saving a draft of the choreography detail", () => {
 
     await scenario.saveDraft(scenario.draft({ dancerIds: [scenario.ana.id] }));
 
-    await expect(scenario.readInscriptions()).resolves.toEqual([
-      expect.objectContaining({
-        dancerId: scenario.ana.id,
-        id: anaInscription?.id,
-        withdrawnAt: null,
-      }),
-    ]);
+    const inscriptions = await scenario.readInscriptions();
+    expect(inscriptions).toHaveLength(2);
+    expect(inscriptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          dancerId: scenario.ana.id,
+          id: anaInscription?.id,
+          withdrawnAt: expect.any(Date),
+        }),
+        expect.objectContaining({
+          dancerId: scenario.ana.id,
+          id: expect.not.stringMatching(anaInscription!.id),
+          withdrawnAt: null,
+        }),
+      ]),
+    );
   });
 
   // #1050: a save that does not re-resolve the roster still leaves no active

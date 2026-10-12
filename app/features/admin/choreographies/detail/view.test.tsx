@@ -106,13 +106,12 @@ describe("ChoreographyDetailRouteView", () => {
   });
 
   // The withdrawal closes the page, not the role: the fields read like an
-  // auditor's, and the one action left is offered all the same.
+  // auditor's, and nothing is left to do (#1496).
   test("renders every field read-only while the choreography is withdrawn", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: false,
         choreography: buildChoreography({ isWithdrawn: true }),
-        restoration: { canRestore: true },
       }),
     });
 
@@ -472,32 +471,23 @@ describe("ChoreographyDetailRouteView", () => {
     ]);
   });
 
-  // The two actions are mutually exclusive: a withdrawn choreography is not
-  // removed again, and the only thing it still accepts is coming back.
-  test("offers restoring instead of removing while the choreography is withdrawn", async () => {
+  // #1496: a withdrawal is final. The page offers no action at all, so there is
+  // no way back from it and no second removal.
+  test("offers no actions menu while the choreography is withdrawn", async () => {
     await renderDetailIntoDocument({
       loaderData: buildLoaderData({
+        canEdit: false,
         choreography: buildChoreography({ isWithdrawn: true }),
-        restoration: { canRestore: true },
       }),
     });
 
-    await openActionsMenu();
-    expect(document.body.textContent).toContain("Restaurar coreografía");
-    expect(document.body.textContent).not.toContain("Eliminar");
-
-    await clickMenuItem("Restaurar coreografía");
-
-    expect(document.body.textContent).toContain(
-      "Vuelve a la lista con las inscripciones que tenía al retirarse",
-    );
-    expect(document.body.textContent).toContain("siguen de baja");
+    expect(findButton("Acciones", { exact: true })).toBeFalsy();
+    expect(document.body.textContent).not.toContain("Restaurar");
   });
 
   async function renderDetailIntoDocument(
     input: Partial<DetailViewProps> & {
       initialDeleteDialogOpen?: boolean;
-      initialRestoreDialogOpen?: boolean;
     } = {},
   ) {
     const loaderData = input.loaderData ?? buildLoaderData();
@@ -510,7 +500,6 @@ describe("ChoreographyDetailRouteView", () => {
             <ChoreographyDetailRouteView
               actionData={input.actionData}
               initialDeleteDialogOpen={input.initialDeleteDialogOpen}
-              initialRestoreDialogOpen={input.initialRestoreDialogOpen}
               loaderData={loaderData}
             />
           ),
@@ -593,9 +582,6 @@ function buildLoaderData(
       outcome: "deleted",
     },
     draft: buildSavedPreview(choreography),
-    restoration: {
-      canRestore: false,
-    },
     modality: {
       blockers: [],
       options: [

@@ -12,10 +12,7 @@ import {
   type ChoreographyDraft,
   type ChoreographyDraftPreview,
 } from "@/features/admin/choreographies/detail/draft.shared";
-import {
-  deleteChoreographyIntent,
-  restoreChoreographyIntent,
-} from "@/features/admin/choreographies/detail/shared";
+import { deleteChoreographyIntent } from "@/features/admin/choreographies/detail/shared";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 
 type Role = "academy" | "admin" | "auditor" | "judge";
@@ -142,12 +139,6 @@ export async function submitDraftAsAuditor(input: {
 export function deleteFormData() {
   const formData = new FormData();
   formData.set("intent", deleteChoreographyIntent);
-  return formData;
-}
-
-export function restoreFormData() {
-  const formData = new FormData();
-  formData.set("intent", restoreChoreographyIntent);
   return formData;
 }
 

@@ -10,10 +10,7 @@ import {
   createEventCatalog,
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
-import {
-  restoreChoreographyForTest,
-  withdrawChoreographyForTest,
-} from "@/lib/choreographies/withdrawn-choreography.test-support";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import { derivePresentationWarnings } from "@/lib/presentations/warnings";
 import {
@@ -228,18 +225,6 @@ describe("readParticipationRows", () => {
         .get(levelless.id)
         ?.map((warning) => warning.kind),
     ).toContain("missingLevel");
-  });
-
-  test("lists a withdrawn choreography again once it is restored", async () => {
-    const { addChoreography, event } = await seedEvent();
-    const choreography = await addChoreography({ name: "Restaurada" });
-
-    await withdrawChoreographyForTest(choreography.id);
-    await restoreChoreographyForTest(choreography.id);
-
-    const rows = await readParticipationRows(event.id);
-
-    expect(rows.map((row) => row.choreographyId)).toEqual([choreography.id]);
   });
 });
 

@@ -128,7 +128,7 @@ activo.`) and no confirm-anyway escape hatch. Participating means, for the
 - `Eliminar coreografía` is **one** administrative action with **two outcomes**, the same choice roster removal makes for a single dancer. It is never refused because of money. See "Removing a choreography" below.
 - An administrator can rename a choreography at any time, including when it is evaluated.
 - Administrative renaming changes only the Choreography name; it does not recalculate price, capacity, category, schedule or competitive state.
-- Either outcome releases the schedule capacity: a deleted choreography leaves no domain entity at all, and a withdrawn one frees its place while keeping the references a restore needs.
+- Either outcome releases the schedule capacity: a deleted choreography leaves no domain entity at all, and a withdrawn one frees its place for good while keeping its references as a record.
 - The dancer roster is never academy-editable; changing it is an administrative action (see Choreography Locks). Once signed, academy also cannot edit other blocked data until admin removes the active financial link.
 - Roster changes trigger automatic recalculation of group type, category, experience level and schedule.
 - Professors do not trigger choreography recalculation.
@@ -175,12 +175,12 @@ What the dialog announced is advisory.
   roster state, not financial state, exactly as `choreography_dancer.withdrawnAt`
   is, so ADR-0009 is untouched.
 - It **keeps its `choreographyNumber`** and it keeps `scheduleId` and
-  `scheduleCapacityId`, so a restore knows where to return.
+  `scheduleCapacityId`, as the record of where it was.
 - It **occupies no schedule capacity** — not in the displayed occupancy, not in
   the locking count, and not in the event's bases guard, which asks "not
   withdrawn". Its two references are not deleted alike, and this is the one
   place that says so: deleting the `Cupo de cronograma` it points at **releases**
-  its `scheduleCapacityId`, and the restore resolves the place again; the
+  its `scheduleCapacityId`; the
   `Cronograma` cannot be deleted at all while **any** choreography, withdrawn or
   not, is assigned to it, because `choreographies.schedule_id` is not nullable
   and so cannot be released the same way. When withdrawn choreographies are the
@@ -202,40 +202,24 @@ What the dialog announced is advisory.
   **always** shown in the admin and portal financial lists, with the badge and
   the same filter option. Never shown in presentations or the program.
 - The admin instance view is **read-only** — rename, roster, modality, level,
-  schedule capacity and `Archivo de música` — except `Restaurar coreografía`; the
-  portal is read-only too, music included. A refused save reads
-  `Esta coreografía está retirada: restaurala para poder editarla.`
+  schedule capacity and `Archivo de música` — and offers no action at all; the
+  portal is read-only too, music included. A refused write reads
+  `Esta coreografía está retirada y no se puede modificar. Para que vuelva a participar, registrá una nueva.`
 - **Financial actions keep working**, because handling the money is why it
   survives: de-allocating (to refund or to keep the deposit forfeited),
   `Emitir factura`, and the partial NC once it exists. Its inscriptions are
   ordinary withdrawn inscriptions and the existing rules already apply to them.
 
-### Restoring
+### A withdrawal is final
 
-- `Restaurar coreografía` is admin-only and lives in the administrative instance
-  view, beside nothing else — it is the one action a withdrawn choreography
-  offers.
-- It clears `withdrawnAt` and revives **exactly** the inscriptions whose
-  `withdrawnAt` equals the choreography's. Dancers withdrawn individually before
-  the choreography was stay withdrawn.
-- It **re-checks the schedule capacity** under the same lock every assignment
-  path takes, counting the choreography as arriving, and is **refused with a
-  reason** only when the place it returns to is full. There is no inline
-  reassignment.
-- It **never moves the choreography to another `Cronograma`**. When the
-  choreography holds no `scheduleCapacityId` — because it never had one and uses
-  the schedule total as a global allowance, or because the capacity it pointed at
-  was deleted — the place is resolved again on its **own** schedule exactly as
-  registration resolves one: the `Cupo de cronograma` for its `Tipo de grupo` if
-  one exists now, otherwise the schedule's total as a global allowance. A
-  capacity resolved this way is written back to the choreography.
-- The two full-capacity refusals name the place and what to do:
-  `No se puede restaurar: el cupo de cronograma que ocupaba no tiene lugar disponible. Liberá un lugar o ampliá el cupo en las bases del evento.`
-  and
-  `No se puede restaurar: el cronograma no tiene lugar disponible. Liberá un lugar o ampliá el cupo total en las bases del evento.`
-- Nothing else is re-resolved: the price is already frozen by the money held, and
-  an evaluated presentation cannot exist on a withdrawn choreography. The one
-  recomputed figure is each revived inscription's `ageAtEventStart`.
+- There is **no way back** (#1496): `Restaurar coreografía` was retired. A
+  withdrawal is a deliberate action behind a confirmation, and an academy that
+  wants the choreography back registers a new one. The withdrawn one keeps its
+  `choreographyNumber`, its money and its comprobante lines as the record of
+  the drop.
+- The same holds one level down: re-adding a withdrawn dancer to a roster
+  inserts a new inscription and leaves the withdrawn one as it was
+  (`docs/domain/finances.md`, "Withdrawal from the roster").
 
 ## Administrative Choreography Lists
 
@@ -251,8 +235,8 @@ What the dialog announced is advisory.
   choreographies of the `Evento activo`.
 - In the administrative instance view, only the name and the removal are
   mutable within this scope; dancers, professors and `Archivo de música` are shown
-  read-only. A withdrawn choreography is read-only throughout and offers
-  `Restaurar coreografía` instead (see "Removing a choreography").
+  read-only. A withdrawn choreography is read-only throughout and offers no
+  action (see "Removing a choreography").
 - The `Archivo de música` in the administrative instance view uses the same visual
   upload field as the `Portal de academias`, but disabled; if a file already
   exists, it allows downloading it.

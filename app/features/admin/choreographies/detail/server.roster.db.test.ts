@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -258,12 +258,15 @@ describe("administrative choreography roster editing", () => {
     );
   });
 
-  test("keeps the original registration date when a withdrawn inscription is revived", async () => {
+  // #1496: withdrawal is final. Re-adding the dancer registers them again on a
+  // new row, and the withdrawn one stays as the record of the drop.
+  test("inserts a new inscription when a withdrawn dancer is added again, leaving the withdrawn row as it was", async () => {
     // Grupal, five dancers down to four and back: the group type and the
-    // capacity never move, so the withdrawal and the revival are the whole save.
+    // capacity never move, so the withdrawal and the re-addition are the whole
+    // save.
     const scenario = await createGrupalRemovalScenario({
-      academyName: "Academia Roster Revive Fecha",
-      email: "roster.revive.fecha.academia@example.com",
+      academyName: "Academia Roster Vuelve",
+      email: "roster.vuelve.academia@example.com",
     });
     const registeredAt = new Date("2026-07-20T12:00:00.000Z");
     await db
@@ -285,11 +288,10 @@ describe("administrative choreography roster editing", () => {
         dancerIds: scenario.remainingDancerIds,
       }),
     ).resolves.toMatchObject({ status: "success" });
-    await expect(
-      db.query.choreographyDancers.findFirst({
-        where: eq(choreographyDancers.id, scenario.inscriptionA.id),
-      }),
-    ).resolves.toMatchObject({ withdrawnAt: expect.any(Date) });
+    const withdrawn = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+    });
+    expect(withdrawn?.withdrawnAt).toEqual(expect.any(Date));
 
     const response = await submitRoster({
       choreographyId: scenario.choreography.id,
@@ -301,11 +303,36 @@ describe("administrative choreography roster editing", () => {
 
     expect(response).toMatchObject({ status: "success" });
 
-    const revived = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+    const rows = await db.query.choreographyDancers.findMany({
+      where: and(
+        eq(choreographyDancers.choreographyId, scenario.choreography.id),
+        eq(choreographyDancers.dancerId, scenario.inscriptionA.dancerId),
+      ),
     });
-    expect(revived?.withdrawnAt).toBeNull();
-    expect(revived?.createdAt).toEqual(registeredAt);
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.id === scenario.inscriptionA.id)).toEqual(
+      withdrawn,
+    );
+    const readded = rows.find((row) => row.id !== scenario.inscriptionA.id);
+    expect(readded?.withdrawnAt).toBeNull();
+    expect(readded?.createdAt.getTime()).toBeGreaterThan(
+      registeredAt.getTime(),
+    );
+    await expect(
+      db.query.paymentAllocations.findMany({
+        where: eq(paymentAllocations.choreographyInscriptionId, readded!.id),
+      }),
+    ).resolves.toEqual([]);
+    // `choreography_dancer_unique` counts only the rows on the roster: the
+    // withdrawn row sits beside the active one, and a second active one is
+    // refused.
+    await expect(
+      db.insert(choreographyDancers).values({
+        ageAtEventStart: readded!.ageAtEventStart,
+        choreographyId: scenario.choreography.id,
+        dancerId: scenario.inscriptionA.dancerId,
+      }),
+    ).rejects.toThrow();
   });
 
   test("leaves the withdrawn row untouched when its allocations are removed afterwards", async () => {

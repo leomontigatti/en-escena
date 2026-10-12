@@ -166,7 +166,8 @@ How a seminar inscription is priced from those rows:
   choreography roster: a person can be registered when they are active, and an
   archived person already on the seminar stays on it, stays visible and stays
   deletable. Dancer verification and age do not gate a seminar.
-- Unique per seminar and person. The same person may hold an inscription in any
+- One row on the roster per seminar and person, beside any withdrawn ones. The
+  same person may hold an inscription in any
   number of seminars; overlapping times are not checked.
 - Registration is open **until the seminar starts**, independent of whether any
   `Cronograma` of the event has `Inscripciones abiertas`. Once started, the academy can neither add nor delete;
@@ -191,17 +192,12 @@ How a seminar inscription is priced from those rows:
   the money stays allocated and the place is freed, and its button reads
   `Retirar inscripción`. No amount appears on either side of the portal: what a
   seminar costs is read in `Resumen financiero`.
-- **Revival.** Registering the same person again revives the withdrawn row
-  instead of inserting a second one: the id survives, and with it the money, the
-  stored price row and the `createdAt`, but never a reservation: the place the
-  withdrawal freed may be reserved by somebody registered since, so
-  `reservedUntil` is cleared. It is a registration in every other
-  respect — under the seminar lock, from the portal, for an **active** person, until
-  the seminar starts — and it is the one registration the quota can refuse: a
-  row still holding money past its stored deposit takes its place back the
-  moment it is active again, so a seminar whose covered and reserved rows fill
-  the quota refuses it with `Sin lugares disponibles.` and leaves the row
-  withdrawn.
+- **A withdrawal is final** (#1496). Registering the same person again is an
+  ordinary registration: it inserts a new row, with its own `createdAt`, no
+  money and the ordinary quota rule — a reservation when a place is free, none
+  in a full seminar, never a refusal for fullness. The withdrawn row keeps its
+  money, its stored price row and its date as the record of the drop. The
+  unique indexes count only rows on the roster, so the two coexist.
   De-allocating a withdrawn row to zero does **not** delete it; the chooser
   decides once.
 - **The row gains `selectedPriceId` and `withdrawnAt`**, the same two fields a
@@ -322,12 +318,12 @@ place for good, de-allocating below it releases both.
   while there are none. Registering is a dialog with one
   searchable picker over the academy's active dancers and professors in one flat
   list, with the people it already has actively registered left out and people
-  whose row was withdrawn offered for revival. A started seminar carries a
+  whose row was withdrawn offered again. A started seminar carries a
   `warning` notice and offers neither registration nor removal; an unpriced
   event closes registration the same way. Removal is the shared delete dialog on
   a row without money and a `Retirar inscripción` confirmation on a row with it,
-  which says the money stays assigned, the place is freed and re-registering
-  brings the money back. **No price, amount or participant reading appears on
+  which says the money stays assigned, the place is freed and the withdrawal is
+  final: re-registering creates a new inscription with no money. **No price, amount or participant reading appears on
   any of these surfaces**, and the only deadline is the registration dialog's
   48 hours: what a seminar costs is read in `Resumen financiero`.
 - **Administration**: one more admin resource on the schedules' path. A list of
