@@ -1,8 +1,5 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { db } from "@/db";
-import { submodalities } from "@/db/schema";
 import {
   createModality,
   createModalityWithSubmodalities,
@@ -167,9 +164,9 @@ describe("`Bases del evento` modalities repository", () => {
         name: " hip hop ",
       }),
     );
-    const savedCreatedSubmodality = await db.query.submodalities.findFirst({
-      where: eq(submodalities.id, submodality.id),
-    });
+    const savedCreatedSubmodality = (await listSubmodalities(event.id)).find(
+      (saved) => saved.id === submodality.id,
+    );
     expect(savedCreatedSubmodality).toMatchObject({ name: "Hip Hop" });
     await expect(
       createSubmodality(event.id, {
@@ -267,9 +264,9 @@ describe("`Bases del evento` modalities repository", () => {
       fieldErrors: { name: "Usá un nombre distinto para la submodalidad." },
     });
 
-    const savedSubmodality = await db.query.submodalities.findFirst({
-      where: eq(submodalities.id, submodality.id),
-    });
+    const savedSubmodality = (await listSubmodalities(event.id)).find(
+      (saved) => saved.id === submodality.id,
+    );
     expect(savedSubmodality).toMatchObject({ name: "Hip Hop" });
   });
 

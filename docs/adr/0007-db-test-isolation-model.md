@@ -165,9 +165,4 @@ de acceso, or Bases del evento, the fallback is real Postgres per worker:
 
 **Amendment on 2026-10-12**
 
-The `Bases del evento` fidelity risk above names
-`app/lib/events/bases-repository-*.server.db.test.ts`. PRD #719 moved those
-suites beside each resource's owner: they are now
-`app/lib/<resource>/repository*.server.db.test.ts` for modalities, categories,
-schedules and prices, alongside the unchanged `event-bases-*` and readiness
-files.
+The suites the `Bases del evento` fidelity risk above names moved beside their resource owners with PRD #719.

@@ -2,14 +2,14 @@ import { and, eq, ne, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, modalities, submodalities } from "@/db/schema";
-import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 
 /**
  * What every `Bases del evento` resource shares, and nothing else: the result
  * contracts, the failure shape and its constructors, the entity-kind
  * vocabulary, the name rules, the rejection copy, the connection types a
- * bases query runs on and the choreography guards. A resource's own inputs,
- * list items and queries live with that resource (PRD #719).
+ * bases query runs on and the referencing-choreography guard that categories
+ * and schedules both ask. A resource's own inputs, list items and queries live
+ * with that resource (PRD #719).
  */
 
 export type EventBaseEntityKind =
@@ -73,10 +73,19 @@ export type EventBasesMutationResult<TRecord> =
 
 export type EventBasesDeleteResult = { ok: true } | EventBaseFailure;
 
+type EventBaseGenericCopy = { invalidError: string; notFoundError: string };
+
+type EventBaseNameCopy = {
+  requiredNameError: string;
+  duplicateError: string;
+  duplicateFieldError: string;
+};
+
 /**
- * The one source of every base's generic rejection sentence, read by the
- * persistence layer and by the admin action layer alike, so the administrator
- * reads the same words whichever layer refused the submission.
+ * The one source of every base's rejection sentence, read by the persistence
+ * layer and by the admin action layer alike, so the administrator reads the
+ * same words whichever layer refused the submission. Each kind carries exactly
+ * the rejections it has.
  */
 export const eventBaseCopy = {
   modality: {
@@ -85,6 +94,12 @@ export const eventBaseCopy = {
     requiredNameError: "Ingresá el nombre de la modalidad.",
     duplicateError: "Ya existe una modalidad con ese nombre en este evento.",
     duplicateFieldError: "Usá un nombre distinto para la modalidad.",
+    hasSubmodalitiesError:
+      "No se puede eliminar la modalidad porque tiene submodalidades relacionadas.",
+    hasCategoriesError:
+      "No se puede eliminar la modalidad porque tiene categorías relacionadas.",
+    hasSchedulesError:
+      "No se puede eliminar la modalidad porque tiene Cronogramas relacionados.",
   },
   submodality: {
     invalidError: "Revisá los datos de la submodalidad.",
@@ -98,31 +113,61 @@ export const eventBaseCopy = {
     invalidError: "Revisá los datos de la categoría.",
     notFoundError: "No encontramos esa categoría.",
     requiredNameError: "Ingresá el nombre de la categoría.",
+    duplicateError:
+      "Ya existe una categoría con ese rango de edad, tipos de grupo y modalidades.",
+    hasSchedulesError:
+      "No se puede eliminar la categoría porque tiene cronogramas relacionados.",
+    hasChoreographiesError:
+      "No se puede eliminar la categoría porque tiene coreografías relacionadas.",
   },
   schedule: {
     invalidError: "Revisá los datos del cronograma.",
     notFoundError: "No encontramos ese cronograma.",
+    hasDependenciesError:
+      "No se puede eliminar el cronograma porque tiene dependencias.",
+    hasWithdrawnChoreographiesError:
+      "No se puede eliminar el cronograma porque tiene coreografías retiradas asignadas.",
   },
   scheduleCapacity: {
     invalidError: "Revisá los datos del cupo de cronograma.",
     notFoundError: "No encontramos ese cupo de cronograma.",
+    hasDependenciesError:
+      "No se puede eliminar el cupo de cronograma porque tiene dependencias.",
   },
   price: {
     invalidError: "Revisá los datos del precio.",
     notFoundError: "No encontramos ese precio.",
+    duplicateGeneralError:
+      "Ya existe un precio general para ese tipo de grupo.",
+    /** `where` names the schedules the colliding special price covers. */
+    duplicateSpecialError: (where: string) =>
+      `Ya existe un precio especial para ese tipo de grupo y fecha límite en ${where}.`,
   },
-} satisfies Record<
-  EventBaseEntityKind,
-  { invalidError: string; notFoundError: string; requiredNameError?: string }
-> &
-  Record<
-    EventBaseUniqueEntityKind,
-    {
-      requiredNameError: string;
-      duplicateError: string;
-      duplicateFieldError: string;
-    }
-  >;
+} satisfies {
+  modality: EventBaseGenericCopy &
+    EventBaseNameCopy & {
+      hasSubmodalitiesError: string;
+      hasCategoriesError: string;
+      hasSchedulesError: string;
+    };
+  submodality: EventBaseGenericCopy & EventBaseNameCopy;
+  category: EventBaseGenericCopy & {
+    requiredNameError: string;
+    duplicateError: string;
+    hasSchedulesError: string;
+    hasChoreographiesError: string;
+  };
+  schedule: EventBaseGenericCopy & {
+    hasDependenciesError: string;
+    hasWithdrawnChoreographiesError: string;
+  };
+  scheduleCapacity: EventBaseGenericCopy & { hasDependenciesError: string };
+  price: EventBaseGenericCopy & {
+    duplicateGeneralError: string;
+    duplicateSpecialError: (where: string) => string;
+  };
+} & Record<EventBaseEntityKind, EventBaseGenericCopy> &
+  Record<EventBaseUniqueEntityKind, EventBaseNameCopy>;
 
 export function created<TRecord>(
   record: TRecord | undefined,
@@ -232,31 +277,9 @@ export function uniqueValues(values: string[]) {
 }
 
 /**
- * Whether a choreography matching `filter` still occupies the base the caller
- * is about to edit. Every `Bases del evento` guard asks this one question, so
- * the rule that answers it lives here only.
- *
- * A choreography occupies its bases while it is not withdrawn — the same single
- * rule the schedule occupancy counts apply. A withdrawn choreography preserves
- * evidence rather than a path: it will not be performed, so it holds nothing
- * still and does not block editing the bases it points at.
- */
-export async function hasOccupyingChoreographies(
-  filter: SQL | undefined,
-  executor: EventBasesExecutor = db,
-) {
-  const [choreography] = await executor
-    .select({ id: choreographies.id })
-    .from(choreographies)
-    .where(and(filter, notWithdrawnChoreography()))
-    .limit(1);
-
-  return Boolean(choreography);
-}
-
-/**
  * Whether any choreography at all matches `filter`, occupying or not. The
- * delete guards ask this instead of `hasOccupyingChoreographies`: none of these
+ * delete guards ask this instead of the schedules' occupying-choreography
+ * question (`@/lib/schedules/occupying-choreographies.server`): none of these
  * foreign keys carries an `on delete` behaviour, so the database refuses to
  * drop a base under a choreography whose inscriptions were all withdrawn too.
  * Reporting that refusal as a typed failure is what the guard adds — asking the

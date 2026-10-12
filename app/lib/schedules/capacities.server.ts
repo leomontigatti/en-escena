@@ -10,12 +10,12 @@ import {
   type EventBaseFailure,
   type EventBasesDeleteResult,
   type EventBasesMutationResult,
-  hasOccupyingChoreographies,
   type EventBasesExecutor,
 } from "@/lib/events/bases-kernel.server";
 import { type GroupType, isGroupType } from "@/lib/events/group-types";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { resolveOccupiedCounts } from "@/lib/choreographies/schedule-capacity-occupancy.server";
+import { hasOccupyingChoreographies } from "@/lib/schedules/occupying-choreographies.server";
 
 /**
  * Schedule capacities: the share of a schedule's total capacity a group type
@@ -137,8 +137,7 @@ export async function deleteScheduleCapacity(
     return {
       ok: false,
       code: "invalid-schedule-capacity",
-      error:
-        "No se puede eliminar el cupo de cronograma porque tiene dependencias.",
+      error: eventBaseCopy.scheduleCapacity.hasDependenciesError,
     };
   }
 
@@ -295,8 +294,7 @@ export async function validateInlineScheduleCapacityDependencies({
         return {
           ok: false,
           code: "invalid-schedule-capacity",
-          error:
-            "No se puede eliminar el cupo de cronograma porque tiene dependencias.",
+          error: eventBaseCopy.scheduleCapacity.hasDependenciesError,
         };
       }
 

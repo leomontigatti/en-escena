@@ -53,7 +53,7 @@ only list stable entry points, coordination modules and high-signal tests.
   (modalities and submodalities), `app/lib/categories/`, `app/lib/schedules/`
   (schedules and their capacities) and `app/lib/prices/`. What every resource shares
   —result and failure types, entity-kind copy, name rules, the executor types
-  and the choreography guards— lives in the kernel
+  and the referencing-choreography guard— lives in the kernel
   `app/lib/events/bases-kernel.server.ts`; a resource's own inputs, list items
   and queries stay with its owner. Callers that need several resources
   coordinated use the aggregator `app/lib/events/bases.server.ts`.

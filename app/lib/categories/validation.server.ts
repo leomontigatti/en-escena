@@ -97,7 +97,7 @@ export async function validateCategoryInput(
   if (await findDuplicateCategory(eventId, validInput, exceptId)) {
     return eventBaseCollision(
       "duplicate-category-identity",
-      "Ya existe una categoría con ese rango de edad, tipos de grupo y modalidades.",
+      eventBaseCopy.category.duplicateError,
     );
   }
 

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { priceSchedules, prices, schedules } from "@/db/schema";
 import {
   eventBaseCollision,
+  eventBaseCopy,
   type EventBaseFailure,
 } from "@/lib/events/bases-kernel.server";
 import type { GroupType } from "@/lib/events/group-types";
@@ -79,7 +80,7 @@ function duplicatePriceInput(duplicate: PriceDuplicate): EventBaseFailure {
   if (duplicate.tier === "general") {
     return eventBaseCollision(
       "duplicate-price-group-schedule",
-      "Ya existe un precio general para ese tipo de grupo.",
+      eventBaseCopy.price.duplicateGeneralError,
       { groupType: "Revisá el tipo de grupo del precio." },
     );
   }
@@ -93,7 +94,7 @@ function duplicatePriceInput(duplicate: PriceDuplicate): EventBaseFailure {
 
   return eventBaseCollision(
     "duplicate-price-group-schedule",
-    `Ya existe un precio especial para ese tipo de grupo y fecha límite en ${where}.`,
+    eventBaseCopy.price.duplicateSpecialError(where),
     { scheduleIds: "Revisá los cronogramas del precio." },
   );
 }

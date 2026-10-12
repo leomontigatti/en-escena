@@ -508,8 +508,8 @@ export async function deleteSchedule(
       ok: false,
       code: "schedule-has-dependencies",
       error: (await scheduleIsHeldOnlyByWithdrawnChoreographies(scheduleId))
-        ? "No se puede eliminar el cronograma porque tiene coreografías retiradas asignadas."
-        : "No se puede eliminar el cronograma porque tiene dependencias.",
+        ? eventBaseCopy.schedule.hasWithdrawnChoreographiesError
+        : eventBaseCopy.schedule.hasDependenciesError,
     };
   }
 

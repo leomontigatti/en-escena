@@ -22,6 +22,7 @@ import {
 } from "@/lib/categories/validation.server";
 import {
   created,
+  eventBaseCopy,
   eventBaseEntityNotFound,
   type EventBaseFailure,
   type EventBasesDeleteResult,
@@ -287,8 +288,7 @@ function categoryHasSchedules(): EventBaseFailure {
   return {
     ok: false,
     code: "event-bases-has-dependencies",
-    error:
-      "No se puede eliminar la categoría porque tiene cronogramas relacionados.",
+    error: eventBaseCopy.category.hasSchedulesError,
   };
 }
 
@@ -300,8 +300,7 @@ function categoryHasChoreographies(): EventBaseFailure {
   return {
     ok: false,
     code: "event-bases-has-dependencies",
-    error:
-      "No se puede eliminar la categoría porque tiene coreografías relacionadas.",
+    error: eventBaseCopy.category.hasChoreographiesError,
   };
 }
 
