@@ -1,13 +1,13 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  assignJudgesIntent,
+  editJudgesIntent,
   formatAutomaticOrderingMessage,
   formatJudgeAssignmentMessage,
-  judgeAssignmentSchema,
+  judgeEditSchema,
   presentationRowPath,
-  removeJudgesIntent,
-  selectRemovableJudges,
+  readJudgeChoices,
+  readJudgeEditOutcome,
   type PresentationListItem,
 } from "./shared";
 
@@ -39,64 +39,89 @@ function buildItem(
 
 const ana = { id: "judge-ana", name: "Ana Juez" };
 const bruno = { id: "judge-bruno", name: "Bruno Juez" };
+const carla = { id: "judge-carla", name: "Carla Juez" };
 
-describe("selectRemovableJudges", () => {
-  test("offers a judge assigned to at least one of the chosen rows", () => {
-    const removable = selectRemovableJudges(
-      [ana, bruno],
-      [
-        buildItem({ assignedJudgeIds: [ana.id], id: "choreography-1" }),
-        buildItem({ assignedJudgeIds: [], id: "choreography-2" }),
+describe("readJudgeChoices", () => {
+  // The state of each judge across the chosen rows is what the dialog's
+  // checkbox starts from: checked, mixed or unchecked.
+  test("reads each judge as on every chosen row, on some, or on none", () => {
+    const choices = readJudgeChoices({
+      assignableJudges: [ana, bruno, carla],
+      assignedJudges: [ana, bruno],
+      selectedRows: [
+        buildItem({ assignedJudgeIds: [ana.id, bruno.id] }),
+        buildItem({ assignedJudgeIds: [ana.id], id: "choreography-2" }),
       ],
-    );
+    });
 
-    expect(removable).toEqual([ana]);
+    expect(choices).toEqual([
+      { ...ana, assignable: true, state: "all" },
+      { ...bruno, assignable: true, state: "some" },
+      { ...carla, assignable: true, state: "none" },
+    ]);
   });
 
-  test("offers nothing when no chosen row has a judge", () => {
-    expect(selectRemovableJudges([ana, bruno], [buildItem()])).toEqual([]);
+  // A suspended judge is no longer assignable, but one still on a chosen row
+  // can be taken off it.
+  test("offers a judge the selection has even when no longer assignable", () => {
+    const choices = readJudgeChoices({
+      assignableJudges: [bruno],
+      assignedJudges: [ana],
+      selectedRows: [buildItem({ assignedJudgeIds: [ana.id] })],
+    });
+
+    expect(choices).toEqual([
+      { ...bruno, assignable: true, state: "none" },
+      { ...ana, assignable: false, state: "all" },
+    ]);
   });
 });
 
-describe("judgeAssignmentSchema", () => {
-  test("accepts a direction with at least one presentation and one judge", () => {
-    const parsed = judgeAssignmentSchema.safeParse({
+describe("judgeEditSchema", () => {
+  test("accepts judges to add, to remove, or both, over the chosen rows", () => {
+    const parsed = judgeEditSchema.safeParse({
+      agregar: [bruno.id],
       coreografia: ["choreography-1", "choreography-2"],
-      intent: assignJudgesIntent,
-      juez: [ana.id],
+      intent: editJudgesIntent,
+      quitar: [ana.id],
     });
 
-    expect(parsed.success).toBe(true);
-    expect(parsed.data?.juez).toEqual([ana.id]);
+    expect(parsed.data).toEqual({
+      agregar: [bruno.id],
+      coreografia: ["choreography-1", "choreography-2"],
+      intent: editJudgesIntent,
+      quitar: [ana.id],
+    });
   });
 
-  test("asks for a judge when none was chosen", () => {
-    const parsed = judgeAssignmentSchema.safeParse({
+  test("refuses an edit that changes no judge", () => {
+    const parsed = judgeEditSchema.safeParse({
+      agregar: [],
       coreografia: ["choreography-1"],
-      intent: removeJudgesIntent,
-      juez: [],
-    });
-
-    expect(
-      parsed.error?.issues.map((issue) => [issue.path, issue.message]),
-    ).toEqual([[["juez"], "Este campo es obligatorio."]]);
-  });
-
-  test("refuses an empty selection, which the dialog never submits", () => {
-    const parsed = judgeAssignmentSchema.safeParse({
-      coreografia: [],
-      intent: assignJudgesIntent,
-      juez: [ana.id],
+      intent: editJudgesIntent,
+      quitar: [],
     });
 
     expect(parsed.success).toBe(false);
   });
 
-  test("refuses an intent that is not one of the two directions", () => {
-    const parsed = judgeAssignmentSchema.safeParse({
+  test("refuses an empty selection, which the dialog never submits", () => {
+    const parsed = judgeEditSchema.safeParse({
+      agregar: [ana.id],
+      coreografia: [],
+      intent: editJudgesIntent,
+      quitar: [],
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  test("refuses a judge both added and removed", () => {
+    const parsed = judgeEditSchema.safeParse({
+      agregar: [ana.id],
       coreografia: ["choreography-1"],
-      intent: "order-automatically",
-      juez: [ana.id],
+      intent: editJudgesIntent,
+      quitar: [ana.id],
     });
 
     expect(parsed.success).toBe(false);
@@ -107,7 +132,7 @@ describe("formatJudgeAssignmentMessage", () => {
   test("names how many judges reached how many presentations", () => {
     expect(
       formatJudgeAssignmentMessage({
-        intent: assignJudgesIntent,
+        direction: "assign",
         judgeCount: 2,
         presentationCount: 3,
       }),
@@ -115,7 +140,7 @@ describe("formatJudgeAssignmentMessage", () => {
 
     expect(
       formatJudgeAssignmentMessage({
-        intent: removeJudgesIntent,
+        direction: "remove",
         judgeCount: 1,
         presentationCount: 1,
       }),
@@ -127,7 +152,7 @@ describe("formatJudgeAssignmentMessage with kept assignments", () => {
   test("names the scored assignments it kept beside what it removed", () => {
     expect(
       formatJudgeAssignmentMessage({
-        intent: removeJudgesIntent,
+        direction: "remove",
         judgeCount: 2,
         keptCount: 1,
         presentationCount: 3,
@@ -138,7 +163,7 @@ describe("formatJudgeAssignmentMessage with kept assignments", () => {
 
     expect(
       formatJudgeAssignmentMessage({
-        intent: removeJudgesIntent,
+        direction: "remove",
         judgeCount: 1,
         keptCount: 2,
         presentationCount: 1,
@@ -151,7 +176,7 @@ describe("formatJudgeAssignmentMessage with kept assignments", () => {
   test("says only why when every chosen pair already has a score", () => {
     expect(
       formatJudgeAssignmentMessage({
-        intent: removeJudgesIntent,
+        direction: "remove",
         judgeCount: 0,
         keptCount: 1,
         presentationCount: 0,
@@ -160,12 +185,43 @@ describe("formatJudgeAssignmentMessage with kept assignments", () => {
 
     expect(
       formatJudgeAssignmentMessage({
-        intent: removeJudgesIntent,
+        direction: "remove",
         judgeCount: 0,
         keptCount: 3,
         presentationCount: 0,
       }),
     ).toBe("No se quitó nada: 3 asignaciones ya tienen puntaje.");
+  });
+});
+
+describe("readJudgeEditOutcome", () => {
+  test("says both halves of an edit that adds and removes", () => {
+    expect(
+      readJudgeEditOutcome({
+        assigned: { judgeCount: 1, presentationCount: 2 },
+        removed: { judgeCount: 1, keptCount: 0, presentationCount: 2 },
+      }),
+    ).toEqual({
+      message:
+        "Se asignó 1 juez a 2 presentaciones. Se quitó 1 juez de 2 presentaciones.",
+      refused: false,
+    });
+  });
+
+  // A kept pair beside an assignment that went is still a success.
+  test("refuses only an edit that reached nothing for the scores it kept", () => {
+    expect(
+      readJudgeEditOutcome({
+        assigned: null,
+        removed: { judgeCount: 0, keptCount: 1, presentationCount: 0 },
+      }).refused,
+    ).toBe(true);
+    expect(
+      readJudgeEditOutcome({
+        assigned: { judgeCount: 1, presentationCount: 1 },
+        removed: { judgeCount: 0, keptCount: 1, presentationCount: 0 },
+      }).refused,
+    ).toBe(false);
   });
 });
 

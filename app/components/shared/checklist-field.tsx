@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Controller,
   type Control,
@@ -39,6 +39,9 @@ type ChecklistFieldProps<
 
 type ChecklistTab = "all" | "selected";
 
+/** A row's checkbox: on, off, or `indeterminate` for a mixed starting point. */
+type ChecklistCheckedState = boolean | "indeterminate";
+
 // Eight rows fit under the list's `max-h-80` even in one column, so a list
 // this short never scrolls: a search would find nothing hidden, and every
 // checked row is already in sight.
@@ -62,22 +65,11 @@ function ChecklistField<
   inputName,
   label,
   name,
-  noOptionsMessage = "Sin opciones.",
+  noOptionsMessage,
   onValueChange,
   options,
   searchLabel,
 }: ChecklistFieldProps<TFieldValues, TName>) {
-  const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<ChecklistTab>("all");
-  const searchable = options.length >= SEARCHABLE_OPTION_COUNT;
-
-  // A list that shrinks below the threshold drops its search and tabs, and
-  // with them whatever they were narrowing it to: grown back, it starts over.
-  if (!searchable && (query !== "" || tab !== "all")) {
-    setQuery("");
-    setTab("all");
-  }
-
   return (
     <Controller
       control={control}
@@ -86,26 +78,25 @@ function ChecklistField<
         const selected: string[] = Array.isArray(field.value)
           ? field.value
           : [];
-        const rows = options.filter(
-          (option) =>
-            (tab === "all" || selected.includes(option.value)) &&
-            matchesListSearch(query, [option.label]),
-        );
-
-        function toggle(value: string) {
-          field.onChange(
-            selected.includes(value)
-              ? selected.filter((selectedValue) => selectedValue !== value)
-              : [...selected, value],
-          );
-          onValueChange?.();
-        }
 
         return (
-          <div
-            role="group"
-            aria-label={label}
-            className="@container flex flex-col gap-4"
+          <Checklist
+            checkedStateOf={(value) => selected.includes(value)}
+            disabled={disabled}
+            emptySelectionMessage={emptySelectionMessage}
+            error={fieldState.error?.message}
+            label={label}
+            noOptionsMessage={noOptionsMessage}
+            onToggle={(value) => {
+              field.onChange(
+                selected.includes(value)
+                  ? selected.filter((selectedValue) => selectedValue !== value)
+                  : [...selected, value],
+              );
+              onValueChange?.();
+            }}
+            options={options}
+            searchLabel={searchLabel}
           >
             {inputName
               ? selected.map((value) => (
@@ -117,62 +108,178 @@ function ChecklistField<
                   />
                 ))
               : null}
-            {searchable ? (
-              <div className="flex flex-col gap-2 @md:flex-row @md:items-center @md:gap-4">
-                <SearchInput
-                  aria-label={searchLabel}
-                  className="@md:w-64"
-                  placeholder="Buscar por nombre"
-                  value={query}
-                  onValueChange={setQuery}
-                />
-                <Tabs
-                  value={tab}
-                  onValueChange={(value) => setTab(value as ChecklistTab)}
-                >
-                  <TabsList variant="line">
-                    <TabsTrigger value="all">Todos</TabsTrigger>
-                    <TabsTrigger value="selected">
-                      Seleccionados
-                      <span className="sr-only">, </span>
-                      <Badge variant="secondary">{selected.length}</Badge>
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            ) : null}
-            <div
-              // Grows with the rows up to a ceiling, then scrolls inside, its
-              // edges fading while there is more to scroll to.
-              className="max-h-80 scroll-fade overflow-y-auto"
-            >
-              {rows.length === 0 ? (
-                <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  {options.length === 0
-                    ? noOptionsMessage
-                    : tab === "selected" && query.length === 0
-                      ? emptySelectionMessage
-                      : "Sin resultados."}
-                </p>
-              ) : null}
-              <div className="grid gap-2 @lg:grid-cols-2">
-                {rows.map((option) => (
-                  <ChecklistRow
-                    key={option.value}
-                    checked={selected.includes(option.value)}
-                    disabled={disabled}
-                    option={option}
-                    onToggle={() => toggle(option.value)}
-                  />
-                ))}
-              </div>
-            </div>
-            <FieldError>{fieldState.error?.message}</FieldError>
-          </div>
+          </Checklist>
         );
       }}
     />
   );
+}
+
+/**
+ * The list itself, for a field whose value is not a plain set of picks: the
+ * caller says what each row's checkbox shows and what a click does to it.
+ * `Seleccionados` lists every row that is not off, a mixed one included.
+ */
+function Checklist({
+  checkedStateOf,
+  children,
+  disabled = false,
+  emptySelectionMessage,
+  error,
+  label,
+  noOptionsMessage = "Sin opciones.",
+  onToggle,
+  options,
+  searchLabel,
+}: {
+  checkedStateOf: (value: string) => ChecklistCheckedState;
+  /** Rendered before the list: a form's hidden inputs, say. */
+  children?: ReactNode;
+  disabled?: boolean;
+  emptySelectionMessage: string;
+  error?: string;
+  label: string;
+  /** What an empty list says: there is nothing to pick yet. */
+  noOptionsMessage?: string;
+  onToggle: (value: string) => void;
+  options: ChecklistOption[];
+  searchLabel: string;
+}) {
+  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<ChecklistTab>("all");
+  const searchable = options.length >= SEARCHABLE_OPTION_COUNT;
+
+  // A list that shrinks below the threshold drops its search and tabs, and
+  // with them whatever they were narrowing it to: grown back, it starts over.
+  if (!searchable && (query !== "" || tab !== "all")) {
+    setQuery("");
+    setTab("all");
+  }
+
+  const selectedCount = options.filter(
+    (option) => checkedStateOf(option.value) !== false,
+  ).length;
+  const rows = options.filter(
+    (option) =>
+      (tab === "all" || checkedStateOf(option.value) !== false) &&
+      matchesListSearch(query, [option.label]),
+  );
+
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="@container flex flex-col gap-4"
+    >
+      {children}
+      {searchable ? (
+        <ChecklistNarrowing
+          query={query}
+          searchLabel={searchLabel}
+          selectedCount={selectedCount}
+          tab={tab}
+          onQueryChange={setQuery}
+          onTabChange={setTab}
+        />
+      ) : null}
+      <div
+        // Grows with the rows up to a ceiling, then scrolls inside, its
+        // edges fading while there is more to scroll to.
+        className="max-h-80 scroll-fade overflow-y-auto"
+      >
+        {rows.length === 0 ? (
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+            {readEmptyMessage({
+              emptySelectionMessage,
+              hasOptions: options.length > 0,
+              isSearching: query.length > 0,
+              noOptionsMessage,
+              tab,
+            })}
+          </p>
+        ) : null}
+        <div className="grid gap-2 @lg:grid-cols-2">
+          {rows.map((option) => (
+            <ChecklistRow
+              key={option.value}
+              checked={checkedStateOf(option.value)}
+              disabled={disabled}
+              option={option}
+              onToggle={() => onToggle(option.value)}
+            />
+          ))}
+        </div>
+      </div>
+      <FieldError>{error}</FieldError>
+    </div>
+  );
+}
+
+/** The search and the `Todos | Seleccionados` tabs of a long list. */
+function ChecklistNarrowing({
+  onQueryChange,
+  onTabChange,
+  query,
+  searchLabel,
+  selectedCount,
+  tab,
+}: {
+  onQueryChange: (query: string) => void;
+  onTabChange: (tab: ChecklistTab) => void;
+  query: string;
+  searchLabel: string;
+  selectedCount: number;
+  tab: ChecklistTab;
+}) {
+  return (
+    <div className="flex flex-col gap-2 @md:flex-row @md:items-center @md:gap-4">
+      <SearchInput
+        aria-label={searchLabel}
+        className="@md:w-64"
+        placeholder="Buscar por nombre"
+        value={query}
+        onValueChange={onQueryChange}
+      />
+      <Tabs
+        value={tab}
+        onValueChange={(value) => onTabChange(value as ChecklistTab)}
+      >
+        <TabsList variant="line">
+          <TabsTrigger value="all">Todos</TabsTrigger>
+          <TabsTrigger value="selected">
+            Seleccionados
+            <span className="sr-only">, </span>
+            <Badge variant="secondary">{selectedCount}</Badge>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </div>
+  );
+}
+
+/** Why the list shows no row: nothing to pick, nothing picked, or no match. */
+function readEmptyMessage({
+  emptySelectionMessage,
+  hasOptions,
+  isSearching,
+  noOptionsMessage,
+  tab,
+}: {
+  emptySelectionMessage: string;
+  hasOptions: boolean;
+  isSearching: boolean;
+  noOptionsMessage: string;
+  tab: ChecklistTab;
+}) {
+  if (!hasOptions) {
+    return noOptionsMessage;
+  }
+
+  if (tab === "selected" && !isSearching) {
+    return emptySelectionMessage;
+  }
+
+  return "Sin resultados.";
 }
 
 function ChecklistRow({
@@ -181,7 +288,7 @@ function ChecklistRow({
   onToggle,
   option,
 }: {
-  checked: boolean;
+  checked: ChecklistCheckedState;
   disabled: boolean;
   onToggle: () => void;
   option: ChecklistOption;
@@ -197,4 +304,4 @@ function ChecklistRow({
   );
 }
 
-export { ChecklistField };
+export { Checklist, ChecklistField };

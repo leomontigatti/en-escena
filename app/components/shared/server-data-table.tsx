@@ -99,7 +99,11 @@ export function ServerDataTable<TData extends RowData>(
   const { sorting, setSorting } = useDataTableSortingState(props.initialSort);
   const serverSort = sorting[0];
   const paging = props.hidePagination
-    ? { currentPage: 1, totalPages: 1, totalRows: props.rows.length }
+    ? {
+        currentPage: 1,
+        totalPages: 1,
+        totalRows: props.totalRows ?? props.rows.length,
+      }
     : props;
 
   const table = useServerReactTable({
@@ -153,7 +157,8 @@ export function ServerDataTable<TData extends RowData>(
         // The page the loader sent, against the whole set it was drawn from:
         // there is no client-side filtering to narrow either number.
         filteredRowCount: props.rows.length,
-        hidden: props.hidePagination ?? false,
+        hidden: props.hidePagination === true && props.totalRows === undefined,
+        hidePageControls: props.hidePagination ?? false,
         hrefBuilder: createServerPageHrefBuilder({
           currentSearch: location.search,
           resolvedBasePath,

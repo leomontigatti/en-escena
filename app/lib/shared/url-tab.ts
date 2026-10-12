@@ -66,3 +66,26 @@ export function useUrlTab<TValue extends string>({
 
   return { onValueChange, value };
 }
+
+/**
+ * The day a list of the order shows. There is no tab for every day: a URL
+ * naming a day the list holds shows it, and any other opens on the first.
+ * `null` only when the list has no day at all, which is a list with no rows.
+ */
+export function selectListDay(
+  days: readonly string[],
+  named: string | null,
+): string | null {
+  return days.find((day) => day === named) ?? days[0] ?? null;
+}
+
+/**
+ * What the URL says for that day: nothing for the first, which is the tab a
+ * URL naming none opens on, so the same list has the one link.
+ */
+export function namedListDay(
+  days: readonly string[],
+  day: string | null,
+): string | null {
+  return day === days[0] ? null : day;
+}

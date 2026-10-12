@@ -206,7 +206,8 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
 
 /**
  * The page the loader sent, or none: a list read as a whole, whose loader
- * sends every row and which draws no page controls.
+ * sends every row and which draws no page controls. Such a list keeps its
+ * count when it names `totalRows`, the set its search and facets narrowed.
  */
 type ServerDataTablePaging =
   | {
@@ -219,7 +220,7 @@ type ServerDataTablePaging =
       currentPage?: never;
       hidePagination: true;
       totalPages?: never;
-      totalRows?: never;
+      totalRows?: number;
     };
 
 /**

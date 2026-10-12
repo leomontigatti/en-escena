@@ -221,6 +221,26 @@ describe("assignJudges", () => {
 
     expect(result).toEqual({ judgeCount: 0, presentationCount: 0 });
   });
+
+  // The judge edit adds and removes in one write: a removal that fails after
+  // the assignment must take the assignment back with it.
+  test("is undone with the larger write it was made part of", async () => {
+    const { addChoreography } = await seedEvent();
+    const choreography = await addChoreography({ name: "Una", orderNumber: 1 });
+    const judge = await createUser({ name: "Ana Juez", role: "judge" });
+
+    await expect(
+      db.transaction(async (tx) => {
+        await assignJudges(
+          { choreographyIds: [choreography.id], judgeIds: [judge.id] },
+          tx,
+        );
+        throw new Error("the removal failed");
+      }),
+    ).rejects.toThrow("the removal failed");
+
+    expect(await readAssignmentPairs(choreography.id)).toEqual([]);
+  });
 });
 
 describe("removeJudges", () => {

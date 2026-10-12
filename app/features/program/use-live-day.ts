@@ -8,7 +8,7 @@ import {
 } from "@/lib/list-query/list-query";
 import { dayTabParam } from "@/lib/shared/url-tab";
 
-import { allDaysTabValue, useScheduleDayTab } from "./day-tabs";
+import { useScheduleDayTab } from "./day-tabs";
 import {
   isProgramDayLive,
   lastEvaluatedPage,
@@ -50,10 +50,9 @@ export function useProgramLiveDay({
   const [now, setNow] = useState(() =>
     live ? new Date(live.loadedAt) : new Date(),
   );
+  // Not live, the program opens on its first day, as every list of the order.
   const [openingDay] = useState(() =>
-    live?.day && isProgramDayLive(live.day, now)
-      ? live.day.date
-      : allDaysTabValue,
+    live?.day && isProgramDayLive(live.day, now) ? live.day.date : undefined,
   );
   const tab = useScheduleDayTab(days, openingDay);
   const selectedDay = tab.value;
@@ -126,7 +125,7 @@ function useOpenAtShowPage({
   rows,
 }: {
   live: ProgramLive | null;
-  openingDay: string;
+  openingDay: string | undefined;
   pageSize: number;
   rows: Parameters<typeof lastEvaluatedPage>[0]["rows"];
 }) {

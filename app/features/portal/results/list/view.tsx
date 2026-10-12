@@ -6,7 +6,6 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import {
-  allDaysTabValue,
   ScheduleDayTabs,
   useScheduleDayTab,
 } from "@/features/program/day-tabs";
@@ -122,10 +121,7 @@ function PortalResultsList({ rows }: { rows: PortalResultRow[] }) {
   // the URL so a reload or a shared link lands on it.
   const days = listProgramDays(rows);
   const tab = useScheduleDayTab(days);
-  const visibleRows =
-    tab.value === allDaysTabValue
-      ? rows
-      : rows.filter((row) => row.scheduledDate === tab.value);
+  const visibleRows = rows.filter((row) => row.scheduledDate === tab.value);
 
   return (
     <ScheduleDayTabs days={days} tab={tab}>

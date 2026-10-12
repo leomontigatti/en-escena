@@ -24,6 +24,7 @@ import { matchesPresentationSearch } from "@/lib/presentations/search";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
+import { namedListDay, selectListDay } from "@/lib/shared/url-tab";
 
 import {
   hideResultsIntent,
@@ -64,7 +65,7 @@ export async function loadResultsListRouteData(request: Request) {
   });
 
   redirectToCanonicalListUrl(request, {
-    facets: { dia: result.filters.day },
+    facets: { dia: namedListDay(result.days, result.filters.day) },
     query: {
       order: result.filters.order,
       page: result.filters.page,
@@ -142,13 +143,13 @@ async function loadResultsList(input: {
   const days = [...new Set(items.map((item) => item.scheduledDate))].sort();
   const filters = {
     ...input.filters,
-    day: days.includes(input.filters.day ?? "") ? input.filters.day : null,
+    day: selectListDay(days, input.filters.day),
   };
   const factor = filters.order.direction === "desc" ? -1 : 1;
   const filteredItems = items
     .filter(
       (item) =>
-        (filters.day === null || item.scheduledDate === filters.day) &&
+        item.scheduledDate === filters.day &&
         matchesPresentationSearch(filters.query, item),
     )
     .sort((left, right) => factor * (left.orderNumber - right.orderNumber));
