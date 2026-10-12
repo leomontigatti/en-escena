@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
-import { PortalListPage } from "@/components/portal/ui";
+import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ComboboxField } from "@/components/shared/combobox-field";
@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
+import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
 import { createValidatedRouteFormDataSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -49,8 +50,9 @@ import type {
 /**
  * The academy's own half of a seminar: who it registered, and the two gestures
  * the poster card gave up. It reads like administration's `Inscriptos` tab —
- * one flat table, the name as its only row action — and it says nothing about
- * money: what a seminar costs is read in `Resumen financiero`.
+ * one flat table, the name as its only row action. Of the money it says only
+ * each row's `Estado`, which is what tells a reserved place from one that
+ * lapsed; what a seminar costs is read in `Resumen financiero`.
  */
 export function PortalSeminarDetailRouteView({
   actionData,
@@ -126,7 +128,8 @@ export function PortalSeminarDetailRouteView({
           ) : null}
         </AlertStack>
 
-        <InscriptionsTable
+        <InscriptionsSection
+          isClosed={closedReason !== null}
           canRemove={!seminar.hasStarted}
           inscriptions={loaderData.inscriptions}
           onRemove={setRemovingInscriptionId}
@@ -151,6 +154,32 @@ export function PortalSeminarDetailRouteView({
         />
       ) : null}
     </>
+  );
+}
+
+/** The table, or the portal empty state while the academy has nobody in. */
+function InscriptionsSection({
+  isClosed,
+  ...table
+}: {
+  canRemove: boolean;
+  inscriptions: PortalSeminarDetailInscription[];
+  isClosed: boolean;
+  onRemove: (inscriptionId: string) => void;
+}) {
+  if (table.inscriptions.length > 0) {
+    return <InscriptionsTable {...table} />;
+  }
+
+  return (
+    <PortalEmptyState
+      title="Todavía no inscribiste a nadie"
+      description={
+        isClosed
+          ? "Este seminario ya no recibe inscripciones."
+          : "Usá Inscribir para sumar a alguien de tu plantel."
+      }
+    />
   );
 }
 
@@ -194,6 +223,15 @@ function InscriptionsTable({
         </Badge>
       ),
     },
+    {
+      id: "status",
+      header: "Estado",
+      cell: (inscription) => {
+        const badge = formatInscriptionStatusBadge(inscription.status);
+
+        return <Badge variant={badge.variant}>{badge.label}</Badge>;
+      },
+    },
   ];
 
   return (
@@ -202,7 +240,6 @@ function InscriptionsTable({
       columns={columns}
       getRowKey={(inscription) => inscription.id}
       searchPlaceholder="Buscar por nombre"
-      emptyMessage="Todavía no inscribiste a nadie en este seminario."
       initialSort={{ columnId: "fullName", direction: "asc" }}
     />
   );
@@ -307,6 +344,20 @@ function RegisterInscriptionDialog({
             value={registerPortalSeminarInscriptionIntent}
           />
           <input type="hidden" name="seminarId" value={seminar.id} />
+          {/* Only a registration that gets a place reserves it, so a full
+              seminar promises no deadline: the page's `Cupo completo` says
+              what happens instead. */}
+          {seminar.isFull ? null : (
+            <Alert variant="info">
+              <Info aria-hidden="true" />
+              <AlertTitle>Reserva de lugar</AlertTitle>
+              <AlertDescription>
+                {seminar.startsBeforePaymentDeadline
+                  ? "Tenés hasta que empiece el seminario para enviar el pago de la seña. Si no lo enviás en ese plazo, la inscripción pierde su lugar."
+                  : "Tenés 48 horas para enviar el pago de la seña. Si no lo enviás en ese plazo, la inscripción pierde su lugar."}
+              </AlertDescription>
+            </Alert>
+          )}
           <FieldGroup>
             <ComboboxField
               control={form.control}

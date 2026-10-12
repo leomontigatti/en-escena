@@ -20,6 +20,7 @@ import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import type { SeminarCobroPreview } from "@/lib/finances/seminar-cobro-presets.server";
 import {
+  countSeminarPlacesLeft,
   countSeminarPlacesShort,
   seminarPlacesShortMessage,
 } from "@/lib/seminars/seminar-places";
@@ -270,13 +271,18 @@ function summarizeSeminarPreset(input: {
             {
               ...preview.stages[input.stage],
               instructorName: preview.instructorName,
-              placesLeft: Math.max(0, preview.quota - preview.coveredCount),
+              placesLeft: countSeminarPlacesLeft({
+                coveredCount: preview.coveredCount,
+                quota: preview.quota,
+                reservedCount: preview.stages[input.stage].reservedCount,
+              }),
               scheduledDate: preview.scheduledDate,
               seminarId,
               shortBy: countSeminarPlacesShort({
                 coveredCount: preview.coveredCount,
                 neededCount: preview.stages[input.stage].neededCount,
                 quota: preview.quota,
+                reservedCount: preview.stages[input.stage].reservedCount,
               }),
             },
           ]

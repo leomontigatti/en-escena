@@ -12,7 +12,7 @@ import type { loadPortalSeminarFinanceDetail } from "@/features/portal/finances/
 import { formatDancerName } from "@/lib/finances/formatters";
 import {
   inscriptionFinanceColumns,
-  inscriptionFinanceFacetedFilters,
+  seminarInscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 
@@ -131,7 +131,7 @@ function InscriptionsTable({
       <ClientDataTable
         rows={inscriptions}
         columns={inscriptionColumns}
-        facetedFilters={inscriptionFinanceFacetedFilters}
+        facetedFilters={seminarInscriptionFinanceFacetedFilters}
         getRowKey={(inscription) => inscription.inscriptionId}
         searchPlaceholder="Buscar por nombre"
         textFilterColumnId="person"

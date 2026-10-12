@@ -51,7 +51,11 @@ import {
   readSeminarInscriptionThresholds,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
 
-import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  countReservedByOthers,
+  holdsCoveredDeposit,
+  readSeminarPlaces,
+} from "@/lib/seminars/covered-inscriptions.server";
 import { seminarNoPlacesForDepositMessage } from "@/lib/seminars/registration-refusals";
 import { countSeminarPlacesShort } from "@/lib/seminars/seminar-places";
 
@@ -238,6 +242,9 @@ export async function allocateToSeminarInscription(
       return context;
     }
 
+    // Read before the pricing step: a cheaper row can carry the money already on
+    // the row across its deposit, and that is a crossing too.
+    const wasCovered = await holdsCoveredDeposit(input.inscriptionId, tx);
     const priced = await applySelectedSeminarPrice(tx, {
       allocatedAmount: await readInscriptionAllocatedAmount(tx, {
         id: input.inscriptionId,
@@ -262,6 +269,7 @@ export async function allocateToSeminarInscription(
           ...movement,
           inscriptionId: input.inscriptionId,
           seminar: context.seminar,
+          wasCovered,
         }),
     });
   });
@@ -273,8 +281,14 @@ export async function allocateToSeminarInscription(
  * deposit goes through in a full seminar, taking money off never refuses, and
  * money after the seminar started is money like any other.
  *
- * The threshold is the **stored** row's, read again here because the pricing
- * step may have just written it. The count leaves this row out — a row that is
+ * The places other registrations reserve count as taken
+ * (`readSeminarPlaces`): a row with no reservation of its own covers its
+ * deposit only into a place nobody holds.
+ *
+ * The threshold after the write is the **stored** row's, read again here
+ * because the pricing step may have just written it; whether the row was
+ * covered before is read before that step, so a cheaper price that the money
+ * already on the row reaches counts as the crossing it is. The count leaves this row out — a row that is
  * already covered would otherwise count against its own crossing — and it is
  * taken under the lock `loadSeminarMoneyContext` already holds on the seminar.
  */
@@ -285,6 +299,7 @@ async function assertSeminarPlaceForCrossing(
     amount: number;
     inscriptionId: string;
     seminar: LockedSeminar;
+    wasCovered: boolean;
   },
 ): Promise<CobroResult> {
   const depositAmount = await readStoredSeminarDepositAmount(tx, {
@@ -292,10 +307,7 @@ async function assertSeminarPlaceForCrossing(
     requiredDepositPercentage: input.seminar.requiredDepositPercentage,
   });
   const crosses =
-    !hasCrossedDepositThreshold({
-      allocatedAmount: input.allocatedAmount,
-      depositAmount,
-    }) &&
+    !input.wasCovered &&
     hasCrossedDepositThreshold({
       allocatedAmount: input.allocatedAmount + input.amount,
       depositAmount,
@@ -305,16 +317,17 @@ async function assertSeminarPlaceForCrossing(
     return { ok: true };
   }
 
-  const coveredCount = await countCoveredSeminarInscriptions(
-    input.seminar.id,
-    tx,
-    { exceptInscriptionId: input.inscriptionId },
-  );
+  const places = (
+    await readSeminarPlaces([input.seminar.id], new Date(), tx)
+  ).get(input.seminar.id);
 
   return countSeminarPlacesShort({
-    coveredCount,
+    coveredCount: (places?.coveredIds ?? []).filter(
+      (id) => id !== input.inscriptionId,
+    ).length,
     neededCount: 1,
     quota: input.seminar.quota,
+    reservedCount: countReservedByOthers(places, [input.inscriptionId]),
   }) > 0
     ? { ok: false, message: seminarNoPlacesForDepositMessage }
     : { ok: true };

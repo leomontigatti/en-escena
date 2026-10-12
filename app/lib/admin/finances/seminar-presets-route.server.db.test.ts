@@ -19,6 +19,7 @@ import {
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
 import { createSignedInRequest } from "@/lib/test-support/auth";
+import { reserveForHours } from "@/lib/seminars/seminars.test-support";
 import {
   action as academyFinancesAction,
   loader as academyFinancesLoader,
@@ -424,6 +425,7 @@ describe("the seminar preset preview in the academy's finance loader", () => {
   test("`Pagar seña`: the people, prices and amounts it lists are what the action then writes", async () => {
     const fixture = await seedSeminarPresetFixture({ paymentAmount: 100000 });
     const { inscriptions } = fixture;
+    await reserveForHours(inscriptions.specialNeighbour.id, 10);
 
     const previews = await loadPreviews(fixture);
     const special = previews[fixture.special.id]!;
@@ -438,6 +440,9 @@ describe("the seminar preset preview in the academy's finance loader", () => {
     });
     expect(special.stages.deposit).toEqual({
       neededCount: 2,
+      // The other academy's registration holds a reservation the charge counts
+      // as taken.
+      reservedCount: 1,
       people: [
         {
           amount: 20000,
@@ -492,6 +497,7 @@ describe("the seminar preset preview in the academy's finance loader", () => {
     expect(after[fixture.special.id]!.stages.deposit).toEqual({
       neededCount: 0,
       people: [],
+      reservedCount: 1,
     });
   });
 
@@ -519,6 +525,7 @@ describe("the seminar preset preview in the academy's finance loader", () => {
     ]);
     expect(special.stages.balance).toEqual({
       neededCount: 1,
+      reservedCount: 0,
       people: [
         {
           amount: 40000,

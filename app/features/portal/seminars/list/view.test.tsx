@@ -75,7 +75,7 @@ describe("PortalSeminarsListRouteView", () => {
     await renderSeminars({ hasActiveEvent: true, seminars: [buildSeminar()] });
 
     expect(document.body.textContent).toContain(
-      "Cada inscripción toma su lugar cuando administración registra su seña.",
+      "Cada inscripción reserva un lugar libre, si lo hay, y lo conserva cuando administración registra su seña.",
     );
   });
 

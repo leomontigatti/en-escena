@@ -4,7 +4,10 @@ import { formatDate } from "@/lib/finances/formatters";
  * How many places a seminar is short for the crossings a write would make:
  * **covering the deposit is what takes a place**, so `neededCount` is the
  * inscriptions the write carries across their deposit, and `coveredCount` the
- * ones already across it. Zero means the write fits.
+ * ones already across it. `reservedCount` is the places **other** registrations
+ * reserve (`selectReservedSeminarInscriptionIds`), leaving out the ones the
+ * write crosses: a reservation never blocks its own deposit. Zero means the
+ * write fits.
  *
  * The places left never read below zero: a quota lowered under the places
  * already taken leaves those rows where they are, and only the new crossings
@@ -14,10 +17,23 @@ export function countSeminarPlacesShort(input: {
   coveredCount: number;
   neededCount: number;
   quota: number;
+  reservedCount: number;
 }): number {
-  const placesLeft = Math.max(0, input.quota - input.coveredCount);
+  const placesLeft = countSeminarPlacesLeft(input);
 
   return Math.max(0, input.neededCount - placesLeft);
+}
+
+/**
+ * The places nobody holds: the quota less the covered rows and the
+ * reservations counted, never below zero.
+ */
+export function countSeminarPlacesLeft(input: {
+  coveredCount: number;
+  quota: number;
+  reservedCount: number;
+}): number {
+  return Math.max(0, input.quota - input.coveredCount - input.reservedCount);
 }
 
 /**

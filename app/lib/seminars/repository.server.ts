@@ -5,8 +5,9 @@ import { seminarInscriptions, seminars } from "@/db/schema";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
   countCoveredSeminarInscriptions,
-  countCoveredSeminarInscriptionsBySeminar,
   hasCoveredSeminarInscription,
+  countTakenSeminarPlaces,
+  readSeminarPlaces,
 } from "@/lib/seminars/covered-inscriptions.server";
 import {
   invalidSeminarDepositPercentageMessage,
@@ -35,8 +36,9 @@ type SeminarExecutor =
  * A seminar as every surface reads it: the row plus the two counts that are not
  * the same question.
  *
- * **A place is taken by covering the deposit**, so `availablePlaces` is the
- * quota minus the *covered* inscriptions, while `registeredCount` is how many
+ * **A place is taken by covering the deposit or by a live reservation**, so
+ * `availablePlaces` is the quota minus the *covered* and *reserved*
+ * inscriptions (`readSeminarPlaces`), while `registeredCount` is how many
  * people are on the roster whether they paid or not — registration is unlimited.
  * Withdrawn rows are in neither. Both are readings, never decisions: the quota
  * is enforced under a lock on the allocation that crosses a deposit
@@ -119,14 +121,14 @@ export async function listSeminars(
     ],
   });
   const seminarIds = eventSeminars.map((seminar) => seminar.id);
-  const [inscriptionCounts, coveredCounts] = await Promise.all([
+  const [inscriptionCounts, placesBySeminarId] = await Promise.all([
     countInscriptionsBySeminar(seminarIds),
-    countCoveredSeminarInscriptionsBySeminar(seminarIds),
+    readSeminarPlaces(seminarIds, new Date()),
   ]);
 
   return eventSeminars.map((seminar) =>
     toSeminarListItem(seminar, {
-      coveredCount: coveredCounts.get(seminar.id) ?? 0,
+      takenCount: countTakenSeminarPlaces(placesBySeminarId.get(seminar.id)),
       ...(inscriptionCounts.get(seminar.id) ?? emptyInscriptionCounts),
     }),
   );
@@ -144,7 +146,9 @@ export async function getSeminar(
   }
 
   return toSeminarListItem(seminar, {
-    coveredCount: await countCoveredSeminarInscriptions(seminar.id),
+    takenCount: countTakenSeminarPlaces(
+      (await readSeminarPlaces([seminar.id], new Date())).get(seminar.id),
+    ),
     ...(await countSeminarInscriptions(seminar.id)),
   });
 }
@@ -218,11 +222,11 @@ async function countAllSeminarInscriptions(
 
 function toSeminarListItem(
   seminar: SeminarRow,
-  counts: SeminarInscriptionCounts & { coveredCount: number },
+  counts: SeminarInscriptionCounts & { takenCount: number },
 ): SeminarListItem {
   return {
     ...seminar,
-    availablePlaces: Math.max(seminar.quota - counts.coveredCount, 0),
+    availablePlaces: Math.max(seminar.quota - counts.takenCount, 0),
     inscriptionCount: counts.inscriptionCount,
     registeredCount: counts.registeredCount,
   };

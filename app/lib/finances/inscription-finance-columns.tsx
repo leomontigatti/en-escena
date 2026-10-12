@@ -8,6 +8,7 @@ import {
   formatInscriptionStatusBadge,
   getInscriptionStatusFilterBadgeVariant,
   inscriptionStatusFilterOptions,
+  seminarInscriptionStatusFilterOptions,
 } from "@/lib/finances/choreography-financial-status";
 import {
   resolveInscriptionStatusBadge,
@@ -34,6 +35,9 @@ export type InscriptionFinanceRow = {
   effectivePrice: { name: string } | null;
   financialStatus: InscriptionFinancialStatus;
   owedBalanceAmount: number | null;
+  /** A seminar inscription holding a reserved place; choreography rows never
+   * carry it. */
+  reserved?: boolean;
   totalAmount: number | null;
   withdrawn: boolean;
 };
@@ -61,6 +65,17 @@ export const inscriptionFinanceFacetedFilters: DataTableFacetedFilter[] = [
     renderValue: renderInscriptionStatusFilterValue,
   },
 ];
+
+/** The same facet over seminar inscriptions, which can also read `Reservada`. */
+export const seminarInscriptionFinanceFacetedFilters: DataTableFacetedFilter[] =
+  [
+    {
+      id: "estado",
+      label: "Estado",
+      options: [...seminarInscriptionStatusFilterOptions],
+      renderValue: renderInscriptionStatusFilterValue,
+    },
+  ];
 
 export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[] =
   [
@@ -134,6 +149,7 @@ function resolveStatusBadge(inscription: InscriptionFinanceRow) {
     resolveInscriptionStatusBadge({
       anomalies: inscription.anomalies,
       financialStatus: inscription.financialStatus,
+      reserved: inscription.reserved,
       withdrawn: inscription.withdrawn,
     }),
   );

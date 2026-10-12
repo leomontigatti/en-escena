@@ -409,6 +409,14 @@ export const seminarInscriptions = createTable(
       mode: "date",
       withTimezone: true,
     }),
+    // Until when the inscription holds a reserved place without having covered
+    // its deposit (`seminarReservation`). Written once, at the insert, and only
+    // when the seminar had a place free; a revival clears it, so a restored row
+    // never reserves. Null is no reservation.
+    reservedUntil: timestamp("reserved_until", {
+      mode: "date",
+      withTimezone: true,
+    }),
     // When the person was first registered, kept across a withdrawal and its
     // revival so that the row's age survives a change of plans.
     createdAt: timestamp("created_at", {

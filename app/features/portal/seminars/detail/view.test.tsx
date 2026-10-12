@@ -40,6 +40,7 @@ function buildLoaderData(
       hasStarted: false,
       hasRegistrationPrices: true,
       isFull: false,
+      startsBeforePaymentDeadline: false,
       ...overrides.seminar,
     },
     inscriptions: overrides.inscriptions ?? [],
@@ -84,7 +85,7 @@ describe("PortalSeminarDetailRouteView", () => {
     expect(findByText("button", "Inscribir")).toBeDefined();
   });
 
-  test("lists the academy's own inscriptions as a flat name-and-type table, without money", async () => {
+  test("lists the academy's own inscriptions as a flat table of name, type and `Estado`, without amounts", async () => {
     await renderDetail(
       buildLoaderData({
         inscriptions: [
@@ -93,31 +94,46 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Ana Paz",
             personKind: "dancer",
             hasMoney: true,
+            status: { kind: "status", status: "depositMet" },
           },
           {
             id: "inscription_2",
             fullName: "Luz Suárez",
             personKind: "professor",
             hasMoney: false,
+            status: { kind: "reserved" },
           },
         ],
       }),
     );
 
-    expect(getReactDomTexts("thead th")).toEqual(["Nombre", "Tipo"]);
+    expect(getReactDomTexts("thead th")).toEqual(["Nombre", "Tipo", "Estado"]);
+    expect(document.body.textContent).toContain("Señada");
+    expect(document.body.textContent).toContain("Reservada");
     expect(document.body.textContent).toContain("Bailarín");
     expect(document.body.textContent).toContain("Profesor");
     expect(document.querySelector('[role="tablist"]')).toBeNull();
     expect(document.body.textContent).not.toContain("$");
-    expect(document.body.textContent).not.toContain("Seña");
     expect(document.body.textContent).not.toContain("Participando");
   });
 
-  test("says nobody is registered yet when the academy has nobody in the seminar", async () => {
+  test("says nobody is registered yet in an empty state, not an empty table", async () => {
     await renderDetail(buildLoaderData());
 
     expect(document.body.textContent).toContain(
-      "Todavía no inscribiste a nadie en este seminario.",
+      "Todavía no inscribiste a nadie",
+    );
+    expect(document.body.textContent).toContain(
+      "Usá Inscribir para sumar a alguien de tu plantel.",
+    );
+    expect(document.querySelector("table")).toBeNull();
+  });
+
+  test("tells a closed seminar's empty state that it takes no more registrations", async () => {
+    await renderDetail(buildLoaderData({ seminar: { hasStarted: true } }));
+
+    expect(document.body.textContent).toContain(
+      "Este seminario ya no recibe inscripciones.",
     );
   });
 
@@ -131,6 +147,7 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Ana Paz",
             personKind: "dancer",
             hasMoney: false,
+            status: { kind: "reserved" },
           },
         ],
       }),
@@ -189,6 +206,7 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Ana Paz",
             personKind: "dancer",
             hasMoney: false,
+            status: { kind: "reserved" },
           },
         ],
       }),
@@ -216,6 +234,7 @@ describe("PortalSeminarDetailRouteView", () => {
             fullName: "Ana Paz",
             personKind: "dancer",
             hasMoney: true,
+            status: { kind: "reserved" },
           },
         ],
       }),
@@ -260,7 +279,9 @@ describe("PortalSeminarDetailRouteView", () => {
     expect(trigger).not.toBeNull();
     expect(document.activeElement).toBe(trigger);
     expect(dialog?.textContent).not.toContain("$");
-    expect(dialog?.textContent).not.toContain("Seña");
+    expect(dialog?.textContent).toContain(
+      "Tenés 48 horas para enviar el pago de la seña. Si no lo enviás en ese plazo, la inscripción pierde su lugar.",
+    );
 
     await act(async () => {
       trigger?.click();
@@ -275,5 +296,31 @@ describe("PortalSeminarDetailRouteView", () => {
       "Ana Paz",
       "Luz Suárez",
     ]);
+  });
+
+  test("gives a seminar starting within 48 hours until its start instead", async () => {
+    await renderDetail(
+      buildLoaderData({ seminar: { startsBeforePaymentDeadline: true } }),
+    );
+
+    await act(async () => {
+      (findByText("button", "Inscribir") as HTMLButtonElement).click();
+    });
+
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+      "Tenés hasta que empiece el seminario para enviar el pago de la seña.",
+    );
+  });
+
+  test("promises no deadline in a full seminar, where a registration reserves nothing", async () => {
+    await renderDetail(buildLoaderData({ seminar: { isFull: true } }));
+
+    await act(async () => {
+      (findByText("button", "Inscribir") as HTMLButtonElement).click();
+    });
+
+    expect(
+      document.querySelector('[role="dialog"]')?.textContent,
+    ).not.toContain("para enviar el pago");
   });
 });

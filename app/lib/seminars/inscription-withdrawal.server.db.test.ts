@@ -24,7 +24,10 @@ import {
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
 } from "@/lib/seminars/inscription-rosters.server";
-import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  countCoveredSeminarInscriptions,
+  readSeminarPlaces,
+} from "@/lib/seminars/covered-inscriptions.server";
 import { createSeminar, deleteSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createSavedEvent } from "@/lib/test-support/events";
@@ -303,6 +306,24 @@ describe("removing a seminar inscription", () => {
   });
 });
 
+describe("reserving a place at registration", () => {
+  test("reserves the free place until the seminar starts, and nothing once the seminar is full", async () => {
+    const fixture = await seedFixture(1);
+    const first = expectRegistered(
+      await register(fixture, fixture.people[0].id),
+    );
+    const second = expectRegistered(
+      await register(fixture, fixture.people[1].id),
+    );
+
+    // One minute before the start, the start comes before the 72 hours.
+    expect((await readInscription(first))?.reservedUntil).toEqual(
+      new Date("2026-10-10T21:30:00.000Z"),
+    );
+    expect((await readInscription(second))?.reservedUntil).toBeNull();
+  });
+});
+
 describe("reviving a withdrawn seminar inscription", () => {
   test("brings the same row back with its money and its creation date", async () => {
     const fixture = await seedFixture();
@@ -359,6 +380,52 @@ describe("reviving a withdrawn seminar inscription", () => {
     expect((await readInscription(inscriptionId))?.withdrawnAt).toBeInstanceOf(
       Date,
     );
+  });
+
+  test("refuses the covered revival when another registration reserves the freed place", async () => {
+    const fixture = await seedFixture(1);
+    const inscriptionId = await registerCovered(fixture, fixture.people[0].id);
+
+    await removeSeminarInscription({
+      inscriptionId,
+      seminarId: fixture.seminarId,
+    });
+    // Bruno registers into the freed place and reserves it without paying.
+    expectRegistered(await register(fixture, fixture.people[1].id));
+
+    await expect(
+      register(fixture, fixture.people[0].id),
+    ).resolves.toMatchObject({ ok: false, code: "no-places" });
+  });
+
+  test("brings no reservation back, so a revival cannot take the place of a registration made since", async () => {
+    const fixture = await seedFixture(1);
+    const revived = expectRegistered(
+      await register(fixture, fixture.people[0].id),
+    );
+    await allocate(fixture, {
+      amount: depositAmount - 1,
+      inscriptionId: revived,
+    });
+    await removeSeminarInscription({
+      inscriptionId: revived,
+      seminarId: fixture.seminarId,
+    });
+    // The withdrawal freed the place, and Bruno reserves it.
+    const bruno = expectRegistered(
+      await register(fixture, fixture.people[1].id),
+    );
+
+    await expect(
+      register(fixture, fixture.people[0].id),
+    ).resolves.toMatchObject({ ok: true, inscriptionId: revived });
+
+    expect((await readInscription(revived))?.reservedUntil).toBeNull();
+    expect(
+      (await readSeminarPlaces([fixture.seminarId], beforeStart)).get(
+        fixture.seminarId,
+      )?.reservedIds,
+    ).toEqual([bruno]);
   });
 
   test("revives a row holding money below its deposit even when the seminar is full", async () => {

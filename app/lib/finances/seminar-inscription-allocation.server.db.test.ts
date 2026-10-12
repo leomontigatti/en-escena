@@ -22,6 +22,7 @@ import {
   hasCoveredSeminarInscription,
 } from "@/lib/seminars/covered-inscriptions.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
+import { reserveForHours } from "@/lib/seminars/seminars.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent } from "@/lib/test-support/events";
@@ -399,6 +400,89 @@ describe("seminar inscription allocation", () => {
     await expect(
       allocate(fixture, {
         amount: 1,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  test("keeps a place another registration reserves, and gives it up once that reservation lapses", async () => {
+    const fixture = await seedFixture();
+    await setQuota(fixture, 1);
+    await reserveForHours(fixture.secondInscriptionId, 62);
+
+    // The second registration reserved the one place: the third covering its
+    // deposit would take it.
+    await expect(
+      allocate(fixture, {
+        amount: outsiderDeposit,
+        inscriptionId: fixture.thirdInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      message:
+        "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.",
+    });
+
+    // Once the reservation lapses, the place is free to cover.
+    await reserveForHours(fixture.secondInscriptionId, -1);
+    await expect(
+      allocate(fixture, {
+        amount: outsiderDeposit,
+        inscriptionId: fixture.thirdInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  test("refuses the cheaper price that would cover a deposit in a full seminar without new money crossing it", async () => {
+    const fixture = await seedFixture();
+    // 20000 sits under the `Exclusivo` deposit of 25000, so it holds no place.
+    await expect(
+      allocate(fixture, {
+        amount: 20000,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toEqual({ ok: true });
+    await coverFirstPlace(fixture);
+    await setQuota(fixture, 1);
+    const [earlyBird] = await db
+      .insert(seminarPrices)
+      .values({
+        amount: 30000,
+        eventId: fixture.eventId,
+        forParticipants: false,
+        kind: "special",
+        name: "Preventa",
+        paymentDeadline: "2030-09-01",
+      })
+      .returning();
+
+    // The cheaper row's deposit is 15000: the money already on the row would
+    // cover it, so switching price is the crossing, and the seminar has no place.
+    await expect(
+      allocate(fixture, {
+        amount: 1,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: earlyBird.id,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      message:
+        "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.",
+    });
+  });
+
+  test("lets a reserved registration cover its own deposit in a seminar its reservation fills", async () => {
+    const fixture = await seedFixture();
+    await setQuota(fixture, 1);
+    await reserveForHours(fixture.secondInscriptionId, 62);
+
+    await expect(
+      allocate(fixture, {
+        amount: outsiderDeposit,
         inscriptionId: fixture.secondInscriptionId,
         priceId: fixture.priceIds.get("specialOutsider")!,
       }),

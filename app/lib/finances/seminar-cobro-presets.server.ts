@@ -42,7 +42,11 @@ import {
   type SeminarFinancePriceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
-import { countCoveredSeminarInscriptionsBySeminar } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  countReservedByOthers,
+  readSeminarPlaces,
+  type SeminarPlaces,
+} from "@/lib/seminars/covered-inscriptions.server";
 
 import { spreadFromPool } from "./allocation-pool.server";
 import type { CobroStage } from "./choreography-cobro-presets.server";
@@ -108,9 +112,9 @@ type SeminarCobroPlan = {
    * reached by the charge or not. */
   activeCount: number;
   lines: SeminarCobroLine[];
-  /** Per seminar, how many of the lines carry an inscription across its
-   * deposit: the places the charge would take. */
-  neededBySeminarId: Map<string, number>;
+  /** Per seminar, the lines that carry an inscription across its deposit: the
+   * places the charge would take. */
+  crossingIdsBySeminarId: Map<string, string[]>;
 };
 
 /**
@@ -193,7 +197,7 @@ function planSeminarCobro(
   return {
     activeCount: inscriptions.rows.length,
     lines,
-    neededBySeminarId: countCrossingsBySeminar(lines),
+    crossingIdsBySeminarId: collectCrossingsBySeminar(lines),
   };
 }
 
@@ -316,18 +320,21 @@ function planLine(input: {
   };
 }
 
-function countCrossingsBySeminar(
+function collectCrossingsBySeminar(
   lines: readonly SeminarCobroLine[],
-): Map<string, number> {
-  const needed = new Map<string, number>();
+): Map<string, string[]> {
+  const crossing = new Map<string, string[]>();
 
   for (const line of lines) {
     if (line.crossesDeposit) {
-      needed.set(line.seminarId, (needed.get(line.seminarId) ?? 0) + 1);
+      crossing.set(line.seminarId, [
+        ...(crossing.get(line.seminarId) ?? []),
+        line.id,
+      ]);
     }
   }
 
-  return needed;
+  return crossing;
 }
 
 /** One person a stage of the preset reaches, as the preset dialog lists them. */
@@ -348,6 +355,9 @@ type SeminarCobroPreviewStage = {
    * deposit. */
   neededCount: number;
   people: SeminarCobroPreviewPerson[];
+  /** The places other registrations reserve, the charge's own crossings left
+   * out: they count as taken. */
+  reservedCount: number;
 };
 
 /**
@@ -396,9 +406,10 @@ export async function readSeminarCobroPreviews(input: {
     return {};
   }
 
-  const [coveredBySeminarId, inscriptions] = await Promise.all([
-    countCoveredSeminarInscriptionsBySeminar(
+  const [placesBySeminarId, inscriptions] = await Promise.all([
+    readSeminarPlaces(
       eventSeminars.map((seminar) => seminar.id),
+      new Date(),
       db,
     ),
     readSeminarCobroInscriptions(db, { ...input, seminars: eventSeminars }),
@@ -410,14 +421,22 @@ export async function readSeminarCobroPreviews(input: {
     eventSeminars.map((seminar) => [
       seminar.id,
       {
-        coveredCount: coveredBySeminarId.get(seminar.id) ?? 0,
+        coveredCount: placesBySeminarId.get(seminar.id)?.coveredIds.length ?? 0,
         instructorName: seminar.instructorName,
         quota: seminar.quota,
         scheduledDate: seminar.scheduledDate,
         seminarId: seminar.id,
         stages: {
-          balance: previewStage(balance, seminar.id),
-          deposit: previewStage(deposit, seminar.id),
+          balance: previewStage(
+            balance,
+            seminar.id,
+            placesBySeminarId.get(seminar.id),
+          ),
+          deposit: previewStage(
+            deposit,
+            seminar.id,
+            placesBySeminarId.get(seminar.id),
+          ),
         },
       } satisfies SeminarCobroPreview,
     ]),
@@ -427,9 +446,13 @@ export async function readSeminarCobroPreviews(input: {
 function previewStage(
   plan: SeminarCobroPlan,
   seminarId: string,
+  places: SeminarPlaces | undefined,
 ): SeminarCobroPreviewStage {
+  const crossingIds = plan.crossingIdsBySeminarId.get(seminarId) ?? [];
+
   return {
-    neededCount: plan.neededBySeminarId.get(seminarId) ?? 0,
+    neededCount: crossingIds.length,
+    reservedCount: countReservedByOthers(places, crossingIds),
     people: plan.lines
       .filter((line) => line.seminarId === seminarId)
       .map((line) => ({
@@ -491,7 +514,7 @@ export async function paySeminarsPreset(input: {
     }
 
     const places = await assertSeminarPlacesForCrossings(tx, {
-      neededBySeminarId: plan.neededBySeminarId,
+      crossingIdsBySeminarId: plan.crossingIdsBySeminarId,
       seminars: locked,
     });
 

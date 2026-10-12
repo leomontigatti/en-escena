@@ -380,6 +380,7 @@ describe("AcademyFinancesRouteView", () => {
               ...seminarPresetPreviewFixture().stages,
               deposit: {
                 neededCount: 1,
+                reservedCount: 0,
                 people: [
                   {
                     amount: 7000,
@@ -447,6 +448,7 @@ describe("AcademyFinancesRouteView", () => {
               ...seminarPresetPreviewFixture().stages,
               balance: {
                 neededCount: 2,
+                reservedCount: 0,
                 people: [
                   {
                     amount: 40000,
@@ -1521,6 +1523,7 @@ function seminarPresetPreviewFixture(
     stages: {
       balance: {
         neededCount: 1,
+        reservedCount: 0,
         people: [
           {
             amount: 8000,
@@ -1532,6 +1535,7 @@ function seminarPresetPreviewFixture(
       },
       deposit: {
         neededCount: 1,
+        reservedCount: 0,
         people: [
           {
             amount: 5000,

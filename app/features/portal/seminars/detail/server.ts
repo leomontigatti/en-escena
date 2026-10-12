@@ -15,6 +15,15 @@ import {
 } from "@/lib/seminars/inscription-rosters.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { getSeminar } from "@/lib/seminars/repository.server";
+import { doesSeminarStartBeforePaymentDeadline } from "@/lib/seminars/seminar-reservations";
+import {
+  resolveInscriptionStatusBadge,
+  type InscriptionStatusBadge,
+} from "@/lib/finances/inscription-financial-status";
+import {
+  readSeminarInscriptionFinanceRows,
+  type SeminarInscriptionFinanceDetailRow,
+} from "@/lib/finances/seminar-inscriptions.server";
 
 import {
   deletePortalSeminarInscriptionIntent,
@@ -55,14 +64,23 @@ export async function loadPortalSeminarDetail(input: {
   // The price list is an event-level fact, so it is asked of the event rather
   // than of the seminar: while a participant cell has no deadline-less `Común`
   // row, every seminar of the event is closed to registration.
-  const [inscriptions, people, hasRegistrationPrices] = await Promise.all([
-    listSeminarInscriptionsForAcademy({
-      academyId: academy.id,
-      eventId: activeEvent.id,
-    }),
-    listSeminarPersonOptionsForAcademy(academy.id),
-    hasSeminarRegistrationPrices(activeEvent.id),
-  ]);
+  const now = new Date();
+  const [inscriptions, people, hasRegistrationPrices, financeRows] =
+    await Promise.all([
+      listSeminarInscriptionsForAcademy({
+        academyId: academy.id,
+        eventId: activeEvent.id,
+      }),
+      listSeminarPersonOptionsForAcademy(academy.id),
+      hasSeminarRegistrationPrices(activeEvent.id),
+      readSeminarInscriptionFinanceRows(
+        { academyId: academy.id, eventId: activeEvent.id, seminarId },
+        now,
+      ),
+    ]);
+  const financeRowsById = new Map(
+    financeRows.map((row) => [row.inscriptionId, row]),
+  );
   const seminarInscriptions = inscriptions.filter(
     (inscription) => inscription.seminarId === seminar.id,
   );
@@ -76,20 +94,39 @@ export async function loadPortalSeminarDetail(input: {
       instructorName: seminar.instructorName,
       scheduledDate: seminar.scheduledDate,
       startTime: seminar.startTime,
-      hasStarted: hasSeminarStarted(seminar, new Date()),
+      hasStarted: hasSeminarStarted(seminar, now),
       hasRegistrationPrices,
       isFull: seminar.availablePlaces === 0,
+      startsBeforePaymentDeadline: doesSeminarStartBeforePaymentDeadline(
+        seminar,
+        now,
+      ),
     },
     inscriptions: seminarInscriptions.map((inscription) => ({
       id: inscription.id,
       fullName: inscription.fullName,
       personKind: inscription.personKind,
       hasMoney: inscription.hasMoney,
+      status: toStatusBadge(financeRowsById.get(inscription.id)),
     })),
     // A person the academy already has actively registered is off the picker;
     // one whose row was withdrawn is offered, and registering them revives it.
     people: people.filter((person) => !registeredPersonIds.has(person.id)),
   };
+}
+
+/**
+ * The badge the finance lists give the same row, so the seminar and
+ * `Resumen financiero` cannot name one inscription two ways.
+ */
+function toStatusBadge(
+  row: SeminarInscriptionFinanceDetailRow | undefined,
+): InscriptionStatusBadge {
+  return resolveInscriptionStatusBadge({
+    anomalies: row?.anomalies ?? [],
+    financialStatus: row?.financialStatus ?? "depositPending",
+    reserved: row?.reserved,
+  });
 }
 
 export async function handlePortalSeminarDetailAction(input: {
