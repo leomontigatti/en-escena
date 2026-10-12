@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useActionData } from "react-router";
 
@@ -58,30 +58,20 @@ export function useReportDraft(
  * typed (`90.0`) is written differently from what the loader hands back
  * (`90`): the saved value is then unchanged, so `useSavedFormValues` has
  * nothing to reset on, and the page would keep asking before it is left. The
- * form marks its own save as it posts, so the answer to another form's save,
- * or to a disqualification, leaves its draft alone.
+ * answer names the score it saved, so another judge's save — one that cut this
+ * form's own short included — or a disqualification leaves its draft alone.
  */
 export function useSettleAfterSave<TFieldValues extends FieldValues>(
   form: UseFormReturn<TFieldValues, unknown, unknown>,
+  scoreId: string,
   saved: TFieldValues,
 ) {
   const actionData = useActionData<PresentationScoresActionData>();
-  const isAwaitingSave = useRef(false);
   const savedKey = JSON.stringify(saved);
 
   useEffect(() => {
-    if (!isAwaitingSave.current || actionData === undefined) {
-      return;
-    }
-
-    isAwaitingSave.current = false;
-
-    if (actionData.status === "success") {
+    if (actionData?.status === "success" && actionData.scoreId === scoreId) {
       form.reset(JSON.parse(savedKey) as TFieldValues);
     }
-  }, [actionData, form, savedKey]);
-
-  return () => {
-    isAwaitingSave.current = true;
-  };
+  }, [actionData, form, savedKey, scoreId]);
 }

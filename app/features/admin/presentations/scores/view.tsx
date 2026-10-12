@@ -482,14 +482,13 @@ function SingleScoreForm({
   // A saved correction is the row's new starting point, so `Guardar` waits for
   // the next change instead of offering to post the same number again.
   useSavedFormValues(form, saved);
-  const markSaving = useSettleAfterSave(form, saved);
+  useSettleAfterSave(form, scoreId, saved);
 
   return (
     <form
       className="flex items-start gap-2"
       method="post"
       onSubmit={form.handleSubmit((values) => {
-        markSaving();
         void submit(
           { intent: "edit-score", scoreId, value: values.value },
           { method: "post" },
@@ -562,13 +561,12 @@ function SheetForm({
     fields: { scoreId },
     intent: "edit-score",
   });
-  const markSaving = useSettleAfterSave(form, saved);
+  useSettleAfterSave(form, scoreId, saved);
 
   return (
     <form
       method="post"
       onSubmit={form.handleSubmit((values) => {
-        markSaving();
         void submit(buildSheetEditSubmission({ scoreId, values }), {
           method: "post",
         });
