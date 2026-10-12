@@ -1,5 +1,3 @@
-import type { ComponentProps } from "react";
-
 import { PortalListPageActions } from "@/components/portal/list-page-actions";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
@@ -15,15 +13,14 @@ import {
 } from "@/lib/participation/participation.shared";
 import {
   defaultRosterPersonStatusFilter,
-  getRosterPersonStatusBadgeVariant,
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import {
-  formatDancerVerificationStatusLabel,
-  getDancerVerificationStatusBadgeVariant,
-} from "@/lib/dancers/verification";
-import { buildDancerVerificationFacet } from "@/components/shared/dancer-verification-badge";
+  buildDancerVerificationFacet,
+  DancerVerificationBadge,
+} from "@/components/shared/dancer-verification-badge";
+import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
 import { type PortalDancersListLoaderData } from "@/features/portal/dancers/list/shared";
 
 type LoaderData = PortalDancersListLoaderData;
@@ -79,18 +76,9 @@ const dancerFacetedFilters: DataTableFacetedFiltersOf<
         value: "archived",
       },
     ],
-    renderValue: (option) => (
-      <Badge variant={getRosterPersonStatusBadgeVariant("archived")}>
-        {option.label}
-      </Badge>
-    ),
+    renderValue: () => <RosterPersonStatusBadge status="archived" />,
   },
 ];
-
-type DancerBadge = {
-  label: string;
-  variant: ComponentProps<typeof Badge>["variant"];
-};
 
 export function PortalDancersListRouteView({
   loaderData,
@@ -154,11 +142,17 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       headerClassName: "w-1/4",
       cell: (dancer) => (
         <div className="flex gap-2">
-          {getDancerStateBadges(dancer).map((badge) => (
-            <Badge key={badge.label} variant={badge.variant}>
-              {badge.label}
+          {dancer.participationStatus !== "no-event" ? (
+            <Badge
+              variant={getParticipationBadgeVariant(dancer.participationStatus)}
+            >
+              {getParticipationLabel(dancer.participationStatus)}
             </Badge>
-          ))}
+          ) : null}
+          <RosterPersonStatusBadge
+            status={toRosterPersonStatus(dancer.active)}
+          />
+          <DancerVerificationBadge code={dancer.verificationStatus} />
         </div>
       ),
       filterValues: (dancer) => [
@@ -182,31 +176,6 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       initialSort={{ columnId: "name", direction: "asc" }}
     />
   );
-}
-
-function getDancerStateBadges(dancer: DancerRow) {
-  const badges: DancerBadge[] = [];
-
-  if (!dancer.active) {
-    badges.push({
-      label: getRosterPersonStatusLabel("archived"),
-      variant: getRosterPersonStatusBadgeVariant("archived"),
-    });
-  }
-
-  if (dancer.participationStatus !== "no-event") {
-    badges.push({
-      label: getParticipationLabel(dancer.participationStatus),
-      variant: getParticipationBadgeVariant(dancer.participationStatus),
-    });
-  }
-
-  badges.push({
-    label: formatDancerVerificationStatusLabel(dancer.verificationStatus),
-    variant: getDancerVerificationStatusBadgeVariant(dancer.verificationStatus),
-  });
-
-  return badges;
 }
 
 function formatDocument(dancer: DancerRow) {
