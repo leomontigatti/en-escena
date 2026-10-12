@@ -7,10 +7,10 @@
 import type { Control, FieldValues, Path } from "react-hook-form";
 import type { z } from "zod";
 
-import { IntegerInputField } from "@/components/shared/integer-input-field";
+import { MoneyInputField } from "@/components/shared/integer-input-field";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
-import { formatAmount } from "@/lib/finances/formatters";
+import { formatAmountNumber } from "@/lib/finances/formatters";
 
 import {
   formatDialogPrice,
@@ -95,7 +95,7 @@ export function MoneyAmountField<TFieldValues extends FieldValues>({
   placeholderAmount: number | null;
 }) {
   return (
-    <IntegerInputField
+    <MoneyInputField
       autoComplete="off"
       autoFocus
       control={control}
@@ -105,7 +105,9 @@ export function MoneyAmountField<TFieldValues extends FieldValues>({
       label="Monto"
       name={name}
       placeholder={
-        placeholderAmount === null ? undefined : formatAmount(placeholderAmount)
+        placeholderAmount === null
+          ? undefined
+          : formatAmountNumber(placeholderAmount)
       }
     />
   );

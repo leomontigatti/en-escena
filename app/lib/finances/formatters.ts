@@ -6,6 +6,10 @@ const moneyFormatter = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
+const amountNumberFormatter = new Intl.NumberFormat("es-AR", {
+  maximumFractionDigits: 0,
+});
+
 const paymentDateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
   month: "long",
@@ -15,6 +19,11 @@ const paymentDateFormatter = new Intl.DateTimeFormat("es-AR", {
 
 export function formatAmount(amount: number) {
   return moneyFormatter.format(amount).replace(/\u00a0/g, " ");
+}
+
+/** The figure without its sign, for a control that already shows one (`MoneyInputField`). */
+export function formatAmountNumber(amount: number) {
+  return amountNumberFormatter.format(amount);
 }
 
 export function formatOperationalAmount(amount: OperationalFinanceAmount) {

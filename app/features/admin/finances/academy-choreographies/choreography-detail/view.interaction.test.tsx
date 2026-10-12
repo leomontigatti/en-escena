@@ -86,7 +86,7 @@ describe("DancerNameCell interaction", () => {
 
     const amount = amountInput();
     // The deposit is already covered, so what is left to finish is the balance.
-    expect(amount.placeholder).toBe("$ 7.000");
+    expect(amount.placeholder).toBe("7.000");
     expect(amount.value).toBe("");
   });
 
@@ -104,7 +104,7 @@ describe("DancerNameCell interaction", () => {
 
     await clickReactDomButton("Bruno Benítez");
 
-    expect(amountInput().placeholder).toBe("$ 3.000");
+    expect(amountInput().placeholder).toBe("3.000");
   });
 
   // It locks on covering the deposit —3000 of 3000—, which is where the rule
@@ -157,12 +157,12 @@ describe("DancerNameCell interaction", () => {
 
     await clickReactDomButton("Bruno Benítez");
 
-    expect(amountInput().placeholder).toBe("$ 3.000");
+    expect(amountInput().placeholder).toBe("3.000");
 
     await openPriceSelect();
     await selectRadixOption("Primer vencimiento · $ 42.000 · seña $ 12.600");
 
-    expect(amountInput().placeholder).toBe("$ 12.600");
+    expect(amountInput().placeholder).toBe("12.600");
     // And the two owed figures move with it, so the card cannot contradict the
     // hint sitting right above it.
     expect(dialogText()).toContain("$ 42.000");
@@ -371,7 +371,7 @@ describe("DancerNameCell interaction", () => {
     const removed = amountInput("inscription-removed-amount");
 
     expect(removed.value).toBe("");
-    expect(removed.placeholder).toBe("$ 10.000");
+    expect(removed.placeholder).toBe("10.000");
     // The placeholder says the allocated total, so the `Asignado` line that
     // repeated it under the field is gone.
     expect(dialogText()).not.toContain("Asignado");
@@ -437,9 +437,7 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
     expect(amountInput("inscription-removed-amount").value).toBe("");
-    expect(amountInput("inscription-removed-amount").placeholder).toBe(
-      "$ 3.000",
-    );
+    expect(amountInput("inscription-removed-amount").placeholder).toBe("3.000");
   });
 
   test("offers one click that releases exactly the excess", async () => {
