@@ -2,7 +2,7 @@ import type { Control, FieldPath, FieldValues } from "react-hook-form";
 
 import { ComboboxField } from "@/components/shared/combobox-field";
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInputField } from "@/components/shared/integer-input-field";
+import { MoneyInputField } from "@/components/shared/integer-input-field";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import { TextareaField } from "@/components/shared/textarea-field";
@@ -89,7 +89,7 @@ export function PaymentFields<TValues extends PaymentFormFieldValues>({
         name={"reference" as FieldPath<TValues>}
       />
 
-      <IntegerInputField
+      <MoneyInputField
         className="md:col-start-1"
         control={control}
         id="payment-amount"

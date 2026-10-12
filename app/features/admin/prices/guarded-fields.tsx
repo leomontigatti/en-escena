@@ -1,7 +1,7 @@
 import type { FieldValues, Path, UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
-import { IntegerInputField } from "@/components/shared/integer-input-field";
+import { MoneyInputField } from "@/components/shared/integer-input-field";
 import {
   ReadOnlyDateField,
   ReadOnlyField,
@@ -42,7 +42,7 @@ function GuardedAmountField<TFieldValues extends FieldValues>({
   }
 
   return (
-    <IntegerInputField
+    <MoneyInputField
       control={form.control}
       label="Monto"
       min="1"

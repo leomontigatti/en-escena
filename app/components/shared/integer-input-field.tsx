@@ -1,3 +1,4 @@
+import { DollarSign } from "lucide-react";
 import {
   useId,
   type ChangeEventHandler,
@@ -17,6 +18,11 @@ import {
   type SharedFieldOrientation,
 } from "@/components/shared/field-layout";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { cn } from "@/lib/shared/utils";
 
 type IntegerInputProps = Omit<
@@ -60,28 +66,61 @@ type IntegerInputFieldProps<
   suffix?: string;
 };
 
+type MoneyInputFieldProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+> = Omit<IntegerInputFieldProps<TFieldValues, TName>, "suffix">;
+
 function getIntegerInputValue(value: string) {
   return value.replace(/\D/g, "");
 }
 
+function getIntegerInputControlProps(
+  onChange: ChangeEventHandler<HTMLInputElement> | undefined,
+) {
+  return {
+    inputMode: "numeric",
+    pattern: "[0-9]*",
+    type: "text",
+    onChange: (event) => {
+      event.currentTarget.value = getIntegerInputValue(
+        event.currentTarget.value,
+      );
+      onChange?.(event);
+    },
+  } satisfies ComponentProps<typeof Input>;
+}
+
 function IntegerInput({ onChange, ...props }: IntegerInputProps) {
+  return <Input {...getIntegerInputControlProps(onChange)} {...props} />;
+}
+
+/** The same control inside an `InputGroup`, so an addon can lead it. */
+function IntegerInputGroupInput({ onChange, ...props }: IntegerInputProps) {
   return (
-    <Input
-      inputMode="numeric"
-      pattern="[0-9]*"
-      type="text"
-      onChange={(event) => {
-        event.currentTarget.value = getIntegerInputValue(
-          event.currentTarget.value,
-        );
-        onChange?.(event);
-      }}
-      {...props}
-    />
+    <InputGroupInput {...getIntegerInputControlProps(onChange)} {...props} />
   );
 }
 
 function IntegerInputField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+>(props: IntegerInputFieldProps<TFieldValues, TName>) {
+  return <IntegerField {...props} />;
+}
+
+/**
+ * A whole-peso amount. The dollar sign is the control's, so neither the value
+ * nor the placeholder carries one: hint a figure with `formatAmountNumber`.
+ */
+function MoneyInputField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+>(props: MoneyInputFieldProps<TFieldValues, TName>) {
+  return <IntegerField {...props} currency />;
+}
+
+function IntegerField<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
 >({
@@ -97,9 +136,13 @@ function IntegerInputField<
   name,
   orientation,
   suffix,
+  currency = false,
   disabled = false,
   ...inputProps
-}: IntegerInputFieldProps<TFieldValues, TName>) {
+}: IntegerInputFieldProps<TFieldValues, TName> & {
+  /** Leads the control with a dollar sign, the way a search box leads with its magnifier. */
+  currency?: boolean;
+}) {
   const generatedId = useId();
   const id = providedId ?? generatedId;
   return (
@@ -121,21 +164,52 @@ function IntegerInputField<
             labelClassName={labelClassName}
             orientation={orientation}
           >
-            {({ describedBy, isInvalid }) => (
-              <div className="relative">
-                <IntegerInput
-                  {...inputProps}
-                  {...field}
-                  id={id}
-                  aria-describedby={describedBy || undefined}
-                  aria-invalid={isInvalid ? true : undefined}
-                  className={cn(disabled && "pr-9", inputClassName)}
-                  disabled={disabled}
-                />
-                <IntegerInputSuffix suffix={suffix} value={field.value} />
-                {disabled ? <FieldControlLockIcon /> : null}
-              </div>
-            )}
+            {({ describedBy, isInvalid }) => {
+              const currencyId = `${id}-currency`;
+              const controlProps = {
+                ...inputProps,
+                ...field,
+                id,
+                "aria-describedby":
+                  [describedBy, currency && currencyId]
+                    .filter(Boolean)
+                    .join(" ") || undefined,
+                "aria-invalid": isInvalid ? true : undefined,
+                className: cn(disabled && "pr-9", inputClassName),
+                disabled,
+              };
+              // A disabled group dims as a whole, so its control does not dim
+              // again inside it, and the lock sits outside it to read at full
+              // strength as it does on every other field.
+              return (
+                <div className="relative">
+                  {currency ? (
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <DollarSign aria-hidden="true" />
+                        {/* The sign is decorative; this says the unit. */}
+                        <span id={currencyId} className="sr-only">
+                          En pesos
+                        </span>
+                      </InputGroupAddon>
+                      <IntegerInputGroupInput
+                        {...controlProps}
+                        className={cn(
+                          controlProps.className,
+                          "disabled:opacity-100",
+                        )}
+                      />
+                    </InputGroup>
+                  ) : (
+                    <>
+                      <IntegerInput {...controlProps} />
+                      <IntegerInputSuffix suffix={suffix} value={field.value} />
+                    </>
+                  )}
+                  {disabled ? <FieldControlLockIcon /> : null}
+                </div>
+              );
+            }}
           </SharedFieldLayout>
         );
       }}
@@ -174,6 +248,7 @@ function IntegerInputSuffix({
 export {
   IntegerInput,
   IntegerInputField,
+  MoneyInputField,
   getIntegerInputValue,
   type IntegerInputFieldProps,
 };
