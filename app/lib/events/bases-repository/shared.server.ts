@@ -10,17 +10,8 @@ import {
   schedules,
 } from "@/db/schema";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
-import type { PriceGuardFlags } from "@/lib/prices/guards";
-import type { PriceRow } from "@/lib/prices/rows.server";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
-
-export const priceDefaultNames: Record<GroupType, string> = {
-  solo: "Precio Solo",
-  duo: "Precio Duo",
-  trio: "Precio Trio",
-  grupal: "Precio Grupal",
-};
 
 export type EventBaseNameInput = {
   name: string;
@@ -158,51 +149,6 @@ export type CompatibleScheduleCapacity = {
     "id" | "name" | "scheduledDate" | "startTime"
   >;
 };
-
-export type PriceInput = {
-  name?: string;
-  groupType: string;
-  amount: number;
-  paymentDeadline: string | null;
-  // Empty for a general price; the schedules a special price covers otherwise.
-  scheduleIds: readonly string[];
-};
-
-// A null `paymentDeadline` makes the row open-ended: it applies once every dated
-// row of its tier has expired.
-export type ValidPriceInput = {
-  name: string;
-  groupType: GroupType;
-  amount: number;
-  paymentDeadline: string | null;
-  // Deduplicated and sorted, so two inputs naming the same schedules compare
-  // equal.
-  scheduleIds: string[];
-};
-
-export type PriceDependencies = {
-  hasDependencies?: (priceId: string) => Promise<boolean> | boolean;
-};
-
-export type PriceListItem = PriceRow &
-  PriceGuardFlags & {
-    // The schedules `scheduleIds` names, in schedule order; empty on a general
-    // price.
-    schedules: Array<
-      Pick<
-        typeof schedules.$inferSelect,
-        "id" | "name" | "scheduledDate" | "startTime"
-      >
-    >;
-  };
-
-export type PriceResolutionResult =
-  | { ok: true; price: PriceRow }
-  | {
-      ok: false;
-      code: "missing-price" | "invalid-group-type";
-      error: string;
-    };
 
 export type ValidInlineSubmodalityInput = InlineSubmodalityInput & {
   index: number;

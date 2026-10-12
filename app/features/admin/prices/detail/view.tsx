@@ -2,7 +2,7 @@ import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { GuardAlert } from "@/components/shared/guard-alert";
 import { readPriceGuard } from "@/lib/prices/guards";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import type { PriceListItem } from "@/lib/events/bases.server";
+import type { PriceListItem } from "@/lib/prices/repository.server";
 
 import { EmptyResourceState, PriceActions } from "../actions";
 import {

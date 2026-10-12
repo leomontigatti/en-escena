@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, test, vi } from "vitest";
 
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -39,6 +39,25 @@ afterEach(() => {
 });
 
 describe("`Bases del evento` repository", () => {
+  test("returns the saved price row as the created record", async () => {
+    const event = await createSavedEvent();
+    const result = await createPrice(event.id, {
+      groupType: "duo",
+      amount: 15000,
+      paymentDeadline: null,
+      scheduleIds: [],
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      record: { eventId: event.id, groupType: "duo", name: "Precio Duo" },
+    });
+
+    if (result.ok) {
+      expectTypeOf(result.record).toEqualTypeOf<typeof prices.$inferSelect>();
+    }
+  });
+
   test("keeps prices unique by event and rejects schedules from another event", async () => {
     const firstEvent = await createSavedEvent({
       name: "Regional 2026",
@@ -93,6 +112,7 @@ describe("`Bases del evento` repository", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
+      code: "duplicate-price-group-schedule",
       error: "Ya existe un precio general para ese tipo de grupo.",
       fieldErrors: { groupType: "Revisá el tipo de grupo del precio." },
     });
@@ -202,6 +222,7 @@ describe("`Bases del evento` repository", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
+      code: "duplicate-price-group-schedule",
       error: "Ya existe un precio general para ese tipo de grupo.",
     });
 
@@ -837,6 +858,7 @@ describe("a special price covering several schedules", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
+      code: "duplicate-price-group-schedule",
       error:
         "Ya existe un precio especial para ese tipo de grupo y fecha límite en Domingo Mañana.",
       fieldErrors: { scheduleIds: "Revisá los cronogramas del precio." },

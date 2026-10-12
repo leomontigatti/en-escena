@@ -54,6 +54,8 @@ export type EventBaseFailure = {
     | "event-bases-not-found"
     | "duplicate-name"
     | "duplicate-category"
+    | "duplicate-price-group-schedule"
+    | "duplicate-seminar-price"
     | "invalid-event-bases"
     | "invalid-experience-level"
     | "invalid-group-type"
