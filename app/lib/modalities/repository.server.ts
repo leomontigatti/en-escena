@@ -1,10 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 
-import {
-  db,
-  modalities,
-  submodalities,
-} from "@/lib/events/bases-repository/shared.server";
+import { db } from "@/db";
+import { modalities, submodalities } from "@/db/schema";
 
 export {
   createModality,

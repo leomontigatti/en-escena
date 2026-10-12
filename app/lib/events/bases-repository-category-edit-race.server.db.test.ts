@@ -41,6 +41,7 @@ vi.mock(
       await importOriginal<
         typeof import("@/lib/events/bases-repository/shared.server")
       >();
+    const { db: pool } = await import("@/db");
 
     return {
       ...actual,
@@ -48,7 +49,7 @@ vi.mock(
         executor: Parameters<typeof actual.listReferencingChoreographies>[0],
         categoryId: string,
       ) => {
-        const onPool = executor === actual.db;
+        const onPool = executor === pool;
 
         guardReads.push(onPool ? "pool" : "transaction");
 

@@ -5,29 +5,34 @@ import {
   toScheduleColumnValues,
   validateAwardCeremonyInput,
 } from "@/lib/events/bases-repository/schedule-values.server";
+import { db } from "@/db";
 import {
   choreographies,
+  modalities,
+  scheduleCapacities,
+  scheduleModalities,
+  schedules,
+} from "@/db/schema";
+import {
   created,
-  db,
+  eventBaseCopy,
   eventBaseEntityNotFound,
+  type EventBaseFailure,
+  type EventBasesDeleteResult,
+  type EventBasesMutationResult,
+} from "@/lib/events/bases-kernel.server";
+import {
   hasOccupyingChoreographies,
   hasReferencingChoreographies,
   isValidDate,
   isValidTime,
-  modalities,
   normalizeTime,
-  requiredFieldMessage,
-  scheduleCapacities,
-  scheduleModalities,
-  schedules,
-  toTitleCase,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
+import { requiredFieldMessage } from "@/lib/shared/forms";
+import { toTitleCase } from "@/lib/shared/text-normalization";
 import type {
-  EventBaseFailure,
-  EventBasesDeleteResult,
   EventBasesExecutor,
-  EventBasesMutationResult,
   EventBasesTransaction,
   ScheduleDependencies,
   ScheduleInput,
@@ -574,7 +579,7 @@ async function validateScheduleInput(
     return {
       ok: false,
       code: "invalid-event-bases",
-      error: "Revisá los datos del cronograma.",
+      error: eventBaseCopy.schedule.invalidError,
       fieldErrors,
     };
   }

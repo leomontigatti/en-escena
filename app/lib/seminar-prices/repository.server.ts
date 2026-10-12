@@ -6,7 +6,7 @@ import type {
   EventBaseFailure,
   EventBasesDeleteResult,
   EventBasesMutationResult,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
   frozenPriceDeleteError,

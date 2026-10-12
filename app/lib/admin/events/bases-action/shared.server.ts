@@ -4,7 +4,7 @@ import type { NotificationKey } from "@/lib/shared/notification-toasts";
 import type {
   EventBasesDeleteResult,
   EventBasesMutationResult,
-} from "@/lib/schedules/repository.server";
+} from "@/lib/events/bases-kernel.server";
 
 export type ActionData = {
   status: "error";

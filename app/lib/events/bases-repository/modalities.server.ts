@@ -1,23 +1,25 @@
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
+import { db } from "@/db";
 import {
   categoryModalities,
-  created,
-  db,
-  eventBaseCopy,
-  eventBaseEntityNotFound,
   modalities,
-  normalizeEventBaseName,
-  requiredFieldMessage,
   scheduleModalities,
   submodalities,
-  toTitleCase,
+} from "@/db/schema";
+import {
+  created,
+  eventBaseCopy,
+  eventBaseEntityNotFound,
+  type EventBaseFailure,
+  type EventBasesDeleteResult,
+  type EventBasesMutationResult,
+  normalizeEventBaseName,
   validateEventBaseName,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
+import { requiredFieldMessage } from "@/lib/shared/forms";
+import { toTitleCase } from "@/lib/shared/text-normalization";
 import type {
-  EventBaseFailure,
-  EventBasesDeleteResult,
-  EventBasesMutationResult,
   EventBaseNameInput,
   InlineSubmodalityInput,
   ModalityWithSubmodalitiesInput,

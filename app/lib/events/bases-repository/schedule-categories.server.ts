@@ -1,14 +1,14 @@
 import { and, asc, eq, inArray, notInArray } from "drizzle-orm";
 
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
+import { db } from "@/db";
 import {
   categories,
   categoryModalities,
   choreographies,
-  db,
   scheduleCategories,
-  uniqueValues,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/db/schema";
+import { uniqueValues } from "@/lib/events/bases-repository/shared.server";
 import type {
   EventBasesExecutor,
   EventBasesTransaction,

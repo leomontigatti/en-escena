@@ -1,35 +1,41 @@
 import { and, asc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 
 import { formatChoreographyReferences } from "@/lib/choreographies/choreography-messages";
-import { experienceLevelValues } from "@/lib/events/experience-levels";
-import { isForeignKeyViolation } from "@/lib/shared/error-properties.server";
+import { db } from "@/db";
 import {
   categories,
   categoryModalities,
-  categoryNotFound,
-  categoryValues,
   choreographies,
+  modalities,
+  scheduleCategories,
+} from "@/db/schema";
+import {
   created,
-  db,
+  eventBaseCopy,
+  eventBaseEntityNotFound,
+  type EventBaseFailure,
+  type EventBasesDeleteResult,
+  type EventBasesMutationResult,
+} from "@/lib/events/bases-kernel.server";
+import {
+  experienceLevelValues,
+  isExperienceLevel,
+} from "@/lib/events/experience-levels";
+import { groupTypeValues, isGroupType } from "@/lib/events/group-types";
+import { isForeignKeyViolation } from "@/lib/shared/error-properties.server";
+import { toTitleCase } from "@/lib/shared/text-normalization";
+import {
+  categoryValues,
   groupRelationIdsByCategory,
-  groupTypeOrder,
   hasReferencingChoreographies,
   haveSameValues,
-  isExperienceLevel,
-  isGroupType,
   listReferencingChoreographies,
-  modalities,
   replaceCategoryRelations,
-  scheduleCategories,
-  toTitleCase,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
 import type {
   CategoryInput,
-  EventBaseFailure,
-  EventBasesDeleteResult,
   EventBasesExecutor,
-  EventBasesMutationResult,
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
 
@@ -143,7 +149,7 @@ export async function updateCategory(
   });
 
   if (!category) {
-    return categoryNotFound();
+    return eventBaseEntityNotFound("category");
   }
 
   const validation = await validateCategoryInput(
@@ -220,7 +226,7 @@ export async function deleteCategory(
   });
 
   if (!category) {
-    return categoryNotFound();
+    return eventBaseEntityNotFound("category");
   }
 
   // The same notion of in-use the update guards hold, withdrawn inscriptions
@@ -447,8 +453,8 @@ async function validateCategoryInput(
     return {
       ok: false,
       code: "invalid-event-bases",
-      error: "Revisá los datos de la categoría.",
-      fieldErrors: { name: "Ingresá el nombre de la categoría." },
+      error: eventBaseCopy.category.invalidError,
+      fieldErrors: { name: eventBaseCopy.category.requiredNameError },
     };
   }
 
@@ -474,7 +480,7 @@ async function validateCategoryInput(
 
   const groupTypes = uniqueValues(input.groupTypes)
     .filter(isGroupType)
-    .sort((a, b) => groupTypeOrder.indexOf(a) - groupTypeOrder.indexOf(b));
+    .sort((a, b) => groupTypeValues.indexOf(a) - groupTypeValues.indexOf(b));
 
   if (groupTypes.length === 0) {
     return {

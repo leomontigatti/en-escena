@@ -1,5 +1,6 @@
 import { modalityFormSchema } from "@/features/admin/modalities/view-shared";
 import { readIndexedFormEntries } from "@/lib/admin/events/bases-action/input.server";
+import { eventBaseCopy } from "@/lib/events/bases-kernel.server";
 import { replaceSheetCriteria } from "@/lib/judging/criteria.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { criterionKinds, type CriterionKind } from "@/lib/judging/criteria";
@@ -398,7 +399,7 @@ function revalidateModalityForm(
 
   return invalidEventBasesFormResult(
     result.error,
-    "Revisá los datos de la modalidad.",
+    eventBaseCopy.modality.invalidError,
   );
 }
 

@@ -1,101 +1,26 @@
-import { and, eq, ne, type SQL } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   categories,
   categoryModalities,
   choreographies,
-  events,
   modalities,
-  prices,
   scheduleCapacities,
-  scheduleCategories,
-  scheduleModalities,
   schedules,
-  seminarPrices,
-  submodalities,
 } from "@/db/schema";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { PriceGuardFlags } from "@/lib/prices/guards";
 import type { PriceRow } from "@/lib/prices/rows.server";
-import { requiredFieldMessage } from "@/lib/shared/forms";
-import { toTitleCase } from "@/lib/shared/text-normalization";
-import {
-  type ExperienceLevel,
-  isExperienceLevel,
-} from "@/lib/events/experience-levels";
-import {
-  type GroupType,
-  groupTypeValues,
-  isGroupType,
-} from "@/lib/events/group-types";
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import type { GroupType } from "@/lib/events/group-types";
 
-export {
-  categories,
-  categoryModalities,
-  choreographies,
-  db,
-  modalities,
-  prices,
-  requiredFieldMessage,
-  scheduleCapacities,
-  scheduleCategories,
-  scheduleModalities,
-  schedules,
-  submodalities,
-  toTitleCase,
-};
-
-export type EventBaseEntityKind = EventBaseUniqueEntityKind | "schedule";
-export type EventBaseUniqueEntityKind = "modality" | "submodality";
-
-export const groupTypeOrder: GroupType[] = [...groupTypeValues];
 export const priceDefaultNames: Record<GroupType, string> = {
   solo: "Precio Solo",
   duo: "Precio Duo",
   trio: "Precio Trio",
   grupal: "Precio Grupal",
 };
-
-export type EventBaseRecord =
-  | typeof events.$inferSelect
-  | typeof modalities.$inferSelect
-  | typeof scheduleCapacities.$inferSelect
-  | typeof schedules.$inferSelect
-  | typeof submodalities.$inferSelect
-  | typeof categories.$inferSelect
-  | typeof prices.$inferSelect
-  // Seminar prices are not `Bases del evento` —they live in their own resource
-  // module— but they return these same result shapes, so the record union has
-  // to admit their row (docs/domain/seminars.md, "Prices").
-  | typeof seminarPrices.$inferSelect;
-
-type EventBaseSuccess = {
-  ok: true;
-  record: EventBaseRecord;
-};
-
-export type EventBaseFailure = {
-  ok: false;
-  code:
-    | "event-bases-has-dependencies"
-    | "event-bases-not-found"
-    | "duplicate-name"
-    | "duplicate-category"
-    | "invalid-event-bases"
-    | "invalid-experience-level"
-    | "invalid-group-type"
-    | "invalid-modality"
-    | "missing-price"
-    | "invalid-schedule-capacity"
-    | "schedule-has-dependencies"
-    | "schedule-registration-not-allowed";
-  error: string;
-  fieldErrors?: Record<string, string>;
-};
-
-export type EventBasesMutationResult = EventBaseSuccess | EventBaseFailure;
-export type EventBasesDeleteResult = { ok: true } | EventBaseFailure;
 
 export type EventBaseNameInput = {
   name: string;
@@ -303,163 +228,10 @@ export type EventBasesTransaction = Parameters<
  */
 export type EventBasesExecutor = EventBasesTransaction | typeof db;
 
-export const eventBaseCopy = {
-  modality: {
-    label: "modalidad",
-    invalidError: "Revisá los datos de la modalidad.",
-    requiredNameError: "Ingresá el nombre de la modalidad.",
-    duplicateError: "Ya existe una modalidad con ese nombre en este evento.",
-    duplicateFieldError: "Usá un nombre distinto para la modalidad.",
-  },
-  submodality: {
-    label: "submodalidad",
-    invalidError: "Revisá los datos de la submodalidad.",
-    requiredNameError: "Ingresá el nombre de la submodalidad.",
-    duplicateError:
-      "Ya existe una submodalidad con ese nombre en esta modalidad.",
-    duplicateFieldError: "Usá un nombre distinto para la submodalidad.",
-  },
-  schedule: {
-    label: "cronograma",
-    invalidError: "Revisá los datos del cronograma.",
-    requiredNameError: "Ingresá el nombre del cronograma.",
-  },
-} satisfies Record<
-  EventBaseEntityKind,
-  {
-    label: string;
-    invalidError: string;
-    requiredNameError: string;
-  }
-> &
-  Record<
-    EventBaseUniqueEntityKind,
-    {
-      duplicateError: string;
-      duplicateFieldError: string;
-    }
-  >;
-
-export async function validateEventBaseName(input: {
-  eventId: string;
-  name: string;
-  kind: EventBaseUniqueEntityKind;
-  exceptId?: string;
-}): Promise<{ ok: true } | EventBaseFailure> {
-  if (input.name.trim().length === 0) {
-    return {
-      ok: false,
-      code: "invalid-event-bases",
-      error: eventBaseCopy[input.kind].invalidError,
-      fieldErrors: { name: eventBaseCopy[input.kind].requiredNameError },
-    };
-  }
-
-  const duplicate = await findDuplicateName(input);
-
-  if (duplicate) {
-    return {
-      ok: false,
-      code: "duplicate-name",
-      error: eventBaseCopy[input.kind].duplicateError,
-      fieldErrors: { name: eventBaseCopy[input.kind].duplicateFieldError },
-    };
-  }
-
-  return { ok: true };
-}
-
-async function findDuplicateName(input: {
-  eventId: string;
-  name: string;
-  kind: EventBaseUniqueEntityKind;
-  exceptId?: string;
-}) {
-  const normalizedName = normalizeEventBaseName(input.name);
-  const table = getUniqueNameTable(input.kind);
-  const idFilter = input.exceptId ? ne(table.id, input.exceptId) : undefined;
-  const filters = [eq(table.eventId, input.eventId), idFilter].filter(Boolean);
-
-  return db
-    .select({ id: table.id, name: table.name })
-    .from(table)
-    .where(and(...filters))
-    .then((records) =>
-      records.find(
-        (record) => normalizeEventBaseName(record.name) === normalizedName,
-      ),
-    );
-}
-
-export function normalizeEventBaseName(name: string) {
-  return name
-    .trim()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLocaleLowerCase("es");
-}
-
 export function normalizeNullableName(name: string) {
   const trimmedName = name.trim();
 
   return trimmedName.length > 0 ? trimmedName : null;
-}
-
-export function created(
-  record: EventBaseRecord | undefined,
-): EventBasesMutationResult {
-  if (!record) {
-    return {
-      ok: false,
-      code: "invalid-event-bases",
-      error: "No se pudo guardar el registro de configuración.",
-    };
-  }
-
-  return { ok: true, record };
-}
-
-export function eventBaseEntityNotFound(
-  kind: EventBaseEntityKind,
-): EventBaseFailure {
-  return {
-    ok: false,
-    code: "event-bases-not-found",
-    error: `No encontramos esa ${eventBaseCopy[kind].label}.`,
-  };
-}
-
-function getUniqueNameTable(kind: EventBaseUniqueEntityKind) {
-  switch (kind) {
-    case "modality":
-      return modalities;
-    case "submodality":
-      return submodalities;
-  }
-}
-
-export function categoryNotFound(): EventBaseFailure {
-  return {
-    ok: false,
-    code: "event-bases-not-found",
-    error: "No encontramos esa categoría.",
-  };
-}
-
-export function priceNotFound(): EventBaseFailure {
-  return {
-    ok: false,
-    code: "event-bases-not-found",
-    error: "No encontramos ese precio.",
-  };
-}
-
-export function scheduleCapacityNotFound(): EventBaseFailure {
-  return {
-    ok: false,
-    code: "event-bases-not-found",
-    error: "No encontramos ese cupo de cronograma.",
-  };
 }
 
 export function uniqueValues(values: string[]) {
@@ -499,14 +271,6 @@ export function groupRelationIdsByCategory<
   }
 
   return idsByCategory;
-}
-
-export function toDateOnly(value: Date | string) {
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
-  }
-
-  return value.slice(0, 10);
 }
 
 export function isValidDate(value: string) {
@@ -614,6 +378,3 @@ export async function listReferencingChoreographies(
     .from(choreographies)
     .where(eq(choreographies.categoryId, categoryId));
 }
-
-export { isExperienceLevel, isGroupType };
-export type { ExperienceLevel, GroupType };

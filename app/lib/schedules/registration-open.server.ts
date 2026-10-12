@@ -5,7 +5,7 @@ import { events, schedules } from "@/db/schema";
 import type {
   EventBaseFailure,
   EventBasesMutationResult,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import {
   collectScheduleRegistrationOpenBlockers,

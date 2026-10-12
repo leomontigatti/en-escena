@@ -1,28 +1,33 @@
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
+import { db } from "@/db";
 import {
   choreographies,
   choreographyDancers,
   priceSchedules,
+  prices,
+  schedules,
 } from "@/db/schema";
 import {
   created,
-  db,
-  groupTypeOrder,
-  isGroupType,
+  eventBaseCopy,
+  eventBaseEntityNotFound,
+  type EventBaseFailure,
+  type EventBasesDeleteResult,
+  type EventBasesMutationResult,
+} from "@/lib/events/bases-kernel.server";
+import {
   normalizeNullableName,
   priceDefaultNames,
-  priceNotFound,
-  prices,
-  schedules,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
-import type { GroupType } from "@/lib/events/group-types";
+import {
+  type GroupType,
+  groupTypeValues,
+  isGroupType,
+} from "@/lib/events/group-types";
 import type {
-  EventBaseFailure,
-  EventBasesDeleteResult,
   EventBasesExecutor,
-  EventBasesMutationResult,
   EventBasesTransaction,
   PriceDependencies,
   PriceInput,
@@ -136,7 +141,7 @@ export async function updatePrice(
   const existing = await loadPriceRow(db, priceId);
 
   if (!existing) {
-    return priceNotFound();
+    return eventBaseEntityNotFound("price");
   }
 
   const validation = await validatePriceInput(existing.eventId, input, {
@@ -172,7 +177,7 @@ async function savePriceUnderLock(
     const locked = await loadPriceRowForUpdate(tx, priceId);
 
     if (!locked) {
-      return priceNotFound();
+      return eventBaseEntityNotFound("price");
     }
 
     const refusal = await refusePriceUpdate(tx, locked, input, dependencies);
@@ -249,7 +254,7 @@ export async function deletePrice(
     const price = await loadPriceRowForUpdate(tx, priceId);
 
     if (!price) {
-      return priceNotFound();
+      return eventBaseEntityNotFound("price");
     }
 
     const hasDependencies = resolveHasDependencies(tx, dependencies);
@@ -544,7 +549,7 @@ function invalidPriceInput(
     code: "invalid-event-bases",
     error: onlyScheduleError
       ? "Elegí cronogramas del evento activo."
-      : "Revisá los datos del precio.",
+      : eventBaseCopy.price.invalidError,
     fieldErrors,
   };
 }
@@ -693,8 +698,8 @@ function hasStructuralPriceChanges(existing: PriceRow, input: ValidPriceInput) {
 
 function comparePrices(first: PriceListItem, second: PriceListItem) {
   const groupTypeComparison =
-    groupTypeOrder.indexOf(first.groupType) -
-    groupTypeOrder.indexOf(second.groupType);
+    groupTypeValues.indexOf(first.groupType) -
+    groupTypeValues.indexOf(second.groupType);
 
   if (groupTypeComparison !== 0) {
     return groupTypeComparison;

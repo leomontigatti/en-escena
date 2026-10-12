@@ -11,28 +11,30 @@ import {
 } from "drizzle-orm";
 
 import { withdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
+import { db } from "@/db";
 import {
   choreographies,
-  created,
-  db,
-  hasOccupyingChoreographies,
-  isGroupType,
-  requiredFieldMessage,
   scheduleCapacities,
-  scheduleCapacityNotFound,
   scheduleCategories,
   scheduleModalities,
   schedules,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/db/schema";
+import {
+  created,
+  eventBaseCopy,
+  eventBaseEntityNotFound,
+  type EventBaseFailure,
+  type EventBasesDeleteResult,
+  type EventBasesMutationResult,
+} from "@/lib/events/bases-kernel.server";
+import { hasOccupyingChoreographies } from "@/lib/events/bases-repository/shared.server";
+import { type GroupType, isGroupType } from "@/lib/events/group-types";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 import type {
   CompatibleScheduleCapacity,
   CompatibleScheduleCapacityResolution,
   CompatibleScheduleRow,
-  EventBaseFailure,
-  EventBasesDeleteResult,
   EventBasesExecutor,
-  EventBasesMutationResult,
-  GroupType,
   ScheduleCapacityDependencies,
   ScheduleCapacityInput,
   ScheduleCapacityListItem,
@@ -72,7 +74,7 @@ export async function updateScheduleCapacity(
   });
 
   if (!existing) {
-    return scheduleCapacityNotFound();
+    return eventBaseEntityNotFound("scheduleCapacity");
   }
 
   const validation = await validateScheduleCapacityInput(
@@ -123,7 +125,7 @@ export async function deleteScheduleCapacity(
   });
 
   if (!scheduleCapacity) {
-    return scheduleCapacityNotFound();
+    return eventBaseEntityNotFound("scheduleCapacity");
   }
 
   const hasDependencies =
@@ -367,7 +369,7 @@ export async function validateInlineScheduleCapacitiesInput({
     return {
       ok: false,
       code: "invalid-schedule-capacity",
-      error: "Revisá los datos del cupo de cronograma.",
+      error: eventBaseCopy.scheduleCapacity.invalidError,
       fieldErrors,
     };
   }
@@ -453,7 +455,7 @@ async function validateScheduleCapacityInput(
   });
 
   if (!schedule) {
-    return scheduleCapacityNotFound();
+    return eventBaseEntityNotFound("scheduleCapacity");
   }
 
   const fieldErrors: Record<string, string> = {};
@@ -471,7 +473,7 @@ async function validateScheduleCapacityInput(
     return {
       ok: false,
       code: "invalid-schedule-capacity",
-      error: "Revisá los datos del cupo de cronograma.",
+      error: eventBaseCopy.scheduleCapacity.invalidError,
       fieldErrors,
     };
   }

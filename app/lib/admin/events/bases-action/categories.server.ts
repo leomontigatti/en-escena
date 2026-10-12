@@ -17,9 +17,9 @@ import {
 import {
   createCategory,
   deleteCategory,
-  type EventBasesMutationResult,
   updateCategory,
 } from "@/lib/categories/repository.server";
+import type { EventBasesMutationResult } from "@/lib/events/bases-kernel.server";
 import { buildDetailPath, buildListPath } from "@/lib/shared/navigation";
 
 const categoryBasePath = "/administracion/categorias";
