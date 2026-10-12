@@ -324,6 +324,20 @@ export function resolveInscriptionStatusBadge(input: {
 }
 
 /**
+ * A choreography's badge as the academy sees it, on the portal's list and its
+ * detail alike. `Retirada` **replaces** the financial status, it does not
+ * accompany it: a withdrawn choreography is not taking part, and the two badges
+ * side by side would read as two facts of equal weight. The anomalies are left
+ * out on purpose — the academy is not shown `Sobreasignada`.
+ */
+export function resolvePortalChoreographyStatusBadge(input: {
+  financialStatus: InscriptionFinancialStatus;
+  withdrawn: boolean;
+}): InscriptionStatusBadge {
+  return resolveInscriptionStatusBadge({ ...input, anomalies: [] });
+}
+
+/**
  * A unit's state is the **minimum** of its inscriptions, not a high-water mark:
  * a single uncovered inscription drags the whole unit down, because the badge
  * answers *can this happen as registered?* — for a choreography, *can it go on

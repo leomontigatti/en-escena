@@ -1244,6 +1244,7 @@ function loaderDataFixture(
       owedBalanceAmount: { amount: 7000, status: "complete" },
       owedDepositAmount: { amount: 0, status: "complete" },
       totalAmount: { amount: 10000, status: "complete" },
+      withdrawn: false,
     },
     inscriptions: [inscriptionFixture()],
     invoicing: {

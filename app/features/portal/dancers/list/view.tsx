@@ -153,7 +153,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       className: "w-1/4",
       headerClassName: "w-1/4",
       cell: (dancer) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           {getDancerStateBadges(dancer).map((badge) => (
             <Badge key={badge.label} variant={badge.variant}>
               {badge.label}

@@ -158,12 +158,30 @@ function getReactDomTexts(selector: string) {
   );
 }
 
+/**
+ * The badges a page header draws beside its title: the record's state, apart
+ * from any badge the page body draws. Read from static markup when given, and
+ * from the rendered document otherwise.
+ */
+function getTitleBadgeTexts(markup?: string) {
+  const page =
+    markup === undefined
+      ? document
+      : new DOMParser().parseFromString(markup, "text/html");
+
+  return Array.from(
+    page.querySelectorAll('header [data-slot="badge"]'),
+    (badge) => badge.textContent,
+  );
+}
+
 export {
   clickReactDomButton,
   createReactDomTestRenderer,
   findButton,
   getButton,
   getReactDomTexts,
+  getTitleBadgeTexts,
   setInputValue,
   updateReactDomForm,
   waitFor,

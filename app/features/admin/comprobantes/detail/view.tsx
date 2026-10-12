@@ -24,11 +24,11 @@ import {
 import {
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobanteStatusLabel,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
 import { lowercaseFirst } from "@/lib/shared/utils";
 
+import { ComprobanteStatusBadge } from "../status-badge";
 import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
 import {
   annulComprobanteConfirmValue,
@@ -71,6 +71,7 @@ export function ComprobanteDetailRouteView({
       <AdminResourceLayout
         requireSelectedEvent={false}
         title={`Comprobante ${formatComprobanteNumber(comprobante)}`}
+        titleBadge={<ComprobanteStatusBadge status={comprobante.status} />}
         description="Consultá los datos del comprobante y ejecutá sus acciones."
         headerAction={
           <ResourceActionsMenu>
@@ -141,10 +142,6 @@ function ComprobanteDetailCard({
         <ReadOnlyField
           label="Tipo"
           value={formatComprobanteTipoLabel(comprobante.cbteTipo)}
-        />
-        <ReadOnlyField
-          label="Estado"
-          value={formatComprobanteStatusLabel(comprobante.status)}
         />
         <ReadOnlyField label="Academia" value={comprobante.academyName} />
         <ReadOnlyField
