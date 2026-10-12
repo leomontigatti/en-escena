@@ -4,7 +4,7 @@ import type {
   ActionData,
   PriceActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
-import type { PriceListItem } from "@/lib/events/bases.server";
+import type { PriceListItem } from "@/lib/prices/repository.server";
 import { groupTypeLabels } from "@/lib/events/group-types";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 

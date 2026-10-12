@@ -9,10 +9,11 @@ import {
 import type { ScheduleDependencySummary } from "@/lib/schedules/schedule-dependencies";
 
 /**
- * The guards of `schedules.server.ts`, read as reasons rather than as a yes or
- * no, for the detail page to lock and block ahead of the submit: a covering
- * price or an occupying choreography is `scheduleHasOperationalDependencies`,
- * and any of the three is `scheduleIsReferenced`.
+ * The schedule guards, read as reasons rather than as a yes or no, for the
+ * detail page to lock and block ahead of the submit: a covering price or an
+ * occupying choreography is `scheduleHasOperationalDependencies`
+ * (`schedule-structure.server.ts`), and any of the three is
+ * `scheduleIsReferenced` (`repository.server.ts`).
  */
 export async function getScheduleDependencySummary(
   scheduleId: string,

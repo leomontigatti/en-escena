@@ -4,24 +4,15 @@ import {
   listSubmodalities,
 } from "@/lib/modalities/repository.server";
 import { listCategories } from "@/lib/categories/repository.server";
-import { listPrices, type PriceListItem } from "@/lib/prices/repository.server";
+import { listPrices } from "@/lib/prices/repository.server";
+import type { EventBasesExecutor } from "@/lib/events/bases-kernel.server";
+import { listSchedules } from "@/lib/schedules/repository.server";
 import {
   findModalityIdsWithCompatibleSchedules,
   findScheduleIdsWithCompatibleModalities,
-  listSchedules,
   resolveCompatibleScheduleCapacities,
-  type CompatibleScheduleCapacity,
   type CompatibleScheduleCapacityResolution,
-  type EventBasesExecutor,
-  type ScheduleListItem,
-} from "@/lib/schedules/repository.server";
-
-export type {
-  CompatibleScheduleCapacity,
-  CompatibleScheduleCapacityResolution,
-  PriceListItem,
-  ScheduleListItem,
-};
+} from "@/lib/schedules/compatible-capacities.server";
 
 export async function getEventBases(eventId: string) {
   const [modalities, submodalities, categories, schedules, prices] =

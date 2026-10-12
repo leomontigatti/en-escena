@@ -6,7 +6,7 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { buildDetailPath } from "@/lib/shared/navigation";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/shared/utils";
-import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { ResourceBadge } from "./dialogs";

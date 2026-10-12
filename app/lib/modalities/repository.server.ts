@@ -1,22 +1,55 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
+import { db } from "@/db";
 import {
-  db,
+  categoryModalities,
   modalities,
+  scheduleModalities,
   submodalities,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/db/schema";
+import {
+  created,
+  eventBaseCopy,
+  eventBaseEntityNotFound,
+  type EventBaseFailure,
+  type EventBasesDeleteResult,
+  type EventBasesMutationResult,
+  normalizeEventBaseName,
+  validateEventBaseName,
+} from "@/lib/events/bases-kernel.server";
+import { isUniqueViolation } from "@/lib/shared/error-properties.server";
+import { requiredFieldMessage } from "@/lib/shared/forms";
+import { toTitleCase } from "@/lib/shared/text-normalization";
 
-export {
-  createModality,
-  createModalityWithSubmodalities,
-  createSubmodality,
-  deleteModality,
-  deleteSubmodality,
-  listChoreographyRegistrationBaseOptionsData,
-  updateModality,
-  updateModalityWithSubmodalities,
-  updateSubmodality,
-} from "@/lib/events/bases-repository/modalities.server";
+/**
+ * The owner of `Modalidad` and `Submodalidad`: their queries, their mutations
+ * and their input types (PRD #719).
+ */
+
+type ModalityRecord = typeof modalities.$inferSelect;
+type SubmodalityRecord = typeof submodalities.$inferSelect;
+
+export type ModalityInput = {
+  name: string;
+};
+
+export type SubmodalityInput = {
+  name: string;
+  modalityId: string;
+};
+
+export type InlineSubmodalityInput = {
+  name: string;
+  id?: string;
+};
+
+export type ModalityWithSubmodalitiesInput = ModalityInput & {
+  submodalities: InlineSubmodalityInput[];
+};
+
+type ValidInlineSubmodalityInput = InlineSubmodalityInput & {
+  index: number;
+};
 
 export async function listModalities(eventId: string) {
   return db.query.modalities.findMany({
@@ -30,4 +63,518 @@ export async function listSubmodalities(eventId: string) {
     where: eq(submodalities.eventId, eventId),
     orderBy: [asc(submodalities.name)],
   });
+}
+
+export async function createModality(
+  eventId: string,
+  input: ModalityInput,
+): Promise<EventBasesMutationResult<ModalityRecord>> {
+  const validation = await validateEventBaseName({
+    eventId,
+    name: input.name,
+    kind: "modality",
+  });
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [record] = await db
+    .insert(modalities)
+    .values({ eventId, name: toTitleCase(input.name) })
+    .returning();
+
+  return created(record);
+}
+
+const SUBMODALITY_NAME_UNIQUE_CONSTRAINT = "submodality_modality_name_unique";
+
+export async function createModalityWithSubmodalities(
+  eventId: string,
+  input: ModalityWithSubmodalitiesInput,
+): Promise<EventBasesMutationResult<ModalityRecord>> {
+  const validation = await validateEventBaseName({
+    eventId,
+    name: input.name,
+    kind: "modality",
+  });
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  try {
+    return await db.transaction(
+      async (tx): Promise<EventBasesMutationResult<ModalityRecord>> => {
+        const [record] = await tx
+          .insert(modalities)
+          .values({ eventId, name: toTitleCase(input.name) })
+          .returning();
+
+        if (!record) {
+          return {
+            ok: false,
+            code: "invalid-event-bases",
+            error: "No se pudo guardar la modalidad.",
+          };
+        }
+
+        if (input.submodalities.length > 0) {
+          await tx.insert(submodalities).values(
+            input.submodalities.map((entry) => ({
+              eventId,
+              modalityId: record.id,
+              name: toTitleCase(entry.name),
+            })),
+          );
+        }
+
+        return created(record);
+      },
+    );
+  } catch (error) {
+    if (isSubmodalityNameConflict(error)) {
+      return {
+        ok: false,
+        code: "duplicate-name",
+        error: eventBaseCopy.submodality.duplicateError,
+        fieldErrors: { name: eventBaseCopy.submodality.duplicateFieldError },
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function listChoreographyRegistrationBaseOptionsData(
+  eventId: string,
+) {
+  const [eventModalities, eventSubmodalities] = await Promise.all([
+    db.query.modalities.findMany({
+      where: eq(modalities.eventId, eventId),
+      orderBy: [asc(modalities.name)],
+      columns: {
+        id: true,
+        name: true,
+      },
+    }),
+    db.query.submodalities.findMany({
+      where: eq(submodalities.eventId, eventId),
+      orderBy: [asc(submodalities.name)],
+      columns: {
+        id: true,
+        name: true,
+        modalityId: true,
+      },
+    }),
+  ]);
+
+  return {
+    modalities: eventModalities,
+    submodalities: eventSubmodalities,
+  };
+}
+
+export async function updateModality(
+  modalityId: string,
+  input: ModalityInput,
+): Promise<EventBasesMutationResult<ModalityRecord>> {
+  const modality = await db.query.modalities.findFirst({
+    where: eq(modalities.id, modalityId),
+  });
+
+  if (!modality) {
+    return eventBaseEntityNotFound("modality");
+  }
+
+  const validation = await validateEventBaseName({
+    eventId: modality.eventId,
+    name: input.name,
+    kind: "modality",
+    exceptId: modalityId,
+  });
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [record] = await db
+    .update(modalities)
+    .set({ name: toTitleCase(input.name) })
+    .where(eq(modalities.id, modalityId))
+    .returning();
+
+  return created(record);
+}
+
+export async function updateModalityWithSubmodalities(
+  modalityId: string,
+  input: ModalityWithSubmodalitiesInput,
+): Promise<EventBasesMutationResult<ModalityRecord>> {
+  const modality = await db.query.modalities.findFirst({
+    where: eq(modalities.id, modalityId),
+  });
+
+  if (!modality) {
+    return eventBaseEntityNotFound("modality");
+  }
+
+  const validation = await validateEventBaseName({
+    eventId: modality.eventId,
+    name: input.name,
+    kind: "modality",
+    exceptId: modalityId,
+  });
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const existingEntries = await db.query.submodalities.findMany({
+    where: eq(submodalities.modalityId, modalityId),
+  });
+  const submodalityValidation = validateInlineSubmodalitiesInput({
+    existingEntries,
+    submodalities: input.submodalities,
+  });
+
+  if (!submodalityValidation.ok) {
+    return submodalityValidation;
+  }
+
+  return db.transaction(
+    async (tx): Promise<EventBasesMutationResult<ModalityRecord>> => {
+      const [record] = await tx
+        .update(modalities)
+        .set({ name: toTitleCase(input.name) })
+        .where(eq(modalities.id, modalityId))
+        .returning();
+
+      if (!record) {
+        return eventBaseEntityNotFound("modality");
+      }
+
+      const nextEntries = submodalityValidation.entries;
+      const nextIds = new Set(
+        nextEntries
+          .map((entry) => entry.id)
+          .filter((id): id is string => Boolean(id)),
+      );
+      const entryIdsToDelete = existingEntries
+        .map((entry) => entry.id)
+        .filter((entryId) => !nextIds.has(entryId));
+
+      if (entryIdsToDelete.length > 0) {
+        await tx
+          .delete(submodalities)
+          .where(inArray(submodalities.id, entryIdsToDelete));
+      }
+
+      for (const entry of nextEntries) {
+        if (entry.id) {
+          await tx
+            .update(submodalities)
+            .set({ name: toTitleCase(entry.name) })
+            .where(eq(submodalities.id, entry.id));
+          continue;
+        }
+
+        await tx.insert(submodalities).values({
+          eventId: modality.eventId,
+          modalityId,
+          name: toTitleCase(entry.name),
+        });
+      }
+
+      return created(record);
+    },
+  );
+}
+
+export async function deleteModality(
+  modalityId: string,
+): Promise<EventBasesDeleteResult> {
+  const modality = await db.query.modalities.findFirst({
+    where: eq(modalities.id, modalityId),
+  });
+
+  if (!modality) {
+    return eventBaseEntityNotFound("modality");
+  }
+
+  const dependencyCheck = await modalityHasEventBaseDependencies(modalityId);
+
+  if (!dependencyCheck.ok) {
+    return dependencyCheck;
+  }
+
+  await db.delete(modalities).where(eq(modalities.id, modalityId));
+
+  return { ok: true };
+}
+
+export async function createSubmodality(
+  eventId: string,
+  input: SubmodalityInput,
+): Promise<EventBasesMutationResult<SubmodalityRecord>> {
+  const validation = await validateSubmodalityInput(eventId, input);
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [record] = await db
+    .insert(submodalities)
+    .values({
+      eventId,
+      modalityId: input.modalityId,
+      name: toTitleCase(input.name),
+    })
+    .returning();
+
+  return created(record);
+}
+
+export async function updateSubmodality(
+  submodalityId: string,
+  input: SubmodalityInput,
+): Promise<EventBasesMutationResult<SubmodalityRecord>> {
+  const submodality = await db.query.submodalities.findFirst({
+    where: eq(submodalities.id, submodalityId),
+  });
+
+  if (!submodality) {
+    return eventBaseEntityNotFound("submodality");
+  }
+
+  const validation = await validateSubmodalityInput(
+    submodality.eventId,
+    {
+      ...input,
+      modalityId: submodality.modalityId,
+    },
+    submodalityId,
+  );
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const [record] = await db
+    .update(submodalities)
+    .set({
+      name: toTitleCase(input.name),
+    })
+    .where(eq(submodalities.id, submodalityId))
+    .returning();
+
+  return created(record);
+}
+
+export async function deleteSubmodality(
+  submodalityId: string,
+): Promise<EventBasesDeleteResult> {
+  const submodality = await db.query.submodalities.findFirst({
+    where: eq(submodalities.id, submodalityId),
+  });
+
+  if (!submodality) {
+    return eventBaseEntityNotFound("submodality");
+  }
+
+  await db.delete(submodalities).where(eq(submodalities.id, submodalityId));
+
+  return { ok: true };
+}
+
+async function validateSubmodalityInput(
+  eventId: string,
+  input: SubmodalityInput,
+  exceptId?: string,
+): Promise<{ ok: true } | EventBaseFailure> {
+  const modality = await db.query.modalities.findFirst({
+    where: and(
+      eq(modalities.id, input.modalityId),
+      eq(modalities.eventId, eventId),
+    ),
+  });
+
+  if (!modality) {
+    return {
+      ok: false,
+      code: "invalid-modality",
+      error: "Elegí una modalidad del evento activo.",
+      fieldErrors: {
+        modalityId: "Elegí una modalidad del evento activo.",
+      },
+    };
+  }
+
+  const nameValidation = await validateSubmodalityName({
+    modalityId: modality.id,
+    name: input.name,
+    exceptId,
+  });
+
+  if (!nameValidation.ok) {
+    return nameValidation;
+  }
+
+  return { ok: true };
+}
+
+async function validateSubmodalityName(input: {
+  modalityId: string;
+  name: string;
+  exceptId?: string;
+}): Promise<{ ok: true } | EventBaseFailure> {
+  if (input.name.trim().length === 0) {
+    return {
+      ok: false,
+      code: "invalid-event-bases",
+      error: eventBaseCopy.submodality.invalidError,
+      fieldErrors: { name: eventBaseCopy.submodality.requiredNameError },
+    };
+  }
+
+  const duplicate = await findDuplicateSubmodalityName(input);
+
+  if (duplicate) {
+    return {
+      ok: false,
+      code: "duplicate-name",
+      error: eventBaseCopy.submodality.duplicateError,
+      fieldErrors: { name: eventBaseCopy.submodality.duplicateFieldError },
+    };
+  }
+
+  return { ok: true };
+}
+
+function validateInlineSubmodalitiesInput({
+  existingEntries,
+  submodalities: inputEntries,
+}: {
+  existingEntries: SubmodalityRecord[];
+  submodalities: InlineSubmodalityInput[];
+}): { ok: true; entries: ValidInlineSubmodalityInput[] } | EventBaseFailure {
+  const fieldErrors: Record<string, string> = {};
+  const existingEntryIds = new Set(existingEntries.map((entry) => entry.id));
+  const firstIndexByName = new Map<string, number>();
+  const entries = inputEntries.map((entry, index) => {
+    const normalizedName = normalizeEventBaseName(entry.name);
+
+    if (entry.id && !existingEntryIds.has(entry.id)) {
+      fieldErrors[`submodalities.${index}.name`] =
+        "No encontramos esa submodalidad en la modalidad.";
+    }
+
+    if (entry.name.trim().length === 0) {
+      fieldErrors[`submodalities.${index}.name`] = requiredFieldMessage;
+    }
+
+    if (normalizedName) {
+      const firstIndex = firstIndexByName.get(normalizedName);
+
+      if (firstIndex === undefined) {
+        firstIndexByName.set(normalizedName, index);
+      } else {
+        fieldErrors[`submodalities.${firstIndex}.name`] =
+          eventBaseCopy.submodality.duplicateFieldError;
+        fieldErrors[`submodalities.${index}.name`] =
+          eventBaseCopy.submodality.duplicateFieldError;
+      }
+    }
+
+    return {
+      id: entry.id,
+      index,
+      name: entry.name,
+    };
+  });
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      ok: false,
+      code: "invalid-event-bases",
+      error: eventBaseCopy.submodality.invalidError,
+      fieldErrors,
+    };
+  }
+
+  return { ok: true, entries };
+}
+
+function isSubmodalityNameConflict(error: unknown) {
+  return isUniqueViolation(error, SUBMODALITY_NAME_UNIQUE_CONSTRAINT);
+}
+
+async function findDuplicateSubmodalityName(input: {
+  modalityId: string;
+  name: string;
+  exceptId?: string;
+}) {
+  const normalizedName = normalizeEventBaseName(input.name);
+  const idFilter = input.exceptId
+    ? ne(submodalities.id, input.exceptId)
+    : undefined;
+  const filters = [
+    eq(submodalities.modalityId, input.modalityId),
+    idFilter,
+  ].filter(Boolean);
+
+  return db
+    .select({ id: submodalities.id, name: submodalities.name })
+    .from(submodalities)
+    .where(and(...filters))
+    .then((records) =>
+      records.find(
+        (record) => normalizeEventBaseName(record.name) === normalizedName,
+      ),
+    );
+}
+
+async function modalityHasEventBaseDependencies(
+  modalityId: string,
+): Promise<EventBasesDeleteResult> {
+  const submodality = await db.query.submodalities.findFirst({
+    columns: { id: true },
+    where: eq(submodalities.modalityId, modalityId),
+  });
+
+  if (submodality) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: eventBaseCopy.modality.hasSubmodalitiesError,
+    };
+  }
+
+  const categoryRelation = await db.query.categoryModalities.findFirst({
+    columns: { categoryId: true },
+    where: eq(categoryModalities.modalityId, modalityId),
+  });
+
+  if (categoryRelation) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: eventBaseCopy.modality.hasCategoriesError,
+    };
+  }
+
+  const scheduleRelation = await db.query.scheduleModalities.findFirst({
+    columns: { scheduleId: true },
+    where: eq(scheduleModalities.modalityId, modalityId),
+  });
+
+  if (scheduleRelation) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: eventBaseCopy.modality.hasSchedulesError,
+    };
+  }
+
+  return { ok: true };
 }

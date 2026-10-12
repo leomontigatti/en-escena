@@ -1,19 +1,19 @@
 import { and, asc, eq, inArray, notInArray } from "drizzle-orm";
 
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
+import { db } from "@/db";
 import {
   categories,
   categoryModalities,
   choreographies,
-  db,
   scheduleCategories,
+} from "@/db/schema";
+import {
   uniqueValues,
-} from "@/lib/events/bases-repository/shared.server";
-import type {
-  EventBasesExecutor,
-  EventBasesTransaction,
-  ScheduleAcceptedCategory,
-} from "@/lib/events/bases-repository/shared.server";
+  type EventBasesExecutor,
+  type EventBasesTransaction,
+} from "@/lib/events/bases-kernel.server";
+import type { ScheduleAcceptedCategory } from "@/lib/schedules/repository.server";
 
 /**
  * The categories a schedule accepts: the optional counterpart of the modalities

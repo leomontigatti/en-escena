@@ -606,7 +606,7 @@ describe("schedule capacity guard on the roster path", () => {
   // `resolveDancerUpdateScheduleSelection`'s "multiple" branch only accepts a
   // submitted `scheduleCapacityId` that is inside the *freshly resolved*
   // group type's own compatible set — a `scheduleCapacityId` filtered by
-  // `groupType` at the query layer (`schedule-capacities.server.ts`) — so a
+  // `groupType` at the query layer (`compatible-capacities.server.ts`) — so a
   // stale Duo id can never pass validation for a Solo resolution. This test
   // documents that outcome as a regression guard and doubles as a check that
   // the new #730 gate does not change it.

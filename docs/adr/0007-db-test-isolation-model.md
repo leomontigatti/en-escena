@@ -162,3 +162,7 @@ de acceso, or Bases del evento, the fallback is real Postgres per worker:
   is fixed.
 - Any future PGlite full-suite tuning must preserve worker isolation; mutable
   DB state cannot be shared across workers.
+
+**Amendment on 2026-10-12**
+
+The suites the `Bases del evento` fidelity risk above names moved beside their resource owners with PRD #719.

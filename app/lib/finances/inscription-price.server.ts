@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { prices } from "@/db/schema";
-import type { PriceResolutionResult } from "@/lib/events/bases-repository/shared.server";
+import type { PriceResolutionResult } from "@/lib/prices/repository.server";
 import { isGroupType } from "@/lib/events/group-types";
 import { selectApplicableInscriptionPrice } from "@/lib/finances/inscription-price";
 import { loadPriceRows } from "@/lib/prices/rows.server";

@@ -7,8 +7,8 @@ import {
   createCategory,
   updateCategory,
 } from "@/lib/categories/repository.server";
+import type { CategoryInput } from "@/lib/categories/validation.server";
 import { createModality } from "@/lib/modalities/repository.server";
-import type { CategoryInput } from "@/lib/events/bases-repository/shared.server";
 import {
   createChoreographyOnBases,
   createSavedAcademy,
@@ -34,31 +34,27 @@ const guardReads = vi.hoisted(() => [] as ("pool" | "transaction")[]);
 // before the registration committed, the transaction's read answers as it would
 // after. Everything else is real, the refusal included. The file is its own
 // because the stub is module-wide.
-vi.mock(
-  "@/lib/events/bases-repository/shared.server",
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import("@/lib/events/bases-repository/shared.server")
-      >();
+vi.mock("@/lib/categories/relations.server", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/categories/relations.server")>();
+  const { db: pool } = await import("@/db");
 
-    return {
-      ...actual,
-      listReferencingChoreographies: async (
-        executor: Parameters<typeof actual.listReferencingChoreographies>[0],
-        categoryId: string,
-      ) => {
-        const onPool = executor === actual.db;
+  return {
+    ...actual,
+    listReferencingChoreographies: async (
+      executor: Parameters<typeof actual.listReferencingChoreographies>[0],
+      categoryId: string,
+    ) => {
+      const onPool = executor === pool;
 
-        guardReads.push(onPool ? "pool" : "transaction");
+      guardReads.push(onPool ? "pool" : "transaction");
 
-        return onPool
-          ? []
-          : actual.listReferencingChoreographies(executor, categoryId);
-      },
-    };
-  },
-);
+      return onPool
+        ? []
+        : actual.listReferencingChoreographies(executor, categoryId);
+    },
+  };
+});
 
 installDatabaseTestHooks();
 

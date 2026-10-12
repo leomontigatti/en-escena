@@ -7,6 +7,7 @@ import type {
   RequiredFieldErrorResult,
 } from "@/lib/admin/events/bases-action/shared.server";
 import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
+import { eventBaseCopy } from "@/lib/events/bases-kernel.server";
 import {
   buildDefaultActionErrorScope,
   buildRecordActionScope,
@@ -100,7 +101,7 @@ function getPriceRequiredFieldErrors(
     fieldErrors.scheduleIds = "Este campo es obligatorio.";
   }
 
-  return buildRequiredFieldError("Revisá los datos del precio.", fieldErrors);
+  return buildRequiredFieldError(eventBaseCopy.price.invalidError, fieldErrors);
 }
 
 function buildPriceActionErrorScope(

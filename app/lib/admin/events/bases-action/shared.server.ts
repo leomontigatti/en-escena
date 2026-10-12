@@ -4,7 +4,7 @@ import type { NotificationKey } from "@/lib/shared/notification-toasts";
 import type {
   EventBasesDeleteResult,
   EventBasesMutationResult,
-} from "@/lib/schedules/repository.server";
+} from "@/lib/events/bases-kernel.server";
 
 export type ActionData = {
   status: "error";
@@ -104,8 +104,13 @@ export type EventBasesActionBaseInput = {
   intent: string;
 };
 
+/**
+ * What a bases action hands back to the runner. The action layer reads only
+ * the saved record's id, to redirect to its detail, so that is all the result
+ * promises about the record whichever resource saved it.
+ */
 export type EventBasesActionResult =
-  EventBasesDeleteResult | EventBasesMutationResult;
+  EventBasesDeleteResult | EventBasesMutationResult<{ id: string }>;
 
 export type RequiredFieldErrorResult = {
   message: string;
@@ -247,7 +252,7 @@ export function plainEventBasesRedirect(pathname: string): EventBasesRedirect {
 
 export function hasEventBaseRecord(
   result: EventBasesActionResult,
-): result is Extract<EventBasesMutationResult, { ok: true }> {
+): result is Extract<EventBasesActionResult, { ok: true; record: unknown }> {
   return "record" in result;
 }
 

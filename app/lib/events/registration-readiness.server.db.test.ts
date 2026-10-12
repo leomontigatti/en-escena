@@ -10,10 +10,8 @@ import {
 } from "@/lib/modalities/repository.server";
 import { resolveApplicableInscriptionPrice } from "@/lib/finances/inscription-price.server";
 import { createPrice } from "@/lib/prices/repository.server";
-import {
-  createSchedule,
-  createScheduleCapacity,
-} from "@/lib/schedules/repository.server";
+import { createSchedule } from "@/lib/schedules/repository.server";
+import { createScheduleCapacity } from "@/lib/schedules/capacities.server";
 import {
   expectCreated,
   fixedExperienceLevel,

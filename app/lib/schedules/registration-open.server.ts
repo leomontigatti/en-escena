@@ -5,7 +5,7 @@ import { events, schedules } from "@/db/schema";
 import type {
   EventBaseFailure,
   EventBasesMutationResult,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import {
   collectScheduleRegistrationOpenBlockers,
@@ -18,8 +18,10 @@ export type ScheduleRegistrationOpenRefusal = EventBaseFailure & {
   reasons: ScheduleRegistrationOpenBlockers;
 };
 
+type ScheduleRecord = typeof schedules.$inferSelect;
+
 export type ScheduleRegistrationToggleResult =
-  EventBasesMutationResult | ScheduleRegistrationOpenRefusal;
+  EventBasesMutationResult<ScheduleRecord> | ScheduleRegistrationOpenRefusal;
 
 /**
  * The reasons `Abrir inscripciones` would be refused for any schedule of this
@@ -122,7 +124,7 @@ export async function closeScheduleRegistration(
 async function setScheduleRegistrationOpen(
   scheduleId: string,
   registrationOpen: boolean,
-): Promise<EventBasesMutationResult> {
+): Promise<EventBasesMutationResult<ScheduleRecord>> {
   const [record] = await db
     .update(schedules)
     .set({ registrationOpen })

@@ -14,9 +14,8 @@ import {
 } from "@/db/schema";
 import {
   eventBaseEntityNotFound,
-  toTitleCase,
-} from "@/lib/events/bases-repository/shared.server";
-import type { EventBasesDeleteResult } from "@/lib/events/bases-repository/shared.server";
+  type EventBasesDeleteResult,
+} from "@/lib/events/bases-kernel.server";
 import {
   experienceLevelOrder,
   type ExperienceLevel,
@@ -31,6 +30,7 @@ import {
   validateSheetCriteria,
   type OfferedSheets,
 } from "@/lib/judging/sheet-criteria";
+import { toTitleCase } from "@/lib/shared/text-normalization";
 
 const lockedSubmodalityCriteriaError =
   "No se pueden cambiar los criterios porque la submodalidad ya tiene puntajes.";

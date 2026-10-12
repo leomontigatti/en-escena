@@ -48,12 +48,15 @@ only list stable entry points, coordination modules and high-signal tests.
   schedules, capacities and prices. In code, prefer concrete resource names for
   feature modules and use `event-bases`/`bases` names only for aggregators that
   genuinely coordinate several of those resources.
-- For `Bases del evento` persistence, prefer resource-level interfaces for new
-  callers: `app/lib/categories/`, `app/lib/modalities/`,
-  `app/lib/schedules/` and `app/lib/prices/`. Existing
-  `app/lib/events/bases-repository/` modules may stay as implementation or
-  compatibility facades during migration. Callers that need several resources
-  coordinated should use `app/lib/events/bases.server.ts`.
+- `Bases del evento` persistence has one owner per resource, each entered
+  through the `repository.server.ts` in its directory: `app/lib/modalities/`
+  (modalities and submodalities), `app/lib/categories/`, `app/lib/schedules/`
+  (schedules and their capacities) and `app/lib/prices/`. What every resource shares
+  —result and failure types, entity-kind copy, name rules, the executor types
+  and the referencing-choreography guard— lives in the kernel
+  `app/lib/events/bases-kernel.server.ts`; a resource's own inputs, list items
+  and queries stay with its owner. Callers that need several resources
+  coordinated use the aggregator `app/lib/events/bases.server.ts`.
 - Migrate existing code incrementally. When changing a vertical, choose the
   owner first, then extract only a small interface. Keep legacy aggregators in
   place while they still coordinate several resources, and avoid moving whole
@@ -254,7 +257,7 @@ schedules, capacities, prices and registration readiness.
 - Admin event-bases UI lives with each feature module: `app/features/admin/modalities/`, `app/features/admin/categories/`, `app/features/admin/schedules/`, and `app/features/admin/prices/`.
 - High-signal feature UI entry points: `app/features/admin/schedules/list/view.tsx`, `app/features/admin/schedules/detail/view.tsx`, `app/features/admin/prices/list/view.tsx`, `app/features/admin/prices/detail/view.tsx`
 - Test helpers: `app/lib/admin/events/event-bases.test-support.tsx`
-- Tests: `app/features/admin/schedules/view-shared.test.ts`, `app/features/admin/prices/routes.adapter.test.tsx`, `app/lib/admin/event-context.server.test.ts`, `app/lib/admin/events/events-route.server.db.test.ts`, `app/lib/admin/events/event-detail-route.server.db.test.ts`, `app/lib/admin/events/event-bases-overview-modalities.server.db.test.ts`, `app/lib/admin/events/event-bases-categories.server.db.test.ts`, `app/lib/admin/events/event-bases-prices.server.db.test.ts`, `app/lib/admin/events/event-bases-validation.server.db.test.ts`, `app/lib/admin/events/event-bases-cronogramas.server.db.test.ts`, `app/lib/events/management.server.db.test.ts`, `app/lib/events/bases.server.test.ts`, `app/lib/events/bases-repository-catalog.server.db.test.ts`, `app/lib/events/bases-repository-schedules.server.db.test.ts`, `app/lib/events/bases-repository-prices.server.db.test.ts`, `app/lib/events/bases-repository-capacities.server.db.test.ts`, `app/lib/events/registration-readiness.server.db.test.ts`, `app/lib/finances/bank-identifiers.test.ts`, `app/lib/finances/payment-instructions.test.ts`, `app/lib/admin/events/form-values.test.ts`
+- Tests: `app/features/admin/schedules/view-shared.test.ts`, `app/features/admin/prices/routes.adapter.test.tsx`, `app/lib/admin/event-context.server.test.ts`, `app/lib/admin/events/events-route.server.db.test.ts`, `app/lib/admin/events/event-detail-route.server.db.test.ts`, `app/lib/admin/events/event-bases-overview-modalities.server.db.test.ts`, `app/lib/admin/events/event-bases-categories.server.db.test.ts`, `app/lib/admin/events/event-bases-prices.server.db.test.ts`, `app/lib/admin/events/event-bases-validation.server.db.test.ts`, `app/lib/admin/events/event-bases-cronogramas.server.db.test.ts`, `app/lib/events/management.server.db.test.ts`, `app/lib/events/bases.server.test.ts`, `app/lib/categories/repository.server.db.test.ts`, `app/lib/schedules/repository.server.db.test.ts`, `app/lib/prices/repository.server.db.test.ts`, `app/lib/schedules/repository-capacities.server.db.test.ts`, `app/lib/events/registration-readiness.server.db.test.ts`, `app/lib/finances/bank-identifiers.test.ts`, `app/lib/finances/payment-instructions.test.ts`, `app/lib/admin/events/form-values.test.ts`
 
 ## Admin Seminars
 

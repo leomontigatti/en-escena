@@ -2,11 +2,12 @@ import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
-import type {
-  EventBaseFailure,
-  EventBasesDeleteResult,
-  EventBasesMutationResult,
-} from "@/lib/events/bases-repository/shared.server";
+import {
+  eventBaseCollision,
+  type EventBaseFailure,
+  type EventBasesDeleteResult,
+  type EventBasesMutationResult,
+} from "@/lib/events/bases-kernel.server";
 import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
   frozenPriceDeleteError,
@@ -101,7 +102,7 @@ export async function hasSeminarRegistrationPrices(eventId: string) {
 export async function createSeminarPrice(
   eventId: string,
   input: SeminarPriceInput,
-): Promise<EventBasesMutationResult> {
+): Promise<EventBasesMutationResult<SeminarPriceRow>> {
   const validation = await validateSeminarPriceInput(eventId, input);
 
   if (!validation.ok) {
@@ -120,7 +121,7 @@ export async function updateSeminarPrice(
   seminarPriceId: string,
   input: SeminarPriceInput,
   dependencies: SeminarPriceDependencies = {},
-): Promise<EventBasesMutationResult> {
+): Promise<EventBasesMutationResult<SeminarPriceRow>> {
   const existing = await db.query.seminarPrices.findFirst({
     where: eq(seminarPrices.id, seminarPriceId),
   });
@@ -437,15 +438,11 @@ function invalidSeminarPriceInput(
 }
 
 function duplicateSeminarPriceInput(): EventBaseFailure {
-  return {
-    ok: false,
-    code: "duplicate-name",
-    error:
-      "Ya existe un precio de seminario para ese tipo, esas personas y esa fecha límite.",
-    fieldErrors: {
-      kind: "Revisá el tipo de seminario del precio.",
-    },
-  };
+  return eventBaseCollision(
+    "duplicate-seminar-price",
+    "Ya existe un precio de seminario para ese tipo, esas personas y esa fecha límite.",
+    { kind: "Revisá el tipo de seminario del precio." },
+  );
 }
 
 function seminarPriceNotFound(): EventBaseFailure {
@@ -458,7 +455,7 @@ function seminarPriceNotFound(): EventBaseFailure {
 
 function createdSeminarPrice(
   record: SeminarPriceRow | undefined,
-): EventBasesMutationResult {
+): EventBasesMutationResult<SeminarPriceRow> {
   if (!record) {
     return {
       ok: false,

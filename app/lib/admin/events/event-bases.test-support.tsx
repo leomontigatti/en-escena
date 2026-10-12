@@ -36,11 +36,9 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { getEventRegistrationOpenBlockers } from "@/lib/schedules/registration-open.server";
-import {
-  getEventBases,
-  type PriceListItem,
-  type ScheduleListItem,
-} from "@/lib/events/bases.server";
+import { getEventBases } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
+import type { PriceListItem } from "@/lib/prices/repository.server";
 import {
   expectCreated,
   fixedExperienceLevel,

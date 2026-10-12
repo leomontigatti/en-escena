@@ -9,6 +9,7 @@ import type {
   ScheduleActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
 import type { EventBasesActionHandler } from "@/lib/admin/events/bases-action/runner.server";
+import { eventBaseCopy } from "@/lib/events/bases-kernel.server";
 import type { NotificationKey } from "@/lib/shared/notification-toasts";
 import {
   buildDefaultActionErrorScope,
@@ -25,13 +26,15 @@ import {
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createScheduleCapacity,
-  createScheduleWithEntries,
-  deleteSchedule,
   deleteScheduleCapacity,
   type ScheduleCapacityInput,
+  updateScheduleCapacity,
+} from "@/lib/schedules/capacities.server";
+import {
+  createScheduleWithEntries,
+  deleteSchedule,
   type ScheduleInput,
   type ScheduleWithEntriesInput,
-  updateScheduleCapacity,
   updateScheduleWithEntries,
 } from "@/lib/schedules/repository.server";
 import {
@@ -438,7 +441,7 @@ function revalidateScheduleForm(
 
   return invalidEventBasesFormResult(
     result.error,
-    "Revisá los datos del cronograma.",
+    eventBaseCopy.schedule.invalidError,
   );
 }
 
@@ -459,7 +462,7 @@ function getScheduleMutationRequiredFieldErrors(
   };
 
   return buildRequiredFieldError(
-    "Revisá los datos del cronograma.",
+    eventBaseCopy.schedule.invalidError,
     fieldErrors,
   );
 }
@@ -513,7 +516,7 @@ function getScheduleCapacityRequiredFieldErrors(
   });
 
   return buildRequiredFieldError(
-    "Revisá los datos del cupo de cronograma.",
+    eventBaseCopy.scheduleCapacity.invalidError,
     fieldErrors,
   );
 }
