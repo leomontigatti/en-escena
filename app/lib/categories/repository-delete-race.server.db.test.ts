@@ -25,7 +25,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 // timing-free stand-in, and it is the only stub here: the delete, the foreign
 // key and the failure it is mapped to are all real. The unstubbed pre-check
 // path is covered by "reports deleting a category with choreographies as a
-// dependency failure" in `bases-repository-catalog.server.db.test.ts`. The file
+// dependency failure" in `repository.server.db.test.ts`. The file
 // is its own because the stub is module-wide.
 vi.mock(
   "@/lib/events/bases-repository/shared.server",

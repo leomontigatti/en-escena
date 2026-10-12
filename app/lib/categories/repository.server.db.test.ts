@@ -24,7 +24,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("`Bases del evento` repository", () => {
+describe("category repository", () => {
   test("keeps categories unique per event and modality set", async () => {
     const firstEvent = await createSavedEvent({
       name: "Regional 2026",
@@ -57,9 +57,6 @@ describe("`Bases del evento` repository", () => {
         experienceLevels: [],
       }),
     );
-    if (!("name" in category)) {
-      throw new Error("Expected created category to include a name.");
-    }
     expect(category.name).toBe("Infantil");
     await expect(
       createCategory(secondEvent.id, {
@@ -90,8 +87,9 @@ describe("`Bases del evento` repository", () => {
         modalityIds: [firstModality.id],
         experienceLevels: [firstLevel.id],
       }),
-    ).resolves.toMatchObject({
+    ).resolves.toEqual({
       ok: false,
+      code: "duplicate-category-identity",
       error:
         "Ya existe una categoría con ese rango de edad, tipos de grupo y modalidades.",
       fieldErrors: {},
