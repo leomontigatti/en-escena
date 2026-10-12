@@ -11,10 +11,10 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { ChoreographyStatusBadge } from "@/components/shared/choreography-status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
   getChoreographyStatusFilterBadgeVariant,
-  resolveChoreographyStatusBadge,
   withdrawnChoreographyStatusFilterValue,
   withdrawnChoreographyStatusLabel,
 } from "@/lib/choreographies/operational-status";
@@ -145,22 +145,6 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     ),
   },
 ];
-
-/**
- * `Retirada` **replaces** the readiness badge rather than sitting next to it: a
- * choreography that is not taking part is not half-loaded, it is out, and what
- * it still lacks is no longer anyone's task. Which of the two it is comes from
- * the shared resolver, so this cell and the portal's read the same way.
- */
-function ChoreographyStatusBadge({
-  choreography,
-}: {
-  choreography: ChoreographyRow;
-}) {
-  const badge = resolveChoreographyStatusBadge(choreography);
-
-  return <Badge variant={badge.variant}>{badge.label}</Badge>;
-}
 
 export function ChoreographiesListRouteView({
   loaderData,

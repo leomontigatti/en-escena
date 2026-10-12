@@ -73,6 +73,7 @@ export async function loadPortalChoreographyFinanceDetail(input: {
       owedBalanceAmount: choreographyFinanceRow.owedBalanceAmount,
       owedDepositAmount: choreographyFinanceRow.owedDepositAmount,
       totalAmount: choreographyFinanceRow.totalAmount,
+      withdrawn: choreographyFinanceRow.withdrawn,
     },
     inscriptions,
   };

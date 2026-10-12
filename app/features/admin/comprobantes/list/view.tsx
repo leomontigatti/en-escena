@@ -26,12 +26,12 @@ import {
   comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobanteStatusLabel,
   formatComprobanteTipoInitials,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
+import { ComprobanteStatusBadge } from "../status-badge";
 import type { ComprobantesListRow, ComprobantesListLoaderData } from "./server";
 import { comprobanteStatusSearchValues } from "./shared";
 
@@ -109,11 +109,7 @@ const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     id: "status",
     header: "Estado",
     width: 10,
-    cell: (row) => (
-      <Badge variant={row.status === "valid" ? "success" : "destructive"}>
-        {formatComprobanteStatusLabel(row.status)}
-      </Badge>
-    ),
+    cell: (row) => <ComprobanteStatusBadge status={row.status} />,
   },
   {
     id: "fecha",
@@ -142,15 +138,13 @@ const comprobanteFacetedFilters: DataTableFacetedFilter[] = [
       { label: "Anulada", value: comprobanteStatusSearchValues.annulled },
     ],
     renderValue: (option) => (
-      <Badge
-        variant={
+      <ComprobanteStatusBadge
+        status={
           option.value === comprobanteStatusSearchValues.valid
-            ? "success"
-            : "destructive"
+            ? "valid"
+            : "annulled"
         }
-      >
-        {option.label}
-      </Badge>
+      />
     ),
   },
   {

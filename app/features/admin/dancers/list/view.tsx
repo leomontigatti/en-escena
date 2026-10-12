@@ -118,7 +118,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       className: "w-1/4",
       headerClassName: "w-1/4",
       cell: (dancer) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           {dancer.participationStatus !== "no-event" ? (
             <ParticipationBadge
               participationStatus={dancer.participationStatus}

@@ -155,7 +155,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       className: "w-1/4",
       headerClassName: "w-1/4",
       cell: (professor) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           {getProfessorStateBadges(professor).map((badge) => (
             <Badge key={badge.label} variant={badge.variant}>
               {badge.label}

@@ -8,6 +8,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -287,25 +288,22 @@ function buildSeminarFinanceColumns(
     {
       id: "financialStatus",
       header: "Estado",
-      cell: (row) => {
-        const badge = formatSeminarStatusBadge(row);
-
-        return <Badge variant={badge.variant}>{badge.label}</Badge>;
-      },
+      cell: (row) => (
+        <FinancialStatusBadge status={resolveSeminarStatus(row)} />
+      ),
       // The filter comes from the same badge the cell shows, for the same
       // reason it does on the choreography tab.
-      filterValue: (row) => formatSeminarStatusBadge(row).value,
+      filterValue: (row) =>
+        formatInscriptionStatusBadge(resolveSeminarStatus(row)).value,
     },
   ];
 }
 
-function formatSeminarStatusBadge(row: SeminarFinanceRow) {
-  return formatInscriptionStatusBadge(
-    resolveInscriptionStatusBadge({
-      anomalies: row.anomalies,
-      financialStatus: row.financialStatus,
-    }),
-  );
+function resolveSeminarStatus(row: SeminarFinanceRow) {
+  return resolveInscriptionStatusBadge({
+    anomalies: row.anomalies,
+    financialStatus: row.financialStatus,
+  });
 }
 
 function buildChoreographyFinanceColumns(
@@ -357,7 +355,8 @@ function buildChoreographyFinanceColumns(
       // The filter comes from the same badge the cell shows, not from
       // `financialStatus`: a row badged `Sobreasignada` that turned up while
       // filtering by `Señada` would contradict itself on screen.
-      filterValue: (row) => formatChoreographyStatusBadge(row).value,
+      filterValue: (row) =>
+        formatInscriptionStatusBadge(resolveChoreographyStatus(row)).value,
     },
   ];
 }
@@ -375,18 +374,14 @@ function buildChoreographyFinanceColumns(
  * itself there, without depending on the order in which someone pushed its
  * anomaly into the array.
  */
-function formatChoreographyStatusBadge(row: ChoreographyFinanceRow) {
-  return formatInscriptionStatusBadge(
-    resolveInscriptionStatusBadge({
-      anomalies: row.anomalies,
-      financialStatus: row.financialStatus,
-      withdrawn: row.withdrawn,
-    }),
-  );
+function resolveChoreographyStatus(row: ChoreographyFinanceRow) {
+  return resolveInscriptionStatusBadge({
+    anomalies: row.anomalies,
+    financialStatus: row.financialStatus,
+    withdrawn: row.withdrawn,
+  });
 }
 
 function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
-  const badge = formatChoreographyStatusBadge(row);
-
-  return <Badge variant={badge.variant}>{badge.label}</Badge>;
+  return <FinancialStatusBadge status={resolveChoreographyStatus(row)} />;
 }
