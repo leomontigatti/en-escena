@@ -12,6 +12,7 @@ import {
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { DiscardChangesDialog } from "@/components/shared/discard-guard";
 import { MetricCard } from "@/components/shared/metric-card";
 import { PinnedActions } from "@/components/shared/pinned-actions";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -58,6 +59,12 @@ import {
 } from "@/lib/judging/score-value";
 import { isRouteFormPending, useSavedFormValues } from "@/lib/shared/forms";
 
+import {
+  useReportDraft,
+  useScoreDraftsGuard,
+  useSettleAfterSave,
+  type DraftChangeHandler,
+} from "./drafts";
 import type { PresentationScoresLoaderData } from "./server";
 
 /**
@@ -249,25 +256,48 @@ function PanelScores({
     );
   }
 
-  if (presentation.criteria.length === 0) {
-    return <SingleScoresTable canEdit={canEdit} judges={presentation.judges} />;
-  }
+  return <JudgeScores canEdit={canEdit} presentation={presentation} />;
+}
+
+/** The page's one leave guard, over every judge's form ({@link useScoreDraftsGuard}). */
+function JudgeScores({
+  canEdit,
+  presentation,
+}: {
+  canEdit: boolean;
+  presentation: Presentation;
+}) {
+  const { discardDialog, onDraftChange } = useScoreDraftsGuard();
 
   return (
-    <JudgeSheets
-      canEdit={canEdit}
-      criteria={presentation.criteria}
-      judges={presentation.judges}
-    />
+    <>
+      {presentation.criteria.length === 0 ? (
+        <SingleScoresTable
+          canEdit={canEdit}
+          judges={presentation.judges}
+          onDraftChange={onDraftChange}
+        />
+      ) : (
+        <JudgeSheets
+          canEdit={canEdit}
+          criteria={presentation.criteria}
+          judges={presentation.judges}
+          onDraftChange={onDraftChange}
+        />
+      )}
+      <DiscardChangesDialog {...discardDialog} />
+    </>
   );
 }
 
 function SingleScoresTable({
   canEdit,
   judges,
+  onDraftChange,
 }: {
   canEdit: boolean;
   judges: readonly PresentationJudgeScore[];
+  onDraftChange: DraftChangeHandler;
 }) {
   return (
     <ScoresTable>
@@ -284,7 +314,11 @@ function SingleScoresTable({
             <TableCell>{judge.judgeName}</TableCell>
             <TableCell>
               {canEdit && judge.scoreId ? (
-                <SingleScoreForm scoreId={judge.scoreId} value={judge.value} />
+                <SingleScoreForm
+                  onDraftChange={onDraftChange}
+                  scoreId={judge.scoreId}
+                  value={judge.value}
+                />
               ) : (
                 <ScoreValue value={judge.value} />
               )}
@@ -320,10 +354,12 @@ function JudgeSheets({
   canEdit,
   criteria,
   judges,
+  onDraftChange,
 }: {
   canEdit: boolean;
   criteria: readonly JudgeSheetCriterion[];
   judges: readonly PresentationJudgeScore[];
+  onDraftChange: DraftChangeHandler;
 }) {
   const [first] = judges;
 
@@ -354,6 +390,7 @@ function JudgeSheets({
             <SheetForm
               criteria={criteria}
               judge={judge}
+              onDraftChange={onDraftChange}
               scoreId={judge.scoreId}
             />
           ) : (
@@ -421,9 +458,11 @@ function JudgeSheets({
  * number, rather than after a round trip.
  */
 function SingleScoreForm({
+  onDraftChange,
   scoreId,
   value,
 }: {
+  onDraftChange: DraftChangeHandler;
   scoreId: string;
   value: string | null;
 }) {
@@ -433,6 +472,7 @@ function SingleScoreForm({
     resolver: zodResolver(judgeScoreFormSchema),
   });
   const { isDirty } = useFormState({ control: form.control });
+  useReportDraft(scoreId, isDirty, onDraftChange);
   const submit = useSubmit();
   const isSubmitting = isRouteFormPending(useNavigation(), {
     fields: { scoreId },
@@ -442,6 +482,7 @@ function SingleScoreForm({
   // A saved correction is the row's new starting point, so `Guardar` waits for
   // the next change instead of offering to post the same number again.
   useSavedFormValues(form, saved);
+  useSettleAfterSave(form, scoreId, saved);
 
   return (
     <form
@@ -485,10 +526,12 @@ function SingleScoreForm({
 function SheetForm({
   criteria,
   judge,
+  onDraftChange,
   scoreId,
 }: {
   criteria: readonly JudgeSheetCriterion[];
   judge: PresentationJudgeScore;
+  onDraftChange: DraftChangeHandler;
   scoreId: string;
 }) {
   // Exactly what the judge stored, and empty where they stored nothing:
@@ -507,6 +550,7 @@ function SheetForm({
     resolver: zodResolver(buildJudgeSheetFormSchema(criteria)),
   });
   const { isDirty } = useFormState({ control: form.control });
+  useReportDraft(scoreId, isDirty, onDraftChange);
 
   // A save starts a clean draft from what was saved; a refused one keeps what
   // was typed, which still differs from it.
@@ -517,6 +561,8 @@ function SheetForm({
     fields: { scoreId },
     intent: "edit-score",
   });
+  useSettleAfterSave(form, scoreId, saved);
+
   return (
     <form
       method="post"
@@ -528,8 +574,8 @@ function SheetForm({
     >
       <AdminResourceFormCard
         footer={
-          // `FormActions` without its leave guard: a guard sits on the router
-          // and the router holds one, while every judge's tab holds a form.
+          // `FormActions` without its own leave guard: the page holds the one
+          // guard over every judge's tab (`useScoreDraftsGuard`).
           <PinnedActions>
             <BackButton to="/administracion/presentaciones" />
             <div className="flex items-center gap-3">

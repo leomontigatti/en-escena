@@ -39,6 +39,8 @@ export type PresentationScoresLoaderData = {
  */
 export type PresentationScoresActionData = {
   message: string;
+  /** The score an accepted edit saved, so only its own form settles on it. */
+  scoreId?: string;
   status: "error" | "success";
 };
 
@@ -105,6 +107,7 @@ export async function handlePresentationScoresAction(input: {
 
   if (intent === "edit-score") {
     return answerEdit(
+      scoreId,
       await editScore({
         criteriaValues: readSheetValues(formData),
         presentationId,
@@ -144,10 +147,11 @@ function answerDisqualification(
  * different thing altogether.
  */
 function answerEdit(
+  scoreId: string,
   result: ScoreSettlementResult,
 ): PresentationScoresActionData | ReturnType<typeof data> {
   if (result.ok) {
-    return { message: savedScoreMessage, status: "success" };
+    return { message: savedScoreMessage, scoreId, status: "success" };
   }
 
   if (result.reason === "not-found") {
