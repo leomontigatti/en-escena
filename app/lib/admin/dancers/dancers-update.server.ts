@@ -21,9 +21,12 @@ import type {
 import {
   findDancerDocumentConflict,
   writeDancerGuardingDocument,
+} from "@/lib/dancers/dancer-records.server";
+import {
   normalizeDancerDocumentPair,
   normalizeDancerValues,
-} from "@/lib/dancers/dancer-records.server";
+} from "@/lib/dancers/dancer-records";
+import { invalidatesDancerVerification } from "@/lib/dancers/verification";
 
 export async function updateAdministrativeDancer(input: {
   acknowledgedDuplicateIds?: readonly string[];
@@ -100,6 +103,18 @@ export async function updateAdministrativeDancer(input: {
 
   const birthDateChanged =
     existingDancer.birthDate !== normalizedValues.birthDate;
+  // The panel does not replace the document images, so they stay as stored.
+  const attestedChange = invalidatesDancerVerification(existingDancer, {
+    firstName: normalizedValues.firstName,
+    lastName: normalizedValues.lastName,
+    birthDate: normalizedValues.birthDate,
+    documentType: normalizedDocument.documentType,
+    documentNumber: normalizedDocument.documentNumber,
+    documentFrontImageStorageKey: existingDancer.documentFrontImageStorageKey,
+    documentBackImageStorageKey: existingDancer.documentBackImageStorageKey,
+  });
+  const verificationInvalidated =
+    existingDancer.identityVerifiedAt !== null && attestedChange;
   // Read before the transaction opens: the correction requires the bases, and
   // reading them from the pool inside its transaction would hold two
   // connections at once.
@@ -131,9 +146,9 @@ export async function updateAdministrativeDancer(input: {
               existingDancer.documentFrontImageStorageKey,
             documentBackImageStorageKey:
               existingDancer.documentBackImageStorageKey,
-            identityVerifiedAt: existingDancer.identityVerifiedAt
-              ? null
-              : undefined,
+            // Whatever was read: a verification that landed after the read
+            // was of the values this write replaces.
+            identityVerifiedAt: attestedChange ? null : undefined,
             updatedAt: new Date(),
           })
           .where(eq(dancers.id, existingDancer.id))
@@ -179,6 +194,6 @@ export async function updateAdministrativeDancer(input: {
     dancer: savedSnapshot,
     scheduleMoves: write.result.scheduleMoves,
     recategorisedChoreographies: write.result.recategorisedChoreographies,
-    verificationInvalidated: existingDancer.identityVerifiedAt !== null,
+    verificationInvalidated,
   };
 }

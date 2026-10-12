@@ -122,9 +122,9 @@ export function DancerDetailRouteView({
         active={dancer.active}
         canEdit={loaderData.canEdit}
         canVerifyIdentity={viewState.canVerifyIdentity}
-        identificationAlert={viewState.identificationAlert}
-        identificationAlertTitle={viewState.identificationAlertTitle}
-        identificationAlertVariant={viewState.identificationAlertVariant}
+        verificationAlert={viewState.verificationAlert}
+        verificationAlertTitle={viewState.verificationAlertTitle}
+        verificationAlertVariant={viewState.verificationAlertVariant}
         onSelectIntent={setDialogIntent}
         recategorisedChoreographies={
           successData?.recategorisedChoreographies ?? []
@@ -162,7 +162,7 @@ export function DancerDetailRouteView({
             viewState.birthDateMayNeedRecalculation
           }
           confirmation={getDancerConfirmation({
-            editConsequence: dancer.editConsequence,
+            editConsequence: viewState.editConsequence,
             intent: dialogIntent,
             statusAction: viewState.statusAction,
           })}
@@ -174,7 +174,10 @@ export function DancerDetailRouteView({
       <RosterMergeDialog
         kind="dancer"
         merge={loaderData.merge}
-        person={dancer}
+        person={{
+          ...dancer,
+          isIdentityVerified: dancer.verificationStatus.code === "verified",
+        }}
         {...mergeDialog}
       />
     </AdminResourceLayout>
@@ -277,19 +280,20 @@ function useDancerSave({
   // Set by the confirmation dialog so its own `Guardar` is not asked about
   // again.
   const isSaveConfirmed = useRef(false);
-  const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
-    getInitialDialogIntent({
-      actionData: errorData,
-      shouldConfirmSave: dancer.editConsequence !== null,
-    }),
-  );
-  const watchedBirthDate = editForm.form.watch("birthDate");
+  // The whole form, since what the save would clear depends on what changed.
+  const watchedValues = editForm.form.watch();
   const viewState = buildDancerDetailViewState({
     canEdit: loaderData.canEdit,
     dancer,
     isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
-    watchedBirthDate,
+    watchedValues,
   });
+  const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
+    getInitialDialogIntent({
+      actionData: errorData,
+      shouldConfirmSave: viewState.shouldConfirmSave,
+    }),
+  );
   const submitEdit = createValidatedRouteSubmitHandler(editForm.form, submit);
   const handleEditSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
     if (asksBeforeSaving && !isSaveConfirmed.current) {

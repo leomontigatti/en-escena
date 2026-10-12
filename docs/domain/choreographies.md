@@ -21,11 +21,8 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - The dancer creation dialog asks for the document pair too, optionally.
 - A second dancer of the same academy with the same name **and** the same birth date is a **warning**, not a refusal: two children of one academy may share both. See "Duplicate warnings" below.
 - A dancer participating with another academy is a different domain entity.
-- Dancer verification states are: incompleto, no verificado, verificado.
-- If any document field or image is missing, the dancer verification status is incompleto.
-- A partial document pair is not a saved state: it is a form validation error.
-- Dancer verification does not block participation and does not affect choreography operational state.
-- Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
+- A partial document pair is not a saved state: it is a form validation error. The portal and panel forms report it, an invalid type and a `DNI` with anything but digits on the field before saving, with the same messages the save refuses with.
+- Dancer verification: see "`Estado de verificación de bailarín`" below.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies until they are evaluated; it does not change financial state.
 - A birth-date correction is refused when it would leave a linked choreography without a category: nothing is written, and the message names each choreography by number and name.
 - A birth-date correction also re-resolves each linked choreography's schedule with its new category. The choreography stays where it is when its schedule still accepts the category; when it does not, and exactly one schedule of the event accepts it, has room and does not change the price of money already assigned, the choreography moves there in the same transaction.
@@ -84,6 +81,40 @@ activo.`) and no confirm-anyway escape hatch. Participating means, for the
 - An archived person is still found by name search. Search is a lookup, not an
   offer: what may be added to a roster is governed by the eligibility rule
   above, and the person's badge reads `Archivado`.
+
+### `Estado de verificación de bailarín`
+
+- A dancer's verification status has three values, shown as `Incompleto`,
+  `Sin verificar` and `Verificado`:
+  - `Incompleto` when any of document type, document number, front image or
+    back image is missing. The portal lists exactly the missing ones.
+  - `Sin verificar` when all four are loaded and administration has not
+    verified the identity.
+  - `Verificado` when all four are loaded and administration verified the
+    identity against them.
+- The status is derived, never stored: the only stored fact is when the
+  identity was verified. A dancer verified once and whose document later went
+  missing reads `Incompleto`, not `Verificado`.
+- Only administration verifies, and only a `Sin verificar` dancer: the action is
+  offered exactly when it would be accepted.
+- Everything the document shows is **attested**: first name, last name, birth
+  date, document type, document number and both images. Any change to an
+  attested value clears the verification, a name typo fix included, on either
+  surface. Values are compared after the save's own normalization, so a save
+  that changes nothing, or only re-cases a name or re-formats a `DNI`, keeps
+  it. Archiving and reactivating attest nothing and keep it.
+- The panel's save confirmation warns that verification will be lost only when
+  the edit about to be saved would clear it; the participation warning stands
+  on its own beside it.
+- An academy cannot edit a `Verificado` dancer's identity or document images;
+  later corrections are administrative, and the portal says so.
+- Verification does not block participation and does not affect the
+  `Estado operativo de coreografía`.
+- Merging duplicates never carries a verification over: a survivor that takes
+  the removed dancer's document has to be verified again (see "Merging
+  duplicates").
+- There is no explicit unverify action, no record of who verified, and no
+  document expiry.
 
 ## Choreographies
 
@@ -307,7 +338,7 @@ What the dialog announced is advisory.
 
 A duplicate that got past the guards above is merged from the panel, by an administrator; an auditor sees no merge. The record on screen is the one removed and the operator picks the survivor. A merge is final: there is no undo, and the confirmation lists what moves and what is discarded.
 
-- **Two people** of the same academy and kind: every choreography and seminar inscription of the removed one moves to the survivor. The survivor keeps its names, birth date, `Estado de alta`, document, images and verification, and takes the removed document —with its images and verification— only when it has no document. The removed row is deleted, not archived.
+- **Two people** of the same academy and kind: every choreography and seminar inscription of the removed one moves to the survivor. The survivor keeps its names, birth date, `Estado de alta`, document, images and verification, and takes the removed document —with its images, but never its verification— only when it has no document. The document was checked against the removed person's name and birth date, not the survivor's, so a survivor that takes one is left `Sin verificar`; when the removed dancer is verified, the confirmation says so, and says the verification is discarded when the survivor keeps its own document. The removed row is deleted, not archived.
 - **Two academies**: dancers, professors, choreographies, payments and allocations move to the survivor (seminar inscriptions go with their people), and the removed academy's user is deleted, so its login stops working.
 - **A merge never moves money.** Allocations and comprobante lines point at inscription rows, and those rows move whole. For the same reason a people merge is refused when both are in the same choreography's cast or the same seminar, naming it: the two inscriptions cannot become one without moving money, so one is withdrawn first.
 - An academy merge is refused when the removed academy has any comprobante, since a comprobante never changes academy, and when a document number is on both rosters, naming the pairs, since it would break the document rule above; one document of each pair is cleared first.

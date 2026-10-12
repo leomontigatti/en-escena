@@ -19,6 +19,11 @@ import {
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
+import {
+  formatDancerVerificationStatusLabel,
+  getDancerVerificationStatusBadgeVariant,
+} from "@/lib/dancers/verification";
+import { buildDancerVerificationFacet } from "@/components/shared/dancer-verification-badge";
 import { type PortalDancersListLoaderData } from "@/features/portal/dancers/list/shared";
 
 type LoaderData = PortalDancersListLoaderData;
@@ -62,23 +67,8 @@ const dancerFacetedFilters: DataTableFacetedFiltersOf<
   },
   {
     id: "verificacion",
-    label: "Verificación",
-    options: [
-      { label: "Incompleto", value: "incomplete" },
-      { label: "Sin verificar", value: "unverified" },
-      { label: "Verificado", value: "verified" },
-    ],
-    renderValue: (option) => (
-      <Badge
-        variant={getDancerVerificationBadgeVariant(
-          option.value === "verified" || option.value === "unverified"
-            ? option.value
-            : "incomplete",
-        )}
-      >
-        {option.label}
-      </Badge>
-    ),
+    // The client filter matches these values against each row's status code.
+    ...buildDancerVerificationFacet((code) => code),
   },
   {
     id: "archivo",
@@ -212,35 +202,11 @@ function getDancerStateBadges(dancer: DancerRow) {
   }
 
   badges.push({
-    label: getDancerVerificationLabel(dancer.verificationStatus),
-    variant: getDancerVerificationBadgeVariant(dancer.verificationStatus),
+    label: formatDancerVerificationStatusLabel(dancer.verificationStatus),
+    variant: getDancerVerificationStatusBadgeVariant(dancer.verificationStatus),
   });
 
   return badges;
-}
-
-function getDancerVerificationBadgeVariant(
-  status: DancerRow["verificationStatus"],
-): DancerBadge["variant"] {
-  switch (status) {
-    case "verified":
-      return "success";
-    case "unverified":
-      return "info";
-    case "incomplete":
-      return "warning";
-  }
-}
-
-function getDancerVerificationLabel(status: DancerRow["verificationStatus"]) {
-  switch (status) {
-    case "verified":
-      return "Verificado";
-    case "unverified":
-      return "Sin verificar";
-    case "incomplete":
-      return "Incompleto";
-  }
 }
 
 function formatDocument(dancer: DancerRow) {

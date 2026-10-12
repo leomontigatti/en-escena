@@ -174,7 +174,7 @@ describe("mergeRosterPeople", () => {
     });
   });
 
-  test("hands the survivor the removed document, images and verification when it has none", async () => {
+  test("hands the survivor the removed document and images, but not the verification, when it has none", async () => {
     const { academyId } = await createRoster("Documento ajeno");
     const verifiedAt = new Date("2030-04-01T12:00:00Z");
     const survivor = await createDancer(academyId, { firstName: "Sin DNI" });
@@ -200,7 +200,7 @@ describe("mergeRosterPeople", () => {
       documentFrontImageStorageKey: "removed-front",
       documentNumber: "30111222",
       documentType: "other",
-      identityVerifiedAt: verifiedAt,
+      identityVerifiedAt: null,
     });
   });
 

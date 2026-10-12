@@ -34,10 +34,9 @@ import { FieldGroup } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { portalSeminarDetailPath } from "@/features/portal/seminars/shared";
 import {
-  formatDancerIdentificationPendingItemLabel,
-  getDancerIdentificationPendingItems,
-  getDancerVerificationStatus,
-  type DancerIdentificationPendingItem,
+  deriveDancerVerificationStatus,
+  formatDancerVerificationPendingItemLabel,
+  type DancerVerificationPendingItem,
 } from "@/lib/dancers/verification";
 import {
   isRouteFormPending,
@@ -96,16 +95,11 @@ export function PortalDancerDetailRouteView({
   const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<PortalDancerStatusIntent | null>(initialStatusDialogIntent);
-  const verificationStatus = getDancerVerificationStatus(loaderData.dancer);
-  const identificationPendingItems = getDancerIdentificationPendingItems(
-    loaderData.dancer,
-  );
   const viewModel = buildPortalDancerDetailViewModel({
     dancer: loaderData.dancer,
     formValues,
-    identificationPendingItems,
     isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
-    verificationStatus,
+    verificationStatus: deriveDancerVerificationStatus(loaderData.dancer),
   });
   const isSubmitting =
     navigation.state !== "idle" &&
@@ -148,7 +142,7 @@ export function PortalDancerDetailRouteView({
 
         <PortalDancerAlertsSection
           dancerActive={loaderData.dancer.active}
-          identificationPendingItems={viewModel.identificationPendingItems}
+          pendingItems={viewModel.verificationStatus.pendingItems}
           onReactivate={() => {
             setStatusDialogIntent("reactivate-dancer");
           }}
@@ -255,7 +249,7 @@ function PortalDancerIdentificationFields({
 }) {
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
-      {viewModel.isIdentityVerified ? (
+      {viewModel.isIdentityLocked ? (
         <>
           <ReadOnlyField
             label="Nombre"
@@ -282,7 +276,7 @@ function PortalDancerIdentificationFields({
           />
         </>
       )}
-      {viewModel.isIdentityVerified ? (
+      {viewModel.isIdentityLocked ? (
         <ReadOnlyDateField
           label="Fecha de nacimiento"
           name="birthDate"
@@ -292,7 +286,7 @@ function PortalDancerIdentificationFields({
         <PortalDancerBirthDateField form={form.form} />
       )}
       <div className="hidden md:block" aria-hidden="true" />
-      {viewModel.isIdentityVerified ? (
+      {viewModel.isIdentityLocked ? (
         <ReadOnlySelectField
           label="Tipo de documento"
           name="documentType"
@@ -310,7 +304,7 @@ function PortalDancerIdentificationFields({
           placeholder={documentTypeEmptyLabel}
         />
       )}
-      {viewModel.isIdentityVerified ? (
+      {viewModel.isIdentityLocked ? (
         <ReadOnlyField
           label="Número de documento"
           name="documentNumber"
@@ -323,7 +317,7 @@ function PortalDancerIdentificationFields({
           name="documentNumber"
         />
       )}
-      {viewModel.isIdentityVerified ? (
+      {viewModel.isIdentityLocked ? (
         <>
           <ReadOnlyDocumentImageField
             label="Imagen frente del documento"
@@ -356,16 +350,16 @@ function PortalDancerIdentificationFields({
 
 function PortalDancerAlertsSection({
   dancerActive,
-  identificationPendingItems,
   onReactivate,
+  pendingItems,
   recategorisedChoreographies,
   showsIdentificationAlert,
   showsPendingVerificationAlert,
   showsVerifiedIdentityAlert,
 }: {
   dancerActive: boolean;
-  identificationPendingItems: DancerIdentificationPendingItem[];
   onReactivate: () => void;
+  pendingItems: DancerVerificationPendingItem[];
   recategorisedChoreographies: RecategorisedChoreography[];
   showsIdentificationAlert: boolean;
   showsPendingVerificationAlert: boolean;
@@ -400,7 +394,7 @@ function PortalDancerAlertsSection({
             <TriangleAlert aria-hidden="true" />
             <AlertTitle>Faltan datos de identificación</AlertTitle>
             <AlertDescription>
-              {formatIdentificationPendingAlert(identificationPendingItems)}
+              {formatIdentificationPendingAlert(pendingItems)}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -544,7 +538,7 @@ function PortalDancerStatusDialog({
 }
 
 function formatIdentificationPendingAlert(
-  pendingItems: DancerIdentificationPendingItem[],
+  pendingItems: DancerVerificationPendingItem[],
 ) {
   return `${
     pendingItems.length === 1 ? "Falta" : "Faltan"
@@ -554,11 +548,9 @@ function formatIdentificationPendingAlert(
 }
 
 function formatIdentificationPendingItems(
-  pendingItems: DancerIdentificationPendingItem[],
+  pendingItems: DancerVerificationPendingItem[],
 ) {
-  return formatList(
-    pendingItems.map(formatDancerIdentificationPendingItemLabel),
-  );
+  return formatList(pendingItems.map(formatDancerVerificationPendingItemLabel));
 }
 
 function formatList(items: string[]) {

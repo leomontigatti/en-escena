@@ -7,14 +7,14 @@ import {
   toRosterPersonStatusSearchValue,
   type RosterPersonStatusFilter,
 } from "@/lib/roster/roster-person-status.shared";
+import {
+  toDancerVerificationSearchValue,
+  type DancerVerificationFilter,
+} from "@/lib/dancers/verification";
 
 export const dancerNotFoundMessage = "No encontramos ese Bailarín.";
 
 export type DancerParticipationFilter = "yes" | "no" | "all";
-export type DancerIdentificationFilter =
-  "incomplete" | "unverified" | "verified" | "all";
-export type DancerIdentificationStatus =
-  "incomplete" | "unverified" | "verified";
 
 export type DancerListFilters = {
   /** A `YYYY-MM-DD` the event's choreographies fall on, or `null` for any. */
@@ -23,7 +23,7 @@ export type DancerListFilters = {
   participation: DancerParticipationFilter;
   query: string;
   status: RosterPersonStatusFilter;
-  identification: DancerIdentificationFilter;
+  verification: DancerVerificationFilter;
   page: number;
 };
 
@@ -48,10 +48,7 @@ export function toDancerListFacets(
         ? null
         : toDancerParticipationSearchValue(filters.participation),
     dia: selectedEventId === null ? null : filters.day,
-    identificacion:
-      filters.identification === "all"
-        ? null
-        : toDancerIdentificationSearchValue(filters.identification),
+    verificacion: toDancerVerificationSearchValue(filters.verification),
     estado: toRosterPersonStatusSearchValue(filters.status),
   };
 }
@@ -96,23 +93,6 @@ export function readDancerParticipationFilter(
   }
 }
 
-export function readDancerIdentificationFilter(
-  value: string | null,
-): DancerIdentificationFilter {
-  switch (value) {
-    case "incompleta":
-      return "incomplete";
-    case "sin-verificar":
-      return "unverified";
-    case "verificados":
-      return "verified";
-    case "todos":
-      return "all";
-    default:
-      return "all";
-  }
-}
-
 /** `all` is encoded by the absence of the parameter, so it returns `null`. */
 export function toDancerParticipationSearchValue(
   value: DancerParticipationFilter,
@@ -125,31 +105,4 @@ export function toDancerParticipationSearchValue(
     default:
       return "si";
   }
-}
-
-function toDancerIdentificationSearchValue(value: DancerIdentificationFilter) {
-  switch (value) {
-    case "unverified":
-      return "sin-verificar";
-    case "verified":
-      return "verificados";
-    case "all":
-      return "todos";
-    default:
-      return "incompleta";
-  }
-}
-
-export function getDancerIdentificationBadgeVariant(
-  identificationStatus: DancerIdentificationStatus,
-) {
-  if (identificationStatus === "verified") {
-    return "success";
-  }
-
-  if (identificationStatus === "unverified") {
-    return "info";
-  }
-
-  return "warning";
 }

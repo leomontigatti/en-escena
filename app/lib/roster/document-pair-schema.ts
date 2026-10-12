@@ -1,9 +1,10 @@
 import type { z } from "zod";
 
 /**
- * The both-or-neither rule every roster document pair follows: a person may be
+ * The both-or-neither rule a professor's document pair follows: a person may be
  * loaded without a document, but never with half of one. The server twin lives
- * in `normalizeDancerDocumentPair` / `normalizeProfessorDocumentPair`.
+ * in `normalizeProfessorDocumentPair`; dancer forms use
+ * `refineDancerDocumentPair`, which also checks the type and the DNI digits.
  */
 export function refineDocumentPair(
   values: { documentType: string; documentNumber: string },

@@ -2,8 +2,10 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
-import { getDancerVerificationStatus } from "@/lib/dancers/verification";
-import type { DancerIdentificationStatus } from "@/lib/admin/dancers/dancers.shared";
+import {
+  deriveDancerVerificationStatus,
+  type DancerVerificationStatus,
+} from "@/lib/dancers/verification";
 import {
   buildDancerAnyEventParticipationSql,
   buildDancerEventParticipationSql,
@@ -24,52 +26,21 @@ export type DancerMutationRecord = {
   identityVerifiedAt: Date | null;
   isParticipating: boolean;
   hasParticipatedInAnyEvent: boolean;
-  identificationStatus: DancerIdentificationStatus;
+  verificationStatus: DancerVerificationStatus;
 };
 
-export function toIdentificationStatus(input: {
-  documentType: (typeof dancers.$inferSelect)["documentType"];
-  documentNumber: string | null;
-  documentFrontImageStorageKey: string | null;
-  documentBackImageStorageKey: string | null;
-  identityVerifiedAt: Date | null;
-}): DancerIdentificationStatus {
-  const verificationStatus = getDancerVerificationStatus(input);
-
-  switch (verificationStatus) {
-    case "unverified":
-      return "unverified";
-    default:
-      return verificationStatus;
-  }
-}
-
-export type DancerEditConsequence = "verified" | "participated" | "both" | null;
-
-export function getEditConsequence(input: {
+/**
+ * Whether an edit may affect records of an event the dancer took part in. With
+ * an event selected, a live inscription in it counts as well.
+ */
+export function editAffectsParticipation(input: {
   selectedEventId: string | null;
   isParticipating: boolean;
   hasParticipatedInAnyEvent: boolean;
-  isVerified: boolean;
-}): DancerEditConsequence {
-  const participated =
-    input.selectedEventId !== null
-      ? input.isParticipating || input.hasParticipatedInAnyEvent
-      : input.hasParticipatedInAnyEvent;
-
-  if (input.isVerified && participated) {
-    return "both";
-  }
-
-  if (input.isVerified) {
-    return "verified";
-  }
-
-  if (participated) {
-    return "participated";
-  }
-
-  return null;
+}) {
+  return input.selectedEventId !== null
+    ? input.isParticipating || input.hasParticipatedInAnyEvent
+    : input.hasParticipatedInAnyEvent;
 }
 
 export function toDancerSnapshot(
@@ -135,7 +106,7 @@ export async function findDancerForMutation(input: {
 
       return {
         ...row,
-        identificationStatus: toIdentificationStatus(row),
+        verificationStatus: deriveDancerVerificationStatus(row),
       };
     });
 }

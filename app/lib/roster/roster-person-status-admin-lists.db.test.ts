@@ -198,7 +198,7 @@ describe("`Estado de alta` on the two administrative lists", () => {
     }
 
     // Archived, participating and verified: the three badges render together.
-    // `identificacion` is left at its default (`all`, encoded by its
+    // `verificacion` is left at its default (`all`, encoded by its
     // absence): writing `todos` explicitly would be the stale-parameter case
     // covered above, not this one.
     const everything = await listNames("&estado=todos");
@@ -222,7 +222,7 @@ describe("`Estado de alta` on the two administrative lists", () => {
       archivedDancer.id,
     ]);
     expect(
-      (await listNames("&estado=todos&identificacion=verificados")).ids,
+      (await listNames("&estado=todos&verificacion=verificados")).ids,
     ).toEqual([archivedDancer.id]);
     expect((await listNames("&estado=todos&participando=si")).ids).toEqual([
       archivedDancer.id,

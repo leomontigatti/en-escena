@@ -278,8 +278,8 @@ Person loaded by an academy to take part in choreographies. Their document **num
 _Avoid_: `professor`, `user`
 
 **`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"
-Documentary validation situation of a dancer.
-_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
+Documentary validation situation of a dancer, derived and never stored, with three values: `incomplete` (`Incompleto`, some document data or image missing), `unverified` (`Sin verificar`, complete and not yet checked) and `verified` (`Verificado`, checked by administration). Any change to what the document shows returns a verified dancer to `unverified` (see `docs/domain/choreographies.md`, "`Estado de verificación de bailarín`").
+_Avoid_: identification status, `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`rosterPersonStatus`** — ui: "Estado de alta"
 Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` (`Activo`) and `archived` (`Archivado`): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. Archiving is refused while the person is participating in the active event —a live inscription, a professor link or a live seminar inscription of that event— and reactivating is never refused; the predicate is one reader, shared by the writer's guard and by the detail screens that grey the `Archivar` button out. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.

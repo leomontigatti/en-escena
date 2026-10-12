@@ -1,5 +1,6 @@
 import type { EventDocumentDownloadUrls } from "@/lib/events/event-documents";
 import type { ParticipationStatus } from "@/lib/participation/participation.shared";
+import type { DancerVerificationStatusCode } from "@/lib/dancers/verification";
 
 export type PortalDancerListItem = {
   active: boolean;
@@ -10,7 +11,7 @@ export type PortalDancerListItem = {
   id: string;
   lastName: string;
   participationStatus: ParticipationStatus;
-  verificationStatus: "incomplete" | "unverified" | "verified";
+  verificationStatus: DancerVerificationStatusCode;
 };
 
 export type PortalDancersListLoaderData = {

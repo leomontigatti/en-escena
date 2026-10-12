@@ -19,9 +19,18 @@ import type { RosterDocumentConflict } from "@/components/shared/roster-document
 import type {
   DancerFieldErrors,
   DancerUpdateInput,
-  DancerEditConsequence,
   findDancer,
 } from "@/lib/admin/dancers/dancers.server";
+import {
+  normalizeDancerDocumentPair,
+  normalizeDancerValues,
+  refineDancerDocumentPair,
+} from "@/lib/dancers/dancer-records";
+import {
+  canVerifyDancerIdentity,
+  invalidatesDancerVerification,
+  type DancerVerificationStatusCode,
+} from "@/lib/dancers/verification";
 import {
   withDancerBirthDateScheduleMoveFeedback,
   type DancerBirthDateScheduleMove,
@@ -38,7 +47,8 @@ import {
 } from "@/lib/shared/notification-toasts";
 import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
 
-export type { DancerEditConsequence };
+/** What saving the edit would cause, for the confirmation to warn about. */
+export type DancerEditConsequence = "verified" | "participated" | "both" | null;
 
 export const dancerFieldNames = [
   "firstName",
@@ -128,9 +138,9 @@ export type DancerDetailViewState = {
   birthDateMayNeedRecalculation: boolean;
   canVerifyIdentity: boolean;
   editConsequence: DancerEditConsequence;
-  identificationAlert: string | null;
-  identificationAlertTitle: string;
-  identificationAlertVariant: "info" | "warning";
+  verificationAlert: string;
+  verificationAlertTitle: string;
+  verificationAlertVariant: "info" | "warning";
   shouldConfirmSave: boolean;
   statusAction: DancerStatusAction;
 };
@@ -145,9 +155,7 @@ export function buildDancerUpdateSchema(eventStartDate: string | null) {
       ...rosterDocumentPairFields,
       ...rosterDocumentImageFields,
     })
-    .superRefine((values, context) => {
-      validateDocumentPair(values.documentType, values.documentNumber, context);
-    });
+    .superRefine(refineDancerDocumentPair);
 }
 
 export function buildBackToListHref(requestUrl: string) {
@@ -327,28 +335,16 @@ export function getInitialDialogIntent({
     : null;
 }
 
-function hasDancerVerificationMinimumData(
-  dancer: DancerDetailLoaderData["dancer"],
-) {
-  return Boolean(
-    dancer.birthDate &&
-    dancer.documentType &&
-    dancer.documentNumber &&
-    dancer.documentFrontImageStorageKey &&
-    dancer.documentBackImageStorageKey,
-  );
-}
-
 export function buildDancerDetailViewState({
   canEdit,
   dancer,
   isParticipatingInActiveEvent,
-  watchedBirthDate,
+  watchedValues,
 }: {
   canEdit: boolean;
   dancer: DancerDetailLoaderData["dancer"];
   isParticipatingInActiveEvent: boolean;
-  watchedBirthDate: string;
+  watchedValues: DancerEditFormValues;
 }): DancerDetailViewState {
   const statusAction = getDancerStatusAction({
     active: dancer.active,
@@ -357,34 +353,84 @@ export function buildDancerDetailViewState({
       status: toRosterPersonStatus(dancer.active),
     }),
   });
-  const canVerifyIdentity =
-    canEdit &&
-    hasDancerVerificationMinimumData(dancer) &&
-    dancer.identificationStatus !== "verified";
-  const identificationAlert = getIdentificationAlert(
-    dancer.identificationStatus,
-  );
-  const identificationAlertTitle = getIdentificationAlertTitle(
-    dancer.identificationStatus,
-  );
-  const identificationAlertVariant =
-    dancer.identificationStatus === "unverified" ? "info" : "warning";
+  const verificationCode = dancer.verificationStatus.code;
   const birthDateMayNeedRecalculation =
     canEdit &&
     dancer.participatedInAnyEvent &&
-    watchedBirthDate !== dancer.birthDate;
+    watchedValues.birthDate !== dancer.birthDate;
+  const editConsequence = getEditConsequence({
+    affectsParticipation: dancer.editAffectsParticipation,
+    invalidatesVerification: editInvalidatesVerification(dancer, watchedValues),
+  });
 
   return {
     birthDateMayNeedRecalculation,
-    canVerifyIdentity,
-    editConsequence: dancer.editConsequence,
-    identificationAlert,
-    identificationAlertTitle,
-    identificationAlertVariant,
+    canVerifyIdentity:
+      canEdit && canVerifyDancerIdentity(dancer.verificationStatus),
+    editConsequence,
+    verificationAlert: getVerificationAlert(verificationCode),
+    verificationAlertTitle: getVerificationAlertTitle(verificationCode),
+    verificationAlertVariant:
+      verificationCode === "unverified" ? "info" : "warning",
     shouldConfirmSave:
-      dancer.editConsequence !== null || birthDateMayNeedRecalculation,
+      editConsequence !== null || birthDateMayNeedRecalculation,
     statusAction,
   };
+}
+
+function getEditConsequence(input: {
+  affectsParticipation: boolean;
+  invalidatesVerification: boolean;
+}): DancerEditConsequence {
+  if (input.invalidatesVerification && input.affectsParticipation) {
+    return "both";
+  }
+
+  if (input.invalidatesVerification) {
+    return "verified";
+  }
+
+  if (input.affectsParticipation) {
+    return "participated";
+  }
+
+  return null;
+}
+
+/**
+ * Whether saving the form as it stands clears the dancer's verification, read
+ * through the same normalization and the same rule as the save itself. The
+ * panel never replaces the document images, so they stay as stored.
+ */
+function editInvalidatesVerification(
+  dancer: DancerDetailLoaderData["dancer"],
+  values: DancerEditFormValues,
+) {
+  if (dancer.identityVerifiedAt === null) {
+    return false;
+  }
+
+  const document = normalizeDancerDocumentPair(
+    values.documentType,
+    values.documentNumber,
+  );
+
+  // A pair the form refuses never reaches the confirmation.
+  if (!document.ok) {
+    return true;
+  }
+
+  const names = normalizeDancerValues(values);
+
+  return invalidatesDancerVerification(dancer, {
+    firstName: names.firstName,
+    lastName: names.lastName,
+    birthDate: names.birthDate,
+    documentType: document.documentType,
+    documentNumber: document.documentNumber,
+    documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
+    documentBackImageStorageKey: dancer.documentBackImageStorageKey,
+  });
 }
 
 /** What the confirmation dialog asks, in the shape `ConfirmationDialog` takes. */
@@ -465,10 +511,8 @@ function getSaveConsequenceMessage(
   }
 }
 
-function getIdentificationAlertTitle(
-  identificationStatus: DancerDetailLoaderData["dancer"]["identificationStatus"],
-) {
-  switch (identificationStatus) {
+function getVerificationAlertTitle(code: DancerVerificationStatusCode) {
+  switch (code) {
     case "incomplete":
       return "Verificación incompleta";
     case "unverified":
@@ -478,75 +522,15 @@ function getIdentificationAlertTitle(
   }
 }
 
-function getIdentificationAlert(
-  identificationStatus: DancerDetailLoaderData["dancer"]["identificationStatus"],
-) {
-  switch (identificationStatus) {
+function getVerificationAlert(code: DancerVerificationStatusCode) {
+  switch (code) {
     case "incomplete":
       return "Faltan datos o imágenes del documento para completar la verificación.";
     case "unverified":
       return "La documentación está lista para verificar la identidad del bailarín.";
     case "verified":
-      return "La identidad fue verificada. Si corregís datos o imágenes, este bailarín volverá a no verificado.";
+      return "La identidad fue verificada. Si corregís sus datos, la identidad quedará sin verificar.";
   }
-}
-
-function validateDocumentPair(
-  documentType: string,
-  documentNumber: string,
-  context: z.RefinementCtx,
-) {
-  if (!documentType && !documentNumber) {
-    return;
-  }
-
-  if (!documentType) {
-    context.addIssue({
-      code: "custom",
-      message: "Seleccioná el tipo de documento.",
-      path: ["documentType"],
-    });
-  }
-
-  if (!documentNumber) {
-    context.addIssue({
-      code: "custom",
-      message: "Ingresá el número de documento.",
-      path: ["documentNumber"],
-    });
-  }
-
-  if (!documentType || !documentNumber) {
-    return;
-  }
-
-  if (!isDocumentType(documentType)) {
-    context.addIssue({
-      code: "custom",
-      message: "Seleccioná un tipo de documento válido.",
-      path: ["documentType"],
-    });
-
-    return;
-  }
-
-  if (documentType !== "dni") {
-    return;
-  }
-
-  const normalizedDni = documentNumber.replace(/[.\s-]+/g, "");
-
-  if (!/^\d+$/.test(normalizedDni)) {
-    context.addIssue({
-      code: "custom",
-      message: "Ingresá un DNI válido usando solo números.",
-      path: ["documentNumber"],
-    });
-  }
-}
-
-function isDocumentType(value: string): value is "dni" | "other" | "passport" {
-  return value === "dni" || value === "passport" || value === "other";
 }
 
 function readFormString(formData: FormData, key: string) {

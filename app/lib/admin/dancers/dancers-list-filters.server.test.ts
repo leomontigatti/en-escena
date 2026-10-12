@@ -33,16 +33,22 @@ describe("readDancerFilters", () => {
     ).toMatchObject({ participation: "yes", status: "archived" });
   });
 
-  test("reads the identification facet from 'identificacion'", () => {
+  test("reads the verification facet from `verificacion`", () => {
     expect(
       readDancerFilters(
-        new URLSearchParams("identificacion=sin-verificar&participando=si"),
+        new URLSearchParams("verificacion=sin-verificar&participando=si"),
       ),
     ).toMatchObject({
-      identification: "unverified",
       participation: "yes",
       status: "active",
+      verification: "unverified",
     });
+  });
+
+  test("reads the retired `identificacion` parameter as no verification filter", () => {
+    expect(
+      readDancerFilters(new URLSearchParams("identificacion=sin-verificar")),
+    ).toMatchObject({ verification: "all" });
   });
 
   test("reads `participando=todos` as no participation filter", () => {

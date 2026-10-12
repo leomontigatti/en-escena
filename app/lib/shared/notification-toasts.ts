@@ -105,7 +105,7 @@ export const notificationToasts = {
   },
   "dancer-saved-needs-verification": {
     id: notificationToastIds["dancer-saved-needs-verification"],
-    message: "Bailarín guardado. La identidad volvió a no verificado.",
+    message: "Bailarín guardado. La identidad quedó sin verificar.",
     variant: "success",
   },
   "dancers-merged": {

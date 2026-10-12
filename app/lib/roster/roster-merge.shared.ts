@@ -63,7 +63,11 @@ export function formatRosterMergeCandidateLabel(
 export function describeRosterMerge(input: {
   inscriptionsByEvent: RosterMergeEventInscriptions[];
   kind: RosterPersonKind;
-  removed: { documentNumber: string | null; name: string };
+  removed: {
+    documentNumber: string | null;
+    isIdentityVerified: boolean;
+    name: string;
+  };
   survivor: RosterMergeCandidate;
 }) {
   const survivorName = `${input.survivor.firstName} ${input.survivor.lastName}`;
@@ -81,18 +85,42 @@ export function describeRosterMerge(input: {
   const discards = [
     `${input.removed.name}: nombre, ${
       input.kind === "dancer" ? "fecha de nacimiento, " : ""
-    }estado de alta${takesDocument || input.removed.documentNumber === null ? "" : " y documento"}.`,
+    }estado de alta${describeDiscardedDocument({
+      discardsDocument: !takesDocument && input.removed.documentNumber !== null,
+      isIdentityVerified: input.removed.isIdentityVerified,
+    })}.`,
   ];
 
   if (takesDocument) {
     moves.push(
-      `El documento ${input.removed.documentNumber}${
-        input.kind === "dancer" ? ", sus imágenes y su verificación" : ""
-      } pasan a ${survivorName}, que no tiene documento.`,
+      input.kind === "dancer"
+        ? `El documento ${input.removed.documentNumber} y sus imágenes pasan a ${survivorName}, que no tiene documento.`
+        : `El documento ${input.removed.documentNumber} pasa a ${survivorName}, que no tiene documento.`,
+    );
+  }
+
+  // The survivor keeps its own name and birth date, which the document was
+  // never checked against, so a verification never travels with it.
+  if (takesDocument && input.removed.isIdentityVerified) {
+    moves.push(
+      `La identidad de ${input.removed.name} está verificada, pero la verificación no pasa: ${survivorName} queda sin verificar y hay que volver a verificarla.`,
     );
   }
 
   return { discards, moves, survivorName };
+}
+
+function describeDiscardedDocument(input: {
+  discardsDocument: boolean;
+  isIdentityVerified: boolean;
+}) {
+  if (!input.discardsDocument) {
+    return "";
+  }
+
+  return input.isIdentityVerified
+    ? " y documento, con su verificación"
+    : " y documento";
 }
 
 function pluralize(total: number, singular: string, plural: string) {
