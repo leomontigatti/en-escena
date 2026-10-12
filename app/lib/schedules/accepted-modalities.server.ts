@@ -5,7 +5,7 @@ import { choreographies, modalities } from "@/db/schema";
 import {
   uniqueValues,
   type EventBasesExecutor,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 
 /**
  * The names of the modalities a choreography occupying the schedule has, among

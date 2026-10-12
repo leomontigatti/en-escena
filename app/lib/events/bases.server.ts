@@ -5,7 +5,7 @@ import {
 } from "@/lib/modalities/repository.server";
 import { listCategories } from "@/lib/categories/repository.server";
 import { listPrices } from "@/lib/prices/repository.server";
-import type { EventBasesExecutor } from "@/lib/events/bases-repository/shared.server";
+import type { EventBasesExecutor } from "@/lib/events/bases-kernel.server";
 import { listSchedules } from "@/lib/schedules/repository.server";
 import {
   findModalityIdsWithCompatibleSchedules,

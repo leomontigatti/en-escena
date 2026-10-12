@@ -2,10 +2,11 @@ import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { seminarInscriptions, seminarPrices, seminars } from "@/db/schema";
-import type {
-  EventBaseFailure,
-  EventBasesDeleteResult,
-  EventBasesMutationResult,
+import {
+  eventBaseCollision,
+  type EventBaseFailure,
+  type EventBasesDeleteResult,
+  type EventBasesMutationResult,
 } from "@/lib/events/bases-kernel.server";
 import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
@@ -437,15 +438,11 @@ function invalidSeminarPriceInput(
 }
 
 function duplicateSeminarPriceInput(): EventBaseFailure {
-  return {
-    ok: false,
-    code: "duplicate-seminar-price",
-    error:
-      "Ya existe un precio de seminario para ese tipo, esas personas y esa fecha límite.",
-    fieldErrors: {
-      kind: "Revisá el tipo de seminario del precio.",
-    },
-  };
+  return eventBaseCollision(
+    "duplicate-seminar-price",
+    "Ya existe un precio de seminario para ese tipo, esas personas y esa fecha límite.",
+    { kind: "Revisá el tipo de seminario del precio." },
+  );
 }
 
 function seminarPriceNotFound(): EventBaseFailure {

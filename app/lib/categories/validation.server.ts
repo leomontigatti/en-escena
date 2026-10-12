@@ -6,6 +6,7 @@ import {
   eventBaseCollision,
   eventBaseCopy,
   type EventBaseFailure,
+  uniqueValues,
 } from "@/lib/events/bases-kernel.server";
 import {
   experienceLevelValues,
@@ -17,7 +18,6 @@ import {
   isGroupType,
   type GroupType,
 } from "@/lib/events/group-types";
-import { uniqueValues } from "@/lib/events/bases-repository/shared.server";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
 /**

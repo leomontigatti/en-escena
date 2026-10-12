@@ -27,17 +27,12 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 // path is covered by "reports deleting a category with choreographies as a
 // dependency failure" in `repository.server.db.test.ts`. The file
 // is its own because the stub is module-wide.
-vi.mock(
-  "@/lib/events/bases-repository/shared.server",
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import("@/lib/events/bases-repository/shared.server")
-      >();
+vi.mock("@/lib/events/bases-kernel.server", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/events/bases-kernel.server")>();
 
-    return { ...actual, hasReferencingChoreographies: async () => false };
-  },
-);
+  return { ...actual, hasReferencingChoreographies: async () => false };
+});
 
 installDatabaseTestHooks();
 

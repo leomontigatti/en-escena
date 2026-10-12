@@ -48,12 +48,15 @@ only list stable entry points, coordination modules and high-signal tests.
   schedules, capacities and prices. In code, prefer concrete resource names for
   feature modules and use `event-bases`/`bases` names only for aggregators that
   genuinely coordinate several of those resources.
-- For `Bases del evento` persistence, prefer resource-level interfaces for new
-  callers: `app/lib/categories/`, `app/lib/modalities/`,
-  `app/lib/schedules/` and `app/lib/prices/`. Existing
-  `app/lib/events/bases-repository/` modules may stay as implementation or
-  compatibility facades during migration. Callers that need several resources
-  coordinated should use `app/lib/events/bases.server.ts`.
+- `Bases del evento` persistence has one owner per resource, each entered
+  through the `repository.server.ts` in its directory: `app/lib/modalities/`
+  (modalities and submodalities), `app/lib/categories/`, `app/lib/schedules/`
+  (schedules and their capacities) and `app/lib/prices/`. What every resource shares
+  —result and failure types, entity-kind copy, name rules, the executor types
+  and the choreography guards— lives in the kernel
+  `app/lib/events/bases-kernel.server.ts`; a resource's own inputs, list items
+  and queries stay with its owner. Callers that need several resources
+  coordinated use the aggregator `app/lib/events/bases.server.ts`.
 - Migrate existing code incrementally. When changing a vertical, choose the
   owner first, then extract only a small interface. Keep legacy aggregators in
   place while they still coordinate several resources, and avoid moving whole

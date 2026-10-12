@@ -5,13 +5,11 @@ import { choreographies, schedules } from "@/db/schema";
 import {
   eventBaseEntityNotFound,
   type EventBaseFailure,
-} from "@/lib/events/bases-kernel.server";
-import {
   hasOccupyingChoreographies,
   uniqueValues,
   type EventBasesExecutor,
   type EventBasesTransaction,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import { isScheduleCoveredByPrice } from "@/lib/prices/price-schedules.server";
 import { resolveOccupiedCounts } from "@/lib/choreographies/schedule-capacity-occupancy.server";
 import { listExcludedOccupiedCategories } from "@/lib/schedules/accepted-categories.server";

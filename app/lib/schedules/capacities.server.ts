@@ -10,11 +10,9 @@ import {
   type EventBaseFailure,
   type EventBasesDeleteResult,
   type EventBasesMutationResult,
-} from "@/lib/events/bases-kernel.server";
-import {
   hasOccupyingChoreographies,
   type EventBasesExecutor,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import { type GroupType, isGroupType } from "@/lib/events/group-types";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { resolveOccupiedCounts } from "@/lib/choreographies/schedule-capacity-occupancy.server";

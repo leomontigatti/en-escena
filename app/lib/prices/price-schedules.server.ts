@@ -11,7 +11,7 @@ import {
 import type {
   EventBasesExecutor,
   EventBasesTransaction,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import type { PriceRow } from "@/lib/prices/rows.server";
 
 /**

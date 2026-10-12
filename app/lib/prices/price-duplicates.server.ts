@@ -2,7 +2,10 @@ import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { priceSchedules, prices, schedules } from "@/db/schema";
-import type { EventBaseFailure } from "@/lib/events/bases-kernel.server";
+import {
+  eventBaseCollision,
+  type EventBaseFailure,
+} from "@/lib/events/bases-kernel.server";
 import type { GroupType } from "@/lib/events/group-types";
 import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
@@ -74,14 +77,11 @@ export async function refuseLostDuplicateRace(
 
 function duplicatePriceInput(duplicate: PriceDuplicate): EventBaseFailure {
   if (duplicate.tier === "general") {
-    return {
-      ok: false,
-      code: "duplicate-price-group-schedule",
-      error: "Ya existe un precio general para ese tipo de grupo.",
-      fieldErrors: {
-        groupType: "Revisá el tipo de grupo del precio.",
-      },
-    };
+    return eventBaseCollision(
+      "duplicate-price-group-schedule",
+      "Ya existe un precio general para ese tipo de grupo.",
+      { groupType: "Revisá el tipo de grupo del precio." },
+    );
   }
 
   // No names only after a lost race whose winner is gone again by the re-check
@@ -91,14 +91,11 @@ function duplicatePriceInput(duplicate: PriceDuplicate): EventBaseFailure {
       ? formatScheduleNames(duplicate.scheduleNames)
       : "esos cronogramas";
 
-  return {
-    ok: false,
-    code: "duplicate-price-group-schedule",
-    error: `Ya existe un precio especial para ese tipo de grupo y fecha límite en ${where}.`,
-    fieldErrors: {
-      scheduleIds: "Revisá los cronogramas del precio.",
-    },
-  };
+  return eventBaseCollision(
+    "duplicate-price-group-schedule",
+    `Ya existe un precio especial para ese tipo de grupo y fecha límite en ${where}.`,
+    { scheduleIds: "Revisá los cronogramas del precio." },
+  );
 }
 
 function formatScheduleNames(names: string[]) {

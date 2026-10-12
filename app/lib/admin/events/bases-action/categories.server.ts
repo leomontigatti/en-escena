@@ -18,6 +18,7 @@ import {
   createCategory,
   deleteCategory,
   updateCategory,
+  type CategoryRecord,
 } from "@/lib/categories/repository.server";
 import type { EventBasesMutationResult } from "@/lib/events/bases-kernel.server";
 import { buildDetailPath, buildListPath } from "@/lib/shared/navigation";
@@ -200,7 +201,7 @@ function isCategoryMutationIntent(
 async function runCategoryMutation(
   input: CategoryActionInput,
   categoryInput: CategoryMutationInput,
-): Promise<EventBasesMutationResult> {
+): Promise<EventBasesMutationResult<CategoryRecord>> {
   if (!isCategoryMutationIntent(input.intent)) {
     return {
       ok: false,
@@ -219,6 +220,6 @@ async function runCategoryMutation(
 
 async function saveCategory(
   input: CategoryActionInput,
-): Promise<EventBasesMutationResult> {
+): Promise<EventBasesMutationResult<CategoryRecord>> {
   return runCategoryMutation(input, getCategoryMutationInput(input));
 }

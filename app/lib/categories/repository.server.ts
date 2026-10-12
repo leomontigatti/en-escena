@@ -26,14 +26,12 @@ import {
   type EventBaseFailure,
   type EventBasesDeleteResult,
   type EventBasesMutationResult,
-} from "@/lib/events/bases-kernel.server";
-import { isForeignKeyViolation } from "@/lib/shared/error-properties.server";
-import {
   hasReferencingChoreographies,
   type EventBasesExecutor,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
+import { isForeignKeyViolation } from "@/lib/shared/error-properties.server";
 
-type CategoryRecord = typeof categories.$inferSelect;
+export type CategoryRecord = typeof categories.$inferSelect;
 
 // The keys that can raise a foreign-key violation on a category delete:
 // `category_modality` cascades, so a choreography's `category_id` and the

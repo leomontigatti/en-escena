@@ -12,7 +12,7 @@ import {
   uniqueValues,
   type EventBasesExecutor,
   type EventBasesTransaction,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import type { ScheduleAcceptedCategory } from "@/lib/schedules/repository.server";
 
 /**

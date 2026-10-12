@@ -4,7 +4,7 @@ import { categoryModalities, choreographies } from "@/db/schema";
 import type {
   EventBasesExecutor,
   EventBasesTransaction,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 
 /**
  * The rows a category is related to: the modalities it offers and the

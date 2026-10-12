@@ -14,13 +14,10 @@ import {
   type EventBaseFailure,
   type EventBasesDeleteResult,
   type EventBasesMutationResult,
-} from "@/lib/events/bases-kernel.server";
-import {
-  normalizeNullableName,
   uniqueValues,
   type EventBasesExecutor,
   type EventBasesTransaction,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import {
   type GroupType,
   groupTypeValues,
@@ -651,4 +648,10 @@ function comparePrices(first: PriceListItem, second: PriceListItem) {
   }
 
   return first.amount - second.amount;
+}
+
+function normalizeNullableName(name: string) {
+  const trimmedName = name.trim();
+
+  return trimmedName.length > 0 ? trimmedName : null;
 }

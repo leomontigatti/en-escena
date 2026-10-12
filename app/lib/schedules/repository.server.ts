@@ -17,11 +17,9 @@ import {
   type EventBaseFailure,
   type EventBasesDeleteResult,
   type EventBasesMutationResult,
-} from "@/lib/events/bases-kernel.server";
-import {
   hasReferencingChoreographies,
   uniqueValues,
-} from "@/lib/events/bases-repository/shared.server";
+} from "@/lib/events/bases-kernel.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 import {

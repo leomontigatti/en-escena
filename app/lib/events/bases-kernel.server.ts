@@ -1,21 +1,14 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  categories,
-  events,
-  modalities,
-  prices,
-  scheduleCapacities,
-  schedules,
-  seminarPrices,
-  submodalities,
-} from "@/db/schema";
+import { choreographies, modalities, submodalities } from "@/db/schema";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 
 /**
  * What every `Bases del evento` resource shares, and nothing else: the result
  * contracts, the failure shape and its constructors, the entity-kind
- * vocabulary, the name rules and the rejection copy. A resource's own inputs,
+ * vocabulary, the name rules, the rejection copy, the connection types a
+ * bases query runs on and the choreography guards. A resource's own inputs,
  * list items and queries live with that resource (PRD #719).
  */
 
@@ -34,18 +27,16 @@ export type EventBaseEntityKind =
  */
 export type EventBaseUniqueEntityKind = "modality" | "submodality";
 
-export type EventBaseRecord =
-  | typeof events.$inferSelect
-  | typeof modalities.$inferSelect
-  | typeof scheduleCapacities.$inferSelect
-  | typeof schedules.$inferSelect
-  | typeof submodalities.$inferSelect
-  | typeof categories.$inferSelect
-  | typeof prices.$inferSelect
-  // Seminar prices are not `Bases del evento` —they live in their own resource
-  // module— but they return these same result shapes, so the record union has
-  // to admit their row (docs/domain/seminars.md, "Prices").
-  | typeof seminarPrices.$inferSelect;
+export type EventBasesTransaction = Parameters<
+  Parameters<typeof db.transaction>[0]
+>[0];
+
+/**
+ * Either connection a bases query can run on: the pool for the reads that
+ * stand alone, the open transaction for the ones whose answer has to be that
+ * transaction's.
+ */
+export type EventBasesExecutor = EventBasesTransaction | typeof db;
 
 export type EventBaseFailure = {
   ok: false;
@@ -77,7 +68,7 @@ export type EventBaseCollisionCode = Extract<
   `duplicate-${string}`
 >;
 
-export type EventBasesMutationResult<TRecord = EventBaseRecord> =
+export type EventBasesMutationResult<TRecord> =
   { ok: true; record: TRecord } | EventBaseFailure;
 
 export type EventBasesDeleteResult = { ok: true } | EventBaseFailure;
@@ -234,4 +225,53 @@ function getUniqueNameTable(kind: EventBaseUniqueEntityKind) {
     case "submodality":
       return submodalities;
   }
+}
+
+export function uniqueValues(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+/**
+ * Whether a choreography matching `filter` still occupies the base the caller
+ * is about to edit. Every `Bases del evento` guard asks this one question, so
+ * the rule that answers it lives here only.
+ *
+ * A choreography occupies its bases while it is not withdrawn — the same single
+ * rule the schedule occupancy counts apply. A withdrawn choreography preserves
+ * evidence rather than a path: it will not be performed, so it holds nothing
+ * still and does not block editing the bases it points at.
+ */
+export async function hasOccupyingChoreographies(
+  filter: SQL | undefined,
+  executor: EventBasesExecutor = db,
+) {
+  const [choreography] = await executor
+    .select({ id: choreographies.id })
+    .from(choreographies)
+    .where(and(filter, notWithdrawnChoreography()))
+    .limit(1);
+
+  return Boolean(choreography);
+}
+
+/**
+ * Whether any choreography at all matches `filter`, occupying or not. The
+ * delete guards ask this instead of `hasOccupyingChoreographies`: none of these
+ * foreign keys carries an `on delete` behaviour, so the database refuses to
+ * drop a base under a choreography whose inscriptions were all withdrawn too.
+ * Reporting that refusal as a typed failure is what the guard adds — asking the
+ * narrower question would let the raw driver error through.
+ *
+ * The category guards ask it for their edits as well: a withdrawn inscription
+ * preserves the category and the registration path the choreography competed
+ * on, so neither may move underneath it.
+ */
+export async function hasReferencingChoreographies(filter: SQL | undefined) {
+  const [choreography] = await db
+    .select({ id: choreographies.id })
+    .from(choreographies)
+    .where(filter)
+    .limit(1);
+
+  return Boolean(choreography);
 }

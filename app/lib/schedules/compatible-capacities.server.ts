@@ -7,7 +7,7 @@ import {
   scheduleModalities,
   schedules,
 } from "@/db/schema";
-import type { EventBasesExecutor } from "@/lib/events/bases-repository/shared.server";
+import type { EventBasesExecutor } from "@/lib/events/bases-kernel.server";
 import { type GroupType, isGroupType } from "@/lib/events/group-types";
 
 export type CompatibleScheduleCapacityResolution =
