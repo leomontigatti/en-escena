@@ -102,15 +102,21 @@ export async function readAssignedJudges(
  * for an insertion, and re-running the dialog over an overlapping selection is
  * the normal way to widen one.
  *
+ * Pass a transaction as `executor` to make it part of a larger write, as the
+ * judge edit does with its removal.
+ *
  * Only an assignable judge is written, so an id that went suspended or changed
  * role between the dialog opening and the confirmation is dropped rather than
  * refused. The counts answer for what was actually reached.
  */
-export async function assignJudges(input: {
-  choreographyIds: string[];
-  judgeIds: string[];
-}): Promise<JudgeAssignmentResult> {
-  return await db.transaction(async (tx) => {
+export async function assignJudges(
+  input: {
+    choreographyIds: string[];
+    judgeIds: string[];
+  },
+  executor: Executor = db,
+): Promise<JudgeAssignmentResult> {
+  return await executor.transaction(async (tx) => {
     const assignable = await readAssignableJudges(tx);
     const judgeIds = assignable
       .map((judge) => judge.id)
@@ -152,11 +158,14 @@ export async function assignJudges(input: {
  * is a selection of one, comes back having removed nothing, which is the
  * refusal.
  */
-export async function removeJudges(input: {
-  choreographyIds: string[];
-  judgeIds: string[];
-}): Promise<JudgeRemovalResult> {
-  return await db.transaction(async (tx) => {
+export async function removeJudges(
+  input: {
+    choreographyIds: string[];
+    judgeIds: string[];
+  },
+  executor: Executor = db,
+): Promise<JudgeRemovalResult> {
+  return await executor.transaction(async (tx) => {
     const presentationIds = await findPresentationIds(
       tx,
       input.choreographyIds,

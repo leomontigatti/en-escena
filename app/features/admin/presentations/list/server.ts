@@ -422,22 +422,26 @@ async function runJudgeEdit(formData: FormData) {
   return { message: outcome.message, status: "success" as const };
 }
 
-/** Each half of the edit that has judges to move, each in its own write. */
+/**
+ * Each half of the edit that has judges to move, in one write: a removal that
+ * fails takes the assignment back with it, so an edit lands whole or not at
+ * all.
+ */
 async function applyJudgeEdit(edit: JudgeEditSubmissionValues) {
   const choreographyIds = edit[presentationChoreographyIdFieldName];
   const toAdd = edit[judgeToAddFieldName];
   const toRemove = edit[judgeToRemoveFieldName];
 
-  return {
+  return await db.transaction(async (tx) => ({
     assigned:
       toAdd.length > 0
-        ? await assignJudges({ choreographyIds, judgeIds: toAdd })
+        ? await assignJudges({ choreographyIds, judgeIds: toAdd }, tx)
         : null,
     removed:
       toRemove.length > 0
-        ? await removeJudges({ choreographyIds, judgeIds: toRemove })
+        ? await removeJudges({ choreographyIds, judgeIds: toRemove }, tx)
         : null,
-  };
+  }));
 }
 
 /**
