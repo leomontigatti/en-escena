@@ -1,7 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import { eventBaseCopy } from "@/lib/events/bases-kernel.server";
-import { createModality } from "@/lib/modalities/repository.server";
+import { expectCreated } from "@/lib/events/bases.test-support";
+import {
+  createModality,
+  createSubmodality,
+} from "@/lib/modalities/repository.server";
 import { createSchedule } from "@/lib/schedules/repository.server";
 import {
   action,
@@ -48,6 +52,46 @@ describe("`Bases del evento` rejection copy", () => {
     expect(actionResult).toMatchObject({
       status: "error",
       message: eventBaseCopy.modality.duplicateError,
+    });
+  });
+
+  test("a duplicate submodality reads the same from persistence and from the admin action", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      ...eventDates(2030),
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    await createSubmodality(event.id, {
+      modalityId: modality.id,
+      name: "Lírico",
+    });
+
+    const persisted = await createSubmodality(event.id, {
+      modalityId: modality.id,
+      name: " lirico ",
+    });
+    const request = await createSignedInRequest({
+      email: "admin.copia.submodalidad@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/modalidades?evento=${event.id}`,
+      body: formData({
+        intent: "create-submodality",
+        modalityId: modality.id,
+        name: " lirico ",
+      }),
+    });
+    const actionResult = await action(routeArgs(request.request));
+
+    expect(persisted).toMatchObject({
+      ok: false,
+      code: "duplicate-name",
+      error: eventBaseCopy.submodality.duplicateError,
+    });
+    expect(actionResult).toMatchObject({
+      status: "error",
+      message: eventBaseCopy.submodality.duplicateError,
     });
   });
 

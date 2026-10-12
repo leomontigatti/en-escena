@@ -26,18 +26,6 @@ export type EventBaseNameInput = {
   name: string;
 };
 
-export type SubmodalityInput = EventBaseNameInput & {
-  modalityId: string;
-};
-
-export type InlineSubmodalityInput = EventBaseNameInput & {
-  id?: string;
-};
-
-export type ModalityWithSubmodalitiesInput = EventBaseNameInput & {
-  submodalities: InlineSubmodalityInput[];
-};
-
 export type CategoryInput = EventBaseNameInput & {
   minAge: number;
   maxAge: number;
@@ -203,10 +191,6 @@ export type PriceResolutionResult =
       code: "missing-price" | "invalid-group-type";
       error: string;
     };
-
-export type ValidInlineSubmodalityInput = InlineSubmodalityInput & {
-  index: number;
-};
 
 export type CategoryRelationRow = {
   categoryId: string;
