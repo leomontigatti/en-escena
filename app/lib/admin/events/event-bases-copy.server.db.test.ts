@@ -2,7 +2,10 @@ import { describe, expect, test } from "vitest";
 
 import { eventBaseCopy } from "@/lib/events/bases-kernel.server";
 import { createModality } from "@/lib/modalities/repository.server";
-import { createSchedule } from "@/lib/schedules/repository.server";
+import {
+  createSchedule,
+  deleteSchedule,
+} from "@/lib/schedules/repository.server";
 import {
   action,
   buildScheduleDraft,
@@ -109,6 +112,16 @@ describe("`Bases del evento` rejection copy", () => {
     expect(actionResult).toMatchObject({
       status: "error",
       message: eventBaseCopy.schedule.invalidError,
+    });
+  });
+
+  test("a missing schedule is named with its masculine article", async () => {
+    const result = await deleteSchedule(crypto.randomUUID());
+
+    expect(result).toEqual({
+      ok: false,
+      code: "event-bases-not-found",
+      error: "No encontramos ese cronograma.",
     });
   });
 });

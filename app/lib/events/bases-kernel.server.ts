@@ -101,7 +101,7 @@ export const eventBaseCopy = {
   },
   schedule: {
     invalidError: "Revisá los datos del cronograma.",
-    notFoundError: "No encontramos esa cronograma.",
+    notFoundError: "No encontramos ese cronograma.",
   },
   scheduleCapacity: {
     invalidError: "Revisá los datos del cupo de cronograma.",
