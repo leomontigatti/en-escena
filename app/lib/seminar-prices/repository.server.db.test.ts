@@ -74,7 +74,7 @@ describe("seminar price repository", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
-      code: "duplicate-name",
+      code: "duplicate-seminar-price",
       error:
         "Ya existe un precio de seminario para ese tipo, esas personas y esa fecha límite.",
     });

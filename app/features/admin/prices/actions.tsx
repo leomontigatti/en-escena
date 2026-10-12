@@ -12,7 +12,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import type { PriceListItem } from "@/lib/events/bases.server";
+import type { PriceListItem } from "@/lib/prices/repository.server";
 import { readPriceDeletionBlock } from "@/lib/prices/guards";
 
 import { getPriceDisplayName } from "./view-shared";

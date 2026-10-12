@@ -18,7 +18,7 @@ import type {
   EventPriceDetailLoaderData,
   EventPricesLoaderData,
 } from "@/features/admin/prices/shared";
-import type { PriceListItem } from "@/lib/events/bases.server";
+import type { PriceListItem } from "@/lib/prices/repository.server";
 import {
   frozenPriceDeleteError,
   uncoveredPriceNotice,

@@ -20,7 +20,7 @@ installDatabaseTestHooks();
 
 const generalDuplicate = {
   ok: false,
-  code: "duplicate-name",
+  code: "duplicate-price-group-schedule",
   error: "Ya existe un precio general para ese tipo de grupo.",
   fieldErrors: { groupType: "Revisá el tipo de grupo del precio." },
 };
@@ -103,7 +103,7 @@ describe.skipIf(isPgliteTestBackend())(
 
       expect(save).toEqual({
         ok: false,
-        code: "duplicate-name",
+        code: "duplicate-price-group-schedule",
         error: `Ya existe un precio especial para ese tipo de grupo y fecha límite en Sábado Mañana.`,
         fieldErrors: { scheduleIds: "Revisá los cronogramas del precio." },
       });
@@ -136,7 +136,7 @@ describe.skipIf(isPgliteTestBackend())(
 
       expect(save).toMatchObject({
         ok: false,
-        code: "duplicate-name",
+        code: "duplicate-price-group-schedule",
         fieldErrors: { scheduleIds: "Revisá los cronogramas del precio." },
       });
       await expect(

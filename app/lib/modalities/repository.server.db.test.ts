@@ -5,9 +5,12 @@ import { db } from "@/db";
 import { submodalities } from "@/db/schema";
 import {
   createModality,
+  createModalityWithSubmodalities,
   createSubmodality,
   deleteModality,
   deleteSubmodality,
+  listModalities,
+  listSubmodalities,
   updateModality,
   updateSubmodality,
 } from "@/lib/modalities/repository.server";
@@ -18,7 +21,101 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("`Bases del evento` repository", () => {
+describe("`Bases del evento` modalities repository", () => {
+  test("creates a modality together with its submodalities in one transaction", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+
+    const modality = await expectCreated(
+      createModalityWithSubmodalities(event.id, {
+        name: " jazz ",
+        submodalities: [{ name: " lírico " }, { name: "Contemporáneo" }],
+      }),
+    );
+
+    if (!("name" in modality)) {
+      throw new Error("Expected the created `Modalidad` to include a name.");
+    }
+    expect(modality.name).toBe("Jazz");
+
+    const submodalities = await listSubmodalities(event.id);
+    expect(submodalities).toHaveLength(2);
+    expect(
+      submodalities.every((entry) => entry.modalityId === modality.id),
+    ).toBe(true);
+    expect(submodalities.every((entry) => entry.eventId === event.id)).toBe(
+      true,
+    );
+    expect(submodalities.map((entry) => entry.name).sort()).toEqual([
+      "Contemporáneo",
+      "Lírico",
+    ]);
+  });
+
+  test("creates a modality with zero submodalities", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+
+    const modality = await expectCreated(
+      createModalityWithSubmodalities(event.id, {
+        name: "Urbanas",
+        submodalities: [],
+      }),
+    );
+
+    await expect(listModalities(event.id)).resolves.toMatchObject([
+      { id: modality.id, name: "Urbanas" },
+    ]);
+    await expect(listSubmodalities(event.id)).resolves.toEqual([]);
+  });
+
+  test("surfaces the unique submodality name conflict and rolls back the whole insert", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+
+    await expect(
+      createModalityWithSubmodalities(event.id, {
+        name: "Jazz",
+        submodalities: [{ name: "Lírico" }, { name: " lírico " }],
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "duplicate-name" });
+
+    await expect(listModalities(event.id)).resolves.toEqual([]);
+    await expect(listSubmodalities(event.id)).resolves.toEqual([]);
+  });
+
+  test("rejects an existing modality name without persisting submodalities", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const existing = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    await expect(
+      createModalityWithSubmodalities(event.id, {
+        name: "jazz",
+        submodalities: [{ name: "Lírico" }],
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "duplicate-name" });
+
+    await expect(listModalities(event.id)).resolves.toMatchObject([
+      { id: existing.id, name: "Jazz" },
+    ]);
+    await expect(listSubmodalities(event.id)).resolves.toEqual([]);
+  });
+
   test("keeps modality names unique inside one event only", async () => {
     const firstEvent = await createSavedEvent({
       name: "Regional 2026",
@@ -174,5 +271,53 @@ describe("`Bases del evento` repository", () => {
       where: eq(submodalities.id, submodality.id),
     });
     expect(savedSubmodality).toMatchObject({ name: "Hip Hop" });
+  });
+
+  test("reports a duplicate modality and a duplicate submodality as a name collision", async () => {
+    const event = await createSavedEvent({
+      name: "Regional 2026",
+      active: false,
+      ...eventDates(2030),
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const otherModality = await expectCreated(
+      createModality(event.id, { name: "Urbanas" }),
+    );
+    await expectCreated(
+      createSubmodality(event.id, { modalityId: modality.id, name: "Lírico" }),
+    );
+    const otherSubmodality = await expectCreated(
+      createSubmodality(event.id, { modalityId: modality.id, name: "Funk" }),
+    );
+    const duplicateModality = {
+      ok: false,
+      code: "duplicate-name",
+      error: "Ya existe una modalidad con ese nombre en este evento.",
+      fieldErrors: { name: "Usá un nombre distinto para la modalidad." },
+    };
+    const duplicateSubmodality = {
+      ok: false,
+      code: "duplicate-name",
+      error: "Ya existe una submodalidad con ese nombre en esta modalidad.",
+      fieldErrors: { name: "Usá un nombre distinto para la submodalidad." },
+    };
+
+    await expect(createModality(event.id, { name: " jazz " })).resolves.toEqual(
+      duplicateModality,
+    );
+    await expect(
+      updateModality(otherModality.id, { name: "JAZZ" }),
+    ).resolves.toEqual(duplicateModality);
+    await expect(
+      createSubmodality(event.id, { modalityId: modality.id, name: "lirico" }),
+    ).resolves.toEqual(duplicateSubmodality);
+    await expect(
+      updateSubmodality(otherSubmodality.id, {
+        modalityId: modality.id,
+        name: "Lírico",
+      }),
+    ).resolves.toEqual(duplicateSubmodality);
   });
 });

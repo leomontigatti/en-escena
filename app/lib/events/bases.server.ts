@@ -4,7 +4,7 @@ import {
   listSubmodalities,
 } from "@/lib/modalities/repository.server";
 import { listCategories } from "@/lib/categories/repository.server";
-import { listPrices, type PriceListItem } from "@/lib/prices/repository.server";
+import { listPrices } from "@/lib/prices/repository.server";
 import {
   findModalityIdsWithCompatibleSchedules,
   findScheduleIdsWithCompatibleModalities,
@@ -19,7 +19,6 @@ import {
 export type {
   CompatibleScheduleCapacity,
   CompatibleScheduleCapacityResolution,
-  PriceListItem,
   ScheduleListItem,
 };
 

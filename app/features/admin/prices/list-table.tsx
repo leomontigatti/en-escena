@@ -7,7 +7,7 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { buildDetailPath } from "@/lib/shared/navigation";
 import { groupTypeOptions } from "@/lib/events/group-types";
-import type { PriceListItem } from "@/lib/events/bases.server";
+import type { PriceListItem } from "@/lib/prices/repository.server";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 
 import { basePath } from "./shared";

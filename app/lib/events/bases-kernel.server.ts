@@ -54,6 +54,8 @@ export type EventBaseFailure = {
     | "event-bases-not-found"
     | "duplicate-name"
     | "duplicate-category-identity"
+    | "duplicate-price-group-schedule"
+    | "duplicate-seminar-price"
     | "invalid-event-bases"
     | "invalid-experience-level"
     | "invalid-group-type"
@@ -108,7 +110,7 @@ export const eventBaseCopy = {
   },
   schedule: {
     invalidError: "Revisá los datos del cronograma.",
-    notFoundError: "No encontramos esa cronograma.",
+    notFoundError: "No encontramos ese cronograma.",
   },
   scheduleCapacity: {
     invalidError: "Revisá los datos del cupo de cronograma.",

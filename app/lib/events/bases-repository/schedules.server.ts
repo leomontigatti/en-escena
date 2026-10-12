@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { isScheduleCoveredByPrice } from "@/lib/events/bases-repository/price-schedules.server";
+import { isScheduleCoveredByPrice } from "@/lib/prices/price-schedules.server";
 import {
   toScheduleColumnValues,
   validateAwardCeremonyInput,

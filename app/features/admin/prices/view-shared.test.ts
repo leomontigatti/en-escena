@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import type { PriceListItem } from "@/lib/events/bases.server";
+import type { PriceListItem } from "@/lib/prices/repository.server";
 
 import {
   openEndedDeadlineLabel,
