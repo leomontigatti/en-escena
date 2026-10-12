@@ -4,6 +4,7 @@ import { Form, useNavigation, useSubmit } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { DancerVerificationBadge } from "@/components/shared/dancer-verification-badge";
 import { useRosterRefusalToast } from "@/components/shared/roster-document-conflict";
 import { RosterPersonArchiveBlockedDialog } from "@/components/shared/roster-person-archive-blocked-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -106,6 +107,9 @@ export function DancerDetailRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title={`${dancer.firstName} ${dancer.lastName}`}
+      titleBadge={
+        <DancerVerificationBadge code={dancer.verificationStatus.code} />
+      }
       description="Consultá y corregí la información administrativa de este bailarín."
       requireSelectedEvent={false}
       headerAction={

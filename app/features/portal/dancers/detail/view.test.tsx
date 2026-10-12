@@ -1,12 +1,34 @@
+/** @vitest-environment jsdom */
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { PortalDancerDetailRouteView } from "@/features/portal/dancers/detail/view";
+import { getTitleBadgeTexts } from "@/lib/test-support/react-dom";
 
 type DancerDetailViewProps = Parameters<typeof PortalDancerDetailRouteView>[0];
 
 describe("PortalDancerDetailRouteView", () => {
+  // Derived from the dancer's own data: a missing document is `Incompleto`
+  // before anyone checks it.
+  test("draws the verification status beside the title", () => {
+    const incomplete = renderDancerDetail();
+    const unverified = renderDancerDetail({
+      loaderData: dancerDetailLoaderData({
+        dancer: dancerDetailRow({
+          documentType: "dni",
+          documentNumber: "12345678",
+          documentFrontImageStorageKey: "dancers/front.jpg",
+          documentBackImageStorageKey: "dancers/back.jpg",
+        }),
+      }),
+    });
+
+    expect(getTitleBadgeTexts(incomplete)).toEqual(["Incompleto"]);
+    expect(getTitleBadgeTexts(unverified)).toEqual(["Sin verificar"]);
+  });
+
   test("keeps what was typed when a save is warned about a same-name match", () => {
     const markup = renderDancerDetail({
       actionData: {

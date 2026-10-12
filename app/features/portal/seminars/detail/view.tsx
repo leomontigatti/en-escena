@@ -13,6 +13,7 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
-import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
 import { createValidatedRouteFormDataSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -226,11 +226,9 @@ function InscriptionsTable({
     {
       id: "status",
       header: "Estado",
-      cell: (inscription) => {
-        const badge = formatInscriptionStatusBadge(inscription.status);
-
-        return <Badge variant={badge.variant}>{badge.label}</Badge>;
-      },
+      cell: (inscription) => (
+        <FinancialStatusBadge status={inscription.status} />
+      ),
     },
   ];
 

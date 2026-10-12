@@ -13,6 +13,8 @@ import {
   createReactDomTestRenderer,
   findButton,
   getButton,
+  getReactDomTexts,
+  getTitleBadgeTexts,
 } from "@/lib/test-support/react-dom";
 
 import { ComprobanteDetailRouteView } from "./view";
@@ -394,7 +396,9 @@ describe("ComprobanteDetailRouteView", () => {
       initialAnnulDialogOpen: true,
     });
 
-    expect(lockedFieldValue("Estado")).toBe("Anulada");
+    // The state is the header's badge, not a field of the card.
+    expect(getTitleBadgeTexts()).toEqual(["Anulada"]);
+    expect(getReactDomTexts("label")).not.toContain("Estado");
     // With no comprobante in force there is no possible annulment: neither dialog
     // nor action.
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();

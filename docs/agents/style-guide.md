@@ -249,6 +249,11 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
   changed is not such a block.
 - **Every shared field draws the lock icon when disabled**; a `Switch` does
   not, its disabled look already reads as locked.
+- **The record's state is a badge beside the title** (`titleBadge`), the
+  component its list row draws, so the two read alike. Only the state the page
+  is about (a choreography's readiness on its detail, its money on the
+  financial one), never a state that says nothing (an active person), and never
+  one the page edits as a field.
 
 ## Tables and lists
 
@@ -271,7 +276,8 @@ What happens after the submit is [form-feedback.md](form-feedback.md).
 - **Every row is one height, 40 px, set by the shared table**
   (`data-table-shell.tsx`). A view never sizes a row; a control inside a cell
   fits it, and its cell trims its padding rather than growing the row
-  (the presentation list's number input and drag grip).
+  (the presentation list's number input and drag grip). A cell's badges stay
+  on one line.
 - **Tabs sit 16 px above the list's search through `ListTabs`**
   (`app/components/shared/list-tabs.tsx`), never spaced per page.
 - **A list keeps the `auto` layout unless it overflows.** One that does

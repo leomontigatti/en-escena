@@ -151,10 +151,27 @@ async function waitFor(check: () => boolean) {
   throw new Error("The page never reached the expected state.");
 }
 
-/** The text of every element matching `selector`, in document order. */
-function getReactDomTexts(selector: string) {
-  return Array.from(document.querySelectorAll(selector)).map(
+/**
+ * The text of every element matching `selector`, in document order: the
+ * rendered document's, or another root's when given.
+ */
+function getReactDomTexts(selector: string, root: ParentNode = document) {
+  return Array.from(root.querySelectorAll(selector)).map(
     (element) => element.textContent,
+  );
+}
+
+/**
+ * The badges a page header draws beside its title: the record's state, apart
+ * from any badge the page body draws. Read from static markup when given, and
+ * from the rendered document otherwise.
+ */
+function getTitleBadgeTexts(markup?: string) {
+  return getReactDomTexts(
+    'header [data-slot="badge"]',
+    markup === undefined
+      ? document
+      : new DOMParser().parseFromString(markup, "text/html"),
   );
 }
 
@@ -164,6 +181,7 @@ export {
   findButton,
   getButton,
   getReactDomTexts,
+  getTitleBadgeTexts,
   setInputValue,
   updateReactDomForm,
   waitFor,

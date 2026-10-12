@@ -7,7 +7,9 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { FinancialStatusBadge } from "@/components/shared/financial-status-badge";
 import { formatDancerName } from "@/lib/finances/formatters";
+import { resolvePortalChoreographyStatusBadge } from "@/lib/finances/inscription-financial-status";
 import {
   inscriptionFinanceColumns,
   inscriptionFinanceFacetedFilters,
@@ -46,6 +48,13 @@ export function PortalChoreographyFinanceDetailRouteView({
       title={`${choreography.name} # ${formatEventSequenceNumber(
         choreography.choreographyNumber,
       )}`}
+      // The badge the academy's list draws for this row; the alert below
+      // speaks for the anomalies it leaves out.
+      titleBadge={
+        <FinancialStatusBadge
+          status={resolvePortalChoreographyStatusBadge(choreography)}
+        />
+      }
       description="Revisá los importes de esta coreografía y de cada bailarín inscripto."
     >
       <ChoreographyAlerts choreography={choreography} />
