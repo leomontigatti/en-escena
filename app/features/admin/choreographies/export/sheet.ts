@@ -1,4 +1,8 @@
-import { moneyCell, type SheetColumn } from "@/features/admin/day-export/sheet";
+import {
+  linePerName,
+  moneyCell,
+  type SheetColumn,
+} from "@/features/admin/day-export/sheet";
 
 /**
  * The participation counts as a spreadsheet: one row per province or per
@@ -73,6 +77,8 @@ export type ChoreographyFinanceRow = ChoreographyFinanceFigures &
   (
     | {
         academyName: string;
+        /** Every inscription's dancer, a withdrawn one marked as such. */
+        dancerNames: string[];
         kind: "choreography";
         modalityName: string;
         name: string;
@@ -139,6 +145,11 @@ export const choreographyFinanceColumns: SheetColumn<ChoreographyFinanceRow>[] =
       header: "Retiradas",
       width: 12,
       cell: count((row) => row.withdrawnInscriptions),
+    },
+    {
+      header: "Bailarines",
+      width: 28,
+      cell: choreographyOnly((row) => linePerName(row.dancerNames)),
     },
     {
       header: "Descuento por bailarín",
