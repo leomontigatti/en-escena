@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, scheduleCapacities } from "@/db/schema";
@@ -7,13 +7,11 @@ import { createCategory } from "@/lib/categories/repository.server";
 import {
   createScheduleCapacity,
   deleteScheduleCapacity,
-  resolveCompatibleScheduleCapacities,
-  updateScheduleCapacity,
-} from "@/lib/schedules/repository.server";
-import {
   releaseScheduleCapacityReferences,
+  updateScheduleCapacity,
   validateInlineScheduleCapacityDependencies,
-} from "@/lib/events/bases-repository/schedule-capacities.server";
+} from "@/lib/schedules/capacities.server";
+import { resolveCompatibleScheduleCapacities } from "@/lib/schedules/compatible-capacities.server";
 import {
   createChoreographyOnBases,
   createEventModalitiesFixture,
@@ -27,6 +25,47 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("`Bases del evento` repository", () => {
+  test("returns the saved schedule capacity row as the created and updated record", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 10,
+    });
+    const created = await createScheduleCapacity(block.id, {
+      groupType: "solo",
+      capacity: 4,
+    });
+
+    expect(created).toMatchObject({
+      ok: true,
+      record: { scheduleId: block.id, groupType: "solo", capacity: 4 },
+    });
+
+    if (!created.ok) {
+      throw new Error("Expected the schedule capacity to be created.");
+    }
+
+    expectTypeOf(created.record).toEqualTypeOf<
+      typeof scheduleCapacities.$inferSelect
+    >();
+
+    const updated = await updateScheduleCapacity(created.record.id, {
+      groupType: "solo",
+      capacity: 6,
+    });
+
+    expect(updated).toMatchObject({
+      ok: true,
+      record: { id: created.record.id, capacity: 6 },
+    });
+
+    if (updated.ok) {
+      expectTypeOf(updated.record).toEqualTypeOf<
+        typeof scheduleCapacities.$inferSelect
+      >();
+    }
+  });
+
   test("keeps schedule capacities unique per group type and inside the schedule total", async () => {
     const { event, jazz } = await createEventModalitiesFixture();
     const block = await createSavedSchedule(event.id, {

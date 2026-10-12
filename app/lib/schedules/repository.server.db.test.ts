@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, schedules } from "@/db/schema";
@@ -13,11 +13,11 @@ import {
   createSchedule,
   createScheduleWithEntries,
   deleteSchedule,
-  getScheduleDependencySummary,
   listSchedules,
   updateSchedule,
   updateScheduleWithEntries,
 } from "@/lib/schedules/repository.server";
+import { getScheduleDependencySummary } from "@/lib/schedules/schedule-dependencies.server";
 import {
   createChoreographyOnBases,
   createEventModalitiesFixture,
@@ -47,6 +47,48 @@ import {
 installDatabaseTestHooks();
 
 describe("`Bases del evento` repository", () => {
+  test("returns the saved schedule row as the created and updated record", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const input = {
+      name: "Sábado mañana",
+      scheduledDate: "2026-05-02",
+      startTime: "09:00",
+      totalCapacity: 20,
+      modalityIds: [jazz.id],
+    };
+    const created = await createScheduleWithEntries(event.id, {
+      ...input,
+      scheduleCapacities: [],
+    });
+
+    expect(created).toMatchObject({
+      ok: true,
+      record: { eventId: event.id, name: "Sábado Mañana", totalCapacity: 20 },
+    });
+
+    if (!created.ok) {
+      throw new Error("Expected the schedule to be created.");
+    }
+
+    expectTypeOf(created.record).toEqualTypeOf<typeof schedules.$inferSelect>();
+
+    const updated = await updateSchedule(created.record.id, {
+      ...input,
+      totalCapacity: 25,
+    });
+
+    expect(updated).toMatchObject({
+      ok: true,
+      record: { id: created.record.id, totalCapacity: 25 },
+    });
+
+    if (updated.ok) {
+      expectTypeOf(updated.record).toEqualTypeOf<
+        typeof schedules.$inferSelect
+      >();
+    }
+  });
+
   test("validates schedule total capacity and accepted modalities by event", async () => {
     const firstEvent = await createSavedEvent({
       name: "Regional 2026",

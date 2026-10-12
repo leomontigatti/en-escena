@@ -7,10 +7,8 @@ import { createOpenEventCatalog } from "@/lib/choreographies/registration.test-s
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { createModality } from "@/lib/modalities/repository.server";
-import {
-  createSchedule,
-  createScheduleCapacity,
-} from "@/lib/schedules/repository.server";
+import { createSchedule } from "@/lib/schedules/repository.server";
+import { createScheduleCapacity } from "@/lib/schedules/capacities.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import {
   action,

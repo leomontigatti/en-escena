@@ -3,7 +3,7 @@ import { withScheduleCapacityFullness } from "@/lib/choreographies/schedule-capa
 import type {
   CompatibleScheduleCapacity,
   CompatibleScheduleCapacityResolution,
-} from "@/lib/events/bases.server";
+} from "@/lib/schedules/compatible-capacities.server";
 import { findOpenScheduleIds } from "@/lib/schedules/registration-open.server";
 
 type ScheduleOptionSummary = Pick<

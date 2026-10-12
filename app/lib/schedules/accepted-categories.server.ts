@@ -8,12 +8,12 @@ import {
   choreographies,
   scheduleCategories,
 } from "@/db/schema";
-import { uniqueValues } from "@/lib/events/bases-repository/shared.server";
-import type {
-  EventBasesExecutor,
-  EventBasesTransaction,
-  ScheduleAcceptedCategory,
+import {
+  uniqueValues,
+  type EventBasesExecutor,
+  type EventBasesTransaction,
 } from "@/lib/events/bases-repository/shared.server";
+import type { ScheduleAcceptedCategory } from "@/lib/schedules/repository.server";
 
 /**
  * The categories a schedule accepts: the optional counterpart of the modalities

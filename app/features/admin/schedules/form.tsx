@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { ScheduleActionValues } from "@/lib/admin/events/bases-action/shared.server";
 import { groupTypeOptions } from "@/lib/events/group-types";
-import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
 import {
   createValidatedRouteSubmitHandler,
   type RouteFormPendingScope,

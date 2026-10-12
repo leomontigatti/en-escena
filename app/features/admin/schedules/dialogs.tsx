@@ -18,7 +18,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
 import type { ScheduleRegistrationOpenBlockers } from "@/lib/schedules/registration-open";
 import {
   getScheduleDeleteBlockReasons,

@@ -1,5 +1,5 @@
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
-import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
 import type { PriceListItem } from "@/lib/prices/repository.server";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 

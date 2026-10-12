@@ -26,13 +26,15 @@ import {
 } from "@/lib/admin/events/bases-action/shared.server";
 import {
   createScheduleCapacity,
-  createScheduleWithEntries,
-  deleteSchedule,
   deleteScheduleCapacity,
   type ScheduleCapacityInput,
+  updateScheduleCapacity,
+} from "@/lib/schedules/capacities.server";
+import {
+  createScheduleWithEntries,
+  deleteSchedule,
   type ScheduleInput,
   type ScheduleWithEntriesInput,
-  updateScheduleCapacity,
   updateScheduleWithEntries,
 } from "@/lib/schedules/repository.server";
 import {

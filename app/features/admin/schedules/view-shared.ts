@@ -5,7 +5,7 @@ import type {
   ScheduleActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
 import type { DataTableFacetedFiltersOf } from "@/components/shared/data-table";
-import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
 import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import {
   findMissingAwardCeremonyField,

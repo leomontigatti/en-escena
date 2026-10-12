@@ -13,10 +13,8 @@ import {
   createModality,
   createSubmodality,
 } from "@/lib/modalities/repository.server";
-import {
-  createSchedule,
-  createScheduleCapacity,
-} from "@/lib/schedules/repository.server";
+import { createSchedule } from "@/lib/schedules/repository.server";
+import { createScheduleCapacity } from "@/lib/schedules/capacities.server";
 import { fixedExperienceLevel } from "@/lib/events/bases.test-support";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";

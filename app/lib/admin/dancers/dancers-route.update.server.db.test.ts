@@ -9,10 +9,8 @@ import {
   choreographies,
 } from "@/db/schema";
 import { createModality } from "@/lib/modalities/repository.server";
-import {
-  createSchedule,
-  createScheduleCapacity,
-} from "@/lib/schedules/repository.server";
+import { createSchedule } from "@/lib/schedules/repository.server";
+import { createScheduleCapacity } from "@/lib/schedules/capacities.server";
 import {
   experienceLevelLabels,
   isExperienceLevel,

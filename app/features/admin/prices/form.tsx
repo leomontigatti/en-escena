@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { PriceActionValues } from "@/lib/admin/events/bases-action/shared.server";
 import { groupTypeOptions } from "@/lib/events/group-types";
-import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
 import { openPriceGuard, type PriceGuard } from "@/lib/prices/guards";
 import { cn } from "@/lib/shared/utils";
 import {

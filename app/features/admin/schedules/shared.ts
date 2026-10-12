@@ -1,7 +1,7 @@
 import type { ScheduleRegistrationOpenBlockers } from "@/lib/schedules/registration-open";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import type { categories, modalities } from "@/db/schema";
-import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
 import type { ScheduleDependencySummary } from "@/lib/schedules/schedule-dependencies";
 
 export type EventScheduleActionData = ActionData;

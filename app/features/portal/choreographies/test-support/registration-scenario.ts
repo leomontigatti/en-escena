@@ -16,10 +16,8 @@ import {
   createSubmodality,
 } from "@/lib/modalities/repository.server";
 import { createPrice } from "@/lib/prices/repository.server";
-import {
-  createSchedule,
-  createScheduleCapacity,
-} from "@/lib/schedules/repository.server";
+import { createSchedule } from "@/lib/schedules/repository.server";
+import { createScheduleCapacity } from "@/lib/schedules/capacities.server";
 import { openScheduleRegistration } from "@/lib/schedules/registration-open.server";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { createAcademySession } from "@/features/portal/test-support/db";

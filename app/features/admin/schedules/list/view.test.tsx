@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { EventSchedulesListView } from "@/features/admin/schedules/list/view";
 import type { EventSchedulesListLoaderData } from "@/features/admin/schedules/shared";
-import type { ScheduleListItem } from "@/lib/events/bases.server";
+import type { ScheduleListItem } from "@/lib/schedules/repository.server";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 
