@@ -98,7 +98,8 @@ export function countReservedByOthers(
  * for good, and the **reserved** ones, uncovered rows whose stored
  * `reservedUntil` has not passed (`isSeminarReservationLive`). The rest of the
  * active rows hold none. Every quota reading — the places left on screen, the
- * guard on a crossing, the guard on a revival — is counted off this one answer.
+ * guard on a crossing, the reservation of a new row — is counted off this one
+ * answer.
  */
 export async function readSeminarPlaces(
   seminarIds: string[],
@@ -226,10 +227,8 @@ async function readActiveSeminarPlaceRows(
 
 /**
  * Whether **one** row's allocations reach the deposit of the row it stores,
- * withdrawn or not. It is the question revival asks about the row it is about
- * to bring back: the money a withdrawal retained is still there, so reviving it
- * can retake a place, and that has to be read before `withdrawnAt` is cleared —
- * which is exactly when the covered count cannot see it yet.
+ * withdrawn or not. The allocation path asks it before an allocation, to tell a
+ * crossing of the deposit from money landing on a row already covered.
  */
 export async function holdsCoveredDeposit(
   inscriptionId: string,

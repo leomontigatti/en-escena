@@ -132,10 +132,12 @@ describe("dancer birth date choreography correction", () => {
 
     const result = await recalculateInTransaction(correctedDancer.id);
 
+    // In no particular order: the eligible choreographies are read without
+    // one, so the list follows whatever scan the planner picks.
     expect(result).toEqual({
       ok: true,
       scheduleMoves: [],
-      recategorisedChoreographies: [
+      recategorisedChoreographies: expect.arrayContaining([
         {
           choreographyId: preserveChoreography.id,
           name: "Preserva",
@@ -148,8 +150,9 @@ describe("dancer birth date choreography correction", () => {
           categoryName: "Limpia nivel Mayor",
           experienceLevelCleared: true,
         },
-      ],
+      ]),
     });
+    expect(result.ok && result.recategorisedChoreographies).toHaveLength(2);
     await expectChoreographyUpdatedAtChanged(preserveChoreography);
     await expectChoreographyUpdatedAtChanged(clearChoreography);
     await expectChoreographyState(preserveChoreography.id, {

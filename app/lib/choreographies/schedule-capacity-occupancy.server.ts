@@ -160,9 +160,8 @@ export function toScheduleCapacityOccupancyKey(
 /**
  * A choreography occupies the schedule whether it is assigned to it directly or
  * reached it through its capacity, exactly as in the lock's count. A withdrawn
- * one occupies nothing: it keeps its references so a restore knows where to
- * return, but its place is free meanwhile, and the restore takes the capacity
- * lock again before claiming it back.
+ * one occupies nothing: it keeps its references as a record, but the
+ * withdrawal is final and its place is free.
  *
  * Attribution here is one-to-one: the `or` reaches the row by either of the two
  * paths, but the `group by coalesce(...)` adds it to a single schedule. The lock

@@ -106,13 +106,12 @@ describe("ChoreographyDetailRouteView", () => {
   });
 
   // The withdrawal closes the page, not the role: the fields read like an
-  // auditor's, and the one action left is offered all the same.
+  // auditor's, and nothing is left to do (#1496).
   test("renders every field read-only while the choreography is withdrawn", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: false,
         choreography: buildChoreography({ isWithdrawn: true }),
-        restoration: { canRestore: true },
       }),
     });
 
@@ -402,7 +401,12 @@ describe("ChoreographyDetailRouteView", () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
-        deletion: { blockers: [], canDelete: true, outcome: "withdrawn" },
+        deletion: {
+          blockers: [],
+          canDelete: true,
+          isOffered: true,
+          outcome: "withdrawn",
+        },
       }),
     });
 
@@ -416,7 +420,12 @@ describe("ChoreographyDetailRouteView", () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
-        deletion: { blockers: [], canDelete: true, outcome: "deleted" },
+        deletion: {
+          blockers: [],
+          canDelete: true,
+          isOffered: true,
+          outcome: "deleted",
+        },
       }),
     });
 
@@ -472,32 +481,46 @@ describe("ChoreographyDetailRouteView", () => {
     ]);
   });
 
-  // The two actions are mutually exclusive: a withdrawn choreography is not
-  // removed again, and the only thing it still accepts is coming back.
-  test("offers restoring instead of removing while the choreography is withdrawn", async () => {
+  // #1496: a withdrawal is final. There is no way back from it, and `Eliminar`
+  // stays offered to answer why it cannot go further (style guide, Actions
+  // menu).
+  test("answers Eliminar on a withdrawn choreography with why, and offers no restore", async () => {
     await renderDetailIntoDocument({
       loaderData: buildLoaderData({
+        canEdit: false,
         choreography: buildChoreography({ isWithdrawn: true }),
-        restoration: { canRestore: true },
+        deletion: withdrawnDeletion,
       }),
     });
 
     await openActionsMenu();
-    expect(document.body.textContent).toContain("Restaurar coreografía");
-    expect(document.body.textContent).not.toContain("Eliminar");
+    expect(document.body.textContent).not.toContain("Restaurar");
+    await clickMenuItem("Eliminar");
 
-    await clickMenuItem("Restaurar coreografía");
+    const dialog = document.querySelector('[role="alertdialog"]');
 
-    expect(document.body.textContent).toContain(
-      "Vuelve a la lista con las inscripciones que tenía al retirarse",
+    expect(dialog?.querySelector("h2")?.textContent).toBe(
+      "No se puede eliminar la coreografía",
     );
-    expect(document.body.textContent).toContain("siguen de baja");
+    expect(dialog?.textContent).toContain("La coreografía está retirada");
+    expect(dialog?.textContent).not.toContain("La evaluación");
+    expect(dialog?.querySelector('button[type="submit"]')).toBeNull();
+  });
+
+  test("offers no actions to an auditor", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        deletion: { ...withdrawnDeletion, isOffered: false },
+      }),
+    });
+
+    expect(findButton("Acciones", { exact: true })).toBeFalsy();
   });
 
   async function renderDetailIntoDocument(
     input: Partial<DetailViewProps> & {
       initialDeleteDialogOpen?: boolean;
-      initialRestoreDialogOpen?: boolean;
     } = {},
   ) {
     const loaderData = input.loaderData ?? buildLoaderData();
@@ -510,7 +533,6 @@ describe("ChoreographyDetailRouteView", () => {
             <ChoreographyDetailRouteView
               actionData={input.actionData}
               initialDeleteDialogOpen={input.initialDeleteDialogOpen}
-              initialRestoreDialogOpen={input.initialRestoreDialogOpen}
               loaderData={loaderData}
             />
           ),
@@ -569,7 +591,15 @@ const evaluatedDeletion: ChoreographyDetailLoaderData["deletion"] = {
     },
   ],
   canDelete: false,
+  isOffered: true,
   outcome: "deleted",
+};
+
+const withdrawnDeletion: ChoreographyDetailLoaderData["deletion"] = {
+  blockers: [{ code: "withdrawn", label: "La coreografía está retirada." }],
+  canDelete: false,
+  isOffered: true,
+  outcome: "withdrawn",
 };
 
 function buildLoaderData(
@@ -590,12 +620,10 @@ function buildLoaderData(
     deletion: {
       canDelete: true,
       blockers: [],
+      isOffered: true,
       outcome: "deleted",
     },
     draft: buildSavedPreview(choreography),
-    restoration: {
-      canRestore: false,
-    },
     modality: {
       blockers: [],
       options: [

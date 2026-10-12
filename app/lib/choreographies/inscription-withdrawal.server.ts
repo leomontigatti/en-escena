@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, inArray, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
@@ -58,9 +58,9 @@ export async function findInscriptionsWithEvidence(
 
 /**
  * Takes inscriptions off the roster, choosing once, here, between a physical
- * delete and a withdrawal: without evidence the row goes —it documents nothing,
- * and keeping it would force `choreography_dancer_unique` to be relaxed— and
- * with evidence `withdrawnAt` is marked and the row keeps the money on it.
+ * delete and a withdrawal: without evidence the row goes —it documents
+ * nothing— and with evidence `withdrawnAt` is marked and the row keeps the money
+ * on it. A withdrawal is final: re-adding the dancer inserts a new row.
  *
  * The choice is never revisited. Unallocating later does not touch this row: a
  * deferred delete would reintroduce the cascade just avoided and would turn
@@ -89,26 +89,5 @@ export async function removeInscriptionsFromRoster(
       .update(choreographyDancers)
       .set({ withdrawnAt: new Date() })
       .where(inArray(choreographyDancers.id, withdrawnIds));
-  }
-}
-
-/**
- * Re-adding the same dancer revives their withdrawn row instead of inserting
- * another: the inscription's `id` survives, and with it the money and the
- * comprobante line that retained it. A removal corrected before the tax
- * document goes out leaves no trace.
- */
-export async function reviveWithdrawnInscriptions(
-  executor: Executor,
-  inscriptions: Array<{ ageAtEventStart: number; id: string }>,
-): Promise<void> {
-  for (const inscription of inscriptions) {
-    await executor
-      .update(choreographyDancers)
-      .set({
-        ageAtEventStart: inscription.ageAtEventStart,
-        withdrawnAt: null,
-      })
-      .where(eq(choreographyDancers.id, inscription.id));
   }
 }

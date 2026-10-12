@@ -109,9 +109,8 @@ export type ChoreographyDetail = {
   isEvaluated: boolean;
   /**
    * Whether the choreography was withdrawn: it survives with its money
-   * allocated, its number and the schedule references a restore returns to, but
-   * it is not taking part. It is what closes the detail to editing and what puts
-   * `Restaurar coreografía` in reach.
+   * allocated, its number and its schedule references, but it is not taking
+   * part, and never will again. It is what closes the detail to editing.
    */
   isWithdrawn: boolean;
   id: string;

@@ -28,8 +28,10 @@ export type ChoreographyInscriptionRow = {
 };
 
 /**
- * One row per roster dancer, even when they do not have an inscription yet: the
- * roster is the list the academy sees, and a dancer with no inscription reads as
+ * One row per inscription row of the choreography, matched to its figures by
+ * the inscription's own id and never by the dancer: a withdrawal is final, so a
+ * dancer added again after one holds two rows here, the withdrawn one and the
+ * new one, each with its own money. A row the rollup does not carry reads as
  * `Seña pendiente` with no amounts.
  *
  * Withdrawn rows are read on purpose —the financial detail is one of the four
@@ -41,15 +43,16 @@ export async function readChoreographyInscriptionRows(input: {
   academyEventInscriptions: AcademyEventFinanceInscriptions;
   choreographyId: string;
 }): Promise<ChoreographyInscriptionRow[]> {
-  const inscriptionsByDancer = new Map(
+  const inscriptionsById = new Map(
     input.academyEventInscriptions
       .filter(
         (inscription) => inscription.choreographyId === input.choreographyId,
       )
-      .map((inscription) => [inscription.dancerId, inscription]),
+      .map((inscription) => [inscription.id, inscription]),
   );
   const participationRows = await db
     .select({
+      id: choreographyDancers.id,
       dancerId: dancers.id,
       firstName: dancers.firstName,
       lastName: dancers.lastName,
@@ -59,11 +62,8 @@ export async function readChoreographyInscriptionRows(input: {
     .where(eq(choreographyDancers.choreographyId, input.choreographyId))
     .orderBy(asc(dancers.lastName), asc(dancers.firstName));
 
-  return participationRows.map((participation) =>
-    toInscriptionRow(
-      participation,
-      inscriptionsByDancer.get(participation.dancerId),
-    ),
+  return participationRows.map(({ id, ...participation }) =>
+    toInscriptionRow(participation, inscriptionsById.get(id)),
   );
 }
 

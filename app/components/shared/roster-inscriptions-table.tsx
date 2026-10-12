@@ -54,7 +54,7 @@ export function DancerInscriptionsTable({
     <ClientDataTable
       rows={inscriptions}
       columns={columns}
-      getRowKey={(inscription) => inscription.id}
+      getRowKey={(inscription) => inscription.choreographyInscriptionId}
       searchPlaceholder="Buscar por coreografía o evento"
       emptyMessage="Este bailarín no tiene inscripciones en el evento activo."
       initialSort={{ columnId: "choreographyName", direction: "asc" }}

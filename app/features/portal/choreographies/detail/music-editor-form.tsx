@@ -401,15 +401,15 @@ function readMusicLock(state: {
 
   if (state.isWithdrawn && state.isEventReadOnly) {
     return {
-      description:
-        "No puede modificarse hasta que administración la restaure y vuelva a activar el evento.",
+      description: "Un retiro es definitivo, así que no puede modificarse.",
       title: "Esta coreografía está retirada y el evento ya no está activo",
     };
   }
 
   if (state.isWithdrawn) {
     return {
-      description: "No puede modificarse hasta que administración la restaure.",
+      description:
+        "Un retiro es definitivo, así que no puede modificarse. Para que vuelva a participar, registrá una coreografía nueva.",
       title: "Esta coreografía está retirada",
     };
   }

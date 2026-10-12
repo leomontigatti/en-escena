@@ -322,16 +322,19 @@ describe("reserving a place at registration", () => {
   });
 });
 
-describe("reviving a withdrawn seminar inscription", () => {
-  test("brings the same row back with its money and its creation date", async () => {
+// #1496: a withdrawal is final. Registering the person again is an ordinary
+// registration that inserts a new row, and the withdrawn row stays as the
+// record of the drop with the money it retained.
+describe("registering again after a withdrawal", () => {
+  test("inserts a new row and leaves the withdrawn one with its money and date", async () => {
     const fixture = await seedFixture();
     const inscriptionId = await registerCovered(fixture, fixture.people[0].id);
-    const before = await readInscription(inscriptionId);
 
     await removeSeminarInscription({
       inscriptionId,
       seminarId: fixture.seminarId,
     });
+    const withdrawn = await readInscription(inscriptionId);
 
     // The picker offers the person again: only active rows take somebody out of
     // it, and a withdrawn row is not one.
@@ -343,20 +346,23 @@ describe("reviving a withdrawn seminar inscription", () => {
       { fullName: "Celeste Paz" },
     ]);
 
-    await expect(
-      register(fixture, fixture.people[0].id),
-    ).resolves.toMatchObject({ ok: true, inscriptionId });
+    const registered = expectRegistered(
+      await register(fixture, fixture.people[0].id),
+    );
 
-    const revived = await readInscription(inscriptionId);
-    expect(revived?.withdrawnAt).toBeNull();
-    expect(revived?.createdAt).toEqual(before?.createdAt);
-    expect(revived?.selectedPriceId).toBe(fixture.priceId);
+    expect(registered).not.toBe(inscriptionId);
+    await expect(readInscription(inscriptionId)).resolves.toEqual(withdrawn);
+    const inserted = await readInscription(registered);
+    expect(inserted?.withdrawnAt).toBeNull();
+    expect(inserted?.selectedPriceId).toBeNull();
+    // The new row holds no money, so it covers nothing; the money stays on the
+    // withdrawn row, which takes no place.
     await expect(
       countCoveredSeminarInscriptions(fixture.seminarId),
-    ).resolves.toBe(1);
+    ).resolves.toBe(0);
   });
 
-  test("refuses the revival that would retake a place the seminar no longer has", async () => {
+  test("follows the ordinary quota rule: a full seminar registers the person without a reservation", async () => {
     const fixture = await seedFixture(1);
     const inscriptionId = await registerCovered(fixture, fixture.people[0].id);
 
@@ -364,23 +370,20 @@ describe("reviving a withdrawn seminar inscription", () => {
       inscriptionId,
       seminarId: fixture.seminarId,
     });
-    // The freed place is taken by somebody else, so the withdrawn row has
-    // nowhere to come back to.
+    // The freed place is taken by somebody else.
     await registerCovered(fixture, fixture.people[1].id);
 
-    await expect(
-      register(fixture, fixture.people[0].id),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: "no-places",
-      error: "Sin lugares disponibles.",
-    });
+    const registered = expectRegistered(
+      await register(fixture, fixture.people[0].id),
+    );
+
+    expect((await readInscription(registered))?.reservedUntil).toBeNull();
     expect((await readInscription(inscriptionId))?.withdrawnAt).toBeInstanceOf(
       Date,
     );
   });
 
-  test("refuses the covered revival when another registration reserves the freed place", async () => {
+  test("reserves the place the withdrawal freed when nobody took it", async () => {
     const fixture = await seedFixture(1);
     const inscriptionId = await registerCovered(fixture, fixture.people[0].id);
 
@@ -388,65 +391,36 @@ describe("reviving a withdrawn seminar inscription", () => {
       inscriptionId,
       seminarId: fixture.seminarId,
     });
-    // Bruno registers into the freed place and reserves it without paying.
-    expectRegistered(await register(fixture, fixture.people[1].id));
 
-    await expect(
-      register(fixture, fixture.people[0].id),
-    ).resolves.toMatchObject({ ok: false, code: "no-places" });
-  });
-
-  test("brings no reservation back, so a revival cannot take the place of a registration made since", async () => {
-    const fixture = await seedFixture(1);
-    const revived = expectRegistered(
+    const registered = expectRegistered(
       await register(fixture, fixture.people[0].id),
     );
-    await allocate(fixture, {
-      amount: depositAmount - 1,
-      inscriptionId: revived,
-    });
-    await removeSeminarInscription({
-      inscriptionId: revived,
-      seminarId: fixture.seminarId,
-    });
-    // The withdrawal freed the place, and Bruno reserves it.
-    const bruno = expectRegistered(
-      await register(fixture, fixture.people[1].id),
-    );
-
-    await expect(
-      register(fixture, fixture.people[0].id),
-    ).resolves.toMatchObject({ ok: true, inscriptionId: revived });
 
     expect(
       (await readSeminarPlaces([fixture.seminarId], beforeStart)).get(
         fixture.seminarId,
       )?.reservedIds,
-    ).toEqual([bruno]);
+    ).toEqual([registered]);
   });
 
-  test("revives a row holding money below its deposit even when the seminar is full", async () => {
-    const fixture = await seedFixture(1);
-    const partial = expectRegistered(
-      await register(fixture, fixture.people[0].id),
-    );
-    await allocate(fixture, {
-      amount: depositAmount - 1,
-      inscriptionId: partial,
-    });
-
+  test("lets a withdrawn row and an active one of the same person coexist, and never two active ones", async () => {
+    const fixture = await seedFixture();
+    const inscriptionId = await registerCovered(fixture, fixture.people[0].id);
     await removeSeminarInscription({
-      inscriptionId: partial,
+      inscriptionId,
       seminarId: fixture.seminarId,
     });
-    await registerCovered(fixture, fixture.people[1].id);
+    expectRegistered(await register(fixture, fixture.people[0].id));
 
     await expect(
-      register(fixture, fixture.people[0].id),
-    ).resolves.toMatchObject({ ok: true, inscriptionId: partial });
+      db.insert(seminarInscriptions).values({
+        dancerId: fixture.people[0].id,
+        seminarId: fixture.seminarId,
+      }),
+    ).rejects.toThrow();
   });
 
-  test("refuses the revival after the seminar started and for an archived person", async () => {
+  test("refuses the registration after the seminar started and for an archived person", async () => {
     const fixture = await seedFixture();
     const inscriptionId = await registerCovered(fixture, fixture.people[0].id);
 
@@ -460,8 +434,8 @@ describe("reviving a withdrawn seminar inscription", () => {
     ).resolves.toMatchObject({ ok: false, code: "started" });
 
     // The grandfather half of the roster rule keeps the inscriptions an archived
-    // person already has; a withdrawn row is not one of them, so reviving it is
-    // registering an archived person.
+    // person already has; a withdrawn row is not one of them, so registering
+    // again is registering an archived person.
     await db
       .update(dancers)
       .set({ active: false })

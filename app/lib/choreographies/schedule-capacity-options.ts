@@ -4,9 +4,7 @@ import type { GroupType } from "@/lib/events/group-types";
  * The one rule that places a choreography inside a schedule: the
  * `Cupo de cronograma` for its `Tipo de grupo` when the schedule declares one,
  * and otherwise nothing — meaning the schedule's total capacity, taken as a
- * global allowance. Registration resolves its options with it and restoring a
- * withdrawn choreography re-resolves its place with it, so the two cannot place
- * the same choreography differently.
+ * global allowance. Registration resolves its options with it.
  */
 export function selectScheduleCapacityForGroupType<
   TScheduleCapacity extends { groupType: string },

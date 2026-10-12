@@ -21,16 +21,9 @@ export const priceDivergenceScheduleCapacityMessage =
   "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.";
 
 /**
- * Which of the two limits the assignment ran into. The forms show the lock's
- * own message either way, but restoring words its refusal itself — nothing was
- * selected there — and it has to tell the two apart without reading the text.
- */
-export type ScheduleCapacityFullLimit = "schedule-capacity" | "schedule-total";
-
-/**
  * Which of the choreography's modality and category the locked schedule does
  * not accept. The forms refuse either one with the same message, as they do
- * when the selection was never compatible; restoring words the two apart.
+ * when the selection was never compatible.
  */
 export type ScheduleIncompatibility = "modality" | "category";
 
@@ -60,7 +53,6 @@ export type ScheduleCapacityLockFailure =
   | {
       ok: false;
       code: "schedule-capacity-full";
-      limit: ScheduleCapacityFullLimit;
       error: string;
     };
 
@@ -156,8 +148,8 @@ export async function guardAndLockScheduleCapacityMove(input: {
  * cannot overshoot the capacity. `excludeChoreographyId` keeps a choreography
  * from counting against the capacity it already occupies, which is what makes
  * re-selecting the current assignment a no-op instead of a full-capacity error.
- * Withdrawn choreographies are never counted: their place is free until a
- * restore takes this same lock to claim it back.
+ * Withdrawn choreographies are never counted: a withdrawal is final, so their
+ * place is free for good.
  *
  * `scheduleCapacityId`, when given, must belong to `scheduleId`; a pair that
  * disagrees is rejected as an invalid selection.
@@ -251,7 +243,6 @@ export async function lockScheduleCapacityForAssignment(input: {
     return {
       ok: false,
       code: "schedule-capacity-full",
-      limit: "schedule-total",
       error: "El cronograma seleccionado ya no tiene cupo disponible.",
     };
   }
@@ -318,7 +309,6 @@ async function lockSpecificScheduleCapacity(input: {
     return {
       ok: false,
       code: "schedule-capacity-full",
-      limit: "schedule-capacity",
       error: "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
     };
   }

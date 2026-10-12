@@ -96,6 +96,7 @@ export async function findDancerInscriptions(input: {
       eventName: choreography.eventName,
       categoryName: choreography.categoryName,
       groupType: choreography.groupType,
+      choreographyInscriptionId: choreography.inscriptionId,
       basePriceAmount: resolution?.priceAmount ?? null,
       dancerDiscountAmount: resolution?.dancerDiscountAmount ?? 0,
       totalAmount: figures?.totalAmount ?? null,

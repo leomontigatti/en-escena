@@ -57,11 +57,13 @@ every figure re-derives from money and can move in both directions.
 - An `Inscripción` links one choreography to one dancer and has its own
   **stable identity** (`id`), not the composite choreography+dancer key.
 - It carries `selectedPriceId` and `withdrawnAt` and nothing else financial.
-  `(choreographyId, dancerId)` is unique, which is why removal chooses between a
-  delete and a withdrawal rather than always soft-deleting.
+  `(choreographyId, dancerId)` is unique among the rows **on the roster**
+  (`choreography_dancer_unique` is partial on `withdrawnAt is null`): one active
+  row per dancer per choreography, beside any withdrawn ones.
 - Adding a dancer to a roster creates an inscription with no money on it, so it
-  is born `Seña pendiente`. Adding a dancer who was withdrawn **revives** the
-  same row instead of inserting another (see "Withdrawal from the roster").
+  is born `Seña pendiente`. Adding a dancer who was withdrawn does the same: it
+  **inserts a new row**, and the withdrawn one stays as it was (see "Withdrawal
+  from the roster").
 
 The `Inscripción` has a **second kind**. The `seminarInscription`
 (`docs/domain/seminars.md`) is an allocation target in the same academy pool,
@@ -836,15 +838,24 @@ Removing a dancer from a roster is an **admin-only** action, and it chooses once
 between two outcomes:
 
 - **Physical delete** when the inscription holds neither payment allocations nor
-  a `comprobante_inscription` line. Nothing to preserve, and
-  `choreography_dancer_unique` keeps holding.
+  a `comprobante_inscription` line. Nothing to preserve.
 - **Withdrawal** otherwise: `withdrawnAt` is stamped and the row survives with
   its money and its comprobante line on it.
 
 The choice is made at removal and **never revisited** — de-allocating a withdrawn
 inscription afterwards does not delete it. **Nothing cascades**: the removal moves
-no money. Adding the same dancer again **revives** the same row, because that is
-what actually happened.
+no money.
+
+**A withdrawal is final** (#1496). Adding the same dancer again **inserts a new
+inscription**: a new row with its own `createdAt`, priced like any new
+registration, with no money on it. The withdrawn row keeps what it retained and
+its comprobante line, as the record of the drop. If the retained money is to pay
+for the new row, the admin removes it from the withdrawn row with `Quitar
+dinero`, which returns it to `Saldo disponible`, and allocates it to the new row;
+the credit note for the old line and the `Factura C` for the new one are separate
+documents. A revived row was the worse shape fiscally — a billed line partly
+reversed by a credit note and then valid again — and clearing `withdrawnAt`
+erased the record of where the money went.
 
 A withdrawn inscription is not a fourth status. `Retirada` is a derived axis of
 its own, like an anomaly, and it **replaces** the status badge rather than
@@ -887,10 +898,9 @@ active one: `readInscriptionSelectedPrices` (the price readout behind the money
 dialog) and the allocation write path's own inscription lookup
 (`inscription-allocation.server.ts`), the price-divergence guard that asks
 whether a move would reprice any money-holding inscription of a choreography
-(`choreography-price-divergence-guard.server.ts`), the check that refuses to
-delete a price row some inscription references (`prices.server.ts`), and the
-roster editor's deliberate read of the withdrawn rows themselves, which are the
-revival candidates (`choreography-roster-admin.server.ts`). **Only the first
+(`choreography-price-divergence-guard.server.ts`), and the check that refuses
+to delete a price row some inscription references (`prices.server.ts`).
+**Only the first
 kind is five.** Do not read "five exceptions" as "five queries without the
 predicate" — the second kind is at least as large, and a query touching
 `choreography_dancer` without `activeInscription()` is not by itself evidence of
@@ -909,8 +919,8 @@ otherwise it is **withdrawn** — `choreographies.withdrawnAt` and every still
 active inscription stamped with the same timestamp value, in one transaction, no
 money moved. The choice is made under the choreography's row lock and, like the
 per-dancer one, is **never revisited**: de-allocating every peso on a withdrawn
-choreography does not make it deletable. `Restaurar coreografía` undoes it,
-reviving exactly the inscriptions carrying that timestamp.
+choreography does not make it deletable. It is **final**: nothing restores it,
+and an academy that wants it back registers a new choreography.
 
 A withdrawn choreography is cut like a withdrawn inscription: its retained money
 **stays in** its own and its academy's rollup, and it is **out of** the status
@@ -930,10 +940,10 @@ therefore has an **academy-driven withdrawal** choreographies do not have. A
 withdrawn seminar inscription owes nothing beyond what it holds, exposes its
 deposit figure, reads `paidInFull` under `Retirada`, stays in the money rollup
 and is out of the status rollup and of the seminar's covered count — withdrawal
-**frees the place**. Revival is a registration: the same person registered again
-revives the same row with its money, under the seminar lock, and is refused with
-`Sin lugares disponibles.` when the money it still holds would retake a place the
-seminar no longer has. De-allocating a withdrawn row to zero does not delete it.
+**frees the place**. The withdrawal is final: the same person registered again is
+an ordinary registration that inserts a new row, under the seminar lock and
+the ordinary quota rule, while the withdrawn row keeps its money. De-allocating
+a withdrawn row to zero does not delete it.
 Reads filter withdrawn seminar rows behind the `activeSeminarInscription()` twin
 of the predicate above, with its own raw-SQL twin and no generic predicate over
 two tables.

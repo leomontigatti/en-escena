@@ -15,17 +15,10 @@ import {
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
   countTakenSeminarPlaces,
-  holdsCoveredDeposit,
   readSeminarPlaces,
 } from "@/lib/seminars/covered-inscriptions.server";
-import {
-  removeSeminarInscriptionFromRoster,
-  reviveWithdrawnSeminarInscription,
-} from "@/lib/seminars/inscription-withdrawal.server";
-import {
-  seminarNoPlacesForRevivalMessage,
-  seminarStartedMessage,
-} from "@/lib/seminars/registration-refusals";
+import { removeSeminarInscriptionFromRoster } from "@/lib/seminars/inscription-withdrawal.server";
+import { seminarStartedMessage } from "@/lib/seminars/registration-refusals";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { getSeminarReservationEndsAt } from "@/lib/seminars/seminar-reservations";
 
@@ -69,11 +62,7 @@ export type DeleteSeminarInscriptionResult =
   | { ok: false; code: DeleteSeminarInscriptionFailureCode; error: string };
 
 export type RegisterSeminarInscriptionFailureCode =
-  | "already-registered"
-  | "ineligible-person"
-  | "no-places"
-  | "seminar-not-found"
-  | "started";
+  "already-registered" | "ineligible-person" | "seminar-not-found" | "started";
 
 export type RegisterSeminarInscriptionResult =
   | { ok: true; inscriptionId: string }
@@ -122,7 +111,7 @@ export async function registerSeminarInscription(
 
     return (
       (await findRegistrationRefusal(tx, seminar, input)) ??
-      (await insertOrReviveInscription(tx, seminar, input))
+      (await insertInscription(tx, seminar, input))
     );
   });
 }
@@ -169,34 +158,20 @@ async function findRegistrationRefusal(
 }
 
 /**
- * Registering somebody who already holds a **withdrawn** row brings that row
- * back rather than inserting a second one: the id survives, and with it the
- * money the withdrawal retained, the price row it stored and the `createdAt`
- * that dates the inscription. It brings no reservation back.
+ * Every registration inserts a row, including the person's registration after a
+ * withdrawal: a withdrawal is final, so the withdrawn row stays as the record of
+ * the drop, with the money it retained, and the new row starts with none.
  *
- * The revival is a registration in every other respect — it happens under the
- * seminar's lock, from the portal, for an active person, until the seminar
- * starts — and it is the one registration the quota can refuse: a row still
- * holding money past its stored deposit takes its place back the moment it is
- * active again, so a seminar whose covered and reserved rows already fill the
- * quota refuses it and leaves the row withdrawn.
+ * The partial unique indexes count only the rows on the roster, and they are
+ * what actually forbid the same person twice: a row that appears concurrently
+ * is refused by the insert rather than by a check another transaction could
+ * invalidate a moment later.
  */
-async function insertOrReviveInscription(
+async function insertInscription(
   tx: Transaction,
   seminar: LockedSeminar,
   input: RegisterSeminarInscriptionInput,
 ): Promise<RegisterSeminarInscriptionResult> {
-  const existing = await findPersonInscription(tx, input);
-
-  if (existing) {
-    return existing.withdrawnAt === null
-      ? failure("already-registered", alreadyRegisteredMessage)
-      : await reviveInscription(tx, seminar, existing.id, input.now);
-  }
-
-  // The partial unique indexes are what actually forbid the same person twice,
-  // so a row that appeared after the read above is refused by the insert rather
-  // than by a check another transaction could invalidate a moment later.
   const [inserted] = await tx
     .insert(seminarInscriptions)
     .values({
@@ -233,52 +208,6 @@ async function reserveIfPlaceFree(
   return countTakenSeminarPlaces(places) < seminar.quota
     ? getSeminarReservationEndsAt(seminar, now)
     : null;
-}
-
-async function reviveInscription(
-  tx: Transaction,
-  seminar: LockedSeminar,
-  inscriptionId: string,
-  now: Date,
-): Promise<RegisterSeminarInscriptionResult> {
-  // The row is still withdrawn while this is read, so the places cannot see it
-  // and need no exception for it. Other registrations' reservations count as
-  // taken, as they do for any deposit that takes a place.
-  if (await holdsCoveredDeposit(inscriptionId, tx)) {
-    const places = (await readSeminarPlaces([seminar.id], now, tx)).get(
-      seminar.id,
-    );
-
-    if (countTakenSeminarPlaces(places) >= seminar.quota) {
-      return failure("no-places", seminarNoPlacesForRevivalMessage);
-    }
-  }
-
-  await reviveWithdrawnSeminarInscription(tx, inscriptionId);
-
-  return { ok: true, inscriptionId };
-}
-
-/** The person's row on this seminar, withdrawn or not: the one read that tells
- * a registration from a revival. */
-async function findPersonInscription(
-  tx: Transaction,
-  input: RegisterSeminarInscriptionInput,
-) {
-  const [row] = await tx
-    .select({
-      id: seminarInscriptions.id,
-      withdrawnAt: seminarInscriptions.withdrawnAt,
-    })
-    .from(seminarInscriptions)
-    .where(
-      and(
-        eq(seminarInscriptions.seminarId, input.seminarId),
-        eq(personColumn(input.personKind), input.personId),
-      ),
-    );
-
-  return row;
 }
 
 function personColumn(personKind: RosterPersonKind) {
@@ -443,9 +372,9 @@ async function findAcademyPerson(
 }
 
 /**
- * Active rows only, which is what makes a **revival** the registration of an
- * active person: an archived person holding a withdrawn row is not grandfathered
- * back in by the row they no longer have.
+ * Active rows only: an archived person holding a withdrawn row is not
+ * grandfathered back in by the row they no longer have, so registering them
+ * again is registering an archived person.
  */
 async function isPersonRegistered(
   tx: Transaction,

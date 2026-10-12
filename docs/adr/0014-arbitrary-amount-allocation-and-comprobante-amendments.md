@@ -845,3 +845,43 @@ are specified in
 [#1092](https://github.com/leomontigatti/en-escena/issues/1092); the domain docs
 describe them once it ships. The deleted choreography is restored from backup
 by [#1093](https://github.com/leomontigatti/en-escena/issues/1093).
+
+## Correction (2026-10-12): a withdrawal is final, and re-adding inserts a new inscription
+
+Appended, not edited in place. §6 said "Re-adding **revives** the row, because
+that is what actually happened", and the 2026-09-21 correction stamped a
+withdrawn choreography's inscriptions with one shared timestamp "so restoring
+brings back exactly what the withdrawal took". Both are withdrawn. The decision
+(owner, 2026-10-07; [#1496](https://github.com/leomontigatti/en-escena/issues/1496),
+companion of [#1065](https://github.com/leomontigatti/en-escena/issues/1065)):
+
+- **A withdrawal is never undone.** A withdrawn inscription stays withdrawn,
+  with what it retained and its comprobante line, as the record of the drop.
+  The withdrawn row is what an administrator or an auditor reads to know where
+  the money went; clearing `withdrawnAt` erased it.
+- **Re-adding the dancer inserts a new inscription**: a new row, a new
+  `createdAt`, priced as any new registration, with no money. Money retained
+  on the withdrawn row reaches the new one only by being removed from the
+  withdrawn row into `Saldo disponible` and allocated again, so the credit note
+  for the old line and the `Factura C` for the new one are separate documents.
+  Fiscally that is the better shape: a revived row was a billed line partly
+  reversed by a credit note and then valid again.
+- **Uniqueness is partial.** `choreography_dancer_unique` and the two
+  `seminar_inscription` indexes count only rows with `withdrawnAt` null: one
+  active row per person per choreography or seminar, beside any withdrawn ones.
+  §6's rejection of a universal soft withdrawal no longer leans on the full
+  index; it still holds because a row with nothing on it documents nothing.
+- **`Restaurar coreografía` is retired.** A withdrawn choreography is final and
+  read-only; the academy registers a new one. The shared timestamp stays,
+  because it still tells the inscriptions the withdrawal took from those
+  withdrawn individually before it.
+- **A seminar re-registration is an ordinary registration**, under the ordinary
+  quota rule, and the refusal a revival could meet (`Sin lugares disponibles.`)
+  is gone with it.
+
+Rejected:
+
+- **Keeping the revival for a removal corrected before the comprobante goes
+  out**, the case it was written for. Once #1065 releases the excess at
+  withdrawal, a revival is no longer a clean undo: the money has to be
+  allocated again either way.

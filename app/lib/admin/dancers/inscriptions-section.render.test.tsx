@@ -64,6 +64,7 @@ describe("InscriptionsSection", () => {
           eventName: "Evento Activo",
           categoryName: "Juvenil",
           groupType: "duo",
+          choreographyInscriptionId: "inscription-1",
           basePriceAmount: 35000,
           dancerDiscountAmount: 0,
           totalAmount: 35000,

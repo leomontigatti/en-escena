@@ -57,7 +57,8 @@ export function ConfirmDraftDialog({
               {withdrawnDancers.length === 1
                 ? "Su inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: conserva el dinero y sigue en el comprobante."
                 : "Sus inscripciones tienen dinero asignado o un comprobante emitido, así que no se borran: conservan el dinero y siguen en el comprobante."}{" "}
-              Volver a agregar al bailarín la reactiva.
+              El retiro es definitivo: volver a agregar al bailarín crea una
+              inscripción nueva, sin dinero.
             </p>
           </div>
         ) : null}

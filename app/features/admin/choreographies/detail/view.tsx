@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
@@ -8,7 +7,6 @@ import {
 } from "@/components/admin/resource-layout";
 import { BlockedActionDialog } from "@/components/shared/blocked-action-dialog";
 import { ChoreographyStatusBadge } from "@/components/shared/choreography-status-badge";
-import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { FormActions } from "@/components/shared/form-actions";
@@ -31,10 +29,9 @@ import {
 } from "./draft-fields";
 import type { ChoreographyDetailLoaderData } from "./server";
 import {
+  choreographyDeleteBlockedCopy,
   deleteChoreographyIntent,
   describeChoreographyRemoval,
-  restoreChoreographyDescription,
-  restoreChoreographyIntent,
   type ChoreographyViewActionData,
 } from "./shared";
 import { useChoreographyDraft } from "./use-choreography-draft";
@@ -42,14 +39,12 @@ import { useChoreographyDraft } from "./use-choreography-draft";
 type ChoreographyDetailRouteViewProps = {
   actionData?: ChoreographyViewActionData;
   initialDeleteDialogOpen?: boolean;
-  initialRestoreDialogOpen?: boolean;
   loaderData: ChoreographyDetailLoaderData;
 };
 
 export function ChoreographyDetailRouteView({
   actionData,
   initialDeleteDialogOpen = false,
-  initialRestoreDialogOpen = false,
   loaderData,
 }: ChoreographyDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
@@ -65,9 +60,7 @@ export function ChoreographyDetailRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(
-    initialRestoreDialogOpen,
-  );
+  const deleteBlocker = loaderData.deletion.blockers.at(0)?.code;
 
   return (
     <AdminResourceLayout
@@ -81,30 +74,19 @@ export function ChoreographyDetailRouteView({
       }
       description="Revisá y/o modificá la información y el elenco de la coreografía registrada."
       headerAction={
-        // The menu survives the withdrawal even though `canEdit` does not: it
-        // is where `Restaurar coreografía` lives, the one action left.
-        loaderData.canEdit || loaderData.restoration.canRestore ? (
+        // Offered on a withdrawn choreography too, where `canEdit` is false
+        // for the whole page: `Eliminar` then opens the blocked dialog that
+        // says the withdrawal is final.
+        loaderData.deletion.isOffered ? (
           <ChoreographyDetailActionsMenu
-            canRestore={loaderData.restoration.canRestore}
             onDelete={() => setIsDeleteDialogOpen(true)}
-            onRestore={() => setIsRestoreDialogOpen(true)}
           />
         ) : null
       }
     >
       <ChoreographyDetailForm loaderData={loaderData} />
 
-      {loaderData.restoration.canRestore ? (
-        <RestoreChoreographyDialog
-          choreographyId={loaderData.choreography.id}
-          onOpenChange={setIsRestoreDialogOpen}
-          open={isRestoreDialogOpen}
-        />
-      ) : null}
-
-      {loaderData.canEdit &&
-      !loaderData.restoration.canRestore &&
-      loaderData.deletion.canDelete ? (
+      {loaderData.canEdit && loaderData.deletion.canDelete ? (
         <ChoreographyRemovalDialog
           loaderData={loaderData}
           onOpenChange={setIsDeleteDialogOpen}
@@ -112,15 +94,15 @@ export function ChoreographyDetailRouteView({
         />
       ) : null}
 
-      {!loaderData.restoration.canRestore && !loaderData.deletion.canDelete ? (
+      {deleteBlocker ? (
         <BlockedActionDialog
-          description="Una coreografía con la presentación evaluada no se puede eliminar ni retirar."
+          description={choreographyDeleteBlockedCopy[deleteBlocker].description}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
-          // The only blocker is the evaluation, so the reason is a sentence
-          // rather than a one-item list repeating the title.
-          reasons="La evaluación no se puede anular."
-          reasonsTitle="La presentación ya fue evaluada"
+          reasons={choreographyDeleteBlockedCopy[deleteBlocker].reason}
+          reasonsTitle={
+            choreographyDeleteBlockedCopy[deleteBlocker].reasonsTitle
+          }
           title="No se puede eliminar la coreografía"
         />
       ) : null}
@@ -129,33 +111,16 @@ export function ChoreographyDetailRouteView({
 }
 
 /**
- * The header offers one of the two removal-axis actions, never both: a withdrawn
- * choreography is not removed again —there is no second outcome left for it— and
- * one that is taking part has nothing to restore. A blocked removal stays
- * enabled and opens the acknowledgment that says why (style guide, Detail
- * pages).
+ * The header's one action. A blocked removal stays enabled and opens the
+ * acknowledgment that says why (style guide, Detail pages).
  */
-function ChoreographyDetailActionsMenu({
-  canRestore,
-  onDelete,
-  onRestore,
-}: {
-  canRestore: boolean;
-  onDelete: () => void;
-  onRestore: () => void;
-}) {
+function ChoreographyDetailActionsMenu({ onDelete }: { onDelete: () => void }) {
   return (
     <ResourceActionsMenu contentClassName="w-52">
       <DropdownMenuGroup>
-        {canRestore ? (
-          <DropdownMenuItem onSelect={() => onRestore()}>
-            Restaurar coreografía
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem variant="destructive" onSelect={() => onDelete()}>
-            Eliminar
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem variant="destructive" onSelect={() => onDelete()}>
+          Eliminar
+        </DropdownMenuItem>
       </DropdownMenuGroup>
     </ResourceActionsMenu>
   );
@@ -202,41 +167,6 @@ function ChoreographyRemovalDialog({
       open={open}
       recordId={loaderData.choreography.id}
       title={removal.title}
-    />
-  );
-}
-
-/**
- * `Restaurar coreografía` is confirmed like every other correction that changes
- * what the lists show, and it is submitted as an ordinary intent: the place in
- * the schedule is asked for again on the server, so the refusal it may bring
- * back arrives by toast rather than being predicted here.
- */
-function RestoreChoreographyDialog({
-  choreographyId,
-  onOpenChange,
-  open,
-}: {
-  choreographyId: string;
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-}) {
-  const submit = useSubmit();
-
-  return (
-    <ConfirmationDialog
-      confirmLabel="Restaurar"
-      description={restoreChoreographyDescription}
-      onConfirm={() => {
-        const formData = new FormData();
-        formData.set("intent", restoreChoreographyIntent);
-        formData.set("recordId", choreographyId);
-
-        void submit(formData, { method: "post" });
-      }}
-      onOpenChange={onOpenChange}
-      open={open}
-      title="¿Restaurar la coreografía?"
     />
   );
 }

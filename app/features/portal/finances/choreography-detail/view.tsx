@@ -134,7 +134,10 @@ function InscriptionsTable({
         rows={inscriptions}
         columns={inscriptionColumns}
         facetedFilters={inscriptionFinanceFacetedFilters}
-        getRowKey={(inscription) => inscription.dancerId}
+        // By inscription: a dancer added again after a withdrawal holds two rows.
+        getRowKey={(inscription) =>
+          inscription.inscriptionId ?? inscription.dancerId
+        }
         searchPlaceholder="Buscar por bailarín"
         textFilterColumnId="dancer"
         emptyMessage="No hay inscripciones para mostrar."
