@@ -1,9 +1,8 @@
-import { and, eq, type SQL } from "drizzle-orm";
+import { and, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   categories,
-  categoryModalities,
   choreographies,
   modalities,
   scheduleCapacities,
@@ -12,7 +11,6 @@ import {
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { PriceGuardFlags } from "@/lib/prices/guards";
 import type { PriceRow } from "@/lib/prices/rows.server";
-import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
 
 export const priceDefaultNames: Record<GroupType, string> = {
@@ -36,25 +34,6 @@ export type InlineSubmodalityInput = EventBaseNameInput & {
 
 export type ModalityWithSubmodalitiesInput = EventBaseNameInput & {
   submodalities: InlineSubmodalityInput[];
-};
-
-export type CategoryInput = EventBaseNameInput & {
-  minAge: number;
-  maxAge: number;
-  groupTypes: string[];
-  modalityIds: string[];
-  experienceLevels: string[];
-};
-
-export type ValidCategoryInput = {
-  name: string;
-  minAge: number;
-  maxAge: number;
-  groupTypes: GroupType[];
-  modalityIds: string[];
-  experienceLevels: ExperienceLevel[];
-  groupTypeKey: string;
-  experienceLevelKey: string;
 };
 
 export type ScheduleInput = EventBaseNameInput & {
@@ -208,10 +187,6 @@ export type ValidInlineSubmodalityInput = InlineSubmodalityInput & {
   index: number;
 };
 
-export type CategoryRelationRow = {
-  categoryId: string;
-};
-
 export type CompatibleScheduleRow = Pick<
   typeof schedules.$inferSelect,
   "id" | "name" | "scheduledDate" | "startTime" | "totalCapacity" | "createdAt"
@@ -238,41 +213,6 @@ export function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
-export function haveSameValues(first: string[], second: string[]) {
-  if (first.length !== second.length) {
-    return false;
-  }
-
-  return first.every((value, index) => value === second[index]);
-}
-
-export function categoryValues(input: ValidCategoryInput) {
-  return {
-    name: input.name,
-    minAge: input.minAge,
-    maxAge: input.maxAge,
-    groupTypes: input.groupTypes,
-    groupTypeKey: input.groupTypeKey,
-    experienceLevels: input.experienceLevels,
-    experienceLevelKey: input.experienceLevelKey,
-  };
-}
-
-export function groupRelationIdsByCategory<
-  TRelation extends CategoryRelationRow,
->(relations: TRelation[], getId: (relation: TRelation) => string) {
-  const idsByCategory = new Map<string, string[]>();
-
-  for (const relation of relations) {
-    const ids = idsByCategory.get(relation.categoryId) ?? [];
-
-    ids.push(getId(relation));
-    idsByCategory.set(relation.categoryId, ids);
-  }
-
-  return idsByCategory;
-}
-
 export function isValidDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
@@ -291,23 +231,6 @@ export function isValidTime(value: string) {
 
 export function normalizeTime(value: string) {
   return value.slice(0, 5);
-}
-
-export async function replaceCategoryRelations(
-  tx: EventBasesTransaction,
-  categoryId: string,
-  input: ValidCategoryInput,
-) {
-  await tx
-    .delete(categoryModalities)
-    .where(eq(categoryModalities.categoryId, categoryId));
-
-  await tx.insert(categoryModalities).values(
-    input.modalityIds.map((modalityId) => ({
-      categoryId,
-      modalityId,
-    })),
-  );
 }
 
 /**
@@ -353,28 +276,4 @@ export async function hasReferencingChoreographies(filter: SQL | undefined) {
     .limit(1);
 
   return Boolean(choreography);
-}
-
-/**
- * The choreographies the category edit guard refuses over: the same breadth
- * `hasReferencingChoreographies` asks about, withdrawn inscriptions included,
- * but reported by number and name rather than as a yes or no. Ordering is left
- * to `formatChoreographyReferences`, which sorts by number as part of wording
- * the refusal.
- *
- * It takes its executor because `updateCategory` asks it twice: once as a
- * pre-check and again inside the transaction that writes, where the answer has
- * to be the transaction's own.
- */
-export async function listReferencingChoreographies(
-  executor: EventBasesExecutor,
-  categoryId: string,
-) {
-  return executor
-    .select({
-      choreographyNumber: choreographies.choreographyNumber,
-      name: choreographies.name,
-    })
-    .from(choreographies)
-    .where(eq(choreographies.categoryId, categoryId));
 }

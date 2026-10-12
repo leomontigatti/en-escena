@@ -53,7 +53,7 @@ export type EventBaseFailure = {
     | "event-bases-has-dependencies"
     | "event-bases-not-found"
     | "duplicate-name"
-    | "duplicate-category"
+    | "duplicate-category-identity"
     | "invalid-event-bases"
     | "invalid-experience-level"
     | "invalid-group-type"
@@ -65,6 +65,15 @@ export type EventBaseFailure = {
   error: string;
   fieldErrors?: Record<string, string>;
 };
+
+/**
+ * The codes that report a collision with another base of the same event. Each
+ * names what collided: only a name collision is `duplicate-name`.
+ */
+export type EventBaseCollisionCode = Extract<
+  EventBaseFailure["code"],
+  `duplicate-${string}`
+>;
 
 export type EventBasesMutationResult<TRecord = EventBaseRecord> =
   { ok: true; record: TRecord } | EventBaseFailure;
@@ -146,6 +155,18 @@ export function eventBaseEntityNotFound(
   };
 }
 
+/**
+ * A submission refused because it collides with a base the event already has,
+ * under the code that names the collision.
+ */
+export function eventBaseCollision(
+  code: EventBaseCollisionCode,
+  error: string,
+  fieldErrors: Record<string, string> = {},
+): EventBaseFailure {
+  return { ok: false, code, error, fieldErrors };
+}
+
 export function normalizeEventBaseName(name: string) {
   return name
     .trim()
@@ -172,12 +193,11 @@ export async function validateEventBaseName(input: {
   const duplicate = await findDuplicateName(input);
 
   if (duplicate) {
-    return {
-      ok: false,
-      code: "duplicate-name",
-      error: eventBaseCopy[input.kind].duplicateError,
-      fieldErrors: { name: eventBaseCopy[input.kind].duplicateFieldError },
-    };
+    return eventBaseCollision(
+      "duplicate-name",
+      eventBaseCopy[input.kind].duplicateError,
+      { name: eventBaseCopy[input.kind].duplicateFieldError },
+    );
   }
 
   return { ok: true };
