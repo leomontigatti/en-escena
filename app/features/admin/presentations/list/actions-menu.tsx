@@ -7,7 +7,7 @@ import {
 /**
  * The participation list's actions menu: downloading the day's music,
  * exporting the program and choosing which of its days are visible first, then the ordering and
- * the two judge dialogs. Every item opens a dialog the list owns, so the menu
+ * the judge dialog. Every item opens a dialog the list owns, so the menu
  * only says which one. With nothing to offer there is no menu.
  */
 type OutputActionsProps = {
@@ -24,9 +24,9 @@ type OutputActionsProps = {
 };
 
 type OrderingActionsProps = {
-  /** The judge dialogs act on the selected rows, so they need some. */
+  /** The judge dialog acts on the selected rows, so it needs some. */
   hasSelection: boolean;
-  onJudges: (mode: "assign" | "remove") => void;
+  onJudges: () => void;
   onOrder: () => void;
 };
 
@@ -92,13 +92,8 @@ function OrderingItems({
       <DropdownMenuSeparator />
       <DialogItem
         disabled={!hasSelection}
-        label="Asignar jueces"
-        onOpen={() => onJudges("assign")}
-      />
-      <DialogItem
-        disabled={!hasSelection}
-        label="Quitar jueces"
-        onOpen={() => onJudges("remove")}
+        label="Editar jueces"
+        onOpen={onJudges}
       />
     </>
   );

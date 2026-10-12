@@ -71,6 +71,7 @@ overwrite is unsafe.
 | `combobox`                                   | `showChevron`, `dismissableLayerBranch`, `positionerClassName`, `portalContainer`; `outline-none` on the trigger |
 | `dialog`                                     | `useLayerAbovePress` — see below; the overlay dims and blurs exactly as `alert-dialog`'s does                    |
 | `slider`                                     | `aria-label` is forwarded to each thumb, which is what carries `role="slider"`                                   |
+| `checkbox`                                   | `indeterminate` is filled like checked and draws a dash, so a mixed state does not read as a hollow check        |
 | `carousel`                                   | `aria-roledescription` reads `carrusel` and `diapositiva`: screen readers say it aloud, so it is Spanish         |
 | all                                          | `font-heading` instead of upstream's `cn-font-heading`                                                           |
 

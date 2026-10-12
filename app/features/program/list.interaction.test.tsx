@@ -91,10 +91,15 @@ describe("the program list everyone outside the administration reads", () => {
     expect(document.body.textContent).toContain("Segunda");
   });
 
-  test("keeps the chosen day in the URL, and no day at all for the whole program", async () => {
+  // There is no tab for the whole program: it opens on its first day, which
+  // is the URL that names none.
+  test("opens on the first day, and keeps any other in the URL", async () => {
     await mount({ rows: twoDays });
 
-    await selectTab(2);
+    expect(document.body.textContent).toContain("Primera");
+    expect(document.body.textContent).not.toContain("Segunda");
+
+    await selectTab(1);
     expect(urlSearch).toBe("?dia=2026-05-02");
     expect(document.body.textContent).not.toContain("Primera");
     expect(document.body.textContent).toContain("Segunda");
@@ -127,7 +132,7 @@ describe("the program list everyone outside the administration reads", () => {
       (tab) => tab.textContent,
     );
 
-    expect(labels).toEqual(["Todos", "Viernes 1/5", "Sábado 2/5"]);
+    expect(labels).toEqual(["Viernes 1/5", "Sábado 2/5"]);
   });
 
   // The academy column is searched only where it is shown.
@@ -209,7 +214,7 @@ describe("the program list everyone outside the administration reads", () => {
     expect(document.body.textContent).not.toContain("Apertura");
     expect(document.body.textContent).toContain("Pieza 13");
 
-    await selectTab(2);
+    await selectTab(1);
     expect(urlSearch).toBe("?dia=2026-05-02");
     expect(document.body.textContent).toContain("Apertura");
   });
@@ -282,17 +287,11 @@ describe("the program list everyone outside the administration reads", () => {
         rows: liveDayRows,
       });
 
-      expect(tabLabels()).toEqual([
-        "Todos",
-        "Viernes 1/5En vivo",
-        "Sábado 2/5",
-      ]);
+      expect(tabLabels()).toEqual(["Viernes 1/5En vivo", "Sábado 2/5"]);
       // The card's badge and the table's check, for the one evaluated row.
       expect(evaluatedMarks()).toBe(2);
 
-      await selectTab(0);
-      expect(evaluatedMarks()).toBe(0);
-      await selectTab(2);
+      await selectTab(1);
       expect(evaluatedMarks()).toBe(0);
     });
 
@@ -301,54 +300,64 @@ describe("the program list everyone outside the administration reads", () => {
         ?.textContent;
     }
 
+    // A live day after the first, so opening on it is not opening on the
+    // first day, which every list of the order does.
+    const secondLiveDay: ProgramLiveDay = {
+      ...liveDay,
+      date: "2026-05-02",
+      evaluatedChoreographyIds: ["two"],
+    };
+
     // The checks and the minute's poll live on that tab, so a reader who
     // never taps it would see neither.
     test("opens on the live day's tab, and names every tab chosen after it in the URL", async () => {
-      setBusinessNow("2026-05-01T19:00:00");
+      setBusinessNow("2026-05-02T19:00:00");
       await mount({
         live: {
-          day: liveDay,
+          day: secondLiveDay,
           loadedAt: new Date().toISOString(),
-          loadedOn: liveDay.date,
+          loadedOn: secondLiveDay.date,
         },
         rows: liveDayRows,
       });
 
-      expect(selectedTab()).toBe("Viernes 1/5En vivo");
+      expect(selectedTab()).toBe("Sábado 2/5En vivo");
       expect(evaluatedMarks()).toBe(2);
 
+      // Named too, or the link would open on the live day while it lasts.
       await selectTab(0);
-      expect(urlSearch).toBe("?dia=todos");
-      expect(selectedTab()).toBe("Todos");
-
-      // Named too, or the link would open on `Todos` once the show is over.
-      await selectTab(1);
       expect(urlSearch).toBe("?dia=2026-05-01");
+      expect(selectedTab()).toBe("Viernes 1/5");
+
+      // Named too, or the link would open on the first day once the show is
+      // over.
+      await selectTab(1);
+      expect(urlSearch).toBe("?dia=2026-05-02");
     });
 
-    test("opens on Todos before the show starts and once the day is over", async () => {
-      setBusinessNow("2026-05-01T10:00:00");
+    test("opens on the first day before the show starts and once the day is over", async () => {
+      setBusinessNow("2026-05-02T10:00:00");
       await mount({
         live: {
-          day: liveDay,
+          day: secondLiveDay,
           loadedAt: new Date().toISOString(),
-          loadedOn: liveDay.date,
+          loadedOn: secondLiveDay.date,
         },
         rows: liveDayRows,
       });
-      expect(selectedTab()).toBe("Todos");
+      expect(selectedTab()).toBe("Viernes 1/5");
 
       renderer.cleanup();
-      setBusinessNow("2026-05-01T19:00:00");
+      setBusinessNow("2026-05-02T19:00:00");
       await mount({
         live: {
-          day: { ...liveDay, isOver: true },
+          day: { ...secondLiveDay, isOver: true },
           loadedAt: new Date().toISOString(),
-          loadedOn: liveDay.date,
+          loadedOn: secondLiveDay.date,
         },
         rows: liveDayRows,
       });
-      expect(selectedTab()).toBe("Todos");
+      expect(selectedTab()).toBe("Viernes 1/5");
     });
 
     // The server renders the opening tab with its own clock, so the browser
@@ -463,7 +472,7 @@ describe("the program list everyone outside the administration reads", () => {
         rows: liveDayRows,
       });
 
-      expect(tabLabels()).toEqual(["Todos", "Viernes 1/5", "Sábado 2/5"]);
+      expect(tabLabels()).toEqual(["Viernes 1/5", "Sábado 2/5"]);
       expect(evaluatedMarks()).toBe(2);
     });
 
@@ -486,7 +495,7 @@ describe("the program list everyone outside the administration reads", () => {
       });
       expect(onLivePoll).toHaveBeenCalledTimes(1);
 
-      await selectTab(0);
+      await selectTab(1);
       await act(async () => {
         vi.advanceTimersByTime(180_000);
       });

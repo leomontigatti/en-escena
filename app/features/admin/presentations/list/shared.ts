@@ -3,7 +3,11 @@ import { z } from "zod";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
-import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
+import type {
+  AssignableJudge,
+  JudgeAssignmentResult,
+  JudgeRemovalResult,
+} from "@/lib/presentations/judge-assignments.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { PresentationWarning } from "@/lib/presentations/warnings";
 import { formatScheduleDayTabLabel } from "@/lib/choreographies/schedule-formatters";
@@ -22,8 +26,7 @@ import type { MusicDownloadDay } from "../music-download/shared";
 
 export const orderAutomaticallyIntent = "order-automatically";
 export const movePresentationIntent = "move-presentation";
-export const assignJudgesIntent = "assign-judges";
-export const removeJudgesIntent = "remove-judges";
+export const editJudgesIntent = "edit-judges";
 export const setProgramVisibilityIntent = "set-program-visibility";
 /**
  * One value per day whose program should be visible, repeated: the days the
@@ -37,27 +40,45 @@ export const programVisibleDayFieldName = "dia";
 export const orderDayFieldName = "dia";
 /** The event the dialog was opened for, so a switch in between is refused. */
 export const programEventIdFieldName = "evento";
-export const judgeIdFieldName = "juez";
+/** One value per judge the edit puts on every chosen row, repeated. */
+export const judgeToAddFieldName = "agregar";
+/** One value per judge the edit takes off every chosen row, repeated. */
+export const judgeToRemoveFieldName = "quitar";
 export const presentationChoreographyIdFieldName = "coreografia";
 
 /**
- * What both judge dialogs submit, and what the action parses back out of the
- * `FormData`. One schema for the two directions: they carry the same pair of
- * sets and differ only in the intent, so the form and the server can hold each
- * other to the same shape instead of the server re-deriving it by hand.
+ * What the judge dialog submits, and what the action parses back out of the
+ * `FormData`: the change, not the state asked for. A judge left as it was is in
+ * neither set, so a judge on some of the chosen rows stays on exactly those.
  *
  * The selection travels as a form value like the judges do, so an empty one is
  * a validation failure of the form rather than a disabled button.
  */
-export const judgeAssignmentSchema = z.object({
-  intent: z.enum([assignJudgesIntent, removeJudgesIntent]),
-  [presentationChoreographyIdFieldName]: z
-    .array(z.string().trim().min(1))
-    .min(1, requiredFieldMessage),
-  [judgeIdFieldName]: z
-    .array(z.string().trim().min(1))
-    .min(1, requiredFieldMessage),
-});
+export const judgeEditSchema = z
+  .object({
+    intent: z.literal(editJudgesIntent),
+    [presentationChoreographyIdFieldName]: z
+      .array(z.string().trim().min(1))
+      .min(1, requiredFieldMessage),
+    [judgeToAddFieldName]: z.array(z.string().trim().min(1)),
+    [judgeToRemoveFieldName]: z.array(z.string().trim().min(1)),
+  })
+  .refine(
+    (value) =>
+      value[judgeToAddFieldName].length + value[judgeToRemoveFieldName].length >
+      0,
+    { message: "Cambiá al menos un juez.", path: [judgeToAddFieldName] },
+  )
+  .refine(
+    (value) =>
+      !value[judgeToAddFieldName].some((judgeId) =>
+        value[judgeToRemoveFieldName].includes(judgeId),
+      ),
+    {
+      message: "Un juez no puede agregarse y quitarse a la vez.",
+      path: [judgeToRemoveFieldName],
+    },
+  );
 
 /**
  * What the program visibility dialog submits besides its intent and event:
@@ -85,10 +106,8 @@ export type ProgramVisibilityFormValues = z.infer<
   typeof programVisibilitySchema
 >;
 
-export type JudgeAssignmentFormValues = z.input<typeof judgeAssignmentSchema>;
-export type JudgeAssignmentSubmissionValues = z.output<
-  typeof judgeAssignmentSchema
->;
+export type JudgeEditFormValues = z.input<typeof judgeEditSchema>;
+export type JudgeEditSubmissionValues = z.output<typeof judgeEditSchema>;
 
 /**
  * A move says nothing when it works — the refreshed list is the answer — so its
@@ -117,7 +136,7 @@ export type PresentationListItem = {
   modalityName: string;
   name: string;
   orderNumber: number | null;
-  /** Who already judges the row, which is what the removal dialog offers. */
+  /** Who already judges the row, which the judge dialog starts from. */
   assignedJudgeIds: string[];
   /** `null` while the choreography has no presentation, so nothing to score. */
   presentationId: string | null;
@@ -129,6 +148,7 @@ export type PresentationListItem = {
 };
 
 export type PresentationListFilters = {
+  /** The day on screen: the first unless the URL names another. */
   day: string | null;
   /** The one value of the `evaluacion` facet; `null` shows every row. */
   evaluation: "profesional" | null;
@@ -143,11 +163,13 @@ export type PresentationOrder = {
 };
 
 export type PresentationListResult = {
-  /** Every judge the assignment dialog may offer: the role, minus suspended. */
+  /** Every judge the judge dialog may add: the role, minus suspended. */
   assignableJudges: AssignableJudge[];
-  /** The judges on the listed rows, named, for the removal dialog. */
+  /** The judges on the listed rows, named, so the dialog can take any off. */
   assignedJudges: AssignableJudge[];
   canOrder: boolean;
+  /** The rows of the chosen day, before the search and the facets narrow it. */
+  dayRowCount: number;
   days: string[];
   filters: PresentationListFilters;
   /**
@@ -174,22 +196,72 @@ export type PresentationListResult = {
   warnedCount: number;
 };
 
-/**
- * Which judges the removal dialog offers: the ones at least one of the chosen
- * rows actually has, in the order the loader named them. Offering a judge
- * nobody in the selection carries would be offering to remove nothing.
- */
-export function selectRemovableJudges(
-  assignedJudges: AssignableJudge[],
-  selectedRows: PresentationListItem[],
-): AssignableJudge[] {
-  const judgeIds = new Set(selectedRows.flatMap((row) => row.assignedJudgeIds));
+/** Where a judge stands across the chosen rows: on all of them, some, none. */
+export type JudgeChoiceState = "all" | "none" | "some";
 
-  return assignedJudges.filter((judge) => judgeIds.has(judge.id));
+export type JudgeChoice = AssignableJudge & {
+  /** `false` for a suspended judge: one the dialog can take off, never add. */
+  assignable: boolean;
+  state: JudgeChoiceState;
+};
+
+/**
+ * The judges the dialog offers, each with where it stands across the chosen
+ * rows, which is what its checkbox starts from. Every assignable judge, then
+ * any the selection has that is no longer assignable — a suspended one — so it
+ * can still be taken off.
+ */
+export function readJudgeChoices({
+  assignableJudges,
+  assignedJudges,
+  selectedRows,
+}: {
+  assignableJudges: AssignableJudge[];
+  assignedJudges: AssignableJudge[];
+  selectedRows: PresentationListItem[];
+}): JudgeChoice[] {
+  const assignableIds = new Set(assignableJudges.map((judge) => judge.id));
+  const onSelection = new Set(
+    selectedRows.flatMap((row) => row.assignedJudgeIds),
+  );
+  const judges = [
+    ...assignableJudges,
+    ...assignedJudges.filter(
+      (judge) => onSelection.has(judge.id) && !assignableIds.has(judge.id),
+    ),
+  ];
+
+  return judges.map((judge) => {
+    const count = selectedRows.filter((row) =>
+      row.assignedJudgeIds.includes(judge.id),
+    ).length;
+
+    return {
+      ...judge,
+      assignable: assignableIds.has(judge.id),
+      state: readJudgeChoiceState(count, selectedRows.length),
+    };
+  });
+}
+
+function readJudgeChoiceState(
+  assignedCount: number,
+  rowCount: number,
+): JudgeChoiceState {
+  if (assignedCount === 0) {
+    return "none";
+  }
+
+  if (assignedCount === rowCount) {
+    return "all";
+  }
+
+  return "some";
 }
 
 /**
- * What each dialog says when it closes. It names what was reached rather than
+ * What each direction of the judge dialog says when it closes; an edit that
+ * does both says both, the assignment first. It names what was reached rather than
  * what was asked for: an already assigned pair is skipped and a judge nobody
  * had is a removal of nothing, so both counts are of rows actually touched.
  *
@@ -199,13 +271,13 @@ export function selectRemovableJudges(
  * there was no rest, which is what a single scored assignment looks like.
  */
 export function formatJudgeAssignmentMessage(input: {
-  intent: typeof assignJudgesIntent | typeof removeJudgesIntent;
+  direction: "assign" | "remove";
   judgeCount: number;
   /** Scored pairs the removal kept; a removal that kept none, or an assignment. */
   keptCount?: number;
   presentationCount: number;
 }) {
-  const isAssigning = input.intent === assignJudgesIntent;
+  const isAssigning = input.direction === "assign";
   const keptCount = input.keptCount ?? 0;
 
   if (!isAssigning && keptCount > 0 && input.judgeCount === 0) {
@@ -245,6 +317,43 @@ export function formatJudgeAssignmentMessage(input: {
       : `Se mantuvieron ${keptCount} asignaciones que ya tienen puntaje.`;
 
   return `${reached} ${kept}`;
+}
+
+/**
+ * What a judge edit says, given what each half reached (`null` for a half it
+ * did not ask for): the assignment first, then the removal. An edit that
+ * reached nothing because every pair it would take apart already has a score
+ * is `refused`, not a quiet success: the message is all the administrator
+ * gets, so it has to arrive in the tone of one.
+ */
+export function readJudgeEditOutcome({
+  assigned,
+  removed,
+}: {
+  assigned: JudgeAssignmentResult | null;
+  removed: JudgeRemovalResult | null;
+}) {
+  const parts: string[] = [];
+
+  if (assigned) {
+    parts.push(
+      formatJudgeAssignmentMessage({ direction: "assign", ...assigned }),
+    );
+  }
+
+  if (removed) {
+    parts.push(
+      formatJudgeAssignmentMessage({ direction: "remove", ...removed }),
+    );
+  }
+
+  const reachedNothing =
+    (assigned?.judgeCount ?? 0) === 0 && (removed?.judgeCount ?? 0) === 0;
+
+  return {
+    message: parts.join(" "),
+    refused: reachedNothing && (removed?.keptCount ?? 0) > 0,
+  };
 }
 
 /**

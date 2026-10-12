@@ -113,6 +113,76 @@ describe("the participation list's query", () => {
     );
   });
 
+  // There is no tab for every day: a URL naming none is the first day's list,
+  // and the counter reads it against the whole day, not the event.
+  test("opens on the event's first day and counts the rows of the day", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({
+      name: "Primer día",
+      orderNumber: 1,
+      scheduledDate: "2026-11-20",
+    });
+    await fixture.addPresentation({
+      name: "Primer día, tarde",
+      orderNumber: 2,
+      scheduledDate: "2026-11-20",
+    });
+    await fixture.addPresentation({
+      name: "Segundo día",
+      orderNumber: 3,
+      scheduledDate: "2026-11-21",
+    });
+
+    const opening = await loadTheList("");
+    const searched = await loadTheList("?busqueda=tarde");
+
+    expect(opening.filters.day).toBe("2026-11-20");
+    expect(opening.presentations.map((row) => row.name)).toEqual([
+      "Primer día",
+      "Primer día, tarde",
+    ]);
+    expect(opening.dayRowCount).toBe(2);
+    expect(searched.presentations.map((row) => row.name)).toEqual([
+      "Primer día, tarde",
+    ]);
+    expect(searched.dayRowCount).toBe(2);
+
+    // The first day is the absence of the parameter, as on the tabs.
+    const response = await expectThrownResponse(
+      loadTheList("?dia=2026-11-20"),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      "/administracion/presentaciones",
+    );
+  });
+
+  // The notice's `Ver` narrows the day on screen, so it counts that day only:
+  // an event-wide count would send the reader to an empty list.
+  test("counts the warned presentations of the day on screen", async () => {
+    const fixture = await seedJudgingFixture();
+
+    // A schedule the fixture makes for a date has no price, so each row is
+    // `Seña pendiente`: one warned row a day, two in the event.
+    for (const [orderNumber, scheduledDate] of [
+      [1, "2026-11-20"],
+      [2, "2026-11-21"],
+    ] as const) {
+      await fixture.addPresentation({
+        name: `Día ${orderNumber}`,
+        orderNumber,
+        scheduledDate,
+      });
+    }
+
+    const firstDay = await loadTheList("");
+    const secondDay = await loadTheList("?dia=2026-11-21");
+
+    expect(firstDay.warnedCount).toBe(1);
+    expect(secondDay.warnedCount).toBe(1);
+  });
+
   test("redirects a page, a day the event does not hold, and stale parameters, to the canonical URL", async () => {
     const fixture = await seedJudgingFixture();
     await fixture.addPresentation({ name: "Única", orderNumber: 1 });

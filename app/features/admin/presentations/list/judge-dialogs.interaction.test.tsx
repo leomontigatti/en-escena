@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { act, type ComponentProps } from "react";
+import { act, useState, type ComponentProps } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -10,7 +10,7 @@ import {
   createReactDomTestRenderer,
 } from "@/lib/test-support/react-dom";
 
-import { JudgeAssignmentDialog } from "./judge-dialogs";
+import { JudgeEditDialog } from "./judge-dialogs";
 import { PresentationsListView } from "./view";
 import type { PresentationListItem, PresentationListResult } from "./shared";
 
@@ -25,15 +25,17 @@ vi.mock("sonner", () => ({
 
 const ana = { id: "judge-ana", name: "Ana Juez" };
 const bruno = { id: "judge-bruno", name: "Bruno Juez" };
+const carla = { id: "judge-carla", name: "Carla Juez" };
 
 /** What the route's action received, which is what the dialog really submits. */
 type Submission = {
   choreographyIds: string[];
   intent: string;
-  judgeIds: string[];
+  toAdd: string[];
+  toRemove: string[];
 };
 
-describe("the bulk judge dialogs", () => {
+describe("the bulk judge dialog", () => {
   const renderer = createReactDomTestRenderer();
   afterEach(renderer.cleanup);
 
@@ -58,6 +60,16 @@ describe("the bulk judge dialogs", () => {
     ] as HTMLButtonElement[];
   }
 
+  // Ana is on both rows, Bruno on one of them, Carla on neither.
+  const twoRows = [
+    buildItem({ assignedJudgeIds: [ana.id, bruno.id] }),
+    buildItem({
+      assignedJudgeIds: [ana.id],
+      choreographyNumber: 2,
+      id: "choreography-2",
+    }),
+  ];
+
   test("leaves an unnumbered row unselectable", async () => {
     await mount();
 
@@ -67,116 +79,109 @@ describe("the bulk judge dialogs", () => {
     expect(unnumbered.disabled).toBe(true);
   });
 
-  test("names the selection and holds the action until a judge is picked", async () => {
-    const { submissions } = await renderDialog({
-      mode: "remove",
-      selectedRows: [buildItem({ assignedJudgeIds: [ana.id] })],
-    });
+  test("starts each judge where it stands across the chosen rows", async () => {
+    await renderDialog({ selectedRows: twoRows });
 
-    expect(document.body.textContent).toContain("Quitar jueces");
-    expect(document.body.textContent).toContain("1 presentación elegida.");
-
-    const submit = getButton("Quitar");
-
-    expect(submit.disabled).toBe(true);
-
-    await clickReactDomButton("Quitar");
-    await flush();
-
-    expect(submissions).toEqual([]);
-  });
-
-  test("offers every assignable judge when assigning, not only the assigned ones", async () => {
-    await renderDialog({
-      mode: "assign",
-      selectedRows: [
-        buildItem({ assignedJudgeIds: [ana.id] }),
-        buildItem({ choreographyNumber: 2, id: "choreography-2" }),
-      ],
-    });
-
-    expect(document.body.textContent).toContain("Asignar jueces");
     expect(document.body.textContent).toContain("2 presentaciones elegidas.");
-
-    // Assigning needs no prior relation, so Bruno is on offer even though
-    // nobody in the selection has him.
-    const options = judgeRows().map((row) => row.textContent);
-
-    expect(options).toContain(ana.name);
-    expect(options).toContain(bruno.name);
-  });
-
-  test("offers only the judges the selection actually has when removing", async () => {
-    await renderDialog({
-      mode: "remove",
-      selectedRows: [buildItem({ assignedJudgeIds: [ana.id] })],
+    expect(judgeStates()).toEqual({
+      [ana.name]: "true",
+      [bruno.name]: "mixed",
+      [carla.name]: "false",
     });
-
-    const options = judgeRows().map((row) => row.textContent);
-
-    expect(options).toEqual([ana.name]);
+    expect(getButton("Guardar").disabled).toBe(true);
   });
 
-  test("submits the chosen judges with the rows the selection carries", async () => {
+  // The server adds no suspended judge, so the dialog never offers to: one on
+  // some of the rows goes from mixed to off and back, never to checked, and
+  // off is a removal.
+  test("only takes a judge that is no longer assignable off the rows", async () => {
     const { submissions } = await renderDialog({
-      mode: "assign",
-      selectedRows: [
-        buildItem(),
-        buildItem({ choreographyNumber: 2, id: "choreography-2" }),
-      ],
+      assignableJudges: [carla],
+      assignedJudges: [ana, bruno],
+      selectedRows: twoRows,
     });
 
     await pickJudge(bruno.name);
-    await clickReactDomButton("Asignar");
+    expect(judgeStates()[bruno.name]).toBe("false");
+
+    await pickJudge(bruno.name);
+    expect(judgeStates()[bruno.name]).toBe("mixed");
+
+    await pickJudge(bruno.name);
+    await clickReactDomButton("Guardar");
     await flush();
 
     expect(submissions).toEqual([
       {
         choreographyIds: ["choreography-1", "choreography-2"],
-        intent: "assign-judges",
-        judgeIds: [bruno.id],
+        intent: "edit-judges",
+        toAdd: [],
+        toRemove: [bruno.id],
       },
     ]);
   });
 
-  test("submits the removal under its own intent", async () => {
-    const { submissions } = await renderDialog({
-      mode: "remove",
-      selectedRows: [buildItem({ assignedJudgeIds: [ana.id] })],
-    });
+  test("submits what changed, and leaves an untouched mixed judge out", async () => {
+    const { submissions } = await renderDialog({ selectedRows: twoRows });
 
+    await pickJudge(carla.name);
     await pickJudge(ana.name);
-    await clickReactDomButton("Quitar");
+    await clickReactDomButton("Guardar");
     await flush();
 
     expect(submissions).toEqual([
       {
-        choreographyIds: ["choreography-1"],
-        intent: "remove-judges",
-        judgeIds: [ana.id],
+        choreographyIds: ["choreography-1", "choreography-2"],
+        intent: "edit-judges",
+        toAdd: [carla.id],
+        toRemove: [ana.id],
       },
     ]);
   });
 
-  test("closes itself once the assignment succeeds", async () => {
-    const onOpenChange = vi.fn();
-    await renderDialog(
-      {
-        mode: "assign",
-        onOpenChange,
-        selectedRows: [buildItem()],
-      },
-      () => ({
-        message: "Se asignó 1 juez a 1 presentación.",
-        status: "success",
-      }),
-    );
+  test("takes a mixed judge onto every row, off every row, then back as it was", async () => {
+    await renderDialog({ selectedRows: twoRows });
+
+    await pickJudge(bruno.name);
+    expect(judgeStates()[bruno.name]).toBe("true");
+    expect(getButton("Guardar").disabled).toBe(false);
+
+    await pickJudge(bruno.name);
+    expect(judgeStates()[bruno.name]).toBe("false");
+
+    await pickJudge(bruno.name);
+    expect(judgeStates()[bruno.name]).toBe("mixed");
+    expect(getButton("Guardar").disabled).toBe(true);
+  });
+
+  test("closes itself once the edit succeeds", async () => {
+    await renderDialog({ selectedRows: [buildItem()] }, () => ({
+      message: "Se asignó 1 juez a 1 presentación.",
+      status: "success",
+    }));
 
     await pickJudge(ana.name);
-    await clickReactDomButton("Asignar");
+    await clickReactDomButton("Guardar");
     await flush();
 
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  // Picks not yet saved are lost on closing, so `Cancelar` asks first; with
+  // nothing changed it just closes.
+  test("asks before dropping changes, and closes at once without any", async () => {
+    await renderDialog({ selectedRows: [buildItem()] });
+
+    await pickJudge(ana.name);
+    await clickReactDomButton("Cancelar");
+
+    expect(document.body.textContent).toContain("¿Descartar los cambios?");
+
+    renderer.cleanup();
+    await renderDialog({ selectedRows: [buildItem()] });
+    await clickReactDomButton("Cancelar");
+
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
   /** The judges the dialog's checklist offers, one row each. */
@@ -184,6 +189,16 @@ describe("the bulk judge dialogs", () => {
     return [
       ...document.querySelectorAll<HTMLElement>('[data-slot="choice-card"]'),
     ];
+  }
+
+  /** Each offered judge's checkbox, by name, as `aria-checked` reads it. */
+  function judgeStates() {
+    return Object.fromEntries(
+      judgeRows().map((row) => [
+        row.textContent,
+        row.querySelector('[role="checkbox"]')?.getAttribute("aria-checked"),
+      ]),
+    );
   }
 
   async function pickJudge(name: string) {
@@ -209,7 +224,7 @@ describe("the bulk judge dialogs", () => {
   }
 
   async function renderDialog(
-    props: Partial<ComponentProps<typeof JudgeAssignmentDialog>>,
+    props: Partial<ComponentProps<typeof JudgeEditDialog>>,
     actionResult: () => unknown = () => null,
   ) {
     const submissions: Submission[] = [];
@@ -223,22 +238,13 @@ describe("the bulk judge dialogs", () => {
             submissions.push({
               choreographyIds: formData.getAll("coreografia").map(String),
               intent: String(formData.get("intent") ?? ""),
-              judgeIds: formData.getAll("juez").map(String),
+              toAdd: formData.getAll("agregar").map(String),
+              toRemove: formData.getAll("quitar").map(String),
             });
 
             return actionResult();
           },
-          element: (
-            <JudgeAssignmentDialog
-              assignableJudges={[ana, bruno]}
-              assignedJudges={[ana]}
-              mode="assign"
-              open
-              onOpenChange={() => {}}
-              selectedRows={[buildItem()]}
-              {...props}
-            />
-          ),
+          element: <ClosableDialog {...props} />,
         },
       ],
       { initialEntries: ["/administracion/presentaciones"] },
@@ -249,6 +255,24 @@ describe("the bulk judge dialogs", () => {
     return { submissions };
   }
 });
+
+/** The dialog as the list holds it: closing it unmounts it. */
+function ClosableDialog(
+  props: Partial<ComponentProps<typeof JudgeEditDialog>>,
+) {
+  const [open, setOpen] = useState(true);
+
+  return open ? (
+    <JudgeEditDialog
+      assignableJudges={[ana, bruno, carla]}
+      assignedJudges={[ana, bruno]}
+      open
+      onOpenChange={setOpen}
+      selectedRows={[buildItem()]}
+      {...props}
+    />
+  ) : null;
+}
 
 function buildItem(
   overrides: Partial<PresentationListItem> = {},
@@ -281,6 +305,7 @@ function buildLoaderData(): PresentationListResult {
     assignableJudges: [ana, bruno],
     assignedJudges: [ana],
     canOrder: true,
+    dayRowCount: 1,
     days: ["2026-05-01"],
     filters: {
       day: null,

@@ -93,7 +93,10 @@ type DataTablePaginationProps = {
   canPreviousPage: boolean;
   currentPage: number;
   filteredRowCount: number;
+  /** No footer at all: neither the count nor the page controls. */
   hidden?: boolean;
+  /** The count alone, for a list read as a whole that still counts its set. */
+  hidePageControls?: boolean;
   hrefBuilder?: (page: number) => string;
   onNextPage?: () => void;
   onPageChange?: (page: number) => void;
@@ -701,17 +704,19 @@ function DataTableFooter({
         {pagination.filteredRowCount} de {pagination.totalRows}{" "}
         {pagination.totalRows === 1 ? "registro" : "registros"}
       </p>
-      <DataTablePagination
-        basePath={pagination.basePath}
-        pageCount={pagination.pageCount}
-        currentPage={pagination.currentPage}
-        canPreviousPage={pagination.canPreviousPage}
-        canNextPage={pagination.canNextPage}
-        onPreviousPage={pagination.onPreviousPage}
-        onNextPage={pagination.onNextPage}
-        onPageChange={pagination.onPageChange}
-        pageHrefBuilder={pagination.hrefBuilder}
-      />
+      {pagination.hidePageControls ? null : (
+        <DataTablePagination
+          basePath={pagination.basePath}
+          pageCount={pagination.pageCount}
+          currentPage={pagination.currentPage}
+          canPreviousPage={pagination.canPreviousPage}
+          canNextPage={pagination.canNextPage}
+          onPreviousPage={pagination.onPreviousPage}
+          onNextPage={pagination.onNextPage}
+          onPageChange={pagination.onPageChange}
+          pageHrefBuilder={pagination.hrefBuilder}
+        />
+      )}
     </div>
   );
 }

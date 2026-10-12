@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { scores } from "@/db/schema";
+import { scores, user } from "@/db/schema";
 import { seedJudgingFixture } from "@/lib/judging/judging.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 
@@ -10,9 +10,10 @@ import {
   loadPresentationListRouteData,
 } from "./server";
 import {
-  judgeIdFieldName,
+  editJudgesIntent,
+  judgeToAddFieldName,
+  judgeToRemoveFieldName,
   presentationChoreographyIdFieldName,
-  removeJudgesIntent,
 } from "./shared";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -21,20 +22,25 @@ installDatabaseTestHooks();
 
 const listUrl = "http://localhost/administracion/presentaciones";
 
-async function removeThroughTheAction(input: {
+async function editThroughTheAction(input: {
   choreographyIds: string[];
   email: string;
-  judgeIds: string[];
+  judgeIdsToAdd?: string[];
+  judgeIdsToRemove?: string[];
 }) {
   const body = new FormData();
-  body.set("intent", removeJudgesIntent);
+  body.set("intent", editJudgesIntent);
 
   for (const choreographyId of input.choreographyIds) {
     body.append(presentationChoreographyIdFieldName, choreographyId);
   }
 
-  for (const judgeId of input.judgeIds) {
-    body.append(judgeIdFieldName, judgeId);
+  for (const judgeId of input.judgeIdsToAdd ?? []) {
+    body.append(judgeToAddFieldName, judgeId);
+  }
+
+  for (const judgeId of input.judgeIdsToRemove ?? []) {
+    body.append(judgeToRemoveFieldName, judgeId);
   }
 
   const { request } = await createSignedInRequest({
@@ -59,10 +65,10 @@ describe("removing judges from the participation list", () => {
     );
     await db.insert(scores).values({ judgeAssignmentId, value: "90" });
 
-    const result = await removeThroughTheAction({
+    const result = await editThroughTheAction({
       choreographyIds: [scored.choreographyId],
       email: "admin.quita.puntuada@example.com",
-      judgeIds: [judgeId],
+      judgeIdsToRemove: [judgeId],
     });
 
     expect(result).toMatchObject({
@@ -90,10 +96,10 @@ describe("removing judges from the participation list", () => {
     const other = await fixture.assignJudge(unscored.presentationId);
     await db.insert(scores).values({ judgeAssignmentId, value: "90" });
 
-    const result = await removeThroughTheAction({
+    const result = await editThroughTheAction({
       choreographyIds: [scored.choreographyId, unscored.choreographyId],
       email: "admin.quita.mixta@example.com",
-      judgeIds: [judgeId, other.judgeId],
+      judgeIdsToRemove: [judgeId, other.judgeId],
     });
 
     expect(result).toEqual({
@@ -101,6 +107,67 @@ describe("removing judges from the participation list", () => {
         "Se quitó 1 juez de 1 presentación. Se mantuvo 1 asignación que ya tiene puntaje.",
       status: "success",
     });
+  });
+});
+
+describe("editing judges from the participation list", () => {
+  // One submission swaps a judge for another on every chosen row, and says
+  // both halves.
+  test("adds one judge and removes another in the same edit", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Una",
+      orderNumber: 1,
+    });
+    const leaving = await fixture.assignJudge(presentation.presentationId);
+    const [{ id: arriving }] = await db
+      .insert(user)
+      .values({
+        email: "juez.llega@example.com",
+        name: "Bruno Juez",
+        role: "judge",
+      })
+      .returning();
+
+    const result = await editThroughTheAction({
+      choreographyIds: [presentation.choreographyId],
+      email: "admin.cambia.jueces@example.com",
+      judgeIdsToAdd: [arriving],
+      judgeIdsToRemove: [leaving.judgeId],
+    });
+
+    expect(result).toEqual({
+      message:
+        "Se asignó 1 juez a 1 presentación. Se quitó 1 juez de 1 presentación.",
+      status: "success",
+    });
+
+    const { request } = await createSignedInRequest({
+      email: "admin.lee.jueces@example.com",
+      requestUrl: listUrl,
+      role: "admin",
+    });
+    const list = await loadPresentationListRouteData(request);
+
+    expect(
+      list.presentations.find((row) => row.id === presentation.choreographyId)
+        ?.assignedJudgeIds,
+    ).toEqual([arriving]);
+  });
+
+  test("refuses an edit that changes no judge", async () => {
+    const fixture = await seedJudgingFixture();
+    const presentation = await fixture.addPresentation({
+      name: "Una",
+      orderNumber: 1,
+    });
+
+    const result = await editThroughTheAction({
+      choreographyIds: [presentation.choreographyId],
+      email: "admin.sin.cambios@example.com",
+    });
+
+    expect(result).toMatchObject({ init: { status: 400 } });
   });
 });
 
