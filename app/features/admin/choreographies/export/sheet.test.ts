@@ -61,6 +61,7 @@ describe("the choreography finance sheet", () => {
       {
         ...figures,
         academyName: "Estudio Ritmo",
+        dancerNames: ["Ana Paz", "Ema Paz (retirada)"],
         kind: "choreography",
         modalityName: "Jazz",
         name: "Amanecer",
@@ -80,6 +81,7 @@ describe("the choreography finance sheet", () => {
       "Modalidad",
       "Inscripciones",
       "Retiradas",
+      "Bailarines",
       "Descuento por bailarín",
       "Seña",
       "Seña pagada",
@@ -94,6 +96,7 @@ describe("the choreography finance sheet", () => {
       "Jazz",
       4,
       1,
+      { value: "Ana Paz\nEma Paz (retirada)", wrap: true },
       money(2000),
       money(25000),
       money(20000),
@@ -109,6 +112,7 @@ describe("the choreography finance sheet", () => {
         ...figures,
         academyName: "Estudio Ritmo",
         dancerDiscountAmount: null,
+        dancerNames: ["Ana Paz"],
         depositAmount: null,
         depositPaidAmount: null,
         kind: "choreography",
@@ -120,7 +124,7 @@ describe("the choreography finance sheet", () => {
       },
     ]);
 
-    expect(row?.slice(6)).toEqual([
+    expect(row?.slice(7)).toEqual([
       null,
       null,
       null,
@@ -149,6 +153,7 @@ describe("the choreography finance sheet", () => {
       null,
       bold(4),
       bold(1),
+      null,
       boldMoney(2000),
       boldMoney(25000),
       boldMoney(20000),

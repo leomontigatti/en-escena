@@ -5,6 +5,7 @@ import {
   academies,
   choreographies,
   choreographyDancers,
+  dancers,
   modalities,
 } from "@/db/schema";
 import {
@@ -24,6 +25,7 @@ import {
   type Province,
 } from "@/lib/academies/provinces";
 
+import { formatDancerName } from "@/lib/finances/formatters";
 import { readEventChoreographyInscriptionFinances } from "@/lib/finances/operational-summary.server";
 import type { ResolvedInscription } from "@/lib/finances/operational-summary-calculations.server";
 
@@ -48,6 +50,7 @@ type PeriodInscription = CountedInscription & {
   choreographyId: string;
   choreographyName: string;
   choreographyNumber: number;
+  dancer: { firstName: string; lastName: string };
   figures: ResolvedInscription;
 };
 
@@ -61,7 +64,8 @@ type PeriodInscription = CountedInscription & {
  * `Por coreografía` lists the same inscriptions by choreography with their
  * money as it stands today, and adds the withdrawn ones registered in the
  * period: what stays allocated to them is money of the event, so leaving them
- * out would leave `Pagado` short of what `Recaudación` allocates.
+ * out would leave `Pagado` short of what `Recaudación` allocates. Its
+ * `Bailarines` names the dancer of every one of them, by surname.
  */
 export async function loadParticipationCountsExport(
   request: Request,
@@ -85,7 +89,9 @@ export async function loadParticipationCountsExport(
       choreographyId: choreographies.id,
       choreographyName: choreographies.name,
       choreographyNumber: choreographies.choreographyNumber,
+      dancerFirstName: dancers.firstName,
       dancerId: choreographyDancers.dancerId,
+      dancerLastName: dancers.lastName,
       id: choreographyDancers.id,
       modalityName: modalities.name,
       province: academies.province,
@@ -96,14 +102,21 @@ export async function loadParticipationCountsExport(
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
     .innerJoin(academies, eq(academies.id, choreographies.academyId))
+    .innerJoin(dancers, eq(dancers.id, choreographyDancers.dancerId))
     .innerJoin(modalities, eq(modalities.id, choreographies.modalityId))
     .where(inscriptionOfAnyStateRegisteredInPeriod(eventId, period))
     .orderBy(asc(modalities.name));
   const periodInscriptions = registered.flatMap(
-    ({ id, ...inscription }): PeriodInscription[] => {
+    ({
+      dancerFirstName,
+      dancerLastName,
+      id,
+      ...inscription
+    }): PeriodInscription[] => {
       const figures = figuresById.get(id);
+      const dancer = { firstName: dancerFirstName, lastName: dancerLastName };
 
-      return figures ? [{ ...inscription, figures }] : [];
+      return figures ? [{ ...inscription, dancer, figures }] : [];
     },
   );
   const inscriptions: CountedInscription[] = periodInscriptions.filter(
@@ -133,6 +146,7 @@ export async function loadParticipationCountsExport(
             .map(([, rows]): ChoreographyFinanceRow => ({
               ...financeFiguresOf(rows),
               academyName: rows[0].academyName,
+              dancerNames: dancerNamesOf(rows),
               kind: "choreography",
               modalityName: rows[0].modalityName,
               name: rows[0].choreographyName,
@@ -225,6 +239,24 @@ function financeFiguresOf(
     totalAmount: sumKnown(figures.map((row) => row.totalAmount)),
     withdrawnInscriptions: inscriptions.length - active.length,
   };
+}
+
+/**
+ * Each inscription's dancer by surname, compared in Spanish so an accented
+ * surname sorts with its letter, a withdrawn one marked as such.
+ */
+function dancerNamesOf(inscriptions: readonly PeriodInscription[]) {
+  return [...inscriptions]
+    .sort(
+      (left, right) =>
+        left.dancer.lastName.localeCompare(right.dancer.lastName, "es-AR") ||
+        left.dancer.firstName.localeCompare(right.dancer.firstName, "es-AR"),
+    )
+    .map(({ dancer, figures }) => {
+      const name = formatDancerName(dancer);
+
+      return figures.withdrawn ? `${name} (retirada)` : name;
+    });
 }
 
 /** Academies and dancers are distinct counts; every inscription counts. */

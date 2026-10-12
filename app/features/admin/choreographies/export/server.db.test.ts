@@ -154,7 +154,7 @@ describe("the participation counts export", () => {
       ["Total", 0, 0, 0],
     ]);
     expect(sheets.get("Por coreografía")?.slice(1)).toEqual([
-      ["Total", null, null, null, 0, 0, 0, 0, 0, 0, 0, 0],
+      ["Total", null, null, null, 0, 0, null, 0, 0, 0, 0, 0, 0],
     ]);
   });
 
@@ -176,8 +176,11 @@ describe("the participation counts export", () => {
       modalityId: tango.id,
       name: "Brisa",
     });
-    const dancerOf = async (academyId: string, firstName: string) =>
-      (await fixture.addDancer(academyId, { firstName })).id;
+    const dancerOf = async (
+      academyId: string,
+      firstName: string,
+      lastName = "Paz",
+    ) => (await fixture.addDancer(academyId, { firstName, lastName })).id;
     const at = "2026-04-10T15:00:00Z";
     const ana = await fixture.inscribe({
       choreographyId: amanecer.id,
@@ -186,7 +189,8 @@ describe("the participation counts export", () => {
     });
     const bruno = await fixture.inscribe({
       choreographyId: amanecer.id,
-      dancerId: await dancerOf(ritmo.id, "Bruno"),
+      // Sorts with the A, not after every unaccented surname.
+      dancerId: await dancerOf(ritmo.id, "Bruno", "Álvarez"),
       registeredAt: at,
     });
     // Withdrawn with money: no longer an inscription, and its 2000 stay.
@@ -232,6 +236,7 @@ describe("the participation counts export", () => {
         "Modalidad",
         "Inscripciones",
         "Retiradas",
+        "Bailarines",
         "Descuento por bailarín",
         "Seña",
         "Seña pagada",
@@ -246,6 +251,7 @@ describe("the participation counts export", () => {
         fixture.catalog.modality.name,
         2,
         1,
+        "Bruno Álvarez\nAna Paz\nEma Paz (retirada)",
         0,
         // Three deposits of 3000; Ana and Bruno's totals plus Ema's retained 2000.
         9000,
@@ -261,6 +267,7 @@ describe("the participation counts export", () => {
         "Tango",
         1,
         0,
+        "Carla Paz",
         0,
         3000,
         0,
@@ -268,7 +275,21 @@ describe("the participation counts export", () => {
         0,
         10000,
       ],
-      ["Total", null, null, null, 3, 1, 0, 12000, 5500, 32000, 5500, 26500],
+      [
+        "Total",
+        null,
+        null,
+        null,
+        3,
+        1,
+        null,
+        0,
+        12000,
+        5500,
+        32000,
+        5500,
+        26500,
+      ],
     ]);
   });
 
@@ -301,13 +322,14 @@ describe("the participation counts export", () => {
         fixture.catalog.modality.name,
         1,
         0,
+        "Ana Paz",
         null,
         null,
         null,
         null,
         0,
       ],
-      ["Total", null, null, null, 1, 0, null, null, null, null, 0],
+      ["Total", null, null, null, 1, 0, null, null, null, null, null, 0],
     ]);
   });
 

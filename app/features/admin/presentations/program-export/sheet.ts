@@ -6,6 +6,7 @@ import {
 
 import {
   buildSheet,
+  linePerName,
   type SheetColumn,
 } from "@/features/admin/day-export/sheet";
 
@@ -82,11 +83,6 @@ export const programExportColumns: SheetColumn<ProgramExportRow>[] = [
         : linePerName(row.dancerNames),
   },
 ];
-
-/** One name per line of the cell, or an empty cell when there is none. */
-function linePerName(names: string[]) {
-  return names.length === 0 ? null : { value: names.join("\n"), wrap: true };
-}
 
 export function buildProgramSheet(rows: ProgramExportRow[]) {
   return buildSheet(programExportColumns, rows);

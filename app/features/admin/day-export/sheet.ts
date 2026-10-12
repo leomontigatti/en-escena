@@ -26,6 +26,11 @@ export function buildSheet<Row>(
   ];
 }
 
+/** One name per line of the cell, or an empty cell when there is none. */
+export function linePerName(names: readonly string[]) {
+  return names.length === 0 ? null : { value: names.join("\n"), wrap: true };
+}
+
 /** Amounts are whole pesos, written as numbers so a spreadsheet can add them. */
 export const moneyFormat = '"$"#,##0';
 
