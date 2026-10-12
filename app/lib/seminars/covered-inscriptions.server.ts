@@ -10,6 +10,11 @@ import {
 import { isSeminarInscriptionCovered } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
+import {
+  hasSeminarStarted,
+  type SeminarMoment,
+} from "@/lib/seminars/registration-window";
+import { isSeminarReservationLive } from "@/lib/seminars/seminar-reservations";
 
 /**
  * `db` or an open transaction: every caller asks under the lock it already
@@ -64,44 +69,119 @@ export async function countCoveredSeminarInscriptions(
   return ids.filter((id) => id !== options.exceptInscriptionId).length;
 }
 
-/**
- * The same count for a whole gallery of seminars, in one query. The list screen
- * reads a count per card and the per-seminar reading would make that one query
- * per card, which is the shape `countInscriptionsBySeminar` already avoids for
- * the registered count.
- */
-export async function countCoveredSeminarInscriptionsBySeminar(
-  seminarIds: string[],
-  executor: SeminarInscriptionExecutor = db,
-): Promise<Map<string, number>> {
-  const coveredIds = await listCoveredSeminarInscriptionIds(
-    seminarIds,
-    executor,
-  );
+/** Who holds a seminar's places at a given moment (`readSeminarPlaces`). */
+export type SeminarPlaces = {
+  coveredIds: string[];
+  reservedIds: string[];
+};
 
-  return new Map(
-    seminarIds.map((seminarId) => [
-      seminarId,
-      (coveredIds.get(seminarId) ?? []).length,
-    ]),
-  );
+/** The places taken, covered and reserved alike: what the quota is spent by. */
+export function countTakenSeminarPlaces(places: SeminarPlaces | undefined) {
+  return (places?.coveredIds.length ?? 0) + (places?.reservedIds.length ?? 0);
 }
 
 /**
- * The covered rows themselves, grouped by seminar, which every reading above is
- * counted off.
+ * The places reserved by rows **other** than `ownIds`: a write that covers a
+ * deposit leaves the rows it crosses out, because a reservation never blocks
+ * its own deposit.
+ */
+export function countReservedByOthers(
+  places: SeminarPlaces | undefined,
+  ownIds: readonly string[],
+) {
+  return (places?.reservedIds ?? []).filter((id) => !ownIds.includes(id))
+    .length;
+}
+
+/**
+ * Who holds the seminar's places at `now`: the **covered** rows, which hold one
+ * for good, and the **reserved** ones, uncovered rows whose stored
+ * `reservedUntil` has not passed (`isSeminarReservationLive`). The rest of the
+ * active rows hold none. Every quota reading — the places left on screen, the
+ * guard on a crossing, the guard on a revival — is counted off this one answer.
+ */
+export async function readSeminarPlaces(
+  seminarIds: string[],
+  now: Date,
+  executor: SeminarInscriptionExecutor = db,
+): Promise<Map<string, SeminarPlaces>> {
+  if (seminarIds.length === 0) {
+    return new Map();
+  }
+
+  const places = new Map<string, SeminarPlaces>();
+
+  for (const row of await readActiveSeminarPlaceRows(seminarIds, executor)) {
+    const seminarPlaces = places.get(row.seminarId) ?? {
+      coveredIds: [],
+      reservedIds: [],
+    };
+
+    if (row.covered) {
+      seminarPlaces.coveredIds.push(row.id);
+    } else if (
+      isSeminarReservationLive(row.reservedUntil, now) &&
+      // The stored end was capped at the start the seminar had at
+      // registration; a seminar moved earlier ends it sooner.
+      !hasSeminarStarted(row.seminar, now)
+    ) {
+      seminarPlaces.reservedIds.push(row.id);
+    }
+
+    places.set(row.seminarId, seminarPlaces);
+  }
+
+  return places;
+}
+
+/**
+ * The covered rows themselves, grouped by seminar, which every covered count
+ * above is counted off.
  */
 async function listCoveredSeminarInscriptionIds(
   seminarIds: string[],
   executor: SeminarInscriptionExecutor,
 ): Promise<Map<string, string[]>> {
+  const covered = new Map<string, string[]>();
+
+  for (const row of await readActiveSeminarPlaceRows(seminarIds, executor)) {
+    if (row.covered) {
+      covered.set(row.seminarId, [
+        ...(covered.get(row.seminarId) ?? []),
+        row.id,
+      ]);
+    }
+  }
+
+  return covered;
+}
+
+type SeminarPlaceRow = {
+  covered: boolean;
+  id: string;
+  reservedUntil: Date | null;
+  seminar: SeminarMoment;
+  seminarId: string;
+};
+
+/**
+ * Every active row of the seminars, with whether it has covered its deposit.
+ * The stored price is a left join: a row that stored none has no deposit to
+ * have covered, which is the same answer the predicate gives, and it may still
+ * hold a reservation.
+ */
+async function readActiveSeminarPlaceRows(
+  seminarIds: string[],
+  executor: SeminarInscriptionExecutor,
+): Promise<SeminarPlaceRow[]> {
   if (seminarIds.length === 0) {
-    return new Map();
+    return [];
   }
 
   const rows = await executor
     .select({
       id: seminarInscriptions.id,
+      reservedUntil: seminarInscriptions.reservedUntil,
       seminarId: seminarInscriptions.seminarId,
       allocatedAmount: sql<number>`coalesce((
         select sum(${paymentAllocations.amount})
@@ -109,13 +189,13 @@ async function listCoveredSeminarInscriptionIds(
         where ${paymentAllocations.seminarInscriptionId} = ${seminarInscriptions.id}
       ), 0)`,
       requiredDepositPercentage: seminars.requiredDepositPercentage,
+      scheduledDate: seminars.scheduledDate,
+      startTime: seminars.startTime,
       storedPriceAmount: seminarPrices.amount,
     })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    // An inner join on the stored price: an inscription that stored none has no
-    // deposit to have covered, which is the same answer the predicate gives.
-    .innerJoin(
+    .leftJoin(
       seminarPrices,
       eq(seminarPrices.id, seminarInscriptions.selectedPriceId),
     )
@@ -125,26 +205,23 @@ async function listCoveredSeminarInscriptionIds(
         activeSeminarInscription(),
       ),
     );
-  const covered = new Map<string, string[]>();
 
-  for (const row of rows) {
-    const isCovered = isSeminarInscriptionCovered({
-      allocatedAmount: Number(row.allocatedAmount),
-      storedDepositAmount: deriveSeminarInscriptionThresholds({
-        priceAmount: row.storedPriceAmount,
-        requiredDepositPercentage: row.requiredDepositPercentage,
-      }).depositAmount,
-      withdrawn: false,
-    });
-
-    if (!isCovered) {
-      continue;
-    }
-
-    covered.set(row.seminarId, [...(covered.get(row.seminarId) ?? []), row.id]);
-  }
-
-  return covered;
+  return rows.map((row) => ({
+    covered:
+      row.storedPriceAmount !== null &&
+      isSeminarInscriptionCovered({
+        allocatedAmount: Number(row.allocatedAmount),
+        storedDepositAmount: deriveSeminarInscriptionThresholds({
+          priceAmount: row.storedPriceAmount,
+          requiredDepositPercentage: row.requiredDepositPercentage,
+        }).depositAmount,
+        withdrawn: false,
+      }),
+    id: row.id,
+    reservedUntil: row.reservedUntil,
+    seminar: { scheduledDate: row.scheduledDate, startTime: row.startTime },
+    seminarId: row.seminarId,
+  }));
 }
 
 /**

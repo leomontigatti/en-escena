@@ -218,7 +218,7 @@ describe("portal seminar detail", () => {
     });
   });
 
-  test("registers past the quota, because a full seminar closes nothing on the portal", async () => {
+  test("registers past the quota, reserving the one place for the first registration only", async () => {
     const session = await createAcademySession({
       academyName: "Academia Sin Lugares",
       email: "seminario.detalle.sin.lugares@example.com",
@@ -236,12 +236,22 @@ describe("portal seminar detail", () => {
       ).resolves.toMatchObject({ status: "success" });
     }
 
-    await expect(loadDetail(session.cookie, seminar.id)).resolves.toMatchObject(
-      { seminar: { isFull: false } },
-    );
+    // The first registration reserved the only place, so the seminar reads
+    // full and the second one holds nothing.
+    const detail = await loadDetail(session.cookie, seminar.id);
+
+    expect(detail.seminar.isFull).toBe(true);
     expect(
-      (await loadDetail(session.cookie, seminar.id)).inscriptions,
-    ).toHaveLength(2);
+      Object.fromEntries(
+        detail.inscriptions.map((inscription) => [
+          inscription.fullName.split(" ")[0],
+          inscription.status,
+        ]),
+      ),
+    ).toEqual({
+      Dos: { kind: "status", status: "depositPending" },
+      Uno: { kind: "reserved" },
+    });
   });
 
   test("deletes the academy's own inscription and takes it off the table", async () => {

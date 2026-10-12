@@ -190,7 +190,9 @@ is the `(seminar, academy)` pair, not the seminar: a seminar is shared by every
 academy while a debt belongs to one.
 
 **Covering the deposit** is the seminar's own reading of the crossing: it is
-what takes a place in the quota and what freezes the seminar's kind and rate. A
+what keeps a place in the quota for good and what freezes the seminar's kind
+and rate. Before it, a recent registration may hold a place for a while as a
+`seminarReservation` (`docs/domain/seminars.md`, "The place"). A
 withdrawn row is covered by nothing — it keeps its money and gives its place
 back. One predicate owns it, on the stored row's deposit, as everywhere else.
 
@@ -599,8 +601,9 @@ they live in one module.
   seminar inscription locks the seminar row `FOR UPDATE` first, crossing or not
   and before it reads anything else. Under that lock the funding write counts the
   covered non-withdrawn inscriptions of the seminar **excluding the one being
-  funded**, and refuses only the write that would cross the stored row's deposit
-  from below when that count already equals the quota, with
+  funded**, plus the places other inscriptions hold as live reservations, and
+  refuses only the write that would cross the stored row's deposit from below
+  when that count already reaches the quota, with
   `No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.`
   A partial allocation below the deposit goes through even when the seminar is
   full, and money after the seminar started is money like any other. The order of
@@ -777,7 +780,8 @@ nothing the second time.
   racing another write for the same academy, on any seminar or choreography,
   reads the pool that write left. Per seminar, the places needed are the inscriptions the
   charge carries across their deposit, and the charge is refused when
-  `covered + needed > quota` for any of them, naming each seminar short and by
+  `covered + reserved by others + needed > quota` for any of them — the
+  charge's own reservations are not "others" — naming each seminar short and by
   how many places. A `Pagar saldo` that crosses a deposit takes a place exactly
   like a `Pagar seña`.
 - **All or nothing**, as on the choreography side: a seminar short of places, a
@@ -791,7 +795,8 @@ nothing the second time.
   restate the reason. A success closes the dialog with a toast.
 - **The dialog previews the write.** Per selected seminar it lists the people
   the charge reaches, with the price each will hold and the amount, and the
-  places left against the places the charge takes; the owed figure is those
+  places left (live reservations of other inscriptions subtracted) against the
+  places the charge takes; the owed figure is those
   amounts summed. The loader reads it from the same plan the write runs
   (`readSeminarCobroPreviews`), so preview and write cannot disagree on who,
   at which price or how many places. `Asignar` is disabled, with the reason
@@ -1174,7 +1179,11 @@ disponible`, because unallocated money is each academy's pool.
   inscriptions table with `Precio` showing the effective row's name and **no
   `Tipo` column**, the `Retirada` rows with what they retained, and the money
   dialog behind the person's name. It carries a non-blocking `info` notice while
-  covered inscriptions fill the seminar's quota.
+  covered and reserved inscriptions fill the seminar's quota. A row holding a
+  live reservation is badged `Reservada` instead of `Seña pendiente`, on this
+  detail, its portal twin and the event-wide seminar inscriptions list, whose
+  `Estado` filters offer it; the `(seminar, academy)` rollups keep the
+  minimum and never read `Reservada`.
 - The `Eliminar pago` impact list names **seminars in the same list as
   choreographies**, each under the seminar's instructor name, with the money
   leaving it and how many of its inscriptions drop below their deposit and so

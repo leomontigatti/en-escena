@@ -9,6 +9,7 @@ import {
   formatInscriptionStatusBadge,
   getInscriptionStatusFilterBadgeVariant,
   inscriptionStatusFilterOptions,
+  seminarInscriptionStatusFilterOptions,
 } from "@/lib/finances/choreography-financial-status";
 import {
   resolveInscriptionStatusBadge,
@@ -35,6 +36,9 @@ export type InscriptionFinanceRow = {
   effectivePrice: { name: string } | null;
   financialStatus: InscriptionFinancialStatus;
   owedBalanceAmount: number | null;
+  /** A seminar inscription holding a reserved place; choreography rows never
+   * carry it. */
+  reserved?: boolean;
   totalAmount: number | null;
   withdrawn: boolean;
 };
@@ -54,14 +58,27 @@ export function renderInscriptionStatusFilterValue(
 }
 
 /** The `Estado` facet, whose options are the badges the column renders. */
-export const inscriptionFinanceFacetedFilters: DataTableFacetedFilter[] = [
-  {
-    id: "estado",
-    label: "Estado",
-    options: [...inscriptionStatusFilterOptions],
-    renderValue: renderInscriptionStatusFilterValue,
-  },
-];
+function statusFacet(
+  options: readonly DataTableFacetedFilterOption[],
+): DataTableFacetedFilter[] {
+  return [
+    {
+      id: "estado",
+      label: "Estado",
+      options: [...options],
+      renderValue: renderInscriptionStatusFilterValue,
+    },
+  ];
+}
+
+export const inscriptionFinanceFacetedFilters = statusFacet(
+  inscriptionStatusFilterOptions,
+);
+
+/** The same facet over seminar inscriptions, which can also read `Reservada`. */
+export const seminarInscriptionFinanceFacetedFilters = statusFacet(
+  seminarInscriptionStatusFilterOptions,
+);
 
 export const inscriptionFinanceColumns: DataTableColumn<InscriptionFinanceRow>[] =
   [
@@ -136,6 +153,7 @@ function resolveInscriptionStatus(inscription: InscriptionFinanceRow) {
   return resolveInscriptionStatusBadge({
     anomalies: inscription.anomalies,
     financialStatus: inscription.financialStatus,
+    reserved: inscription.reserved,
     withdrawn: inscription.withdrawn,
   });
 }

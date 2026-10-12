@@ -14,8 +14,9 @@ import {
 } from "@/lib/roster/roster-person-status.shared";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
-  countCoveredSeminarInscriptions,
+  countTakenSeminarPlaces,
   holdsCoveredDeposit,
+  readSeminarPlaces,
 } from "@/lib/seminars/covered-inscriptions.server";
 import {
   removeSeminarInscriptionFromRoster,
@@ -26,6 +27,7 @@ import {
   seminarStartedMessage,
 } from "@/lib/seminars/registration-refusals";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
+import { getSeminarReservationEndsAt } from "@/lib/seminars/seminar-reservations";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -95,10 +97,11 @@ const alreadyRegisteredMessage = "Esa persona ya está inscripta.";
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 /**
- * **Registration is unlimited.** The quota is not a cap on inscriptions: a place
- * is taken by covering the deposit, which is a decision of the allocation path
- * (`app/lib/finances/seminar-inscription-allocation.server.ts`), so an academy
- * registers whoever it wants and then decides who to pay for
+ * **Registration is unlimited.** The quota is not a cap on inscriptions: a new
+ * row reserves a place for `SEMINAR_RESERVATION_HOURS` when one is free
+ * (`reserveIfPlaceFree`), and a place is kept by covering the deposit, which is a decision of the allocation path
+ * (`app/lib/finances/seminar-inscription-allocation.server.ts`). An academy
+ * registers whoever it wants, into a full seminar too
  * (docs/domain/seminars.md, "The place").
  *
  * The row lock on the seminar stays all the same: the start time and the
@@ -169,14 +172,14 @@ async function findRegistrationRefusal(
  * Registering somebody who already holds a **withdrawn** row brings that row
  * back rather than inserting a second one: the id survives, and with it the
  * money the withdrawal retained, the price row it stored and the `createdAt`
- * that dates the inscription.
+ * that dates the inscription. It brings no reservation back.
  *
  * The revival is a registration in every other respect — it happens under the
  * seminar's lock, from the portal, for an active person, until the seminar
  * starts — and it is the one registration the quota can refuse: a row still
  * holding money past its stored deposit takes its place back the moment it is
- * active again, so a seminar whose covered rows already fill the quota refuses
- * it and leaves the row withdrawn.
+ * active again, so a seminar whose covered and reserved rows already fill the
+ * quota refuses it and leaves the row withdrawn.
  */
 async function insertOrReviveInscription(
   tx: Transaction,
@@ -188,7 +191,7 @@ async function insertOrReviveInscription(
   if (existing) {
     return existing.withdrawnAt === null
       ? failure("already-registered", alreadyRegisteredMessage)
-      : await reviveInscription(tx, seminar, existing.id);
+      : await reviveInscription(tx, seminar, existing.id, input.now);
   }
 
   // The partial unique indexes are what actually forbid the same person twice,
@@ -197,6 +200,7 @@ async function insertOrReviveInscription(
   const [inserted] = await tx
     .insert(seminarInscriptions)
     .values({
+      reservedUntil: await reserveIfPlaceFree(tx, seminar, input.now),
       seminarId: seminar.id,
       dancerId: input.personKind === "dancer" ? input.personId : null,
       professorId: input.personKind === "professor" ? input.personId : null,
@@ -211,17 +215,41 @@ async function insertOrReviveInscription(
   return { ok: true, inscriptionId: inserted.id };
 }
 
+/**
+ * A new row reserves a place only when the seminar has one nobody holds, read
+ * under the seminar's lock so two registrations cannot both take the last one.
+ * A registration into a full seminar stores no reservation and never gains one
+ * later: it holds a place only by covering its deposit.
+ */
+async function reserveIfPlaceFree(
+  tx: Transaction,
+  seminar: LockedSeminar,
+  now: Date,
+): Promise<Date | null> {
+  const places = (await readSeminarPlaces([seminar.id], now, tx)).get(
+    seminar.id,
+  );
+
+  return countTakenSeminarPlaces(places) < seminar.quota
+    ? getSeminarReservationEndsAt(seminar, now)
+    : null;
+}
+
 async function reviveInscription(
   tx: Transaction,
   seminar: LockedSeminar,
   inscriptionId: string,
+  now: Date,
 ): Promise<RegisterSeminarInscriptionResult> {
-  // The row is still withdrawn while this is read, so the covered count cannot
-  // see it and needs no exception for it.
+  // The row is still withdrawn while this is read, so the places cannot see it
+  // and need no exception for it. Other registrations' reservations count as
+  // taken, as they do for any deposit that takes a place.
   if (await holdsCoveredDeposit(inscriptionId, tx)) {
-    const coveredCount = await countCoveredSeminarInscriptions(seminar.id, tx);
+    const places = (await readSeminarPlaces([seminar.id], now, tx)).get(
+      seminar.id,
+    );
 
-    if (coveredCount >= seminar.quota) {
+    if (countTakenSeminarPlaces(places) >= seminar.quota) {
       return failure("no-places", seminarNoPlacesForRevivalMessage);
     }
   }

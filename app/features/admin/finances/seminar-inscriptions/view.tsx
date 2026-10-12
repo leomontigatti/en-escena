@@ -19,7 +19,7 @@ import {
 } from "@/lib/finances/formatters";
 import {
   inscriptionFinanceColumns,
-  inscriptionFinanceFacetedFilters,
+  seminarInscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { sumInscriptionFinanceAmounts } from "@/lib/finances/operational-summary";
 import { matchesListSearch } from "@/lib/list-query/list-query";
@@ -265,7 +265,7 @@ function buildFacetedFilters(
         })),
       ),
     },
-    ...inscriptionFinanceFacetedFilters.map((filter) => ({
+    ...seminarInscriptionFinanceFacetedFilters.map((filter) => ({
       ...filter,
       id: "estado" as const,
     })),

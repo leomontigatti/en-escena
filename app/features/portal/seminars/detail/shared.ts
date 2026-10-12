@@ -1,3 +1,4 @@
+import type { InscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
 
 import type {
@@ -14,6 +15,10 @@ export type PortalSeminarDetailInscription = {
    * it, which is the only thing the portal reads of a seminar inscription's
    * money: the amount itself belongs to `Resumen financiero`. */
   hasMoney: boolean;
+  /** The `Estado` badge the finance lists give the row: `Reservada` while its
+   * reservation holds, `Seña pendiente` once it lapses, then `Señada` and
+   * `Pagada`. */
+  status: InscriptionStatusBadge;
 };
 
 export type PortalSeminarDetailSeminar = {
@@ -23,11 +28,15 @@ export type PortalSeminarDetailSeminar = {
   startTime: string;
   hasStarted: boolean;
   hasRegistrationPrices: boolean;
-  /** Whether covered inscriptions already fill the quota. It closes nothing —
-   * registration is unlimited — and is said as a notice, because a deposit
-   * covered from here on would be refused on administration's side
-   * (docs/domain/seminars.md, "The place"). */
+  /** Whether covered and reserved inscriptions already fill the quota. It
+   * closes nothing — registration is unlimited — and is said as a notice,
+   * because a new registration reserves nothing and a deposit covered from here
+   * on would be refused on administration's side (docs/domain/seminars.md,
+   * "The place"). */
   isFull: boolean;
+  /** Whether the seminar starts inside the 48 hours a new registration is
+   * given to send its deposit, so the dialog says "until it starts" instead. */
+  startsBeforePaymentDeadline: boolean;
 };
 
 export type PortalSeminarDetailLoaderData = {

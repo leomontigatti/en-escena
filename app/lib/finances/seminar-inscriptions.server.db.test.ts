@@ -9,6 +9,8 @@ import { createSeminar } from "@/lib/seminars/repository.server";
 import { seedEventSeminarFinanceFixture } from "@/lib/admin/finances/seminar-finances.test-support";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";
 
+import { reserveForHours } from "@/lib/seminars/seminars.test-support";
+
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
@@ -83,6 +85,38 @@ describe("readSeminarInscriptionFinanceRows", () => {
         seminarId: fixture.brunoSeminarId,
       },
     ]);
+  });
+
+  test("marks the uncovered rows whose stored reservation still holds", async () => {
+    const fixture = await seedEventSeminarFinanceFixture();
+    await reserveForHours(fixture.luzInscriptionId, 42);
+    await reserveForHours(fixture.anaInscriptionId, -1);
+
+    const rows = await readSeminarInscriptionFinanceRows({
+      eventId: fixture.eventId,
+    });
+
+    expect(
+      Object.fromEntries(rows.map((row) => [row.firstName, row.reserved])),
+    ).toEqual({
+      // The reservation lapsed, so nothing is reserved any more.
+      Ana: false,
+      Luz: true,
+      // Registered with no place free, so it stored no reservation.
+      Nicolás: false,
+    });
+
+    // A lapsed reservation hands nothing on: a row that registered into a full
+    // seminar holds a place only by covering its deposit.
+    await reserveForHours(fixture.luzInscriptionId, -1);
+
+    const afterLapse = await readSeminarInscriptionFinanceRows({
+      eventId: fixture.eventId,
+      academyId: fixture.northAcademyId,
+      seminarId: fixture.brunoSeminarId,
+    });
+
+    expect(afterLapse.map((row) => row.reserved)).toEqual([false]);
   });
 
   test("narrows to one `(seminar, academy)` pair when both are named", async () => {

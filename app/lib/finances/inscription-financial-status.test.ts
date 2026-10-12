@@ -244,6 +244,34 @@ describe("resolveInscriptionStatusBadge", () => {
     ).toEqual({ anomaly: "overAllocated", kind: "anomaly" });
   });
 
+  test("reads a pending deposit that holds a reserved place as `reserved`", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "depositPending",
+        reserved: true,
+      }),
+    ).toEqual({ kind: "reserved" });
+  });
+
+  test("lets a covered deposit or a withdrawal outrank a reservation", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "depositMet",
+        reserved: true,
+      }),
+    ).toEqual({ kind: "status", status: "depositMet" });
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "depositPending",
+        reserved: true,
+        withdrawn: true,
+      }),
+    ).toEqual({ kind: "withdrawn" });
+  });
+
   test("falls back to the status when there is no other axis", () => {
     expect(
       resolveInscriptionStatusBadge({

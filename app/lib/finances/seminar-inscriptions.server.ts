@@ -16,6 +16,7 @@ import {
   resolveSeminarInscriptions,
   type SeminarInscriptionFinanceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
+import { readSeminarPlaces } from "@/lib/seminars/covered-inscriptions.server";
 
 /**
  * One seminar inscription with what it owes: a row of the `(seminar, academy)`
@@ -57,6 +58,10 @@ export type SeminarInscriptionFinanceDetailRow = {
   overAllocatedAmount: number | null;
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
+  /** Whether the row holds a **reserved** place: uncovered, active and inside
+   * its registration window (`readSeminarPlaces`). Its badge reads `Reservada`
+   * instead of `Seña pendiente`. */
+  reserved: boolean;
   scheduledDate: string;
   seminarId: string;
   totalAmount: number | null;
@@ -92,12 +97,22 @@ export type SeminarInscriptionFinanceScope =
  */
 export async function readSeminarInscriptionFinanceRows(
   input: SeminarInscriptionFinanceScope,
+  now = new Date(),
 ): Promise<SeminarInscriptionFinanceDetailRow[]> {
   const personRows = await readSeminarPersonRows(input);
-  const resolutions = await resolveSeminarInscriptions(db, {
-    eventId: input.eventId,
-    rows: personRows,
-  });
+  const [resolutions, placesBySeminarId] = await Promise.all([
+    resolveSeminarInscriptions(db, {
+      eventId: input.eventId,
+      rows: personRows,
+    }),
+    readSeminarPlaces(
+      [...new Set(personRows.map((person) => person.seminarId))],
+      now,
+    ),
+  ]);
+  const reservedIds = new Set(
+    [...placesBySeminarId.values()].flatMap((places) => places.reservedIds),
+  );
 
   return personRows
     .flatMap((person) => {
@@ -130,6 +145,7 @@ export async function readSeminarInscriptionFinanceRows(
               overAllocatedAmount: resolution.overAllocatedAmount,
               owedBalanceAmount: resolution.owedBalanceAmount,
               owedDepositAmount: resolution.owedDepositAmount,
+              reserved: reservedIds.has(person.id),
               scheduledDate: person.scheduledDate,
               seminarId: person.seminarId,
               totalAmount: resolution.totalAmount,

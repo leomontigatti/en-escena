@@ -5,7 +5,10 @@ import { db } from "@/db";
 import { events, seminarInscriptions, seminars } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration.test-support";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
-import { coverSeminarInscriptionDeposit } from "@/lib/seminars/seminars.test-support";
+import {
+  coverSeminarInscriptionDeposit,
+  reserveForHours,
+} from "@/lib/seminars/seminars.test-support";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/seminar-prices.test-support";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
@@ -375,6 +378,52 @@ describe("seminar repository", () => {
     await expect(listSeminars(eventId)).resolves.toMatchObject([
       { id: seminarId, availablePlaces: 19, registeredCount: 2 },
     ]);
+  });
+
+  test("takes the live reservations off the places too, until they lapse", async () => {
+    const registration = await createRegistration();
+    const { seminarId } = registration;
+
+    await coverPlaces(registration, 1);
+    // A seminar still ahead: one that has started holds no reservation.
+    await db
+      .update(seminars)
+      .set({ scheduledDate: "2099-10-10" })
+      .where(eq(seminars.id, seminarId));
+    for (const inscriptionId of registration.inscriptionIds) {
+      await reserveForHours(inscriptionId, 10);
+    }
+
+    // One covered, one reserved: the covered row's own reservation is moot.
+    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+      availablePlaces: 18,
+    });
+
+    for (const inscriptionId of registration.inscriptionIds) {
+      await reserveForHours(inscriptionId, -1);
+    }
+
+    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+      availablePlaces: 19,
+    });
+  });
+
+  test("ends a stored reservation at the seminar's start when the seminar is moved earlier", async () => {
+    const registration = await createRegistration();
+    const { seminarId } = registration;
+
+    for (const inscriptionId of registration.inscriptionIds) {
+      await reserveForHours(inscriptionId, 10);
+    }
+    // The seminar was moved to a start that has already passed.
+    await db
+      .update(seminars)
+      .set({ scheduledDate: "2020-01-01" })
+      .where(eq(seminars.id, seminarId));
+
+    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+      availablePlaces: 20,
+    });
   });
 
   // The delete guard refuses on every row, withdrawn included, so the count the

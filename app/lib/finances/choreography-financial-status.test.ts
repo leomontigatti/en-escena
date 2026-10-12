@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   choreographyStatusFilterOptions,
   formatInscriptionStatusBadge,
+  seminarInscriptionStatusFilterOptions,
 } from "./choreography-financial-status";
 import {
   type InscriptionAnomaly,
@@ -39,6 +40,15 @@ describe("formatInscriptionStatusBadge", () => {
       label: "Sobreasignada",
       value: "overAllocated",
       variant: "destructive",
+    });
+  });
+
+  test("labels a reserved place `Reservada`, amber like the deposit it still owes", () => {
+    expect(formatInscriptionStatusBadge({ kind: "reserved" })).toEqual({
+      kind: "reserved",
+      label: "Reservada",
+      value: "reserved",
+      variant: "warning",
     });
   });
 
@@ -94,5 +104,36 @@ describe("choreographyStatusFilterOptions", () => {
     expect(
       choreographyStatusFilterOptions.map((option) => option.value),
     ).toContain("withdrawn");
+  });
+});
+
+describe("seminarInscriptionStatusFilterOptions", () => {
+  test("offers every badge a seminar inscription row can show, `Reservada` included", () => {
+    const reachable = [
+      ...everyStatus.map((status) =>
+        resolveInscriptionStatusBadge({
+          anomalies: [],
+          financialStatus: status,
+        }),
+      ),
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "depositPending",
+        reserved: true,
+      }),
+      resolveInscriptionStatusBadge({
+        anomalies: ["overAllocated"],
+        financialStatus: "depositMet",
+      }),
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "depositPending",
+        withdrawn: true,
+      }),
+    ].map((badge) => formatInscriptionStatusBadge(badge).value);
+
+    expect(
+      seminarInscriptionStatusFilterOptions.map((option) => option.value),
+    ).toEqual(expect.arrayContaining(reachable));
   });
 });

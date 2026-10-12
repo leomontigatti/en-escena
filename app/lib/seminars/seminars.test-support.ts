@@ -1,5 +1,7 @@
 import { db } from "@/db";
-import { payments } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+import { payments, seminarInscriptions } from "@/db/schema";
 import {
   allocateToSeminarInscription,
   readSeminarInscriptionPriceOptions,
@@ -65,4 +67,16 @@ export async function coverSeminarInscriptionDeposit(input: {
   }
 
   return price;
+}
+
+/**
+ * Stores a reservation on a seminar inscription that ends `hours` from now — a
+ * negative number is one that already lapsed. Rows a suite inserts directly
+ * carry none, which is a registration into a full seminar.
+ */
+export function reserveForHours(inscriptionId: string, hours: number) {
+  return db
+    .update(seminarInscriptions)
+    .set({ reservedUntil: new Date(Date.now() + hours * 60 * 60 * 1000) })
+    .where(eq(seminarInscriptions.id, inscriptionId));
 }

@@ -104,6 +104,10 @@ export async function removeSeminarInscriptionFromRoster(
  * inserting another: the inscription's `id` survives, and with it the money, the
  * stored price row and the `createdAt` that dates the inscription. A removal
  * corrected before the money moved leaves no trace.
+ *
+ * It never brings a reservation back: the place a withdrawal freed may already
+ * be reserved by somebody registered since, so a revived row that has not
+ * covered its deposit holds no place until it does.
  */
 export async function reviveWithdrawnSeminarInscription(
   executor: Executor,
@@ -111,6 +115,6 @@ export async function reviveWithdrawnSeminarInscription(
 ): Promise<void> {
   await executor
     .update(seminarInscriptions)
-    .set({ withdrawnAt: null })
+    .set({ reservedUntil: null, withdrawnAt: null })
     .where(eq(seminarInscriptions.id, inscriptionId));
 }

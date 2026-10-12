@@ -407,6 +407,13 @@
       "when": 1791725802952,
       "tag": "0057_add_unexpected_error",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791770766766,
+      "tag": "0058_seminar_inscription_reserved_until",
+      "breakpoints": true
     }
   ]
 }

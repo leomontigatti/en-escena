@@ -8,13 +8,23 @@ import {
 describe("countSeminarPlacesShort", () => {
   test("is zero while the places needed fit in what the quota leaves", () => {
     expect(
-      countSeminarPlacesShort({ coveredCount: 7, neededCount: 3, quota: 10 }),
+      countSeminarPlacesShort({
+        coveredCount: 7,
+        neededCount: 3,
+        quota: 10,
+        reservedCount: 0,
+      }),
     ).toBe(0);
   });
 
   test("is how many places the crossings exceed the quota by", () => {
     expect(
-      countSeminarPlacesShort({ coveredCount: 8, neededCount: 4, quota: 10 }),
+      countSeminarPlacesShort({
+        coveredCount: 8,
+        neededCount: 4,
+        quota: 10,
+        reservedCount: 0,
+      }),
     ).toBe(2);
   });
 
@@ -22,13 +32,34 @@ describe("countSeminarPlacesShort", () => {
     // A quota lowered under the places already taken leaves the covered rows
     // where they are; only the new crossings are refused.
     expect(
-      countSeminarPlacesShort({ coveredCount: 12, neededCount: 2, quota: 10 }),
+      countSeminarPlacesShort({
+        coveredCount: 12,
+        neededCount: 2,
+        quota: 10,
+        reservedCount: 0,
+      }),
     ).toBe(2);
+  });
+
+  test("counts the places other registrations reserve as taken", () => {
+    expect(
+      countSeminarPlacesShort({
+        coveredCount: 6,
+        neededCount: 2,
+        quota: 10,
+        reservedCount: 3,
+      }),
+    ).toBe(1);
   });
 
   test("is zero when nothing crosses, even in a full seminar", () => {
     expect(
-      countSeminarPlacesShort({ coveredCount: 10, neededCount: 0, quota: 10 }),
+      countSeminarPlacesShort({
+        coveredCount: 10,
+        neededCount: 0,
+        quota: 10,
+        reservedCount: 0,
+      }),
     ).toBe(0);
   });
 });

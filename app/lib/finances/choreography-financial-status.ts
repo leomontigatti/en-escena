@@ -64,6 +64,14 @@ const withdrawnInscriptionLabel = "Retirada";
 const withdrawnInscriptionBadgeVariant = "secondary";
 
 /**
+ * `Reservada`: a seminar inscription whose deposit is still owed but which holds
+ * a reserved place. Amber like `Seña pendiente`, because both ask for the same
+ * thing; the label tells a place held from one not held.
+ */
+const reservedInscriptionLabel = "Reservada";
+const reservedInscriptionBadgeVariant = "warning";
+
+/**
  * The only translator of the `Estado` column badge: the precedence between axes
  * is decided by `resolveInscriptionStatusBadge`, and here it is given a label, a
  * variant and the key it filters by. `value` is the same string for all three
@@ -77,6 +85,7 @@ type FormattedInscriptionStatusBadge = {
   variant:
     | (typeof inscriptionFinancialStatusBadgeVariants)[InscriptionFinancialStatus]
     | (typeof inscriptionAnomalyBadgeVariants)[InscriptionAnomaly]
+    | typeof reservedInscriptionBadgeVariant
     | typeof withdrawnInscriptionBadgeVariant;
 };
 
@@ -89,6 +98,15 @@ export function formatInscriptionStatusBadge(
       label: withdrawnInscriptionLabel,
       value: "withdrawn",
       variant: withdrawnInscriptionBadgeVariant,
+    };
+  }
+
+  if (badge.kind === "reserved") {
+    return {
+      kind: badge.kind,
+      label: reservedInscriptionLabel,
+      value: "reserved",
+      variant: reservedInscriptionBadgeVariant,
     };
   }
 
@@ -143,6 +161,16 @@ export const choreographyStatusFilterOptions = [
  */
 export const inscriptionStatusFilterOptions = choreographyStatusFilterOptions;
 
+/**
+ * A list of **seminar** inscriptions can also badge a row `Reservada`, so its
+ * `Estado` filter offers it, first: it is the state a new registration starts
+ * in.
+ */
+export const seminarInscriptionStatusFilterOptions = [
+  { label: reservedInscriptionLabel, value: "reserved" },
+  ...inscriptionStatusFilterOptions,
+] as const satisfies ReadonlyArray<{ label: string; value: string }>;
+
 // A `Map` and not an object: the value comes from the URL, and `constructor`
 // must find nothing rather than what every object inherits.
 const inscriptionStatusFilterBadgeVariants = new Map<
@@ -152,6 +180,7 @@ const inscriptionStatusFilterBadgeVariants = new Map<
   Object.entries({
     ...inscriptionFinancialStatusBadgeVariants,
     ...inscriptionAnomalyBadgeVariants,
+    reserved: reservedInscriptionBadgeVariant,
     [withdrawnStatusFilterOption.value]: withdrawnInscriptionBadgeVariant,
   }),
 );

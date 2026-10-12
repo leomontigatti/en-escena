@@ -297,15 +297,21 @@ function deriveWaivedInscriptionFigures(input: {
  * a row that is still on the roster. `Sobreasignada` cannot even co-occur with it
  * — see `deriveWithdrawnInscriptionFigures` — so the order is a statement, not a
  * tie-break.
+ *
+ * `Reservada` is a seminar's `Seña pendiente` that still holds a reserved place
+ * (docs/domain/seminars.md, "The place"): it replaces that one status and no
+ * other, so a covered deposit, an anomaly or a withdrawal reads as before.
  */
 export type InscriptionStatusBadge =
   | { kind: "withdrawn" }
   | { kind: "anomaly"; anomaly: InscriptionAnomaly }
+  | { kind: "reserved" }
   | { kind: "status"; status: InscriptionFinancialStatus };
 
 export function resolveInscriptionStatusBadge(input: {
   anomalies: InscriptionAnomaly[];
   financialStatus: InscriptionFinancialStatus;
+  reserved?: boolean;
   withdrawn?: boolean;
 }): InscriptionStatusBadge {
   if (input.withdrawn) {
@@ -318,6 +324,10 @@ export function resolveInscriptionStatusBadge(input: {
 
   if (anomaly) {
     return { kind: "anomaly", anomaly };
+  }
+
+  if (input.reserved && input.financialStatus === "depositPending") {
+    return { kind: "reserved" };
   }
 
   return { kind: "status", status: input.financialStatus };

@@ -19,7 +19,10 @@ import {
   type SeminarFinancePriceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
 import { readEventParticipation } from "@/lib/participation/participation.server";
-import { countCoveredSeminarInscriptionsBySeminar } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  countReservedByOthers,
+  readSeminarPlaces,
+} from "@/lib/seminars/covered-inscriptions.server";
 import {
   countSeminarPlacesShort,
   seminarPlacesShortMessage,
@@ -86,38 +89,48 @@ export async function lockSeminars(
 
 /**
  * The place check for a write that carries several inscriptions across their
- * deposit at once. `neededBySeminarId` is how many of the write's inscriptions
- * cross, per seminar — none of them covered yet, so the covered count needs no
- * exception. Refuses when `covered + needed > quota` for **any** seminar, naming
- * each one that is short and by how many places; there is no partial charge and
- * no ordering of who gets a place.
+ * deposit at once. `crossingIdsBySeminarId` is which of the write's
+ * inscriptions cross, per seminar — none of them covered yet, so the covered
+ * count needs no exception, while their own reservations are left out of the
+ * reserved count: a reservation never blocks its own deposit. Refuses when
+ * `covered + reserved by others + needed > quota` for **any** seminar, naming
+ * each one that is short and by how many places; there is no partial charge
+ * and no ordering of who gets a place.
  *
  * It must run under `lockSeminars` on the same seminars.
  */
 export async function assertSeminarPlacesForCrossings(
   tx: Transaction,
   input: {
-    neededBySeminarId: ReadonlyMap<string, number>;
+    crossingIdsBySeminarId: ReadonlyMap<string, readonly string[]>;
     seminars: readonly LockedSeminar[];
   },
 ): Promise<CobroResult> {
   const crossing = input.seminars.filter(
-    (seminar) => (input.neededBySeminarId.get(seminar.id) ?? 0) > 0,
+    (seminar) =>
+      (input.crossingIdsBySeminarId.get(seminar.id) ?? []).length > 0,
   );
-  const coveredBySeminarId = await countCoveredSeminarInscriptionsBySeminar(
+  const placesBySeminarId = await readSeminarPlaces(
     crossing.map((seminar) => seminar.id),
+    new Date(),
     tx,
   );
   const shortfalls = crossing
-    .map((seminar) => ({
-      instructorName: seminar.instructorName,
-      scheduledDate: seminar.scheduledDate,
-      shortBy: countSeminarPlacesShort({
-        coveredCount: coveredBySeminarId.get(seminar.id) ?? 0,
-        neededCount: input.neededBySeminarId.get(seminar.id) ?? 0,
-        quota: seminar.quota,
-      }),
-    }))
+    .map((seminar) => {
+      const crossingIds = input.crossingIdsBySeminarId.get(seminar.id) ?? [];
+      const places = placesBySeminarId.get(seminar.id);
+
+      return {
+        instructorName: seminar.instructorName,
+        scheduledDate: seminar.scheduledDate,
+        shortBy: countSeminarPlacesShort({
+          coveredCount: places?.coveredIds.length ?? 0,
+          neededCount: crossingIds.length,
+          quota: seminar.quota,
+          reservedCount: countReservedByOthers(places, crossingIds),
+        }),
+      };
+    })
     .filter((shortfall) => shortfall.shortBy > 0);
 
   return shortfalls.length === 0
