@@ -88,6 +88,17 @@ describe("DancerNameCell interaction", () => {
     // The deposit is already covered, so what is left to finish is the balance.
     expect(amount.placeholder).toBe("7.000");
     expect(amount.value).toBe("");
+    // The dollar sign is decorative, so the description says the unit.
+    const descriptionIds = amount.getAttribute("aria-describedby") ?? "";
+    expect(
+      descriptionIds
+        .split(" ")
+        .map(
+          (descriptionId) =>
+            document.getElementById(descriptionId)?.textContent,
+        )
+        .join(" "),
+    ).toContain("En pesos");
   });
 
   test("hints the deposit first while that threshold is unmet", async () => {

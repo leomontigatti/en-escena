@@ -165,11 +165,15 @@ function IntegerField<
             orientation={orientation}
           >
             {({ describedBy, isInvalid }) => {
+              const currencyId = `${id}-currency`;
               const controlProps = {
                 ...inputProps,
                 ...field,
                 id,
-                "aria-describedby": describedBy || undefined,
+                "aria-describedby":
+                  [describedBy, currency && currencyId]
+                    .filter(Boolean)
+                    .join(" ") || undefined,
                 "aria-invalid": isInvalid ? true : undefined,
                 className: cn(disabled && "pr-9", inputClassName),
                 disabled,
@@ -183,6 +187,10 @@ function IntegerField<
                     <InputGroup>
                       <InputGroupAddon>
                         <DollarSign aria-hidden="true" />
+                        {/* The sign is decorative; this says the unit. */}
+                        <span id={currencyId} className="sr-only">
+                          En pesos
+                        </span>
                       </InputGroupAddon>
                       <IntegerInputGroupInput
                         {...controlProps}
