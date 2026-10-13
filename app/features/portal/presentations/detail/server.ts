@@ -3,7 +3,10 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies, presentations, schedules } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { experienceLevelLabel } from "@/lib/events/experience-levels";
+import {
+  experienceLevelDisplayLabel,
+  type ExperienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
 import type { Award } from "@/lib/judging/award";
 import { readPresentationScores } from "@/lib/judging/presentation-scores.server";
 import { isPresentationResultPublished } from "@/lib/judging/results.server";
@@ -119,6 +122,7 @@ export async function loadPortalPresentationEvaluation(input: {
     details: formatEvaluationDetails({
       categoryName: view.categoryName,
       experienceLevel: view.experienceLevel,
+      experienceLevelRequirement: view.experienceLevelRequirement,
       groupType: presentation.groupType as ChoreographyGroupType,
       modalityName: view.modalityName,
       submodalityName: view.submodalityName,
@@ -143,10 +147,14 @@ export async function loadPortalPresentationEvaluation(input: {
   };
 }
 
-/** The line under the title, skipping what the choreography does not declare. */
+/**
+ * The line under the title: a missing submodality is skipped, and an empty
+ * level is worded by why it is empty (`Sin asignar`, `Sin nivel`, `No aplica`).
+ */
 function formatEvaluationDetails(input: {
   categoryName: string;
   experienceLevel: string | null;
+  experienceLevelRequirement: ExperienceLevelRequirement;
   groupType: ChoreographyGroupType;
   modalityName: string;
   submodalityName: string | null;
@@ -154,7 +162,10 @@ function formatEvaluationDetails(input: {
   return [
     input.categoryName,
     formatGroupTypeLabel(input.groupType),
-    experienceLevelLabel(input.experienceLevel),
+    experienceLevelDisplayLabel(
+      input.experienceLevel,
+      input.experienceLevelRequirement,
+    ),
     input.modalityName,
     input.submodalityName,
   ]
