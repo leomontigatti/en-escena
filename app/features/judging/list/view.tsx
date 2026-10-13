@@ -432,13 +432,6 @@ function useResumePresentationId({
   };
 }
 
-function formatExperienceLevel(row: JudgePresentationRow) {
-  return experienceLevelDisplayLabel(
-    row.experienceLevel,
-    row.experienceLevelRequirement,
-  );
-}
-
 // The admin's presentation list, column for column and muted the same way,
 // with the number's share moved to the level so `Profesional` fits the
 // narrower card. Laid out `fit`: four free-text columns share the row, so each keeps its share
@@ -512,7 +505,12 @@ function buildJudgePresentationColumns(
       header: "Nivel",
       className: "text-muted-foreground",
       cell: (row) => (
-        <DataTableTruncatedText value={formatExperienceLevel(row)} />
+        <DataTableTruncatedText
+          value={experienceLevelDisplayLabel(
+            row.experienceLevel,
+            row.experienceLevelRequirement,
+          )}
+        />
       ),
       width: 10,
     },

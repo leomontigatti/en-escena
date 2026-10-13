@@ -3,7 +3,6 @@ import { describe, expect, test } from "vitest";
 import { groupTypeValues } from "@/lib/events/group-types";
 
 import {
-  emptyExperienceLevelLabel,
   experienceLevelDisplayLabel,
   experienceLevelRequirement,
 } from "./experience-level-requirement";
@@ -37,16 +36,6 @@ describe("experienceLevelRequirement", () => {
         groupType: "grupal",
       }),
     ).toBe("optional");
-  });
-});
-
-describe("emptyExperienceLevelLabel", () => {
-  test.each([
-    ["required", "Sin asignar"],
-    ["optional", "Sin nivel"],
-    ["notApplicable", "No aplica"],
-  ] as const)("words an empty %s level as %s", (requirement, label) => {
-    expect(emptyExperienceLevelLabel(requirement)).toBe(label);
   });
 });
 

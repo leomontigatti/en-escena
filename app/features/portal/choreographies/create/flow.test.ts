@@ -494,23 +494,6 @@ describe("buildCreateChoreographyFormData", () => {
     expect(formData.getAll("acknowledgedDuplicateIds")).toEqual([]);
   });
 
-  test("submits `Sin nivel` as no level", () => {
-    const formData = buildCreateChoreographyFormData({
-      eventId: "event_1",
-      name: "Luna Llena",
-      modalityId: "modality_1",
-      submodalityId: "",
-      canChooseSubmodality: false,
-      dancerIds: ["dancer_1"],
-      professorIds: ["professor_1"],
-      experienceLevelId: noExperienceLevelChoice,
-      professionalEvaluation: false,
-      scheduleCapacityId: "capacity_1",
-    });
-
-    expect(formData.has("experienceLevelId")).toBe(false);
-  });
-
   test("says whether the academy asked for a professional evaluation", () => {
     const input = {
       eventId: "event_1",

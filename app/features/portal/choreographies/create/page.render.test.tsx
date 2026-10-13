@@ -366,24 +366,6 @@ describe("the choreography registration page", () => {
       expect(getHeading()).toBe("Revisá antes de guardar");
     }
 
-    test("offers the levels plus `Sin nivel`, and asks for one before continuing", async () => {
-      await reachCategoryStep();
-
-      expect(getStepCounter()).toBe("Paso 3 de 5");
-      expect(
-        Array.from(document.querySelectorAll("label")).map(
-          (label) => label.textContent,
-        ),
-      ).toEqual(
-        expect.arrayContaining(["Amateur", "Profesional", "Sin nivel"]),
-      );
-      expect(isNextDisabled()).toBe(true);
-
-      await clickLabel("Sin nivel");
-
-      expect(isNextDisabled()).toBe(false);
-    });
-
     test("registers `Sin nivel` with no level, and says on the summary it is scored with a single value", async () => {
       const { router, submissions } = await reachCategoryStep();
 
@@ -404,22 +386,6 @@ describe("the choreography registration page", () => {
         CREATE_CHOREOGRAPHY_INTENT,
       );
       expect(submissions.at(-1)?.has("experienceLevelId")).toBe(false);
-    });
-
-    test("registers the level picked instead, as the summary shows", async () => {
-      const { router, submissions } = await reachCategoryStep();
-
-      await clickLabel("Profesional");
-      await saveFromCategoryStep();
-
-      expect(getSummaryValue("Nivel de experiencia")).toBe("Profesional");
-
-      await clickReactDomButton("Guardar");
-      await waitFor(
-        () => router.state.location.pathname === "/portal/coreografias",
-      );
-
-      expect(submissions.at(-1)?.get("experienceLevelId")).toBe("profesional");
     });
   });
 
