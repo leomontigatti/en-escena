@@ -12,7 +12,10 @@ import {
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
-import { experienceLevelLabel } from "@/lib/events/experience-levels";
+import {
+  experienceLevelDisplayLabel,
+  experienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
   listsDancerNames,
@@ -37,8 +40,11 @@ export type AcademyPresentationRow = {
   groupType: ChoreographyGroupType;
   /** Below its deposit, numbered or not: a notice on the row, never a bar. */
   isBelowDeposit: boolean;
-  /** The label of the level the choreography competes at, or `null`. */
-  levelLabel: string | null;
+  /**
+   * The label of the level the choreography competes at, or the empty level
+   * worded by why it is empty (`Sin asignar`, `Sin nivel`, `No aplica`).
+   */
+  levelLabel: string;
   modalityName: string;
   name: string;
   /**
@@ -73,6 +79,7 @@ export async function readAcademyPresentations(
   const [rows, financialStatuses] = await Promise.all([
     executor
       .select({
+        categoryExperienceLevels: categories.experienceLevels,
         categoryName: categories.name,
         choreographyId: choreographies.id,
         choreographyNumber: choreographies.choreographyNumber,
@@ -131,7 +138,13 @@ export async function readAcademyPresentations(
       isBelowDeposit:
         (financialStatuses.get(row.choreographyId) ?? "depositPending") ===
         "depositPending",
-      levelLabel: experienceLevelLabel(row.experienceLevel),
+      levelLabel: experienceLevelDisplayLabel(
+        row.experienceLevel,
+        experienceLevelRequirement({
+          categoryExperienceLevels: row.categoryExperienceLevels,
+          groupType: row.groupType as ChoreographyGroupType,
+        }),
+      ),
       modalityName: row.modalityName,
       name: row.name,
       orderNumber: visibleDays.has(row.scheduledDate) ? row.orderNumber : null,

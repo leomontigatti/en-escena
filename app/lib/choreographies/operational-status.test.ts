@@ -64,6 +64,29 @@ describe("choreography operational status", () => {
     );
   });
 
+  test("raises the pending level only where the level is required", () => {
+    const blankGrupal = deriveChoreographyOperationalStatus(
+      buildStatusInput({ experienceLevelId: null, groupType: "grupal" }),
+    );
+    const blankTrio = deriveChoreographyOperationalStatus(
+      buildStatusInput({ experienceLevelId: null, groupType: "trio" }),
+    );
+    const blankWithoutLevels = deriveChoreographyOperationalStatus(
+      buildStatusInput({
+        categoryExperienceLevels: [],
+        experienceLevelId: null,
+        groupType: "trio",
+      }),
+    );
+
+    expect(blankGrupal).toEqual({ code: "complete", pendingItems: [] });
+    expect(blankTrio).toEqual({
+      code: "incomplete",
+      pendingItems: ["experienceLevel"],
+    });
+    expect(blankWithoutLevels).toEqual({ code: "complete", pendingItems: [] });
+  });
+
   test("reports a stored age the category no longer contains", () => {
     const belowRange = deriveChoreographyOperationalStatus(
       buildStatusInput({

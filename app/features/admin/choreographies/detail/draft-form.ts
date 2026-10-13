@@ -94,15 +94,28 @@ export function isChoreographyDraftResolved(input: {
       isAnswered(preview.submodality.options, draft.submodalityId)) &&
     ((!classificationChanged &&
       draft.experienceLevelId === saved.experienceLevelId) ||
-      isAnswered(
-        preview.experienceLevel.requirement === "required"
-          ? preview.experienceLevel.options
-          : [],
-        draft.experienceLevelId,
-      )) &&
+      isLevelAnswered(preview.experienceLevel, draft.experienceLevelId)) &&
     (draft.scheduleCapacityId === saved.scheduleCapacityId ||
       isAnswered(preview.scheduleCapacity.options, draft.scheduleCapacityId))
   );
+}
+
+/**
+ * A required level is one of the category's levels; an optional one may also
+ * stay blank (`Sin nivel`); one that does not apply stays blank.
+ */
+function isLevelAnswered(
+  experienceLevel: ChoreographyDraftPreview["experienceLevel"],
+  value: string,
+) {
+  switch (experienceLevel.requirement) {
+    case "required":
+      return isAnswered(experienceLevel.options, value);
+    case "optional":
+      return value === "" || isAnswered(experienceLevel.options, value);
+    case "notApplicable":
+      return value === "";
+  }
 }
 
 /** One of the options when there are any, and nothing when there are none. */

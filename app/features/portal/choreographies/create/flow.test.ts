@@ -598,6 +598,28 @@ describe("applyRegistrationResolution", () => {
     });
   });
 
+  test("keeps the level a choreography had when it grows into a grupal where the level is optional", () => {
+    const resolution = buildScheduleResolution([
+      { id: "capacity_2", isFull: false },
+    ]);
+
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            experienceLevel: {
+              requirement: "optional",
+              options: [{ id: "amateur", name: "Amateur" }],
+            },
+          },
+        },
+      }),
+    ).toMatchObject({ status: "resolved", experienceLevelId: "amateur" });
+  });
+
   test("drops the level and schedule the new resolution no longer offers", () => {
     const resolution = buildScheduleResolution([
       { id: "capacity_1", isFull: false },

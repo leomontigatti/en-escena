@@ -40,6 +40,7 @@ function buildRow(overrides: Partial<ResultsListItem> = {}): ResultsListItem {
     choreographyNumber: 12,
     evaluationStatus: "pending",
     experienceLevel: null,
+    experienceLevelRequirement: "notApplicable",
     groupType: "solo",
     id: "coreografia_1",
     modalityName: "Jazz",
@@ -128,6 +129,39 @@ describe("ResultsListView rows", () => {
       )?.textContent,
     ).toBe("Brisa");
     expect(document.querySelector('[aria-label="Sin publicar"]')).toBeNull();
+  });
+
+  test("words an empty level by why it is empty", async () => {
+    await renderList(
+      buildLoaderData({
+        results: [
+          buildRow({ experienceLevel: "pre_elite", name: "Con nivel" }),
+          buildRow({
+            experienceLevelRequirement: "required",
+            id: "coreografia_2",
+            name: "Faltante",
+            presentationId: "presentacion_2",
+          }),
+          buildRow({
+            experienceLevelRequirement: "optional",
+            groupType: "grupal",
+            id: "coreografia_3",
+            name: "Grupal",
+            presentationId: "presentacion_3",
+          }),
+          buildRow({
+            id: "coreografia_4",
+            name: "Sin niveles",
+            presentationId: "presentacion_4",
+          }),
+        ],
+      }),
+    );
+
+    expect(rowText("Con nivel")).toContain("Pre Elite");
+    expect(rowText("Faltante")).toContain("Sin asignar");
+    expect(rowText("Grupal")).toContain("Sin nivel");
+    expect(rowText("Sin niveles")).toContain("No aplica");
   });
 
   test("leaves a presentation the panel has not reached blank, with no link", async () => {

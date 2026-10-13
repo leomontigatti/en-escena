@@ -407,7 +407,7 @@ function keepOfferedExperienceLevel(
   experienceLevelId: string,
 ) {
   const isOffered =
-    resolution.experienceLevel.requirement === "required" &&
+    resolution.experienceLevel.requirement !== "notApplicable" &&
     resolution.experienceLevel.options.some(
       (option) => option.id === experienceLevelId,
     );

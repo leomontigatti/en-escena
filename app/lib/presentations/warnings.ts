@@ -134,7 +134,10 @@ export function derivePresentationWarnings(
         groupType: row.groupType,
       }) === "required"
     ) {
-      add(row.choreographyId, { kind: "missingLevel", message: "Sin nivel" });
+      add(row.choreographyId, {
+        kind: "missingLevel",
+        message: "Nivel sin asignar",
+      });
     }
 
     if (row.orderNumber === null && frozenScheduleIds.has(row.schedule.id)) {

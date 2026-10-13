@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { evaluatedChoreographyAlert } from "@/lib/choreographies/choreography-messages";
+import { emptyExperienceLevelLabel } from "@/lib/choreographies/experience-level-requirement";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import {
   createValidatedRouteSubmitHandler,
@@ -368,16 +369,14 @@ function ChoreographyReadOnlyFields({
         options={choreographyGroupTypeOptions}
         value={choreography.groupType}
       />
-      {/* Two different kinds of empty: the category does not ask for a
-        level, or it asks and it is missing. The second is what leaves the
-        choreography Incompleta, so it cannot read the same as the first. */}
+      {/* Three kinds of empty: the category asks for no level, it offers
+        levels and a grupal chose none, or it asks and it is missing. Only the
+        last leaves the choreography Incompleta, so each reads differently. */}
       <ReadOnlyField
         label="Nivel de experiencia"
         value={
           choreography.experienceLevelName ??
-          (choreography.experienceLevelRequirement === "required"
-            ? "Sin asignar"
-            : "No aplica")
+          emptyExperienceLevelLabel(choreography.experienceLevelRequirement)
         }
       />
       <ReadOnlyField label="Cronograma" value={choreography.scheduleLabel} />

@@ -77,7 +77,9 @@ function resolveRetainedExperienceLevelId(input: {
     "experienceLevel"
   >;
 }) {
-  if (input.resolution.experienceLevel.requirement !== "required") {
+  // An optional level is kept like a required one: a grupal keeps the level it
+  // chose as long as its category still offers it.
+  if (input.resolution.experienceLevel.requirement === "notApplicable") {
     return null;
   }
 

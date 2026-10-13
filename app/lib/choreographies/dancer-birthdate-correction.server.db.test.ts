@@ -380,6 +380,71 @@ describe("dancer birth date choreography correction", () => {
     });
     await expectDancerAgeLink(choreography.id, correctedDancer.id, 8);
   });
+
+  test("keeps the level a grupal chose when it is re-placed where the level is optional", async () => {
+    const academy = await createAcademySession({
+      academyName: "Academia Grupal Con Nivel",
+      email: "admin.birthdate.grupal-level@example.com",
+    });
+    const catalog = await createCorrectionCatalog({
+      categoryRequiresLevelOnOlderRange: true,
+      eventName: "Grupal con nivel",
+      groupType: "grupal",
+    });
+    const correctedDancer = await createDancer(academy.academyId, {
+      firstName: "Carola",
+      lastName: "Nivel",
+      birthDate: "2026-04-10",
+    });
+    const companions = await Promise.all(
+      ["Una", "Dos", "Tres"].map((ordinal) =>
+        createDancer(academy.academyId, {
+          firstName: ordinal,
+          lastName: "Compañera",
+          birthDate: "2012-01-01",
+        }),
+      ),
+    );
+    const choreography = await createLinkedChoreography({
+      academyId: academy.academyId,
+      categoryId: catalog.youngerCategory.id,
+      categoryAgeBasis: 11,
+      categoryCalculationMode: "group_average",
+      eventId: catalog.event.id,
+      experienceLevelId: catalog.level.id,
+      groupType: "grupal",
+      modalityId: catalog.modality.id,
+      name: "Grupal con nivel",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: choreography.id,
+        dancerId: correctedDancer.id,
+        ageAtEventStart: 0,
+      },
+      ...companions.map((companion) => ({
+        choreographyId: choreography.id,
+        dancerId: companion.id,
+        ageAtEventStart: 14,
+      })),
+    ]);
+
+    await db
+      .update(dancers)
+      .set({ birthDate: "2018-05-01" })
+      .where(eq(dancers.id, correctedDancer.id));
+
+    await recalculateInTransaction(correctedDancer.id);
+
+    await expectChoreographyState(choreography.id, {
+      categoryId: catalog.olderCategory?.id ?? null,
+      categoryCalculationMode: "group_average",
+      categoryAgeBasis: 13,
+      experienceLevelId: catalog.level.id,
+    });
+  });
 });
 
 async function createCorrectionCatalog(input: {

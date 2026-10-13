@@ -30,6 +30,7 @@ import {
 import { choreographyNameWriteCases } from "@/lib/choreographies/choreography-name.test-support";
 import {
   evaluatedChoreographyMessage,
+  invalidExperienceLevelMessage,
   noCompatibleCategoryModalityMessage,
 } from "@/lib/choreographies/choreography-messages";
 import {
@@ -48,6 +49,7 @@ import {
 } from "@/lib/choreographies/registration-resolution.server";
 import { priceDivergenceScheduleCapacityMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import type { GroupType } from "@/lib/events/group-types";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 
@@ -345,6 +347,82 @@ describe("saving a draft of the choreography detail", () => {
       scenario.ana.id,
     ]);
     await expect(scenario.readProfessorIds()).resolves.toEqual([]);
+  });
+
+  test("lets a grupal clear its level where the level is optional, and still requires it of a trio", async () => {
+    const scenario = await createDraftScenario({ slug: "grupal-sin-nivel" });
+    const target = await createTargetModality(scenario.event.id, {
+      extraGroupTypes: ["trio", "grupal"],
+      levels: ["amateur"],
+    });
+    const [trioCapacity, grupalCapacity] = target.extraCapacities;
+    const [cora, dora] = await Promise.all([
+      createDancer(scenario.owner.academyId, {
+        firstName: "Cora",
+        lastName: "Tres",
+      }),
+      createDancer(scenario.owner.academyId, {
+        firstName: "Dora",
+        lastName: "Cuatro",
+      }),
+    ]);
+    const grupal = [scenario.ana.id, scenario.bea.id, cora.id, dora.id];
+
+    const trioResponse = await scenario.saveDraft(
+      scenario.draft({
+        dancerIds: grupal.slice(0, 3),
+        modalityId: target.modality.id,
+        scheduleCapacityId: trioCapacity.id,
+        submodalityId: "",
+      }),
+    );
+
+    expect(trioResponse).toMatchObject({
+      message: invalidExperienceLevelMessage,
+      status: "error",
+    });
+
+    const preview = await scenario.resolveDraft(
+      scenario.draft({
+        dancerIds: grupal,
+        modalityId: target.modality.id,
+        scheduleCapacityId: grupalCapacity.id,
+        submodalityId: "",
+      }),
+    );
+
+    expect(preview.experienceLevel).toMatchObject({ requirement: "optional" });
+
+    const grupalResponse = await scenario.saveDraft(
+      scenario.draft({
+        dancerIds: grupal,
+        modalityId: target.modality.id,
+        scheduleCapacityId: grupalCapacity.id,
+        submodalityId: "",
+      }),
+    );
+
+    expect(grupalResponse).toMatchObject({ status: "success" });
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      categoryId: target.category.id,
+      experienceLevelId: null,
+      groupType: "grupal",
+    });
+
+    const outsideResponse = await scenario.saveDraft(
+      scenario.draft({
+        dancerIds: grupal,
+        experienceLevelId: "profesional",
+        modalityId: target.modality.id,
+        scheduleCapacityId: grupalCapacity.id,
+        submodalityId: "",
+      }),
+    );
+
+    expect(outsideResponse).toMatchObject({
+      message: invalidExperienceLevelMessage,
+      status: "error",
+    });
   });
 
   test("refuses a draft whose outcome no longer matches the preview", async () => {
@@ -796,6 +874,8 @@ async function createDraftScenario(input: {
 async function createTargetModality(
   eventId: string,
   options: {
+    /** Group types the category takes beyond solo and duo, each with a capacity. */
+    extraGroupTypes?: Array<"grupal" | "trio">;
     levels?: ExperienceLevel[];
     /** A solo price of the target schedule's own, dearer than the general one. */
     soloPrice?: number;
@@ -803,6 +883,11 @@ async function createTargetModality(
   } = {},
 ) {
   const levels = options.levels ?? [];
+  const groupTypes: GroupType[] = [
+    "solo",
+    "duo",
+    ...(options.extraGroupTypes ?? []),
+  ];
   const [modality] = await db
     .insert(modalities)
     .values({ eventId, name: `Urbano ${eventId}` })
@@ -823,8 +908,8 @@ async function createTargetModality(
       eventId,
       experienceLevelKey: levels.join("|"),
       experienceLevels: levels,
-      groupTypeKey: "duo|solo",
-      groupTypes: ["solo", "duo"],
+      groupTypeKey: [...groupTypes].sort().join("|"),
+      groupTypes,
       maxAge: 100,
       minAge: 1,
       name: `Urbano libre ${eventId}`,
@@ -837,12 +922,15 @@ async function createTargetModality(
     eventId,
     modalityId: modality.id,
   });
-  const [soloCapacity, duoCapacity] = await db
+  const [soloCapacity, duoCapacity, ...extraCapacities] = await db
     .insert(scheduleCapacities)
-    .values([
-      { capacity: 5, groupType: "solo", scheduleId: schedule.id },
-      { capacity: 5, groupType: "duo", scheduleId: schedule.id },
-    ])
+    .values(
+      groupTypes.map((groupType) => ({
+        capacity: 5,
+        groupType,
+        scheduleId: schedule.id,
+      })),
+    )
     .returning();
 
   if (options.soloPrice) {
@@ -861,6 +949,7 @@ async function createTargetModality(
   return {
     category,
     duoCapacity,
+    extraCapacities,
     modality,
     schedule,
     soloCapacity,

@@ -638,6 +638,8 @@ function describeRegistrationPath(input: RegistrationPathDescriptor) {
 
   if (input.experienceLevelRequirement === "required") {
     details.push("requiere nivel de experiencia");
+  } else if (input.experienceLevelRequirement === "optional") {
+    details.push("nivel de experiencia opcional");
   }
 
   return details.join(", ");
