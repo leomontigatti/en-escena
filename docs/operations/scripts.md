@@ -37,7 +37,7 @@ session runs, and when, is [Validation](../agents/validation.md).
 | `pnpm check:comment-language`       | Fail on Spanish in engineering prose — comments and test names. See [Coding Standards](../agents/coding-standards.md). Runs in the pre-commit hook.                                                                                                |
 | `pnpm check:banned-imports`         | Fail when a retired dependency is imported again. The reason each one was retired travels with the rule and is printed at the failure.                                                                                                             |
 | `pnpm check:docs-tests`             | Fail a test that asserts a markdown doc contains fixed text. An oxlint JS plugin (`scripts/oxlint-docs-tests-plugin.mjs`) with its own config; `pnpm lint` does not run it.                                                                        |
-| `pnpm check:labels`                 | Fail when a workflow, the Architecture Review runner, a script or local skill names a label that `.github/labels.json` does not hold. See [Triage labels](../agents/triage-labels.md).                                                             |
+| `pnpm check:labels`                 | Fail when a workflow, a script or a local skill names a label that `.github/labels.json` does not hold. See [Triage labels](../agents/triage-labels.md).                                                                                           |
 | `pnpm check:fallow`                 | The commit gate: fail on code left unreachable by the branch. See [Fallow](../agents/fallow.md). Runs in the pre-commit hook.                                                                                                                      |
 | `pnpm check:doc-map`                | Fail when mapped code changed without its current-state document (`app/lib/shared/doc-map.json`). Runs in CI as `docs-gate`; needs `origin/master` fetched.                                                                                        |
 | `pnpm check:pr-title`               | Fail a PR title that lacks a conventional prefix or whose subject is not English. The title is the subject line squash-merge lands on `master`.                                                                                                    |
@@ -83,17 +83,6 @@ session runs, and when, is [Validation](../agents/validation.md).
 | Script                  | Purpose                                                                                                                                                                                               |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ⚠️ `pnpm staging:reset` | Replace staging's database and storage with a copy of production as it is now, over SSH on `rylai`. Reads production, never writes it; stops and restarts the staging app. See [Staging](staging.md). |
-
-## AFK Platform
-
-The one remaining workflow (Architecture Review): see
-[AFK setup](../agents/afk-setup.md) for the operational side and ADR-0016 for
-why everything else moved to local sessions. Its runner is invoked by the
-workflow, never by hand.
-
-| Script                  | Purpose                                                                                                                                       |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| ⚠️ `pnpm setup:secrets` | Load the repo's GitHub Actions secrets through `gh`. Prompts for each value, so it needs a terminal. See [AFK setup](../agents/afk-setup.md). |
 
 ## Pull Requests
 

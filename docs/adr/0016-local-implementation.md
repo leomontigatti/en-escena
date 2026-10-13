@@ -12,7 +12,7 @@ spec vendored from `mattpocock/course-video-manager` (deleted by the amendment o
 GitHub Actions workflows, four of which wrote or reviewed code without a human
 present. This ADR retires those four — Implement, Implement PRD, Implement PR
 and Review — and keeps the other four. It records **why**; the current setup
-is in [afk-setup.md](../agents/afk-setup.md) and
+is in [architecture-review.md](../agents/architecture-review.md) and
 [workflows.md](../agents/workflows.md) § Where work starts.
 
 ## 1. The runner could not see the product
@@ -140,6 +140,32 @@ Architecture Review workflow runs read any of them: its runner reads only
 
 What was still true moved: the runner contract (inputs, output files, the two passes, the token-less
 agent, the single publisher), the secret and the permissions into
-[afk-setup.md](../agents/afk-setup.md), and where each skill came from into
+`docs/agents/afk-setup.md` (retired with the runner by the amendment of 2026-10-13), and where each skill came from into
 [vendored-skills.md](../agents/vendored-skills.md). The history of the retired workflows stays in
 this ADR, the issues it cites and git.
+
+## Amendment (2026-10-13): Architecture Review moves to a T3 Code scheduled task
+
+The last workflow that ran an agent is retired. Architecture Review is now "Architecture review
+(weekly)", a T3 Code scheduled task in the En Escena project, every Monday at 09:00 local time.
+Each run starts a fresh thread, reviews a detached worktree of `origin/master` read-only and
+publishes at most one PRD issue with `gh issue create`, labelled `source:architecture-review` and
+`needs-triage`. The workflow, its runner under `.github/architecture-review/`, the tests that held
+the runner's contract and `pnpm setup:secrets` are deleted. Its prompt and contract are in
+[architecture-review.md](../agents/architecture-review.md).
+
+- **No stored Claude token.** The workflow authenticated with a long-lived
+  `CLAUDE_CODE_OAUTH_TOKEN` in the repository's secrets. The scheduled task runs on the session
+  already signed in on this machine, so no Claude credential lives on GitHub.
+- **A full session, not a stripped-down agent.** The runner gave the agent one prompt file, an
+  allow-listed environment and no skills beyond what it could read from the checkout. The task
+  runs like any session here: `AGENTS.md`, the repo's skills and the `gh` login are all
+  available, which is what the review's own prompt asks it to use.
+- **No runner code to maintain.** The two-pass produce-and-extract runner, its zod schema, its
+  wall-clock budget, its failure-reason fallback and the CLI install pins existed only so an
+  unattended process on a cold runner could fail diagnosably. A session thread is its own log.
+
+The trade-off: the review runs only while this machine and T3 Code are up. A Monday with the app
+closed is a week without a review, which a weekly proposal queue that already outpaces triage can
+absorb. GitHub Actions now runs no agent at all: `ci.yml` and `pr-title.yml` are the only
+workflows. The `CLAUDE_CODE_OAUTH_TOKEN` secret stays on GitHub until removed by hand.

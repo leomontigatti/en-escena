@@ -7,7 +7,7 @@ import path from "node:path";
 // sync script pushes it to GitHub and the check holds the automation to it, so
 // the file, the repo and the workflows cannot drift apart silently. The
 // meaning of each label stays in docs/agents/triage-labels.md and
-// docs/agents/afk-setup.md; the file only says which labels exist.
+// docs/agents/architecture-review.md; the file only says which labels exist.
 
 export const labelFilePath = ".github/labels.json";
 

@@ -44,5 +44,5 @@ installer to re-run: `skills add` would overwrite the local changes.
 - `setup-matt-pocock-skills`: its output, [`issue-tracker.md`](./issue-tracker.md),
   [`triage-labels.md`](./triage-labels.md) and [`domain.md`](./domain.md), already exists.
 - `triage`, `grill-me`, `grill-with-docs`, `improve-codebase-architecture`: rarely or never used,
-  or covered by `grilling`, `domain-modeling` and the Architecture Review workflow.
+  or covered by `grilling`, `domain-modeling` and the scheduled Architecture Review.
 - `research`: the `research` agent (`.agents/agents/research.md`) does that job.

@@ -97,7 +97,7 @@
       {
         "name": "source:architecture-review",
         "color": "5a5a5a",
-        "description": "Provenance: PRD proposed by the Architecture Review workflow"
+        "description": "Provenance: PRD proposed by the scheduled Architecture Review"
       }
     ]
   }
