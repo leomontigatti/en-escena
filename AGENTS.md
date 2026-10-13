@@ -50,5 +50,6 @@ Codex, "call the Skill tool with X" means open `.agents/skills/X/SKILL.md` and f
 - **Staging** (`pruebas.enescena.com.ar`): [staging.md](docs/operations/staging.md).
 - **DNS and email**: [dns-and-email.md](docs/operations/dns-and-email.md).
 - **Fallow**: [fallow.md](docs/agents/fallow.md).
-- **Architecture Review** runner: [afk-setup.md](docs/agents/afk-setup.md).
+- **Architecture Review** (the weekly T3 Code scheduled task):
+  [architecture-review.md](docs/agents/architecture-review.md).
 - **Upstream skills**: [vendored-skills.md](docs/agents/vendored-skills.md).

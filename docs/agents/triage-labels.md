@@ -66,5 +66,5 @@ multiplies a PRD in any priority list, so add `no:parent-issue` for the PRD-leve
 
 > **`ready-for-agent` triggers nothing.** It is a triage state ("specified and
 > grabbable"): a local session picks the issue up from the dispatch queue above
-> (ADR-0016). No label starts a run: the one AFK workflow left, Architecture Review, runs
-> on a schedule ([afk-setup.md](afk-setup.md)).
+> (ADR-0016). No label starts a run: Architecture Review, the one unattended run left, is a
+> T3 Code scheduled task ([architecture-review.md](architecture-review.md)).

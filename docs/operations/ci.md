@@ -124,7 +124,7 @@ is `^<that version>`, so pnpm warns (it does not refuse) when a local Node sits
 below what CI runs; the Dockerfile's `FROM node:<that version>-bookworm-slim`
 repeats the number because `FROM` cannot read a file. Bumping Node is four
 edits: `.nvmrc`, `engines.node`, the `FROM` line, and `@types/node`'s range
-when the major moves. `tests/afk/node-version-single-source.test.ts` names any
+when the major moves. `tests/workflows/node-version-single-source.test.ts` names any
 copy you missed.
 
 ## Dependencies

@@ -4,15 +4,8 @@
 # everything else carries an inline `# zizmor: ignore[...]` with the reason next
 # to the code it excuses. An entry that is a deferral names the issue that
 # removes it; one that is a decision says which issue decided it.
-rules:
-  # Decided in #966 (formerly #944), not deferred: the agent runner installs
-  # Claude Code as `@anthropic-ai/claude-code@stable`, a moving tag rather than an
-  # exact version. The CLI ships almost daily, so a version pin would be a bump
-  # chore that gets skipped, while `stable` lags `latest` by weeks and moves
-  # without upkeep. The runs are reproducible after the fact instead: every
-  # install step prints `claude --version`. `npx skills@latest` is gone — the
-  # `code-review` skill runs in local sessions only since the implement and review
-  # runners were retired (ADR-0016).
-  adhoc-packages:
-    ignore:
-      - architecture-review.yml
+#
+# None today: the one entry, `adhoc-packages` for the Architecture Review
+# workflow's `@anthropic-ai/claude-code@stable` install (#966), left with that
+# workflow when the review moved to a T3 Code scheduled task (ADR-0016).
+rules: {}

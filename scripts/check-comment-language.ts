@@ -38,9 +38,9 @@ import { collectSourceFiles } from "./source-files";
 // `stderrMessagesIn` for why each predicate is exactly this narrow.
 
 // Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
-// root-level configs `collectScannedFiles` adds. `.github` is here because the
-// Architecture Review runner is code the same way `scripts/` is: a prompt or a
-// workflow step is read by a contributor, not by an end user.
+// root-level configs `collectScannedFiles` adds. `.github` is here because a
+// workflow step is read by a contributor, not by an end user, the same way
+// `scripts/` is.
 export const scannedDirectories = [".github", "app", "scripts", "tests"];
 const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 
