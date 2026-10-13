@@ -23,7 +23,7 @@ function buildRow(
 ): JudgePresentationRow {
   return {
     academyName: "Academia Sur",
-    categoryAdmitsExperienceLevels: true,
+    experienceLevelRequirement: "required",
     categoryName: "Juvenil",
     criteria: [],
     criteriaValues: {},

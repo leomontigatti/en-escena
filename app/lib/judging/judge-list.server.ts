@@ -13,6 +13,10 @@ import {
   scores,
   submodalities,
 } from "@/db/schema";
+import {
+  type ExperienceLevelRequirement,
+  experienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import {
   deriveJudgeScoreStatus,
@@ -22,7 +26,7 @@ import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
 import {
   readCriteriaBySubmodality,
-  sheetForLevel,
+  sheetForChoreography,
 } from "@/lib/judging/submodality-criteria.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
@@ -56,16 +60,20 @@ export type JudgeSheetCriterion = SheetCriterion;
 
 export type JudgePresentationRow = {
   academyName: string;
-  /** Empty when the submodality is scored with a single 0-100 value. */
+  /**
+   * Empty when the presentation is scored with a single 0-100 value: its
+   * submodality has no criteria, or it is a `Sin nivel` choreography.
+   */
   criteria: JudgeSheetCriterion[];
   /**
    * The judge's own sheet as they saved it, keyed by criterion and as the
    * numeric column reads it; empty when they have saved none of it.
    */
   criteriaValues: Record<string, string>;
-  categoryAdmitsExperienceLevels: boolean;
   categoryName: string;
   experienceLevel: string | null;
+  /** Why an empty `experienceLevel` is empty, for the words the list shows. */
+  experienceLevelRequirement: ExperienceLevelRequirement;
   /** The judge's own take, signed for playback; null when there is none. */
   feedbackAudioUrl: string | null;
   groupType: ChoreographyGroupType;
@@ -161,16 +169,16 @@ export async function readJudgePresentations(
   return await Promise.all(
     rows.map(async (row) => ({
       academyName: row.academyName,
-      categoryAdmitsExperienceLevels: row.categoryExperienceLevels.length > 0,
       categoryName: row.categoryName,
       criteria: row.submodalityId
-        ? sheetForLevel(
+        ? sheetForChoreography(
             criteriaBySubmodality.get(row.submodalityId) ?? [],
-            row.experienceLevel,
+            row,
           )
         : [],
       criteriaValues: (row.scoreId && sheetsByScore.get(row.scoreId)) || {},
       experienceLevel: row.experienceLevel,
+      experienceLevelRequirement: experienceLevelRequirement(row),
       feedbackAudioUrl: storage
         ? await loadFeedbackAudioDownloadUrl({
             storage,
