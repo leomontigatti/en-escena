@@ -120,7 +120,7 @@ describe("previewing a draft of the choreography detail", () => {
     expect(preview.submodality.options).toEqual([
       { id: target.submodality?.id, name: target.submodality?.name },
     ]);
-    expect(preview.experienceLevel).toMatchObject({ required: true });
+    expect(preview.experienceLevel).toMatchObject({ requirement: "required" });
     // The lone compatible capacity arrives preselected.
     expect(preview.scheduleCapacity.options).toHaveLength(1);
     expect(preview.scheduleCapacity.selectedId).toBe(target.soloCapacity.id);

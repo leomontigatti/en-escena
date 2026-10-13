@@ -112,7 +112,7 @@ function buildResolution(
         ageAtEventStart: 14,
       },
     ],
-    experienceLevel: { required: false, options: [] },
+    experienceLevel: { requirement: "notApplicable", options: [] },
     groupType: "solo",
     schedule: {
       status: "auto",
@@ -274,7 +274,7 @@ describe("the choreography registration page", () => {
       resolve: resolved(
         buildResolution({
           experienceLevel: {
-            required: true,
+            requirement: "required",
             options: [
               { id: "amateur", name: "Amateur" },
               { id: "elite", name: "Elite" },

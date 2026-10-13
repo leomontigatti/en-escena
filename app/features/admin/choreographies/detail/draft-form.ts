@@ -95,7 +95,9 @@ export function isChoreographyDraftResolved(input: {
     ((!classificationChanged &&
       draft.experienceLevelId === saved.experienceLevelId) ||
       isAnswered(
-        preview.experienceLevel.required ? preview.experienceLevel.options : [],
+        preview.experienceLevel.requirement === "required"
+          ? preview.experienceLevel.options
+          : [],
         draft.experienceLevelId,
       )) &&
     (draft.scheduleCapacityId === saved.scheduleCapacityId ||

@@ -1,3 +1,4 @@
+import { experienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 
@@ -124,11 +125,14 @@ export function derivePresentationWarnings(
       });
     }
 
-    // A category that admits levels and a row without one: the ordering sorts
-    // it last and only the administrator can repair it.
+    // A row whose level is required and missing: the ordering sorts it last
+    // and only the administrator can repair it.
     if (
-      row.category.experienceLevels.length > 0 &&
-      row.experienceLevel === null
+      row.experienceLevel === null &&
+      experienceLevelRequirement({
+        categoryExperienceLevels: row.category.experienceLevels,
+        groupType: row.groupType,
+      }) === "required"
     ) {
       add(row.choreographyId, { kind: "missingLevel", message: "Sin nivel" });
     }

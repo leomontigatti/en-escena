@@ -7,6 +7,7 @@ import {
   choreographyProfessors,
 } from "@/db/schema";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
+import type { GroupType } from "@/lib/events/group-types";
 
 /**
  * What the admin reads a choreography's operational status off, as a select
@@ -19,6 +20,7 @@ export const operationalStatusColumns = {
   categoryMaxAge: categories.maxAge,
   categoryMinAge: categories.minAge,
   experienceLevelId: choreographies.experienceLevelId,
+  groupType: choreographies.groupType,
   musicStorageKey: choreographies.musicStorageKey,
 };
 
@@ -28,6 +30,7 @@ type OperationalStatusRow = {
   categoryMaxAge: number;
   categoryMinAge: number;
   experienceLevelId: string | null;
+  groupType: GroupType;
   id: string;
   musicStorageKey: string | null;
 };
@@ -49,6 +52,7 @@ export async function deriveAdminOperationalStatuses<
     operationalStatus: deriveChoreographyOperationalStatus({
       categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
+      groupType: row.groupType,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
       placementCheck: {

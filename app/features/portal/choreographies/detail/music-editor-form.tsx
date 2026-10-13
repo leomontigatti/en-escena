@@ -375,7 +375,9 @@ function ChoreographyReadOnlyFields({
         label="Nivel de experiencia"
         value={
           choreography.experienceLevelName ??
-          (choreography.requiresExperienceLevel ? "Sin asignar" : "No aplica")
+          (choreography.experienceLevelRequirement === "required"
+            ? "Sin asignar"
+            : "No aplica")
         }
       />
       <ReadOnlyField label="Cronograma" value={choreography.scheduleLabel} />

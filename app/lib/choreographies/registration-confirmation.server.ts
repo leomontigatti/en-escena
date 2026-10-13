@@ -334,7 +334,7 @@ function resolveSelectedExperienceLevelId(input: {
 }):
   | { ok: true; value: ExperienceLevel | null }
   | { ok: false; failure: CreateChoreographyRegistrationFailure } {
-  if (!input.resolution.experienceLevel.required) {
+  if (input.resolution.experienceLevel.requirement !== "required") {
     return { ok: true, value: null };
   }
 

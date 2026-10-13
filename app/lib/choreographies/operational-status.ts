@@ -1,3 +1,6 @@
+import { experienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
+import type { GroupType } from "@/lib/events/group-types";
+
 /**
  * What the choreography does not have yet. These are the only items the portal
  * renders, and it renders them under a single `Falta cargar …` frame, so each
@@ -46,6 +49,7 @@ export type ChoreographyCategoryPlacementCheck = {
 export function deriveChoreographyOperationalStatus(input: {
   categoryExperienceLevels: string[];
   experienceLevelId: string | null;
+  groupType: GroupType;
   hasMusic: boolean;
   hasProfessors: boolean;
   placementCheck: ChoreographyCategoryPlacementCheck | null;
@@ -57,10 +61,13 @@ export function deriveChoreographyOperationalStatus(input: {
   }
 
   // No category branch: a choreography always has one, so the only thing the
-  // level check needs is whether the category it already has declares levels.
+  // level check needs is whether the level is required where it already sits.
   if (
-    input.categoryExperienceLevels.length > 0 &&
-    input.experienceLevelId === null
+    input.experienceLevelId === null &&
+    experienceLevelRequirement({
+      categoryExperienceLevels: input.categoryExperienceLevels,
+      groupType: input.groupType,
+    }) === "required"
   ) {
     pendingItems.push("experienceLevel");
   }

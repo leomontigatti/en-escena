@@ -172,7 +172,7 @@ function ExperienceLevelField({
     <PendingLabel pending={isDeriving} text="Nivel de experiencia" />
   );
 
-  if (!draft.isStructureLocked && experienceLevel.required) {
+  if (!draft.isStructureLocked && experienceLevel.requirement === "required") {
     return (
       <SelectField
         control={draft.form.control}
@@ -195,7 +195,9 @@ function ExperienceLevelField({
       label={label}
       value={
         (draft.isStructureLocked ? choreography.experienceLevelName : null) ??
-        (experienceLevel.required ? "Sin asignar" : "No aplica")
+        (experienceLevel.requirement === "required"
+          ? "Sin asignar"
+          : "No aplica")
       }
     />
   );

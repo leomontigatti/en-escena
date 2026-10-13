@@ -101,7 +101,7 @@ export function ChoreographyCreationSummary({
         >
           {formatCategoryAndGroupTypeSummary(resolution)}
         </SummaryRow>
-        {resolution.experienceLevel.required ? (
+        {resolution.experienceLevel.requirement === "required" ? (
           <SummaryRow
             label="Nivel de experiencia"
             onEdit={() => onEdit("category")}

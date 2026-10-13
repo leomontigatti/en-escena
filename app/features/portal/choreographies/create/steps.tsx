@@ -152,7 +152,7 @@ function CategoryStep({
           {formatCategoryAndGroupTypeSummary(resolution)}
         </span>
       </div>
-      {resolution.experienceLevel.required ? (
+      {resolution.experienceLevel.requirement === "required" ? (
         <OptionCardsField
           control={wizard.form.control}
           label="Nivel de experiencia"

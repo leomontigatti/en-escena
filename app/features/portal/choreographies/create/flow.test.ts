@@ -42,7 +42,7 @@ describe("choreography create flow helpers", () => {
         resolution: {
           ...onlySchedule,
           experienceLevel: {
-            required: true,
+            requirement: "required",
             options: [{ id: "amateur", name: "Amateur" }],
           },
         },
@@ -172,7 +172,7 @@ describe("canAdvanceFromStep", () => {
         { id: "capacity_2", isFull: false },
       ]),
       experienceLevel: {
-        required: true,
+        requirement: "required",
         options: [{ id: "amateur", name: "Amateur" }],
       },
     };
@@ -305,7 +305,7 @@ function buildScheduleResolution(
       },
     ],
     experienceLevel: {
-      required: false as const,
+      requirement: "notApplicable" as const,
       options: [],
     },
     groupType: "solo" as const,
@@ -585,7 +585,7 @@ describe("applyRegistrationResolution", () => {
           resolution: {
             ...resolution,
             experienceLevel: {
-              required: true,
+              requirement: "required",
               options: [{ id: "amateur", name: "Amateur" }],
             },
           },
@@ -611,7 +611,7 @@ describe("applyRegistrationResolution", () => {
           resolution: {
             ...resolution,
             experienceLevel: {
-              required: true,
+              requirement: "required",
               options: [{ id: "elite", name: "Elite" }],
             },
           },

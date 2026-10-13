@@ -107,7 +107,7 @@ export function getCreateChoreographySteps(input: {
 function hasCategoryChoices(resolution: RegistrationResolution | null) {
   return (
     resolution !== null &&
-    (resolution.experienceLevel.required ||
+    (resolution.experienceLevel.requirement === "required" ||
       resolution.schedule.status === "multiple")
   );
 }
@@ -267,7 +267,8 @@ function canAdvanceFromCategoryStep(
   }
 
   const hasLevel =
-    !resolution.experienceLevel.required || Boolean(values.experienceLevelId);
+    resolution.experienceLevel.requirement !== "required" ||
+    Boolean(values.experienceLevelId);
 
   return (
     hasLevel &&
@@ -406,7 +407,7 @@ function keepOfferedExperienceLevel(
   experienceLevelId: string,
 ) {
   const isOffered =
-    resolution.experienceLevel.required &&
+    resolution.experienceLevel.requirement === "required" &&
     resolution.experienceLevel.options.some(
       (option) => option.id === experienceLevelId,
     );

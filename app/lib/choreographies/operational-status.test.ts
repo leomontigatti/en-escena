@@ -14,6 +14,7 @@ function buildStatusInput(overrides: Partial<StatusInput> = {}): StatusInput {
   return {
     categoryExperienceLevels: ["amateur"],
     experienceLevelId: "amateur",
+    groupType: "solo",
     hasMusic: true,
     hasProfessors: true,
     placementCheck: {

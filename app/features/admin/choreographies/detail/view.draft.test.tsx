@@ -439,7 +439,7 @@ function buildPreview(
         { id: "amateur", name: "Amateur" },
         { id: "profesional", name: "Profesional" },
       ],
-      required: true,
+      requirement: "required",
     },
     classificationKey: getChoreographyDraftClassificationKey({
       dancerIds,
@@ -482,7 +482,7 @@ function duoPreview(
     capacityId: "schedule_capacity_duo",
     category: { id: "category_2", name: "Juvenil dúo" },
     dancerIds: input.dancerIds ?? ["dancer_1", "dancer_2"],
-    experienceLevel: { options: [], required: false },
+    experienceLevel: { options: [], requirement: "notApplicable" },
     groupType: "duo",
     withdrawnDancers: input.withdrawnDancers,
   });
@@ -503,7 +503,7 @@ function urbanoPreview() {
     category: { id: "category_9", name: "Juvenil urbano" },
     experienceLevel: {
       options: [{ id: "amateur", name: "Amateur" }],
-      required: true,
+      requirement: "required",
     },
     modalityId: "modality_2",
     submodality: { options: [{ id: "submodality_9", name: "Hip hop" }] },
@@ -571,7 +571,7 @@ function buildLoaderData(
           lastName: "Suárez",
         },
       ],
-      requiresExperienceLevel: true,
+      experienceLevelRequirement: "required",
       scheduleCapacityId: "schedule_capacity_1",
       scheduleId: "schedule_1",
       scheduleLabel: "1 de mayo de 2026 - 14:00 hs.",
