@@ -140,7 +140,7 @@ Architecture Review workflow runs read any of them: its runner reads only
 
 What was still true moved: the runner contract (inputs, output files, the two passes, the token-less
 agent, the single publisher), the secret and the permissions into
-`docs/agents/afk-setup.md` (now [architecture-review.md](../agents/architecture-review.md)), and where each skill came from into
+`docs/agents/afk-setup.md` (retired with the runner by the amendment of 2026-10-13), and where each skill came from into
 [vendored-skills.md](../agents/vendored-skills.md). The history of the retired workflows stays in
 this ADR, the issues it cites and git.
 
