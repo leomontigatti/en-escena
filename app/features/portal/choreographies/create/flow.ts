@@ -10,6 +10,7 @@ import {
 } from "@/lib/choreographies/choreography-name";
 import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
+import { emptyExperienceLevelLabel } from "@/lib/choreographies/experience-level-requirement";
 import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
 import type { ChoreographyCastMatch } from "@/lib/choreographies/choreography-duplicates";
 import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
@@ -22,6 +23,13 @@ import {
 export const RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT =
   "resolve-choreography-registration";
 export const CREATE_CHOREOGRAPHY_INTENT = "create-choreography";
+
+/**
+ * The `Sin nivel` card's value in the form. An optional level has to be picked
+ * explicitly, so "not picked yet" (an empty value) and "picked no level" are
+ * told apart; the submission maps this one to no level.
+ */
+export const noExperienceLevelChoice = "sin-nivel";
 
 export const everyScheduleCapacityFullMessage =
   "Los cronogramas compatibles con esta coreografía ya no tienen lugar. Probá con otra modalidad o escribinos para que veamos alternativas.";
@@ -88,9 +96,9 @@ export const emptyCreateChoreographyValues: CreateChoreographyFormValues = {
 
 /**
  * The category step exists only once a resolution leaves something to choose:
- * a required level, or more than one schedule. Before the dancers are resolved
- * it is counted as absent, so `Paso N de M` never promises a step that may not
- * come.
+ * a level, required or optional, or more than one schedule. Before the dancers
+ * are resolved it is counted as absent, so `Paso N de M` never promises a step
+ * that may not come.
  */
 export function getCreateChoreographySteps(input: {
   resolution: RegistrationResolution | null;
@@ -107,7 +115,7 @@ export function getCreateChoreographySteps(input: {
 function hasCategoryChoices(resolution: RegistrationResolution | null) {
   return (
     resolution !== null &&
-    (resolution.experienceLevel.requirement === "required" ||
+    (resolution.experienceLevel.requirement !== "notApplicable" ||
       resolution.schedule.status === "multiple")
   );
 }
@@ -266,17 +274,60 @@ function canAdvanceFromCategoryStep(
     return false;
   }
 
-  const hasLevel =
-    resolution.experienceLevel.requirement !== "required" ||
-    Boolean(values.experienceLevelId);
-
   return (
-    hasLevel &&
+    isExperienceLevelAnswered(resolution, values.experienceLevelId ?? "") &&
     canAdvanceFromScheduleStep({
       resolution,
       selectedScheduleCapacityId: values.scheduleCapacityId ?? "",
     })
   );
+}
+
+/**
+ * The level cards the category step offers: none when the category admits no
+ * level, its levels when one is required, and its levels plus `Sin nivel` when
+ * the level is optional.
+ */
+export function getExperienceLevelChoices(
+  resolution: RegistrationResolution,
+): { value: string; label: string }[] {
+  const { options, requirement } = resolution.experienceLevel;
+
+  if (requirement === "notApplicable") {
+    return [];
+  }
+
+  const levels = options.map((option) => ({
+    value: option.id,
+    label: option.name,
+  }));
+
+  return requirement === "optional"
+    ? [
+        ...levels,
+        {
+          value: noExperienceLevelChoice,
+          label: emptyExperienceLevelLabel(requirement),
+        },
+      ]
+    : levels;
+}
+
+/**
+ * Whether the level is answered: always where the category admits no level,
+ * otherwise by one of its levels, or by `Sin nivel` when the level is optional.
+ */
+function isExperienceLevelAnswered(
+  resolution: RegistrationResolution,
+  experienceLevelId: string,
+) {
+  const { requirement } = resolution.experienceLevel;
+
+  if (requirement === "notApplicable") {
+    return true;
+  }
+
+  return keepOfferedExperienceLevel(resolution, experienceLevelId) !== "";
 }
 
 /**
@@ -406,11 +457,12 @@ function keepOfferedExperienceLevel(
   resolution: RegistrationResolution,
   experienceLevelId: string,
 ) {
+  const { options, requirement } = resolution.experienceLevel;
   const isOffered =
-    resolution.experienceLevel.requirement !== "notApplicable" &&
-    resolution.experienceLevel.options.some(
-      (option) => option.id === experienceLevelId,
-    );
+    requirement !== "notApplicable" &&
+    (options.some((option) => option.id === experienceLevelId) ||
+      (requirement === "optional" &&
+        experienceLevelId === noExperienceLevelChoice));
 
   return isOffered ? experienceLevelId : "";
 }
@@ -545,7 +597,13 @@ export function buildCreateChoreographyFormData(input: {
   );
   appendFormStringArray(formData, "dancerIds", input.dancerIds);
   appendFormStringArray(formData, "professorIds", input.professorIds);
-  setOptionalFormString(formData, "experienceLevelId", input.experienceLevelId);
+  setOptionalFormString(
+    formData,
+    "experienceLevelId",
+    input.experienceLevelId === noExperienceLevelChoice
+      ? ""
+      : input.experienceLevelId,
+  );
   // Sent only when asked, as a checkbox would be: absent reads as `false`.
   if (input.professionalEvaluation) {
     formData.set("professionalEvaluation", "true");

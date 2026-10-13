@@ -4,6 +4,7 @@ import { ChecklistField } from "@/components/shared/checklist-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import {
   everyScheduleCapacityFullMessage,
+  getExperienceLevelChoices,
   type PortalResolvedRegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
 import { formatCategoryAndGroupTypeSummary } from "@/features/portal/choreographies/create/formatters";
@@ -122,7 +123,9 @@ function DancersStep({ loaderData, wizard }: StepProps) {
 
 /**
  * The category follows from the dancers, so it is shown, not asked; the level
- * and the schedule are asked only when the resolution leaves a choice. A
+ * and the schedule are asked only when the resolution leaves a choice. An
+ * optional level offers `Sin nivel` as one more card, so not competing by
+ * level is picked, never left blank. A
  * schedule option says when it happens, never how many places it has left: a
  * full one is greyed out, and the server's refusal on save stays the guarantee.
  */
@@ -133,6 +136,7 @@ function CategoryStep({
   resolution: PortalResolvedRegistrationResolution;
   wizard: CreateChoreographyWizard;
 }) {
+  const experienceLevelChoices = getExperienceLevelChoices(resolution);
   const scheduleOptions =
     resolution.schedule.status === "multiple"
       ? resolution.schedule.options
@@ -152,15 +156,12 @@ function CategoryStep({
           {formatCategoryAndGroupTypeSummary(resolution)}
         </span>
       </div>
-      {resolution.experienceLevel.requirement === "required" ? (
+      {experienceLevelChoices.length > 0 ? (
         <OptionCardsField
           control={wizard.form.control}
           label="Nivel de experiencia"
           name="experienceLevelId"
-          options={resolution.experienceLevel.options.map((option) => ({
-            value: option.id,
-            label: option.name,
-          }))}
+          options={experienceLevelChoices}
         />
       ) : null}
       <ScheduleChoice options={scheduleOptions} wizard={wizard} />

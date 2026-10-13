@@ -158,6 +158,15 @@ function countCheckedRows() {
   ).length;
 }
 
+/** What the summary reads for a row: its value, without the row's label. */
+function getSummaryValue(label: string) {
+  const term = Array.from(document.querySelectorAll("dt")).find(
+    (candidate) => candidate.textContent === label,
+  );
+
+  return term?.nextElementSibling?.textContent ?? null;
+}
+
 function isNextDisabled() {
   return (findButton("Siguiente", { exact: true }) as HTMLButtonElement)
     .disabled;
@@ -307,6 +316,7 @@ describe("the choreography registration page", () => {
     expect(getStepCounter()).toBe("Paso 3 de 5");
     expect(document.body.textContent).toContain("Juvenil - Solo");
     expect(isNextDisabled()).toBe(true);
+    expect(document.body.textContent).not.toContain("Sin nivel");
 
     await clickLabel("Elite");
     await clickLabel("2 de mayo de 2026 - 10:00 hs.");
@@ -325,6 +335,92 @@ describe("the choreography registration page", () => {
 
     expect(submissions.at(-1)?.get("experienceLevelId")).toBe("elite");
     expect(submissions.at(-1)?.get("scheduleCapacityId")).toBe("capacity_2");
+  });
+
+  describe("for a grupal whose level is optional", () => {
+    const optionalLevelResolution = buildResolution({
+      experienceLevel: {
+        requirement: "optional",
+        options: [
+          { id: "amateur", name: "Amateur" },
+          { id: "profesional", name: "Profesional" },
+        ],
+      },
+      groupType: "grupal",
+    });
+
+    async function reachCategoryStep() {
+      const page = renderPage({ resolve: resolved(optionalLevelResolution) });
+      await renderer.renderAsync(<RouterProvider router={page.router} />);
+
+      await fillFirstStep();
+      await pickDancerAndResolve("Categoría y tipo de grupo");
+
+      return page;
+    }
+
+    async function saveFromCategoryStep() {
+      await goNext();
+      await clickLabel("Luz Suárez");
+      await goNext();
+      expect(getHeading()).toBe("Revisá antes de guardar");
+    }
+
+    test("offers the levels plus `Sin nivel`, and asks for one before continuing", async () => {
+      await reachCategoryStep();
+
+      expect(getStepCounter()).toBe("Paso 3 de 5");
+      expect(
+        Array.from(document.querySelectorAll("label")).map(
+          (label) => label.textContent,
+        ),
+      ).toEqual(
+        expect.arrayContaining(["Amateur", "Profesional", "Sin nivel"]),
+      );
+      expect(isNextDisabled()).toBe(true);
+
+      await clickLabel("Sin nivel");
+
+      expect(isNextDisabled()).toBe(false);
+    });
+
+    test("registers `Sin nivel` with no level, and says on the summary it is scored with a single value", async () => {
+      const { router, submissions } = await reachCategoryStep();
+
+      await clickLabel("Sin nivel");
+      await saveFromCategoryStep();
+
+      expect(getSummaryValue("Nivel de experiencia")).toContain("Sin nivel");
+      expect(getSummaryValue("Nivel de experiencia")).toContain(
+        "un único puntaje de 0 a 100",
+      );
+
+      await clickReactDomButton("Guardar");
+      await waitFor(
+        () => router.state.location.pathname === "/portal/coreografias",
+      );
+
+      expect(submissions.at(-1)?.get("intent")).toBe(
+        CREATE_CHOREOGRAPHY_INTENT,
+      );
+      expect(submissions.at(-1)?.has("experienceLevelId")).toBe(false);
+    });
+
+    test("registers the level picked instead, as the summary shows", async () => {
+      const { router, submissions } = await reachCategoryStep();
+
+      await clickLabel("Profesional");
+      await saveFromCategoryStep();
+
+      expect(getSummaryValue("Nivel de experiencia")).toBe("Profesional");
+
+      await clickReactDomButton("Guardar");
+      await waitFor(
+        () => router.state.location.pathname === "/portal/coreografias",
+      );
+
+      expect(submissions.at(-1)?.get("experienceLevelId")).toBe("profesional");
+    });
   });
 
   test("keeps the academy on the dancers step with the refusal as a notice", async () => {
