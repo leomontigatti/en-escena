@@ -11,6 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+// PROTOTYPE optional-level
+import { PrototypeNoLevelProvider } from "@/features/prototype/nivel-opcional/wizard-variants";
+// PROTOTYPE optional-level
+import {
+  PrototypeSwitcher,
+  usePrototypeVariant,
+  wizardPrototypeVariants,
+} from "@/features/prototype/nivel-opcional/switcher";
 import { ChoreographyDuplicateWarning } from "@/features/portal/choreographies/create/duplicate-warning";
 import type { CreateChoreographyRouteData } from "@/features/portal/choreographies/create/server";
 import { CreateChoreographyStepContent } from "@/features/portal/choreographies/create/steps";
@@ -26,6 +34,8 @@ export function CreateChoreographyPage({
 }) {
   const wizard = useCreateChoreographyWizard(loaderData);
   const { currentStepIndex, steps, submission } = wizard;
+  // PROTOTYPE optional-level
+  const prototypeVariant = usePrototypeVariant();
   const discardDialog = useUnsavedChangesGuard({
     isDirty: wizard.form.formState.isDirty,
     isSaving: submission.isSubmitting,
@@ -65,10 +75,13 @@ export function CreateChoreographyPage({
               Cargando la coreografía…
             </div>
           ) : (
-            <CreateChoreographyStepContent
-              loaderData={loaderData}
-              wizard={wizard}
-            />
+            // PROTOTYPE optional-level
+            <PrototypeNoLevelProvider>
+              <CreateChoreographyStepContent
+                loaderData={loaderData}
+                wizard={wizard}
+              />
+            </PrototypeNoLevelProvider>
           )}
 
           {/* Inside the card, beside the button that raised them. */}
@@ -112,6 +125,14 @@ export function CreateChoreographyPage({
           <CreateChoreographyNextAction wizard={wizard} />
         </PinnedActions>
       </Card>
+
+      {/* PROTOTYPE optional-level */}
+      {prototypeVariant ? (
+        <PrototypeSwitcher
+          current={prototypeVariant}
+          variants={wizardPrototypeVariants}
+        />
+      ) : null}
 
       <DiscardChangesDialog
         {...discardDialog}

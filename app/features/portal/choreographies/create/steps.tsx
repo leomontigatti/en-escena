@@ -11,6 +11,13 @@ import type { CreateChoreographyRouteData } from "@/features/portal/choreographi
 import { StepIntro } from "@/features/portal/choreographies/create/step-intro";
 import { ChoreographyCreationSummary } from "@/features/portal/choreographies/create/summary";
 import type { CreateChoreographyWizard } from "@/features/portal/choreographies/create/use-create-choreography-wizard";
+// PROTOTYPE optional-level
+import {
+  PrototypeLevelStep,
+  prototypeLevelOptions,
+} from "@/features/prototype/nivel-opcional/wizard-variants";
+// PROTOTYPE optional-level
+import { usePrototypeVariant } from "@/features/prototype/nivel-opcional/switcher";
 import {
   isEveryScheduleCapacityOptionFull,
   toScheduleCapacitySelectOptions,
@@ -137,6 +144,8 @@ function CategoryStep({
     resolution.schedule.status === "multiple"
       ? resolution.schedule.options
       : [];
+  // PROTOTYPE optional-level
+  const prototypeVariant = usePrototypeVariant();
 
   return (
     <>
@@ -152,7 +161,14 @@ function CategoryStep({
           {formatCategoryAndGroupTypeSummary(resolution)}
         </span>
       </div>
-      {resolution.experienceLevel.required ? (
+      {/* PROTOTYPE optional-level */}
+      {prototypeVariant ? (
+        <PrototypeLevelStep
+          form={wizard.form}
+          levels={prototypeLevelOptions(resolution)}
+          variant={prototypeVariant}
+        />
+      ) : resolution.experienceLevel.required ? (
         <OptionCardsField
           control={wizard.form.control}
           label="Nivel de experiencia"

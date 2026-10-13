@@ -23,6 +23,13 @@ import {
 } from "@/features/portal/choreographies/create/formatters";
 import type { ActiveProfessor } from "@/features/portal/choreographies/create/shared";
 import { StepIntro } from "@/features/portal/choreographies/create/step-intro";
+// PROTOTYPE optional-level
+import { usePrototypeVariant } from "@/features/prototype/nivel-opcional/switcher";
+// PROTOTYPE optional-level
+import {
+  prototypeLevelOptions,
+  usePrototypeNoLevel,
+} from "@/features/prototype/nivel-opcional/wizard-variants";
 
 /**
  * Every answer with a way back to the step that gave it. The category has none:
@@ -48,6 +55,10 @@ export function ChoreographyCreationSummary({
     values.professorIds.includes(professor.id),
   );
   const isScheduleChosen = resolution.schedule.status === "multiple";
+  // PROTOTYPE optional-level
+  const prototypeVariant = usePrototypeVariant();
+  // PROTOTYPE optional-level
+  const noLevelState = usePrototypeNoLevel();
 
   return (
     <>
@@ -101,7 +112,26 @@ export function ChoreographyCreationSummary({
         >
           {formatCategoryAndGroupTypeSummary(resolution)}
         </SummaryRow>
-        {resolution.experienceLevel.required ? (
+        {/* PROTOTYPE optional-level */}
+        {prototypeVariant ? (
+          <>
+            <SummaryRow
+              label="Nivel de experiencia"
+              onEdit={() => onEdit("category")}
+            >
+              {noLevelState?.noLevel
+                ? "Sin nivel"
+                : (prototypeLevelOptions(resolution).find(
+                    (option) => option.id === values.experienceLevelId,
+                  )?.name ?? "Pendiente")}
+            </SummaryRow>
+            <SummaryRow label="Evaluación">
+              {noLevelState?.noLevel
+                ? "Puntaje único de 0 a 100"
+                : "Planilla por criterios"}
+            </SummaryRow>
+          </>
+        ) : resolution.experienceLevel.required ? (
           <SummaryRow
             label="Nivel de experiencia"
             onEdit={() => onEdit("category")}
