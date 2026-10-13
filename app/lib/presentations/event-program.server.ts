@@ -12,8 +12,11 @@ import {
   submodalities,
 } from "@/db/schema";
 import type { Province } from "@/lib/academies/provinces";
+import {
+  experienceLevelDisplayLabel,
+  experienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
-import { experienceLevelLabel } from "@/lib/events/experience-levels";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
@@ -154,6 +157,7 @@ export async function readEventProgram(
       .select({
         academyName: academies.name,
         academyProvince: academies.province,
+        categoryExperienceLevels: categories.experienceLevels,
         categoryName: categories.name,
         choreographyId: choreographies.id,
         choreographyNumber: choreographies.choreographyNumber,
@@ -224,7 +228,13 @@ export async function readEventProgram(
       // The public program carries no money: a row below its deposit is listed
       // like any other, with no badge and no gap in the numbering.
       isBelowDeposit: false,
-      levelLabel: experienceLevelLabel(row.experienceLevel),
+      levelLabel: experienceLevelDisplayLabel(
+        row.experienceLevel,
+        experienceLevelRequirement({
+          categoryExperienceLevels: row.categoryExperienceLevels,
+          groupType: row.groupType as ChoreographyGroupType,
+        }),
+      ),
       modalityName: row.modalityName,
       name: row.name,
       orderNumber: row.orderNumber,

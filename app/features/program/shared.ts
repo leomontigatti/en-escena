@@ -19,12 +19,12 @@ export type ProgramListRow = {
   groupType: ChoreographyGroupType;
   isBelowDeposit: boolean;
   /**
-   * The level the choreography competes at, as the `Nivel` column reads it.
-   * Only the portal shows it, and it words an empty level by why it is empty
-   * (`Sin asignar`, `Sin nivel`, `No aplica`); the public rows leave an empty
-   * level `null`.
+   * The level the choreography competes at, as the `Nivel` column reads it,
+   * with an empty level worded by why it is empty (`Sin asignar`, `Sin nivel`,
+   * `No aplica`). The portal and the spreadsheet exports show it; the public
+   * page hides it.
    */
-  levelLabel: string | null;
+  levelLabel: string;
   modalityName: string;
   name: string;
   /** `null` for a choreography the administrator has not placed yet. */
