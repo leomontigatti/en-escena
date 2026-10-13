@@ -12,10 +12,17 @@ import {
   submodalities,
   user,
 } from "@/db/schema";
+import {
+  type ExperienceLevelRequirement,
+  experienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { readSheetValuesByScore } from "@/lib/judging/sheet-values.server";
-import { readSubmodalityCriteria } from "@/lib/judging/submodality-criteria.server";
+import {
+  readSubmodalityCriteria,
+  sheetSubjectColumns,
+} from "@/lib/judging/submodality-criteria.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
   awardForAverage,
@@ -57,10 +64,15 @@ export type PresentationScoresView = {
   average: number | null;
   categoryName: string;
   choreographyId: string;
-  /** Empty when the submodality is scored with a single 0-100 value. */
+  /**
+   * Empty when the presentation is scored with a single 0-100 value: its
+   * submodality has no criteria, or it is a `Sin nivel` choreography.
+   */
   criteria: JudgeSheetCriterion[];
   disqualified: boolean;
   experienceLevel: string | null;
+  /** Why an empty `experienceLevel` is empty, for the words a page shows. */
+  experienceLevelRequirement: ExperienceLevelRequirement;
   groupType: ChoreographyGroupType;
   judges: PresentationJudgeScore[];
   award: Award | null;
@@ -82,17 +94,15 @@ export async function readPresentationScores(
 ): Promise<PresentationScoresView | null> {
   const [presentation] = await executor
     .select({
+      ...sheetSubjectColumns,
       academyName: academies.name,
       categoryName: categories.name,
       choreographyId: choreographies.id,
       disqualifiedAt: presentations.disqualifiedAt,
-      experienceLevel: choreographies.experienceLevelId,
-      groupType: choreographies.groupType,
       modalityName: modalities.name,
       name: choreographies.name,
       orderNumber: presentations.orderNumber,
       professionalEvaluation: choreographies.professionalEvaluation,
-      submodalityId: choreographies.submodalityId,
       submodalityName: submodalities.name,
     })
     .from(presentations)
@@ -112,11 +122,7 @@ export async function readPresentationScores(
 
   const [judges, criteria] = await Promise.all([
     readPanel(executor, input),
-    readSubmodalityCriteria(
-      executor,
-      presentation.submodalityId,
-      presentation.experienceLevel,
-    ),
+    readSubmodalityCriteria(executor, presentation),
   ]);
   const disqualified = presentation.disqualifiedAt !== null;
   const average = presentationAverage({ disqualified, scores: judges });
@@ -129,6 +135,7 @@ export async function readPresentationScores(
     criteria,
     disqualified,
     experienceLevel: presentation.experienceLevel,
+    experienceLevelRequirement: experienceLevelRequirement(presentation),
     groupType: presentation.groupType as ChoreographyGroupType,
     judges,
     award: average === null ? null : awardForAverage(average),

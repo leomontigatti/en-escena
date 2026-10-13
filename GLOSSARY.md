@@ -378,7 +378,7 @@ The group of a submodality's `levelCriterion` lines for one `experienceLevel`, a
 _Avoid_: `levelCriterion`, `generalEvaluation`, level-specific criteria
 
 **`scoreSheet`** — ui: "Planilla"
-How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `generalEvaluation` and then the `mandatoryTechnique` of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
+How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `generalEvaluation` and then the `mandatoryTechnique` of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, a modality with no submodalities, and a grupal with `Sin nivel` score with a single value and have no sheet; a choreography whose level is `No aplica` or `Sin asignar` is scored on the `generalEvaluation` alone.
 _Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
 **`award`** — ui: "Premio"
