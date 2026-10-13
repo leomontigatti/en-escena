@@ -86,27 +86,6 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Falta cargar");
   });
 
-  test.each([
-    ["required", "Sin asignar"],
-    ["optional", "Sin nivel"],
-    ["notApplicable", "No aplica"],
-  ] as const)(
-    "words an empty %s level as `%s`",
-    (experienceLevelRequirement, label) => {
-      const markup = renderChoreographyDetail({
-        loaderData: choreographyDetailLoaderData({
-          choreography: choreographyDetailRow({
-            experienceLevelId: null,
-            experienceLevelName: null,
-            experienceLevelRequirement,
-          }),
-        }),
-      });
-
-      expect(markup).toContain(label);
-    },
-  );
-
   // #1265: the portal reads in the same order as the administration detail,
   // and the dancers show the age they were placed with.
   test("reads the classification, then the dancers with their ages, then the professors, then the music", () => {

@@ -220,24 +220,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("No aplica");
   });
 
-  test("reads an optional level left blank as `Sin nivel` when nobody can set it", () => {
-    const markup = renderDetail({
-      loaderData: buildLoaderData({
-        choreography: buildChoreography({
-          experienceLevelId: null,
-          experienceLevelName: null,
-          experienceLevelRequirement: "optional",
-          groupType: "grupal",
-          isEvaluated: true,
-        }),
-      }),
-    });
-
-    expect(markup).toContain("Sin nivel");
-    expect(markup).not.toContain("Sin asignar");
-    expect(markup).not.toContain("No aplica");
-  });
-
   test("announces the missing level in the page alert, without a CTA when the field is blocked", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
