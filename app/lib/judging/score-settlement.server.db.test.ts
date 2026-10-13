@@ -147,7 +147,12 @@ describe("editing a score as administration", () => {
         value: "91.5",
       }),
     ).resolves.toEqual({ ok: true });
-    expect((await readScore(score.id)).value).toBe("91.5");
+    const view = await readPresentationScores({
+      presentationId: presentation.presentationId,
+    });
+    expect(
+      view?.judges.find((judge) => judge.scoreId === score.id),
+    ).toMatchObject({ criteriaValues: {}, value: "91.5" });
   });
 
   test("refuses a score that does not exist, so no judge is given one", async () => {

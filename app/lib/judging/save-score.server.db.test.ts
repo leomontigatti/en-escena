@@ -13,6 +13,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import { setPresentationDisqualified } from "./score-settlement.server";
 import { seedJudgingFixture } from "./judging.test-support";
 import { judgingDate } from "./judging-day";
+import { readPresentationScores } from "./presentation-scores.server";
 import { saveJudgeScore } from "./save-score.server";
 
 installDatabaseTestHooks();
@@ -459,6 +460,19 @@ describe("saving the score of a choreography with no level", () => {
     return { ...open, tecnica };
   }
 
+  /** The judge's score as the administration's scores page reads it. */
+  async function readPanelScore(
+    open: Awaited<ReturnType<typeof seedBlankLevel>>,
+  ) {
+    const view = await readPresentationScores({
+      presentationId: open.presentation.presentationId,
+    });
+
+    return view?.judges.find(
+      (judge) => judge.judgeAssignmentId === open.judge.judgeAssignmentId,
+    );
+  }
+
   test("stores a single value for a `Sin nivel` grupal and refuses a sheet", async () => {
     const open = await seedBlankLevel("grupal");
 
@@ -469,7 +483,10 @@ describe("saving the score of a choreography with no level", () => {
         presentationId: open.presentation.presentationId,
       }),
     ).resolves.toEqual({ ok: false, reason: "invalid-value" });
-    await expect(readScores(open.judge.judgeAssignmentId)).resolves.toEqual([]);
+    expect(await readPanelScore(open)).toMatchObject({
+      scoreId: null,
+      value: null,
+    });
 
     await expect(
       saveJudgeScore({
@@ -478,12 +495,10 @@ describe("saving the score of a choreography with no level", () => {
         value: "82.5",
       }),
     ).resolves.toEqual({ ok: true });
-    expect(await readScores(open.judge.judgeAssignmentId)).toMatchObject([
-      { value: "82.5" },
-    ]);
-    await expect(
-      readCriterionValues(open.judge.judgeAssignmentId),
-    ).resolves.toEqual([]);
+    expect(await readPanelScore(open)).toMatchObject({
+      criteriaValues: {},
+      value: "82.5",
+    });
   });
 
   test("keeps the general criteria for a blank level a trio had to declare", async () => {
@@ -496,9 +511,9 @@ describe("saving the score of a choreography with no level", () => {
         presentationId: open.presentation.presentationId,
       }),
     ).resolves.toEqual({ ok: true });
-    expect(await readCriterionValues(open.judge.judgeAssignmentId)).toEqual([
-      { criterionId: open.tecnica.id, value: "80.0" },
-    ]);
+    expect(await readPanelScore(open)).toMatchObject({
+      criteriaValues: { [open.tecnica.id]: "80.0" },
+    });
   });
 });
 

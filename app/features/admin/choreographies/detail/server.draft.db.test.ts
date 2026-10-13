@@ -53,7 +53,10 @@ import type { GroupType } from "@/lib/events/group-types";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 
-import { readDraftPreview } from "@/features/admin/choreographies/detail/server.test-support";
+import {
+  loadDetail,
+  readDraftPreview,
+} from "@/features/admin/choreographies/detail/server.test-support";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -403,9 +406,13 @@ describe("saving a draft of the choreography detail", () => {
     );
 
     expect(grupalResponse).toMatchObject({ status: "success" });
-    await expect(scenario.readChoreography()).resolves.toMatchObject({
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+    });
+    expect(detail.choreography).toMatchObject({
       categoryId: target.category.id,
       experienceLevelId: null,
+      experienceLevelRequirement: "optional",
       groupType: "grupal",
     });
 

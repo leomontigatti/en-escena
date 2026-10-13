@@ -436,14 +436,20 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2018-05-01" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    await recalculateInTransaction(correctedDancer.id);
-
-    await expectChoreographyState(choreography.id, {
-      categoryId: catalog.olderCategory?.id ?? null,
-      categoryCalculationMode: "group_average",
-      categoryAgeBasis: 13,
-      experienceLevelId: catalog.level.id,
-    });
+    await expect(recalculateInTransaction(correctedDancer.id)).resolves.toEqual(
+      {
+        ok: true,
+        recategorisedChoreographies: [
+          {
+            categoryName: "Grupal con nivel Mayor",
+            choreographyId: choreography.id,
+            experienceLevelCleared: false,
+            name: "Grupal con nivel",
+          },
+        ],
+        scheduleMoves: [],
+      },
+    );
   });
 });
 
