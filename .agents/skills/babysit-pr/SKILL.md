@@ -49,7 +49,8 @@ Then wait, and end your turn. No subagent, no `sleep`:
 On every wake, first bring the local branch level with GitHub:
 `git fetch origin <branch> && git merge --ff-only origin/<branch>`. Then **read the round**:
 `gh pr view <n> --json state,isDraft,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup`,
-the unresolved threads and CodeRabbit's latest review body, both through the commands in
+the unresolved threads, and CodeRabbit's latest review body and latest comment, all through the
+commands in
 [coderabbit-triage.md](coderabbit-triage.md#commands). The first row that holds decides:
 
 | State                                                                                   | Do                               |
