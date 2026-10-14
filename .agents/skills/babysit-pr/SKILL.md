@@ -11,8 +11,9 @@ description: "See an open PR through CI, and CodeRabbit's review when it gets on
 # Babysit a PR
 
 You own one PR from its last push to **ready to merge**: checks green, the in-session review
-(step 5 of the `implement` skill) run, every finding fixed or answered. The merge is the user's, or the launching thread's when
-the user hands it over ([workflows.md](../../../docs/agents/workflows.md#branches-worktrees-and-t3-code-threads)).
+(step 5 of the `implement` skill) run, every finding fixed or answered. The merge is the user's,
+or the launching thread's when the user hands it over
+([workflows.md](../../../docs/agents/workflows.md#branches-worktrees-and-t3-code-threads)).
 
 CodeRabbit is optional (see "Babysitting a PR" in
 [pull-requests.md](../../../docs/agents/pull-requests.md)). Ask it for a review only when the PR is
