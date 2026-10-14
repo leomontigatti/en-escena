@@ -13,9 +13,9 @@ ADR-0013 records.
   is default-deny; see [DNS and email](./dns-and-email.md) for the Cloudflare-only
   `443` rules. `ufw` is **inactive** on the host, so that filtering is
   Hostinger's network firewall (group `default`), configured in hPanel —
-  reading the host's own rules will tell you nothing. SSH is accepted only from
-  the control plane, `80` from anywhere, `443` only from Cloudflare's IPv4
-  ranges, and there is no UDP rule at all. The operator's SSH comes in over
+  reading the host's own rules will tell you nothing. `80` is accepted from
+  anywhere and `443` only from Cloudflare's IPv4 ranges; there is no `22` rule
+  and no UDP rule at all. SSH, the operator's and Coolify's, comes in over
   Tailscale: see [Operator access](#operator-access).
 - **Platform**: Coolify, but `rylai` runs only the agent side of it:
   `coolify-sentinel` and the `coolify-proxy` Traefik container. The dashboard is
@@ -117,35 +117,22 @@ which stays on the Docker network and never meets the firewall.
 
 ### Operator access
 
-Both VPSs are nodes of the operator's Tailscale tailnet (since 2026-10-04), and
-that is the only way a person gets a shell on either: no hPanel rule admits an
-operator IP on `22`. Tailscale reaches the hosts through connections they open
-outwards, so it needs no inbound rule, and the path is direct rather than
-relayed even with no UDP rule.
+Both VPSs are tagged nodes of the operator's Tailscale tailnet, and that is the
+only way anyone, Coolify included, gets a shell on either: neither firewall has
+a `22` rule. The access model, the tailnet policy and each host's state live in
+the operator's private `infra` repository; what En Escena work needs is below.
 
-| Node      | Tailnet address  |
-| --------- | ---------------- |
-| `rylai`   | `100.76.147.20`  |
-| `coolify` | `100.107.78.122` |
-
-The `rylai` and `coolify` SSH aliases this repo's scripts and runbooks use point
-at those addresses, in the operator's `~/.ssh/config`. Authentication is still
-the SSH key: Tailscale SSH is off, so a tailnet login alone opens no shell.
-
-- **Coolify does not use the tailnet.** The control plane deploys to `rylai`
-  over the public address, through the one remaining `22` rule on `rylai`'s
-  firewall. Removing that rule breaks deploys, not operator access.
+- **`ssh rylai` is Tailscale SSH.** The tailnet identity is the credential, so
+  any admin device on the tailnet gets in with `ssh root@rylai` (or
+  `root@coolify`), no key needed; the `rylai` alias the scripts use only sets
+  `User root`.
+- **Coolify deploys over the tailnet.** Its server for `rylai` is the tailnet
+  address, and the policy admits `tag:coolify` as root. A policy change that
+  drops that rule breaks deploys.
 - **Both hosts run with `--accept-dns=false`.** Tailscale leaves their resolver
-  alone, so containers resolve as before; the hosts do not resolve tailnet
-  names, and have no need to.
-- **Key expiry is disabled on the two servers**, in the Tailscale admin console.
-  A server added later needs the same, or it leaves the tailnet when its key
-  expires.
-- **When Tailscale is unavailable**, the way in is hPanel, which goes through
-  neither the tailnet nor the firewall: add the current IP as an SSH rule on the
-  host's group (`default` for `rylai`, `coolify-server` for the control plane),
-  sync, connect to the public address, and remove the rule afterwards. hPanel's
-  browser terminal works with no rule at all.
+  alone, so containers resolve as before.
+- **When Tailscale is unavailable**, the way in is hPanel's browser terminal,
+  which goes through neither the tailnet nor the firewall.
 
 ### Proxy
 
@@ -280,7 +267,16 @@ which Coolify reports as `TaskFailed` after its retries.
 - Database name: `enescena`. Every schema lives in it, including `public` and
   `drizzle`.
 - `is_public: false`, with **no published port**: there is no route from a
-  laptop. Reach it with `ssh rylai` and `docker exec`, not a tunnel.
+  laptop. Reach it with `ssh rylai` and `docker exec`, not a tunnel. Read it as
+  the `readonly` role, which can neither write nor be reached over the network:
+
+  ```sh
+  ssh rylai 'docker exec -i c24udczenueosjssymgxuhgf psql -U readonly -d enescena'
+  ```
+
+  The superuser is `postgres`; a write to production is a decision, not a
+  shortcut.
+
 - No connection pooling: Coolify ships no native pgBouncer, and one gets mounted
   separately only if peak load demands it.
 - Backups are configured on the Postgres resource itself, not in this repo. See
