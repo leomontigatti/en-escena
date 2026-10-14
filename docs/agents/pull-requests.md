@@ -48,7 +48,8 @@ change to motion or interaction carries a short GIF instead.
 Seeing a PR through CI and review is the `babysit-pr` skill: the session that
 opened the PR has T3 watch it (`watch_pull_request`; outside T3, a background
 `gh pr checks --watch`), wakes when a round needs judgement, fixes the findings that hold, answers the rest with the
-reason, and stops at ready to merge. The merge stays the user's.
+reason, and stops at ready to merge. The merge stays the user's, or the launching
+thread's when the user hands it over ([workflows.md](./workflows.md#branches-worktrees-and-t3-code-threads)).
 In a stack, babysit once the whole stack is open: a babysit per layer spends
 checks on commits the next layer's push restarts.
 
