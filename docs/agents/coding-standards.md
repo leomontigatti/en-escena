@@ -423,7 +423,7 @@ a design call, not a mechanical rename; tracked in #526.
 are a separate case, and the only standing one: they name the admin shell itself,
 not a domain symbol on the admin surface, so `Admin` is part of the component's
 name rather than a surface prefix. The same reading covers the auth guards
-(`requireAdminUser`), the test fixtures that name the acting role
+(`requireAdminPanelWriter`), the test fixtures that name the acting role
 (`createSignedInAdminRequest`) and `getMissingItemAdminPath`, which names an admin
 URL. `app/lib/shared/surface-prefix.test.ts` enforces the rule with
 `app/components/admin/` as its one declared exception.

@@ -5,14 +5,14 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { academies, user } from "@/db/schema";
-import { createAccessUser } from "@/lib/auth/access-auth.test-support";
 import {
-  getLandingPathForSignedInUser,
   requireAdminPanelReader,
-  requireAdminPanelUser,
+  requireAdminPanelWriter,
   requireJudgePanelUser,
-} from "@/lib/auth/internal-navigation.server";
-import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+} from "@/lib/auth/internal-access.server";
+import { createAccessUser } from "@/lib/auth/access-auth.test-support";
+import { getLandingPathForSignedInUser } from "@/lib/auth/internal-navigation.server";
+import type { UserRole } from "@/lib/auth/user-role.shared";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {
   action as signInAction,
@@ -58,12 +58,12 @@ describe("internal navigation", () => {
       role: "judge",
     });
 
-    await expect(requireAdminPanelUser(adminRequest)).resolves.toMatchObject({
+    await expect(requireAdminPanelWriter(adminRequest)).resolves.toMatchObject({
       role: "admin",
     });
 
-    await expectThrownResponse(requireAdminPanelUser(auditorRequest), 403);
-    await expectThrownResponse(requireAdminPanelUser(judgeRequest), 403);
+    await expectThrownResponse(requireAdminPanelWriter(auditorRequest), 403);
+    await expectThrownResponse(requireAdminPanelWriter(judgeRequest), 403);
   });
 
   test("redirects administrators to the admin panel after login", async () => {
@@ -395,7 +395,7 @@ async function createSignedInNavigationRequest(
 
 async function createCredentialUser(input: {
   email: string;
-  role: "academy" | InternalUserRole;
+  role: UserRole;
   internalUsername?: string;
 }) {
   const signUpResult = await createAccessUser({

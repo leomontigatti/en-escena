@@ -11,8 +11,9 @@ vi.mock("@/lib/admin/users/internal-user-create.server", () => ({
   createInternalUser: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/internal-navigation.server", () => ({
-  requireAdminPanelUser: vi.fn(),
+vi.mock("@/lib/auth/internal-access.server", () => ({
+  requireAdminPanelReader: vi.fn(),
+  requireAdminPanelWriter: vi.fn(),
 }));
 
 import { AdminShellRouteView } from "@/routes/administracion";

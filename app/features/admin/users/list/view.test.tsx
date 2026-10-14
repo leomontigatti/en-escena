@@ -8,7 +8,7 @@ import { renderInDataRouter } from "@/lib/test-support/data-router";
 describe("InternalUsersListRouteView", () => {
   test("keeps filtered empty results inside the users table", () => {
     const markup = renderRoute({
-      canManage: true,
+      canWrite: true,
       filters: {
         page: 1,
         query: "Sin resultados",
@@ -84,14 +84,14 @@ describe("InternalUsersListRouteView", () => {
   });
 
   test("links the header action to the create page for a managing user", () => {
-    const markup = renderRoute({ canManage: true });
+    const markup = renderRoute({ canWrite: true });
 
     expect(markup).toContain('href="/administracion/usuarios/nuevo"');
     expect(markup).toContain("Nuevo usuario");
   });
 
   test("hides the header action when the user cannot manage users", () => {
-    const markup = renderRoute({ canManage: false });
+    const markup = renderRoute({ canWrite: false });
 
     expect(markup).not.toContain('href="/administracion/usuarios/nuevo"');
     expect(markup).not.toContain("Nuevo usuario");
@@ -108,7 +108,7 @@ function renderRoute(
       "/administracion/usuarios",
       createElement(InternalUsersListRouteView, {
         loaderData: {
-          canManage: false,
+          canWrite: false,
           filters: {
             page: 1,
             query: "",

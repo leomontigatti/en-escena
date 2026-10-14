@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
-import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+import type { InternalUserRole } from "@/lib/auth/user-role.shared";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 

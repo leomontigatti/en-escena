@@ -1,18 +1,16 @@
-import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+import type { UserRole } from "@/lib/auth/user-role.shared";
 import type { UserAccessState } from "@/lib/auth/user-access-state.shared";
 import {
   buildCanonicalListSearch,
   type ListQuerySpec,
 } from "@/lib/list-query/list-query";
 
-export type UserListRole = "academy" | InternalUserRole;
-
 export type UserListType = "academy" | "internal";
 
 export type UserListFilters = {
   page: number;
   query: string;
-  role: UserListRole | "all";
+  role: UserRole | "all";
   /** `null` is no state chosen, and the list then shows the active users. */
   state: UserAccessState | null;
   type: UserListType | "all";
@@ -22,7 +20,7 @@ export type UserListItem = {
   id: string;
   academyName: string | null;
   identifier: string;
-  mainRole: UserListRole;
+  mainRole: UserRole;
   name: string;
   state: UserAccessState;
   userType: UserListType;

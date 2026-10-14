@@ -114,7 +114,7 @@ export function DancerDetailRouteView({
       requireSelectedEvent={false}
       headerAction={
         <DancerDetailHeaderActions
-          canEdit={loaderData.canEdit}
+          canWrite={loaderData.canWrite}
           canVerifyIdentity={viewState.canVerifyIdentity}
           onSelectIntent={setDialogIntent}
           onSelectMerge={() => mergeDialog.onOpenChange(true)}
@@ -124,7 +124,7 @@ export function DancerDetailRouteView({
     >
       <DancerDetailAlerts
         active={dancer.active}
-        canEdit={loaderData.canEdit}
+        canWrite={loaderData.canWrite}
         canVerifyIdentity={viewState.canVerifyIdentity}
         verificationAlert={viewState.verificationAlert}
         verificationAlertTitle={viewState.verificationAlertTitle}
@@ -137,7 +137,7 @@ export function DancerDetailRouteView({
 
       <DancerDetailForm
         backToList={loaderData.backToList}
-        canEdit={loaderData.canEdit}
+        canWrite={loaderData.canWrite}
         dancer={dancer}
         documentImageUrls={loaderData.documentImageUrls}
         editForm={editForm}
@@ -287,7 +287,7 @@ function useDancerSave({
   // The whole form, since what the save would clear depends on what changed.
   const watchedValues = editForm.form.watch();
   const viewState = buildDancerDetailViewState({
-    canEdit: loaderData.canEdit,
+    canWrite: loaderData.canWrite,
     dancer,
     isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
     watchedValues,

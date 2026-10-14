@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
-import { INTERNAL_USER_ROLES } from "@/lib/auth/internal-user-roles";
+import { INTERNAL_USER_ROLES, isUserRole } from "@/lib/auth/user-role.shared";
 import { userAccessStateCondition } from "@/lib/auth/user-access-state.server";
 import {
   readUserAccessStateFilter,
@@ -134,15 +134,7 @@ function readStateFilter(searchParams: URLSearchParams) {
 }
 
 function readRoleFilter(value: string | null): UserListFilters["role"] {
-  switch (value) {
-    case "academy":
-    case "admin":
-    case "auditor":
-    case "judge":
-      return value;
-    default:
-      return "all";
-  }
+  return value !== null && isUserRole(value) ? value : "all";
 }
 
 function readTypeFilter(value: string | null): UserListFilters["type"] {

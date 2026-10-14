@@ -15,8 +15,8 @@ import {
   buildInternalAccount,
   type InternalAccount,
 } from "@/lib/auth/internal-account";
-import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
-import { requireAdminPanelReader } from "@/lib/auth/internal-navigation.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
+import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
 
 import type { Route } from "./+types/administracion";
 

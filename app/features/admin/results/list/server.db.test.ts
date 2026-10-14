@@ -258,7 +258,7 @@ describe("the results list route", () => {
     );
     await expect(
       loadTheList("admin.resultados.puede@example.com"),
-    ).resolves.toMatchObject({ canPublish: true });
+    ).resolves.toMatchObject({ canWrite: true });
   });
 
   test("turns an academy away from the list", async () => {

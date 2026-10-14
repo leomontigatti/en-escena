@@ -13,7 +13,7 @@ import {
   schedules,
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
@@ -108,7 +108,7 @@ export async function loadMusicDownload(
   request: Request,
   deps: { baseDir?: string } = {},
 ): Promise<Response> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
   const { selectedEventId } = await loadEventContext(request);
   const day = readRequestedUrl(request).searchParams.get(musicDownloadDayParam);
 

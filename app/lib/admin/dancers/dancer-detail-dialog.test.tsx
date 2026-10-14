@@ -170,7 +170,7 @@ describe("DancerDetailRouteView dialogs", () => {
       renderInDataRouter(
         "/administracion/bailarines/dancer-1",
         <DancerDetailRouteView
-          loaderData={{ ...createLoaderData(), canEdit: false }}
+          loaderData={{ ...createLoaderData(), canWrite: false }}
         />,
       ),
     );
@@ -267,7 +267,7 @@ function createLoaderData({
   return {
     activeEventStartDate: "2026-09-25",
     backToList: "/administracion/bailarines",
-    canEdit: true,
+    canWrite: true,
     dancer: {
       academy: {
         contactName: "Contacto Test",

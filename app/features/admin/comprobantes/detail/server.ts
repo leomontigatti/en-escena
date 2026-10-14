@@ -1,9 +1,6 @@
 import { redirect } from "react-router";
 
-import {
-  requireAdminUser,
-  requireInternalUser,
-} from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readComprobanteAnchorContext } from "@/lib/comprobantes/anchor-context.server";
 import type { ComprobanteAnchorReading } from "@/lib/comprobantes/anchor-reading";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
@@ -65,7 +62,7 @@ export async function loadComprobanteDetail(
   request: Request,
   comprobanteId: string,
 ): Promise<ComprobanteDetailLoaderData> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
 
   const context = await readComprobanteAnchorContext(comprobanteId);
 
@@ -110,7 +107,7 @@ export async function handleComprobanteDetailAction(input: {
   // production they are resolved from the environment (cert+key, sales point).
   resolveEmissionDeps?: () => FacturaCEmissionDeps;
 }): Promise<ComprobanteDetailActionData | never> {
-  await requireAdminUser(input.request);
+  await requireAdminPanelWriter(input.request);
 
   const formData = await input.request.formData();
   const intent = String(formData.get("intent") ?? "");

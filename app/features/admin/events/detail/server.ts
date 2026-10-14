@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import {
   getEventFormErrorMessage,
   parseEventFormValues,
@@ -51,7 +51,7 @@ export async function loadEventDetail(
   request: Request,
   eventId: string | undefined,
 ) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 
   if (!eventId) {
     throw new Response("No encontramos ese evento.", { status: 404 });
@@ -80,7 +80,7 @@ export async function updateAdministrativeEvent(
   request: Request,
   eventId: string | undefined,
 ) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 
   if (!eventId) {
     throw new Response("No encontramos ese evento.", { status: 404 });

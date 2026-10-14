@@ -60,7 +60,7 @@ describe("`/administracion/usuarios` route", () => {
       .where(eq(user.id, suspendedUser.userId));
 
     await expect(loader(routeArgs(admin.request))).resolves.toMatchObject({
-      canManage: true,
+      canWrite: true,
     });
     // Users are not reviewed for the auditor yet (PRD #1448).
     await expectThrownResponse(loader(routeArgs(auditor.request)), 403);

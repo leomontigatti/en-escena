@@ -17,9 +17,10 @@ import {
 import { rosterMergeIntents } from "@/lib/roster/roster-merge.shared";
 import { findActiveEventStartDateOnly } from "@/lib/events/active-event.server";
 import {
-  requireAdminUser,
-  requireInternalUser,
+  requireAdminPanelReader,
+  requireAdminPanelWriter,
 } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 import {
   createDefaultDancerDocumentStorage,
@@ -40,7 +41,7 @@ export async function loadDancerDetail(input: {
   request: Request;
   params: { dancerId?: string };
 }) {
-  const user = await requireInternalUser(input.request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(input.request);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
@@ -61,7 +62,7 @@ export async function loadDancerDetail(input: {
 
   return {
     activeEventStartDate: await findActiveEventStartDateOnly(),
-    canEdit: user.role === "admin",
+    canWrite: canWriteInAdminPanel(user.role),
     selectedEventId: eventContext.selectedEventId,
     dancer,
     documentImageUrls: await loadDancerDocumentImageUrls({
@@ -74,10 +75,9 @@ export async function loadDancerDetail(input: {
       kind: "dancer",
       personId: dancerId,
     }),
-    merge:
-      user.role === "admin"
-        ? await loadRosterMergeOptions({ kind: "dancer", personId: dancerId })
-        : null,
+    merge: canWriteInAdminPanel(user.role)
+      ? await loadRosterMergeOptions({ kind: "dancer", personId: dancerId })
+      : null,
   };
 }
 
@@ -85,7 +85,7 @@ export async function handleDancerDetailAction(input: {
   request: Request;
   params: { dancerId?: string };
 }) {
-  await requireAdminUser(input.request);
+  await requireAdminPanelWriter(input.request);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {

@@ -5,14 +5,14 @@ import {
   listDancers,
   readDancerFilters,
 } from "@/lib/admin/dancers/dancers.server";
-import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
+import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
 import { toDancerAppliedListQuery } from "@/lib/admin/dancers/dancers.shared";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 export async function loadDancersList(request: Request) {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(request);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {

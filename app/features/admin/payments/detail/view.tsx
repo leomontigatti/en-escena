@@ -142,7 +142,7 @@ export function PaymentDetailRouteView({
         title={getPaymentDisplayName(payment)}
         description="Consultá y editá los datos registrados del pago."
         headerAction={
-          loaderData.canDelete ? (
+          loaderData.canWrite ? (
             <ResourceActionsMenu>
               <DropdownMenuItem
                 variant="destructive"
@@ -156,7 +156,7 @@ export function PaymentDetailRouteView({
       >
         <div className="flex flex-1 flex-col gap-6">
           <AlertStack>
-            {loaderData.canEdit && loaderData.allocatedAmount > 0 ? (
+            {loaderData.canWrite && loaderData.allocatedAmount > 0 ? (
               <Alert variant="info">
                 <Info aria-hidden="true" />
                 <AlertTitle>Academia bloqueada</AlertTitle>
@@ -188,7 +188,7 @@ export function PaymentDetailRouteView({
         </div>
       </AdminResourceLayout>
 
-      {loaderData.canDelete ? (
+      {loaderData.canWrite ? (
         <DeleteDialog
           description={
             loaderData.affectedUnits.length > 0
@@ -298,7 +298,7 @@ function PaymentDetailForm({
   actionData?: PaymentDetailActionData;
   loaderData: LoaderData;
 }) {
-  if (loaderData.canEdit) {
+  if (loaderData.canWrite) {
     return (
       <EditablePaymentDetailForm
         actionData={actionData}

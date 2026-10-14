@@ -76,7 +76,7 @@ describe("PresentationsListView", () => {
   });
 
   test("keeps the selection column out of an auditor's list", () => {
-    const markup = renderView({ canOrder: false });
+    const markup = renderView({ canWrite: false });
 
     expect(markup).not.toContain('aria-label="Seleccionar fila"');
   });
@@ -123,7 +123,7 @@ describe("PresentationsListView", () => {
   });
 
   test("keeps the actions menu out of an auditor's header", () => {
-    const markup = renderView({ canOrder: false });
+    const markup = renderView({ canWrite: false });
 
     expect(markup).not.toContain("Ordenar automáticamente");
   });
@@ -160,7 +160,7 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
   const loaderData: PresentationListResult = {
     assignableJudges: [],
     assignedJudges: [],
-    canOrder: true,
+    canWrite: true,
     dayRowCount: 1,
     days: ["2026-05-01"],
     filters: {

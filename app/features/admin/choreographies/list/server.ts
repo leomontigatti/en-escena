@@ -11,8 +11,8 @@ import {
   submodalities,
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
+import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
 import {
@@ -246,7 +246,7 @@ export async function loadChoreographies(input: {
 }
 
 export async function loadChoreographyListRouteData(request: Request) {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(request);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {

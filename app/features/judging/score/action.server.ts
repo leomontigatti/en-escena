@@ -3,7 +3,7 @@ import {
   handleFinalistPickAction,
 } from "@/features/judging/finalist-pick/action.server";
 import { saveFinalistPickIntent } from "@/features/judging/finalist-pick/shared";
-import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireJudgePanelUser } from "@/lib/auth/internal-access.server";
 import {
   type FeedbackAudioSubmission,
   saveJudgeScore,

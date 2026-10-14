@@ -3,7 +3,8 @@ import { data, redirect } from "react-router";
 
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { readPresentationEvaluationStatuses } from "@/lib/judging/evaluation-status.server";
 import { readPresentationResults } from "@/lib/judging/presentation-results.server";
 import { publishedResultsMessage } from "@/lib/judging/results-copy";
@@ -52,7 +53,7 @@ const resultsListSpec: ListQuerySpec<ResultsOrder["columnId"]> = {
 };
 
 export async function loadResultsListRouteData(request: Request) {
-  const user = await requireInternalUser(request, ["admin"]);
+  const user = await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
@@ -60,7 +61,7 @@ export async function loadResultsListRouteData(request: Request) {
   }
 
   const result = await loadResultsList({
-    canPublish: user.role === "admin",
+    canWrite: canWriteInAdminPanel(user.role),
     filters: readResultsFilters(readRequestedUrl(request).searchParams),
     selectedEventId: eventContext.selectedEventId,
   });
@@ -79,13 +80,13 @@ export async function loadResultsListRouteData(request: Request) {
 }
 
 async function loadResultsList(input: {
-  canPublish: boolean;
+  canWrite: boolean;
   filters: ResultsListFilters;
   selectedEventId: string | null;
 }): Promise<ResultsListResult> {
   if (input.selectedEventId === null) {
     return {
-      canPublish: input.canPublish,
+      canWrite: input.canWrite,
       days: [],
       filters: input.filters,
       hasAnyRow: false,
@@ -165,7 +166,7 @@ async function loadResultsList(input: {
   });
 
   return {
-    canPublish: input.canPublish,
+    canWrite: input.canWrite,
     days,
     filters: { ...filters, page },
     hasAnyRow: items.length > 0,
@@ -193,7 +194,7 @@ async function loadResultsList(input: {
 export async function handleResultsListAction(
   request: Request,
 ): Promise<ResultsListActionData | ReturnType<typeof data>> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
   const formData = await request.formData();
   const intent = formData.get("intent");

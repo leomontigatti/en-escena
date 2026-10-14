@@ -232,7 +232,7 @@ function usePresentationMoving(loaderData: PresentationListResult) {
   const isSortedByNumberAscending =
     loaderData.filters.order.columnId === "orden" &&
     loaderData.filters.order.direction === "asc";
-  const canMove = loaderData.canOrder && loaderData.hasPresentations;
+  const canMove = loaderData.canWrite && loaderData.hasPresentations;
 
   const moving: PresentationMoving = {
     canDrag: canMove && isSortedByNumberAscending,
@@ -416,10 +416,10 @@ export function PresentationsListView({
       headerAction={
         <PresentationListActions
           canDownloadMusic={
-            loaderData.canOrder && loaderData.musicDownloadDays.length > 0
+            loaderData.canWrite && loaderData.musicDownloadDays.length > 0
           }
           canExportProgram={loaderData.programExportDays.length > 0}
-          canOrderRows={loaderData.canOrder && loaderData.hasAnyRow}
+          canOrderRows={loaderData.canWrite && loaderData.hasAnyRow}
           hasSelection={selectedRows.length > 0}
           onDownloadMusic={() => setOutputDialog("musicDownload")}
           onExportProgram={() => setOutputDialog("programExport")}
@@ -453,7 +453,7 @@ export function PresentationsListView({
                 }}
                 getRowKey={(row) => row.id}
                 layout="fit"
-                selectableRows={loaderData.canOrder}
+                selectableRows={loaderData.canWrite}
                 // Only a numbered row can carry a judge: there is nothing to
                 // hang the assignment off until the choreography has a
                 // presentation.
@@ -486,7 +486,7 @@ export function PresentationsListView({
           description="Una coreografía entra en esta lista cuando se inscribe en el evento activo. Cuando haya alguna, vas a poder ordenarlas acá."
         />
       )}
-      {loaderData.canOrder && isOrderingDialogOpen ? (
+      {loaderData.canWrite && isOrderingDialogOpen ? (
         <AutomaticOrderingDialogs
           days={loaderData.days}
           frozenDays={loaderData.frozenDays}
@@ -498,7 +498,7 @@ export function PresentationsListView({
         loaderData={loaderData}
         onClose={() => setOutputDialog(null)}
       />
-      {loaderData.canOrder && isJudgeDialogOpen ? (
+      {loaderData.canWrite && isJudgeDialogOpen ? (
         <JudgeEditDialog
           assignableJudges={loaderData.assignableJudges}
           assignedJudges={loaderData.assignedJudges}

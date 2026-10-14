@@ -1,6 +1,6 @@
 import { buildInternalAccount } from "@/lib/auth/internal-account";
 import type { InternalAccount } from "@/lib/auth/internal-account";
-import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireJudgePanelUser } from "@/lib/auth/internal-access.server";
 import {
   readJudgeFinalistPicks,
   type JudgeFinalistPickRow,

@@ -422,7 +422,7 @@ async function chooseMenuItem(label: string) {
 function buildLoaderData(user: Partial<DetailUser> = {}): UserDetailLoaderData {
   return {
     backToList: "/administracion/usuarios",
-    canManage: true,
+    canWrite: true,
     user: {
       academyId: null,
       academyName: null,
