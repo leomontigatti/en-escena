@@ -24,7 +24,7 @@ deliberate exception the user rules on. The one ruling already given is a spec t
 exception in so many words: decline only by quoting that line of the PRD or issue. A comment in
 the code is the implementer's claim, not the ruling; it points at where to look.
 
-From CodeRabbit's third pass on a PR (`coderabbitPasses` ≥ 3), lean toward **decline** for a
+From CodeRabbit's third pass on a PR (its third review with a body), lean toward **decline** for a
 finding that matches a pattern below: code churned to quiet a bot is a cost, not a fix. The
 always-ask list still wins.
 
@@ -65,7 +65,23 @@ findings. Format:
 
 ## Commands
 
-The thread ids come from the watcher's `threads[].id`.
+Reading the round: the unresolved threads with their ids, then CodeRabbit's latest review with
+the time it was posted. The review's body findings sit in its "Prompt to fix review comments"
+block, outside the "Inline comments" section, which repeats the threads.
+
+```bash
+gh api graphql -f query='query($owner:String!,$repo:String!,$n:Int!){
+  repository(owner:$owner,name:$repo){ pullRequest(number:$n){
+    reviewThreads(first:100){ nodes{ id isResolved isOutdated path line
+      comments(first:20){ nodes{ author{login} body } } } } } } }' \
+  -F owner=leomontigatti -F repo=en-escena -F n=<PR> \
+  --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)'
+
+gh pr view <PR> --json reviews \
+  --jq '[.reviews[] | select((.author.login | startswith("coderabbitai")) and .body != "")] | last | {submittedAt, body}'
+```
+
+Answering it:
 
 ```bash
 gh api graphql -f query='mutation($id:ID!,$body:String!){

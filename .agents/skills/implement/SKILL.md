@@ -128,6 +128,7 @@ step 4 evidence when step 4 produced any, and link it to the thread. An issue is
 here, so a run that starts from one ends in the PR that closes it unless the user says
 otherwise. Done when `gh pr view` shows it open and it is linked.
 
-Then call the Skill tool with "babysit-pr": this session judges the review rounds, and a background
-`pnpm pr:watch --loop` does the waiting, so the session wakes only when a round needs it. Stop only
+Then call the Skill tool with "babysit-pr": this session judges the review rounds, and T3's `watch_pull_request`
+(or, outside T3, a background `gh pr checks --watch`) does the waiting, so the session wakes only
+when a round needs it. Stop only
 at the skill's report.
