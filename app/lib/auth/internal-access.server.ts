@@ -148,7 +148,7 @@ export async function requireIndividualUser(request: Request) {
   const appUser = await requireSignedInUser(request);
 
   if (!canEnterIndividualArea(appUser.role)) {
-    throwForbidden("Esta sección es solo para cuentas de Particular.");
+    throwForbidden("Esta sección es solo para cuentas de particular.");
   }
 
   const [individual] = await db

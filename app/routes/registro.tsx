@@ -112,7 +112,7 @@ export default function RegistroRoute() {
       <AccessHeader
         eyebrow="Registro"
         title="Creá tu cuenta"
-        description="Para una academia o para vos como Particular. Ingresá tu correo y definí una contraseña: si el correo puede registrarse, te vamos a enviar un enlace para confirmarlo y elegir el tipo de cuenta. Cada correo es una sola cuenta."
+        description="Para una academia o para vos como particular. Ingresá tu correo y definí una contraseña: si el correo puede registrarse, te vamos a enviar un enlace para confirmarlo y elegir el tipo de cuenta. Cada correo es una sola cuenta."
       />
 
       <Form

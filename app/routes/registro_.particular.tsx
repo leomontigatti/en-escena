@@ -8,7 +8,7 @@ import { recoverableClientAction } from "@/lib/shared/recoverable-client-action"
 import type { Route } from "./+types/registro_.particular";
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Completar cuenta de Particular | En Escena" },
+  { title: "Completar cuenta de particular | En Escena" },
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
