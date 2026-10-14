@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
+import {
+  rosterPersonKinds,
+  rosterPersonNoun,
+  type RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 import {
   seminarPricesMissingMessage,
   seminarStartedMessage,
@@ -62,27 +66,19 @@ export function parsePortalSeminarPersonValue(value: string) {
 }
 
 /**
- * The heading of each section of the picker, in the order the sections are
- * shown. Plural because it titles a group rather than qualifying one person:
- * the kind is said once, above the names, instead of being repeated as a
- * suffix on every option.
- */
-const portalSeminarPersonGroupLabels: Record<RosterPersonKind, string> = {
-  dancer: "Bailarines",
-  professor: "Profesores",
-};
-
-/**
  * The picker's sections, in the order they are shown, with the empty ones
  * dropped: an academy without professors must not see a heading over nothing.
- * Order inside a section is the loader's, which is already by name.
+ * Each heading is plural because it titles a group rather than qualifying one
+ * person: the kind is said once, above the names, instead of being repeated as
+ * a suffix on every option. Order inside a section is the loader's, which is
+ * already by name.
  */
 export function toPortalSeminarPersonGroups(
   people: PortalSeminarPersonOption[],
 ) {
-  return Object.entries(portalSeminarPersonGroupLabels)
-    .map(([kind, label]) => ({
-      label,
+  return rosterPersonKinds
+    .map((kind) => ({
+      label: rosterPersonNoun(kind, "pluralCapitalized"),
       options: people
         .filter((person) => person.kind === kind)
         .map((person) => ({

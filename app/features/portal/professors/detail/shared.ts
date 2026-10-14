@@ -22,7 +22,6 @@ import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
 export const updateProfessorIntent = "update-professor";
 export const archiveProfessorIntent = "archive-professor";
 export const reactivateProfessorIntent = "reactivate-professor";
-export const portalProfessorNotFoundMessage = "No encontramos ese Profesor.";
 export const professorDetailFormId = "portal-profesor-form";
 
 export const professorSchema = z

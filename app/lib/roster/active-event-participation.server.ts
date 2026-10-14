@@ -13,7 +13,8 @@ import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 
-import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
+import { seminarInscriptionPersonColumn } from "@/lib/roster/roster-person-kind.server";
+import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
 
 /**
  * Whether a roster person —of either kind— holds a live commitment in the
@@ -121,17 +122,13 @@ async function hasSeminarInscription(
   eventId: string,
   person: { kind: RosterPersonKind; personId: string },
 ) {
-  const personColumn =
-    person.kind === "dancer"
-      ? seminarInscriptions.dancerId
-      : seminarInscriptions.professorId;
   const [inscription] = await db
     .select({ id: seminarInscriptions.id })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
     .where(
       and(
-        eq(personColumn, person.personId),
+        eq(seminarInscriptionPersonColumn(person.kind), person.personId),
         eq(seminars.eventId, eventId),
         activeSeminarInscription(),
       ),

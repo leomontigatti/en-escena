@@ -14,7 +14,8 @@ import type {
   RosterChoreography,
   RosterSeminarInscription,
 } from "@/lib/roster/inscriptions";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
+import { seminarInscriptionPersonColumn } from "@/lib/roster/roster-person-kind.server";
+import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
 import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
 
 /**
@@ -71,10 +72,6 @@ export async function findRosterSeminarInscriptions(input: {
     return [];
   }
 
-  const personColumn =
-    input.person.kind === "dancer"
-      ? seminarInscriptions.dancerId
-      : seminarInscriptions.professorId;
   const rows = await db
     .select({
       dancerId: seminarInscriptions.dancerId,
@@ -95,7 +92,7 @@ export async function findRosterSeminarInscriptions(input: {
     .innerJoin(events, eq(seminars.eventId, events.id))
     .where(
       and(
-        eq(personColumn, input.person.id),
+        eq(seminarInscriptionPersonColumn(input.person.kind), input.person.id),
         eq(seminars.eventId, input.selectedEventId),
       ),
     )

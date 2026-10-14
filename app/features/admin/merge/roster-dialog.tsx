@@ -2,12 +2,14 @@ import { MergeDialog, MergeSummary } from "@/features/admin/merge/dialog";
 import {
   describeRosterMerge,
   formatRosterMergeCandidateLabel,
-  getRosterMergeKindCopy,
   rosterMergeIntents,
   type RosterMergeCandidate,
   type RosterMergeEventInscriptions,
 } from "@/lib/roster/roster-merge.shared";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
+import {
+  rosterPersonNoun,
+  type RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 
 /**
  * `Fusionar` on a dancer or a professor detail: the person on screen is the
@@ -43,7 +45,7 @@ export function RosterMergeDialog({
   }
 
   const { candidates, inscriptionsByEvent } = merge;
-  const copy = getRosterMergeKindCopy(kind);
+  const noun = rosterPersonNoun(kind, "singular");
   const name = `${person.firstName} ${person.lastName}`;
 
   return (
@@ -52,10 +54,10 @@ export function RosterMergeDialog({
         label: formatRosterMergeCandidateLabel(candidate),
         value: candidate.id,
       }))}
-      description={`${name} se elimina y todo lo que tiene pasa al ${copy.singular} que elijas, que conserva sus propios datos.`}
-      emptyMessage={`No hay otro ${copy.singular} en la academia.`}
+      description={`${name} se elimina y todo lo que tiene pasa al ${noun} que elijas, que conserva sus propios datos.`}
+      emptyMessage={`No hay otro ${noun} en la academia.`}
       intentValue={rosterMergeIntents[kind]}
-      label={`${capitalize(copy.singular)} que queda`}
+      label={`${rosterPersonNoun(kind, "singularCapitalized")} que queda`}
       onOpenChange={onOpenChange}
       open={open}
       recordId={person.id}
@@ -79,11 +81,7 @@ export function RosterMergeDialog({
           />
         ) : null;
       }}
-      title={`¿Fusionar al ${copy.singular}?`}
+      title={`¿Fusionar al ${noun}?`}
     />
   );
-}
-
-function capitalize(value: string) {
-  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 }

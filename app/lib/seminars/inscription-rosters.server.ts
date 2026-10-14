@@ -10,7 +10,7 @@
  * surfaces instead.
  */
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -21,10 +21,17 @@ import {
   seminars,
 } from "@/db/schema";
 import {
+  rosterPersonTable,
+  seminarInscriptionPersonOf,
+} from "@/lib/roster/roster-person-kind.server";
+import {
   isSelectableForRoster,
   toRosterPersonStatus,
-  type RosterPersonKind,
 } from "@/lib/roster/roster-person-status.shared";
+import {
+  rosterPersonKinds,
+  type RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import { findSeminarInscriptionsWithEvidence } from "@/lib/seminars/inscription-withdrawal.server";
 
@@ -63,62 +70,63 @@ export type SeminarPersonOption = {
 };
 
 /**
+ * The person columns of an inscription row, read off whichever roster table
+ * holds the person: both are left-joined and the
+ * `seminar_inscription_exactly_one_person` CHECK is what makes the coalesce
+ * total — there is always exactly one side to take. The academy is read through
+ * the person, as it is everywhere else.
+ */
+const inscriptionPersonFields = {
+  dancerId: seminarInscriptions.dancerId,
+  professorId: seminarInscriptions.professorId,
+  firstName: sql<string>`coalesce(${dancers.firstName}, ${professors.firstName})`,
+  lastName: sql<string>`coalesce(${dancers.lastName}, ${professors.lastName})`,
+  academyId: sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`,
+};
+
+/**
  * Every **active** inscription of one seminar, whichever academy made it.
  * Administration reads a flat table: there is no grouping and no occupancy line,
- * so the two halves are merged and sorted by academy, the order the table opens
- * in. A withdrawn row is off the roster and holds no place, so it is not listed
- * here; the money it retains is read on the finance surfaces instead.
+ * so the rows are sorted by academy, the order the table opens in. A withdrawn
+ * row is off the roster and holds no place, so it is not listed here; the money
+ * it retains is read on the finance surfaces instead.
  */
 export async function listSeminarInscriptions(
   seminarId: string,
 ): Promise<SeminarInscriptionRow[]> {
-  const [dancerRows, professorRows] = await Promise.all([
-    db
-      .select({
-        id: seminarInscriptions.id,
-        firstName: dancers.firstName,
-        lastName: dancers.lastName,
-        academyName: academies.name,
-      })
-      .from(seminarInscriptions)
-      .innerJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-      .innerJoin(academies, eq(academies.id, dancers.academyId))
-      .where(
-        and(
-          eq(seminarInscriptions.seminarId, seminarId),
-          activeSeminarInscription(),
-        ),
+  const rows = await db
+    .select({
+      ...inscriptionPersonFields,
+      id: seminarInscriptions.id,
+      academyName: academies.name,
+    })
+    .from(seminarInscriptions)
+    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .innerJoin(academies, eq(academies.id, inscriptionPersonFields.academyId))
+    .where(
+      and(
+        eq(seminarInscriptions.seminarId, seminarId),
+        activeSeminarInscription(),
       ),
-    db
-      .select({
-        id: seminarInscriptions.id,
-        firstName: professors.firstName,
-        lastName: professors.lastName,
-        academyName: academies.name,
-      })
-      .from(seminarInscriptions)
-      .innerJoin(professors, eq(professors.id, seminarInscriptions.professorId))
-      .innerJoin(academies, eq(academies.id, professors.academyId))
-      .where(
-        and(
-          eq(seminarInscriptions.seminarId, seminarId),
-          activeSeminarInscription(),
-        ),
-      ),
-  ]);
+    );
 
-  const rows = [
-    ...dancerRows.map((row) => toInscriptionRow(row, "dancer")),
-    ...professorRows.map((row) => toInscriptionRow(row, "professor")),
-  ].sort(byAcademyThenFullName);
-
-  return withEvidenceFlag(rows);
+  return withEvidenceFlag(
+    rows
+      .map((row): SeminarInscriptionRow => ({
+        id: row.id,
+        fullName: `${row.firstName} ${row.lastName}`,
+        personKind: seminarInscriptionPersonOf(row).kind,
+        academyName: row.academyName,
+        hasMoney: false,
+      }))
+      .sort(byAcademyThenFullName),
+  );
 }
 
 /**
  * The academy's own **active** inscriptions on an event's seminars, dancers and
- * professors in one list. The academy is read through the person, which is why
- * the two halves are queried separately and merged here.
+ * professors in one list.
  */
 export async function listSeminarInscriptionsForAcademy(input: {
   academyId: string;
@@ -128,96 +136,79 @@ export async function listSeminarInscriptionsForAcademy(input: {
     .select({ id: seminars.id })
     .from(seminars)
     .where(eq(seminars.eventId, input.eventId));
-
-  const [dancerRows, professorRows] = await Promise.all([
-    db
-      .select({
-        id: seminarInscriptions.id,
-        seminarId: seminarInscriptions.seminarId,
-        personId: dancers.id,
-        firstName: dancers.firstName,
-        lastName: dancers.lastName,
-        academyId: dancers.academyId,
-        createdAt: seminarInscriptions.createdAt,
-      })
-      .from(seminarInscriptions)
-      .innerJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-      .where(
-        and(
+  const rows = await db
+    .select({
+      ...inscriptionPersonFields,
+      id: seminarInscriptions.id,
+      seminarId: seminarInscriptions.seminarId,
+      createdAt: seminarInscriptions.createdAt,
+    })
+    .from(seminarInscriptions)
+    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .where(
+      and(
+        or(
           eq(dancers.academyId, input.academyId),
-          inArray(seminarInscriptions.seminarId, eventSeminarIds),
-          activeSeminarInscription(),
-        ),
-      ),
-    db
-      .select({
-        id: seminarInscriptions.id,
-        seminarId: seminarInscriptions.seminarId,
-        personId: professors.id,
-        firstName: professors.firstName,
-        lastName: professors.lastName,
-        academyId: professors.academyId,
-        createdAt: seminarInscriptions.createdAt,
-      })
-      .from(seminarInscriptions)
-      .innerJoin(professors, eq(professors.id, seminarInscriptions.professorId))
-      .where(
-        and(
           eq(professors.academyId, input.academyId),
-          inArray(seminarInscriptions.seminarId, eventSeminarIds),
-          activeSeminarInscription(),
         ),
+        inArray(seminarInscriptions.seminarId, eventSeminarIds),
+        activeSeminarInscription(),
       ),
-  ]);
+    );
 
-  const rows = [
-    ...dancerRows.map((row) => toInscriptionListItem(row, "dancer")),
-    ...professorRows.map((row) => toInscriptionListItem(row, "professor")),
-  ].sort(byFullName);
+  return withEvidenceFlag(
+    rows
+      .map((row): SeminarInscriptionListItem => {
+        const person = seminarInscriptionPersonOf(row);
 
-  return withEvidenceFlag(rows);
+        return {
+          id: row.id,
+          seminarId: row.seminarId,
+          personId: person.personId,
+          personKind: person.kind,
+          fullName: `${row.firstName} ${row.lastName}`,
+          academyId: row.academyId,
+          createdAt: row.createdAt,
+          hasMoney: false,
+        };
+      })
+      .sort(byFullName),
+  );
 }
 
 /**
  * Everyone the academy may still register: its active dancers and professors in
  * one flat list. An archived person is absent — the grandfather half of the
  * roster rule keeps the inscriptions they already have, and those are listed
- * from `listSeminarInscriptionsForAcademy`, not from here.
+ * from `listSeminarInscriptionsForAcademy`, not from here. The two tables share
+ * nothing to join on, so it stays one query per kind, mapped once.
  */
 export async function listSeminarPersonOptionsForAcademy(
   academyId: string,
 ): Promise<SeminarPersonOption[]> {
-  const [dancerRows, professorRows] = await Promise.all([
-    db
-      .select({
-        id: dancers.id,
-        firstName: dancers.firstName,
-        lastName: dancers.lastName,
-        active: dancers.active,
-      })
-      .from(dancers)
-      .where(eq(dancers.academyId, academyId))
-      .orderBy(asc(sql`lower(${dancers.firstName})`)),
-    db
-      .select({
-        id: professors.id,
-        firstName: professors.firstName,
-        lastName: professors.lastName,
-        active: professors.active,
-      })
-      .from(professors)
-      .where(eq(professors.academyId, academyId))
-      .orderBy(asc(sql`lower(${professors.firstName})`)),
-  ]);
+  const optionsByKind = await Promise.all(
+    rosterPersonKinds.map(async (kind) => {
+      const table = rosterPersonTable(kind);
+      const rows = await db
+        .select({
+          id: table.id,
+          firstName: table.firstName,
+          lastName: table.lastName,
+          active: table.active,
+        })
+        .from(table)
+        .where(eq(table.academyId, academyId));
 
-  return [
-    ...dancerRows
-      .filter(isRegistrable)
-      .map((row) => toPersonOption(row, "dancer")),
-    ...professorRows
-      .filter(isRegistrable)
-      .map((row) => toPersonOption(row, "professor")),
-  ].sort(byFullName);
+      return rows.filter(isRegistrable).map((row): SeminarPersonOption => ({
+        id: row.id,
+        kind,
+        fullName: `${row.firstName} ${row.lastName}`,
+      }));
+    }),
+  );
+
+  return optionsByKind.flat().sort(byFullName);
 }
 
 // Nobody is linked yet from the picker's point of view: the people already on
@@ -244,59 +235,6 @@ async function withEvidenceFlag<Row extends { hasMoney: boolean; id: string }>(
   );
 
   return rows.map((row) => ({ ...row, hasMoney: evidence.has(row.id) }));
-}
-
-function toInscriptionListItem(
-  row: {
-    id: string;
-    seminarId: string;
-    personId: string;
-    firstName: string;
-    lastName: string;
-    academyId: string;
-    createdAt: Date;
-  },
-  personKind: RosterPersonKind,
-): SeminarInscriptionListItem {
-  return {
-    id: row.id,
-    seminarId: row.seminarId,
-    personId: row.personId,
-    personKind,
-    fullName: `${row.firstName} ${row.lastName}`,
-    academyId: row.academyId,
-    createdAt: row.createdAt,
-    hasMoney: false,
-  };
-}
-
-function toPersonOption(
-  row: { id: string; firstName: string; lastName: string },
-  kind: RosterPersonKind,
-): SeminarPersonOption {
-  return {
-    id: row.id,
-    kind,
-    fullName: `${row.firstName} ${row.lastName}`,
-  };
-}
-
-function toInscriptionRow(
-  row: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    academyName: string;
-  },
-  personKind: RosterPersonKind,
-): SeminarInscriptionRow {
-  return {
-    id: row.id,
-    fullName: `${row.firstName} ${row.lastName}`,
-    personKind,
-    academyName: row.academyName,
-    hasMoney: false,
-  };
 }
 
 function byAcademyThenFullName(
