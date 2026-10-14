@@ -56,8 +56,7 @@ describe("PaymentDetailRouteView", () => {
   test("keeps payment details read-only for auditors", async () => {
     await renderDetailIntoDocument({
       loaderData: buildLoaderData({
-        canDelete: false,
-        canEdit: false,
+        canWrite: false,
       }),
     });
 
@@ -194,8 +193,7 @@ function buildLoaderData(overrides: Partial<LoaderData> = {}): LoaderData {
     affectedUnits: [],
     allocatedAmount: 0,
     availableAmount: payment.amount,
-    canDelete: true,
-    canEdit: true,
+    canWrite: true,
     payment,
     selectedEventId: "event_1",
     values: {

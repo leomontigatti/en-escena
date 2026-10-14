@@ -33,7 +33,7 @@ import { events, schedules, scheduleCapacities } from "@/db/schema";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { getEventRegistrationOpenBlockers } from "@/lib/schedules/registration-open.server";
 import { getEventBases } from "@/lib/events/bases.server";
@@ -352,7 +352,7 @@ export function routeArgs(request: Request) {
 }
 
 export async function loader({ request }: { request: Request }) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {

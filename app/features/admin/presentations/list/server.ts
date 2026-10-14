@@ -12,7 +12,8 @@ import {
 } from "@/lib/list-query/list-query";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import {
   readVisibleProgramDays,
   setVisibleProgramDays,
@@ -85,7 +86,7 @@ const presentationListSpec: ListQuerySpec<PresentationOrder["columnId"]> = {
 };
 
 export async function loadPresentationListRouteData(request: Request) {
-  const user = await requireInternalUser(request, ["admin"]);
+  const user = await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
@@ -93,7 +94,7 @@ export async function loadPresentationListRouteData(request: Request) {
   }
 
   const result = await loadPresentationList({
-    canOrder: user.role === "admin",
+    canWrite: canWriteInAdminPanel(user.role),
     filters: readPresentationFilters(readRequestedUrl(request).searchParams),
     selectedEventId: eventContext.selectedEventId,
   });
@@ -117,7 +118,7 @@ export async function loadPresentationListRouteData(request: Request) {
 }
 
 async function loadPresentationList(input: {
-  canOrder: boolean;
+  canWrite: boolean;
   filters: PresentationListFilters;
   selectedEventId: string | null;
 }): Promise<PresentationListResult> {
@@ -125,7 +126,7 @@ async function loadPresentationList(input: {
     return {
       assignableJudges: [],
       assignedJudges: [],
-      canOrder: input.canOrder,
+      canWrite: input.canWrite,
       dayRowCount: 0,
       days: [],
       filters: input.filters,
@@ -192,7 +193,7 @@ async function loadPresentationList(input: {
   return {
     assignableJudges,
     assignedJudges: assigned.judges,
-    canOrder: input.canOrder,
+    canWrite: input.canWrite,
     dayRowCount: dayItems.length,
     days,
     filters,
@@ -233,7 +234,7 @@ async function loadPresentationList(input: {
 export async function handlePresentationListAction(
   request: Request,
 ): Promise<PresentationListActionData | ReturnType<typeof data>> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
   const formData = await request.formData();
   const intent = formData.get("intent");

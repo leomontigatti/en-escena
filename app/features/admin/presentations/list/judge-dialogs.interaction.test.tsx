@@ -305,7 +305,7 @@ function buildLoaderData(): PresentationListResult {
   return {
     assignableJudges: [ana, bruno],
     assignedJudges: [ana],
-    canOrder: true,
+    canWrite: true,
     dayRowCount: 1,
     days: ["2026-05-01"],
     filters: {

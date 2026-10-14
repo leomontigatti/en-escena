@@ -3,10 +3,7 @@ import {
   type SeminarMoneyAnswer,
 } from "@/features/admin/finances/inscription-money/seminar-money-action.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import {
-  requireAdminUser,
-  requireInternalUser,
-} from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import {
   readSeminarInscriptionPriceOptions,
   type SeminarInscriptionPriceOption,
@@ -27,7 +24,7 @@ import {
  * off. Once it holds nothing it has nothing left to say on a list about debt.
  */
 export async function loadSeminarInscriptionFinances(request: Request) {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
   const eventId = eventContext.selectedEventId;
 
@@ -73,7 +70,7 @@ export async function loadSeminarInscriptionFinances(request: Request) {
 export async function handleSeminarInscriptionFinancesAction(
   request: Request,
 ): Promise<SeminarMoneyAnswer> {
-  await requireAdminUser(request);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.selectedEventId === null) {

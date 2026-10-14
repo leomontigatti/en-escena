@@ -7,7 +7,7 @@ import {
   type ActionData,
   type EventBasesActionBaseInput,
 } from "@/lib/admin/events/bases-action/shared.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 
 type EventBasesRouteActionOptions<
   TIntent extends string,
@@ -28,7 +28,7 @@ async function runSelectedEventBasesAction<
   recordId,
   request,
 }: EventBasesRouteActionOptions<TIntent, TInput>): Promise<ActionData | never> {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 
   const eventContext = await loadEventContext(request);
   const eventId = eventContext.selectedEventId;

@@ -14,10 +14,10 @@ import { programExportPath } from "../program-export/shared";
  * public. `null` when there is no day to list.
  */
 export function readProgramVisibilityDays(loaderData: PresentationListResult) {
-  const { canOrder, programExportDays, programVisibleDays, selectedEventId } =
+  const { canWrite, programExportDays, programVisibleDays, selectedEventId } =
     loaderData;
 
-  if (!canOrder || selectedEventId === null) {
+  if (!canWrite || selectedEventId === null) {
     return null;
   }
 

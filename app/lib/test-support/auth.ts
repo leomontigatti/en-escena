@@ -6,13 +6,13 @@ import {
   createAccessRequestCookie,
   createAccessUser,
 } from "@/lib/auth/access-auth.test-support";
-import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+import type { UserRole } from "@/lib/auth/user-role.shared";
 
 // A verified user with `role`, signed in, and a request that carries its
 // cookies the way the browser would. `body` makes it a POST.
 export async function createSignedInRequest(input: {
   email: string;
-  role: "academy" | InternalUserRole;
+  role: UserRole;
   requestUrl?: string;
   body?: FormData;
   name?: string;

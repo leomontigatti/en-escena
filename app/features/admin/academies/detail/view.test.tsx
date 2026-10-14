@@ -48,7 +48,7 @@ const mergeOptions: AcademyDetailLoaderData["merge"] = {
   },
 };
 
-function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
+function buildLoaderData(canWrite: boolean): AcademyDetailLoaderData {
   return {
     academy: {
       city: "Rosario",
@@ -60,7 +60,7 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
       phone: "3415551234",
       province: "santa_fe",
     },
-    canEdit,
+    canWrite,
     deletionHoldings: [],
     merge: null,
     selectedEventId: null,
@@ -69,13 +69,13 @@ function buildLoaderData(canEdit: boolean): AcademyDetailLoaderData {
 
 async function renderDetail({
   actionData,
-  canEdit = true,
+  canWrite = true,
   deletionHoldings = [],
   initialDeleteDialogOpen = false,
   merge = null,
 }: {
   actionData?: AcademyDetailActionData;
-  canEdit?: boolean;
+  canWrite?: boolean;
   deletionHoldings?: string[];
   initialDeleteDialogOpen?: boolean;
   merge?: AcademyDetailLoaderData["merge"];
@@ -101,7 +101,7 @@ async function renderDetail({
             actionData={actionData}
             initialDeleteDialogOpen={initialDeleteDialogOpen}
             loaderData={{
-              ...buildLoaderData(canEdit),
+              ...buildLoaderData(canWrite),
               deletionHoldings,
               merge,
             }}
@@ -237,7 +237,7 @@ describe("AcademyDetailRouteView", () => {
   });
 
   test("offers no delete action to a read-only auditor", async () => {
-    await renderDetail({ canEdit: false, initialDeleteDialogOpen: true });
+    await renderDetail({ canWrite: false, initialDeleteDialogOpen: true });
 
     expect(findButton("Acciones", { exact: true })).toBeUndefined();
     expect(document.body.textContent).not.toContain("¿Eliminar la academia?");
@@ -364,7 +364,7 @@ describe("AcademyDetailRouteView", () => {
   });
 
   test("shows a read-only auditor the fields disabled and only `Volver`", async () => {
-    await renderDetail({ canEdit: false });
+    await renderDetail({ canWrite: false });
 
     expect(readInput("name").disabled).toBe(true);
     expect(findButton("Guardar", { exact: true })).toBeUndefined();

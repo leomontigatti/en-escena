@@ -42,7 +42,7 @@ export const professorFieldNames = [
 
 export type ProfessorDetailLoaderData = {
   backToList: string;
-  canEdit: boolean;
+  canWrite: boolean;
   /**
    * Answered by `hasActiveEventParticipation`, the same reader the guard in
    * `setRosterPersonStatus` asks — see the dancer twin.

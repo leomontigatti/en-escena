@@ -1,7 +1,7 @@
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import {
   findScoreLockedSubmodalityIds,
   listSubmodalityCriteria,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/modalities/repository.server";
 
 async function loadEventModalityContext(request: Request) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 
   const eventContext = await loadEventContext(request);
 

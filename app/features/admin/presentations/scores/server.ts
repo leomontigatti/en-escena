@@ -1,9 +1,7 @@
 import { data } from "react-router";
 
-import {
-  requireAdminUser,
-  requireInternalUser,
-} from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import {
   editScore,
   setPresentationDisqualified,
@@ -24,12 +22,12 @@ import { readFormString } from "@/lib/shared/forms";
  * The route adapter of the scores view: who may read one presentation's panel
  * and who may act on it. Administration and the auditor both read the whole
  * thing — the auditor is there to check the panel's work — and only
- * administration writes, so every write is asked of `requireAdminUser` and an
+ * administration writes, so every write is asked of `requireAdminPanelWriter` and an
  * auditor's is refused with 403 rather than hidden behind a disabled button.
  */
 
 export type PresentationScoresLoaderData = {
-  canEdit: boolean;
+  canWrite: boolean;
   presentation: PresentationScoresView;
 };
 
@@ -50,7 +48,7 @@ export async function loadPresentationScoresRouteData(input: {
   params: { presentationId?: string };
   request: Request;
 }): Promise<PresentationScoresLoaderData> {
-  const user = await requireInternalUser(input.request, ["admin"]);
+  const user = await requireAdminPanelWriter(input.request);
   const presentation = await readPresentationScores({
     presentationId: input.params.presentationId ?? "",
   });
@@ -59,7 +57,7 @@ export async function loadPresentationScoresRouteData(input: {
     throw new Response(presentationNotFoundMessage, { status: 404 });
   }
 
-  return { canEdit: user.role === "admin", presentation };
+  return { canWrite: canWriteInAdminPanel(user.role), presentation };
 }
 
 const savedScoreMessage = "Guardaste el puntaje.";
@@ -74,7 +72,7 @@ const unknownIntentMessage = "No se reconoció la acción solicitada.";
 
 /**
  * Administration's writes on one presentation's panel. Every one of them is
- * asked of `requireAdminUser`, so an auditor reading the page is refused with
+ * asked of `requireAdminPanelWriter`, so an auditor reading the page is refused with
  * 403 rather than quietly ignored: the auditor is there to check the panel's
  * work, and a write that seemed to land would be worse than one that plainly
  * did not.
@@ -87,7 +85,7 @@ export async function handlePresentationScoresAction(input: {
   params: { presentationId?: string };
   request: Request;
 }): Promise<PresentationScoresActionData | ReturnType<typeof data>> {
-  await requireAdminUser(input.request);
+  await requireAdminPanelWriter(input.request);
 
   const formData = await input.request.formData();
   const presentationId = input.params.presentationId ?? "";

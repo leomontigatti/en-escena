@@ -2,11 +2,12 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { canUserWriteInAdminPanel } from "@/lib/admin/users/internal-user-actor.server";
 import {
   revokeInternalCredentialSessions,
   setInternalCredentialPassword,
 } from "@/lib/auth/internal-user-auth.server";
-import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import { isInternalUserRole } from "@/lib/auth/user-role.shared";
 import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 const PASSWORD_MIN_LENGTH = 8;
@@ -31,12 +32,7 @@ type ResetInternalUserPasswordResult =
 export async function resetInternalUserPassword(
   input: ResetInternalUserPasswordInput,
 ): Promise<ResetInternalUserPasswordResult> {
-  const adminUser = await db.query.user.findFirst({
-    columns: { id: true, role: true },
-    where: eq(user.id, input.updatedByUserId),
-  });
-
-  if (adminUser?.role !== "admin") {
+  if (!(await canUserWriteInAdminPanel(input.updatedByUserId))) {
     return resetPasswordError(
       "Solo administración puede restablecer contraseñas internas.",
     );

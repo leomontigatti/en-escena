@@ -3,12 +3,13 @@ import {
   readUserFilters,
 } from "@/lib/admin/users/users-list.server";
 import { toUserAppliedListQuery } from "@/lib/admin/users/users-list.shared";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { redirectToCanonicalListUrl } from "@/lib/list-query/list-query.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 export async function loader({ request }: { request: Request }) {
-  const appUser = await requireInternalUser(request, ["admin"]);
+  const appUser = await requireAdminPanelWriter(request);
   const filters = readUserFilters(readRequestedUrl(request).searchParams);
   const listResult = await listUsers({ filters });
 
@@ -18,7 +19,7 @@ export async function loader({ request }: { request: Request }) {
   );
 
   return {
-    canManage: appUser.role === "admin",
+    canWrite: canWriteInAdminPanel(appUser.role),
     filters: listResult.filters,
     totalCount: listResult.totalCount,
     totalPages: listResult.totalPages,

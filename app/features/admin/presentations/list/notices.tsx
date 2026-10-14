@@ -43,7 +43,7 @@ export function PresentationNotices({
             Las coreografías todavía no tienen un número de presentación
             asignado.
           </AlertDescription>
-          {loaderData.canOrder ? (
+          {loaderData.canWrite ? (
             <AlertAction className="top-1/2 -translate-y-1/2">
               <Button
                 type="button"

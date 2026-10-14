@@ -2,7 +2,7 @@ import { desc } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { getEventRegistrationReadinessByEventId } from "@/lib/events/registration-readiness.server";
 import type { EventsListLoaderData } from "./shared";
 type EventRow = typeof eventsTable.$inferSelect;
@@ -11,7 +11,7 @@ type TemporalState = ReturnType<typeof getTemporalState>;
 export async function loadEvents(
   request: Request,
 ): Promise<EventsListLoaderData> {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
   const eventRows = await db.query.events.findMany({
     orderBy: [desc(eventsTable.startsAt)],
   });

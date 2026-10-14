@@ -2,11 +2,12 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { canUserWriteInAdminPanel } from "@/lib/admin/users/internal-user-actor.server";
 import {
   revokeInternalCredentialSessions,
   setInternalCredentialSuspendedState,
 } from "@/lib/auth/internal-user-auth.server";
-import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import { isInternalUserRole } from "@/lib/auth/user-role.shared";
 import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 type SetInternalUserSuspendedStateInput = {
@@ -29,12 +30,7 @@ type SetInternalUserSuspendedStateResult =
 export async function setInternalUserSuspendedState(
   input: SetInternalUserSuspendedStateInput,
 ): Promise<SetInternalUserSuspendedStateResult> {
-  const adminUser = await db.query.user.findFirst({
-    columns: { id: true, role: true },
-    where: eq(user.id, input.updatedByUserId),
-  });
-
-  if (adminUser?.role !== "admin") {
+  if (!(await canUserWriteInAdminPanel(input.updatedByUserId))) {
     return {
       ok: false,
       error: "Solo administración puede editar usuarios internos.",

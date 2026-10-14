@@ -19,10 +19,7 @@ import {
   readSeminarCobroPreviews,
   type SeminarCobroPreview,
 } from "@/lib/finances/seminar-cobro-presets.server";
-import {
-  requireAdminUser,
-  requireInternalUser,
-} from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import type { PresetInscription } from "./preset-figures";
 import {
   choreographyIdFieldName,
@@ -41,7 +38,7 @@ export async function loadAcademyFinances(input: {
   params: { academyId?: string };
   request: Request;
 }) {
-  await requireInternalUser(input.request, ["admin"]);
+  await requireAdminPanelWriter(input.request);
   const eventContext = await loadEventContext(input.request);
   const academy = await readFinanceAcademy(readFinanceAcademyId(input.params));
 
@@ -107,7 +104,7 @@ export async function handleAcademyFinancesAction(input: {
   params: { academyId?: string };
   request: Request;
 }): Promise<AcademyFinancesActionData | never> {
-  await requireAdminUser(input.request);
+  await requireAdminPanelWriter(input.request);
   const academyId = readFinanceAcademyId(input.params);
   const eventContext = await loadEventContext(input.request);
 

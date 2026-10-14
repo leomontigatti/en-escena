@@ -64,7 +64,7 @@ export type ResultsListFilters = {
 };
 
 export type ResultsListResult = {
-  canPublish: boolean;
+  canWrite: boolean;
   days: string[];
   filters: ResultsListFilters;
   hasAnyRow: boolean;

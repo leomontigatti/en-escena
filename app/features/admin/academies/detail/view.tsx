@@ -52,7 +52,7 @@ export function AcademyDetailRouteView({
   initialDeleteDialogOpen?: boolean;
   loaderData: AcademyDetailLoaderData;
 }) {
-  const { academy, canEdit } = loaderData;
+  const { academy, canWrite } = loaderData;
   const errorData =
     actionData?.status === "error" && actionData.intent === updateAcademyIntent
       ? actionData
@@ -94,7 +94,7 @@ export function AcademyDetailRouteView({
       titleBadge={<AcademyDataStatusBadge status={academy.dataStatus} />}
       description="Consultá y actualizá los datos de contacto y la ubicación de la academia."
       headerAction={
-        canEdit ? (
+        canWrite ? (
           <ResourceActionsMenu contentClassName="w-48">
             <DropdownMenuGroup>
               <DropdownMenuItem
@@ -118,7 +118,7 @@ export function AcademyDetailRouteView({
         footer={
           <FormActions
             backTo="/administracion/academias"
-            canEdit={canEdit}
+            canEdit={canWrite}
             form={academyDetailFormId}
             hasChanges={form.hasChanges}
             isPending={isSaving}
@@ -137,7 +137,7 @@ export function AcademyDetailRouteView({
             <TextInputField
               autoComplete="organization"
               control={form.form.control}
-              disabled={!canEdit}
+              disabled={!canWrite}
               label="Nombre de la academia"
               name="name"
             />
@@ -150,14 +150,14 @@ export function AcademyDetailRouteView({
             <TextInputField
               autoComplete="name"
               control={form.form.control}
-              disabled={!canEdit}
+              disabled={!canWrite}
               label="Nombre de contacto"
               name="contactName"
             />
             <TextInputField
               autoComplete="tel"
               control={form.form.control}
-              disabled={!canEdit}
+              disabled={!canWrite}
               inputMode="tel"
               label="Teléfono de contacto"
               maxLength={10}
@@ -167,7 +167,7 @@ export function AcademyDetailRouteView({
             />
             <SelectField
               control={form.form.control}
-              disabled={!canEdit}
+              disabled={!canWrite}
               label="Provincia"
               name="province"
               options={provinceOptions}
@@ -176,14 +176,14 @@ export function AcademyDetailRouteView({
             <TextInputField
               autoComplete="address-level2"
               control={form.form.control}
-              disabled={!canEdit}
+              disabled={!canWrite}
               label="Ciudad"
               name="city"
             />
           </FieldGroup>
         </form>
       </AdminResourceFormCard>
-      {canEdit ? (
+      {canWrite ? (
         // An academy that still holds something answers `Eliminar` with what
         // it holds (style guide, Detail pages); the delete reads it again
         // inside its transaction, for the race.

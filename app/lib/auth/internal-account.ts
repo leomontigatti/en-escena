@@ -1,7 +1,7 @@
 import {
-  internalUserRoleLabels,
+  getUserRoleLabel,
   type InternalUserRole,
-} from "@/lib/auth/internal-user-roles";
+} from "@/lib/auth/user-role.shared";
 
 /**
  * What an internal user sees of themselves in the account menu: internal users
@@ -23,7 +23,7 @@ export function buildInternalAccount(appUser: {
 
   return {
     name: appUser.name?.trim() || username,
-    roleLabel: internalUserRoleLabels[appUser.role],
+    roleLabel: getUserRoleLabel(appUser.role),
     username,
   };
 }

@@ -3,8 +3,8 @@ import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, payments } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
+import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
 import { paymentAvailableAmountSql } from "@/lib/finances/payment-available-amount.server";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
 import { eventSequenceNumberDigits } from "@/lib/events/sequence-number";
@@ -87,7 +87,7 @@ const paymentsListSpec: ListQuerySpec<PaymentsListOrder["columnId"]> = {
 export async function loadPaymentsList(
   request: Request,
 ): Promise<PaymentsListLoaderData> {
-  const user = await requireInternalUser(request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(request);
   const canWrite = canWriteInAdminPanel(user.role);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;

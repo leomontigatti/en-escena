@@ -106,7 +106,7 @@ describe("DancerDetailRouteView", () => {
 
   test("renders the ficha for auditors with disabled fields and only Volver", () => {
     const markup = renderDetailView({
-      loaderData: createLoaderData({ canEdit: false }),
+      loaderData: createLoaderData({ canWrite: false }),
     });
 
     expect(markup).toContain("Julia Detalle");
@@ -256,7 +256,7 @@ function createLoaderData(
   return {
     activeEventStartDate: "2026-09-25",
     backToList: "/administracion/bailarines",
-    canEdit: true,
+    canWrite: true,
     dancer: {
       academy: {
         contactName: "Contacto Test",

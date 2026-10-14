@@ -10,7 +10,7 @@ import {
   FACTURA_C_CBTE_TIPO,
   NOTA_CREDITO_C_CBTE_TIPO,
 } from "@/lib/comprobantes/arca/factura-c";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import {
@@ -90,7 +90,7 @@ const comprobantesListSpec: ListQuerySpec<ComprobantesListOrder["columnId"]> = {
 export async function loadComprobantesList(
   request: Request,
 ): Promise<ComprobantesListLoaderData> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
   const selectedEventId = eventContext.selectedEventId;
   const url = readRequestedUrl(request);

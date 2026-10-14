@@ -171,7 +171,7 @@ describe("ProfessorDetailRouteView dialogs", () => {
       renderInDataRouter(
         "/administracion/profesores/profesor_1",
         <ProfessorDetailRouteView
-          loaderData={createLoaderData({ canEdit: false })}
+          loaderData={createLoaderData({ canWrite: false })}
         />,
       ),
     );
@@ -257,17 +257,17 @@ async function changeFirstName(value: string) {
 }
 
 function createLoaderData({
-  canEdit = true,
+  canWrite = true,
   editConsequence = null,
 }: {
-  canEdit?: boolean;
+  canWrite?: boolean;
   editConsequence?: ProfessorEditConsequence;
 } = {}): ProfessorDetailViewProps["loaderData"] {
   return {
     backToList: "/administracion/profesores",
     choreographies: [],
     seminarInscriptions: [],
-    canEdit,
+    canWrite,
     isParticipatingInActiveEvent: false,
     merge: null,
     professor: {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
+import { isInternalUserRole } from "@/lib/auth/user-role.shared";
 import {
   internalUsernameRuleMessage,
   isValidInternalUsername,

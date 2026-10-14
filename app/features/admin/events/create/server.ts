@@ -3,13 +3,13 @@ import {
   parseEventFormValues,
   readEventFormValues,
 } from "@/lib/admin/events/form-values";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { createEvent } from "@/lib/events/management.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
 /** Only the administrator opens the new event form. */
 export async function requireEventCreator(request: Request) {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 }
 
 export async function createAdministrativeEvent(request: Request) {
