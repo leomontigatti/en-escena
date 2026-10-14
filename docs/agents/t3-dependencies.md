@@ -36,7 +36,7 @@ Checked against T3 Code 0.0.46-nightly.20261014.3105 (commit 3417bc3856a2).
 
 ### watch-pr-native
 
-- **Relies on:** `watch_pull_request` checks the PR every two minutes and wakes the thread on a failed check, on all required checks passing, on a comment or review from someone else, or on a conflict with the base. Only comments posted after the call wake it. The watch ends at merge or close, and `unwatch_pull_request` returns the thread to the user's inbox. A subagent cannot watch (`apps/server/src/mcp/toolkits/pullRequests/tools.ts`).
+- **Relies on:** `watch_pull_request` checks the PR every two minutes and wakes the thread on a failed check, on all required checks passing, on a comment or review from someone else (an edit to an existing comment counts, which is how babysit sees CodeRabbit cancel a review), or on a conflict with the base. Only comments posted after the call wake it. The watch ends at merge or close, and `unwatch_pull_request` returns the thread to the user's inbox. A subagent cannot watch (`apps/server/src/mcp/toolkits/pullRequests/tools.ts`).
 - **Used by:** `.agents/skills/babysit-pr/SKILL.md` § 2. Wait for the round, § 5. Report; `.agents/skills/implement/SKILL.md` § 7. Open the PR and hand it off; `docs/agents/pull-requests.md` § Babysitting a PR; `docs/agents/workflows.md` § Where work starts.
 - **Breaks if:** a wake condition, the end conditions, or what `unwatch_pull_request` does changes, or the tool is renamed.
 
@@ -92,6 +92,20 @@ Checked against T3 Code 0.0.46-nightly.20261014.3105 (commit 3417bc3856a2).
 - **Used by:** `.agents/skills/babysit-pr/SKILL.md` § 2. Wait for the round.
 - **Would improve if:** `watch_pull_request` can wake once every check has finished, not only on the first failure or on all required checks passing.
 - **Watch:** pingdotgg/t3code#16924 (open).
+
+### babysit-unreported-required-checks
+
+- **Workaround:** on every wake babysit reads the required contexts from branch protection and holds the round while one has not reported, waiting in the background with `gh pr checks --watch` (`.agents/skills/babysit-pr/SKILL.md` § 2. Wait for the round, the "a required one not reported yet" row). The watch reports "required checks passed" on the contexts it can see: `db-gate` runs after `db-shard` (`needs:` in `.github/workflows/ci.yml`), so it is absent for about four minutes, and on 2026-10-14 the watch woke on "All 4 required checks passed" three times before it started.
+- **Used by:** `.agents/skills/babysit-pr/SKILL.md` § 2. Wait for the round.
+- **Would improve if:** `watch_pull_request` reads the base branch's required checks and holds "checks passed" while one is missing.
+- **Watch:** pingdotgg/t3code#18047 (Ideas discussion, open, awaiting maintainer approval; it carries this repo's three cases). Its implementation, #17831, was closed unmerged on 2026-10-14 for lacking that approval.
+
+### babysit-behind-on-read
+
+- **Workaround:** `master` requires a branch to be current (`strict: true`), and the watch does not wake when one falls behind. Babysit only sees `BEHIND` when it reads the round on another wake, then updates once (`.agents/skills/babysit-pr/SKILL.md` § 4b. Bring the branch up to date). A PR handed back READY that falls behind later is the user's to update, or the launcher's when it holds the merge (`docs/agents/workflows.md` § Branches, worktrees and T3 Code threads, "A launched thread reports to its own inbox").
+- **Used by:** `.agents/skills/babysit-pr/SKILL.md` § 2 (the `BEHIND` row) and § 4b; `docs/agents/pull-requests.md` § Babysitting a PR.
+- **Would improve if:** `watch_pull_request` wakes the thread when the PR's merge state becomes `BEHIND`.
+- **Watch:** pingdotgg/t3code#18047, the same proposal as babysit-unreported-required-checks.
 
 ### babysit-unresolved-threads
 
