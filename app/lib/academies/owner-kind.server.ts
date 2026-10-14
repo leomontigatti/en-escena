@@ -17,13 +17,21 @@ export function academyOwner(): SQL {
 }
 
 /**
- * Refuses, with a 404, a write that only an academy may make: loading a
- * `dancer` or a `professor`. An individual's roster is itself, so no roster
- * person is ever created under its owner row.
+ * The academy `academyId` names, or a 404 when there is none or the row is an
+ * individual's: for a write that only an academy may take, such as loading a
+ * `dancer` or a `professor` (an individual's roster is itself) or deleting an
+ * empty academy.
  */
-export async function requireAcademyOwner(academyId: string) {
-  const [academy] = await db
-    .select({ id: academies.id })
+export async function requireAcademyOwner(
+  academyId: string,
+  executor: Pick<typeof db, "select"> = db,
+) {
+  const [academy] = await executor
+    .select({
+      id: academies.id,
+      name: academies.name,
+      userId: academies.userId,
+    })
     .from(academies)
     .where(and(eq(academies.id, academyId), academyOwner()))
     .limit(1);
@@ -31,4 +39,6 @@ export async function requireAcademyOwner(academyId: string) {
   if (!academy) {
     throw new Response("No encontramos esa Academia.", { status: 404 });
   }
+
+  return academy;
 }

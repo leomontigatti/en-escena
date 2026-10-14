@@ -1,8 +1,7 @@
-import { and, count, eq, inArray, or } from "drizzle-orm";
+import { count, eq, inArray, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  academies,
   choreographies,
   dancers,
   payments,
@@ -10,7 +9,7 @@ import {
   seminarInscriptions,
   user,
 } from "@/db/schema";
-import { academyOwner } from "@/lib/academies/owner-kind.server";
+import { requireAcademyOwner } from "@/lib/academies/owner-kind.server";
 import { formatSpanishList, pluralize } from "@/lib/shared/text-normalization";
 
 export type DeleteAcademyResult =
@@ -32,20 +31,7 @@ export async function deleteEmptyAcademy(
   academyId: string,
 ): Promise<DeleteAcademyResult> {
   return await db.transaction(async (tx) => {
-    const [academy] = await tx
-      .select({
-        id: academies.id,
-        name: academies.name,
-        userId: academies.userId,
-      })
-      .from(academies)
-      .where(and(eq(academies.id, academyId), academyOwner()))
-      .limit(1);
-
-    if (!academy) {
-      throw new Response("No encontramos esa Academia.", { status: 404 });
-    }
-
+    const academy = await requireAcademyOwner(academyId, tx);
     const held = await readAcademyHoldings(academyId, tx);
 
     if (held.length > 0) {
