@@ -465,7 +465,7 @@ function buildLoaderData(
   return {
     assignableJudges: [],
     assignedJudges: [],
-    canOrder: true,
+    canWrite: true,
     dayRowCount: 1,
     days: ["2026-05-01"],
     filters: {

@@ -2,15 +2,23 @@
 
 Architecture Review is a weekly pass that proposes one deepening opportunity as a PRD-shaped
 issue. It is a **T3 Code scheduled task in the En Escena project**, "Architecture review
-(weekly)", every Monday at 09:00 local time. Each run starts a fresh thread in the project and
-works as a full session, with the repo's skills and `AGENTS.md`. Until 2026-10-13 it was a
+(weekly)", every Monday at 09:00 local time. Each run starts a fresh thread in the project, in a
+worktree T3 creates from `origin/master` for that run, and works as a full session, with the
+repo's skills and `AGENTS.md`. Until 2026-10-13 it was a
 GitHub Actions workflow with its own runner; why it moved is ADR-0016's amendment of that date.
 
 ## The contract
 
-- **Read-only on code.** The run reviews a detached worktree of `origin/master`, never the
-  project root, which may be on someone's branch. It makes no edits, commits, branches or PRs,
-  and removes the worktree at the end.
+- **Read-only on code.** The run reviews its own T3 worktree of `origin/master`, never the
+  project root, and makes no edits, commits or PRs. The worktree and its branch are T3's: the
+  worktree goes when the run's thread is deleted (T3's storage cleanup), the branch with the next
+  `housekeeping` sweep.
+- **The checkout comes from the task's settings.** In T3's Settings → Scheduled tasks, the task
+  creates a new worktree with Base branch `master` and Start from origin on. A task created or
+  rebound over MCP gets base `main` instead, which this repo does not have, so every run would
+  fail before the agent starts (pingdotgg/t3code#16183); set it back in the app after either.
+  T3 records such a run as succeeded (pingdotgg/t3code#17889): the run's thread, not the task's
+  status, shows whether it worked.
 - **At most one issue.** The run's one write is `gh issue create` with the labels
   `source:architecture-review` and `needs-triage`. When every candidate is already covered by a
   prior proposal, it creates nothing and ends its thread with why.
@@ -35,8 +43,7 @@ Weekly architecture review of leomontigatti/en-escena. This run is unattended: t
 ## Rules
 
 - Read-only on code: no edits, commits, branches or PRs. The single write you may make is the one issue in step 6.
-- Work from a clean checkout of the default branch, never the project root (it may be on someone's branch):
-  `git fetch origin && git worktree add --detach "/tmp/arch-review-en-escena-$(date +%F)" origin/master`, cd into it, and remove it with `git worktree remove --force` at the end.
+- Work in this thread's worktree: T3 created it from `origin/master` for this run. Never the project root, and no worktree of your own.
 
 ## Steps
 

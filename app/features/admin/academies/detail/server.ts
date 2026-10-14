@@ -14,7 +14,11 @@ import { mergeAcademyIntent } from "@/lib/academies/academy-merge.shared";
 import { updateAcademyProfile } from "@/lib/academies/academy-profile.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { getAcademyDataStatus } from "@/lib/academies/academy-data-status";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import {
+  requireAdminPanelReader,
+  requireAdminPanelWriter,
+} from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { readFormString } from "@/lib/shared/forms";
 import { mergeSurvivorFieldName } from "@/lib/shared/merge";
@@ -35,19 +39,19 @@ export async function loadAcademyDetail({
   params: { academyId?: string };
   request: Request;
 }): Promise<AcademyDetailLoaderData> {
-  const currentUser = await requireInternalUser(request, ["admin", "auditor"]);
+  const currentUser = await requireAdminPanelReader(request);
   const eventContext = await loadEventContext(request);
   const academy = await readAcademy(params.academyId);
 
   return {
     academy,
-    canEdit: currentUser.role === "admin",
-    deletionHoldings:
-      currentUser.role === "admin" ? await readAcademyHoldings(academy.id) : [],
-    merge:
-      currentUser.role === "admin"
-        ? await loadAcademyMergeOptions(academy.id)
-        : null,
+    canWrite: canWriteInAdminPanel(currentUser.role),
+    deletionHoldings: canWriteInAdminPanel(currentUser.role)
+      ? await readAcademyHoldings(academy.id)
+      : [],
+    merge: canWriteInAdminPanel(currentUser.role)
+      ? await loadAcademyMergeOptions(academy.id)
+      : null,
     selectedEventId: eventContext.selectedEventId,
   };
 }
@@ -59,7 +63,7 @@ export async function handleAcademyDetailAction({
   params: { academyId?: string };
   request: Request;
 }): Promise<AcademyDetailActionData> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
   const academy = await readAcademy(params.academyId);
   const formData = await request.formData();
   const intent = readFormString(formData, "intent");

@@ -20,6 +20,7 @@ import {
   readErrorProperty,
 } from "@/lib/shared/error-properties.server";
 import { toTitleCase } from "@/lib/shared/text-normalization";
+import { toPersonName } from "@/lib/shared/person-name";
 import { normalizedTextEquals } from "@/lib/shared/text-normalization.server";
 
 const ACADEMY_ONBOARDING_CONFLICT_ERROR =
@@ -105,7 +106,7 @@ export async function completeAcademyOnboarding(input: {
       await tx.insert(academies).values({
         userId: onboardingUser.user.id,
         name,
-        contactName: toTitleCase(input.contactName),
+        contactName: toPersonName(input.contactName),
         phone: input.phone,
         city: toTitleCase(input.city),
         province: input.province,

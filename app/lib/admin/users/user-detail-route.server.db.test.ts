@@ -682,7 +682,7 @@ function renderListRoute(
       hydrationData: {
         loaderData: {
           "0": {
-            canManage: true,
+            canWrite: true,
             filters: {
               query: "",
               state: null,
@@ -716,7 +716,7 @@ function renderDetailRoute(
       hydrationData: {
         loaderData: {
           "0": {
-            canManage: false,
+            canWrite: false,
             backToList: "/administracion/usuarios",
             user: {
               id: userId,

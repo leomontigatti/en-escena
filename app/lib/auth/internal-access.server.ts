@@ -6,19 +6,24 @@ import { academies, accessSession, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
 import { PUBLIC_ACADEMY_ONBOARDING_PATH } from "@/lib/auth/access-paths.shared";
+import { toUserAccessState } from "@/lib/auth/user-access-state.shared";
 import {
-  INTERNAL_USER_ROLES,
+  canDownloadAuditorExports,
+  canEnterJudgePanel,
+  canEnterPortal,
+  canReadAdminPanel,
+  canWriteInAdminPanel,
   isInternalUserRole,
   type InternalUserRole,
-} from "@/lib/auth/internal-user-roles";
-import { toUserAccessState } from "@/lib/auth/user-access-state.shared";
+  type UserRole,
+} from "@/lib/auth/user-role.shared";
 
 export type AppUser = {
   id: string;
   email: string;
   internalUsername: string | null;
   name: string | null;
-  role: "academy" | InternalUserRole;
+  role: UserRole;
   sessionInvalidBefore: Date | null;
 };
 
@@ -108,7 +113,7 @@ export async function requireSignedInUser(request: Request) {
 export async function requireAcademyUser(request: Request) {
   const appUser = await requireSignedInUser(request);
 
-  if (appUser.role !== "academy") {
+  if (!canEnterPortal(appUser.role)) {
     throwForbidden("Los usuarios internos no pueden acceder al portal.");
   }
 
@@ -132,25 +137,39 @@ export async function requireAcademyUser(request: Request) {
   return { user: appUser, academy };
 }
 
-export async function requireInternalUser(
+/**
+ * The internal-user guards. Each admits the permissions one predicate of
+ * `user-role.shared.ts` names, so no guard restates a set of roles.
+ */
+export async function requireAdminPanelReader(request: Request) {
+  return await requireInternalUser(request, canReadAdminPanel);
+}
+
+/** Every administration write, and the reads not reviewed for the auditor. */
+export async function requireAdminPanelWriter(request: Request) {
+  return await requireInternalUser(request, canWriteInAdminPanel);
+}
+
+export async function requireAuditorExportReader(request: Request) {
+  return await requireInternalUser(request, canDownloadAuditorExports);
+}
+
+export async function requireJudgePanelUser(request: Request) {
+  return await requireInternalUser(request, canEnterJudgePanel);
+}
+
+async function requireInternalUser(
   request: Request,
-  allowedRoles: readonly InternalUserRole[] = INTERNAL_USER_ROLES,
+  isAllowed: (role: InternalUserRole) => boolean,
 ) {
   const appUser = await requireSignedInUser(request);
 
-  if (
-    !isInternalUserRole(appUser.role) ||
-    !allowedRoles.includes(appUser.role)
-  ) {
+  if (!isInternalUserRole(appUser.role) || !isAllowed(appUser.role)) {
     throwForbidden();
   }
 
   // The guard above narrows the role, and the account menu needs it narrowed.
   return { ...appUser, role: appUser.role };
-}
-
-export async function requireAdminUser(request: Request) {
-  return await requireInternalUser(request, ["admin"]);
 }
 
 function throwForbidden(message = DEFAULT_FORBIDDEN_MESSAGE): never {

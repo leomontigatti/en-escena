@@ -107,7 +107,7 @@ System access identity, with credentials and one main permission. An academy use
 _Avoid_: `academy`, `professor`, academy account
 
 **`individual`** — ui: "Particular"
-A person who holds their own access, without an academy, to register themselves into seminars and to read their own participation in an event. One account is one person and one document, held by an adult; a guardian opens one per child. What it reads of other academies' rosters is reached through its document only once administration has verified it (ADR-0019).
+A person who holds their own access to register themselves into seminars, either without an academy or because their academy does not handle it, and to read their own participation in an event. It registers into seminars only, as itself, and pays as an academy does. One account is one person and one document, held by an adult; a guardian opens one per child. What it reads of other academies' rosters is reached through its document only once administration has confirmed the link against a photo of that document; this is not dancer verification, which an individual never has, and a change of document clears the confirmation (ADR-0019).
 _Avoid_: `dancer`, `Bailarín` (as a kind of user), `alumno libre`, student
 
 **`internalUsername`** — ui: "Nombre de usuario interno"
@@ -288,6 +288,10 @@ _Avoid_: `rosterPersonStatus` (the `Estado de alta` axis on the same two tables)
 **`dancer`** — ui: "Bailarín"
 Person loaded by an academy to take part in choreographies. Their document **number** is unique within their academy on the same terms as a **`professor`**'s, and creation asks for the pair optionally too; a second dancer of the same **name and birth date** is a warning the academy confirms, since two children of one academy may share both.
 _Avoid_: `professor`, `user`
+
+**`identityDocument`** — ui: "Documento de identidad"
+The type and number pair a **`dancer`** or a **`professor`** may carry, loaded whole or not at all: half a document is not a state a person can be in. Its type is `DNI`, `Pasaporte` or `Otro`, and its number is held in one canonical form (a DNI is its digits alone, with no dots, spaces or hyphens), so the same person's number reads the same wherever it was typed; a person without one reads `Sin documento`.
+_Avoid_: DNI (a type, not the pair), identification, `documentImage`
 
 **`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"
 Documentary validation situation of a dancer, derived and never stored, with three values: `incomplete` (`Incompleto`, some document data or image missing), `unverified` (`Sin verificar`, complete and not yet checked) and `verified` (`Verificado`, checked by administration). Any change to what the document shows returns a verified dancer to `unverified` (see `docs/domain/choreographies.md`, "`Estado de verificación de bailarín`").

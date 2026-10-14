@@ -22,7 +22,7 @@ const markedEntryPointPattern =
 // helpers and constants. The mark has to be at the start of the identifier, or
 // immediately after a transformation verb. That leaves out by shape — with no
 // allowlist — the symbols where `Admin` names the role and not the surface:
-// `requireAdminUser`, `createSignedInAdminRequest`, `getMissingItemAdminPath`.
+// `requireAdminPanelWriter`, `createSignedInAdminRequest`, `getMissingItemAdminPath`.
 const declarationPattern =
   /\b(?:type|interface|class|enum|function|const|let)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
 
@@ -33,7 +33,7 @@ const declarationPattern =
 // - `render`: it picks up `renderAdminChildRoute` and `renderAdminRoute`, test
 //   helpers that name the surface they mount. Covering it costs two exceptions.
 // - `ensure` and `make`: synonyms of `require` and `create`, the verbs that name
-//   the guard (`requireAdminUser`) and the role fixture
+//   the guard (`requireAdminPanelWriter`) and the role fixture
 //   (`createSignedInAdminRequest`). Adding them breaks exactly that exclusion.
 // - `should`, `can`, `with`, `from`: predicates and prepositions whose usual
 //   subject is the acting user (`canAdminUserEdit`, `withAdminUser`).
@@ -159,7 +159,7 @@ describe("surface prefix guardrail", () => {
   });
 
   test.each([
-    "export function requireAdminUser() {}",
+    "export function requireAdminPanelWriter() {}",
     "export function createSignedInAdminRequest() {}",
     "export function getMissingItemAdminPath() {}",
     "export function createAdministrativeEvent() {}",

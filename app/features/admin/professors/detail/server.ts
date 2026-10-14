@@ -19,13 +19,14 @@ import {
 import { rosterMergeIntents } from "@/lib/roster/roster-merge.shared";
 import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
 import {
-  requireAdminUser,
-  requireInternalUser,
+  requireAdminPanelReader,
+  requireAdminPanelWriter,
 } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import {
-  buildBackToListHref,
+  buildProfessorBackToListHref,
   buildProfessorActionError,
   buildProfessorActionSuccess,
   buildProfessorEditSchema,
@@ -38,7 +39,7 @@ export async function loadProfessorDetail(input: {
   request: Request;
   params: { professorId?: string };
 }) {
-  const user = await requireInternalUser(input.request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(input.request);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
@@ -69,23 +70,24 @@ export async function loadProfessorDetail(input: {
   ]);
 
   return {
-    canEdit: user.role === "admin",
+    canWrite: canWriteInAdminPanel(user.role),
     selectedEventId: eventContext.selectedEventId,
     professor,
     choreographies,
     seminarInscriptions,
-    backToList: buildBackToListHref(readRequestedUrl(input.request).href),
+    backToList: buildProfessorBackToListHref(
+      readRequestedUrl(input.request).href,
+    ),
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "professor",
       personId: professorId,
     }),
-    merge:
-      user.role === "admin"
-        ? await loadRosterMergeOptions({
-            kind: "professor",
-            personId: professorId,
-          })
-        : null,
+    merge: canWriteInAdminPanel(user.role)
+      ? await loadRosterMergeOptions({
+          kind: "professor",
+          personId: professorId,
+        })
+      : null,
   };
 }
 
@@ -93,7 +95,7 @@ export async function handleProfessorDetailAction(input: {
   request: Request;
   params: { professorId?: string };
 }) {
-  await requireAdminUser(input.request);
+  await requireAdminPanelWriter(input.request);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {

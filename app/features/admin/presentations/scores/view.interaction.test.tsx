@@ -50,10 +50,10 @@ describe("correcting the panel's scores", () => {
    */
   async function mount(
     overrides: Partial<PresentationScores> = {},
-    options: { canEdit?: boolean; heldScoreId?: string } = {},
+    options: { canWrite?: boolean; heldScoreId?: string } = {},
   ) {
     let loaderData: PresentationScoresLoaderData = {
-      canEdit: options.canEdit ?? true,
+      canWrite: options.canWrite ?? true,
       presentation: buildPresentation(overrides),
     };
     const router = createMemoryRouter(
@@ -251,7 +251,7 @@ describe("correcting the panel's scores", () => {
   });
 
   test("offers a reader who may not edit only the way to the choreography", async () => {
-    await mount({}, { canEdit: false });
+    await mount({}, { canWrite: false });
     await openActionsMenu();
 
     expect(menuItems().map((item) => item.textContent?.trim())).toEqual([

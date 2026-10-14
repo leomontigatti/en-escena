@@ -143,7 +143,7 @@ function buildViewState(
   const viewedDancer = { ...dancer, ...overrides.dancer };
 
   return buildDancerDetailViewState({
-    canEdit: true,
+    canWrite: true,
     dancer: viewedDancer,
     isParticipatingInActiveEvent:
       overrides.isParticipatingInActiveEvent ?? false,

@@ -13,7 +13,7 @@ vi.mock("@/lib/admin/event-context.server", () => ({
   loadShellEventContext: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/internal-navigation.server", () => ({
+vi.mock("@/lib/auth/internal-access.server", () => ({
   requireAdminPanelReader: vi.fn(),
 }));
 

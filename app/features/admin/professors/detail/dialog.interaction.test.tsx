@@ -106,6 +106,33 @@ describe("ProfessorDetailRouteView dialogs", () => {
     expect(getButton("Guardar").hasAttribute("disabled")).toBe(true);
   });
 
+  // #735: the professor form checked only that the pair was whole, so a DNI
+  // with letters went to the server before the reader heard about it.
+  test("refuses a DNI with letters on the field before saving", async () => {
+    await renderer.renderAsync(
+      renderInDataRouter(
+        "/administracion/profesores/profesor_1",
+        <ProfessorDetailRouteView loaderData={createLoaderData()} />,
+      ),
+    );
+
+    const documentField = document.querySelector<HTMLInputElement>(
+      'input[name="documentNumber"]',
+    );
+
+    if (!documentField) {
+      throw new Error("Expected the document number field to be rendered.");
+    }
+
+    await updateReactDomForm(() => setInputValue(documentField, "30A11222"));
+    await clickReactDomButton("Guardar", { exact: true });
+
+    expect(documentField.getAttribute("aria-invalid")).toBe("true");
+    expect(document.body.textContent).toContain(
+      "Ingresá un DNI válido usando solo números.",
+    );
+  });
+
   test("keeps Guardar on after a refused save that refilled the form", async () => {
     await renderer.renderAsync(
       renderInDataRouter(
@@ -171,7 +198,7 @@ describe("ProfessorDetailRouteView dialogs", () => {
       renderInDataRouter(
         "/administracion/profesores/profesor_1",
         <ProfessorDetailRouteView
-          loaderData={createLoaderData({ canEdit: false })}
+          loaderData={createLoaderData({ canWrite: false })}
         />,
       ),
     );
@@ -257,17 +284,17 @@ async function changeFirstName(value: string) {
 }
 
 function createLoaderData({
-  canEdit = true,
+  canWrite = true,
   editConsequence = null,
 }: {
-  canEdit?: boolean;
+  canWrite?: boolean;
   editConsequence?: ProfessorEditConsequence;
 } = {}): ProfessorDetailViewProps["loaderData"] {
   return {
     backToList: "/administracion/profesores",
     choreographies: [],
     seminarInscriptions: [],
-    canEdit,
+    canWrite,
     isParticipatingInActiveEvent: false,
     merge: null,
     professor: {

@@ -8,6 +8,7 @@ import {
 } from "@/lib/shared/argentine-phone";
 import type { Province } from "@/lib/academies/provinces";
 import { toTitleCase } from "@/lib/shared/text-normalization";
+import { toPersonName } from "@/lib/shared/person-name";
 
 export type AcademyProfileInput = {
   name: string;
@@ -44,7 +45,7 @@ export async function updateAcademyProfile(
   };
   const normalizedValues = {
     name: toTitleCase(input.name),
-    contactName: toTitleCase(input.contactName),
+    contactName: toPersonName(input.contactName),
     phone: input.phone,
     city: toTitleCase(input.city),
     province: input.province,

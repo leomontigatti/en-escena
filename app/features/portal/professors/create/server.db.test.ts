@@ -14,10 +14,10 @@ const { findProfessorDocumentConflictMock } = vi.hoisted(() => ({
   findProfessorDocumentConflictMock: vi.fn(),
 }));
 
-vi.mock("@/lib/portal/professor-records.server", async (importOriginal) => {
+vi.mock("@/lib/professors/professor-records.server", async (importOriginal) => {
   const actual =
     await importOriginal<
-      typeof import("@/lib/portal/professor-records.server")
+      typeof import("@/lib/professors/professor-records.server")
     >();
 
   return {
@@ -30,8 +30,8 @@ installDatabaseTestHooks();
 
 beforeEach(async () => {
   const actual = await vi.importActual<
-    typeof import("@/lib/portal/professor-records.server")
-  >("@/lib/portal/professor-records.server");
+    typeof import("@/lib/professors/professor-records.server")
+  >("@/lib/professors/professor-records.server");
 
   findProfessorDocumentConflictMock.mockReset();
   findProfessorDocumentConflictMock.mockImplementation(

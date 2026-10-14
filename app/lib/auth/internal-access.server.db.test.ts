@@ -7,8 +7,9 @@ import { createSignedInRequest } from "@/lib/test-support/auth";
 import { academies, accessSession, user } from "@/db/schema";
 import {
   requireAcademyUser,
-  requireAdminUser,
-  requireInternalUser,
+  requireAdminPanelReader,
+  requireAdminPanelWriter,
+  requireJudgePanelUser,
   requireSignedInUser,
 } from "@/lib/auth/internal-access.server";
 
@@ -187,21 +188,19 @@ describe("internal access authorization", () => {
     );
   });
 
-  test("allows only requested internal roles", async () => {
+  test("admits each internal user to their own panel only", async () => {
     const { request: judgeRequest, userId } = await createSignedInRequest({
       email: "judge@example.com",
       role: "judge",
     });
 
-    await expect(
-      requireInternalUser(judgeRequest, ["judge"]),
-    ).resolves.toMatchObject({
+    await expect(requireJudgePanelUser(judgeRequest)).resolves.toMatchObject({
       id: userId,
       role: "judge",
     });
 
     const auditorResponse = await expectThrownResponse(
-      requireAdminUser(judgeRequest),
+      requireAdminPanelWriter(judgeRequest),
     );
 
     expect(auditorResponse.status).toBe(403);
@@ -213,7 +212,9 @@ describe("internal access authorization", () => {
       role: "academy",
     });
 
-    const response = await expectThrownResponse(requireInternalUser(request));
+    const response = await expectThrownResponse(
+      requireAdminPanelReader(request),
+    );
 
     expect(response.status).toBe(403);
   });

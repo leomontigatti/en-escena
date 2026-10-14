@@ -18,7 +18,7 @@ import { useResetListQuery } from "@/components/shared/data-table-url-state";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
-} from "@/components/shared/document-type-options";
+} from "@/lib/roster/identity-document";
 import { ReadOnlyDocumentImageField } from "@/components/shared/read-only-document-image-field";
 import {
   ReadOnlyDateField,
@@ -61,19 +61,19 @@ export type InscriptionsSectionProps = {
 };
 
 export function DancerDetailHeaderActions({
-  canEdit,
+  canWrite,
   canVerifyIdentity,
   onSelectIntent,
   onSelectMerge,
   statusAction,
 }: {
-  canEdit: boolean;
+  canWrite: boolean;
   canVerifyIdentity: boolean;
   onSelectIntent: (intent: DancerDialogIntent) => void;
   onSelectMerge: () => void;
   statusAction: DancerStatusAction;
 }) {
-  if (!canEdit) {
+  if (!canWrite) {
     return null;
   }
 
@@ -105,7 +105,7 @@ export function DancerDetailHeaderActions({
 
 export function DancerDetailAlerts({
   active,
-  canEdit,
+  canWrite,
   canVerifyIdentity,
   verificationAlert,
   verificationAlertTitle,
@@ -114,7 +114,7 @@ export function DancerDetailAlerts({
   recategorisedChoreographies,
 }: {
   active: boolean;
-  canEdit: boolean;
+  canWrite: boolean;
   canVerifyIdentity: boolean;
   verificationAlert: string;
   verificationAlertTitle: string;
@@ -122,7 +122,7 @@ export function DancerDetailAlerts({
   onSelectIntent: (intent: DancerDialogIntent) => void;
   recategorisedChoreographies: RecategorisedChoreography[];
 }) {
-  const onReactivate = canEdit
+  const onReactivate = canWrite
     ? () => onSelectIntent("reactivate-dancer")
     : undefined;
   const verifyAction = canVerifyIdentity
@@ -163,7 +163,7 @@ export function DancerDetailAlerts({
  */
 export function DancerDetailForm({
   backToList,
-  canEdit,
+  canWrite,
   dancer,
   documentImageUrls,
   editForm,
@@ -174,7 +174,7 @@ export function DancerDetailForm({
   selectedEventId,
 }: {
   backToList: string;
-  canEdit: boolean;
+  canWrite: boolean;
   dancer: DancerDetailLoaderData["dancer"];
   documentImageUrls: DancerDetailLoaderData["documentImageUrls"];
   editForm: DancerEditFormController;
@@ -212,7 +212,7 @@ export function DancerDetailForm({
             footer={
               <FormActions
                 backTo={backToList}
-                canEdit={canEdit}
+                canEdit={canWrite}
                 hasChanges={editForm.hasChanges}
                 isPending={isSaving}
                 onDiscard={editForm.discard}
@@ -224,7 +224,7 @@ export function DancerDetailForm({
               dancer={dancer}
               documentImageUrls={documentImageUrls}
               editForm={editForm}
-              canEdit={canEdit}
+              canWrite={canWrite}
             />
           </AdminResourceFormCard>
           {nameWarning ? (
@@ -245,7 +245,7 @@ export function DancerDetailForm({
       <TabsContent value="seminars" className="pt-2">
         <SeminarInscriptionsSection
           // The seminar detail is not reviewed for the auditor and refuses them.
-          canOpenSeminar={canEdit}
+          canOpenSeminar={canWrite}
           inscriptions={dancer.seminarInscriptions}
           selectedEventId={selectedEventId}
         />
@@ -258,16 +258,16 @@ function DancerIdentificationSection({
   dancer,
   documentImageUrls,
   editForm,
-  canEdit,
+  canWrite,
 }: {
   dancer: DancerDetailLoaderData["dancer"];
   documentImageUrls: DancerDetailLoaderData["documentImageUrls"];
   editForm: DancerEditFormController;
-  canEdit: boolean;
+  canWrite: boolean;
 }) {
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
-      {canEdit ? (
+      {canWrite ? (
         <>
           <DancerTextField
             form={editForm.form}

@@ -2,7 +2,7 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { categoryActionHandler } from "@/lib/admin/events/bases-action/categories.server";
 import { runEventBasesActionWithHandler } from "@/lib/admin/events/bases-action/runner.server";
 import { type ActionData } from "@/lib/admin/events/bases-action/shared.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { getCategory } from "@/lib/categories/repository.server";
 
 type CategoryIntent = "create-category" | "update-category" | "delete-category";
@@ -16,7 +16,7 @@ export async function handleCategoryAction(
   request: Request,
   options: HandleCategoryActionOptions = {},
 ): Promise<ActionData | never> {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
 
   const eventContext = await loadEventContext(request);
   const eventId = eventContext.selectedEventId;

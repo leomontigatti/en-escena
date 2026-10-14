@@ -24,11 +24,8 @@ import {
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
 import { updateInternalUser } from "@/lib/admin/users/internal-user-update.server";
-import {
-  requireAdminUser,
-  requireInternalUser,
-} from "@/lib/auth/internal-access.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 type LoaderArgs = {
@@ -46,7 +43,7 @@ export async function loader({
   request,
   params,
 }: LoaderArgs): Promise<UserDetailLoaderData> {
-  const appUser = await requireInternalUser(request, ["admin"]);
+  const appUser = await requireAdminPanelWriter(request);
   const userId = requireUserId(params.userId);
   const savedUser = await findDetailUserRow(userId);
 
@@ -56,7 +53,7 @@ export async function loader({
 
   return {
     backToList: buildBackToListHref(readRequestedUrl(request).href),
-    canManage: appUser.role === "admin",
+    canWrite: canWriteInAdminPanel(appUser.role),
     user: buildDetailUser(savedUser),
   };
 }
@@ -65,8 +62,7 @@ export async function action({
   request,
   params,
 }: ActionArgs): Promise<DetailActionData | DetailSuccessData> {
-  const appUser = await requireAdminUser(request);
-  await requireAdminPanelUser(request);
+  const appUser = await requireAdminPanelWriter(request);
   const userId = requireUserId(params.userId);
   const formData = await request.formData();
   const intent = formData.get("intent");

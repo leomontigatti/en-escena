@@ -5,10 +5,7 @@ import {
   readFinanceAcademyId,
 } from "@/features/admin/finances/academy.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import {
-  requireAdminUser,
-  requireInternalUser,
-} from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
   getFacturaCEmissionDeps,
@@ -61,7 +58,7 @@ export async function loadChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
 }) {
-  await requireInternalUser(input.request, ["admin"]);
+  await requireAdminPanelWriter(input.request);
 
   const academyId = readFinanceAcademyId(input.params);
   const choreographyId = readChoreographyId(input.params);
@@ -182,7 +179,7 @@ export async function handleChoreographyFinanceAction(input: {
   // production they are resolved from the environment (cert+key, sales point).
   resolveEmissionDeps?: () => FacturaCEmissionDeps;
 }): Promise<ChoreographyFinanceActionData | never> {
-  await requireAdminUser(input.request);
+  await requireAdminPanelWriter(input.request);
 
   const academyId = readFinanceAcademyId(input.params);
   const choreographyId = readChoreographyId(input.params);

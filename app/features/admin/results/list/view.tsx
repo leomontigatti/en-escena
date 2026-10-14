@@ -211,8 +211,8 @@ export function ResultsListView({
       }}
       headerAction={
         <ResultsListActions
-          canExport={loaderData.canPublish && loaderData.exportDays.length > 0}
-          canPublish={loaderData.canPublish}
+          canExport={loaderData.canWrite && loaderData.exportDays.length > 0}
+          canPublish={loaderData.canWrite}
           isPublished={loaderData.publication.publishedAt !== null}
           onExport={() => setIsExportDialogOpen(true)}
           onPublication={setResultsAction}
@@ -251,7 +251,7 @@ export function ResultsListView({
           description="Una presentación entra en esta lista cuando recibe su número en el orden del evento activo."
         />
       )}
-      {loaderData.canPublish && loaderData.selectedEventId ? (
+      {loaderData.canWrite && loaderData.selectedEventId ? (
         <ResultsPublicationDialog
           action={resultsAction}
           eventId={loaderData.selectedEventId}

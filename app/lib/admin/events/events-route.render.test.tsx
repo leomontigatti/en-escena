@@ -2,8 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 
-vi.mock("@/lib/auth/internal-navigation.server", () => ({
-  requireAdminPanelUser: vi.fn(),
+vi.mock("@/lib/auth/internal-access.server", () => ({
+  requireAdminPanelWriter: vi.fn(),
 }));
 
 import type { EventListRow } from "@/features/admin/events/list/shared";

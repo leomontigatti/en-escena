@@ -14,7 +14,7 @@ import { useRosterRefusalToast } from "@/components/shared/roster-document-confl
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
-} from "@/components/shared/document-type-options";
+} from "@/lib/roster/identity-document";
 import { DancerInscriptionsTable } from "@/components/shared/roster-inscriptions-table";
 import { RosterSeminarInscriptionsTable } from "@/components/shared/roster-seminar-inscriptions-table";
 import { useResetListQuery } from "@/components/shared/data-table-url-state";

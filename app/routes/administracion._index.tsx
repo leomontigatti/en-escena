@@ -20,8 +20,8 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { db } from "@/db";
 import { events as eventsTable } from "@/db/schema";
-import { canWriteInAdminPanel } from "@/lib/auth/admin-panel-access";
-import { requireAdminPanelReader } from "@/lib/auth/internal-navigation.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
+import { requireAdminPanelReader } from "@/lib/auth/internal-access.server";
 import type { EventRegistrationReadiness } from "@/lib/events/registration-readiness";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 import { isEventRegistrationOpen } from "@/lib/schedules/registration-open.server";

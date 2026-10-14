@@ -38,7 +38,7 @@ export type AcademyDetailLoaderData = {
     phone: string;
     province: string;
   };
-  canEdit: boolean;
+  canWrite: boolean;
   /**
    * What keeps the academy from being deleted, as the delete refusal lists it
    * (`2 bailarines`). Empty when it can be deleted, and for an auditor.

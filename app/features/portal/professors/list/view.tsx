@@ -10,6 +10,11 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
+  documentTypeEmptyLabel,
+  formatIdentityDocument,
+} from "@/lib/roster/identity-document";
+import { matchesRosterPersonSearch } from "@/lib/roster/roster-person-search";
+import {
   getParticipationBadgeVariant,
   getParticipationLabel,
 } from "@/lib/participation/participation.shared";
@@ -137,8 +142,6 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
           {professor.firstName} {professor.lastName}
         </DataTableLink>
       ),
-      filterValue: (professor) =>
-        `${professor.firstName} ${professor.lastName} ${professor.documentNumber ?? ""}`,
       sortValue: (professor) => `${professor.firstName} ${professor.lastName}`,
     },
     {
@@ -146,8 +149,12 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       header: "Documento",
       className: "w-1/4 text-muted-foreground",
       headerClassName: "w-1/4",
-      cell: (professor) => formatProfessorDocument(professor),
-      filterValue: (professor) => professor.documentNumber ?? "",
+      cell: (professor) =>
+        formatIdentityDocument(professor) ?? (
+          <span className="text-muted-foreground">
+            {documentTypeEmptyLabel}
+          </span>
+        ),
     },
     {
       id: "status",
@@ -177,29 +184,13 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       columns={columns}
       getRowKey={(professor) => professor.id}
       searchPlaceholder="Buscar por nombre o documento"
-      textFilterColumnId="name"
+      matchesSearch={matchesRosterPersonSearch}
       facetedFilters={professorFacetedFilters}
       baseFacetedFilterValues={baseProfessorFilters}
       emptyMessage="No hay profesores que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
     />
   );
-}
-
-function formatProfessorDocument(professor: ProfessorRow) {
-  if (!professor.documentType || !professor.documentNumber) {
-    return <span className="text-muted-foreground">Sin documento</span>;
-  }
-
-  if (professor.documentType === "dni") {
-    return `DNI ${professor.documentNumber}`;
-  }
-
-  if (professor.documentType === "passport") {
-    return `Pasaporte ${professor.documentNumber}`;
-  }
-
-  return `Otro ${professor.documentNumber}`;
 }
 
 function getProfessorStateBadges(professor: ProfessorRow) {

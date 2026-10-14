@@ -2,9 +2,10 @@ import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
-  requireAdminUser,
-  requireInternalUser,
+  requireAdminPanelReader,
+  requireAdminPanelWriter,
 } from "@/lib/auth/internal-access.server";
+import { canWriteInAdminPanel } from "@/lib/auth/user-role.shared";
 import {
   previewChoreographyRemovalOutcome,
   removeChoreography,
@@ -114,7 +115,7 @@ export async function loadChoreographyDetailRouteData(input: {
   request: Request;
   params: ChoreographyDetailParams;
 }): Promise<ChoreographyDetailLoaderData> {
-  const user = await requireInternalUser(input.request, ["admin", "auditor"]);
+  const user = await requireAdminPanelReader(input.request);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
@@ -130,7 +131,7 @@ export async function loadChoreographyDetailRouteData(input: {
   // A withdrawn choreography accepts no edit whoever the user is: the
   // withdrawal is final, so every field the view gates on `canEdit` goes
   // read-only while the stamp is there.
-  const canEdit = user.role === "admin" && !choreography.isWithdrawn;
+  const canEdit = canWriteInAdminPanel(user.role) && !choreography.isWithdrawn;
   const [
     blockers,
     availableDancers,
@@ -171,7 +172,7 @@ export async function loadChoreographyDetailRouteData(input: {
     deletion: {
       blockers,
       canDelete: blockers.length === 0,
-      isOffered: user.role === "admin",
+      isOffered: canWriteInAdminPanel(user.role),
       // What the dialog announces, and only that: the write re-decides under
       // the choreography's row lock, so money landing between the render and
       // the click still leads to a withdrawal.
@@ -215,7 +216,7 @@ export async function handleChoreographyDetailAction(input: {
   request: Request;
   params: ChoreographyDetailParams;
 }): Promise<ChoreographyDetailActionData | Response> {
-  await requireAdminUser(input.request);
+  await requireAdminPanelWriter(input.request);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {

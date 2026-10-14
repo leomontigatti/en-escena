@@ -19,8 +19,8 @@ vi.mock("@/lib/admin/event-context.server", () => ({
 }));
 
 vi.mock("@/lib/auth/internal-access.server", () => ({
-  requireAdminUser: vi.fn(),
-  requireInternalUser: vi.fn(),
+  requireAdminPanelReader: vi.fn(),
+  requireAdminPanelWriter: vi.fn(),
 }));
 
 import {

@@ -162,7 +162,7 @@ describe("the administration panel for an auditor", () => {
       role: "auditor",
     });
 
-    expect(detail).toMatchObject({ canEdit: false });
+    expect(detail).toMatchObject({ canWrite: false });
   });
 
   test("opens the dancer, professor, choreography and payment details, read-only", async () => {
@@ -184,22 +184,30 @@ describe("the administration panel for an auditor", () => {
       amount: 1000,
       paymentDate: "2026-04-10",
     });
+    // A choreography's `canEdit` also turns false once it is withdrawn.
     const details = [
-      [dancerDetailLoader, { dancerId: dancer.id }, `bailarines/${dancer.id}`],
+      [
+        dancerDetailLoader,
+        { dancerId: dancer.id },
+        `bailarines/${dancer.id}`,
+        "canWrite",
+      ],
       [
         professorDetailLoader,
         { professorId: professor.id },
         `profesores/${professor.id}`,
+        "canWrite",
       ],
       [
         choreographyDetailLoader,
         { choreographyId: choreography.id },
         `coreografias/${choreography.id}`,
+        "canEdit",
       ],
-      [paymentDetailLoader, { paymentId }, `pagos/${paymentId}`],
+      [paymentDetailLoader, { paymentId }, `pagos/${paymentId}`, "canWrite"],
     ] as const;
 
-    for (const [child, params, path] of details) {
+    for (const [child, params, path, flag] of details) {
       const [, detail] = await openPanelScreen({
         child: child as unknown as ChildLoader,
         params,
@@ -207,7 +215,7 @@ describe("the administration panel for an auditor", () => {
         role: "auditor",
       });
 
-      expect(detail).toMatchObject({ canEdit: false });
+      expect(detail).toMatchObject({ [flag]: false });
     }
   });
 

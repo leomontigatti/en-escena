@@ -9,6 +9,7 @@ import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { UserFormCard } from "@/lib/admin/users/user-detail-cards";
+import { internalUserRoleOptions } from "@/lib/auth/user-role.shared";
 import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
@@ -26,12 +27,6 @@ import {
   type CreateInternalUserActionData,
   type CreateInternalUserFormValues,
 } from "./shared";
-
-const createInternalUserRoleOptions = [
-  { value: "admin", label: "Administrador" },
-  { value: "auditor", label: "Auditor" },
-  { value: "judge", label: "Juez" },
-];
 
 export type NewInternalUserRouteViewProps = {
   actionData?: CreateInternalUserActionData;
@@ -123,7 +118,7 @@ export function NewInternalUserRouteView({
               control={control}
               label="Permiso principal"
               name="role"
-              options={createInternalUserRoleOptions}
+              options={internalUserRoleOptions}
               placeholder="Elegí un permiso"
             />
 

@@ -1,7 +1,7 @@
 import { data } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import {
   createVoteCodeBatch,
   listVoteCodeBatches,
@@ -150,7 +150,7 @@ export async function loadVoteCodeSheet(
   request: Request,
   batchId: string,
 ): Promise<Response> {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
   const { selectedEventId } = await loadEventContext(request);
   const sheet = selectedEventId
     ? await readVoteCodeBatch({ batchId, eventId: selectedEventId })

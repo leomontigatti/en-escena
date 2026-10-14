@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { internalUserRoleLabels } from "@/lib/auth/internal-user-roles";
+import { isInternalUserRole, type UserRole } from "@/lib/auth/user-role.shared";
 import {
   toUserAccessState,
   type UserAccessState,
@@ -34,14 +34,13 @@ export type ResetPasswordFormValues = {
   password: string;
 };
 
-export type DetailUserRole = "academy" | "admin" | "auditor" | "judge";
 export type DetailUserType = "academy" | "internal";
 
 export type DetailUserRow = {
   id: string;
   name: string;
   email: string;
-  role: DetailUserRole;
+  role: UserRole;
   internalUsername: string | null;
   suspended: boolean;
   academyId: string | null;
@@ -55,7 +54,7 @@ export type DetailUser = {
   email: string | null;
   identifier: string;
   id: string;
-  mainRole: DetailUserRole;
+  mainRole: UserRole;
   name: string;
   state: UserAccessState;
   userType: DetailUserType;
@@ -63,20 +62,9 @@ export type DetailUser = {
 
 export type UserDetailLoaderData = {
   backToList: string;
-  canManage: boolean;
+  canWrite: boolean;
   user: DetailUser;
 };
-
-export const detailUserRoleOptions = [
-  { value: "admin", label: internalUserRoleLabels.admin },
-  { value: "auditor", label: internalUserRoleLabels.auditor },
-  { value: "judge", label: internalUserRoleLabels.judge },
-  { value: "academy", label: "Academia" },
-] as const satisfies ReadonlyArray<{ value: DetailUserRole; label: string }>;
-
-export const internalUserRoleOptions = detailUserRoleOptions.filter(
-  (option) => option.value !== "academy",
-);
 
 export type DetailActionData = {
   form: "edit" | "reset-password" | "status";
@@ -107,12 +95,6 @@ const emptyUpdateInternalUserFieldErrors =
   getEmptyFieldErrors<UpdateInternalUserField>();
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
-
-function isInternalUserRole(
-  value: string,
-): value is Extract<DetailUserRole, "admin" | "auditor" | "judge"> {
-  return value === "admin" || value === "auditor" || value === "judge";
-}
 
 const roleField = z
   .string()
@@ -195,13 +177,13 @@ function sanitizeUserDetailSearchParams(searchParams: URLSearchParams) {
 
 export function getDetailDescription(
   userType: DetailUserType,
-  canManage: boolean,
+  canWrite: boolean,
 ) {
   if (userType === "academy") {
     return "Consultá la identidad de acceso de la academia en modo solo lectura.";
   }
 
-  if (canManage) {
+  if (canWrite) {
     return "Actualizá los datos del usuario interno y sus permisos.";
   }
 

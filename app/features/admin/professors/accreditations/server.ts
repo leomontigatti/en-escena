@@ -5,7 +5,7 @@ import {
   listProfessorAccreditations,
   readProfessorFilters,
 } from "@/lib/admin/professors/professors.server";
-import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import { professorAccreditationIdParam } from "./shared";
@@ -19,7 +19,7 @@ import { renderProfessorAccreditationsDocument } from "./view";
 export async function loadProfessorAccreditationsPrint(
   request: Request,
 ): Promise<Response> {
-  await requireInternalUser(request, ["admin"]);
+  await requireAdminPanelWriter(request);
 
   const url = readRequestedUrl(request);
   const { selectedEventId } = await loadEventContext(request);

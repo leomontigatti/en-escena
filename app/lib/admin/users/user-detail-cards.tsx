@@ -7,10 +7,8 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { FieldGroup } from "@/components/ui/field";
-import {
-  detailUserRoleOptions,
-  type DetailUser,
-} from "@/lib/admin/users/user-detail.shared";
+import { type DetailUser } from "@/lib/admin/users/user-detail.shared";
+import { userRoleOptions } from "@/lib/auth/user-role.shared";
 
 /** What someone who may not manage users sees: the fields, and only `Volver`. */
 export function InternalUserDetailCard({
@@ -29,7 +27,7 @@ export function InternalUserDetailCard({
       />
       <ReadOnlySelectField
         label="Permiso principal"
-        options={detailUserRoleOptions}
+        options={userRoleOptions}
         value={user.mainRole}
       />
     </ReadOnlyUserPage>

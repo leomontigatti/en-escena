@@ -25,7 +25,7 @@ import {
 import {
   getProfessorDocumentConflict,
   buildProfessorDetailViewState,
-  getInitialDialogIntent,
+  getInitialProfessorDialogIntent,
   getProfessorConfirmationAction,
   getProfessorDialogFormId,
   getProfessorEditValues,
@@ -114,7 +114,7 @@ export function ProfessorDetailRouteView({
       description="Revisá la información administrativa de este profesor."
       headerAction={
         <ProfessorDetailHeaderActions
-          canEdit={loaderData.canEdit}
+          canWrite={loaderData.canWrite}
           onSelectIntent={openStatusDialog}
           onSelectMerge={() => mergeDialog.onOpenChange(true)}
           statusAction={viewState.statusAction}
@@ -123,14 +123,14 @@ export function ProfessorDetailRouteView({
     >
       <ProfessorDetailAlerts
         active={professor.active}
-        canEdit={loaderData.canEdit}
+        canWrite={loaderData.canWrite}
         isIncomplete={professor.isIncomplete}
         onSelectIntent={openStatusDialog}
       />
 
       <ProfessorDetailForm
         backToList={loaderData.backToList}
-        canEdit={loaderData.canEdit}
+        canWrite={loaderData.canWrite}
         choreographies={loaderData.choreographies}
         selectedEventId={loaderData.selectedEventId}
         seminarInscriptions={loaderData.seminarInscriptions}
@@ -276,7 +276,7 @@ function useProfessorSave({
   });
   const [dialogIntent, setDialogIntent] =
     useState<ProfessorDialogIntent | null>(
-      getInitialDialogIntent(errorData, isConsequential),
+      getInitialProfessorDialogIntent(errorData, isConsequential),
     );
   const [pendingUpdateValues, setPendingUpdateValues] =
     useState<ProfessorEditFormValues | null>(
@@ -286,7 +286,10 @@ function useProfessorSave({
     );
 
   useEffect(() => {
-    const nextIntent = getInitialDialogIntent(errorData, isConsequential);
+    const nextIntent = getInitialProfessorDialogIntent(
+      errorData,
+      isConsequential,
+    );
     if (!nextIntent) {
       return;
     }

@@ -1,7 +1,7 @@
 import { data, redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import { readGrandFinalPicks } from "@/lib/grand-final/picks-overview.server";
 import { readFormString } from "@/lib/shared/forms";
 
@@ -38,13 +38,13 @@ import {
 import type { GrandFinalListActionData, GrandFinalListResult } from "./shared";
 
 /**
- * Administration's `Gran final` list. Behind `requireAdminPanelUser`: the
+ * Administration's `Gran final` list. Behind `requireAdminPanelWriter`: the
  * auditor reads none of it, and its section is not in their navigation.
  */
 export async function loadGrandFinalListRouteData(
   request: Request,
 ): Promise<GrandFinalListResult> {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
   const eventContext = await loadEventContext(request);
 
   if (eventContext.redirectTo) {
@@ -99,7 +99,7 @@ const votingRoundIntents: readonly string[] = [
 export async function handleGrandFinalListAction(
   request: Request,
 ): Promise<GrandFinalListActionData | ReturnType<typeof data>> {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
   const formData = await request.formData();
 
   if (voteCodeBatchIntents.includes(readFormString(formData, "intent"))) {

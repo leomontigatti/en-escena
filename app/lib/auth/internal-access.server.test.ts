@@ -67,11 +67,11 @@ describe("internal access authorization", () => {
     });
     findUser.mockResolvedValue(null);
 
-    const { requireInternalUser } =
+    const { requireAdminPanelReader } =
       await import("@/lib/auth/internal-access.server");
 
     const response = await expectThrownResponse(
-      requireInternalUser(new Request("http://localhost/administracion")),
+      requireAdminPanelReader(new Request("http://localhost/administracion")),
     );
 
     expect(response.status).toBe(302);

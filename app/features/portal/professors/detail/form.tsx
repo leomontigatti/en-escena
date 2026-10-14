@@ -5,7 +5,7 @@ import type { SubmitFunction } from "react-router";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
-} from "@/components/shared/document-type-options";
+} from "@/lib/roster/identity-document";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { FieldGroup } from "@/components/ui/field";

@@ -1,7 +1,7 @@
 import { data, redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { requireAdminPanelWriter } from "@/lib/auth/internal-access.server";
 import {
   formatBannerRejection,
   grandFinalBannerSlots,
@@ -51,14 +51,14 @@ const notOnTheListMessage =
  * list: one for every row, eligible there or picked there. It holds the
  * judges who picked it in the modality and, once it is a `finalist` in any,
  * its banners, which are the academy's and the same on each of its pages.
- * Behind `requireAdminPanelUser`, as the list is.
+ * Behind `requireAdminPanelWriter`, as the list is.
  */
 export async function loadAcademyGrandFinalRouteData(
   request: Request,
   { academyId, modalityId }: AcademyModalityParams,
   storage: GrandFinalBannerStorage = createDefaultGrandFinalBannerStorage(),
 ): Promise<AcademyGrandFinalLoaderData> {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
   const eventId = await requireSelectedEventId(request);
   const picks = await readGrandFinalPicks(eventId);
   const { academy, modality } = requireAcademyModalityRow(picks, {
@@ -166,7 +166,7 @@ export async function handleAcademyGrandFinalAction(
   { academyId, modalityId }: AcademyModalityParams,
   storage: GrandFinalBannerStorage = createDefaultGrandFinalBannerStorage(),
 ): Promise<AcademyGrandFinalActionData | ReturnType<typeof data>> {
-  await requireAdminPanelUser(request);
+  await requireAdminPanelWriter(request);
   const eventId = await requireSelectedEventId(request);
   const formData = await request.formData();
 

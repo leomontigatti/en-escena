@@ -16,7 +16,7 @@ import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
-} from "@/components/shared/document-type-options";
+} from "@/lib/roster/identity-document";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
@@ -42,17 +42,17 @@ import {
 type ProfessorStatusIntent = Exclude<ProfessorDialogIntent, "update-professor">;
 
 export function ProfessorDetailHeaderActions({
-  canEdit,
+  canWrite,
   onSelectIntent,
   onSelectMerge,
   statusAction,
 }: {
-  canEdit: boolean;
+  canWrite: boolean;
   onSelectIntent: (intent: ProfessorStatusIntent) => void;
   onSelectMerge: () => void;
   statusAction: ProfessorStatusAction;
 }) {
-  if (!canEdit) {
+  if (!canWrite) {
     return null;
   }
 
@@ -67,12 +67,12 @@ export function ProfessorDetailHeaderActions({
 
 export function ProfessorDetailAlerts({
   active,
-  canEdit,
+  canWrite,
   isIncomplete,
   onSelectIntent,
 }: {
   active: boolean;
-  canEdit: boolean;
+  canWrite: boolean;
   isIncomplete: boolean;
   onSelectIntent: (intent: ProfessorStatusIntent) => void;
 }) {
@@ -82,7 +82,7 @@ export function ProfessorDetailAlerts({
         <ArchivedPersonAlert
           personLabel="profesor"
           onReactivate={
-            canEdit ? () => onSelectIntent("reactivate-professor") : undefined
+            canWrite ? () => onSelectIntent("reactivate-professor") : undefined
           }
         />
       ) : null}
@@ -108,7 +108,7 @@ export function ProfessorDetailAlerts({
  */
 export function ProfessorDetailForm({
   backToList,
-  canEdit,
+  canWrite,
   choreographies,
   editForm,
   editFormId,
@@ -120,7 +120,7 @@ export function ProfessorDetailForm({
   seminarInscriptions,
 }: {
   backToList: string;
-  canEdit: boolean;
+  canWrite: boolean;
   choreographies: ProfessorDetailLoaderData["choreographies"];
   editForm: ProfessorEditFormController;
   editFormId: string;
@@ -149,7 +149,7 @@ export function ProfessorDetailForm({
       >
         <ProfessorIdentificationForm
           backToList={backToList}
-          canEdit={canEdit}
+          canWrite={canWrite}
           editForm={editForm}
           editFormId={editFormId}
           isSaving={isSaving}
@@ -173,7 +173,7 @@ export function ProfessorDetailForm({
           <RosterSeminarInscriptionsTable
             // The seminar detail is not reviewed for the auditor and refuses them.
             buildSeminarHref={
-              canEdit
+              canWrite
                 ? (seminarId) => `${seminarsPath}/${seminarId}`
                 : undefined
             }
@@ -199,7 +199,7 @@ function NoSelectedEventState({ subject }: { subject: string }) {
 
 function ProfessorIdentificationForm({
   backToList,
-  canEdit,
+  canWrite,
   editForm,
   editFormId,
   isSaving,
@@ -208,7 +208,7 @@ function ProfessorIdentificationForm({
   professor,
 }: {
   backToList: string;
-  canEdit: boolean;
+  canWrite: boolean;
   editForm: ProfessorEditFormController;
   editFormId: string;
   isSaving: boolean;
@@ -229,7 +229,7 @@ function ProfessorIdentificationForm({
         footer={
           <FormActions
             backTo={backToList}
-            canEdit={canEdit}
+            canEdit={canWrite}
             hasChanges={editForm.hasChanges}
             isPending={isSaving}
             onDiscard={editForm.discard}
@@ -237,7 +237,7 @@ function ProfessorIdentificationForm({
         }
       >
         <ProfessorAdministrativeDataSection
-          canEdit={canEdit}
+          canWrite={canWrite}
           editForm={editForm}
           professor={professor}
         />
@@ -255,11 +255,11 @@ function ProfessorIdentificationForm({
 
 function ProfessorAdministrativeDataSection({
   editForm,
-  canEdit,
+  canWrite,
   professor,
 }: {
   editForm: ProfessorEditFormController;
-  canEdit: boolean;
+  canWrite: boolean;
   professor: ProfessorDetailLoaderData["professor"];
 }) {
   return (
@@ -269,7 +269,7 @@ function ProfessorAdministrativeDataSection({
         label="Academia"
         value={professor.academy.name}
       />
-      {canEdit ? (
+      {canWrite ? (
         <>
           <ProfessorTextField
             form={editForm.form}
