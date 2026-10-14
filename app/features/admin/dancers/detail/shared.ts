@@ -21,11 +21,11 @@ import type {
   DancerUpdateInput,
   findDancer,
 } from "@/lib/admin/dancers/dancers.server";
+import { normalizeDancerValues } from "@/lib/dancers/dancer-records";
 import {
-  normalizeDancerDocumentPair,
-  normalizeDancerValues,
-  refineDancerDocumentPair,
-} from "@/lib/dancers/dancer-records";
+  normalizeIdentityDocument,
+  refineIdentityDocument,
+} from "@/lib/roster/identity-document";
 import {
   canVerifyDancerIdentity,
   invalidatesDancerVerification,
@@ -155,7 +155,7 @@ export function buildDancerUpdateSchema(eventStartDate: string | null) {
       ...rosterDocumentPairFields,
       ...rosterDocumentImageFields,
     })
-    .superRefine(refineDancerDocumentPair);
+    .superRefine(refineIdentityDocument);
 }
 
 export function buildBackToListHref(requestUrl: string) {
@@ -410,7 +410,7 @@ function editInvalidatesVerification(
     return false;
   }
 
-  const document = normalizeDancerDocumentPair(
+  const document = normalizeIdentityDocument(
     values.documentType,
     values.documentNumber,
   );

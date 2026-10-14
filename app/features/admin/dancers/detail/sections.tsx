@@ -18,7 +18,7 @@ import { useResetListQuery } from "@/components/shared/data-table-url-state";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
-} from "@/components/shared/document-type-options";
+} from "@/lib/roster/identity-document";
 import { ReadOnlyDocumentImageField } from "@/components/shared/read-only-document-image-field";
 import {
   ReadOnlyDateField,

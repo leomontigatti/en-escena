@@ -32,6 +32,25 @@ describe("loadProfessorsList", () => {
     expect(data.professors.map((professor) => professor.id)).toEqual([jose.id]);
   });
 
+  // #735: the search was matched raw against the stored digits.
+  test("finds a professor by a DNI typed with its dots", async () => {
+    const academy = await seedAcademy();
+    const matching = await createProfessor(academy.id, {
+      documentType: "dni",
+      documentNumber: "12345678",
+    });
+    await createProfessor(academy.id, {
+      documentType: "dni",
+      documentNumber: "87654321",
+    });
+
+    const data = await loadProfessorsList(
+      await listRequest("?busqueda=12.345.678"),
+    );
+
+    expect(data.professors.map((row) => row.id)).toEqual([matching.id]);
+  });
+
   test("finds every record of an academy by the academy's name", async () => {
     const academy = await seedAcademy();
     const other = await createAcademyRecord({

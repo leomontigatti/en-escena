@@ -1,4 +1,4 @@
-import { documentTypeOptions } from "@/components/shared/document-type-options";
+import { documentTypeOptions } from "@/lib/roster/identity-document";
 
 import type { SheetColumn } from "@/features/admin/day-export/sheet";
 
