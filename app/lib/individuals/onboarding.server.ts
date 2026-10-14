@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, individuals, user } from "@/db/schema";
@@ -6,6 +6,7 @@ import { requirePendingOnboardingUser } from "@/lib/auth/pending-onboarding.serv
 import {
   parseIndividualPersonalData,
   toIndividualFullName,
+  type IndividualPersonalDataFieldErrors,
   type IndividualPersonalDataValues,
 } from "@/lib/individuals/personal-data";
 import {
@@ -13,25 +14,37 @@ import {
   readErrorProperty,
 } from "@/lib/shared/error-properties.server";
 
-const ONE_ACCOUNT_PER_EMAIL_MESSAGE =
-  "Este correo ya tiene una cuenta en En Escena, y cada correo es una sola cuenta. Para abrir una cuenta de Particular, registrate con otro correo.";
+export type IndividualOnboardingResult =
+  | { headers: Headers; ok: true }
+  | {
+      fieldErrors: IndividualPersonalDataFieldErrors;
+      ok: false;
+      reason: "invalid";
+    }
+  /** Another user holds the email, or this one already owns another account. */
+  | { ok: false; reason: "email-taken" };
 
 /**
  * Opens an individual's account in one transaction: the user with the
  * `individual` permission (created when the identity has none yet), the owner
  * row of kind `individual` that holds its phone and, later, its money, and the
  * person (ADR-0019). Either all three exist afterwards or none does.
+ *
+ * A second submit that passed the guard before the first committed meets the
+ * account the first opened, and succeeds with it rather than being refused.
  */
 export async function completeIndividualOnboarding(input: {
   request: Request;
   values: IndividualPersonalDataValues;
-}) {
+}): Promise<IndividualOnboardingResult> {
   const onboardingUser = await requirePendingOnboardingUser(input.request);
   const parsed = parseIndividualPersonalData(input.values);
 
   if (!parsed.ok) {
-    return { ok: false as const, fieldErrors: parsed.fieldErrors };
+    return { ok: false, reason: "invalid", fieldErrors: parsed.fieldErrors };
   }
+
+  const headers = onboardingUser.headers;
 
   const person = parsed.data;
   const fullName = toIndividualFullName(person);
@@ -75,22 +88,38 @@ export async function completeIndividualOnboarding(input: {
       });
     });
   } catch (error) {
+    if (!isUniqueViolation(error)) {
+      throw error;
+    }
+
+    if (await holdsIndividualAccount(onboardingUser.user.id)) {
+      return { headers, ok: true };
+    }
+
     if (isAccountConflict(error)) {
-      return { ok: false as const, error: ONE_ACCOUNT_PER_EMAIL_MESSAGE };
+      return { ok: false, reason: "email-taken" };
     }
 
     throw error;
   }
 
-  return { headers: onboardingUser.headers, ok: true as const };
+  return { headers, ok: true };
+}
+
+async function holdsIndividualAccount(userId: string) {
+  const [account] = await db
+    .select({ id: individuals.id })
+    .from(academies)
+    .innerJoin(individuals, eq(individuals.academyId, academies.id))
+    .innerJoin(user, eq(user.id, academies.userId))
+    .where(and(eq(academies.userId, userId), eq(user.role, "individual")))
+    .limit(1);
+
+  return account !== undefined;
 }
 
 /** Another user already holds the email, or this one already owns a row. */
 function isAccountConflict(error: unknown) {
-  if (!isUniqueViolation(error)) {
-    return false;
-  }
-
   const constraintName = readErrorProperty(error, "constraint_name");
   const detail = readErrorProperty(error, "detail");
 

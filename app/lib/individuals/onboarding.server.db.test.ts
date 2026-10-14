@@ -2,18 +2,54 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { academies, individuals, user } from "@/db/schema";
+import { academies, user } from "@/db/schema";
+import {
+  createAccessRequestCookie,
+  createAccessUser,
+  markAccessUserEmailVerified,
+} from "@/lib/auth/access-auth.test-support";
+import { requireIndividualUser } from "@/lib/auth/internal-access.server";
 import { completeIndividualOnboarding } from "@/lib/individuals/onboarding.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 const getVerifiedAccessIdentity = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/auth/access-auth-provider.server", () => ({
-  accessAuthProvider: {
-    getVerifiedAccessIdentity,
-  },
-}));
+// Real Better Auth, with a confirmed identity faked only where no real one
+// can stand: an identity without an app user, or one whose email another
+// user holds.
+vi.mock("@/lib/auth/access-auth-provider.server", async (importOriginal) => {
+  const original =
+    await importOriginal<
+      typeof import("@/lib/auth/access-auth-provider.server")
+    >();
+
+  return {
+    accessAuthProvider: {
+      ...original.accessAuthProvider,
+      getVerifiedAccessIdentity: (request: Request) =>
+        getVerifiedAccessIdentity(request) ??
+        original.accessAuthProvider.getVerifiedAccessIdentity(request),
+    },
+  };
+});
+
+const requirePendingOnboardingUser = vi.hoisted(() => vi.fn());
+
+// The real guard, but for the race: there it answers what it read before the
+// first submit committed.
+vi.mock("@/lib/auth/pending-onboarding.server", async (importOriginal) => {
+  const original =
+    await importOriginal<
+      typeof import("@/lib/auth/pending-onboarding.server")
+    >();
+
+  return {
+    requirePendingOnboardingUser: (request: Request) =>
+      requirePendingOnboardingUser(request) ??
+      original.requirePendingOnboardingUser(request),
+  };
+});
 
 installDatabaseTestHooks();
 
@@ -27,39 +63,78 @@ const personalData = {
 
 describe("individual onboarding", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   test("turns the confirmed user into an individual with its owner row and its person, the document normalized", async () => {
-    // Email confirmation creates the user with the default permission.
-    await insertConfirmedUser("particular@example.com", "confirmed-user");
-    getVerifiedAccessIdentity.mockResolvedValue(
-      accessIdentity("particular@example.com", "confirmed-user"),
-    );
+    const confirmed = await signUpConfirmedUser("particular@example.com");
 
     const result = await completeIndividualOnboarding({
-      request: onboardingRequest(),
+      request: onboardingRequest(confirmed.cookie),
       values: personalData,
     });
 
     expect(result).toMatchObject({ ok: true });
-    await expect(readUserRole("confirmed-user")).resolves.toBe("individual");
-    await expect(readOwnerAndPerson("confirmed-user")).resolves.toEqual({
-      owner: {
-        city: null,
-        contactName: "Ana María de la Cruz",
-        kind: "individual",
-        name: "Ana María de la Cruz",
-        phone: "3511234567",
-        province: null,
-      },
-      person: {
+    await expect(
+      requireIndividualUser(onboardingRequest(confirmed.cookie)),
+    ).resolves.toMatchObject({
+      individual: {
         documentNumber: "30123456",
         documentType: "dni",
         firstName: "Ana María",
         lastName: "de la Cruz",
+        phone: "3511234567",
       },
+      user: { id: confirmed.userId, role: "individual" },
     });
+    // No reader shows the owner row's names, kind or place.
+    await expect(
+      db.query.academies.findFirst({
+        columns: {
+          city: true,
+          contactName: true,
+          kind: true,
+          name: true,
+          province: true,
+        },
+        where: eq(academies.userId, confirmed.userId),
+      }),
+    ).resolves.toEqual({
+      city: null,
+      contactName: "Ana María de la Cruz",
+      kind: "individual",
+      name: "Ana María de la Cruz",
+      province: null,
+    });
+  });
+
+  test("a second submit racing the first lands in the account the first opened", async () => {
+    const confirmed = await signUpConfirmedUser("particular@example.com");
+    const request = onboardingRequest(confirmed.cookie);
+    const { requirePendingOnboardingUser: realGuard } = await vi.importActual<
+      typeof import("@/lib/auth/pending-onboarding.server")
+    >("@/lib/auth/pending-onboarding.server");
+    // Both submits pass the guard before either commits.
+    const readBeforeCommit = await realGuard(request);
+    requirePendingOnboardingUser.mockResolvedValue(readBeforeCommit);
+
+    const first = await completeIndividualOnboarding({
+      request,
+      values: personalData,
+    });
+    const second = await completeIndividualOnboarding({
+      request,
+      values: personalData,
+    });
+
+    expect(first).toMatchObject({ ok: true });
+    expect(second).toMatchObject({ ok: true });
+    vi.resetAllMocks();
+    await expect(
+      requireIndividualUser(onboardingRequest(confirmed.cookie)),
+    ).resolves.toMatchObject({ user: { role: "individual" } });
+    // Only one person was opened; no reader counts them.
+    await expect(db.query.individuals.findMany()).resolves.toHaveLength(1);
   });
 
   test("creates the user when the confirmed identity has none yet", async () => {
@@ -96,11 +171,7 @@ describe("individual onboarding", () => {
       values: personalData,
     });
 
-    expect(result).toEqual({
-      ok: false,
-      error:
-        "Este correo ya tiene una cuenta en En Escena, y cada correo es una sola cuenta. Para abrir una cuenta de Particular, registrate con otro correo.",
-    });
+    expect(result).toEqual({ ok: false, reason: "email-taken" });
     await expect(
       db.query.user.findMany({ columns: { id: true } }),
     ).resolves.toEqual([{ id: "existing-user" }]);
@@ -145,6 +216,7 @@ describe("individual onboarding", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
+      reason: "invalid",
       fieldErrors: { documentType: "Seleccioná el tipo de documento." },
     });
     await expect(
@@ -154,6 +226,7 @@ describe("individual onboarding", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
+      reason: "invalid",
       fieldErrors: {
         documentNumber: "Ingresá un DNI válido usando solo números.",
       },
@@ -205,40 +278,6 @@ async function readUserRole(userId: string) {
   return row?.role;
 }
 
-async function readOwnerAndPerson(userId: string) {
-  const owner = await db.query.academies.findFirst({
-    columns: {
-      city: true,
-      contactName: true,
-      id: true,
-      kind: true,
-      name: true,
-      phone: true,
-      province: true,
-    },
-    where: eq(academies.userId, userId),
-  });
-  const person = owner
-    ? await db.query.individuals.findFirst({
-        columns: {
-          documentNumber: true,
-          documentType: true,
-          firstName: true,
-          lastName: true,
-        },
-        where: eq(individuals.academyId, owner.id),
-      })
-    : undefined;
-
-  if (!owner) {
-    return { owner, person };
-  }
-
-  const { id: _ownerId, ...ownerData } = owner;
-
-  return { owner: ownerData, person };
-}
-
 function accessIdentity(email: string, id: string) {
   return {
     headers: new Headers({
@@ -252,8 +291,25 @@ function accessIdentity(email: string, id: string) {
   };
 }
 
-function onboardingRequest() {
+/** A real sign-up whose email is confirmed: the user holds no account yet. */
+async function signUpConfirmedUser(email: string) {
+  const signUp = await createAccessUser({
+    email,
+    name: email,
+    password: "password-segura",
+  });
+
+  await markAccessUserEmailVerified(signUp.user.id);
+
+  return {
+    cookie: createAccessRequestCookie(signUp.headers),
+    userId: signUp.user.id,
+  };
+}
+
+function onboardingRequest(cookie?: string) {
   return new Request("http://localhost/registro/particular", {
+    headers: cookie ? { cookie } : undefined,
     method: "POST",
   });
 }
