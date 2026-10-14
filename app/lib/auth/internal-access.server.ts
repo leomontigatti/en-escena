@@ -11,6 +11,7 @@ import {
   isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
+import { toUserAccessState } from "@/lib/auth/user-access-state.shared";
 
 export type AppUser = {
   id: string;
@@ -59,7 +60,7 @@ export async function requireSignedInAccessState(
   });
 
   if (appUser) {
-    if (appUser.suspended) {
+    if (toUserAccessState(appUser) === "suspended") {
       await revokeAppUserSessionsAndRedirect(request, appUser.id);
     }
 

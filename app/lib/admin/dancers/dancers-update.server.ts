@@ -25,6 +25,7 @@ import {
 import { normalizeDancerValues } from "@/lib/dancers/dancer-records";
 import { normalizeIdentityDocument } from "@/lib/roster/identity-document";
 import { invalidatesDancerVerification } from "@/lib/dancers/verification";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export async function updateAdministrativeDancer(input: {
   acknowledgedDuplicateIds?: readonly string[];
@@ -38,7 +39,9 @@ export async function updateAdministrativeDancer(input: {
   });
 
   if (!existingDancer) {
-    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+      status: 404,
+    });
   }
 
   const values = input.values;

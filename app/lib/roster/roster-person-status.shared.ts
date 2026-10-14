@@ -10,13 +10,15 @@
  * touches no inscription, no operational status and no figure.
  *
  * This is the pure half —usable from views and from tests— and it imports
- * nothing. The query predicate and the filter condition live
+ * nothing but the pure half of the person kind. The query predicate and the filter condition live
  * in `roster-person-status.server.ts`.
  */
-export type RosterPersonStatus = "active" | "archived";
+import {
+  rosterPersonNoun,
+  type RosterPersonKind,
+} from "@/lib/roster/roster-person-kind.shared";
 
-/** The two person kinds that carry the axis. */
-export type RosterPersonKind = "dancer" | "professor";
+export type RosterPersonStatus = "active" | "archived";
 
 /**
  * The filter adds "all" to the two states. Every caller that omits the filter
@@ -118,13 +120,6 @@ export function getArchiveKeepsRosterMessage(kind: RosterPersonKind) {
   }
 }
 
-const participatingMessages: Record<RosterPersonKind, string> = {
-  dancer:
-    "Este bailarín no puede archivarse porque está participando del evento activo.",
-  professor:
-    "Este profesor no puede archivarse porque está participando del evento activo.",
-};
-
 /**
  * Why archiving was refused, and the mirror image of the archived rejection in
  * `roster-person-rejection.ts`: that one says to reactivate before adding a
@@ -137,7 +132,7 @@ const participatingMessages: Record<RosterPersonKind, string> = {
  * `Inscripciones` tab already lists and which a toast would only let go stale.
  */
 export function getRosterPersonParticipatingMessage(kind: RosterPersonKind) {
-  return participatingMessages[kind];
+  return `Este ${rosterPersonNoun(kind, "singular")} no puede archivarse porque está participando del evento activo.`;
 }
 
 /**

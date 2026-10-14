@@ -23,10 +23,7 @@ import {
   type UpdateDancerField,
 } from "@/lib/portal/dancers.server";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
-import {
-  getRosterPersonNotFoundMessage,
-  setRosterPersonStatus,
-} from "@/lib/roster/roster-person-status.server";
+import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
 import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
 import {
@@ -34,12 +31,12 @@ import {
   buildPortalDancerSchema,
   getClientDocumentImageValidationMessage,
   portalDancerInvalidValuesMessage,
-  portalDancerNotFoundMessage,
   readPortalDancerFormValues,
   readPortalDancerId,
   readFormString,
   type PortalDancerFormValues,
 } from "./shared";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export async function loadPortalDancerDetail(input: {
   request: Request;
@@ -263,7 +260,9 @@ async function requirePortalDancer(academyId: string, dancerId: string) {
   const dancer = await findDancerForAcademy(academyId, dancerId);
 
   if (!dancer) {
-    throw new Response(portalDancerNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+      status: 404,
+    });
   }
 
   return dancer;

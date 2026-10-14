@@ -31,8 +31,8 @@ import {
   type DancerBirthDateScheduleMove,
 } from "@/lib/choreographies/dancer-birthdate-messages";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
-export const portalDancerNotFoundMessage = "No encontramos ese Bailarín.";
 export const portalDancerFormId = "portal-bailarin-form";
 export const portalDancerInvalidValuesMessage =
   "Revisá los datos del Bailarín.";
@@ -179,7 +179,9 @@ export const portalDancerStatusActions = {
 
 export function readPortalDancerId(params: { dancerId?: string }) {
   if (!params.dancerId) {
-    throw new Response(portalDancerNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+      status: 404,
+    });
   }
 
   return params.dancerId;

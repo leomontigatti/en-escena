@@ -7,6 +7,7 @@ import {
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
 import { canVerifyDancerIdentity } from "@/lib/dancers/verification";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export async function verifyDancerIdentity(input: {
   dancerId: string;
@@ -18,7 +19,9 @@ export async function verifyDancerIdentity(input: {
   });
 
   if (!existingDancer) {
-    throw new Response("No encontramos ese Bailarín.", { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+      status: 404,
+    });
   }
 
   if (!canVerifyDancerIdentity(existingDancer.verificationStatus)) {

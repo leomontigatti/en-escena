@@ -10,11 +10,10 @@ describe("InternalUsersListRouteView", () => {
     const markup = renderRoute({
       canManage: true,
       filters: {
-        archived: false,
         page: 1,
         query: "Sin resultados",
         role: "all",
-        state: "all",
+        state: null,
         type: "all",
       },
     });
@@ -30,7 +29,6 @@ describe("InternalUsersListRouteView", () => {
   test("keeps active list filters when linking to a user detail", () => {
     const markup = renderRoute({
       filters: {
-        archived: true,
         page: 1,
         query: "Ana Admin",
         role: "admin",
@@ -51,7 +49,7 @@ describe("InternalUsersListRouteView", () => {
     });
 
     expect(markup).toContain(
-      'href="/administracion/usuarios/user-1?busqueda=Ana+Admin&amp;estado=suspended&amp;rol=admin&amp;tipo=internal&amp;archivado=si"',
+      'href="/administracion/usuarios/user-1?busqueda=Ana+Admin&amp;estado=suspended&amp;rol=admin&amp;tipo=internal"',
     );
   });
 
@@ -60,11 +58,10 @@ describe("InternalUsersListRouteView", () => {
   test("pages from the totals the loader counted", () => {
     const markup = renderRoute({
       filters: {
-        archived: false,
         page: 2,
         query: "",
         role: "all",
-        state: "all",
+        state: null,
         type: "all",
       },
       totalCount: 51,
@@ -113,11 +110,10 @@ function renderRoute(
         loaderData: {
           canManage: false,
           filters: {
-            archived: false,
             page: 1,
             query: "",
             role: "all",
-            state: "all",
+            state: null,
             type: "all",
           },
           totalCount: 0,

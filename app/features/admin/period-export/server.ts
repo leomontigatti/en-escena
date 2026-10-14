@@ -11,6 +11,8 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import { seminarInscriptionPersonColumn } from "@/lib/roster/roster-person-kind.server";
+import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
@@ -131,7 +133,7 @@ export function seminarInscriptionRegisteredInPeriod(
  * a seminar inscription that counts for the period.
  */
 export function holdsSeminarInscriptionInPeriod(
-  person: "dancer" | "professor",
+  person: RosterPersonKind,
   personColumn: AnyColumn,
   eventId: string,
   period: ExportPeriod,
@@ -143,12 +145,7 @@ export function holdsSeminarInscriptionInPeriod(
       .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
       .where(
         and(
-          eq(
-            person === "dancer"
-              ? seminarInscriptions.dancerId
-              : seminarInscriptions.professorId,
-            personColumn,
-          ),
+          eq(seminarInscriptionPersonColumn(person), personColumn),
           seminarInscriptionRegisteredInPeriod(eventId, period),
         ),
       ),

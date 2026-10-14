@@ -128,7 +128,7 @@ _Avoid_: `academyRegistration`, `accessRecovery`
 
 **`suspendedUser`** — ui: "Usuario suspendido"
 User who keeps their history but cannot start or maintain access sessions.
-_Avoid_: deleted user, inactive user, deactivation
+_Avoid_: deleted user, inactive user, deactivation, `Archivado`
 
 **`admin`** — ui: "Administrador"
 User with operating permissions over the event and its exceptions.
@@ -281,6 +281,10 @@ _Avoid_: professors, financial data
 The set of dancers and professors a choreography currently carries: the **`choreographyDancers`** the admin form edits, plus the linked professors. It is the English domain term and stays in identifiers, file names and comments (`choreography-roster.server.ts`, `updateChoreographyRosterIntent`, `removeInscriptionsFromRoster`); what the academy reads is `Elenco`. Use `Bailarines de coreografía` when the surface names the dancers alone, and `Elenco` when it names the group the choreography presents with. Removal from it is not one gesture but two — a physical delete without evidence, a **`withdrawnInscription`** with it — and removing the whole choreography makes the same choice, between a delete and a **`withdrawnChoreography`**.
 _Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
 
+**`rosterPersonKind`** — ui: "Bailarín / Profesor"
+Whether a person an academy loads is a **`dancer`** or a **`professor`**, an axis never named on screen: only its two values are. A seminar inscription names exactly one person of one kind.
+_Avoid_: `rosterPersonStatus` (the `Estado de alta` axis on the same two tables), `roster` (the set a choreography carries), person type, participant
+
 **`dancer`** — ui: "Bailarín"
 Person loaded by an academy to take part in choreographies. Their document **number** is unique within their academy on the same terms as a **`professor`**'s, and creation asks for the pair optionally too; a second dancer of the same **name and birth date** is a warning the academy confirms, since two children of one academy may share both.
 _Avoid_: `professor`, `user`
@@ -294,7 +298,7 @@ Documentary validation situation of a dancer, derived and never stored, with thr
 _Avoid_: identification status, `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`rosterPersonStatus`** — ui: "Estado de alta"
-Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` (`Activo`) and `archived` (`Archivado`): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. Archiving is refused while the person is participating in the active event —a live inscription, a professor link or a live seminar inscription of that event— and reactivating is never refused; the predicate is one reader, shared by the writer's guard and by the detail screens that grey the `Archivar` button out. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.
+Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` (`Activo`) and `archived` (`Archivado`): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. Archiving is refused while the person is participating in the active event —a live inscription, a professor link or a live seminar inscription of that event— and reactivating is never refused; the predicate is one reader, shared by the writer's guard and by the detail screens that grey the `Archivar` button out. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this.
 _Avoid_: participating, `dancerVerificationStatus`, deleted person
 
 **`mergeRosterPeople`** — ui: "Fusionar"

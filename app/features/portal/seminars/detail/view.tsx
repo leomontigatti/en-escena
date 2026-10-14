@@ -18,6 +18,7 @@ import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { rosterPersonNoun } from "@/lib/roster/roster-person-kind.shared";
 import {
   Dialog,
   DialogContent,
@@ -219,7 +220,7 @@ function InscriptionsTable({
       header: "Tipo",
       cell: (inscription) => (
         <Badge variant="secondary">
-          {inscription.personKind === "professor" ? "Profesor" : "Bailarín"}
+          {rosterPersonNoun(inscription.personKind, "singularCapitalized")}
         </Badge>
       ),
     },
