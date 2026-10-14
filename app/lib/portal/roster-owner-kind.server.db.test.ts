@@ -1,10 +1,13 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { db } from "@/db";
-import { dancers, professors } from "@/db/schema";
-import { createDancerForAcademy } from "@/lib/portal/dancers.server";
-import { createAcademyProfessor } from "@/lib/portal/professors.server";
+import {
+  createDancerForAcademy,
+  listDancersForAcademy,
+} from "@/lib/portal/dancers.server";
+import {
+  createAcademyProfessor,
+  listAcademyProfessors,
+} from "@/lib/portal/professors.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -30,12 +33,7 @@ describe("roster creation under an owner row of kind individual", () => {
         lastName: "Gómez",
       }),
     ).rejects.toMatchObject({ status: 404 });
-    await expect(
-      db
-        .select({ id: dancers.id })
-        .from(dancers)
-        .where(eq(dancers.academyId, academyId)),
-    ).resolves.toEqual([]);
+    await expect(listDancersForAcademy(academyId)).resolves.toEqual([]);
   });
 
   test("refuses a professor", async () => {
@@ -53,11 +51,6 @@ describe("roster creation under an owner row of kind individual", () => {
         lastName: "Gómez",
       }),
     ).rejects.toMatchObject({ status: 404 });
-    await expect(
-      db
-        .select({ id: professors.id })
-        .from(professors)
-        .where(eq(professors.academyId, academyId)),
-    ).resolves.toEqual([]);
+    await expect(listAcademyProfessors(academyId)).resolves.toEqual([]);
   });
 });
