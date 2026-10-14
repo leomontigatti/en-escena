@@ -106,6 +106,10 @@ _Avoid_: `listAction`, bulk action
 System access identity, with credentials and one main permission. An academy user has a verified email; an internal user has only a name, a `Nombre de usuario interno` and a permission.
 _Avoid_: `academy`, `professor`, academy account
 
+**`individual`** — ui: "Particular"
+A person who holds their own access, without an academy, to register themselves into seminars and to read their own participation in an event. One account is one person and one document, held by an adult; a guardian opens one per child. What it reads of other academies' rosters is reached through its document only once administration has verified it (ADR-0019).
+_Avoid_: `dancer`, `Bailarín` (as a kind of user), `alumno libre`, student
+
 **`internalUsername`** — ui: "Nombre de usuario interno"
 Access identifier for internal users, the only thing they type to sign in. Internal users have no email: the credential email the access auth provider needs is made up from this username as `<username>@enescena.com.ar` and nothing is ever sent to it.
 _Avoid_: internal email, alias, account
