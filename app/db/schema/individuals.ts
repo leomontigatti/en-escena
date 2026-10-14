@@ -8,7 +8,9 @@ import { createTable, documentType, uuidPrimaryKey } from "./core";
 // owner row is the `academy` row of kind `individual`, which holds its money
 // and its phone; this row holds who the person is. The document is required
 // and stored normalized through `app/lib/roster/identity-document.ts`: it is
-// the key the link to academy rosters matches on.
+// the key the link to academy rosters matches on. The document photo is the
+// one image administration compares with that document before confirming the
+// link; it is not dancer verification.
 export const individuals = createTable(
   "individual",
   {
@@ -20,6 +22,7 @@ export const individuals = createTable(
     lastName: text("last_name").notNull(),
     documentType: documentType("document_type").notNull(),
     documentNumber: text("document_number").notNull(),
+    documentPhotoStorageKey: text("document_photo_storage_key"),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

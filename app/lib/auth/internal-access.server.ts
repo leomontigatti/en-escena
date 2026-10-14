@@ -159,6 +159,7 @@ export async function requireIndividualUser(request: Request) {
       lastName: individuals.lastName,
       documentType: individuals.documentType,
       documentNumber: individuals.documentNumber,
+      documentPhotoStorageKey: individuals.documentPhotoStorageKey,
       phone: academies.phone,
     })
     .from(academies)

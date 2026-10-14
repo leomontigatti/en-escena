@@ -292,7 +292,8 @@ which Coolify reports as `TaskFailed` after its retries.
 - `createSignedUrl` is not an S3 presign: it is a short-lived authenticated
   route that serves the byte from the volume. Nothing is lost to caching,
   because the edge must not cache PII in the first place.
-- Dancer documents on this volume are plaintext PII; encryption at rest is
+- Dancer documents and individuals' document photos on this volume are
+  plaintext PII; encryption at rest is
   accepted debt, documented in [Backups](./backups.md#encryption-at-rest-accepted-debt).
 - A dancer's document image is deleted by the key stored on its row once the
   row stops pointing at it: the academy replaced or removed the photo in the
@@ -444,6 +445,27 @@ banner form under the `Gran final` list.
   object nothing points at and logs `[storage:grand-final-banner:orphan]`.
 - Deleting the event or the academy (a merge too) cascades the row and orphans
   the objects, as event documents are orphaned today.
+
+### Individual document photo contract
+
+Bucket, formats, size limit and expiry are declared in
+`app/lib/storage/asset-kinds.ts` and enforced by
+`app/lib/storage/individual-document-photos.server.ts`; the row that points at
+the object is written by `app/lib/individuals/personal-data.server.ts`, from
+the individual's `Mis datos` form.
+
+- Bucket directory: `en-escena-individual-documents`, private.
+- Accepted formats: JPG, PNG and WEBP, up to **10 MB**. Downloads go through a
+  signed URL that expires after **300** seconds.
+- One object per individual, at
+  `individuals/{individualId}/document-{uuid}.{ext}`. Each upload is a new key,
+  never written over the one in use.
+- A save uploads the new photo first, then writes the row, then deletes the
+  replaced or removed object. A refused photo saves nothing; a failed delete
+  after the write orphans an object nothing points at and logs
+  `[storage:individual-document-photo:orphan]`.
+- It is not dancer verification: the photo only feeds the individual's link
+  state (ADR-0019).
 
 ### `Devolución` audio contract
 

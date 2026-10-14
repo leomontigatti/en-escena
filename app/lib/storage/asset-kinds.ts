@@ -13,6 +13,7 @@ export type AssetKind =
   | "eventDocument"
   | "feedbackAudio"
   | "grandFinalBanner"
+  | "individualDocumentPhoto"
   | "seminarInstructorPicture";
 
 export type AssetKindPolicy = {
@@ -108,6 +109,22 @@ export const assetKindPolicies = {
     maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
     signedUrlExpiresInSeconds: 300,
     subjectLabel: "El banner",
+  },
+  // The one photo of its document an individual (`Particular`) uploads, which
+  // administration compares with the account before confirming its link. Its
+  // own bucket rather than the dancer documents': an individual is not a
+  // roster row, and this is not dancer verification.
+  individualDocumentPhoto: {
+    bucket: "en-escena-individual-documents",
+    extensionByContentType: {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    },
+    formatListLabel: "JPG, PNG o WEBP",
+    maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
+    signedUrlExpiresInSeconds: 300,
+    subjectLabel: "La foto del documento",
   },
   // The bucket deliberately drops the `en-escena-` prefix the other three
   // carry: nothing globs on it, and the name is pinned by a test either way.
