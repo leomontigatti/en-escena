@@ -15,8 +15,8 @@ You own one PR from its last push to **ready to merge**: checks green, the in-se
 
 CodeRabbit is optional (see "Babysitting a PR" in
 [pull-requests.md](../../../docs/agents/pull-requests.md)). Ask it for a review only when the PR is
-in the full-review tier of `implement` step 5, and only once, on the head the PR was opened with. A
-rate limit, a skipped review or a silent CodeRabbit is never a reason to wait.
+in the full-review tier of `implement` step 5: once on the head the PR was opened with, and once
+more only when a push of yours cancels that review (step 2). A rate limit, a skipped review or a silent CodeRabbit is never a reason to wait.
 
 The session that opened the PR babysits it: it wrote the change, so it is the one that can judge
 whether a finding holds. The waiting costs it nothing, because the harness does the waiting and the
@@ -30,14 +30,16 @@ Done when `git status` is clean and `HEAD` is the PR head.
 ## 2. Wait for the round
 
 On the first round of a full-review-tier PR, ask CodeRabbit for its review of that head once:
-`gh pr comment <n> --body "@coderabbitai review"`. No other round asks it.
+`gh pr comment <n> --body "@coderabbitai review"`. A push made before it has reviewed cancels the
+review: CodeRabbit edits its reply to the request into "Action not completed" with "Pull request
+base or head changed". Then ask once more, on the new head. No other round asks it.
 
 Then wait, and end your turn. No subagent, no `sleep`:
 
 - **In T3 Code** (the `watch_pull_request` tool, `mcp__t3-code__watch_pull_request`, is
   available): call it on the PR. T3 wakes the thread when a check fails, when the required checks
-  pass, when someone else comments or reviews (CodeRabbit included), and when the branch starts
-  to conflict. Only comments posted after the call wake you, so read the round (below) before the
+  pass, when someone else comments or reviews (CodeRabbit included, whose edits to its own
+  comments count as new ones), and when the branch starts to conflict. Only comments posted after the call wake you, so read the round (below) before the
   first call and triage anything already open. The watch lasts across rounds and pushes until
   the PR merges or closes or you unwatch it; if a wake says it ended, call it again.
 - **Outside T3**: run `gh pr checks <n> --watch` with Bash, `run_in_background: true` and a
