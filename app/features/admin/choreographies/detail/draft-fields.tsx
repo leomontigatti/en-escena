@@ -14,6 +14,7 @@ import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { FieldError, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { emptyExperienceLevelLabel } from "@/lib/choreographies/experience-level-requirement";
 import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
@@ -172,18 +173,28 @@ function ExperienceLevelField({
     <PendingLabel pending={isDeriving} text="Nivel de experiencia" />
   );
 
-  if (!draft.isStructureLocked && experienceLevel.required) {
+  const emptyLabel = emptyExperienceLevelLabel(experienceLevel.requirement);
+
+  // An optional level offers its blank as one more answer, worded `Sin nivel`.
+  if (
+    !draft.isStructureLocked &&
+    experienceLevel.requirement !== "notApplicable"
+  ) {
+    const isOptional = experienceLevel.requirement === "optional";
+
     return (
       <SelectField
+        allowEmpty={isOptional}
         control={draft.form.control}
         disabled={isDeriving}
+        emptyLabel={emptyLabel}
         label={label}
         name="experienceLevelId"
         options={experienceLevel.options.map((option) => ({
           label: option.name,
           value: option.id,
         }))}
-        placeholder="Elegí el nivel de experiencia"
+        placeholder={isOptional ? undefined : "Elegí el nivel de experiencia"}
       />
     );
   }
@@ -195,7 +206,7 @@ function ExperienceLevelField({
       label={label}
       value={
         (draft.isStructureLocked ? choreography.experienceLevelName : null) ??
-        (experienceLevel.required ? "Sin asignar" : "No aplica")
+        emptyLabel
       }
     />
   );

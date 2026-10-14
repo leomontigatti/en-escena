@@ -150,7 +150,7 @@ export function canPickExperienceLevel(detail: ChoreographyDetailLoaderData) {
   return (
     detail.canEdit &&
     detail.draft.structuralLock === null &&
-    detail.draft.experienceLevel.required
+    detail.draft.experienceLevel.requirement === "required"
   );
 }
 

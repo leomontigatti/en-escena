@@ -68,7 +68,7 @@ describe("choreography registration resolution", () => {
         categoryCalculationMode: "oldest",
         categoryAgeBasis: 12,
         experienceLevel: {
-          required: true,
+          requirement: "required",
           options: [{ id: catalog.level.id, name: catalog.level.name }],
         },
         schedule: {
@@ -614,7 +614,7 @@ describe("choreography registration resolution", () => {
         categoryCalculationMode: "oldest",
         categoryAgeBasis: 14,
         experienceLevel: {
-          required: false,
+          requirement: "notApplicable",
           options: [],
         },
       },
@@ -714,7 +714,7 @@ describe("choreography registration resolution", () => {
         categoryCalculationMode: "oldest",
         categoryAgeBasis: 36,
         experienceLevel: {
-          required: false,
+          requirement: "notApplicable",
           options: [],
         },
         schedule: {

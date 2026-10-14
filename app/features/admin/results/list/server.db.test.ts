@@ -99,6 +99,37 @@ describe("the results list", () => {
     ]);
   });
 
+  test("reads each row's experience-level requirement from its category and group", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({
+      experienceLevelId: null,
+      name: "Solista",
+      orderNumber: 1,
+    });
+    await fixture.addPresentation({
+      experienceLevelId: null,
+      groupType: "grupal",
+      name: "Grupo",
+      orderNumber: 2,
+    });
+    await fixture.addPresentation({
+      categoryId: fixture.catalog.categoryWithoutLevel.id,
+      experienceLevelId: null,
+      name: "Sin niveles",
+      orderNumber: 3,
+    });
+
+    const result = await loadTheList("admin.resultados.requisito@example.com");
+
+    expect(
+      result.results.map((row) => [row.name, row.experienceLevelRequirement]),
+    ).toEqual([
+      ["Solista", "required"],
+      ["Grupo", "optional"],
+      ["Sin niveles", "notApplicable"],
+    ]);
+  });
+
   test("leaves out a choreography with no presentation yet", async () => {
     const fixture = await seedJudgingFixture();
     await fixture.addPresentation({ name: "Numerada", orderNumber: 1 });

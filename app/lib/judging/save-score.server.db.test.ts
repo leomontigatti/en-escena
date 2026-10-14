@@ -13,13 +13,22 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 import { setPresentationDisqualified } from "./score-settlement.server";
 import { seedJudgingFixture } from "./judging.test-support";
 import { judgingDate } from "./judging-day";
+import { readPresentationScores } from "./presentation-scores.server";
 import { saveJudgeScore } from "./save-score.server";
 
 installDatabaseTestHooks();
 
-async function seedOpenPresentation() {
+async function seedOpenPresentation(
+  choreography: Pick<
+    Parameters<
+      Awaited<ReturnType<typeof seedJudgingFixture>>["addPresentation"]
+    >[0],
+    "experienceLevelId" | "groupType"
+  > = {},
+) {
   const fixture = await seedJudgingFixture();
   const presentation = await fixture.addPresentation({
+    ...choreography,
     name: "Primera",
     orderNumber: 1,
   });
@@ -433,6 +442,78 @@ describe("saving a judge's sheet of criteria", () => {
       reason: "invalid-sheet",
     });
     expect(await readScores(sheet.judge.judgeAssignmentId)).toEqual([]);
+  });
+});
+
+describe("saving the score of a choreography with no level", () => {
+  /** A blank level in a submodality whose general criteria reach 100. */
+  async function seedBlankLevel(groupType: "grupal" | "trio") {
+    const open = await seedOpenPresentation({
+      experienceLevelId: null,
+      groupType,
+    });
+    const tecnica = await open.fixture.addCriterion({
+      maximum: 100,
+      name: "Técnica",
+    });
+
+    return { ...open, tecnica };
+  }
+
+  /** The judge's score as the administration's scores page reads it. */
+  async function readPanelScore(
+    open: Awaited<ReturnType<typeof seedBlankLevel>>,
+  ) {
+    const view = await readPresentationScores({
+      presentationId: open.presentation.presentationId,
+    });
+
+    return view?.judges.find(
+      (judge) => judge.judgeAssignmentId === open.judge.judgeAssignmentId,
+    );
+  }
+
+  test("stores a single value for a `Sin nivel` grupal and refuses a sheet", async () => {
+    const open = await seedBlankLevel("grupal");
+
+    await expect(
+      saveJudgeScore({
+        criteriaValues: { [open.tecnica.id]: "80" },
+        judgeId: open.judge.judgeId,
+        presentationId: open.presentation.presentationId,
+      }),
+    ).resolves.toEqual({ ok: false, reason: "invalid-value" });
+    expect(await readPanelScore(open)).toMatchObject({
+      scoreId: null,
+      value: null,
+    });
+
+    await expect(
+      saveJudgeScore({
+        judgeId: open.judge.judgeId,
+        presentationId: open.presentation.presentationId,
+        value: "82.5",
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(await readPanelScore(open)).toMatchObject({
+      criteriaValues: {},
+      value: "82.5",
+    });
+  });
+
+  test("keeps the general criteria for a blank level a trio had to declare", async () => {
+    const open = await seedBlankLevel("trio");
+
+    await expect(
+      saveJudgeScore({
+        criteriaValues: { [open.tecnica.id]: "80" },
+        judgeId: open.judge.judgeId,
+        presentationId: open.presentation.presentationId,
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(await readPanelScore(open)).toMatchObject({
+      criteriaValues: { [open.tecnica.id]: "80.0" },
+    });
   });
 });
 

@@ -21,6 +21,7 @@ function buildItem(
     choreographyNumber: 1,
     evaluationStatus: "pending",
     experienceLevel: null,
+    experienceLevelRequirement: "notApplicable",
     financialStatus: "paidInFull",
     frozen: false,
     groupType: "solo",

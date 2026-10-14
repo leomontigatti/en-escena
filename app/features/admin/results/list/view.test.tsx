@@ -40,6 +40,7 @@ function buildRow(overrides: Partial<ResultsListItem> = {}): ResultsListItem {
     choreographyNumber: 12,
     evaluationStatus: "pending",
     experienceLevel: null,
+    experienceLevelRequirement: "notApplicable",
     groupType: "solo",
     id: "coreografia_1",
     modalityName: "Jazz",

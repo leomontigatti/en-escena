@@ -275,7 +275,7 @@ const reservedTerms = new Set(["comprobante"]);
 //
 //   - an English word spelled the same: `auditor`, `base`, `bases`, `total`,
 //     `portal`, `panel`, `fiscal`, `ranking`, `temporal`, `instructor`,
-//     `general`, `final` (from `Gran final`);
+//     `general`, `final` (from `Gran final`), `particular`;
 //   - a proper noun: `arca` is the tax agency, not a common noun;
 //   - a function word the grammar rule already owns: `para`.
 const glossaryNounExceptions = new Set([
@@ -289,6 +289,7 @@ const glossaryNounExceptions = new Set([
   "instructor",
   "panel",
   "para",
+  "particular",
   "portal",
   "ranking",
   "temporal",

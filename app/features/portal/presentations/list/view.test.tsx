@@ -90,18 +90,6 @@ describe("PortalPresentationsListView", () => {
     expect(markup).not.toContain("Sin número");
   });
 
-  test("names each presentation's level, and dashes the ones without one", () => {
-    const markup = renderView({
-      rows: [
-        buildRow({ choreographyId: "levelled", levelLabel: "Pre Elite" }),
-        buildRow({ choreographyId: "unlevelled", levelLabel: null }),
-      ],
-    });
-
-    expect(markup).toContain("Pre Elite");
-    expect(markup).toContain("—");
-  });
-
   test("links a name to the academy's own choreography detail", () => {
     const markup = renderView({
       rows: [buildRow({ choreographyId: "choreography-1" })],

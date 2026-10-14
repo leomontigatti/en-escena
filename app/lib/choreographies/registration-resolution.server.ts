@@ -14,6 +14,10 @@ import {
   invalidExperienceLevelMessage,
 } from "@/lib/choreographies/choreography-messages";
 import {
+  experienceLevelRequirement,
+  type ExperienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
+import {
   resolveOfferedScheduleOptions,
   type ScheduleResolution,
 } from "@/lib/choreographies/registration-schedule-options.server";
@@ -95,15 +99,10 @@ type CategoryResolution =
       reason: "no-compatible-category";
     };
 
-type ExperienceLevelResolution =
-  | {
-      required: true;
-      options: ExperienceLevelOption[];
-    }
-  | {
-      required: false;
-      options: ExperienceLevelOption[];
-    };
+type ExperienceLevelResolution = {
+  requirement: ExperienceLevelRequirement;
+  options: ExperienceLevelOption[];
+};
 
 export type ChoreographyRegistrationOperationResolution = {
   groupType: GroupType;
@@ -220,9 +219,10 @@ export function resolveChoreographyClassificationForResolvedDancers(input: {
     categories: categoryCandidates,
   });
   const experienceLevel = resolveExperienceLevel({
-    requiredExperienceLevels:
+    categoryExperienceLevels:
       categoryResolution.resolvedCategoryExperienceLevels,
     category: categoryResolution.category,
+    groupType,
   });
 
   return {
@@ -439,7 +439,8 @@ export function validateSubmodalitySelection(input: {
 
 /**
  * The twin of `validateSubmodalitySelection` for the experience level: it takes
- * the levels the resolved category allows and the submitted value, without
+ * the requirement `experienceLevelRequirement` answers, the levels the resolved
+ * category allows and the submitted value, without
  * depending on a whole `ChoreographyRegistrationOperationResolution`. It is the
  * piece shared by portal sign-up, roster saving and the detail's standalone
  * reassignment.
@@ -449,13 +450,11 @@ export function validateSubmodalitySelection(input: {
  * that list and nothing more.
  */
 export function validateExperienceLevelSelection(input: {
+  requirement: ExperienceLevelRequirement;
   availableExperienceLevels: Array<{ id: string }>;
   experienceLevelId: string | null;
 }): { ok: true } | { ok: false; failure: OperationFailure } {
-  if (
-    input.availableExperienceLevels.length > 0 &&
-    input.experienceLevelId === null
-  ) {
+  if (input.requirement === "required" && input.experienceLevelId === null) {
     return {
       ok: false,
       failure: failure(
@@ -469,9 +468,11 @@ export function validateExperienceLevelSelection(input: {
     return { ok: true };
   }
 
-  const hasMatchingExperienceLevel = input.availableExperienceLevels.some(
-    (record) => record.id === input.experienceLevelId,
-  );
+  const hasMatchingExperienceLevel =
+    input.requirement !== "notApplicable" &&
+    input.availableExperienceLevels.some(
+      (record) => record.id === input.experienceLevelId,
+    );
 
   if (!hasMatchingExperienceLevel) {
     return {
@@ -639,22 +640,27 @@ function toCategoryResolution(
 }
 
 function resolveExperienceLevel(input: {
-  requiredExperienceLevels: ExperienceLevel[];
+  categoryExperienceLevels: ExperienceLevel[];
   category: CategoryResolution;
+  groupType: GroupType;
 }): ExperienceLevelResolution {
-  if (
-    input.category.status !== "resolved" ||
-    input.requiredExperienceLevels.length === 0
-  ) {
-    return {
-      required: false,
-      options: [],
-    };
+  // No category yet: nothing to declare a level against.
+  if (input.category.status !== "resolved") {
+    return { requirement: "notApplicable", options: [] };
+  }
+
+  const requirement = experienceLevelRequirement({
+    categoryExperienceLevels: input.categoryExperienceLevels,
+    groupType: input.groupType,
+  });
+
+  if (requirement === "notApplicable") {
+    return { requirement, options: [] };
   }
 
   return {
-    required: true,
-    options: input.requiredExperienceLevels.map((level) => ({
+    requirement,
+    options: input.categoryExperienceLevels.map((level) => ({
       id: level,
       name: experienceLevelLabels[level] ?? level,
     })),

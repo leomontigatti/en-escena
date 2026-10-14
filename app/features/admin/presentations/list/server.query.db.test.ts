@@ -32,6 +32,40 @@ describe("the participation list's query", () => {
   });
 
   // A number is matched whole, so 12 does not bring presentation 2 along.
+  test("reads each row's experience-level requirement from its category and group", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addPresentation({
+      experienceLevelId: null,
+      name: "Solista",
+      orderNumber: 1,
+    });
+    await fixture.addPresentation({
+      experienceLevelId: null,
+      groupType: "grupal",
+      name: "Grupo",
+      orderNumber: 2,
+    });
+    await fixture.addPresentation({
+      categoryId: fixture.catalog.categoryWithoutLevel.id,
+      experienceLevelId: null,
+      name: "Sin niveles",
+      orderNumber: 3,
+    });
+
+    const result = await loadTheList("");
+
+    expect(
+      result.presentations.map((row) => [
+        row.name,
+        row.experienceLevelRequirement,
+      ]),
+    ).toEqual([
+      ["Solista", "required"],
+      ["Grupo", "optional"],
+      ["Sin niveles", "notApplicable"],
+    ]);
+  });
+
   test("finds a presentation by its own number", async () => {
     const fixture = await seedJudgingFixture();
     await fixture.addPresentation({ name: "Vals", orderNumber: 2 });

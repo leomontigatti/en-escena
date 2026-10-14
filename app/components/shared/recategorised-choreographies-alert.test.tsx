@@ -28,13 +28,13 @@ const moved: RecategorisedChoreography = {
   choreographyId: "choreography-1",
   name: "Vals",
   categoryName: "Juvenil I",
-  experienceLevelCleared: false,
+  experienceLevelOutcome: "unchanged",
 };
 const cleared: RecategorisedChoreography = {
   ...moved,
   choreographyId: "choreography-2",
   name: "Tango",
-  experienceLevelCleared: true,
+  experienceLevelOutcome: "cleared",
 };
 
 describe("RecategorisedChoreographiesAlert", () => {

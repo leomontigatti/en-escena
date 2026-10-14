@@ -196,6 +196,68 @@ describe("event registration readiness", () => {
     ).resolves.toMatchObject({ isReady: true, missingItems: [] });
   });
 
+  test("describes a grupal path whose category offers levels as taking an optional level", async () => {
+    const event = await createSavedEvent({
+      name: "Niveles 2026",
+      active: false,
+    });
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const inicial = fixedExperienceLevel(event.id);
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 1,
+        maxAge: 100,
+        groupTypes: ["solo", "grupal"],
+        modalityIds: [jazz.id],
+        experienceLevels: [inicial.id],
+      }),
+    );
+    const contemporaneo = await expectCreated(
+      createModality(event.id, { name: "Contemporáneo" }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: null,
+        scheduleIds: [],
+      }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "grupal",
+        amount: 30000,
+        paymentDeadline: null,
+        scheduleIds: [],
+      }),
+    );
+    // A schedule of another modality: no path of `Juvenil` has one.
+    await expectCreated(
+      createSchedule(event.id, {
+        name: "Función 1",
+        scheduledDate: "2026-06-07",
+        startTime: "10:00",
+        totalCapacity: 20,
+        modalityIds: [contemporaneo.id],
+      }),
+    );
+
+    const readiness = await getEventRegistrationReadiness(event.id);
+    const details = readiness.missingItems
+      .filter((item) => item.code === "schedule-compatibility")
+      .map((item) => item.detail);
+
+    expect(details).toEqual(
+      expect.arrayContaining([
+        "Falta un cupo de cronograma compatible para categoría Juvenil, modalidad Jazz, tipo de grupo solo, requiere nivel de experiencia.",
+        "Falta un cupo de cronograma compatible para categoría Juvenil, modalidad Jazz, tipo de grupo grupal, nivel de experiencia opcional.",
+      ]),
+    );
+  });
+
   test("marks an event as ready when every registration path has schedule capacity and price, and keeps ignoring seminars", async () => {
     const event = await createSavedEvent({ name: "Final 2026", active: false });
     const jazz = await expectCreated(

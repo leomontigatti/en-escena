@@ -15,6 +15,7 @@ import {
   presentations,
   prices,
   scheduleCapacities,
+  scheduleCategories,
   scheduleModalities,
   schedules,
   submodalities,
@@ -283,6 +284,28 @@ async function createCatalog(event: { id: string; startsAt: Date }) {
         experienceLevels: [],
         experienceLevelKey: "",
       },
+      // The grupal ladder: its adult category offers levels, so a grupal of
+      // adults meets the optional level on the wizard's category step.
+      {
+        eventId,
+        name: "Infantil y juvenil grupal",
+        minAge: 1,
+        maxAge: 17,
+        groupTypes: ["grupal"],
+        groupTypeKey: "grupal",
+        experienceLevels: [],
+        experienceLevelKey: "",
+      },
+      {
+        eventId,
+        name: "Adultos grupal",
+        minAge: 18,
+        maxAge: 100,
+        groupTypes: ["grupal"],
+        groupTypeKey: "grupal",
+        experienceLevels: ["amateur", "profesional"],
+        experienceLevelKey: "amateur|profesional",
+      },
     ])
     .returning();
   await db.insert(categoryModalities).values(
@@ -292,12 +315,21 @@ async function createCatalog(event: { id: string; startsAt: Date }) {
     })),
   );
   const scheduledDate = format(event.startsAt, "yyyy-MM-dd");
+  // The afternoon block takes the solo categories only, so a grupal has the
+  // morning block alone and its category step asks nothing but the level.
+  const soloCategoryIds = seededCategories
+    .filter((category) => category.groupTypes.includes("solo"))
+    .map((category) => category.id);
   const [morningCapacity, afternoonCapacity] = await Promise.all(
     [
-      { name: "Bloque mañana", startTime: "10:00" },
-      { name: "Bloque tarde", startTime: "16:00" },
+      { name: "Bloque mañana", startTime: "10:00", categoryIds: [] },
+      {
+        name: "Bloque tarde",
+        startTime: "16:00",
+        categoryIds: soloCategoryIds,
+      },
     ].map((schedule) =>
-      createSoloSchedule({
+      createSchedule({
         eventId,
         modalityId: modality.id,
         scheduledDate,
@@ -305,15 +337,24 @@ async function createCatalog(event: { id: string; startsAt: Date }) {
       }),
     ),
   );
-  const [price] = await db
+  const seededPrices = await db
     .insert(prices)
-    .values({
-      eventId,
-      name: "Precio solista",
-      groupType: "solo",
-      amount: 25000,
-      paymentDeadline: null,
-    })
+    .values([
+      {
+        eventId,
+        name: "Precio solista",
+        groupType: "solo",
+        amount: 25000,
+        paymentDeadline: null,
+      },
+      {
+        eventId,
+        name: "Precio grupal",
+        groupType: "grupal",
+        amount: 15000,
+        paymentDeadline: null,
+      },
+    ])
     .returning();
 
   return {
@@ -322,17 +363,19 @@ async function createCatalog(event: { id: string; startsAt: Date }) {
     scoredSubmodality,
     morningCapacity,
     afternoonCapacity,
-    priceId: price.id,
+    priceId: findSolo(seededPrices).id,
     scheduledDate,
   };
 }
 
-async function createSoloSchedule(input: {
+async function createSchedule(input: {
   eventId: string;
   modalityId: string;
   name: string;
   scheduledDate: string;
   startTime: string;
+  /** The categories it takes; none means every one. */
+  categoryIds: string[];
 }) {
   const [schedule] = await db
     .insert(schedules)
@@ -348,12 +391,31 @@ async function createSoloSchedule(input: {
   await db
     .insert(scheduleModalities)
     .values({ scheduleId: schedule.id, modalityId: input.modalityId });
+  if (input.categoryIds.length > 0) {
+    await db.insert(scheduleCategories).values(
+      input.categoryIds.map((categoryId) => ({
+        scheduleId: schedule.id,
+        categoryId,
+      })),
+    );
+  }
   const [scheduleCapacity] = await db
     .insert(scheduleCapacities)
     .values({ scheduleId: schedule.id, groupType: "solo", capacity: 10 })
     .returning();
 
   return scheduleCapacity;
+}
+
+/** The solo price of the seeded ones: the solo registrations below pay it. */
+function findSolo<Row extends { groupType: string }>(rows: Row[]) {
+  const solo = rows.find((row) => row.groupType === "solo");
+
+  if (!solo) {
+    throw new Error("Dev seed expected a solo price.");
+  }
+
+  return solo;
 }
 
 async function createRoster(academyId: string) {
@@ -364,6 +426,11 @@ async function createRoster(academyId: string) {
     { firstName: "Bea", lastName: "Lagos", birthDate: "2010-07-02" },
     { firstName: "Caro", lastName: "Vera", birthDate: "2009-01-30" },
     { firstName: "Dani", lastName: "Rey", birthDate: "2011-11-23" },
+    // The adults: enough for a grupal in `Adultos grupal`.
+    { firstName: "Eli", lastName: "Sosa", birthDate: "1994-05-08" },
+    { firstName: "Flor", lastName: "Ibarra", birthDate: "1996-09-17" },
+    { firstName: "Gabi", lastName: "Molina", birthDate: "1992-02-25" },
+    { firstName: "Hebe", lastName: "Castro", birthDate: "1998-12-04" },
   ]) {
     const result = await createDancerForAcademy(academyId, {
       ...dancer,

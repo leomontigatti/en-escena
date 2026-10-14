@@ -170,7 +170,7 @@ function choreographyDetailRow(
     categoryId: "category_1",
     categoryName: "Juvenil",
     experienceLevelId: "level_1",
-    requiresExperienceLevel: true,
+    experienceLevelRequirement: "required",
     experienceLevelName: "Inicial",
     operationalStatus: {
       code: "complete",

@@ -82,9 +82,9 @@ describe("the judge's list of one day's presentations", () => {
 
     expect(row).toMatchObject({
       academyName: fixture.academy.academy.name,
-      categoryAdmitsExperienceLevels: true,
       categoryName: fixture.catalog.categoryWithLevel.name,
       experienceLevel: "amateur",
+      experienceLevelRequirement: "required",
       groupType: "solo",
       modalityName: fixture.catalog.modality.name,
       presentationId: presentation.presentationId,
@@ -132,8 +132,8 @@ describe("the judge's list of one day's presentations", () => {
     });
 
     expect(row).toMatchObject({
-      categoryAdmitsExperienceLevels: false,
       experienceLevel: null,
+      experienceLevelRequirement: "notApplicable",
     });
   });
 
@@ -180,6 +180,100 @@ describe("the judge's list of one day's presentations", () => {
       { kind: "adds", maximum: 60, name: "Técnica" },
       { kind: "deducts", maximum: 10, name: "Caídas" },
     ]);
+  });
+
+  describe("the sheet each row is scored on", () => {
+    /** General criteria that reach 100, and the catalog level's own. */
+    async function seedSheets() {
+      const fixture = await seedJudgingFixture();
+
+      await fixture.addCriterion({
+        maximum: 100,
+        name: "Técnica",
+        position: 0,
+      });
+      await fixture.addCriterion({
+        experienceLevel: fixture.catalog.level.id,
+        maximum: 20,
+        name: "Figuras",
+        position: 0,
+      });
+
+      return fixture;
+    }
+
+    async function readOnlyRow(
+      fixture: Awaited<ReturnType<typeof seedSheets>>,
+      presentation: Parameters<typeof fixture.addPresentation>[0],
+    ) {
+      const added = await fixture.addPresentation(presentation);
+      const { judgeId } = await fixture.assignJudge(added.presentationId);
+      const [row] = await readJudgePresentations({
+        judgeId,
+        scheduledDate: showDay,
+      });
+
+      return row;
+    }
+
+    test("is a single value for a `Sin nivel` grupal, general criteria or not", async () => {
+      const fixture = await seedSheets();
+
+      const row = await readOnlyRow(fixture, {
+        experienceLevelId: null,
+        groupType: "grupal",
+        name: "Grupal sin nivel",
+        orderNumber: 1,
+      });
+
+      expect(row.criteria).toEqual([]);
+      expect(row.experienceLevelRequirement).toBe("optional");
+    });
+
+    test("is its level's `Planilla` for a grupal that declared one", async () => {
+      const fixture = await seedSheets();
+
+      const row = await readOnlyRow(fixture, {
+        groupType: "grupal",
+        name: "Grupal con nivel",
+        orderNumber: 1,
+      });
+
+      expect(row.criteria.map((criterion) => criterion.name)).toEqual([
+        "Técnica",
+        "Figuras",
+      ]);
+    });
+
+    test("is the general criteria alone for `No aplica` and for a blank required level", async () => {
+      const fixture = await seedSheets();
+      const notApplicable = await fixture.addPresentation({
+        categoryId: fixture.catalog.categoryWithoutLevel.id,
+        experienceLevelId: null,
+        groupType: "grupal",
+        name: "No aplica",
+        orderNumber: 1,
+      });
+      const unassigned = await fixture.addPresentation({
+        experienceLevelId: null,
+        groupType: "trio",
+        name: "Sin asignar",
+        orderNumber: 2,
+      });
+      const { judgeId } = await fixture.assignJudge(
+        notApplicable.presentationId,
+      );
+      await fixture.assignJudge(unassigned.presentationId, judgeId);
+
+      const rows = await readJudgePresentations({
+        judgeId,
+        scheduledDate: showDay,
+      });
+
+      expect(
+        rows.map((row) => row.criteria.map((criterion) => criterion.name)),
+      ).toEqual([["Técnica"], ["Técnica"]]);
+    });
   });
 
   test("carries the judge's own score and sheet, and nobody else's", async () => {

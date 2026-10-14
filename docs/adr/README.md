@@ -18,6 +18,7 @@ explicit supersedes or conflict notes inside the ADR.
 - Tooling and guardrails: `0015-deterministic-guardrails.md`
 - Agent workflow: `0016-local-implementation.md`
 - `Gran final` and public vote: `0018-voter-identity-outside-access.md`
+- Individual users (`Particular`): `0019-individual-owns-its-own-pool.md`
 - Finances: `0017-waived-inscription.md`, `0014-arbitrary-amount-allocation-and-comprobante-amendments.md`, `0009-inscription-based-finances.md`, `superseded/0011-invoicing-concept-portion-and-surfaces.md`, `superseded/0012-arca-unreachable-contingency-and-recovery.md`
 
 ## Decisions
@@ -33,6 +34,7 @@ explicit supersedes or conflict notes inside the ADR.
 - [ADR-0016: Implementation and review happen in local sessions](./0016-local-implementation.md) - retires the AFK Implement, Implement PRD, Implement PR and Review runners in favour of T3 Code sessions with a browser, and keeps Architecture Review; its 2026-09-25 amendment retires To Issues for the `to-tickets` skill, its 2026-09-26 amendment retires Update Branch, Label Behind PRs and Promote Queued for the `babysit-pr` skill, and its 2026-10-13 amendment moves Architecture Review to a T3 Code scheduled task.
 - [ADR-0017: A free inscription is a waiver, not a zero price or a discount](./0017-waived-inscription.md) - records why a free choreography place is a `Bonificada` waiver on the inscription rather than a zero price row or a 100% `administrativeDiscount`.
 - [ADR-0018: A voter is not a user, and the `Gran final` is not an award](./0018-voter-identity-outside-access.md) - keeps the public voter's identity outside the access domain (own table, own cookie, own OAuth exchange) and the `grandFinal` ranking beside `award` rather than inside it.
+- [ADR-0019: An individual owns its inscriptions and money the way an academy does](./0019-individual-owns-its-own-pool.md) - makes the `individual` (`Particular`) a participating entity of its own kind with a one-person roster on the academy's existing money owner, instead of a polymorphic owner across finances.
 
 ## Superseded
 

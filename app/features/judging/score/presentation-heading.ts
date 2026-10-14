@@ -1,4 +1,4 @@
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { experienceLevelDisplayLabel } from "@/lib/choreographies/experience-level-requirement";
 import type { JudgePresentationRow } from "@/lib/judging/judge-list.server";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
@@ -12,6 +12,7 @@ type PresentationHeading = Pick<
   | "academyName"
   | "categoryName"
   | "experienceLevel"
+  | "experienceLevelRequirement"
   | "groupType"
   | "modalityName"
   | "name"
@@ -26,21 +27,20 @@ export function formatPresentationTitle(presentation: PresentationHeading) {
 /**
  * `Academia Sur · Jazz / Lírico · Juvenil / Solo · Profesional`. Each pair the
  * list shows in one column is joined with a slash, so the dots only separate
- * columns; a missing submodality or level is left out rather than drawn empty.
+ * columns; a missing submodality is left out, and an empty level is worded by
+ * why it is empty (`Sin asignar`, `Sin nivel`, `No aplica`).
  */
 export function formatPresentationSummary(presentation: PresentationHeading) {
-  const level = presentation.experienceLevel
-    ? (experienceLevelLabels[presentation.experienceLevel] ??
-      presentation.experienceLevel)
-    : null;
-
   return [
     presentation.academyName,
     [presentation.modalityName, presentation.submodalityName]
       .filter(Boolean)
       .join(" / "),
     `${presentation.categoryName} / ${formatGroupTypeLabel(presentation.groupType)}`,
-    level,
+    experienceLevelDisplayLabel(
+      presentation.experienceLevel,
+      presentation.experienceLevelRequirement,
+    ),
   ]
     .filter(Boolean)
     .join(" · ");
