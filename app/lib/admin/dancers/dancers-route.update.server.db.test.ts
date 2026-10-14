@@ -543,7 +543,7 @@ describe("`/administracion/bailarines` route: editing a dancer", () => {
           choreographyId: choreography.id,
           name: "Umbral",
           categoryName: catalog.olderCategory.name,
-          experienceLevelCleared: true,
+          experienceLevelOutcome: "cleared",
         },
       ],
     });

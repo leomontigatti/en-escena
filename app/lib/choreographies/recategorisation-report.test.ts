@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildRecategorisationSuffix,
   getRecategorisationReportVariant,
+  type ExperienceLevelOutcome,
   type RecategorisedChoreography,
 } from "./recategorisation-report";
 
@@ -13,10 +14,13 @@ function choreography(
     choreographyId: "choreography-1",
     name: "Tango",
     categoryName: "Juvenil I",
-    experienceLevelCleared: false,
+    experienceLevelOutcome: "unchanged",
     ...overrides,
   };
 }
+
+const adminRepair = "Podés elegirlo desde el detalle.";
+const portalRepair = "Comunicate con nosotros para poder solucionarlo.";
 
 describe("buildRecategorisationSuffix", () => {
   test("names the new category when the level survived", () => {
@@ -30,35 +34,53 @@ describe("buildRecategorisationSuffix", () => {
     }
   });
 
-  test("points the administrator at the detail when the level was cleared", () => {
-    expect(
-      buildRecategorisationSuffix({
-        choreography: choreography({ experienceLevelCleared: true }),
-        surface: "admin",
-      }),
-    ).toBe(
-      "pasó a la categoría Juvenil I y quedó sin nivel de experiencia. Podés elegirlo desde el detalle.",
-    );
-  });
-
-  test("asks the academy to get in touch when the level was cleared", () => {
-    expect(
-      buildRecategorisationSuffix({
-        choreography: choreography({ experienceLevelCleared: true }),
-        surface: "portal",
-      }),
-    ).toBe(
-      "pasó a la categoría Juvenil I y quedó sin nivel de experiencia. Comunicate con nosotros para poder solucionarlo.",
-    );
-  });
+  test.each<{
+    outcome: Exclude<ExperienceLevelOutcome, "unchanged">;
+    sentence: string;
+  }>([
+    {
+      outcome: "cleared",
+      sentence:
+        "pasó a la categoría Juvenil I y quedó sin nivel de experiencia.",
+    },
+    {
+      outcome: "keptOutsideCategory",
+      sentence:
+        "pasó a la categoría Juvenil I, que no ofrece su nivel de experiencia.",
+    },
+    {
+      outcome: "arrivedWithoutLevel",
+      sentence: "pasó a la categoría Juvenil I y quedó Sin nivel.",
+    },
+  ])(
+    "words the $outcome level and points each surface at its repair",
+    ({ outcome, sentence }) => {
+      expect(
+        buildRecategorisationSuffix({
+          choreography: choreography({ experienceLevelOutcome: outcome }),
+          surface: "admin",
+        }),
+      ).toBe(`${sentence} ${adminRepair}`);
+      expect(
+        buildRecategorisationSuffix({
+          choreography: choreography({ experienceLevelOutcome: outcome }),
+          surface: "portal",
+        }),
+      ).toBe(`${sentence} ${portalRepair}`);
+    },
+  );
 });
 
 describe("getRecategorisationReportVariant", () => {
-  test("warns as soon as one line mentions a cleared level", () => {
+  test.each<Exclude<ExperienceLevelOutcome, "unchanged">>([
+    "cleared",
+    "keptOutsideCategory",
+    "arrivedWithoutLevel",
+  ])("warns as soon as one line reports a %s level", (outcome) => {
     expect(
       getRecategorisationReportVariant([
         choreography(),
-        choreography({ choreographyId: "b", experienceLevelCleared: true }),
+        choreography({ choreographyId: "b", experienceLevelOutcome: outcome }),
       ]),
     ).toBe("warning");
   });

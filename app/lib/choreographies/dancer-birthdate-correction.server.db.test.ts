@@ -29,6 +29,7 @@ import { createAcademySession } from "@/lib/choreographies/registration.test-sup
 import {
   experienceLevelLabels,
   isExperienceLevel,
+  type ExperienceLevel,
 } from "@/lib/events/experience-levels";
 import {
   allocateChoreographyNumberForTest,
@@ -142,13 +143,13 @@ describe("dancer birth date choreography correction", () => {
           choreographyId: preserveChoreography.id,
           name: "Preserva",
           categoryName: "Preserva nivel Mayor",
-          experienceLevelCleared: false,
+          experienceLevelOutcome: "unchanged",
         },
         {
           choreographyId: clearChoreography.id,
           name: "Limpia",
           categoryName: "Limpia nivel Mayor",
-          experienceLevelCleared: true,
+          experienceLevelOutcome: "cleared",
         },
       ]),
     });
@@ -381,59 +382,39 @@ describe("dancer birth date choreography correction", () => {
     await expectDancerAgeLink(choreography.id, correctedDancer.id, 8);
   });
 
-  test("keeps the level a grupal chose when it is re-placed where the level is optional", async () => {
+  test("clears a required level the new category does not offer", async () => {
     const academy = await createAcademySession({
-      academyName: "Academia Grupal Con Nivel",
-      email: "admin.birthdate.grupal-level@example.com",
+      academyName: "Academia Solo Requerido",
+      email: "admin.birthdate.required-level@example.com",
+    });
+    const correctedDancer = await createDancer(academy.academyId, {
+      firstName: "Sola",
+      lastName: "Requerida",
+      birthDate: "2014-05-01",
     });
     const catalog = await createCorrectionCatalog({
       categoryRequiresLevelOnOlderRange: true,
-      eventName: "Grupal con nivel",
-      groupType: "grupal",
+      eventName: "Solo requerido",
+      olderCategoryLevels: ["profesional"],
     });
-    const correctedDancer = await createDancer(academy.academyId, {
-      firstName: "Carola",
-      lastName: "Nivel",
-      birthDate: "2026-04-10",
-    });
-    const companions = await Promise.all(
-      ["Una", "Dos", "Tres"].map((ordinal) =>
-        createDancer(academy.academyId, {
-          firstName: ordinal,
-          lastName: "Compañera",
-          birthDate: "2012-01-01",
-        }),
-      ),
-    );
     const choreography = await createLinkedChoreography({
       academyId: academy.academyId,
       categoryId: catalog.youngerCategory.id,
-      categoryAgeBasis: 11,
-      categoryCalculationMode: "group_average",
       eventId: catalog.event.id,
       experienceLevelId: catalog.level.id,
-      groupType: "grupal",
       modalityId: catalog.modality.id,
-      name: "Grupal con nivel",
+      name: "Solo requerido",
       scheduleCapacityId: catalog.scheduleCapacity.id,
     });
 
-    await db.insert(choreographyDancers).values([
-      {
-        choreographyId: choreography.id,
-        dancerId: correctedDancer.id,
-        ageAtEventStart: 0,
-      },
-      ...companions.map((companion) => ({
-        choreographyId: choreography.id,
-        dancerId: companion.id,
-        ageAtEventStart: 14,
-      })),
-    ]);
-
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: correctedDancer.id,
+      ageAtEventStart: 12,
+    });
     await db
       .update(dancers)
-      .set({ birthDate: "2018-05-01" })
+      .set({ birthDate: "2011-05-01" })
       .where(eq(dancers.id, correctedDancer.id));
 
     await expect(recalculateInTransaction(correctedDancer.id)).resolves.toEqual(
@@ -441,23 +422,202 @@ describe("dancer birth date choreography correction", () => {
         ok: true,
         recategorisedChoreographies: [
           {
-            categoryName: "Grupal con nivel Mayor",
+            categoryName: "Solo requerido Mayor",
             choreographyId: choreography.id,
-            experienceLevelCleared: false,
-            name: "Grupal con nivel",
+            experienceLevelOutcome: "cleared",
+            name: "Solo requerido",
           },
         ],
         scheduleMoves: [],
       },
     );
+    await expectChoreographyState(choreography.id, {
+      categoryId: catalog.olderCategory?.id ?? null,
+      categoryCalculationMode: "oldest",
+      categoryAgeBasis: 15,
+      experienceLevelId: null,
+    });
+  });
+
+  test("keeps the level a grupal chose when it is re-placed where the level is optional", async () => {
+    const { catalog, choreography, result } = await recategoriseGrupal({
+      eventName: "Grupal con nivel",
+      experienceLevelId: "amateur",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      recategorisedChoreographies: [
+        {
+          categoryName: "Grupal con nivel Mayor",
+          choreographyId: choreography.id,
+          experienceLevelOutcome: "unchanged",
+          name: "Grupal con nivel",
+        },
+      ],
+      scheduleMoves: [],
+    });
+    await expectGrupalLevel(choreography.id, catalog, "amateur");
+  });
+
+  test("keeps a grupal's level its new category does not offer and reports it", async () => {
+    const { catalog, choreography, result } = await recategoriseGrupal({
+      eventName: "Grupal fuera de categoría",
+      experienceLevelId: "amateur",
+      olderCategoryLevels: ["profesional"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      recategorisedChoreographies: [
+        {
+          categoryName: "Grupal fuera de categoría Mayor",
+          choreographyId: choreography.id,
+          experienceLevelOutcome: "keptOutsideCategory",
+          name: "Grupal fuera de categoría",
+        },
+      ],
+      scheduleMoves: [],
+    });
+    await expectGrupalLevel(choreography.id, catalog, "amateur");
+  });
+
+  test("reports a grupal that arrives without a level from a category that offered none", async () => {
+    const { catalog, choreography, result } = await recategoriseGrupal({
+      eventName: "Grupal sin nivel",
+      experienceLevelId: null,
+      youngerCategoryLevels: [],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      recategorisedChoreographies: [
+        {
+          categoryName: "Grupal sin nivel Mayor",
+          choreographyId: choreography.id,
+          experienceLevelOutcome: "arrivedWithoutLevel",
+          name: "Grupal sin nivel",
+        },
+      ],
+      scheduleMoves: [],
+    });
+    await expectGrupalLevel(choreography.id, catalog, null);
+  });
+
+  test("reports nothing about the level of a grupal that chose none where levels were offered", async () => {
+    const { choreography, result } = await recategoriseGrupal({
+      eventName: "Grupal eligió sin nivel",
+      experienceLevelId: null,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      recategorisedChoreographies: [
+        {
+          choreographyId: choreography.id,
+          experienceLevelOutcome: "unchanged",
+        },
+      ],
+    });
   });
 });
+
+/**
+ * A grupal of four whose corrected dancer lifts the average from 11 to 13, one
+ * band up. Both bands offer `amateur` unless the test names other levels.
+ */
+async function recategoriseGrupal(input: {
+  eventName: string;
+  experienceLevelId: string | null;
+  youngerCategoryLevels?: ExperienceLevel[];
+  olderCategoryLevels?: ExperienceLevel[];
+}) {
+  const academy = await createAcademySession({
+    academyName: `Academia ${input.eventName}`,
+    email: `admin.birthdate.${crypto.randomUUID()}@example.com`,
+  });
+  const catalog = await createCorrectionCatalog({
+    categoryRequiresLevelOnOlderRange: true,
+    eventName: input.eventName,
+    groupType: "grupal",
+    youngerCategoryLevels: input.youngerCategoryLevels,
+    olderCategoryLevels: input.olderCategoryLevels,
+  });
+  const correctedDancer = await createDancer(academy.academyId, {
+    firstName: "Carola",
+    lastName: "Nivel",
+    birthDate: "2026-04-10",
+  });
+  const companions = await Promise.all(
+    ["Una", "Dos", "Tres"].map((ordinal) =>
+      createDancer(academy.academyId, {
+        firstName: ordinal,
+        lastName: "Compañera",
+        birthDate: "2012-01-01",
+      }),
+    ),
+  );
+  const choreography = await createLinkedChoreography({
+    academyId: academy.academyId,
+    categoryId: catalog.youngerCategory.id,
+    categoryAgeBasis: 11,
+    categoryCalculationMode: "group_average",
+    eventId: catalog.event.id,
+    experienceLevelId: input.experienceLevelId,
+    groupType: "grupal",
+    modalityId: catalog.modality.id,
+    name: input.eventName,
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+  });
+
+  // Ages {0, 14, 14, 14} average to 11; the correction makes them
+  // {8, 14, 14, 14}, which average to 13.
+  await db.insert(choreographyDancers).values([
+    {
+      choreographyId: choreography.id,
+      dancerId: correctedDancer.id,
+      ageAtEventStart: 0,
+    },
+    ...companions.map((companion) => ({
+      choreographyId: choreography.id,
+      dancerId: companion.id,
+      ageAtEventStart: 14,
+    })),
+  ]);
+  await db
+    .update(dancers)
+    .set({ birthDate: "2018-05-01" })
+    .where(eq(dancers.id, correctedDancer.id));
+
+  return {
+    catalog,
+    choreography,
+    result: await recalculateInTransaction(correctedDancer.id),
+  };
+}
+
+async function expectGrupalLevel(
+  choreographyId: string,
+  catalog: Awaited<ReturnType<typeof createCorrectionCatalog>>,
+  experienceLevelId: string | null,
+) {
+  await expectChoreographyState(choreographyId, {
+    categoryId: catalog.olderCategory?.id ?? null,
+    categoryCalculationMode: "group_average",
+    categoryAgeBasis: 13,
+    experienceLevelId,
+  });
+}
 
 async function createCorrectionCatalog(input: {
   eventName: string;
   categoryRequiresLevelOnOlderRange: boolean;
   includeOlderCategory?: boolean;
   groupType?: "solo" | "grupal";
+  /** Overrides the younger band's `amateur`. */
+  youngerCategoryLevels?: ExperienceLevel[];
+  /** Overrides what `categoryRequiresLevelOnOlderRange` gives the older band. */
+  olderCategoryLevels?: ExperienceLevel[];
 }) {
   const groupType = input.groupType ?? "solo";
   await db.update(events).set({ active: false }).where(eq(events.active, true));
@@ -480,6 +640,10 @@ async function createCorrectionCatalog(input: {
     })
     .returning();
   const level = { id: "amateur", name: experienceLevelLabels.amateur } as const;
+  const youngerCategoryLevels = input.youngerCategoryLevels ?? [level.id];
+  const olderCategoryLevels =
+    input.olderCategoryLevels ??
+    (input.categoryRequiresLevelOnOlderRange ? [level.id] : []);
   const [youngerCategory] = await db
     .insert(categories)
     .values({
@@ -489,8 +653,8 @@ async function createCorrectionCatalog(input: {
       maxAge: 12,
       groupTypes: [groupType],
       groupTypeKey: groupType,
-      experienceLevels: [level.id],
-      experienceLevelKey: level.id,
+      experienceLevels: youngerCategoryLevels,
+      experienceLevelKey: youngerCategoryLevels.join("|"),
     })
     .returning();
 
@@ -507,12 +671,8 @@ async function createCorrectionCatalog(input: {
               maxAge: 17,
               groupTypes: [groupType],
               groupTypeKey: groupType,
-              experienceLevels: input.categoryRequiresLevelOnOlderRange
-                ? [level.id]
-                : [],
-              experienceLevelKey: input.categoryRequiresLevelOnOlderRange
-                ? level.id
-                : "",
+              experienceLevels: olderCategoryLevels,
+              experienceLevelKey: olderCategoryLevels.join("|"),
             })
             .returning()
         )[0];

@@ -18,10 +18,15 @@ import {
   type ScheduleDestination,
 } from "@/lib/choreographies/dancer-birthdate-schedule-move.server";
 import { refreshActiveInscriptionAges } from "@/lib/choreographies/inscription-age.server";
-import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
+import { experienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
+import type {
+  ExperienceLevelOutcome,
+  RecategorisedChoreography,
+} from "@/lib/choreographies/recategorisation-report";
 import type { ReservedSchedulePlace } from "@/lib/choreographies/schedule-capacity-lock.server";
 import {
   hasCompetitivePlacementChanged,
+  resolveExperienceLevelOutcome,
   toCompetitivePlacementFromChoreography,
   toCompetitivePlacementFromResolution,
   type ChoreographyCompetitivePlacement,
@@ -107,6 +112,7 @@ type ChoreographyCorrectionWrite = {
   /** `null` when the correction leaves the choreography without a category. */
   categoryName: string | null;
   placement: ChoreographyCompetitivePlacement;
+  experienceLevelOutcome: ExperienceLevelOutcome;
   resolvedDancers: ResolvedRegistrationDancer[];
 };
 
@@ -265,6 +271,18 @@ async function resolveCorrectionWrites(input: {
           ? resolution.category.name
           : null,
       placement: afterPlacement,
+      experienceLevelOutcome: resolveExperienceLevelOutcome({
+        previousExperienceLevelId: beforePlacement.experienceLevelId,
+        previousRequirement: experienceLevelRequirement({
+          categoryExperienceLevels:
+            eventBases.categories.find(
+              (category) => category.id === choreography.categoryId,
+            )?.experienceLevels ?? [],
+          groupType: choreography.groupType,
+        }),
+        placement: afterPlacement,
+        resolution,
+      }),
       resolvedDancers,
     });
   }
@@ -403,9 +421,7 @@ async function persistCorrectionWrites(input: {
         choreographyId: write.choreography.choreographyId,
         name: write.choreography.name,
         categoryName,
-        experienceLevelCleared:
-          write.choreography.experienceLevelId !== null &&
-          write.placement.experienceLevelId === null,
+        experienceLevelOutcome: write.experienceLevelOutcome,
       });
     }
   }

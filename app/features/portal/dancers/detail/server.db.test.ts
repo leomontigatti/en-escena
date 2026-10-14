@@ -374,7 +374,7 @@ describe("handlePortalDancerDetailAction", () => {
           choreographyId: choreography.id,
           name: "Solo con recálculo",
           categoryName: "Mayor",
-          experienceLevelCleared: true,
+          experienceLevelOutcome: "cleared",
         },
       ],
     });

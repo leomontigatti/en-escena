@@ -1,3 +1,5 @@
+import type { ExperienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
+import type { ExperienceLevelOutcome } from "@/lib/choreographies/recategorisation-report";
 import {
   getResolvedCategoryId,
   type ChoreographyRegistrationOperationResolution,
@@ -70,6 +72,45 @@ export function hasCompetitivePlacementChanged(
   );
 }
 
+/**
+ * What the correction did to the level, for the report: whatever the user has
+ * to look at, the admin surfaces' mismatch flag and the `Sin nivel` a grupal
+ * reads without anyone having chosen it included.
+ */
+export function resolveExperienceLevelOutcome(input: {
+  previousExperienceLevelId: string | null;
+  previousRequirement: ExperienceLevelRequirement;
+  placement: Pick<ChoreographyCompetitivePlacement, "experienceLevelId">;
+  resolution: Pick<
+    ChoreographyRegistrationOperationResolution,
+    "experienceLevel"
+  >;
+}): ExperienceLevelOutcome {
+  const { experienceLevel } = input.resolution;
+  const experienceLevelId = input.placement.experienceLevelId;
+
+  if (input.previousExperienceLevelId !== null && experienceLevelId === null) {
+    return "cleared";
+  }
+
+  if (
+    experienceLevelId !== null &&
+    !experienceLevel.options.some((option) => option.id === experienceLevelId)
+  ) {
+    return "keptOutsideCategory";
+  }
+
+  if (
+    experienceLevelId === null &&
+    experienceLevel.requirement === "optional" &&
+    input.previousRequirement === "notApplicable"
+  ) {
+    return "arrivedWithoutLevel";
+  }
+
+  return "unchanged";
+}
+
 function resolveRetainedExperienceLevelId(input: {
   currentExperienceLevelId: string | null;
   resolution: Pick<
@@ -77,21 +118,24 @@ function resolveRetainedExperienceLevelId(input: {
     "experienceLevel"
   >;
 }) {
-  // An optional level is kept like a required one: a grupal keeps the level it
-  // chose as long as its category still offers it.
-  if (input.resolution.experienceLevel.requirement === "notApplicable") {
+  const { requirement, options } = input.resolution.experienceLevel;
+
+  if (
+    requirement === "notApplicable" ||
+    !input.currentExperienceLevelId ||
+    !isExperienceLevel(input.currentExperienceLevelId)
+  ) {
     return null;
   }
 
-  if (
-    input.currentExperienceLevelId &&
-    isExperienceLevel(input.currentExperienceLevelId) &&
-    input.resolution.experienceLevel.options.some(
-      (option) => option.id === input.currentExperienceLevelId,
-    )
-  ) {
+  // A grupal keeps its level even where the new category does not offer it:
+  // clearing it would read as a `Sin nivel` nobody chose, while the kept level
+  // is flagged as a mismatch for administration to repair.
+  if (requirement === "optional") {
     return input.currentExperienceLevelId;
   }
 
-  return null;
+  return options.some((option) => option.id === input.currentExperienceLevelId)
+    ? input.currentExperienceLevelId
+    : null;
 }
