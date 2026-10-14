@@ -97,10 +97,12 @@ Rules for a session:
   Never `git checkout` or `git switch` in the main checkout, and never create a
   worktree of your own (`git worktree add`, Claude's `EnterWorktree`): T3 only
   tracks the branch and pull request of the worktree it created, so a private
-  worktree loses the PR badge and the automatic settling of the thread. The one
-  exception is `implement-spec`'s implementer subagents, each in an Agent-tool
-  worktree under `.claude/worktrees/`: their branches merge into the thread's,
-  which keeps the PR, and the skill removes them.
+  worktree loses the PR badge, the automatic settling of the thread and T3's
+  storage cleanup. A session that needs another checkout gets it from T3
+  (`t3_thread_launch` with a `workspaceStrategy`). The one exception is
+  `implement-spec`'s implementer subagents, each in an Agent-tool worktree
+  under `.claude/worktrees/`: their branches merge into the thread's, which
+  keeps the PR, and the skill removes them.
 - **Branch prefixes.** T3 names the worktree's branch when it creates the
   thread and renames it once the thread starts, so read it with
   `git branch --show-current`, never from the `t3code/<id>` worktree name. A
@@ -113,12 +115,20 @@ Rules for a session:
   another worktree. The PR body is written with the `pr` skill; how UI
   evidence is attached is in [pull-requests.md](./pull-requests.md).
 - **Read-only threads** (writing issues, triage, reviewing a PR without editing
-  code) can be started with the "local" workspace mode to skip the install; they
-  must not change branches.
+  code) can be started with the "local" workspace mode, in the main checkout;
+  they must not change branches. T3 still runs the setup script there, without
+  holding the agent (pingdotgg/t3code#18882). On Linux its first command,
+  `ln -sf`, fails because `.env` would link to itself, so the install never
+  runs and `.env` is untouched: ignore the failed setup terminal, and keep `ln`
+  first in the script. Elsewhere `ln` may replace `.env` with a link to itself,
+  so start every thread in a worktree there.
 - **Leaving a worktree behind is fine; abandoning a branch is not.** Push the
-  branch or delete it. Finished worktrees, their branches and databases, and the
-  `/tmp/fallow-audit-base-cache-*` caches go with the `housekeeping` skill, which
-  runs `pnpm worktree:sweep`.
+  branch or delete it. T3's storage cleanup (Settings → Storage) removes a
+  worktree T3 created once its PR merges or its last thread is deleted, and
+  keeps the branch. The rest goes with the `housekeeping` skill, which runs
+  `pnpm worktree:sweep`: local branches no worktree holds, the databases of
+  worktrees that are gone, the `/tmp/fallow-audit-base-cache-*` caches, and the
+  worktrees T3 did not create.
 
 The Automatically pull option in T3's Source Control settings keeps the main
 checkout's `master` current. It only runs when that checkout is clean and on
