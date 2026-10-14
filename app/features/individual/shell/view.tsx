@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { IdCard } from "lucide-react";
+import { AudioLines, IdCard } from "lucide-react";
 import { Link, Outlet, useRouteLoaderData } from "react-router";
 
 import { AccountMenu } from "@/components/shared/account-menu";
@@ -30,12 +30,23 @@ import type { loadIndividualShell } from "@/features/individual/shell/server";
 import { INDIVIDUAL_AREA_PATH } from "@/lib/auth/user-role.shared";
 
 export const individualPersonalDataPath = `${INDIVIDUAL_AREA_PATH}/mis-datos`;
+const individualChoreographiesPath = `${INDIVIDUAL_AREA_PATH}/mis-coreografias`;
 
 type IndividualShellLoaderData = Awaited<
   ReturnType<typeof loadIndividualShell>
 >;
 
 const navigationGroups = [
+  {
+    label: "Evento",
+    items: [
+      {
+        label: "Mis coreografías",
+        to: individualChoreographiesPath,
+        icon: AudioLines,
+      },
+    ],
+  },
   {
     label: "Cuenta",
     items: [
