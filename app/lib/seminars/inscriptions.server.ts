@@ -10,8 +10,13 @@ import {
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
-  type RosterPersonKind,
 } from "@/lib/roster/roster-person-status.shared";
+import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
+import {
+  rosterPersonTable,
+  seminarInscriptionPersonColumn,
+  seminarInscriptionPersonValues,
+} from "@/lib/roster/roster-person-kind.server";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
   countTakenSeminarPlaces,
@@ -177,8 +182,10 @@ async function insertInscription(
     .values({
       reservedUntil: await reserveIfPlaceFree(tx, seminar, input.now),
       seminarId: seminar.id,
-      dancerId: input.personKind === "dancer" ? input.personId : null,
-      professorId: input.personKind === "professor" ? input.personId : null,
+      ...seminarInscriptionPersonValues({
+        kind: input.personKind,
+        personId: input.personId,
+      }),
     })
     .onConflictDoNothing()
     .returning({ id: seminarInscriptions.id });
@@ -208,12 +215,6 @@ async function reserveIfPlaceFree(
   return countTakenSeminarPlaces(places) < seminar.quota
     ? getSeminarReservationEndsAt(seminar, now)
     : null;
-}
-
-function personColumn(personKind: RosterPersonKind) {
-  return personKind === "dancer"
-    ? seminarInscriptions.dancerId
-    : seminarInscriptions.professorId;
 }
 
 /**
@@ -344,31 +345,15 @@ async function findAcademyPerson(
   tx: Transaction,
   input: RegisterSeminarInscriptionInput,
 ) {
-  if (input.personKind === "dancer") {
-    const [dancer] = await tx
-      .select({ active: dancers.active })
-      .from(dancers)
-      .where(
-        and(
-          eq(dancers.id, input.personId),
-          eq(dancers.academyId, input.academyId),
-        ),
-      );
-
-    return dancer;
-  }
-
-  const [professor] = await tx
-    .select({ active: professors.active })
-    .from(professors)
+  const table = rosterPersonTable(input.personKind);
+  const [person] = await tx
+    .select({ active: table.active })
+    .from(table)
     .where(
-      and(
-        eq(professors.id, input.personId),
-        eq(professors.academyId, input.academyId),
-      ),
+      and(eq(table.id, input.personId), eq(table.academyId, input.academyId)),
     );
 
-  return professor;
+  return person;
 }
 
 /**
@@ -386,7 +371,7 @@ async function isPersonRegistered(
     .where(
       and(
         eq(seminarInscriptions.seminarId, input.seminarId),
-        eq(personColumn(input.personKind), input.personId),
+        eq(seminarInscriptionPersonColumn(input.personKind), input.personId),
         activeSeminarInscription(),
       ),
     );

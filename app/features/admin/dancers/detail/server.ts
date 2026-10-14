@@ -3,15 +3,11 @@ import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { dancerNotFoundMessage } from "@/lib/admin/dancers/dancers.shared";
 import {
   findDancer,
   verifyDancerIdentity,
 } from "@/lib/admin/dancers/dancers.server";
-import {
-  getRosterPersonNotFoundMessage,
-  setRosterPersonStatus,
-} from "@/lib/roster/roster-person-status.server";
+import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
 import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
@@ -39,6 +35,7 @@ import {
   dancerFieldNames,
   readDancerUpdateValues,
 } from "./shared";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export async function loadDancerDetail(input: {
   request: Request;
@@ -58,7 +55,9 @@ export async function loadDancerDetail(input: {
   });
 
   if (!dancer) {
-    throw new Response(dancerNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+      status: 404,
+    });
   }
 
   return {
@@ -102,7 +101,9 @@ export async function handleDancerDetailAction(input: {
   });
 
   if (!dancer) {
-    throw new Response(dancerNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+      status: 404,
+    });
   }
 
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
@@ -225,7 +226,9 @@ async function saveAdministrativeDancer({
 
 function readDancerId(params: { dancerId?: string }) {
   if (!params.dancerId) {
-    throw new Response(dancerNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+      status: 404,
+    });
   }
 
   return params.dancerId;

@@ -12,8 +12,6 @@ import {
   type DancerVerificationFilter,
 } from "@/lib/dancers/verification";
 
-export const dancerNotFoundMessage = "No encontramos ese Bailarín.";
-
 export type DancerParticipationFilter = "yes" | "no" | "all";
 
 export type DancerListFilters = {

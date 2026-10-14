@@ -3,7 +3,6 @@ import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { professorNotFoundMessage } from "@/lib/admin/professors/professors.shared";
 import {
   findProfessor,
   updateAdministrativeProfessor,
@@ -18,10 +17,7 @@ import {
   submitRosterMerge,
 } from "@/lib/roster/roster-merge.server";
 import { rosterMergeIntents } from "@/lib/roster/roster-merge.shared";
-import {
-  getRosterPersonNotFoundMessage,
-  setRosterPersonStatus,
-} from "@/lib/roster/roster-person-status.server";
+import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
 import {
   requireAdminPanelReader,
   requireAdminPanelWriter,
@@ -37,6 +33,7 @@ import {
   professorFieldNames,
   readProfessorUpdateValues,
 } from "./shared";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export async function loadProfessorDetail(input: {
   request: Request;
@@ -56,7 +53,9 @@ export async function loadProfessorDetail(input: {
   });
 
   if (!professor) {
-    throw new Response(professorNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("professor"), {
+      status: 404,
+    });
   }
 
   const [choreographies, seminarInscriptions] = await Promise.all([
@@ -110,7 +109,9 @@ export async function handleProfessorDetailAction(input: {
   });
 
   if (!professor) {
-    throw new Response(professorNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("professor"), {
+      status: 404,
+    });
   }
 
   if (intent === rosterMergeIntents.professor) {
@@ -207,7 +208,9 @@ async function saveAdministrativeProfessor({
 
 function readProfessorId(params: { professorId?: string }) {
   if (!params.professorId) {
-    throw new Response(professorNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("professor"), {
+      status: 404,
+    });
   }
 
   return params.professorId;

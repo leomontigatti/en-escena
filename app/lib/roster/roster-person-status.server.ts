@@ -3,13 +3,17 @@ import { and, eq, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
 import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
+import {
+  rosterPersonTable,
+  type RosterPersonTable,
+} from "@/lib/roster/roster-person-kind.server";
 
 import {
   getRosterPersonParticipatingMessage,
-  type RosterPersonKind,
   type RosterPersonStatus,
   type RosterPersonStatusFilter,
 } from "@/lib/roster/roster-person-status.shared";
+import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
 
 /** Which surface is writing: the panel writes any person, the portal its own. */
 export type RosterPersonWriteSurface = "admin" | "portal";
@@ -18,12 +22,6 @@ type RosterPersonRowByKind = {
   dancer: typeof dancers.$inferSelect;
   professor: typeof professors.$inferSelect;
 };
-
-/**
- * The two tables that carry a roster person status. They are the same axis, so they get
- * the same predicate rather than one per person kind.
- */
-export type RosterPersonTable = typeof dancers | typeof professors;
 
 /**
  * The outcome of a write, and the two causes travel by two different channels.
@@ -39,6 +37,9 @@ export type RosterPersonStatusWriteResult<Kind extends RosterPersonKind> =
   | { ok: false; cause: "participating"; message: string };
 
 /**
+ * The two tables carry the same axis, so they get the same predicate rather
+ * than one per person kind.
+ *
  * The one place the `active` comparison lives: no reader writes
  * `eq(dancers.active, true)` by hand, which is how the rule ended up stated
  * five different ways.
@@ -93,7 +94,8 @@ export function rosterPersonStatusCondition(
  *
  * A person the scope does not reach is returned as a typed
  * `{ ok: false, cause: "not-found" }`, not thrown: the HTTP status belongs to
- * the route, which reads the wording from `getRosterPersonNotFoundMessage`.
+ * the route, which reads the wording from `getRosterPersonNotFoundMessage` in
+ * `roster-person-kind.shared.ts`.
  */
 export async function setRosterPersonStatus<
   Kind extends RosterPersonKind,
@@ -110,7 +112,7 @@ export async function setRosterPersonStatus<
     );
   }
 
-  const table = input.kind === "dancer" ? dancers : professors;
+  const table = rosterPersonTable(input.kind);
   const scope =
     input.academyId === null
       ? eq(table.id, input.personId)
@@ -151,17 +153,4 @@ export async function setRosterPersonStatus<
   }
 
   return { ok: true, person: updatedPerson as RosterPersonRowByKind[Kind] };
-}
-
-const personNotFoundMessages: Record<RosterPersonKind, string> = {
-  dancer: "No encontramos ese Bailarín.",
-  professor: "No encontramos ese Profesor.",
-};
-
-/**
- * The wording of the not-found case, owned here alongside the rest of the
- * axis' copy: the route decides the status code, the module the sentence.
- */
-export function getRosterPersonNotFoundMessage(kind: RosterPersonKind) {
-  return personNotFoundMessages[kind];
 }

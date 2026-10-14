@@ -230,8 +230,10 @@ function buildDancerStatusSummary(dancer: DancerRow) {
     values.push(getParticipationLabel(dancer.participationStatus));
   }
 
-  if (!dancer.active) {
-    values.push(getRosterPersonStatusLabel("archived"));
+  const status = toRosterPersonStatus(dancer.active);
+
+  if (status === "archived") {
+    values.push(getRosterPersonStatusLabel(status));
   }
 
   values.push(formatDancerVerificationStatusLabel(dancer.verificationStatus));

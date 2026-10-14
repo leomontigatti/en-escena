@@ -281,6 +281,10 @@ _Avoid_: professors, financial data
 The set of dancers and professors a choreography currently carries: the **`choreographyDancers`** the admin form edits, plus the linked professors. It is the English domain term and stays in identifiers, file names and comments (`choreography-roster.server.ts`, `updateChoreographyRosterIntent`, `removeInscriptionsFromRoster`); what the academy reads is `Elenco`. Use `Bailarines de coreografía` when the surface names the dancers alone, and `Elenco` when it names the group the choreography presents with. Removal from it is not one gesture but two — a physical delete without evidence, a **`withdrawnInscription`** with it — and removing the whole choreography makes the same choice, between a delete and a **`withdrawnChoreography`**.
 _Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
 
+**`rosterPersonKind`** — ui: "Bailarín / Profesor"
+Whether a person an academy loads is a **`dancer`** or a **`professor`**, an axis never named on screen: only its two values are. A seminar inscription names exactly one person of one kind.
+_Avoid_: `rosterPersonStatus` (the `Estado de alta` axis on the same two tables), `roster` (the set a choreography carries), person type, participant
+
 **`dancer`** — ui: "Bailarín"
 Person loaded by an academy to take part in choreographies. Their document **number** is unique within their academy on the same terms as a **`professor`**'s, and creation asks for the pair optionally too; a second dancer of the same **name and birth date** is a warning the academy confirms, since two children of one academy may share both.
 _Avoid_: `professor`, `user`

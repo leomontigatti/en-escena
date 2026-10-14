@@ -12,17 +12,14 @@ import {
   findProfessorChoreographies,
   findRosterSeminarInscriptions,
 } from "@/lib/roster/inscriptions.server";
-import {
-  getRosterPersonNotFoundMessage,
-  setRosterPersonStatus,
-} from "@/lib/roster/roster-person-status.server";
+import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
 import {
   archiveProfessorIntent,
-  portalProfessorNotFoundMessage,
   reactivateProfessorIntent,
   updateProfessorIntent,
   type PortalProfessorDetailLoaderData,
 } from "@/features/portal/professors/detail/shared";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export async function loadPortalProfessorDetail({
   request,
@@ -158,7 +155,9 @@ export async function handlePortalProfessorDetailAction({
 
 function readProfessorId(params: { professorId?: string }) {
   if (!params.professorId) {
-    throw new Response(portalProfessorNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("professor"), {
+      status: 404,
+    });
   }
 
   return params.professorId;
@@ -168,7 +167,9 @@ async function requireProfessor(academyId: string, professorId: string) {
   const professor = await findAcademyProfessor(academyId, professorId);
 
   if (!professor) {
-    throw new Response(portalProfessorNotFoundMessage, { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("professor"), {
+      status: 404,
+    });
   }
 
   return professor;
