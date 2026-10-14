@@ -35,8 +35,16 @@ keeps meaning "a person an academy loaded".
 - One account is one person and one document, held by an adult; a guardian opens
   one per child. Several people per account is a later decision.
 - Reading another academy's rows through the individual's document is a privacy
-  boundary: the link takes effect only after administration verifies the
-  individual's own document, and only matches the same normalized number.
+  boundary, since results are readable only after login: the link takes effect
+  only after administration confirms it against a photo of the individual's
+  document, and only matches the same normalized number. This is not dancer
+  verification: that one exists to place a dancer in a category by age, and an
+  individual is never placed through its own account, so it has no `Verificado`
+  state. A change of document clears the confirmation; until confirmed, the
+  individual reads only what it registered itself.
+- The link is worked out on every read, never stored, so an academy deleting,
+  archiving or renumbering the row is seen at once. The academy is not told that
+  one of its rows is linked.
 - Certificates are a separate concept and a separate issue.
 - Prerequisites, in order: one owner for the permission vocabulary (#740), for
   the access state (#715) and for the identity document (#735), then the roster
