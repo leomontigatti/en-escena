@@ -1,4 +1,4 @@
-import type { DancerDocumentType } from "@/lib/dancers/dancer-records";
+import type { IdentityDocumentType } from "@/lib/roster/identity-document";
 
 /**
  * The one owner of `Estado de verificación de bailarín`: every surface derives
@@ -26,7 +26,7 @@ export type DancerAttestedIdentity = {
   firstName: string;
   lastName: string;
   birthDate: string;
-  documentType: DancerDocumentType | null;
+  documentType: IdentityDocumentType | null;
   documentNumber: string | null;
   documentFrontImageStorageKey: string | null;
   documentBackImageStorageKey: string | null;

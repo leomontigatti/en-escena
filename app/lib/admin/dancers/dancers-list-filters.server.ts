@@ -8,7 +8,7 @@ import {
 } from "@/lib/admin/dancers/dancers.shared";
 import { readChoreographyDayFilter } from "@/lib/choreographies/choreography-days.server";
 import { readListQuery } from "@/lib/list-query/list-query";
-import { listSearchCondition } from "@/lib/list-query/list-query.server";
+import { rosterPersonSearchCondition } from "@/lib/roster/roster-person-search.server";
 import { readRosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
 import { rosterPersonStatusCondition } from "@/lib/roster/roster-person-status.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
@@ -71,14 +71,11 @@ function buildDancerFilters(input: {
     );
   }
 
-  const searchCondition = listSearchCondition(input.filters.query, [
-    dancers.firstName,
-    dancers.lastName,
-    sql`${dancers.firstName} || ' ' || ${dancers.lastName}`,
-    sql`${dancers.lastName} || ' ' || ${dancers.firstName}`,
-    dancers.documentNumber,
-    academies.name,
-  ]);
+  const searchCondition = rosterPersonSearchCondition(
+    input.filters.query,
+    dancers,
+    [academies.name],
+  );
 
   if (searchCondition) {
     conditions.push(searchCondition);

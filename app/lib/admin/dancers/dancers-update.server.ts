@@ -22,10 +22,8 @@ import {
   findDancerDocumentConflict,
   writeDancerGuardingDocument,
 } from "@/lib/dancers/dancer-records.server";
-import {
-  normalizeDancerDocumentPair,
-  normalizeDancerValues,
-} from "@/lib/dancers/dancer-records";
+import { normalizeDancerValues } from "@/lib/dancers/dancer-records";
+import { normalizeIdentityDocument } from "@/lib/roster/identity-document";
 import { invalidatesDancerVerification } from "@/lib/dancers/verification";
 import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
@@ -52,7 +50,7 @@ export async function updateAdministrativeDancer(input: {
 
   Object.assign(fieldErrors, normalizedValues.fieldErrors);
 
-  const normalizedDocument = normalizeDancerDocumentPair(
+  const normalizedDocument = normalizeIdentityDocument(
     input.values.documentType,
     input.values.documentNumber,
   );

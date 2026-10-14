@@ -15,6 +15,7 @@ import {
   rosterDocumentPairFields,
   rosterPersonNameFields,
 } from "@/lib/roster/roster-identity-fields";
+import { refineIdentityDocument } from "@/lib/roster/identity-document";
 
 import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
 
@@ -193,12 +194,10 @@ export function getProfessorConfirmationAction({
 export function buildProfessorEditSchema() {
   return z
     .object({ ...rosterPersonNameFields, ...rosterDocumentPairFields })
-    .superRefine((values, context) => {
-      validateDocumentPair(values.documentType, values.documentNumber, context);
-    });
+    .superRefine(refineIdentityDocument);
 }
 
-export function buildBackToListHref(requestUrl: string) {
+export function buildProfessorBackToListHref(requestUrl: string) {
   const url = new URL(requestUrl);
   const searchParams = new URLSearchParams(url.search);
 
@@ -311,7 +310,7 @@ export function getProfessorEditValues(input: {
   };
 }
 
-export function getInitialDialogIntent(
+export function getInitialProfessorDialogIntent(
   actionData: ProfessorActionError | undefined,
   shouldConfirmSave: boolean,
 ): ProfessorDialogIntent | null {
@@ -336,35 +335,6 @@ export function getProfessorDialogFormId(intent: ProfessorDialogIntent | null) {
       return "administracion-profesor-update-form";
     case null:
       return "administracion-profesor-dialog-form";
-  }
-}
-
-function validateDocumentPair(
-  documentType: string,
-  documentNumber: string,
-  context: z.RefinementCtx,
-) {
-  const hasDocumentType = documentType.length > 0;
-  const hasDocumentNumber = documentNumber.length > 0;
-
-  if (!hasDocumentType && !hasDocumentNumber) {
-    return;
-  }
-
-  if (!hasDocumentType) {
-    context.addIssue({
-      code: "custom",
-      path: ["documentType"],
-      message: "Seleccioná el tipo de documento.",
-    });
-  }
-
-  if (!hasDocumentNumber) {
-    context.addIssue({
-      code: "custom",
-      path: ["documentNumber"],
-      message: "Ingresá el número de documento.",
-    });
   }
 }
 

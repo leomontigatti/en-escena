@@ -16,7 +16,7 @@ import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
-} from "@/components/shared/document-type-options";
+} from "@/lib/roster/identity-document";
 import {
   ReadOnlyField,
   ReadOnlySelectField,

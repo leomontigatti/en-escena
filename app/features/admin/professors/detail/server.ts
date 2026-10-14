@@ -25,7 +25,7 @@ import {
 import { readRequestedUrl } from "@/lib/shared/requested-url.server";
 
 import {
-  buildBackToListHref,
+  buildProfessorBackToListHref,
   buildProfessorActionError,
   buildProfessorActionSuccess,
   buildProfessorEditSchema,
@@ -74,7 +74,9 @@ export async function loadProfessorDetail(input: {
     professor,
     choreographies,
     seminarInscriptions,
-    backToList: buildBackToListHref(readRequestedUrl(input.request).href),
+    backToList: buildProfessorBackToListHref(
+      readRequestedUrl(input.request).href,
+    ),
     isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "professor",
       personId: professorId,

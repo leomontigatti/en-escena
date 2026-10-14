@@ -21,7 +21,8 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - The dancer creation dialog asks for the document pair too, optionally.
 - A second dancer of the same academy with the same name **and** the same birth date is a **warning**, not a refusal: two children of one academy may share both. See "Duplicate warnings" below.
 - A dancer participating with another academy is a different domain entity.
-- A partial document pair is not a saved state: it is a form validation error. The portal and panel forms report it, an invalid type and a `DNI` with anything but digits on the field before saving, with the same messages the save refuses with.
+- For a dancer and a professor alike, a partial document pair is not a saved state: it is a form validation error. Every portal and panel form reports it, an invalid type and a `DNI` with anything but digits on the field before saving, with the same messages the save refuses with.
+- A `DNI` is stored as its digits alone, so a roster list finds the person by it typed with or without its dots, spaces or hyphens.
 - Dancer verification: see "`Estado de verificación de bailarín`" below.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies until they are evaluated; it does not change financial state.
 - A birth-date correction is refused when it would leave a linked choreography without a category: nothing is written, and the message names each choreography by number and name.

@@ -289,6 +289,10 @@ _Avoid_: `rosterPersonStatus` (the `Estado de alta` axis on the same two tables)
 Person loaded by an academy to take part in choreographies. Their document **number** is unique within their academy on the same terms as a **`professor`**'s, and creation asks for the pair optionally too; a second dancer of the same **name and birth date** is a warning the academy confirms, since two children of one academy may share both.
 _Avoid_: `professor`, `user`
 
+**`identityDocument`** — ui: "Documento de identidad"
+The type and number pair a **`dancer`** or a **`professor`** may carry, loaded whole or not at all: half a document is not a state a person can be in. Its type is `DNI`, `Pasaporte` or `Otro`, and its number is held in one canonical form (a DNI is its digits alone, with no dots, spaces or hyphens), so the same person's number reads the same wherever it was typed; a person without one reads `Sin documento`.
+_Avoid_: DNI (a type, not the pair), identification, `documentImage`
+
 **`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"
 Documentary validation situation of a dancer, derived and never stored, with three values: `incomplete` (`Incompleto`, some document data or image missing), `unverified` (`Sin verificar`, complete and not yet checked) and `verified` (`Verificado`, checked by administration). Any change to what the document shows returns a verified dancer to `unverified` (see `docs/domain/choreographies.md`, "`Estado de verificación de bailarín`").
 _Avoid_: identification status, `choreographyOperationalStatus`, `choreographyFinancialStatus`

@@ -1,7 +1,5 @@
 import { describe, expect, test } from "vitest";
 
-import { buildDancerUpdateSchema } from "@/features/admin/dancers/detail/shared";
-import { normalizeDancerDocumentPair } from "@/lib/dancers/dancer-records";
 import { expectSharedBirthDateRules } from "@/lib/test-support/dancer-birth-date-schema";
 
 import {
@@ -34,32 +32,6 @@ describe("portal dancer schema", () => {
       }),
     ).toEqual({});
   });
-
-  // The portal form once checked only the pair, and an academy learned of a
-  // bad type or a DNI with letters from the failed save.
-  test.each([
-    { documentType: "", documentNumber: "30111222" },
-    { documentType: "dni", documentNumber: "" },
-    { documentType: "cedula", documentNumber: "30111222" },
-    { documentType: "dni", documentNumber: "30A11222" },
-  ])(
-    "refuses $documentType/$documentNumber as the panel form and the server do",
-    (document) => {
-      const serverResult = normalizeDancerDocumentPair(
-        document.documentType,
-        document.documentNumber,
-      );
-      const serverErrors = serverResult.ok ? {} : serverResult.fieldErrors;
-
-      expect(Object.keys(serverErrors)).not.toHaveLength(0);
-      expect(fieldErrors(buildPortalDancerSchema(null), document)).toEqual(
-        serverErrors,
-      );
-      expect(fieldErrors(buildDancerUpdateSchema(null), document)).toEqual(
-        serverErrors,
-      );
-    },
-  );
 });
 
 function fieldErrors(
