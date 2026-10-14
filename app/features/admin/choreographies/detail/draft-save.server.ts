@@ -254,9 +254,10 @@ function readExperienceLevelId(input: {
     };
   }
 
-  const { options, required } = input.resolution.preview.experienceLevel;
+  const { options, requirement } = input.resolution.preview.experienceLevel;
   const validation = validateExperienceLevelSelection({
-    availableExperienceLevels: required ? options : [],
+    requirement,
+    availableExperienceLevels: options,
     experienceLevelId,
   });
 

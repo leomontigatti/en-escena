@@ -334,7 +334,14 @@ function resolveSelectedExperienceLevelId(input: {
 }):
   | { ok: true; value: ExperienceLevel | null }
   | { ok: false; failure: CreateChoreographyRegistrationFailure } {
-  if (!input.resolution.experienceLevel.required) {
+  const { requirement } = input.resolution.experienceLevel;
+
+  // A level the category does not offer is dropped, and an optional one left
+  // blank is the academy's choice: both store no level.
+  if (
+    requirement === "notApplicable" ||
+    (requirement === "optional" && !input.experienceLevelId)
+  ) {
     return { ok: true, value: null };
   }
 

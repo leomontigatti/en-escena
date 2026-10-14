@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  categories,
   choreographies,
   judgeAssignments,
   presentations,
@@ -17,7 +18,10 @@ import {
   type SheetCriterion,
 } from "@/lib/judging/sheet-total";
 import { writeSheetValues } from "@/lib/judging/sheet-values.server";
-import { readSubmodalityCriteria } from "@/lib/judging/submodality-criteria.server";
+import {
+  readSubmodalityCriteria,
+  sheetSubjectColumns,
+} from "@/lib/judging/submodality-criteria.server";
 
 /**
  * What administration does to a panel's work after the fact: correct a score,
@@ -139,10 +143,7 @@ async function readScoreCriteria(
   target: ScoreSettlementTarget,
 ): Promise<SheetCriterion[] | null> {
   const [found] = await tx
-    .select({
-      experienceLevel: choreographies.experienceLevelId,
-      submodalityId: choreographies.submodalityId,
-    })
+    .select(sheetSubjectColumns)
     .from(scores)
     .innerJoin(
       judgeAssignments,
@@ -156,6 +157,7 @@ async function readScoreCriteria(
       choreographies,
       eq(choreographies.id, presentations.choreographyId),
     )
+    .innerJoin(categories, eq(categories.id, choreographies.categoryId))
     .where(
       and(
         eq(scores.id, target.scoreId),
@@ -168,11 +170,7 @@ async function readScoreCriteria(
     return null;
   }
 
-  return await readSubmodalityCriteria(
-    tx,
-    found.submodalityId,
-    found.experienceLevel,
-  );
+  return await readSubmodalityCriteria(tx, found);
 }
 
 /**

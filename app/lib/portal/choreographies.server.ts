@@ -14,6 +14,10 @@ import {
   submodalities,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import {
+  experienceLevelRequirement,
+  type ExperienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
@@ -27,11 +31,11 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
   isEvaluated: boolean;
   professionalEvaluation: boolean;
   /**
-   * Whether the resolved category declares levels. The academy does not edit the
-   * level, but it does need to tell "not applicable" from "missing": two kinds of
-   * empty with opposite meanings.
+   * Whether the choreography has to declare a level. The academy does not edit
+   * the level, but it does need to tell "not applicable" from "missing": two
+   * kinds of empty with opposite meanings.
    */
-  requiresExperienceLevel: boolean;
+  experienceLevelRequirement: ExperienceLevelRequirement;
   musicStorageKey: string | null;
   scheduleCapacityId: string;
   scheduleName: string;
@@ -205,7 +209,10 @@ export async function findChoreographyForAcademyEvent(
     isEvaluated,
     musicStorageKey: row.musicStorageKey,
     professionalEvaluation: row.professionalEvaluation,
-    requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
+    experienceLevelRequirement: experienceLevelRequirement({
+      categoryExperienceLevels: row.categoryExperienceLevels,
+      groupType: row.groupType,
+    }),
     scheduleCapacityId:
       row.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(row.scheduleId),
@@ -263,6 +270,7 @@ async function hydrateChoreographyRows(
     operationalStatus: deriveChoreographyOperationalStatus({
       categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
+      groupType: row.groupType,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
       // The portal is told nothing about a mis-filed placement: the academy has

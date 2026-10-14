@@ -53,7 +53,7 @@ function messagesOf(
 const ana = { id: "ana", name: "Ana Díaz" };
 
 describe("derivePresentationWarnings", () => {
-  test("marks a row without a level in a category that admits one", () => {
+  test("marks a row missing a required level as `Nivel sin asignar`", () => {
     const juvenil = { maxAge: 17, minAge: 13, name: "Juvenil I" };
     const warnings = derivePresentationWarnings([
       row({
@@ -77,10 +77,24 @@ describe("derivePresentationWarnings", () => {
         choreographyId: "unnumbered",
         orderNumber: null,
       }),
+      row({
+        category: { ...juvenil, experienceLevels: ["amateur"] },
+        choreographyId: "blank-trio",
+        groupType: "trio",
+        orderNumber: 4,
+      }),
+      row({
+        category: { ...juvenil, experienceLevels: ["amateur"] },
+        choreographyId: "blank-grupal",
+        groupType: "grupal",
+        orderNumber: 5,
+      }),
     ]);
 
-    expect(messagesOf(warnings, "numbered")).toEqual(["Sin nivel"]);
-    expect(messagesOf(warnings, "unnumbered")).toEqual(["Sin nivel"]);
+    expect(messagesOf(warnings, "numbered")).toEqual(["Nivel sin asignar"]);
+    expect(messagesOf(warnings, "unnumbered")).toEqual(["Nivel sin asignar"]);
+    expect(messagesOf(warnings, "blank-trio")).toEqual(["Nivel sin asignar"]);
+    expect(messagesOf(warnings, "blank-grupal")).toEqual([]);
     expect(messagesOf(warnings, "levelled")).toEqual([]);
     expect(messagesOf(warnings, "levelless-category")).toEqual([]);
   });

@@ -1,3 +1,4 @@
+import type { ExperienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
@@ -162,7 +163,7 @@ export type ChoreographyDraftPreview = {
   blockers: ChoreographyDraftBlocker[];
   experienceLevel: {
     options: Array<{ id: string; name: string }>;
-    required: boolean;
+    requirement: ExperienceLevelRequirement;
   };
   /** The modality and dancers this answers for. */
   classificationKey: string;

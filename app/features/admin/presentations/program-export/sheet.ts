@@ -23,8 +23,8 @@ export type ProgramExportRow = {
   /** Every dancer: named up to a trio, counted in a larger group. */
   dancerNames: string[];
   groupType: ChoreographyGroupType;
-  /** `null` for a category that declares no level. */
-  levelLabel: string | null;
+  /** An empty level worded by why it is empty, as `ProgramListRow` says. */
+  levelLabel: string;
   modalityName: string;
   name: string;
   orderNumber: number;

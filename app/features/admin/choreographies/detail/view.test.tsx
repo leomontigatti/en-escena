@@ -192,7 +192,7 @@ describe("ChoreographyDetailRouteView", () => {
           experienceLevelId: null,
           experienceLevelName: null,
           experienceLevelOptions: [],
-          requiresExperienceLevel: false,
+          experienceLevelRequirement: "notApplicable",
         }),
       }),
     });
@@ -662,7 +662,7 @@ function buildSavedPreview(
     },
     experienceLevel: {
       options: choreography.experienceLevelOptions,
-      required: choreography.requiresExperienceLevel,
+      requirement: choreography.experienceLevelRequirement,
     },
     classificationKey: getChoreographyDraftClassificationKey({
       dancerIds: choreography.dancers.map((dancer) => dancer.id),
@@ -739,7 +739,7 @@ function buildChoreography(
         lastName: "Suárez",
       },
     ],
-    requiresExperienceLevel: true,
+    experienceLevelRequirement: "required",
     scheduleCapacityId: "schedule_capacity_1",
     scheduleId: "schedule_1",
     scheduleLabel: "1 de mayo de 2026 - 14:00 hs.",

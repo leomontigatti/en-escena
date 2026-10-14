@@ -81,15 +81,12 @@ describe("PresentationsListView", () => {
     expect(markup).not.toContain('aria-label="Seleccionar fila"');
   });
 
-  test("shows the level of a row, and an em dash when it has none", () => {
+  test("shows the level of a row", () => {
     expect(
       renderView({
         presentations: [buildItem({ experienceLevel: "pre_elite" })],
       }),
     ).toContain("Pre Elite");
-    expect(
-      renderView({ presentations: [buildItem({ experienceLevel: null })] }),
-    ).toContain("—");
   });
 
   // Every row of the day is on screen, but the count still says how much of
@@ -142,6 +139,7 @@ function buildItem(
     choreographyNumber: 12,
     evaluationStatus: "pending",
     experienceLevel: null,
+    experienceLevelRequirement: "notApplicable",
     financialStatus: "depositMet",
     frozen: false,
     groupType: "solo",

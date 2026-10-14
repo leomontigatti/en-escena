@@ -650,6 +650,7 @@ function buildPresentation(
     criteria: [],
     disqualified: false,
     experienceLevel: "amateur",
+    experienceLevelRequirement: "required",
     groupType: "solo",
     judges: [buildJudge()],
     award: "gold",
