@@ -13,11 +13,13 @@ import {
   writeDancerGuardingDocument,
 } from "@/lib/dancers/dancer-records.server";
 import {
-  normalizeDancerDocumentPair,
   normalizeDancerValues,
-  type DancerDocumentType,
   type DancerNameInput,
 } from "@/lib/dancers/dancer-records";
+import {
+  normalizeIdentityDocument,
+  type IdentityDocumentType,
+} from "@/lib/roster/identity-document";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import {
   applyDancerBirthDateCorrection,
@@ -64,7 +66,7 @@ export type UpdateDancerInput = CreateDancerInput & {
 };
 
 type NormalizedCreateDancerInput = DancerNameInput & {
-  documentType: DancerDocumentType | null;
+  documentType: IdentityDocumentType | null;
   documentNumber: string | null;
 };
 
@@ -406,7 +408,7 @@ async function validateCreateDancerInput(
   const fieldErrors: Partial<Record<keyof CreateDancerInput, string>> = {
     ...normalizedValues.fieldErrors,
   };
-  const document = normalizeDancerDocumentPair(
+  const document = normalizeIdentityDocument(
     values.documentType,
     values.documentNumber,
   );
@@ -508,7 +510,7 @@ async function validateUpdateDancerInput(
     };
   }
 
-  const document = normalizeDancerDocumentPair(
+  const document = normalizeIdentityDocument(
     values.documentType,
     values.documentNumber,
   );

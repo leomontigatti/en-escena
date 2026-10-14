@@ -8,9 +8,12 @@ import {
   findProfessorDocumentConflict,
   type ProfessorDocumentConflict,
   writeProfessorGuardingDocument,
-  normalizeProfessorDocumentPair,
   normalizeProfessorNames as normalizeProfessorNamesShared,
-} from "@/lib/portal/professor-records.server";
+} from "@/lib/professors/professor-records.server";
+import {
+  hasIdentityDocument,
+  normalizeIdentityDocument,
+} from "@/lib/roster/identity-document";
 import { buildProfessorEventParticipationSql } from "@/lib/participation/participation.server";
 import {
   type ParticipationStatus,
@@ -113,7 +116,7 @@ export async function createAcademyProfessor(
     documentNumber: input.documentNumber,
   };
   const { firstName, lastName, fieldErrors } = normalizeProfessorNames(input);
-  const normalizedDocument = normalizeProfessorDocumentPair(
+  const normalizedDocument = normalizeIdentityDocument(
     input.documentType,
     input.documentNumber,
   );
@@ -260,7 +263,7 @@ export async function updateAcademyProfessor(
     ...normalizedNameFieldErrors,
   };
 
-  const normalizedDocument = normalizeProfessorDocumentPair(
+  const normalizedDocument = normalizeIdentityDocument(
     input.documentType,
     input.documentNumber,
   );
@@ -367,8 +370,7 @@ function toProfessorListItem(
 ): PortalProfessorListItem {
   return {
     ...professor,
-    isIncomplete:
-      professor.documentType === null || professor.documentNumber === null,
+    isIncomplete: !hasIdentityDocument(professor),
     participationStatus: toParticipationStatus(
       selectedEventId,
       professor.isParticipating ?? false,

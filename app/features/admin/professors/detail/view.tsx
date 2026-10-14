@@ -25,7 +25,7 @@ import {
 import {
   getProfessorDocumentConflict,
   buildProfessorDetailViewState,
-  getInitialDialogIntent,
+  getInitialProfessorDialogIntent,
   getProfessorConfirmationAction,
   getProfessorDialogFormId,
   getProfessorEditValues,
@@ -276,7 +276,7 @@ function useProfessorSave({
   });
   const [dialogIntent, setDialogIntent] =
     useState<ProfessorDialogIntent | null>(
-      getInitialDialogIntent(errorData, isConsequential),
+      getInitialProfessorDialogIntent(errorData, isConsequential),
     );
   const [pendingUpdateValues, setPendingUpdateValues] =
     useState<ProfessorEditFormValues | null>(
@@ -286,7 +286,10 @@ function useProfessorSave({
     );
 
   useEffect(() => {
-    const nextIntent = getInitialDialogIntent(errorData, isConsequential);
+    const nextIntent = getInitialProfessorDialogIntent(
+      errorData,
+      isConsequential,
+    );
     if (!nextIntent) {
       return;
     }

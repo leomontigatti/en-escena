@@ -24,7 +24,7 @@ import {
   isRosterPersonArchiveBlocked,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { refineDancerDocumentPair } from "@/lib/dancers/dancer-records";
+import { refineIdentityDocument } from "@/lib/roster/identity-document";
 import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import {
   withDancerBirthDateScheduleMoveFeedback,
@@ -45,7 +45,7 @@ export function buildPortalDancerSchema(eventStartDate: string | null) {
       ...rosterDocumentPairFields,
       ...rosterDocumentImageFields,
     })
-    .superRefine(refineDancerDocumentPair);
+    .superRefine(refineIdentityDocument);
 }
 
 export type PortalDancerDetailLoaderData = {

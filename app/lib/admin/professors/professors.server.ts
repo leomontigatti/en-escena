@@ -17,14 +17,17 @@ import {
 } from "@/lib/admin/professors/professors.shared";
 import { adminListPageSize } from "@/lib/admin/admin-list";
 import { paginateList, readListQuery } from "@/lib/list-query/list-query";
-import { listSearchCondition } from "@/lib/list-query/list-query.server";
+import { rosterPersonSearchCondition } from "@/lib/roster/roster-person-search.server";
 import {
   findProfessorDocumentConflict,
   writeProfessorGuardingDocument,
   type ProfessorEditableSnapshot,
-  normalizeProfessorDocumentPair,
   normalizeProfessorNames,
-} from "@/lib/portal/professor-records.server";
+} from "@/lib/professors/professor-records.server";
+import {
+  hasIdentityDocument,
+  normalizeIdentityDocument,
+} from "@/lib/roster/identity-document";
 import {
   buildProfessorAnyEventParticipationSql,
   buildProfessorEventParticipationSql,
@@ -220,8 +223,9 @@ export async function listProfessors(input: {
         input.selectedEventId,
         row.isParticipating,
       ),
-      identificationStatus:
-        row.documentType && row.documentNumber ? "complete" : "incomplete",
+      identificationStatus: hasIdentityDocument(row)
+        ? "complete"
+        : "incomplete",
     })),
     totalCount,
     totalPages,
@@ -335,7 +339,7 @@ export async function findProfessor(input: {
     firstName: row.firstName,
     lastName: row.lastName,
     active: row.active,
-    isIncomplete: row.documentType === null || row.documentNumber === null,
+    isIncomplete: !hasIdentityDocument(row),
     documentType: row.documentType,
     documentNumber: row.documentNumber,
     createdAt: row.createdAt,
@@ -384,7 +388,7 @@ export async function updateAdministrativeProfessor(input: {
 
   Object.assign(fieldErrors, normalizedNames.fieldErrors);
 
-  const normalizedDocument = normalizeProfessorDocumentPair(
+  const normalizedDocument = normalizeIdentityDocument(
     input.values.documentType,
     input.values.documentNumber,
   );
@@ -516,14 +520,11 @@ function buildProfessorWhere(input: {
     );
   }
 
-  const searchCondition = listSearchCondition(input.filters.query, [
-    professors.firstName,
-    professors.lastName,
-    sql`${professors.firstName} || ' ' || ${professors.lastName}`,
-    sql`${professors.lastName} || ' ' || ${professors.firstName}`,
-    professors.documentNumber,
-    academies.name,
-  ]);
+  const searchCondition = rosterPersonSearchCondition(
+    input.filters.query,
+    professors,
+    [academies.name],
+  );
 
   if (searchCondition) {
     conditions.push(searchCondition);

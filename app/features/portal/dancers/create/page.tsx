@@ -4,7 +4,7 @@ import { PortalPageHeader } from "@/components/portal/ui";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
-} from "@/components/shared/document-type-options";
+} from "@/lib/roster/identity-document";
 import { FormActions } from "@/components/shared/form-actions";
 import { useRosterRefusalToast } from "@/components/shared/roster-document-conflict";
 import { RosterNameWarningDialog } from "@/components/shared/roster-name-warning";

@@ -8,6 +8,11 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
+  documentTypeEmptyLabel,
+  formatIdentityDocument,
+} from "@/lib/roster/identity-document";
+import { matchesRosterPersonSearch } from "@/lib/roster/roster-person-search";
+import {
   getParticipationBadgeVariant,
   getParticipationLabel,
 } from "@/lib/participation/participation.shared";
@@ -123,8 +128,6 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
           {dancer.firstName} {dancer.lastName}
         </DataTableLink>
       ),
-      filterValue: (dancer) =>
-        `${dancer.firstName} ${dancer.lastName} ${dancer.documentNumber ?? ""}`,
       sortValue: (dancer) => `${dancer.firstName} ${dancer.lastName}`,
     },
     {
@@ -132,8 +135,12 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       header: "Documento",
       className: "w-1/4 text-muted-foreground",
       headerClassName: "w-1/4",
-      cell: (dancer) => formatDocument(dancer),
-      filterValue: (dancer) => dancer.documentNumber ?? "",
+      cell: (dancer) =>
+        formatIdentityDocument(dancer) ?? (
+          <span className="text-muted-foreground">
+            {documentTypeEmptyLabel}
+          </span>
+        ),
     },
     {
       id: "status",
@@ -169,26 +176,11 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       columns={columns}
       getRowKey={(dancer) => dancer.id}
       searchPlaceholder="Buscar por nombre o documento"
-      textFilterColumnId="name"
+      matchesSearch={matchesRosterPersonSearch}
       facetedFilters={dancerFacetedFilters}
       baseFacetedFilterValues={baseDancerFilters}
       emptyMessage="No hay bailarines que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
     />
   );
-}
-
-function formatDocument(dancer: DancerRow) {
-  if (!dancer.documentType || !dancer.documentNumber) {
-    return <span className="text-muted-foreground">Sin documento</span>;
-  }
-
-  switch (dancer.documentType) {
-    case "dni":
-      return `DNI ${dancer.documentNumber}`;
-    case "passport":
-      return `Pasaporte ${dancer.documentNumber}`;
-    default:
-      return `Otro ${dancer.documentNumber}`;
-  }
 }

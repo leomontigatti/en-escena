@@ -17,7 +17,7 @@ import {
   isRosterPersonArchiveBlocked,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
+import { refineIdentityDocument } from "@/lib/roster/identity-document";
 
 export const updateProfessorIntent = "update-professor";
 export const archiveProfessorIntent = "archive-professor";
@@ -27,7 +27,7 @@ export const professorDetailFormId = "portal-profesor-form";
 
 export const professorSchema = z
   .object({ ...rosterPersonNameFields, ...rosterDocumentPairFields })
-  .superRefine(refineDocumentPair);
+  .superRefine(refineIdentityDocument);
 
 export type ProfessorFormValues = z.infer<typeof professorSchema>;
 export type PortalProfessorFieldErrors = Partial<
