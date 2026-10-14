@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 
+import { user } from "./access";
 import { academies } from "./academies";
 import { createTable, documentType, uuidPrimaryKey } from "./core";
 
@@ -11,6 +12,12 @@ import { createTable, documentType, uuidPrimaryKey } from "./core";
 // the key the link to academy rosters matches on. The document photo is the
 // one image administration compares with that document before confirming the
 // link; it is not dancer verification.
+//
+// The link confirmation is administration's word that the document is the
+// person's: when, by whom, and the normalized number it was confirmed for. It
+// applies only while that number equals `document_number`, so editing the
+// document clears it with no write of its own, and the derived link state
+// (`app/lib/individuals/link-state.ts`) goes back to `Pendiente`.
 export const individuals = createTable(
   "individual",
   {
@@ -23,6 +30,14 @@ export const individuals = createTable(
     documentType: documentType("document_type").notNull(),
     documentNumber: text("document_number").notNull(),
     documentPhotoStorageKey: text("document_photo_storage_key"),
+    linkConfirmedAt: timestamp("link_confirmed_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+    linkConfirmedByUserId: varchar("link_confirmed_by_user_id", {
+      length: 255,
+    }).references(() => user.id, { onDelete: "set null" }),
+    linkConfirmedDocumentNumber: text("link_confirmed_document_number"),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

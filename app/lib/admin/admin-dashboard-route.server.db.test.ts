@@ -148,6 +148,7 @@ describe("`/administracion` index route", () => {
       "/administracion/coreografias",
       "/administracion/pagos",
       "/administracion/seminarios",
+      "/administracion/particulares",
     ]);
   });
 

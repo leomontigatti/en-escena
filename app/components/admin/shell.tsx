@@ -4,6 +4,7 @@ import {
   BuildingComplex,
   GraduationCap,
   House,
+  IdCard,
   Settings,
   Users,
   AudioLines,
@@ -175,6 +176,11 @@ const accessNavigationItems = [
     to: "/administracion/academias",
     icon: BuildingComplex,
   },
+  {
+    label: "Particulares",
+    to: "/administracion/particulares",
+    icon: IdCard,
+  },
 ] satisfies SidebarNavigationItem[];
 
 const financeNavigationItems = [
@@ -238,6 +244,7 @@ const auditorSectionPaths = new Set([
   "/administracion/coreografias",
   "/administracion/pagos",
   "/administracion/seminarios",
+  "/administracion/particulares",
 ]);
 
 /** The navigation the user sees: everything to whoever writes, the reviewed sections otherwise. */

@@ -17,6 +17,8 @@ export async function createIndividualUser(input: {
   firstName?: string;
   lastName?: string;
   documentNumber?: string;
+  /** A stored document photo's key, which moves the link to `Pendiente`. */
+  documentPhotoStorageKey?: string;
   phone?: string;
 }) {
   const firstName = input.firstName ?? "Ana";
@@ -51,6 +53,7 @@ export async function createIndividualUser(input: {
       lastName,
       documentType: "dni",
       documentNumber: input.documentNumber ?? "30123456",
+      documentPhotoStorageKey: input.documentPhotoStorageKey ?? null,
     })
     .returning();
 

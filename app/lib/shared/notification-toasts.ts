@@ -19,6 +19,8 @@ export const notificationToastIds = {
   "dancer-archived": "route-notification:dancer-archived",
   "dancer-reactivated": "route-notification:dancer-reactivated",
   "dancer-verified": "route-notification:dancer-verified",
+  "individual-link-confirmed": "route-notification:individual-link-confirmed",
+  "individual-link-revoked": "route-notification:individual-link-revoked",
   "dancers-merged": "route-notification:dancers-merged",
   "professors-merged": "route-notification:professors-merged",
   "choreography-created": "route-notification:choreography-created",
@@ -136,6 +138,16 @@ export const notificationToasts = {
   "dancer-verified": {
     id: notificationToastIds["dancer-verified"],
     message: "Bailarín verificado.",
+    variant: "success",
+  },
+  "individual-link-confirmed": {
+    id: notificationToastIds["individual-link-confirmed"],
+    message: "Vínculo confirmado.",
+    variant: "success",
+  },
+  "individual-link-revoked": {
+    id: notificationToastIds["individual-link-revoked"],
+    message: "Vínculo revocado.",
     variant: "success",
   },
   "choreography-created": {

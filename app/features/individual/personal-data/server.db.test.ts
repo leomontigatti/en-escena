@@ -15,7 +15,12 @@ import {
   createPortalPostRequest,
   expectThrownResponse,
 } from "@/features/portal/test-support/db";
+import {
+  confirmIndividualLink,
+  revokeIndividualLink,
+} from "@/lib/individuals/link.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createIndividualUser } from "@/lib/test-support/individuals";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -326,6 +331,82 @@ describe("the individual's document photo", () => {
     });
   });
 });
+
+describe("the individual's link in `Mis datos`", () => {
+  test("reads `Vinculado` once administration confirms the document", async () => {
+    const individual = await createLinkedIndividual();
+
+    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+      linkState: "linked",
+    });
+  });
+
+  test("a document change takes the link back to `Pendiente`", async () => {
+    const individual = await createLinkedIndividual();
+    const stored = await loadMisDatos(individual.cookie);
+
+    const result = await saveMisDatos(individual.cookie, {
+      documentNumber: "30.123.457",
+      documentPhotoStorageKey: stored.values.documentPhotoStorageKey,
+    });
+
+    expect(result.status).toBe("success");
+    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+      linkState: "pending",
+    });
+  });
+
+  test("a save that keeps the document, however typed, keeps the link", async () => {
+    const individual = await createLinkedIndividual();
+    const stored = await loadMisDatos(individual.cookie);
+
+    await saveMisDatos(individual.cookie, {
+      documentNumber: "30.123.456",
+      documentPhotoStorageKey: stored.values.documentPhotoStorageKey,
+      phone: "1198765432",
+    });
+
+    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+      linkState: "linked",
+    });
+  });
+
+  test("a revocation takes the link back to `Pendiente`", async () => {
+    const individual = await createLinkedIndividual();
+
+    await revokeIndividualLink(individual.individualId);
+
+    await expect(loadMisDatos(individual.cookie)).resolves.toMatchObject({
+      linkState: "pending",
+    });
+  });
+});
+
+/** An individual with a photo whose link administration confirmed. */
+async function createLinkedIndividual() {
+  const individual = await createIndividualUser({
+    documentNumber: "30123456",
+    email: "particular@example.com",
+  });
+
+  await saveMisDatos(individual.cookie, {
+    documentPhoto: new File(["front"], "dni.jpg", { type: "image/jpeg" }),
+  });
+
+  const admin = await createSignedInRequest({
+    email: "admin@example.com",
+    role: "admin",
+  });
+  const confirmed = await confirmIndividualLink({
+    confirmedByUserId: admin.userId,
+    documentNumber: "30123456",
+    individualId: individual.individualId,
+  });
+
+  expect(confirmed).toEqual({ ok: true });
+
+  return individual;
+}
 
 async function loadMisDatos(cookie: string) {
   return loadIndividualPersonalData(

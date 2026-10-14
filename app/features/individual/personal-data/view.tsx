@@ -222,6 +222,8 @@ export function IndividualPersonalDataRouteView({
 }
 
 const linkStateDescriptions = {
+  linked:
+    "Administración confirmó tu documento. Si lo cambiás, el vínculo vuelve a quedar pendiente hasta que lo confirme de nuevo.",
   pending:
     "Administración va a comparar la foto con tu nombre y tu documento para confirmar el vínculo.",
   unlinked:
