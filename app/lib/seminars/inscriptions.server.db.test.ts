@@ -390,52 +390,6 @@ describe("seminar inscriptions", () => {
 });
 
 describe("the administrative reading of a seminar's inscriptions", () => {
-  test("lists every academy's people by academy, with the kind of each", async () => {
-    const { eventId, seminar } = await createSeminarFixture(4);
-    const north = await createAcademy("Academia Norte");
-    const south = await createAcademy("Academia Sur");
-    const dancer = await createDancer(north.id, {
-      firstName: "Abril",
-      lastName: "Sosa",
-    });
-    const professor = await createProfessor(south.id, {
-      firstName: "Beto",
-      lastName: "Luna",
-    });
-
-    expectRegistered(
-      await registerDancerBeforeStart({
-        academyId: north.id,
-        eventId,
-        personId: dancer.id,
-        seminarId: seminar.id,
-      }),
-    );
-    expectRegistered(
-      await registerSeminarInscription({
-        academyId: south.id,
-        eventId,
-        now: beforeStart,
-        personId: professor.id,
-        personKind: "professor",
-        seminarId: seminar.id,
-      }),
-    );
-
-    await expect(listSeminarInscriptions(seminar.id)).resolves.toMatchObject([
-      {
-        fullName: "Abril Sosa",
-        personKind: "dancer",
-        academyName: "Academia Norte",
-      },
-      {
-        fullName: "Beto Luna",
-        personKind: "professor",
-        academyName: "Academia Sur",
-      },
-    ]);
-  });
-
   // #1479: the two roster halves are read in one query now, so the kind and
   // the academy have to come off the right side of each row.
   test("interleaves the dancers and professors of several academies by academy, then name (#1479)", async () => {

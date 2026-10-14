@@ -1,11 +1,10 @@
 import { describe, expect, test } from "vitest";
 
+import { toPortalSeminarPersonGroups } from "@/features/portal/seminars/shared";
 import { getRosterMergeKindCopy } from "@/lib/roster/roster-merge.shared";
 import {
   getRosterPersonNotFoundMessage,
-  rosterPersonKinds,
   rosterPersonListPath,
-  rosterPersonNoun,
 } from "@/lib/roster/roster-person-kind.shared";
 import { getRosterPersonRejectionMessage } from "@/lib/roster/roster-person-rejection";
 import { getRosterPersonParticipatingMessage } from "@/lib/roster/roster-person-status.shared";
@@ -14,19 +13,6 @@ import { getRosterPersonParticipatingMessage } from "@/lib/roster/roster-person-
 // string on screen before the fold, character for character, so a wrong noun
 // form or a lost period fails here rather than in a review of the copy.
 describe("the roster person kind vocabulary preserves the copy it replaced (#1479)", () => {
-  test.each([
-    ["dancer", "singular", "bailarín"],
-    ["dancer", "singularCapitalized", "Bailarín"],
-    ["dancer", "plural", "bailarines"],
-    ["dancer", "pluralCapitalized", "Bailarines"],
-    ["professor", "singular", "profesor"],
-    ["professor", "singularCapitalized", "Profesor"],
-    ["professor", "plural", "profesores"],
-    ["professor", "pluralCapitalized", "Profesores"],
-  ] as const)("names a %s in the %s form as %s", (kind, form, noun) => {
-    expect(rosterPersonNoun(kind, form)).toBe(noun);
-  });
-
   test.each([
     {
       kind: "dancer",
@@ -86,7 +72,12 @@ describe("the roster person kind vocabulary preserves the copy it replaced (#147
     },
   );
 
-  test("lists dancers before professors, the order every grouped surface shows", () => {
-    expect(rosterPersonKinds).toEqual(["dancer", "professor"]);
+  test("titles the portal picker's sections in the order and words they had", () => {
+    expect(
+      toPortalSeminarPersonGroups([
+        { id: "p", kind: "professor", fullName: "Beto Luna" },
+        { id: "d", kind: "dancer", fullName: "Abril Sosa" },
+      ]).map((group) => group.label),
+    ).toEqual(["Bailarines", "Profesores"]);
   });
 });

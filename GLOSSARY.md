@@ -278,7 +278,7 @@ The set of dancers and professors a choreography currently carries: the **`chore
 _Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
 
 **`rosterPersonKind`** — ui: "Bailarín / Profesor"
-Whether a person an academy loads is a **`dancer`** or a **`professor`**: the axis the roster's shared screens, the archive rule, the merge, the seminar inscription and the exports are each written once against. The axis is never named on screen, only its two values are, and their nouns have one owner that every surface asks instead of carrying its own. A seminar inscription names exactly one person of one kind.
+Whether a person an academy loads is a **`dancer`** or a **`professor`**, an axis never named on screen: only its two values are. A seminar inscription names exactly one person of one kind.
 _Avoid_: `rosterPersonStatus` (the `Estado de alta` axis on the same two tables), `roster` (the set a choreography carries), person type, participant
 
 **`dancer`** — ui: "Bailarín"

@@ -1,4 +1,5 @@
 import { moneyCell, type SheetColumn } from "@/features/admin/day-export/sheet";
+import { rosterPersonNoun } from "@/lib/roster/roster-person-kind.shared";
 
 /**
  * A seminar's sheet: one row per inscription, active or withdrawn, then a
@@ -67,7 +68,7 @@ export const seminarInscriptionColumns: SheetColumn<SeminarInscriptionSheetRow>[
       header: "Tipo",
       width: 12,
       cell: inscriptionOnly((row) =>
-        row.personKind === "professor" ? "Profesor" : "Bailarín",
+        rosterPersonNoun(row.personKind, "singularCapitalized"),
       ),
     },
     {
