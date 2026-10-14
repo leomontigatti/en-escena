@@ -8,6 +8,7 @@ import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { rosterPersonNoun } from "@/lib/roster/roster-person-kind.shared";
 import type { SeminarInscriptionRow } from "@/lib/seminars/inscription-rosters.server";
 
 import { deleteSeminarInscriptionIntent } from "./shared";
@@ -53,7 +54,7 @@ export function SeminarInscriptionsTable({
       header: "Tipo",
       cell: (inscription) => (
         <Badge variant="secondary">
-          {inscription.personKind === "professor" ? "Profesor" : "Bailarín"}
+          {rosterPersonNoun(inscription.personKind, "singularCapitalized")}
         </Badge>
       ),
     },

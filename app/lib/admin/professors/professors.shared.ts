@@ -8,8 +8,6 @@ import {
   type RosterPersonStatusFilter,
 } from "@/lib/roster/roster-person-status.shared";
 
-export const professorNotFoundMessage = "No encontramos ese Profesor.";
-
 export type ProfessorParticipationFilter = "yes" | "no" | "all";
 
 export type ProfessorListFilters = {

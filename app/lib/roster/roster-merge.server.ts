@@ -39,7 +39,16 @@ import {
   type RosterMergeCandidate,
   type RosterMergeEventInscriptions,
 } from "./roster-merge.shared";
-import type { RosterPersonKind } from "./roster-person-status.shared";
+import {
+  getRosterPersonNotFoundMessage,
+  rosterPersonListPath,
+  type RosterPersonKind,
+} from "./roster-person-kind.shared";
+import {
+  rosterPersonTable,
+  seminarInscriptionPersonColumn,
+  seminarInscriptionPersonValues,
+} from "./roster-person-kind.server";
 import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -106,7 +115,9 @@ export async function mergeRosterPeople(
       const survivor = locked.find((person) => person.id === input.survivorId);
 
       if (!removed) {
-        throw new Response(copy.notFoundMessage, { status: 404 });
+        throw new Response(getRosterPersonNotFoundMessage(input.kind), {
+          status: 404,
+        });
       }
 
       if (!survivor) {
@@ -169,19 +180,10 @@ export async function mergeRosterPeople(
   return result;
 }
 
-const mergeDestinations = {
-  dancer: {
-    notification: "dancers-merged",
-    path: "/administracion/bailarines",
-  },
-  professor: {
-    notification: "professors-merged",
-    path: "/administracion/profesores",
-  },
-} as const satisfies Record<
-  RosterPersonKind,
-  { notification: string; path: string }
->;
+const mergeNotifications = {
+  dancer: "dancers-merged",
+  professor: "professors-merged",
+} as const satisfies Record<RosterPersonKind, string>;
 
 /**
  * The panel's merge intent, shared by the dancer and the professor detail. The
@@ -214,11 +216,9 @@ export async function submitRosterMerge<Kind extends RosterPersonKind>(input: {
     return { status: "error", intent, message: result.message };
   }
 
-  const destination = mergeDestinations[input.kind];
-
   throw await redirectWithFlashNotification(
-    `${destination.path}/${result.survivor.id}`,
-    destination.notification,
+    `${rosterPersonListPath(input.kind)}/${result.survivor.id}`,
+    mergeNotifications[input.kind],
   );
 }
 
@@ -234,7 +234,7 @@ export async function loadRosterMergeOptions(input: {
   candidates: RosterMergeCandidate[];
   inscriptionsByEvent: RosterMergeEventInscriptions[];
 }> {
-  const table = input.kind === "dancer" ? dancers : professors;
+  const table = rosterPersonTable(input.kind);
   const academyIdOfPerson = db
     .select({ academyId: table.academyId })
     .from(table)
@@ -266,7 +266,7 @@ async function lockPeople(
   tx: Transaction,
   input: RosterMergePair,
 ): Promise<LockedPerson[]> {
-  const table = input.kind === "dancer" ? dancers : professors;
+  const table = rosterPersonTable(input.kind);
 
   // Ordered by id, so two merges over the same pair lock in the same order.
   return await tx
@@ -343,8 +343,6 @@ async function findSharedChoreographies(
 }
 
 async function findSharedSeminars(tx: Transaction, input: RosterMergePair) {
-  const personColumn =
-    input.kind === "dancer" ? "dancerId" : ("professorId" as const);
   const other = alias(seminarInscriptions, "survivor_seminar_inscription");
   const rows = await tx
     .select({
@@ -356,8 +354,8 @@ async function findSharedSeminars(tx: Transaction, input: RosterMergePair) {
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
     .where(
       and(
-        eq(seminarInscriptions[personColumn], input.removedId),
-        eq(other[personColumn], input.survivorId),
+        eq(seminarInscriptionPersonColumn(input.kind), input.removedId),
+        eq(seminarInscriptionPersonColumn(input.kind, other), input.survivorId),
         isNull(seminarInscriptions.withdrawnAt),
         isNull(other.withdrawnAt),
       ),
@@ -380,18 +378,16 @@ async function moveInscriptions(tx: Transaction, input: RosterMergePair) {
           .set({ professorId: input.survivorId })
           .where(eq(choreographyProfessors.professorId, input.removedId))
           .returning({ id: choreographyProfessors.choreographyId });
-  const movedSeminarInscriptions =
-    input.kind === "dancer"
-      ? await tx
-          .update(seminarInscriptions)
-          .set({ dancerId: input.survivorId })
-          .where(eq(seminarInscriptions.dancerId, input.removedId))
-          .returning({ id: seminarInscriptions.id })
-      : await tx
-          .update(seminarInscriptions)
-          .set({ professorId: input.survivorId })
-          .where(eq(seminarInscriptions.professorId, input.removedId))
-          .returning({ id: seminarInscriptions.id });
+  const movedSeminarInscriptions = await tx
+    .update(seminarInscriptions)
+    .set(
+      seminarInscriptionPersonValues({
+        kind: input.kind,
+        personId: input.survivorId,
+      }),
+    )
+    .where(eq(seminarInscriptionPersonColumn(input.kind), input.removedId))
+    .returning({ id: seminarInscriptions.id });
 
   return {
     choreographyInscriptions: choreographyInscriptions.length,
@@ -505,14 +501,7 @@ async function countInscriptionsByEvent(input: {
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
     .innerJoin(events, eq(events.id, seminars.eventId))
-    .where(
-      eq(
-        input.kind === "dancer"
-          ? seminarInscriptions.dancerId
-          : seminarInscriptions.professorId,
-        input.personId,
-      ),
-    )
+    .where(eq(seminarInscriptionPersonColumn(input.kind), input.personId))
     .groupBy(events.id, events.name);
   const byEvent = new Map<string, RosterMergeEventInscriptions>();
 

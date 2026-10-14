@@ -45,6 +45,7 @@ import {
   rosterPersonStatusCondition,
 } from "@/lib/roster/roster-person-status.server";
 import { orderByChoreographyName } from "@/lib/choreographies/choreography-name.server";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export type ProfessorListItem = {
   id: string;
@@ -375,7 +376,9 @@ export async function updateAdministrativeProfessor(input: {
   });
 
   if (!existingProfessor) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("professor"), {
+      status: 404,
+    });
   }
 
   const fieldErrors: ProfessorFieldErrors = {};

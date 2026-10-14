@@ -18,7 +18,7 @@ import {
   findProfessorChoreographies,
   findRosterSeminarInscriptions,
 } from "@/lib/roster/inscriptions.server";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
+import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { createSavedEvent, eventDates } from "@/lib/test-support/events";

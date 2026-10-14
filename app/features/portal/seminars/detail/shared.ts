@@ -1,5 +1,5 @@
 import type { InscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
-import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
+import type { RosterPersonKind } from "@/lib/roster/roster-person-kind.shared";
 
 import type {
   deletePortalSeminarInscriptionIntent,

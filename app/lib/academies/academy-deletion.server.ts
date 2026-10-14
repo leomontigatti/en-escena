@@ -10,7 +10,7 @@ import {
   seminarInscriptions,
   user,
 } from "@/db/schema";
-import { formatSpanishList } from "@/lib/shared/text-normalization";
+import { formatSpanishList, pluralize } from "@/lib/shared/text-normalization";
 
 export type DeleteAcademyResult =
   | { ok: true; academy: { id: string; name: string } }
@@ -142,12 +142,4 @@ async function readTotal(query: Promise<{ total: number }[]>) {
   const [row] = await query;
 
   return row?.total ?? 0;
-}
-
-function pluralize(total: number, singular: string, plural: string) {
-  if (total === 0) {
-    return null;
-  }
-
-  return `${total} ${total === 1 ? singular : plural}`;
 }

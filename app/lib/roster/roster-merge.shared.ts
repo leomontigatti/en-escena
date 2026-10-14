@@ -1,4 +1,9 @@
-import type { RosterPersonKind } from "./roster-person-status.shared";
+import { pluralize } from "@/lib/shared/text-normalization";
+
+import {
+  rosterPersonNoun,
+  type RosterPersonKind,
+} from "./roster-person-kind.shared";
 
 export const rosterMergeIntents = {
   dancer: "merge-dancer",
@@ -19,29 +24,20 @@ export type RosterMergeEventInscriptions = {
   seminars: number;
 };
 
-const kindCopy = {
-  dancer: {
-    notFoundMessage: "No encontramos ese Bailarín.",
-    otherAcademyMessage:
-      "Solo se pueden fusionar bailarines de la misma academia.",
-    sameRowMessage: "Elegí otro bailarín para fusionar.",
-    singular: "bailarín",
-    survivorNotFoundMessage:
-      "No encontramos el bailarín que queda. Elegí otro bailarín de la academia.",
-  },
-  professor: {
-    notFoundMessage: "No encontramos ese Profesor.",
-    otherAcademyMessage:
-      "Solo se pueden fusionar profesores de la misma academia.",
-    sameRowMessage: "Elegí otro profesor para fusionar.",
-    singular: "profesor",
-    survivorNotFoundMessage:
-      "No encontramos el profesor que queda. Elegí otro profesor de la academia.",
-  },
-} as const satisfies Record<RosterPersonKind, Record<string, string>>;
-
+/**
+ * The merge's refusals, one sentence each with the kind's noun in it, so the
+ * dancer merge and the professor merge cannot drift into two explanations. A
+ * removed person that is not there is the roster's own not-found sentence,
+ * `getRosterPersonNotFoundMessage`.
+ */
 export function getRosterMergeKindCopy(kind: RosterPersonKind) {
-  return kindCopy[kind];
+  const singular = rosterPersonNoun(kind, "singular");
+
+  return {
+    otherAcademyMessage: `Solo se pueden fusionar ${rosterPersonNoun(kind, "plural")} de la misma academia.`,
+    sameRowMessage: `Elegí otro ${singular} para fusionar.`,
+    survivorNotFoundMessage: `No encontramos el ${singular} que queda. Elegí otro ${singular} de la academia.`,
+  };
 }
 
 export function formatRosterMergeCandidateLabel(
@@ -121,12 +117,4 @@ function describeDiscardedDocument(input: {
   return input.isIdentityVerified
     ? " y documento, con su verificación"
     : " y documento";
-}
-
-function pluralize(total: number, singular: string, plural: string) {
-  if (total === 0) {
-    return null;
-  }
-
-  return `${total} ${total === 1 ? singular : plural}`;
 }

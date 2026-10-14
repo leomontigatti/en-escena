@@ -16,6 +16,7 @@ import {
   type ParticipationStatus,
   toParticipationStatus,
 } from "@/lib/participation/participation.shared";
+import { getRosterPersonNotFoundMessage } from "@/lib/roster/roster-person-kind.shared";
 
 export type ProfessorFormField = "firstName" | "lastName";
 
@@ -242,7 +243,9 @@ export async function updateAcademyProfessor(
   const existingProfessor = await findAcademyProfessor(academyId, professorId);
 
   if (!existingProfessor) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
+    throw new Response(getRosterPersonNotFoundMessage("professor"), {
+      status: 404,
+    });
   }
 
   const values = {

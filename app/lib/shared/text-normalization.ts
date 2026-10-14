@@ -20,3 +20,15 @@ export function formatSpanishList(items: readonly string[]) {
 
   return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }
+
+/**
+ * `3 bailarines`, `1 bailarín`, or nothing for zero: the count a summary line
+ * leaves out when there is nothing to count. The sentence adds its own period.
+ */
+export function pluralize(total: number, singular: string, plural: string) {
+  if (total === 0) {
+    return null;
+  }
+
+  return `${total} ${total === 1 ? singular : plural}`;
+}
