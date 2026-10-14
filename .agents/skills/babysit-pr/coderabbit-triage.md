@@ -67,7 +67,9 @@ findings. Format:
 
 Reading the round: the unresolved threads with their ids, then CodeRabbit's latest review with
 the time it was posted. The review's body findings sit in its "Prompt to fix review comments"
-block, outside the "Inline comments" section, which repeats the threads.
+block, outside the "Inline comments" section, which repeats the threads. Last, CodeRabbit's latest
+comment, which is where it answers a request: a rate limit, a skip, or "Action not completed" when
+a push cancelled the review. It edits that reply in place, so read the current body.
 
 ```bash
 gh api graphql -f query='query($owner:String!,$repo:String!,$n:Int!){
@@ -79,6 +81,9 @@ gh api graphql -f query='query($owner:String!,$repo:String!,$n:Int!){
 
 gh pr view <PR> --json reviews \
   --jq '[.reviews[] | select((.author.login | startswith("coderabbitai")) and .body != "")] | last | {submittedAt, body}'
+
+gh pr view <PR> --json comments \
+  --jq '[.comments[] | select(.author.login | startswith("coderabbitai"))] | last | .body'
 ```
 
 Answering it:
