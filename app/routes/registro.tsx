@@ -110,9 +110,9 @@ export default function RegistroRoute() {
   return (
     <AccessPage>
       <AccessHeader
-        eyebrow="Portal de academias"
-        title="Registrá tu academia"
-        description="Ingresá tu correo y definí una contraseña. Si el correo puede registrarse, te vamos a enviar un enlace para confirmar la cuenta y seguir con el alta."
+        eyebrow="Registro"
+        title="Creá tu cuenta"
+        description="Para una academia o para vos como Particular. Ingresá tu correo y definí una contraseña: si el correo puede registrarse, te vamos a enviar un enlace para confirmarlo y elegir el tipo de cuenta. Cada correo es una sola cuenta."
       />
 
       <Form

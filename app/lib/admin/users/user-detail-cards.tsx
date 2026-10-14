@@ -34,6 +34,7 @@ export function InternalUserDetailCard({
   );
 }
 
+/** An academy's or an individual's access, read-only: neither is edited here. */
 export function AcademyUserFormCard({
   backToList,
   user,
@@ -45,8 +46,15 @@ export function AcademyUserFormCard({
     <ReadOnlyUserPage backToList={backToList}>
       <ReadOnlyField label="Nombre" value={user.name} />
       <ReadOnlyField label="Correo de acceso" value={user.email ?? ""} />
-      <ReadOnlyField label="Tipo" value="Usuario de academia" />
-      <ReadOnlyField label="Academia" value={user.academyName ?? ""} />
+      <ReadOnlyField
+        label="Tipo"
+        value={
+          user.userType === "individual" ? "Particular" : "Usuario de academia"
+        }
+      />
+      {user.userType === "academy" ? (
+        <ReadOnlyField label="Academia" value={user.academyName ?? ""} />
+      ) : null}
     </ReadOnlyUserPage>
   );
 }

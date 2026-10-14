@@ -428,6 +428,13 @@
       "when": 1792010882035,
       "tag": "0060_academy_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1792011692477,
+      "tag": "0061_individual",
+      "breakpoints": true
     }
   ]
 }

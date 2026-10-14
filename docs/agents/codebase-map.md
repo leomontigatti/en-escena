@@ -109,6 +109,19 @@ onboarding.
 - Auth modules: `app/lib/auth/access-auth-emails.server.ts`, `app/lib/auth/legacy-session-cookies.server.ts`, `app/lib/auth/internal-navigation.server.ts`
 - Tests: `app/lib/academies/registration.server.db.test.ts`, `app/lib/academies/onboarding.server.db.test.ts`, `app/lib/academies/onboarding-maintenance.server.db.test.ts`, `app/lib/auth/registration-confirmation-route.server.test.ts`, `app/lib/auth/access-auth-emails.server.test.ts`
 
+## Individual Area
+
+Use for the `individual` (`Particular`) account: its onboarding, its own area and
+its personal data (ADR-0019).
+
+- Domain: `docs/domain/access.md`
+- ADRs: `docs/adr/0019-individual-owns-its-own-pool.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
+- Routes: `app/routes/registro_.cuenta.tsx` (the kind choice), `app/routes/registro_.particular.tsx`, `app/routes/particular.tsx` (layout), `app/routes/particular._index.tsx`, `app/routes/particular.mis-datos.tsx`
+- Feature modules: `app/features/individual/shell/`, `app/features/individual/personal-data/`
+- Server modules: `app/lib/individuals/onboarding.server.ts`, `app/lib/individuals/personal-data.ts` (the personal data schema and normalization, shared by onboarding and `Mis datos`), `app/lib/individuals/personal-data.server.ts`, `app/lib/auth/pending-onboarding.server.ts`, `requireIndividualUser` in `app/lib/auth/internal-access.server.ts`
+- Schema: `app/db/schema/individuals.ts`; the owner row is `academy` of kind `individual` (`app/lib/academies/owner-kind.server.ts`)
+- Tests: `app/lib/individuals/onboarding.server.db.test.ts`, `app/features/individual/shell/server.db.test.ts`, `app/features/individual/personal-data/server.db.test.ts`
+
 ## Access And Internal Users
 
 Use for login, session policy, password recovery,

@@ -171,7 +171,7 @@ describe("internal access authorization", () => {
     const response = await expectThrownResponse(requireAcademyUser(request));
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/registro/academia");
+    expect(response.headers.get("location")).toBe("/registro/cuenta");
   });
 
   test("rejects internal users from academy-owned context", async () => {
@@ -184,7 +184,7 @@ describe("internal access authorization", () => {
 
     expect(response.status).toBe(403);
     await expect(response.text()).resolves.toBe(
-      "Los usuarios internos no pueden acceder al portal.",
+      "El Portal de academias es solo para academias.",
     );
   });
 

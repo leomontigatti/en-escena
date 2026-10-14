@@ -198,5 +198,7 @@ function getTypeLabel(type: UserListType) {
       return "Interno";
     case "academy":
       return "Usuario de academia";
+    case "individual":
+      return "Particular";
   }
 }

@@ -58,7 +58,7 @@ describe("internal navigation", () => {
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/registro/academia");
+    expect(response.headers.get("location")).toBe("/registro/cuenta");
   });
 
   test("keeps public routes available while clearing stale Supabase cookies", async () => {

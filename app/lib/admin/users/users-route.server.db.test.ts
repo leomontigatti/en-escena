@@ -7,6 +7,8 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { createSignedInRequest } from "@/lib/test-support/auth";
 import { createAcademyUser } from "@/lib/test-support/academies";
+import { createIndividualUser } from "@/lib/test-support/individuals";
+import { getUserRoleLabel } from "@/lib/auth/user-role.shared";
 import { user } from "@/db/schema";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import {
@@ -205,6 +207,64 @@ describe("`/administracion/usuarios` route", () => {
     expect(
       bySuspendedStatusData.users.map((savedUser) => savedUser.identifier),
     ).toEqual(["susana.suspendida"]);
+  });
+
+  test("lists an individual by its person's name and email, as a `Particular` with no academy, and filters it by that permission", async () => {
+    await createIndividualUser({
+      email: "particular@example.com",
+      firstName: "Ana",
+      lastName: "Pérez",
+    });
+    await createAcademyUser({
+      email: "contacto@academia-sur.com",
+      academyName: "Academia Sur",
+      contactName: "Sara Sur",
+    });
+
+    const byEmail = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.particular@enescena.com.ar",
+            role: "admin",
+            requestUrl:
+              "http://localhost/administracion/usuarios?busqueda=particular%40example.com",
+            name: "Admin Particular",
+            internalUsername: "admin.particular",
+          })
+        ).request,
+      ),
+    );
+
+    expect(byEmail.users).toEqual([
+      expect.objectContaining({
+        academyName: null,
+        identifier: "particular@example.com",
+        mainRole: "individual",
+        name: "Ana Pérez",
+        userType: "individual",
+      }),
+    ]);
+    expect(getUserRoleLabel(byEmail.users[0].mainRole)).toBe("Particular");
+
+    const byRole = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.particular.rol@enescena.com.ar",
+            role: "admin",
+            requestUrl:
+              "http://localhost/administracion/usuarios?rol=individual",
+            name: "Admin Rol",
+            internalUsername: "admin.particular.rol",
+          })
+        ).request,
+      ),
+    );
+
+    expect(byRole.users.map((savedUser) => savedUser.name)).toEqual([
+      "Ana Pérez",
+    ]);
   });
 
   test("finds an academy by email and never an internal user by their credential email", async () => {

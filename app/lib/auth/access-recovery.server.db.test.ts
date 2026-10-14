@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth/access-auth.test-support";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
+import { createIndividualUser } from "@/lib/test-support/individuals";
 import {
   action as changePasswordAction,
   loader as changePasswordLoader,
@@ -88,6 +89,24 @@ describe("access recovery", () => {
       redirectTo: "http://localhost:3000/cambiar-contrasena",
       request: expect.any(Request),
     });
+  });
+
+  test("requests a password reset for an individual user too", async () => {
+    await createIndividualUser({ email: "particular@example.com" });
+    const requestPasswordReset = vi.fn().mockResolvedValue({
+      headers: new Headers(),
+    });
+
+    await requestAccessRecoveryEmail({
+      email: "particular@example.com",
+      requestUrl: RECOVERY_REQUEST_URL,
+      request: new Request(RECOVERY_REQUEST_URL, { method: "POST" }),
+      requestPasswordReset,
+    });
+
+    expect(requestPasswordReset).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "particular@example.com" }),
+    );
   });
 
   test("returns the generic response without triggering reset for internal, suspended or missing emails", async () => {

@@ -7,6 +7,7 @@ type NotificationToast = ToastMessage & {
 export const notificationToastIds = {
   "event-form-error": "route-notification:event-form-error",
   "profile-saved": "route-notification:profile-saved",
+  "personal-data-saved": "route-notification:personal-data-saved",
   "professor-created": "route-notification:professor-created",
   "professor-saved": "route-notification:professor-saved",
   "professor-archived": "route-notification:professor-archived",
@@ -70,6 +71,11 @@ export const notificationToasts = {
   "profile-saved": {
     id: notificationToastIds["profile-saved"],
     message: "Perfil guardado.",
+    variant: "success",
+  },
+  "personal-data-saved": {
+    id: notificationToastIds["personal-data-saved"],
+    message: "Datos guardados.",
     variant: "success",
   },
   "professor-created": {
