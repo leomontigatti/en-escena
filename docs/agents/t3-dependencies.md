@@ -98,14 +98,14 @@ Checked against T3 Code 0.0.46-nightly.20261014.3105 (commit 3417bc3856a2).
 - **Workaround:** on every wake babysit reads the required contexts from branch protection and holds the round while one has not reported, waiting in the background with `gh pr checks --watch` (`.agents/skills/babysit-pr/SKILL.md` § 2. Wait for the round, the "a required one not reported yet" row). The watch reports "required checks passed" on the contexts it can see: `db-gate` runs after `db-shard` (`needs:` in `.github/workflows/ci.yml`), so it is absent for about four minutes, and on 2026-10-14 the watch woke on "All 4 required checks passed" three times before it started.
 - **Used by:** `.agents/skills/babysit-pr/SKILL.md` § 2. Wait for the round.
 - **Would improve if:** `watch_pull_request` reads the base branch's required checks and holds "checks passed" while one is missing.
-- **Watch:** pingdotgg/t3code#17831 (open, no maintainer approval yet); its Ideas discussion pingdotgg/t3code#18047 carries this repo's three cases.
+- **Watch:** pingdotgg/t3code#18047 (Ideas discussion, open, awaiting maintainer approval; it carries this repo's three cases). Its implementation, #17831, was closed unmerged on 2026-10-14 for lacking that approval.
 
 ### babysit-behind-on-read
 
 - **Workaround:** `master` requires a branch to be current (`strict: true`), and the watch does not wake when one falls behind. Babysit only sees `BEHIND` when it reads the round on another wake, then updates once (`.agents/skills/babysit-pr/SKILL.md` § 4b. Bring the branch up to date). A PR handed back READY that falls behind later is the user's to update, or the launcher's when it holds the merge (`docs/agents/workflows.md` § Branches, worktrees and T3 Code threads, "A launched thread reports to its own inbox").
 - **Used by:** `.agents/skills/babysit-pr/SKILL.md` § 2 (the `BEHIND` row) and § 4b; `docs/agents/pull-requests.md` § Babysitting a PR.
 - **Would improve if:** `watch_pull_request` wakes the thread when the PR's merge state becomes `BEHIND`.
-- **Watch:** pingdotgg/t3code#17831 (open), the same PR as babysit-unreported-required-checks.
+- **Watch:** pingdotgg/t3code#18047, the same proposal as babysit-unreported-required-checks.
 
 ### babysit-unresolved-threads
 
