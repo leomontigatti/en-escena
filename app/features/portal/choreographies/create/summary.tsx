@@ -8,11 +8,11 @@ import { ProfessionalEvaluationSwitch } from "@/components/shared/professional-e
 import { Button } from "@/components/ui/button";
 import { normalizeChoreographyName } from "@/lib/choreographies/choreography-name";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
-import type {
-  CreateChoreographyForm,
-  CreateChoreographyFormValues,
-  CreateChoreographyStep,
-  PortalResolvedRegistrationResolution,
+import {
+  type CreateChoreographyForm,
+  type CreateChoreographyFormValues,
+  type CreateChoreographyStep,
+  type PortalResolvedRegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
 import {
   formatCategoryAndGroupTypeSummary,
@@ -101,7 +101,7 @@ export function ChoreographyCreationSummary({
         >
           {formatCategoryAndGroupTypeSummary(resolution)}
         </SummaryRow>
-        {resolution.experienceLevel.required ? (
+        {resolution.experienceLevel.requirement !== "notApplicable" ? (
           <SummaryRow
             label="Nivel de experiencia"
             onEdit={() => onEdit("category")}

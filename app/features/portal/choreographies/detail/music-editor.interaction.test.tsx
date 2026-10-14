@@ -51,7 +51,7 @@ function loaderData(): PortalChoreographyMusicLoaderData {
       name: "Coreografía",
       operationalStatus: { code: "complete", pendingItems: [] },
       professors: [],
-      requiresExperienceLevel: false,
+      experienceLevelRequirement: "notApplicable",
       scheduleCapacityId: "schedule_1",
       scheduleLabel: "2026-11-26 · 10:00",
       scheduleName: "Bloque mañana",

@@ -40,7 +40,7 @@ export function ChoreographyDetailAlerts({
   const canChooseExperienceLevel =
     loaderData.canEdit &&
     loaderData.draft.structuralLock === null &&
-    choreography.requiresExperienceLevel;
+    choreography.experienceLevelRequirement === "required";
   const moneyBlockers = [
     ...loaderData.scheduleCapacity.blockers,
     ...loaderData.modality.blockers,

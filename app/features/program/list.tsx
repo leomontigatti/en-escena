@@ -219,9 +219,7 @@ function buildProgramColumns({
           header: "Nivel",
           width: 11,
           className: "text-muted-foreground",
-          cell: (row) => (
-            <DataTableTruncatedText value={row.levelLabel ?? "—"} />
-          ),
+          cell: (row) => <DataTableTruncatedText value={row.levelLabel} />,
         }
       : null,
     // Header-less and only while some row of the chosen day is evaluated:

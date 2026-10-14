@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { experienceLevelDisplayLabel } from "@/lib/choreographies/experience-level-requirement";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
@@ -167,11 +167,10 @@ function buildPresentationColumns({
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
-          value={
-            row.experienceLevel === null
-              ? "—"
-              : experienceLevelLabels[row.experienceLevel]
-          }
+          value={experienceLevelDisplayLabel(
+            row.experienceLevel,
+            row.experienceLevelRequirement,
+          )}
         />
       ),
     },

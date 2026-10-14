@@ -9,6 +9,7 @@ const presentation = {
   academyName: "Academia Sur",
   categoryName: "Juvenil",
   experienceLevel: "amateur",
+  experienceLevelRequirement: "required" as const,
   groupType: "solo" as const,
   modalityName: "Jazz",
   name: "Luna de Papel",
@@ -27,13 +28,15 @@ describe("how a scoring page names its presentation", () => {
     );
   });
 
-  test("leaves out a missing submodality and level rather than drawing them empty", () => {
+  test("leaves out a missing submodality and words an empty level by why it is empty", () => {
     expect(
       formatPresentationSummary({
         ...presentation,
         experienceLevel: null,
+        experienceLevelRequirement: "optional",
+        groupType: "grupal",
         submodalityName: null,
       }),
-    ).toBe("Academia Sur · Jazz · Juvenil / Solo");
+    ).toBe("Academia Sur · Jazz · Juvenil / Grupal · Sin nivel");
   });
 });

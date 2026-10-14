@@ -251,6 +251,39 @@ describe("the program export", () => {
     expect(strings).not.toContain("pre_elite");
   });
 
+  test("words an empty level by why it is empty", async () => {
+    const fixture = await seedJudgingFixture();
+    const grupal = await addPresentation(fixture, {
+      dancerName: "Carla Díaz",
+      groupType: "grupal",
+      name: "Lago",
+      orderNumber: 1,
+      scheduledDate: "2026-05-01",
+    });
+    const solo = await addPresentation(fixture, {
+      dancerName: "Dario Ruiz",
+      name: "Río",
+      orderNumber: 2,
+      scheduledDate: "2026-05-01",
+    });
+    await db
+      .update(choreographies)
+      .set({ experienceLevelId: null })
+      .where(
+        inArray(choreographies.id, [
+          grupal.choreographyId,
+          solo.choreographyId,
+        ]),
+      );
+
+    const strings = await readWorkbookStrings(
+      await loadProgramExport(await signedInRequest(exportAllDays)),
+    );
+
+    expect(strings).toContain("Sin nivel");
+    expect(strings).toContain("Sin asignar");
+  });
+
   test("names every professor, in a group too, sorted by surname", async () => {
     const fixture = await seedJudgingFixture();
     const grupal = await addPresentation(fixture, {

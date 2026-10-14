@@ -15,6 +15,7 @@ import {
   buildCreateChoreographyFormData,
   getSubmissionError,
   getSubmissionWarning,
+  noExperienceLevelChoice,
   type CreateActionData,
   type RegistrationResolution,
   resolvePortalRegistrationCategory,
@@ -42,7 +43,7 @@ describe("choreography create flow helpers", () => {
         resolution: {
           ...onlySchedule,
           experienceLevel: {
-            required: true,
+            requirement: "required",
             options: [{ id: "amateur", name: "Amateur" }],
           },
         },
@@ -54,6 +55,20 @@ describe("choreography create flow helpers", () => {
       "professors",
       "summary",
     ]);
+  });
+
+  test("asks the category step for an optional level even with a single schedule", () => {
+    expect(
+      getCreateChoreographySteps({
+        resolution: {
+          ...buildAutoScheduleResolution(),
+          experienceLevel: {
+            requirement: "optional",
+            options: [{ id: "amateur", name: "Amateur" }],
+          },
+        },
+      }),
+    ).toEqual(["choreography", "dancers", "category", "professors", "summary"]);
   });
 
   test("requires at least one professor", () => {
@@ -172,7 +187,7 @@ describe("canAdvanceFromStep", () => {
         { id: "capacity_2", isFull: false },
       ]),
       experienceLevel: {
-        required: true,
+        requirement: "required",
         options: [{ id: "amateur", name: "Amateur" }],
       },
     };
@@ -204,6 +219,59 @@ describe("canAdvanceFromStep", () => {
     expect(canAdvanceFromStep("category", { ...input, resolution: null })).toBe(
       false,
     );
+  });
+});
+
+describe("the category step under an optional level", () => {
+  const values = {
+    name: "Danza de la Luna",
+    modalityId: "modality_1",
+    submodalityId: "",
+    dancerIds: ["dancer_1"],
+    professorIds: ["professor_1"],
+    experienceLevelId: "",
+    professionalEvaluation: false,
+    scheduleCapacityId: "",
+  };
+  const resolution: RegistrationResolution = {
+    ...buildAutoScheduleResolution(),
+    experienceLevel: {
+      requirement: "optional",
+      options: [{ id: "amateur", name: "Amateur" }],
+    },
+  };
+  const input = { canChooseSubmodality: false, resolution, values };
+
+  test("refuses to continue until a level or `Sin nivel` is picked", () => {
+    expect(canAdvanceFromStep("category", input)).toBe(false);
+    expect(
+      canAdvanceFromStep("category", {
+        ...input,
+        values: { ...values, experienceLevelId: noExperienceLevelChoice },
+      }),
+    ).toBe(true);
+    expect(
+      canAdvanceFromStep("category", {
+        ...input,
+        values: { ...values, experienceLevelId: "amateur" },
+      }),
+    ).toBe(true);
+  });
+
+  test("does not take `Sin nivel` for a level that is required", () => {
+    expect(
+      canAdvanceFromStep("category", {
+        ...input,
+        resolution: {
+          ...resolution,
+          experienceLevel: {
+            ...resolution.experienceLevel,
+            requirement: "required",
+          },
+        },
+        values: { ...values, experienceLevelId: noExperienceLevelChoice },
+      }),
+    ).toBe(false);
   });
 });
 
@@ -305,7 +373,7 @@ function buildScheduleResolution(
       },
     ],
     experienceLevel: {
-      required: false as const,
+      requirement: "notApplicable" as const,
       options: [],
     },
     groupType: "solo" as const,
@@ -585,7 +653,7 @@ describe("applyRegistrationResolution", () => {
           resolution: {
             ...resolution,
             experienceLevel: {
-              required: true,
+              requirement: "required",
               options: [{ id: "amateur", name: "Amateur" }],
             },
           },
@@ -596,6 +664,65 @@ describe("applyRegistrationResolution", () => {
       experienceLevelId: "amateur",
       scheduleCapacityId: "capacity_2",
     });
+  });
+
+  test("keeps the level a choreography had when it grows into a grupal where the level is optional", () => {
+    const resolution = buildScheduleResolution([
+      { id: "capacity_2", isFull: false },
+    ]);
+
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            experienceLevel: {
+              requirement: "optional",
+              options: [{ id: "amateur", name: "Amateur" }],
+            },
+          },
+        },
+      }),
+    ).toMatchObject({ status: "resolved", experienceLevelId: "amateur" });
+  });
+
+  test("keeps `Sin nivel` while the level stays optional, and drops it once the level is required", () => {
+    const resolution = buildScheduleResolution([
+      { id: "capacity_2", isFull: false },
+    ]);
+    const levels = [{ id: "amateur" as const, name: "Amateur" }];
+
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        experienceLevelId: noExperienceLevelChoice,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            experienceLevel: { requirement: "optional", options: levels },
+          },
+        },
+      }),
+    ).toMatchObject({
+      status: "resolved",
+      experienceLevelId: noExperienceLevelChoice,
+    });
+    expect(
+      applyRegistrationResolution({
+        ...answers,
+        experienceLevelId: noExperienceLevelChoice,
+        result: {
+          ok: true,
+          resolution: {
+            ...resolution,
+            experienceLevel: { requirement: "required", options: levels },
+          },
+        },
+      }),
+    ).toMatchObject({ status: "resolved", experienceLevelId: "" });
   });
 
   test("drops the level and schedule the new resolution no longer offers", () => {
@@ -611,7 +738,7 @@ describe("applyRegistrationResolution", () => {
           resolution: {
             ...resolution,
             experienceLevel: {
-              required: true,
+              requirement: "required",
               options: [{ id: "elite", name: "Elite" }],
             },
           },

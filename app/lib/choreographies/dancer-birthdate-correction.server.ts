@@ -18,14 +18,23 @@ import {
   type ScheduleDestination,
 } from "@/lib/choreographies/dancer-birthdate-schedule-move.server";
 import { refreshActiveInscriptionAges } from "@/lib/choreographies/inscription-age.server";
-import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
+import { experienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
+import type {
+  ExperienceLevelOutcome,
+  RecategorisedChoreography,
+} from "@/lib/choreographies/recategorisation-report";
 import type { ReservedSchedulePlace } from "@/lib/choreographies/schedule-capacity-lock.server";
+import {
+  hasCompetitivePlacementChanged,
+  resolveExperienceLevelOutcome,
+  toCompetitivePlacementFromChoreography,
+  toCompetitivePlacementFromResolution,
+  type ChoreographyCompetitivePlacement,
+} from "@/lib/choreographies/dancer-birthdate-placement.server";
 import {
   getAgeAtDate,
   getEventLocalDateParts,
-  getResolvedCategoryId,
   resolveChoreographyClassificationForResolvedDancers,
-  type ChoreographyRegistrationOperationResolution,
   type ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
@@ -58,14 +67,6 @@ type LinkedDancerRow = {
   firstName: string;
   lastName: string;
   birthDate: string;
-};
-
-type ChoreographyCompetitivePlacement = {
-  categoryId: string | null;
-  categoryAgeBasis: number | null;
-  categoryCalculationMode: EligibleChoreographyRow["categoryCalculationMode"];
-  experienceLevelId: string | null;
-  dancerCompetitiveAge: number;
 };
 
 /**
@@ -111,6 +112,7 @@ type ChoreographyCorrectionWrite = {
   /** `null` when the correction leaves the choreography without a category. */
   categoryName: string | null;
   placement: ChoreographyCompetitivePlacement;
+  experienceLevelOutcome: ExperienceLevelOutcome;
   resolvedDancers: ResolvedRegistrationDancer[];
 };
 
@@ -269,6 +271,18 @@ async function resolveCorrectionWrites(input: {
           ? resolution.category.name
           : null,
       placement: afterPlacement,
+      experienceLevelOutcome: resolveExperienceLevelOutcome({
+        previousExperienceLevelId: beforePlacement.experienceLevelId,
+        previousRequirement: experienceLevelRequirement({
+          categoryExperienceLevels:
+            eventBases.categories.find(
+              (category) => category.id === choreography.categoryId,
+            )?.experienceLevels ?? [],
+          groupType: choreography.groupType,
+        }),
+        placement: afterPlacement,
+        resolution,
+      }),
       resolvedDancers,
     });
   }
@@ -407,9 +421,7 @@ async function persistCorrectionWrites(input: {
         choreographyId: write.choreography.choreographyId,
         name: write.choreography.name,
         categoryName,
-        experienceLevelCleared:
-          write.choreography.experienceLevelId !== null &&
-          write.placement.experienceLevelId === null,
+        experienceLevelOutcome: write.experienceLevelOutcome,
       });
     }
   }
@@ -591,54 +603,6 @@ async function listEligibleChoreographies(
   return rows.filter((row) => !evaluatedIds.has(row.choreographyId));
 }
 
-function toCompetitivePlacementFromChoreography(
-  choreography: EligibleChoreographyRow,
-): ChoreographyCompetitivePlacement {
-  return {
-    categoryId: choreography.categoryId,
-    categoryAgeBasis: choreography.categoryAgeBasis,
-    categoryCalculationMode: choreography.categoryCalculationMode,
-    experienceLevelId: choreography.experienceLevelId,
-    dancerCompetitiveAge: choreography.correctedDancerCompetitiveAge,
-  };
-}
-
-function toCompetitivePlacementFromResolution(input: {
-  correctedDancer: ResolvedRegistrationDancer;
-  currentExperienceLevelId: string | null;
-  resolution: Pick<
-    ChoreographyRegistrationOperationResolution,
-    | "category"
-    | "categoryAgeBasis"
-    | "categoryCalculationMode"
-    | "experienceLevel"
-  >;
-}): ChoreographyCompetitivePlacement {
-  return {
-    categoryId: getResolvedCategoryId(input.resolution.category),
-    categoryAgeBasis: input.resolution.categoryAgeBasis,
-    categoryCalculationMode: input.resolution.categoryCalculationMode,
-    experienceLevelId: resolveRetainedExperienceLevelId({
-      currentExperienceLevelId: input.currentExperienceLevelId,
-      resolution: input.resolution,
-    }),
-    dancerCompetitiveAge: input.correctedDancer.ageAtEventStart,
-  };
-}
-
-function hasCompetitivePlacementChanged(
-  before: ChoreographyCompetitivePlacement,
-  after: ChoreographyCompetitivePlacement,
-) {
-  return (
-    before.categoryId !== after.categoryId ||
-    before.categoryCalculationMode !== after.categoryCalculationMode ||
-    before.categoryAgeBasis !== after.categoryAgeBasis ||
-    before.experienceLevelId !== after.experienceLevelId ||
-    before.dancerCompetitiveAge !== after.dancerCompetitiveAge
-  );
-}
-
 function toExperienceLevelValue(value: string | null) {
   if (value === null || !isExperienceLevel(value)) {
     return null;
@@ -692,28 +656,4 @@ function toResolvedDancers(
         ageAtEventStart: getAgeAtDate(dancer.birthDate, eventLocalStartDate),
       }) satisfies ResolvedRegistrationDancer,
   );
-}
-
-function resolveRetainedExperienceLevelId(input: {
-  currentExperienceLevelId: string | null;
-  resolution: Pick<
-    ChoreographyRegistrationOperationResolution,
-    "experienceLevel"
-  >;
-}) {
-  if (!input.resolution.experienceLevel.required) {
-    return null;
-  }
-
-  if (
-    input.currentExperienceLevelId &&
-    isExperienceLevel(input.currentExperienceLevelId) &&
-    input.resolution.experienceLevel.options.some(
-      (option) => option.id === input.currentExperienceLevelId,
-    )
-  ) {
-    return input.currentExperienceLevelId;
-  }
-
-  return null;
 }

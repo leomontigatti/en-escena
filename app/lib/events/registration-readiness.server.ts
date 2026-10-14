@@ -1,6 +1,10 @@
 import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
+import {
+  experienceLevelRequirement,
+  type ExperienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
 import { selectScheduleCapacityForGroupType } from "@/lib/choreographies/schedule-capacity-options";
 import { events } from "@/db/schema";
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
@@ -18,7 +22,7 @@ type RegistrationPathDescriptor = {
   modalityName: string;
   groupType: string;
   requiresSubmodality: boolean;
-  requiresExperienceLevel: boolean;
+  experienceLevelRequirement: ExperienceLevelRequirement;
 };
 
 type ReadinessScheduleOption = {
@@ -239,8 +243,6 @@ export async function getEventRegistrationReadinessForBases(
   );
 
   for (const category of eventBases.categories) {
-    const requiresExperienceLevel = category.experienceLevels.length > 0;
-
     for (const modalityId of category.modalityIds) {
       const modality = modalitiesById.get(modalityId);
 
@@ -257,7 +259,10 @@ export async function getEventRegistrationReadinessForBases(
           modalityName: modality.name,
           groupType,
           requiresSubmodality,
-          requiresExperienceLevel,
+          experienceLevelRequirement: experienceLevelRequirement({
+            categoryExperienceLevels: category.experienceLevels,
+            groupType,
+          }),
         });
         const scheduleResolution = resolveScheduleOptionsFromBases(eventBases, {
           categoryId: category.id,
@@ -631,8 +636,10 @@ function describeRegistrationPath(input: RegistrationPathDescriptor) {
     details.push("requiere submodalidad");
   }
 
-  if (input.requiresExperienceLevel) {
+  if (input.experienceLevelRequirement === "required") {
     details.push("requiere nivel de experiencia");
+  } else if (input.experienceLevelRequirement === "optional") {
+    details.push("nivel de experiencia opcional");
   }
 
   return details.join(", ");

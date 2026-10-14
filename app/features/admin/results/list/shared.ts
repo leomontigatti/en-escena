@@ -1,3 +1,4 @@
+import type { ExperienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { Award } from "@/lib/judging/award";
 import type { PresentationEvaluationStatus } from "@/lib/judging/evaluation-status.server";
@@ -34,8 +35,10 @@ export type ResultsListItem = {
   categoryName: string;
   choreographyNumber: number;
   evaluationStatus: PresentationEvaluationStatus;
-  /** The choreography's level; `null` when its category admits none. */
+  /** The choreography's level; `null` when it has none. */
   experienceLevel: ExperienceLevel | null;
+  /** Why an empty level is empty, which is how the `Nivel` cell words it. */
+  experienceLevelRequirement: ExperienceLevelRequirement;
   groupType: ChoreographyGroupType;
   id: string;
   modalityName: string;

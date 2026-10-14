@@ -199,6 +199,76 @@ describe("choreography registration confirmation", () => {
     });
   });
 
+  test("lets a grupal leave the level blank or keep one, and still requires it of a trio", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Nivel Opcional",
+      email: "registro.coreografia.nivel-opcional@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const professor = await createProfessor(owner.academyId);
+    const dancers = await Promise.all(
+      Array.from({ length: 12 }, (_, index) =>
+        createDancer(owner.academyId, {
+          birthDate: "2014-05-01",
+          documentNumber: `4100000${String(index).padStart(2, "0")}`,
+        }),
+      ),
+    );
+    const register = (input: {
+      dancerIds: string[];
+      experienceLevelId: string | null;
+      name: string;
+      scheduleCapacityId: string;
+    }) =>
+      createChoreographyRegistration({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        professorIds: [professor.id],
+        ...input,
+      });
+
+    await expect(
+      register({
+        dancerIds: dancers.slice(0, 4).map((dancer) => dancer.id),
+        experienceLevelId: null,
+        name: "Grupal sin nivel",
+        scheduleCapacityId: catalog.grupalScheduleCapacity.id,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      choreography: { groupType: "grupal", experienceLevelId: null },
+    });
+    await expect(
+      register({
+        dancerIds: dancers.slice(4, 8).map((dancer) => dancer.id),
+        experienceLevelId: catalog.level.id,
+        name: "Grupal con nivel",
+        scheduleCapacityId: catalog.grupalScheduleCapacity.id,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      choreography: { experienceLevelId: catalog.level.id },
+    });
+    await expect(
+      register({
+        dancerIds: dancers.slice(8, 12).map((dancer) => dancer.id),
+        experienceLevelId: "profesional",
+        name: "Grupal con nivel ajeno",
+        scheduleCapacityId: catalog.grupalScheduleCapacity.id,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "invalid-experience-level" });
+    await expect(
+      register({
+        dancerIds: dancers.slice(8, 11).map((dancer) => dancer.id),
+        experienceLevelId: null,
+        name: "Trío sin nivel",
+        scheduleCapacityId: catalog.trioScheduleCapacity.id,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "invalid-experience-level" });
+  });
+
   test("rejects professors from another academy on final confirmation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Profesores Propios",

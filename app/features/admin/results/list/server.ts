@@ -1,3 +1,4 @@
+import { experienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
 import { data, redirect } from "react-router";
 
 import { adminListPageSize } from "@/lib/admin/admin-list";
@@ -129,6 +130,10 @@ async function loadResultsList(input: {
       choreographyNumber: row.choreographyNumber,
       evaluationStatus: evaluationStatuses.get(row.choreographyId) ?? "pending",
       experienceLevel: row.experienceLevel,
+      experienceLevelRequirement: experienceLevelRequirement({
+        categoryExperienceLevels: row.category.experienceLevels,
+        groupType: row.groupType,
+      }),
       groupType: row.groupType as ChoreographyGroupType,
       id: row.choreographyId,
       modalityName: row.modalityName,

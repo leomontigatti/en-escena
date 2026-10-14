@@ -106,6 +106,10 @@ _Avoid_: `listAction`, bulk action
 System access identity, with credentials and one main permission. An academy user has a verified email; an internal user has only a name, a `Nombre de usuario interno` and a permission.
 _Avoid_: `academy`, `professor`, academy account
 
+**`individual`** — ui: "Particular"
+A person who holds their own access, without an academy, to register themselves into seminars and to read their own participation in an event. One account is one person and one document, held by an adult; a guardian opens one per child. What it reads of other academies' rosters is reached through its document only once administration has verified it (ADR-0019).
+_Avoid_: `dancer`, `Bailarín` (as a kind of user), `alumno libre`, student
+
 **`internalUsername`** — ui: "Nombre de usuario interno"
 Access identifier for internal users, the only thing they type to sign in. Internal users have no email: the credential email the access auth provider needs is made up from this username as `<username>@enescena.com.ar` and nothing is ever sent to it.
 _Avoid_: internal email, alias, account
@@ -322,7 +326,7 @@ A numbered `presentation` of a schedule that already has an evaluated presentati
 _Avoid_: locked presentation, evaluated presentation (a frozen row need not be evaluated itself), closed schedule (`registrationOpen` is about inscriptions)
 
 **`presentationWarning`** — ui: "Advertencia"
-Derived, informational flag on a row of the `choreographyParticipationList`: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `evaluatedSchedule` (`Cronograma evaluado`: a row without a number whose schedule already has a `frozenPresentation`, so no ordering can place it among the presentations already announced), `dancerSpacing` (`Separación`), `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in) and `missingJudges` (`Sin jueces`: a numbered, non-disqualified presentation with no `judgeAssignment` while another of its schedule has one — the one left behind when the panel was assigned before it was numbered). Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
+Derived, informational flag on a row of the `choreographyParticipationList`: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `evaluatedSchedule` (`Cronograma evaluado`: a row without a number whose schedule already has a `frozenPresentation`, so no ordering can place it among the presentations already announced), `dancerSpacing` (`Separación`), `missingLevel` (`Nivel sin asignar`: a required `experienceLevel` is missing; a grupal with `Sin nivel` raises none), `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in) and `missingJudges` (`Sin jueces`: a numbered, non-disqualified presentation with no `judgeAssignment` while another of its schedule has one — the one left behind when the panel was assigned before it was numbered). Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
 _Avoid_: error, validation, lock
 
 **`participationStatus`** — ui: "Estado de participación"
@@ -378,7 +382,7 @@ The group of a submodality's `levelCriterion` lines for one `experienceLevel`, a
 _Avoid_: `levelCriterion`, `generalEvaluation`, level-specific criteria
 
 **`scoreSheet`** — ui: "Planilla"
-How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `generalEvaluation` and then the `mandatoryTechnique` of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, and a modality with no submodalities, score with a single value and have no sheet.
+How a `presentation` is scored when its `submodality` has `submodalityCriterion` rows: one field per criterion instead of one 0-100 value. Its lines are the submodality's `generalEvaluation` and then the `mandatoryTechnique` of the choreography's `experienceLevel`, so two levels of one submodality are scored on different sheets. Its total is the additions minus the deductions, clamped to 0 and 100, and it is what the `score` stores as its value. A submodality with no criteria, a modality with no submodalities, and a grupal with `Sin nivel` score with a single value and have no sheet; a choreography whose level is `No aplica` or `Sin asignar` is scored on the `generalEvaluation` alone.
 _Avoid_: `score`, `eventProgram`, printed sheet, ballot
 
 **`award`** — ui: "Premio"
@@ -585,7 +589,7 @@ Classification computed from ages measured against the event's start date. Its c
 _Avoid_: `modality`, `groupType`
 
 **`experienceLevel`** — ui: "Nivel de experiencia"
-Classification related to a category and chosen by the academy where applicable.
+Classification related to a category and chosen by the academy where applicable. A category that admits levels requires one of a solo, duo or trio and leaves it optional for a grupal; a category that admits none takes no level. An empty level reads by why it is empty: `Sin asignar` (required and missing, which leaves the choreography `incomplete`), `Sin nivel` (optional, and the grupal chose none) or `No aplica` (the category admits no level).
 _Avoid_: `category`
 
 **`professionalEvaluation`** — ui: "Evaluar como profesional"
@@ -593,5 +597,5 @@ A choreography's request to be judged more severely, a yes or no its academy set
 _Avoid_: `experienceLevel`, professional level
 
 **`notApplicableValue`** — ui: "No aplica"
-Empty value of a field that cannot hold one in this context, as opposed to one that has none yet. Reserved for the second case is "Sin asignar": the field admits a value and it is missing, which is what leaves a choreography `incomplete`. Rendering both the same way hides an incomplete record behind a correct-looking one.
-_Avoid_: `Sin asignar`, `Sin datos`, blank
+Empty value of a field that cannot hold one in this context, as opposed to one that has none yet. Reserved for the second case is "Sin asignar": the field admits a value and it is missing, which is what leaves a choreography `incomplete`. Rendering both the same way hides an incomplete record behind a correct-looking one. The `experienceLevel` has a third empty value, `Sin nivel`: the level is optional and none was chosen, which is complete.
+_Avoid_: `Sin asignar`, `Sin nivel`, `Sin datos`, blank
