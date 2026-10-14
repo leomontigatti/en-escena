@@ -90,7 +90,7 @@ const resultsColumns: DataTableColumn<PortalResultRow>[] = [
     header: "Nivel",
     width: 11,
     className: "text-muted-foreground",
-    cell: (row) => <DataTableTruncatedText value={row.levelLabel ?? "—"} />,
+    cell: (row) => <DataTableTruncatedText value={row.levelLabel} />,
   },
 ];
 

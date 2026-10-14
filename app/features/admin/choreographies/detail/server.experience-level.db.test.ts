@@ -11,6 +11,7 @@ import {
   date,
 } from "@/features/portal/choreographies/test-support/db";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import type { GroupType } from "@/lib/events/group-types";
 import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import { expectThrownResponse } from "@/lib/test-support/http";
@@ -186,6 +187,29 @@ describe("administrative choreography detail: experience level", () => {
     await expect(scenario.readExperienceLevel()).resolves.toBeNull();
   });
 
+  test.each([
+    ["grupal", "optional"],
+    ["solo", "required"],
+  ] as const)(
+    "reads a %s's level in a levelled category as %s",
+    async (groupType, requirement) => {
+      const scenario = await createExperienceLevelScenario({
+        academyName: `Academia Nivel ${groupType}`,
+        experienceLevelId: null,
+        groupType,
+        slug: `nivel.${groupType}`,
+      });
+
+      const detail = await loadDetail({
+        choreographyId: scenario.choreography.id,
+        email: `admin.coreografias.nivel.${groupType}@example.com`,
+        role: "admin",
+      });
+
+      expect(detail.choreography.experienceLevelRequirement).toBe(requirement);
+    },
+  );
+
   test("keeps the field open with a single admitted level", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Único",
@@ -345,6 +369,7 @@ async function createExperienceLevelScenario(input: {
   categoryAgeBasis?: number | null;
   categoryExperienceLevels?: ExperienceLevel[];
   experienceLevelId?: ExperienceLevel | null;
+  groupType?: GroupType;
   isEvaluated?: boolean;
   slug: string;
   updatedAt?: Date;
@@ -376,6 +401,7 @@ async function createExperienceLevelScenario(input: {
       input.experienceLevelId === undefined
         ? "amateur"
         : input.experienceLevelId,
+    groupType: input.groupType,
     modalityId: catalog.modality.id,
     name: `Nivel ${input.slug}`,
     scheduleCapacityId: catalog.scheduleCapacity.id,

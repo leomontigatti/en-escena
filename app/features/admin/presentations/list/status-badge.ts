@@ -28,7 +28,7 @@ const warningTriage: {
   { kind: "evaluatedSchedule", label: "Cronograma evaluado" },
   { kind: "dancerSpacing", label: "Separación" },
   { kind: "outOfBlock", label: "Fuera de bloque" },
-  { kind: "missingLevel", label: "Sin nivel" },
+  { kind: "missingLevel", label: "Nivel sin asignar" },
 ];
 
 /**

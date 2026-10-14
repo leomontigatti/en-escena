@@ -11,6 +11,10 @@ import {
   submodalities,
 } from "@/db/schema";
 import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
+import {
+  experienceLevelRequirement,
+  type ExperienceLevelRequirement,
+} from "@/lib/choreographies/experience-level-requirement";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
@@ -137,7 +141,7 @@ export type ChoreographyDetail = {
    * declaring them keeps whatever is stored on the choreography, but no longer
    * requires it and offers no option for it.
    */
-  requiresExperienceLevel: boolean;
+  experienceLevelRequirement: ExperienceLevelRequirement;
   scheduleCapacityId: string;
   scheduleId: string;
   scheduleLabel: string;
@@ -216,8 +220,6 @@ export async function findChoreographyDetail(input: {
     findPresentationOrderNumber(input.choreographyId),
   ]);
 
-  const requiresExperienceLevel = row.categoryExperienceLevels.length > 0;
-
   return {
     academyId: row.academyId,
     academyName: row.academyName,
@@ -243,6 +245,7 @@ export async function findChoreographyDetail(input: {
     operationalStatus: deriveChoreographyOperationalStatus({
       categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
+      groupType: row.groupType,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: professorRows.length > 0,
       placementCheck: {
@@ -253,7 +256,10 @@ export async function findChoreographyDetail(input: {
     }),
     presentationOrderNumber,
     professors: professorRows,
-    requiresExperienceLevel,
+    experienceLevelRequirement: experienceLevelRequirement({
+      categoryExperienceLevels: row.categoryExperienceLevels,
+      groupType: row.groupType,
+    }),
     scheduleCapacityId:
       row.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(row.scheduleId),

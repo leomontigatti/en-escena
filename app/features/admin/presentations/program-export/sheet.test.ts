@@ -81,20 +81,18 @@ describe("the program export sheet", () => {
     ]);
   });
 
-  test("leaves a missing level, submodality, province, professor or dancer list empty", () => {
+  test("leaves a missing submodality, province, professor or dancer list empty", () => {
     const [, cells] = values(
       buildProgramSheet([
         row({
           academyProvince: null,
           dancerNames: [],
-          levelLabel: null,
           professorNames: [],
           submodalityName: null,
         }),
       ]),
     );
 
-    expect(cells[4]).toBeNull();
     expect(cells[7]).toBeNull();
     expect(cells[9]).toBeNull();
     expect(cells[11]).toBeNull();

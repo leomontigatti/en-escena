@@ -1,11 +1,14 @@
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import {
+  categories,
   choreographies,
   presentations,
   submodalityCriteria,
 } from "@/db/schema";
+import { experienceLevelRequirement } from "@/lib/choreographies/experience-level-requirement";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
+import type { GroupType } from "@/lib/events/group-types";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { SheetCriterion } from "@/lib/judging/sheet-total";
 
@@ -16,7 +19,8 @@ import type { SheetCriterion } from "@/lib/judging/sheet-total";
  * dance is scored on two different sheets: the same columns, and above all the
  * same `position` order, which is the order the judge fills the fields in, and
  * the same cut by level: the general criteria and those of the choreography's
- * own level, never another level's.
+ * own level, never another level's, and no sheet at all for a `Sin nivel`
+ * choreography (see `scoresSingleValue`).
  *
  * Each reader is the same query under a different key, so which one a caller
  * wants is only about what it already has in hand.
@@ -41,6 +45,31 @@ const sheetOrder = [
   asc(submodalityCriteria.position),
 ];
 
+/**
+ * What decides which sheet a choreography is scored on: its submodality, its
+ * level, and whether that level was required, optional or not offered at all.
+ */
+export type SheetSubject = {
+  categoryExperienceLevels: readonly ExperienceLevel[];
+  experienceLevel: ExperienceLevel | null;
+  groupType: GroupType;
+  submodalityId: string | null;
+};
+
+/**
+ * Whether the choreography is scored with a single 0-100 value whatever its
+ * submodality's criteria: a grupal that chose `Sin nivel` did not compete by
+ * level, so it is not put on a sheet built for levels, general part included.
+ * A blank level that was required (`Sin asignar`) or not offered (`No aplica`)
+ * keeps the general criteria. See docs/domain/judging.md.
+ */
+function scoresSingleValue(subject: SheetSubject) {
+  return (
+    subject.experienceLevel === null &&
+    experienceLevelRequirement(subject) === "optional"
+  );
+}
+
 /** The general criteria, and those of the level when there is one. */
 function onSheetOf(experienceLevel: ExperienceLevel | null) {
   return experienceLevel === null
@@ -52,15 +81,14 @@ function onSheetOf(experienceLevel: ExperienceLevel | null) {
 }
 
 /**
- * The sheet of a submodality at one level. A submodality without criteria
- * scores a single value.
+ * The sheet a choreography is scored on. A submodality without criteria, and a
+ * `Sin nivel` choreography, score a single value.
  */
 export async function readSubmodalityCriteria(
   executor: Executor,
-  submodalityId: string | null,
-  experienceLevel: ExperienceLevel | null,
+  subject: SheetSubject,
 ): Promise<SheetCriterion[]> {
-  if (submodalityId === null) {
+  if (subject.submodalityId === null || scoresSingleValue(subject)) {
     return [];
   }
 
@@ -69,33 +97,37 @@ export async function readSubmodalityCriteria(
     .from(submodalityCriteria)
     .where(
       and(
-        eq(submodalityCriteria.submodalityId, submodalityId),
-        onSheetOf(experienceLevel),
+        eq(submodalityCriteria.submodalityId, subject.submodalityId),
+        onSheetOf(subject.experienceLevel),
       ),
     )
     .orderBy(...sheetOrder);
 }
 
 /**
- * One level's sheet cut from every criterion of its submodality, as
+ * One choreography's sheet cut from every criterion of its submodality, as
  * `readCriteriaBySubmodality` returns them: already in sheet order, so cutting
  * keeps it.
  */
-export function sheetForLevel(
+export function sheetForChoreography(
   criteria: readonly SheetCriterion[],
-  experienceLevel: ExperienceLevel | null,
+  subject: SheetSubject,
 ): SheetCriterion[] {
+  if (scoresSingleValue(subject)) {
+    return [];
+  }
+
   return criteria.filter(
     (criterion) =>
       criterion.experienceLevel === null ||
-      criterion.experienceLevel === experienceLevel,
+      criterion.experienceLevel === subject.experienceLevel,
   );
 }
 
 /**
  * Every criterion of many submodalities at once, keyed by submodality and in
  * sheet order, for a list that would otherwise ask once per row; each row cuts
- * its own level's sheet with `sheetForLevel`. A submodality with no criteria is
+ * its own sheet with `sheetForChoreography`. A submodality with no criteria is
  * absent from the map, which reads the same as an empty sheet.
  */
 export async function readCriteriaBySubmodality(
@@ -137,6 +169,17 @@ export async function readCriteriaBySubmodality(
 }
 
 /**
+ * What a query joined to the choreography and its category selects to hand
+ * `readSubmodalityCriteria` or `sheetForChoreography` their `SheetSubject`.
+ */
+export const sheetSubjectColumns = {
+  categoryExperienceLevels: categories.experienceLevels,
+  experienceLevel: choreographies.experienceLevelId,
+  groupType: choreographies.groupType,
+  submodalityId: choreographies.submodalityId,
+};
+
+/**
  * The sheet a presentation is scored on, walked from the presentation itself.
  * A save reads it this way rather than trusting the submodality the page was
  * rendered with: a criterion added since is a line the judge has to fill, and
@@ -146,26 +189,15 @@ export async function readPresentationCriteria(
   executor: Executor,
   presentationId: string,
 ): Promise<SheetCriterion[]> {
-  return await executor
-    .select(criterionColumns)
+  const [subject] = await executor
+    .select(sheetSubjectColumns)
     .from(presentations)
     .innerJoin(
       choreographies,
       eq(choreographies.id, presentations.choreographyId),
     )
-    .innerJoin(
-      submodalityCriteria,
-      and(
-        eq(submodalityCriteria.submodalityId, choreographies.submodalityId),
-        or(
-          isNull(submodalityCriteria.experienceLevel),
-          eq(
-            submodalityCriteria.experienceLevel,
-            choreographies.experienceLevelId,
-          ),
-        ),
-      ),
-    )
-    .where(eq(presentations.id, presentationId))
-    .orderBy(...sheetOrder);
+    .innerJoin(categories, eq(categories.id, choreographies.categoryId))
+    .where(eq(presentations.id, presentationId));
+
+  return subject ? await readSubmodalityCriteria(executor, subject) : [];
 }

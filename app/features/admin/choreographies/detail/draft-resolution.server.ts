@@ -196,7 +196,7 @@ function toSavedPlacement(choreography: ChoreographyDetail): DraftPlacement {
     classification: null,
     experienceLevel: {
       options: choreography.experienceLevelOptions,
-      required: choreography.requiresExperienceLevel,
+      requirement: choreography.experienceLevelRequirement,
     },
     groupType: choreography.groupType,
     resolvedDancers: [],
@@ -232,7 +232,7 @@ async function resolveChangedPlacement(input: {
       ],
       category: null,
       classification: null,
-      experienceLevel: { options: [], required: false },
+      experienceLevel: { options: [], requirement: "notApplicable" },
       groupType: deriveGroupType(input.draft.dancerIds.length),
       resolvedDancers: [],
     };
@@ -259,7 +259,7 @@ async function resolveChangedPlacement(input: {
     },
     experienceLevel: {
       options: resolved.experienceLevel.options,
-      required: resolved.experienceLevel.required,
+      requirement: resolved.experienceLevel.requirement,
     },
     groupType: resolved.groupType,
     resolvedDancers: roster.dancers,
@@ -331,7 +331,7 @@ function resolveLockedDraft(input: {
       consequences: noConsequences(),
       experienceLevel: {
         options: choreography.experienceLevelOptions,
-        required: choreography.requiresExperienceLevel,
+        requirement: choreography.experienceLevelRequirement,
       },
       classificationKey: getChoreographyDraftClassificationKey({
         dancerIds: choreography.dancers.map((dancer) => dancer.id),

@@ -190,7 +190,6 @@ export async function loadChoreographies(input: {
       categoryId: choreographies.categoryId,
       choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
-      groupType: choreographies.groupType,
       id: choreographies.id,
       modalityId: choreographies.modalityId,
       modalityName: modalities.name,

@@ -31,7 +31,7 @@ import {
   ScheduleDayTabs,
   useScheduleDayTab,
 } from "@/features/program/day-tabs";
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
+import { experienceLevelDisplayLabel } from "@/lib/choreographies/experience-level-requirement";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { describeEmptyList } from "@/lib/list-query/list-query";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
@@ -129,11 +129,10 @@ const resultsColumns: DataTableColumn<ResultsListItem>[] = [
     className: "text-muted-foreground",
     cell: (row) => (
       <DataTableTruncatedText
-        value={
-          row.experienceLevel === null
-            ? "—"
-            : experienceLevelLabels[row.experienceLevel]
-        }
+        value={experienceLevelDisplayLabel(
+          row.experienceLevel,
+          row.experienceLevelRequirement,
+        )}
       />
     ),
   },

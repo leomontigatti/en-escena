@@ -26,7 +26,7 @@ function portalPresentationsRequest(cookie: string) {
 }
 
 describe("loadPortalPresentationsList", () => {
-  test("names each row's level, and leaves it empty when the category declares none", async () => {
+  test("names each row's level, and words an empty one by why it is empty", async () => {
     const session = await createAcademySession({
       academyName: "Academia Nivel",
       email: "presentaciones.nivel@example.com",
@@ -53,9 +53,33 @@ describe("loadPortalPresentationsList", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
     });
 
+    const missingLevel = await createChoreographyRecord({
+      academyId: session.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      name: "Nivel faltante",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+    const grupalWithoutLevel = await createChoreographyRecord({
+      academyId: session.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      groupType: "grupal",
+      modalityId: catalog.modality.id,
+      name: "Grupal sin nivel",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
     await db.insert(presentations).values([
       { choreographyId: withLevel.id, eventId: event.id, orderNumber: 1 },
       { choreographyId: withoutLevel.id, eventId: event.id, orderNumber: 2 },
+      { choreographyId: missingLevel.id, eventId: event.id, orderNumber: 3 },
+      {
+        choreographyId: grupalWithoutLevel.id,
+        eventId: event.id,
+        orderNumber: 4,
+      },
     ]);
     await setVisibleProgramDays(event.id, [catalog.schedule.scheduledDate]);
 
@@ -65,7 +89,9 @@ describe("loadPortalPresentationsList", () => {
 
     expect(loaderData.rows.map((row) => [row.name, row.levelLabel])).toEqual([
       ["Con nivel", "Amateur"],
-      ["Sin nivel", null],
+      ["Sin nivel", "No aplica"],
+      ["Nivel faltante", "Sin asignar"],
+      ["Grupal sin nivel", "Sin nivel"],
     ]);
   });
 

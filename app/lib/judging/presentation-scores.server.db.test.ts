@@ -170,6 +170,32 @@ describe("a presentation's scores, as administration reads them", () => {
     });
   });
 
+  test("has no sheet for a `Sin nivel` grupal, which is scored with a single value", async () => {
+    const fixture = await seedJudgingFixture();
+    await fixture.addCriterion({ maximum: 100, name: "Técnica", position: 0 });
+    const presentation = await fixture.addPresentation({
+      experienceLevelId: null,
+      groupType: "grupal",
+      name: "Grupal sin nivel",
+      orderNumber: 1,
+    });
+    const judge = await fixture.assignJudge(presentation.presentationId);
+    await db
+      .insert(scores)
+      .values({ judgeAssignmentId: judge.judgeAssignmentId, value: "88.0" });
+
+    const view = await readPresentationScores({
+      presentationId: presentation.presentationId,
+    });
+
+    expect(view).toMatchObject({
+      criteria: [],
+      experienceLevel: null,
+      experienceLevelRequirement: "optional",
+      judges: [{ criteriaValues: {}, value: "88.0" }],
+    });
+  });
+
   test("reads nothing for a presentation that does not exist", async () => {
     await expect(
       readPresentationScores({
