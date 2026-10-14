@@ -46,8 +46,8 @@ change to motion or interaction carries a short GIF instead.
 ## Babysitting a PR
 
 Seeing a PR through CI and review is the `babysit-pr` skill: the session that
-opened the PR runs `pnpm pr:watch --loop` in the background, wakes when a round
-needs judgement, fixes the findings that hold, answers the rest with the
+opened the PR has T3 watch it (`watch_pull_request`; outside T3, a background
+`gh pr checks --watch`), wakes when a round needs judgement, fixes the findings that hold, answers the rest with the
 reason, and stops at ready to merge. The merge stays the user's.
 In a stack, babysit once the whole stack is open: a babysit per layer spends
 checks on commits the next layer's push restarts.
@@ -62,8 +62,7 @@ CodeRabbit is optional. The in-session review carries its job: the correctness
 axis of `implement` step 5 runs on every diff that changes behaviour, on Opus
 beside the Sol axes, and its brief names the areas where CodeRabbit caught bugs
 that review used to miss. CodeRabbit is asked once, by the babysit, and only on
-a PR in the full-review tier, once the PR is final; every other PR is watched
-with `pnpm pr:watch --no-coderabbit`. While the repo has under 10 GitHub stars,
+a PR in the full-review tier, once the PR is final; no other PR waits on it. While the repo has under 10 GitHub stars,
 CodeRabbit gives it no automatic reviews and each request spends a small hourly
 allowance, so a rate limit or a skipped review is never a reason to wait: the
 PR is ready once its checks are green and the in-session review ran, and the
