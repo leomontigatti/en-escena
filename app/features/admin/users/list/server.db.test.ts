@@ -42,6 +42,19 @@ describe("users list loader", () => {
     );
   });
 
+  // The "Archivado" filter was a second name for "Suspendido" (#715); a saved
+  // link to it lands on the state filter it always meant.
+  test("redirects the retired `archivado=si` filter to the suspended state", async () => {
+    const response = await expectThrownResponse(
+      loader({ request: await listRequest("?archivado=si&rol=judge") }),
+      302,
+    );
+
+    expect(response.headers.get("Location")).toBe(
+      "/administracion/usuarios?estado=suspended&rol=judge",
+    );
+  });
+
   test("finds a user whatever accents the search is typed with", async () => {
     await db.insert(user).values({
       email: `joaquin.${crypto.randomUUID()}@example.com`,

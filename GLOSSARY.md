@@ -128,7 +128,7 @@ _Avoid_: `academyRegistration`, `accessRecovery`
 
 **`suspendedUser`** — ui: "Usuario suspendido"
 User who keeps their history but cannot start or maintain access sessions.
-_Avoid_: deleted user, inactive user, deactivation
+_Avoid_: deleted user, inactive user, deactivation, `Archivado`
 
 **`admin`** — ui: "Administrador"
 User with operating permissions over the event and its exceptions.
@@ -290,7 +290,7 @@ Documentary validation situation of a dancer, derived and never stored, with thr
 _Avoid_: identification status, `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`rosterPersonStatus`** — ui: "Estado de alta"
-Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` (`Activo`) and `archived` (`Archivado`): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. Archiving is refused while the person is participating in the active event —a live inscription, a professor link or a live seminar inscription of that event— and reactivating is never refused; the predicate is one reader, shared by the writer's guard and by the detail screens that grey the `Archivar` button out. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.
+Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` (`Activo`) and `archived` (`Archivado`): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. Archiving is refused while the person is participating in the active event —a live inscription, a professor link or a live seminar inscription of that event— and reactivating is never refused; the predicate is one reader, shared by the writer's guard and by the detail screens that grey the `Archivar` button out. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this.
 _Avoid_: participating, `dancerVerificationStatus`, deleted person
 
 **`mergeRosterPeople`** — ui: "Fusionar"

@@ -12,7 +12,6 @@ import type {
   UserListFilters,
   UserListItem,
   UserListRole,
-  UserListState,
   UserListType,
 } from "@/lib/admin/users/users-list.shared";
 import {
@@ -20,9 +19,16 @@ import {
   toUserListFacets,
 } from "@/lib/admin/users/users-list.shared";
 import {
+  getUserAccessStateBadgeVariant,
+  getUserAccessStateLabel,
+  userAccessStateOptions,
+} from "@/lib/auth/user-access-state.shared";
+import {
   activeListFacets,
   describeEmptyList,
 } from "@/lib/list-query/list-query";
+
+import { UserAccessStateBadge } from "../user-access-state-badge";
 
 import type { loader } from "./server";
 
@@ -36,11 +42,6 @@ type FilterSelectOption = {
   label: string;
   value: string;
 };
-
-const stateFilterOptions = [
-  { label: "Activo", value: "active" },
-  { label: "Suspendido", value: "suspended" },
-] satisfies FilterSelectOption[];
 
 const roleFilterOptions = [
   { label: "Administrador", value: "admin" },
@@ -58,7 +59,7 @@ export function InternalUsersListRouteView({
     <AdminResourceLayout
       requireSelectedEvent={false}
       title="Usuarios"
-      description="Consultá accesos internos y de academia con filtros por tipo, estado y archivo."
+      description="Consultá accesos internos y de academia con filtros por tipo y estado."
       action={
         loaderData.canManage
           ? { label: "Nuevo usuario", to: "/administracion/usuarios/nuevo" }
@@ -130,22 +131,19 @@ function UsersTable({
       cell: (savedUser) => (
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">{getRoleLabel(savedUser.mainRole)}</Badge>
-          <Badge variant={getStateBadgeVariant(savedUser.state)}>
-            {getStateLabel(savedUser.state)}
-          </Badge>
+          <UserAccessStateBadge state={savedUser.state} />
         </div>
       ),
       filterValues: (savedUser) => [
         savedUser.mainRole,
         savedUser.userType,
         savedUser.state,
-        savedUser.state === "suspended" ? "si" : "",
       ],
       filterValue: (savedUser) =>
         [
           getRoleLabel(savedUser.mainRole),
           getTypeLabel(savedUser.userType),
-          getStateLabel(savedUser.state),
+          getUserAccessStateLabel(savedUser.state),
         ].join(" "),
     },
   ];
@@ -169,21 +167,16 @@ function UsersTable({
         {
           id: "estado",
           label: "Estado",
-          options: stateFilterOptions,
+          options: userAccessStateOptions,
           renderValue: (option) => (
             <Badge
-              variant={getStateBadgeVariant(
+              variant={getUserAccessStateBadgeVariant(
                 option.value === "suspended" ? "suspended" : "active",
               )}
             >
               {option.label}
             </Badge>
           ),
-        },
-        {
-          id: "archivado",
-          label: "Archivo",
-          options: [{ label: "Archivado", value: "si" }],
         },
       ]}
       initialFacetedFilterValues={buildInitialUserFilterValues(filters)}
@@ -228,23 +221,5 @@ function getTypeLabel(type: UserListType) {
       return "Interno";
     case "academy":
       return "Usuario de academia";
-  }
-}
-
-function getStateLabel(state: UserListState) {
-  switch (state) {
-    case "active":
-      return "Activo";
-    case "suspended":
-      return "Suspendido";
-  }
-}
-
-function getStateBadgeVariant(state: UserListState) {
-  switch (state) {
-    case "active":
-      return "success";
-    case "suspended":
-      return "destructive";
   }
 }
