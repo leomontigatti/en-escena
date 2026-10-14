@@ -12,7 +12,7 @@ reviews:
       - ".*"
   review_status: false
   # The PR body is ours (the `pr` skill, .agents/skills/pr); the walkthrough comment,
-  # which scripts/pr-watch.ts reads, is still posted.
+  # which babysit-pr reads, is still posted.
   high_level_summary: false
   pre_merge_checks:
     docstrings:
