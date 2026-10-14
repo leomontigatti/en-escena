@@ -1,5 +1,5 @@
 {
-  "id": "5ff2b97a-2613-43db-beed-aea2a61d0c7a",
+  "id": "f52a94ab-c177-4d98-aa34-bcf08d32c91d",
   "prevId": "83ba1766-5767-45a3-bff1-ce80cb44591d",
   "version": "7",
   "dialect": "postgresql",
@@ -619,8 +619,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "en_escena_individual_link_confirmed_by_user_id_en_escena_user_id_fk": {
-          "name": "en_escena_individual_link_confirmed_by_user_id_en_escena_user_id_fk",
+        "individual_link_confirmed_by_fk": {
+          "name": "individual_link_confirmed_by_fk",
           "tableFrom": "en_escena_individual",
           "tableTo": "en_escena_user",
           "columnsFrom": ["link_confirmed_by_user_id"],

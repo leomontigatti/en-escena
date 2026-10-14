@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
-import { text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
+import {
+  foreignKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/pg-core";
 
 import { user } from "./access";
 import { academies } from "./academies";
@@ -36,7 +42,7 @@ export const individuals = createTable(
     }),
     linkConfirmedByUserId: varchar("link_confirmed_by_user_id", {
       length: 255,
-    }).references(() => user.id, { onDelete: "set null" }),
+    }),
     linkConfirmedDocumentNumber: text("link_confirmed_document_number"),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -51,5 +57,13 @@ export const individuals = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex("individual_academy_id_unique").on(table.academyId)],
+  (table) => [
+    uniqueIndex("individual_academy_id_unique").on(table.academyId),
+    // Named by hand: the generated name runs past Postgres's 63 bytes.
+    foreignKey({
+      columns: [table.linkConfirmedByUserId],
+      foreignColumns: [user.id],
+      name: "individual_link_confirmed_by_fk",
+    }).onDelete("set null"),
+  ],
 ).enableRLS();
