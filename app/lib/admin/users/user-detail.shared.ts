@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import { internalUserRoleLabels } from "@/lib/auth/internal-user-roles";
+import {
+  toUserAccessState,
+  type UserAccessState,
+} from "@/lib/auth/user-access-state.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
@@ -31,7 +35,6 @@ export type ResetPasswordFormValues = {
 };
 
 export type DetailUserRole = "academy" | "admin" | "auditor" | "judge";
-export type DetailUserState = "active" | "suspended";
 export type DetailUserType = "academy" | "internal";
 
 export type DetailUserRow = {
@@ -54,7 +57,7 @@ export type DetailUser = {
   id: string;
   mainRole: DetailUserRole;
   name: string;
-  state: DetailUserState;
+  state: UserAccessState;
   userType: DetailUserType;
 };
 
@@ -74,11 +77,6 @@ export const detailUserRoleOptions = [
 export const internalUserRoleOptions = detailUserRoleOptions.filter(
   (option) => option.value !== "academy",
 );
-
-export const detailUserStateOptions = [
-  { value: "active", label: "Activo" },
-  { value: "suspended", label: "Suspendido" },
-] as const satisfies ReadonlyArray<{ value: DetailUserState; label: string }>;
 
 export type DetailActionData = {
   form: "edit" | "reset-password" | "status";
@@ -161,7 +159,7 @@ export function buildDetailUser(row: DetailUserRow): DetailUser {
     id: row.id,
     mainRole: row.role,
     name: getDetailName(row, isAcademyUser),
-    state: getDetailState(row, isAcademyUser),
+    state: toUserAccessState(row),
     userType: isAcademyUser ? "academy" : "internal",
   };
 }
@@ -273,17 +271,6 @@ function getDetailName(row: DetailUserRow, isAcademyUser: boolean) {
   }
 
   return row.name;
-}
-
-function getDetailState(
-  row: DetailUserRow,
-  isAcademyUser: boolean,
-): DetailUserState {
-  if (!isAcademyUser && row.suspended) {
-    return "suspended";
-  }
-
-  return "active";
 }
 
 function buildPathWithSearch(pathname: string, searchParams: URLSearchParams) {

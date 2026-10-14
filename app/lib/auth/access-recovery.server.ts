@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { academies, user } from "@/db/schema";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { RecoveryLinkRefusedError } from "@/lib/auth/access-auth-provider.shared.server";
+import { userAccessStateCondition } from "@/lib/auth/user-access-state.server";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
 import { describeServerError } from "@/lib/shared/unexpected-error-log.server";
 
@@ -142,7 +143,7 @@ async function isEligibleAcademyRecoveryEmail(email: string) {
         eq(user.email, email),
         eq(user.role, "academy"),
         eq(user.emailVerified, true),
-        eq(user.suspended, false),
+        userAccessStateCondition("active"),
       ),
     )
     .then(([record]) => record ?? null);

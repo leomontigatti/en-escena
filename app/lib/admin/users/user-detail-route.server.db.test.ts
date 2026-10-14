@@ -568,6 +568,77 @@ describe("`/administracion/usuarios/:userId` route", () => {
     expect(internalDetailData).not.toHaveProperty("selectedEventId");
   });
 
+  // #715: the list and the detail used to call every academy row "Activo"
+  // before reading `suspended`, while login and `Recuperación de acceso`
+  // refused it, so the admin saw a healthy user who could not get in.
+  test("shows a suspended academy user as suspended in the list and the detail, and only under the suspended filter", async () => {
+    const suspendedAcademy = await createAcademyUser({
+      email: "academia.suspendida@example.com",
+      academyName: "Academia Suspendida",
+      contactName: "Sofía Suspendida",
+      name: "Sofía Suspendida",
+      suspended: true,
+    });
+    const { request: adminRequest } = await createSignedInRequest({
+      email: "admin.academia.suspendida@example.com",
+      role: "admin",
+      requestUrl: "http://localhost/administracion/usuarios",
+      name: "Admin Suspensiones",
+      internalUsername: "admin.suspensiones",
+    });
+    const cookie = adminRequest.headers.get("cookie") ?? "";
+    const listUserIds = async (search: string) =>
+      (
+        await listLoader(
+          listRouteArgs(
+            new Request(`http://localhost/administracion/usuarios${search}`, {
+              headers: { cookie },
+            }),
+          ),
+        )
+      ).users.map((listedUser) => listedUser.id);
+
+    expect(await listUserIds("")).not.toContain(suspendedAcademy.userId);
+    expect(await listUserIds("?estado=active")).not.toContain(
+      suspendedAcademy.userId,
+    );
+
+    const suspendedList = await listLoader(
+      listRouteArgs(
+        new Request(
+          "http://localhost/administracion/usuarios?estado=suspended",
+          {
+            headers: { cookie },
+          },
+        ),
+      ),
+    );
+
+    expect(suspendedList.users).toEqual([
+      expect.objectContaining({
+        id: suspendedAcademy.userId,
+        state: "suspended",
+        userType: "academy",
+      }),
+    ]);
+    expect(renderListRoute(suspendedList)).toContain("Suspendido");
+
+    const detailData = await detailLoader(
+      detailRouteArgs(
+        new Request(
+          `http://localhost/administracion/usuarios/${suspendedAcademy.userId}`,
+          { headers: { cookie } },
+        ),
+        suspendedAcademy.userId,
+      ),
+    );
+
+    expect(detailData.user.state).toBe("suspended");
+    expect(renderDetailRoute(detailData, suspendedAcademy.userId)).toContain(
+      "Suspendido",
+    );
+  });
+
   test("preserves the back-to-list search while removing detail-only search params", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.ruta.detalle@example.com",
@@ -613,9 +684,8 @@ function renderListRoute(
           "0": {
             canManage: true,
             filters: {
-              archived: false,
               query: "",
-              state: "all",
+              state: null,
               type: "all",
             },
             users: [],
