@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { normalizeChoreographyName } from "@/lib/choreographies/choreography-name";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import {
-  noExperienceLevelChoice,
   type CreateChoreographyForm,
   type CreateChoreographyFormValues,
   type CreateChoreographyStep,
@@ -49,9 +48,6 @@ export function ChoreographyCreationSummary({
     values.professorIds.includes(professor.id),
   );
   const isScheduleChosen = resolution.schedule.status === "multiple";
-  const isScoredWithSingleValue =
-    resolution.experienceLevel.requirement === "optional" &&
-    values.experienceLevelId === noExperienceLevelChoice;
 
   return (
     <>
@@ -114,11 +110,6 @@ export function ChoreographyCreationSummary({
               resolution,
               values.experienceLevelId ?? "",
             )}
-            {isScoredWithSingleValue ? (
-              <span className="block text-xs text-muted-foreground">
-                Se evalúa con un único puntaje de 0 a 100.
-              </span>
-            ) : null}
           </SummaryRow>
         ) : null}
         <SummaryRow

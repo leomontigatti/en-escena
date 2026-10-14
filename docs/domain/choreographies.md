@@ -308,7 +308,7 @@ What the dialog announced is advisory.
 - If the level is required, registration cannot advance or confirm until academy chooses one. An optional level cannot advance either until a level or `Sin nivel` is picked; the server accepts a grupal with no level.
 - Professors are selected after the category step, before summary; registration requires at least one.
 - Registration summary shows operational data only, not price or financial info.
-- The summary lists every dancer and professor by name, with their count, and each answer has a way back to the step that gave it; the category has none, since it follows from the dancers. Where the category admits levels it shows `Nivel de experiencia` with the chosen level or `Sin nivel`, and for `Sin nivel` says the choreography is scored with a single 0-100 value.
+- The summary lists every dancer and professor by name, with their count, and each answer has a way back to the step that gave it; the category has none, since it follows from the dancers. Where the category admits levels it shows `Nivel de experiencia` with the chosen level or `Sin nivel`.
 - Registration does not create dancers or professors inline.
 - Music file is not uploaded during initial registration; it remains pending operational data.
 - Backend revalidates the selected specific capacity when present and always revalidates schedule total capacity on confirmation.

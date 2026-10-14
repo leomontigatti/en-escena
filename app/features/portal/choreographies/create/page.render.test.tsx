@@ -366,16 +366,13 @@ describe("the choreography registration page", () => {
       expect(getHeading()).toBe("Revisá antes de guardar");
     }
 
-    test("registers `Sin nivel` with no level, and says on the summary it is scored with a single value", async () => {
+    test("registers `Sin nivel` with no level and shows it on the summary", async () => {
       const { router, submissions } = await reachCategoryStep();
 
       await clickLabel("Sin nivel");
       await saveFromCategoryStep();
 
-      expect(getSummaryValue("Nivel de experiencia")).toContain("Sin nivel");
-      expect(getSummaryValue("Nivel de experiencia")).toContain(
-        "un único puntaje de 0 a 100",
-      );
+      expect(getSummaryValue("Nivel de experiencia")).toBe("Sin nivel");
 
       await clickReactDomButton("Guardar");
       await waitFor(
